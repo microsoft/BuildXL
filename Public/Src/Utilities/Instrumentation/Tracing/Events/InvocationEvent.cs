@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Reflection;
 using System.Diagnostics.Tracing;
+using System.Reflection;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Tracing.CloudBuild
@@ -43,17 +43,17 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Commandline arguments
         /// </summary>
-        public string CommandLineArgs { get; set; }
+        public string? CommandLineArgs { get; set; }
 
         /// <summary>
         /// BuildXL version
         /// </summary>
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public string DominoVersion { get; set; }
+        public string? DominoVersion { get; set; }
 
         /// <summary>
         /// Log directory
         /// </summary>
-        public string LogDirectory { get; set; }
+        public string? LogDirectory { get; set; }
     }
 }

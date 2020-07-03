@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -35,6 +35,9 @@ namespace BuildXL.Utilities
         /// True if this union instance is valid;
         /// </summary>
         public bool IsValid => this != Invalid;
+
+        /// <inheritdoc />
+        public override string ToString() => IsFile ? FileArtifact.ToString() : DirectoryArtifact.ToString();
 
         /// <summary>
         /// Invalid union instance.

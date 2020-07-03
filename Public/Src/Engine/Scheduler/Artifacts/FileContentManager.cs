@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -22,6 +22,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -69,7 +70,6 @@ namespace BuildXL.Scheduler.Artifacts
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public sealed class FileContentManager : IQueryableFileContentManager
     {
-        private const int MAX_SYMLINK_TRAVERSALS = 100;
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
         #region Internal State
@@ -185,15 +185,6 @@ namespace BuildXL.Scheduler.Artifacts
         private readonly ConcurrentBigMap<FileArtifact, DirectoryArtifact> m_dynamicOutputFileDirectories =
             new ConcurrentBigMap<FileArtifact, DirectoryArtifact>();
 
-        /// <summary>
-        /// Symlink definitions.
-        /// </summary>
-        private readonly SymlinkDefinitions m_symlinkDefinitions;
-
-        /// <summary>
-        /// Flag indicating if symlink should be created lazily.
-        /// </summary>
-        private bool LazySymlinkCreation => m_host.Configuration.Schedule.UnsafeLazySymlinkCreation && m_symlinkDefinitions != null;
         #endregion
 
         #region External State (i.e. passed into constructor)
@@ -240,7 +231,9 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Holds change affected artifacts of the build
         /// </summary>
-        public SourceChangeAffectedContents SourceChangeAffectedContents { get; }
+        public SourceChangeAffectedInputs SourceChangeAffectedInputs { get; }
+
+        private enum PlaceFile { Success, UserError, InternalError }
 
         #endregion
 
@@ -251,13 +244,11 @@ namespace BuildXL.Scheduler.Artifacts
         public FileContentManager(
             IFileContentManagerHost host,
             IOperationTracker operationTracker,
-            SymlinkDefinitions symlinkDefinitions = null,
             ITempCleaner tempDirectoryCleaner = null)
         {
             m_host = host;
             ArtifactContentCache = new ElidingArtifactContentCacheWrapper(host.ArtifactContentCache);
             OperationTracker = operationTracker;
-            m_symlinkDefinitions = symlinkDefinitions;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
 
             m_outputMaterializationExclusionMap = new FlaggedHierarchicalNameDictionary<Unit>(host.Context.PathTable, HierarchicalNameTable.NameFlags.Root);
@@ -266,7 +257,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
 
-            SourceChangeAffectedContents = new SourceChangeAffectedContents(this);
+            SourceChangeAffectedInputs = new SourceChangeAffectedInputs(this);
         }
 
         /// <summary>
@@ -330,7 +321,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void ReportOutputContent(
             OperationContext operationContext,
-            string pipDescription,
+            long pipSemiStableHash,
             FileArtifact artifact,
             in FileMaterializationInfo info,
             PipOutputOrigin origin,
@@ -342,7 +333,7 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 if (origin != PipOutputOrigin.NotMaterialized && artifact.IsOutputFile)
                 {
-                    LogOutputOrigin(operationContext, pipDescription, artifact.Path.ToString(Context.PathTable), info, origin);
+                    LogOutputOrigin(operationContext, pipSemiStableHash, artifact.Path.ToString(Context.PathTable), info, origin);
                 }
             }
         }
@@ -454,6 +445,15 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public async Task<bool> TryMaterializeDependenciesAsync(Pip pip, OperationContext operationContext)
         {
+            var result = await TryMaterializeDependenciesInternalAsync(pip, operationContext);
+            return result == ArtifactMaterializationResult.Succeeded;
+        }
+
+        /// <summary>
+        /// Ensures pip inputs are materialized and returns ArtifactMaterializationResult
+        /// </summary>
+        internal async Task<ArtifactMaterializationResult> TryMaterializeDependenciesInternalAsync(Pip pip, OperationContext operationContext)
+        {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
                 // Get inputs
@@ -466,20 +466,27 @@ namespace BuildXL.Scheduler.Artifacts
                 switch (result)
                 {
                     case ArtifactMaterializationResult.Succeeded:
-                        return true;
+                        break;
                     case ArtifactMaterializationResult.PlaceFileFailed:
                         Logger.Log.PipMaterializeDependenciesFromCacheFailure(
                             operationContext,
                             pip.GetDescription(Context),
                             state.GetFailure().DescribeIncludingInnerFailures());
-
-                        ExecutionLog?.CacheMaterializationError(new CacheMaterializationErrorEventData()
-                        {
-                            PipId = pip.PipId,
-                            FailedFiles = state.FailedFiles.ToReadOnlyArray()
-                        });
-
-                        return false;
+                        cacheMaterializationErrorLog(state);
+                        break;
+                    case ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure:
+                        Logger.Log.PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure(
+                            operationContext,
+                            pip.GetDescription(Context),
+                            state.GetFailure().DescribeIncludingInnerFailures());
+                        cacheMaterializationErrorLog(state);
+                        break;
+                    case ArtifactMaterializationResult.VerifySourceFilesFailed:
+                        Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
+                            operationContext,
+                            pip.GetDescription(Context),
+                            state.GetFailure().DescribeIncludingInnerFailures());
+                        break;
                     default:
                         // Catch-all error for non-cache dependency materialization failures
                         Logger.Log.PipMaterializeDependenciesFailureUnrelatedToCache(
@@ -487,8 +494,19 @@ namespace BuildXL.Scheduler.Artifacts
                             pip.GetDescription(Context),
                             result.ToString(),
                             state.GetFailure().DescribeIncludingInnerFailures());
-                        return false;
+                        break;
                 }
+
+                return result;
+            }
+
+            void cacheMaterializationErrorLog(PipArtifactsState state)
+            {
+                ExecutionLog?.CacheMaterializationError(new CacheMaterializationErrorEventData()
+                {
+                    PipId = pip.PipId,
+                    FailedFiles = state.FailedFiles.ToReadOnlyArray()
+                });
             }
         }
 
@@ -544,7 +562,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash)> filesAndContentHashes,
             Action onFailure = null,
-            Action<int, string> onContentUnavailable = null,
+            Action<int, string, string> onContentUnavailable = null,
             bool materialize = false)
         {
             Logger.Log.ScheduleTryBringContentToLocalCache(operationContext, pipInfo.Description);
@@ -560,7 +578,7 @@ namespace BuildXL.Scheduler.Artifacts
                     onlyLogUnavailableContent: true,
                     filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index)),
                     onFailure: failure => { onFailure?.Invoke(); },
-                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr) => { /* Do nothing. Callee already logs the failure */ }));
+                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr, failureType) => { /* Do nothing. Callee already logs the failure */ }));
 
                 return result;
             }
@@ -583,7 +601,8 @@ namespace BuildXL.Scheduler.Artifacts
                             symlinkTarget: AbsolutePath.Invalid);
                     }
 
-                    return await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    return placeResult == PlaceFile.Success;
                 }
             }
         }
@@ -629,7 +648,7 @@ namespace BuildXL.Scheduler.Artifacts
                     handleEntry: (entry, attributes) =>
                     {
                         var path = currentDirectoryPath.Combine(pathTable, entry);
-                        // must treat directory symlinks as files: recursing on directory symlinks can lean to infinite loops
+                        // must treat directory symlinks as files: recursing on directory symlinks can lead to infinite loops
                         if (!FileUtilities.IsDirectoryNoFollow(attributes))
                         {
                             var fileArtifact = FileArtifact.CreateOutputFile(path);
@@ -800,113 +819,10 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Attempts to the symlink target if registered
-        /// </summary>
-        public AbsolutePath TryGetRegisteredSymlinkFinalTarget(AbsolutePath symlink)
-        {
-            if (m_symlinkDefinitions == null)
-            {
-                return AbsolutePath.Invalid;
-            }
-
-            AbsolutePath symlinkTarget = symlink;
-            for (int i = 0; i < MAX_SYMLINK_TRAVERSALS; i++)
-            {
-                var next = m_symlinkDefinitions.TryGetSymlinkTarget(symlinkTarget);
-                if (next.IsValid)
-                {
-                    symlinkTarget = next;
-                }
-                else
-                {
-                    return symlinkTarget == symlink ? AbsolutePath.Invalid : symlinkTarget;
-                }
-            }
-
-            // Symlink chain is too long
-            List<AbsolutePath> symlinkChain = new List<AbsolutePath>();
-            symlinkTarget = symlink;
-            for (int i = 0; i < MAX_SYMLINK_TRAVERSALS; i++)
-            {
-                symlinkChain.Add(symlinkTarget);
-                symlinkTarget = m_symlinkDefinitions.TryGetSymlinkTarget(symlinkTarget);
-            }
-
-            throw new BuildXLException(I(
-                $"Registered symlink chain exceeds max length of {MAX_SYMLINK_TRAVERSALS}: {string.Join("->" + Environment.NewLine, symlinkChain)}"));
-        }
-
-        /// <summary>
-        /// Reports an unexpected access which the file content manager can check to verify that access is safe with respect to lazy
-        /// symlink creation
-        /// </summary>
-        internal void ReportUnexpectedSymlinkAccess(LoggingContext loggingContext, string pipDescription, AbsolutePath path, ObservedInputType observedInputType, CompactSet<ReportedFileAccess> reportedAccesses)
-        {
-            if (TryGetSymlinkPathKind(path, out var symlinkPathKind))
-            {
-                using (var toolPathSetWrapper = Pools.StringSetPool.GetInstance())
-                using (var toolFileNameSetWrapper = Pools.StringSetPool.GetInstance())
-                {
-                    var toolPathSet = toolPathSetWrapper.Instance;
-                    var toolFileNameSet = toolFileNameSetWrapper.Instance;
-
-                    foreach (var reportedAccess in reportedAccesses)
-                    {
-                        if (!string.IsNullOrEmpty(reportedAccess.Process.Path))
-                        {
-                            if (toolPathSet.Add(reportedAccess.Process.Path))
-                            {
-                                AbsolutePath toolPath;
-                                if (AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Process.Path, out toolPath))
-                                {
-                                    toolFileNameSet.Add(toolPath.GetName(Context.PathTable).ToString(Context.StringTable));
-                                }
-                            }
-                        }
-                    }
-
-                    Logger.Log.UnexpectedAccessOnSymlinkPath(
-                        pipDescription: pipDescription,
-                        context: loggingContext,
-                        path: path.ToString(Context.PathTable),
-                        pathKind: symlinkPathKind,
-                        inputType: observedInputType.ToString(),
-                        tools: string.Join(", ", toolFileNameSet));
-                }
-            }
-        }
-
-        internal bool TryGetSymlinkPathKind(AbsolutePath path, out string kind)
-        {
-            kind = null;
-            if (m_symlinkDefinitions == null)
-            {
-                return false;
-            }
-
-            if (m_symlinkDefinitions.IsSymlink(path))
-            {
-                kind = "file";
-            }
-            else if (m_symlinkDefinitions.HasNestedSymlinks(path))
-            {
-                kind = "directory";
-            }
-
-            return kind != null;
-        }
-
-        /// <summary>
         /// Gets the updated semantic path information for the given path with data from the file content manager
         /// </summary>
         internal SemanticPathInfo GetUpdatedSemanticPathInfo(in SemanticPathInfo mountInfo)
         {
-            if (mountInfo.IsValid && LazySymlinkCreation && m_symlinkDefinitions.HasNestedSymlinks(mountInfo.Root))
-            {
-                // Rewrite the semantic path info to indicate that the mount has potential build outputs
-                return new SemanticPathInfo(mountInfo.RootName, mountInfo.Root, mountInfo.Flags | SemanticPathFlags.HasPotentialBuildOutputs);
-            }
-
             return mountInfo;
         }
 
@@ -915,9 +831,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public bool HasPotentialBuildOutputs(AbsolutePath directoryPath, in SemanticPathInfo mountInfo, bool isReadOnlyDirectory)
         {
-            // If (1) the directory is writeable, or (2) the directory contains symlinks, that may have not been created, then use the graph enumeration.
-            return (mountInfo.IsWritable && !isReadOnlyDirectory) ||
-                (LazySymlinkCreation && m_symlinkDefinitions.DirectoryContainsSymlink(directoryPath));
+            return (mountInfo.IsWritable && !isReadOnlyDirectory);
         }
 
         /// <summary>
@@ -1067,6 +981,8 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializatingOutputs,
             bool isDeclaredProducer)
         {
+            Contract.Requires(requestingPip != null);
+
             var pipInfo = new PipInfo(requestingPip, Context);
 
             using (PipArtifactsState state = GetPipArtifactsState())
@@ -1300,7 +1216,15 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public Pip GetDeclaredProducer(FileArtifact file)
         {
-            return m_host.GetProducer(GetDeclaredArtifact(file));
+            var declaredFile = GetDeclaredArtifact(file);
+            var declaredProducer = m_host.GetProducer(declaredFile);
+            if (declaredProducer == null)
+            {
+                var filePath = file.Path.IsValid ? file.Path.ToString(Context.PathTable) : "Invalid";
+                var declaredFilePath = declaredFile.Path.IsValid ? declaredFile.Path.ToString(Context.PathTable) : "Invalid";
+                throw new BuildXLException($"No declared producer pip found. File: {file}, File.Path: {filePath}, DeclaredFile: {declaredFile}, DeclaredFile.Path: {declaredFilePath}");
+            }
+            return declaredProducer;
         }
 
         /// <summary>
@@ -1454,98 +1378,6 @@ namespace BuildXL.Scheduler.Artifacts
             return fileContentInfo;
         }
 
-        /// <summary>
-        /// Creates all symlink files in the symlink definitions
-        /// </summary>
-        public static bool CreateSymlinkEagerly(LoggingContext loggingContext, IConfiguration configuration, PathTable pathTable, SymlinkDefinitions symlinkDefinitions, CancellationToken cancellationToken)
-        {
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(symlinkDefinitions != null);
-            Contract.Requires(!configuration.Schedule.UnsafeLazySymlinkCreation || configuration.Engine.PopulateSymlinkDirectories.Count != 0);
-
-            Logger.Log.SymlinkFileTraceMessage(loggingContext, I($"Eagerly creating symlinks found in symlink file."));
-
-            int createdSymlinkCount = 0;
-            int reuseExistingSymlinkCount = 0;
-            int failedSymlinkCount = 0;
-
-            var startTime = TimestampUtilities.Timestamp;
-
-            var symlinkDirectories = symlinkDefinitions.DirectorySymlinkContents.Keys.ToList();
-            var populateSymlinkDirectories = new HashSet<HierarchicalNameId>(configuration.Engine.PopulateSymlinkDirectories.Select(p => p.Value));
-
-            Parallel.ForEach(
-                symlinkDirectories,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = configuration.Schedule.MaxProcesses,
-                },
-                symlinkDirectory =>
-                {
-                    bool populateSymlinks = !configuration.Schedule.UnsafeLazySymlinkCreation;
-                    if (!populateSymlinks)
-                    {
-                        // If populating symlinks lazily, check if the directory is under the explicitly specified symlink directories
-                        // to populate
-                        foreach (var parent in pathTable.EnumerateHierarchyBottomUp(symlinkDirectory.Value))
-                        {
-                            if (populateSymlinkDirectories.Contains(parent))
-                            {
-                                populateSymlinks = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!populateSymlinks)
-                    {
-                        return;
-                    }
-
-                    var directorySymlinks = symlinkDefinitions.DirectorySymlinkContents[symlinkDirectory];
-                    foreach (var symlinkPath in directorySymlinks)
-                    {
-                        var symlink = symlinkPath.ToString(pathTable);
-                        var symlinkTarget = symlinkDefinitions[symlinkPath].ToString(pathTable);
-
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            Interlocked.Increment(ref failedSymlinkCount);
-                            break;
-                        }
-
-                        bool created;
-
-                        var maybeSymlink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(symlink, symlinkTarget, true, out created);
-                        if (maybeSymlink.Succeeded)
-                        {
-                            if (created)
-                            {
-                                Interlocked.Increment(ref createdSymlinkCount);
-                            }
-                            else
-                            {
-                                Interlocked.Increment(ref reuseExistingSymlinkCount);
-                            }
-                        }
-                        else
-                        {
-                            Interlocked.Increment(ref failedSymlinkCount);
-                            Logger.Log.FailedToCreateSymlinkFromSymlinkMap(loggingContext, symlink, symlinkTarget, maybeSymlink.Failure.DescribeIncludingInnerFailures());
-                        }
-                    }
-                });
-
-            Logger.Log.CreateSymlinkFromSymlinkMap(
-                loggingContext,
-                createdSymlinkCount,
-                reuseExistingSymlinkCount,
-                failedSymlinkCount,
-                (int)(TimestampUtilities.Timestamp - startTime).TotalMilliseconds);
-
-            return failedSymlinkCount == 0;
-        }
-
         private async Task<ArtifactMaterializationResult> TryMaterializeArtifactsCore(
             PipInfo pipInfo,
             OperationContext operationContext,
@@ -1596,9 +1428,12 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             // Place Files:
-            if (!await PlaceFilesAsync(operationContext, pipInfo, state))
+            var possiblyPlaced = await PlaceFilesAsync(operationContext, pipInfo, state);
+            if (possiblyPlaced != PlaceFile.Success)
             {
-                return ArtifactMaterializationResult.PlaceFileFailed;
+                return possiblyPlaced == PlaceFile.UserError 
+                    ? ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure 
+                    : ArtifactMaterializationResult.PlaceFileFailed;
             }
 
             // Mark directories as materialized so that the full set of files in the directory will
@@ -1646,36 +1481,10 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                     else if (sealDirectoryKind == SealDirectoryKind.SourceTopDirectoryOnly)
                     {
-                        IReadOnlyList<AbsolutePath> paths;
-                        if (LazySymlinkCreation && m_symlinkDefinitions.TryGetSymlinksInDirectory(directory.Path, out paths))
-                        {
-                            foreach (var path in paths)
-                            {
-                                AddFileMaterialization(
-                                    state,
-                                    FileArtifact.CreateSourceFile(path),
-                                    directoryAllowReadOnlyOverride,
-                                    m_symlinkDefinitions[path]);
-                            }
-                        }
-
                         continue;
                     }
                     else if (sealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
                     {
-                        if (LazySymlinkCreation && m_symlinkDefinitions.HasNestedSymlinks(directory))
-                        {
-                            foreach (var node in Context.PathTable.EnumerateHierarchyTopDown(directory.Path.Value))
-                            {
-                                var path = new AbsolutePath(node);
-                                AddFileMaterialization(
-                                    state,
-                                    FileArtifact.CreateSourceFile(path),
-                                    directoryAllowReadOnlyOverride,
-                                    m_symlinkDefinitions.TryGetSymlinkTarget(path));
-                            }
-                        }
-
                         continue;
                     }
 
@@ -1703,13 +1512,13 @@ namespace BuildXL.Scheduler.Artifacts
 
         private AbsolutePath TryGetSymlinkTarget(FileArtifact file)
         {
-            if (file.IsOutputFile || !LazySymlinkCreation)
+            if (file.IsOutputFile)
             {
                 // Only source files can be declared as symlinks
                 return AbsolutePath.Invalid;
             }
 
-            return m_symlinkDefinitions.TryGetSymlinkTarget(file);
+            return AbsolutePath.Invalid;
         }
 
         private void MarkDirectoryMaterializations(PipArtifactsState state)
@@ -1846,7 +1655,7 @@ namespace BuildXL.Scheduler.Artifacts
             FileMaterializationInfo materializationInfo;
             if (!TryGetInputContent(file, out materializationInfo))
             {
-                var hash = m_host.LocalDiskContentStore.ComputePathHash(file.Path.ToString(Context.PathTable));
+                var hash = m_host.LocalDiskContentStore.ComputePathHash(file.Path);
                 materializationInfo = new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), file.Path.GetName(Context.PathTable));
             }
 
@@ -1993,13 +1802,14 @@ namespace BuildXL.Scheduler.Artifacts
         /// <remarks>
         /// Logs warnings when a file placement fails; does not log errors.
         /// </remarks>
-        private async Task<bool> PlaceFilesAsync(
+        private async Task<PlaceFile> PlaceFilesAsync(
             OperationContext operationContext,
             PipInfo pipInfo,
             PipArtifactsState state,
             bool materialize = true)
         {
             bool success = true;
+            bool userError = false;
 
             if (state.MaterializationFiles.Count != 0)
             {
@@ -2017,7 +1827,14 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (!materialize)
                 {
-                    return success;
+                    return success ? PlaceFile.Success : PlaceFile.InternalError;
+                }
+
+                if (!success &&
+                    state.InnerFailure != null &&
+                    state.InnerFailure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                {
+                    userError = true;
                 }
 
                 // Remove the failures
@@ -2036,7 +1853,6 @@ namespace BuildXL.Scheduler.Artifacts
                         FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
                         ContentHash hash = materializationInfo.Hash;
                         PathAtom fileName = materializationInfo.FileName;
-                        AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
                         bool allowReadOnly = materializationFile.AllowReadOnly;
                         int materializationFileIndex = i;
 
@@ -2066,14 +1882,24 @@ namespace BuildXL.Scheduler.Artifacts
                                 }
                                 else
                                 {
-                                    Logger.Log.StorageCacheGetContentWarning(
-                                        operationContext,
-                                        pipDescription: pipInfo.Description,
-                                        contentHash: hash.ToHex(),
-                                        destinationPath: file.Path.ToString(pathTable),
-                                        errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                    // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
+                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
+                                        possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
+                                    {
+                                        Logger.Log.StorageCacheGetContentWarning(
+                                            operationContext,
+                                            pipDescription: pipInfo.Description,
+                                            contentHash: hash.ToHex(),
+                                            destinationPath: file.Path.ToString(pathTable),
+                                            errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                    }
 
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
+
+                                    if (possiblyPlaced.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                                    {
+                                        userError = true;
+                                    }
 
                                     // Latch overall success (across all placements) to false.
                                     success = false;
@@ -2113,7 +1939,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            return success;
+            return success ? PlaceFile.Success : (userError ? PlaceFile.UserError : PlaceFile.InternalError);
         }
 
         private async Task<Possible<ContentMaterializationResult>> PlaceSingleFileAsync(
@@ -2131,6 +1957,14 @@ namespace BuildXL.Scheduler.Artifacts
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
             using (await m_materializationSemaphore.AcquireAsync())
             {
+                
+                // Quickily fail pending placements when cancellation is requested
+                if (Context.CancellationToken.IsCancellationRequested)
+                {
+                    var possiblyPlaced = new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure());
+                    return WithLineInfo(possiblyPlaced);
+                }
+                
                 if (m_host.CanMaterializeFile(file))
                 {
                     using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
@@ -2145,7 +1979,7 @@ namespace BuildXL.Scheduler.Artifacts
                 else
                 {
                     using (outerContext.StartOperation(
-                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
+                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.IsSymlink)
                             ? PipExecutorCounter.TryMaterializeSymlinkDuration
                             : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
                         file))
@@ -2176,20 +2010,53 @@ namespace BuildXL.Scheduler.Artifacts
                         }
                         else
                         {
+                            bool canVirtualize = CanVirtualize(materializationFile);
                             // Try materialize content.
                             Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
                                 ArtifactContentCache,
-                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
+                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly)
+                                    .WithAllowVirtualization(allowVirtualization: canVirtualize),
                                 path: file.Path,
                                 contentHash: hash,
                                 fileName: fileName,
                                 symlinkTarget: symlinkTarget,
                                 reparsePointInfo: materializationInfo.ReparsePointInfo);
+
+                            if (possiblyPlaced.Succeeded)
+                            {
+                                if (state.MaterializingOutputs)
+                                {
+                                    Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
+                                }
+                                else
+                                {
+                                    Interlocked.Add(ref m_stats.TotalMaterializedInputsSize, materializationInfo.Length);
+                                }
+                            }
+
                             return WithLineInfo(possiblyPlaced);
                         }
                     }
                 }
             }
+        }
+
+        private bool CanVirtualize(MaterializationFile materializationFile)
+        {
+            if (!m_host.Configuration.Cache.VfsCasRoot.IsValid)
+            {
+                return false;
+            }
+            
+            if (m_host.TryGetCopySourceFile(materializationFile.Artifact, out var copySource))
+            {
+                // Copies lazily store into cache from the source file, so we can't virtualize since we don't get a callback
+                // to store into the cache if the file is not already present.
+                return false;
+            }
+
+            // TODO: Use data from historical invocations
+            return true;
         }
 
         private static Possible<T> WithLineInfo<T>(Possible<T> possible, [CallerMemberName] string caller = null, [CallerLineNumber] int line = 0)
@@ -2234,7 +2101,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                     state.InnerFailure = failure;
                 },
-                onContentUnavailable: (index, hashLogStr) =>
+                onContentUnavailable: (index, hashLogStr, failureType) =>
                 {
                     state.SetMaterializationFailure(index);
 
@@ -2246,6 +2113,12 @@ namespace BuildXL.Scheduler.Artifacts
                             pipInfo.Description,
                             hashLogStr,
                             state.MaterializationFiles[index].Artifact.Path.ToString(Context.PathTable));
+
+                        if (failureType == LocalDiskContentStore.ExistingFileDeletionFailure)
+                        {
+                            state.InnerFailure = new Failure<string>(LocalDiskContentStore.ExistingFileDeletionFailure);
+                        }
+                        
                     }
                 },
                 state: state);
@@ -2263,7 +2136,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex)> filesAndContentHashes,
             Action<Failure> onFailure,
-            Action<int, string> onContentUnavailable,
+            Action<int, string, string> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2544,7 +2417,7 @@ namespace BuildXL.Scheduler.Artifacts
                             if (!isAvailable)
                             {
                                 success = false;
-                                onContentUnavailable(currentFileIndex, hashLogStr);
+                                onContentUnavailable(currentFileIndex, hashLogStr, result.FailureType);
                             }
                         }
                     }
@@ -2581,7 +2454,10 @@ namespace BuildXL.Scheduler.Artifacts
                     else
                     {
                         allContentAvailable = false;
-                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss");
+                        string failureType = result.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure)
+                                        ? LocalDiskContentStore.ExistingFileDeletionFailure
+                                        : null;
+                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss", failureType);
                     }
                 };
 
@@ -2688,7 +2564,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
                 else
                 {
-                    // Just store placeholder task for output files/lazy symlinks since they are not verified
+                    // Just store placeholder task for output files/symlinks since they are not verified
                     state.HashTasks.Add(s_placeHolderFileHashTask);
                 }
             }
@@ -2707,7 +2583,7 @@ namespace BuildXL.Scheduler.Artifacts
                     // where source files declared inside output directories
                     state.MaterializedDirectoryContents.Contains(file.Path) ||
 
-                    // Don't verify if it a symlink creation
+                    // Don't verify if it is a symlink creation
                     createSymlink)
                 {
                     // Only source files should be verified
@@ -2814,6 +2690,14 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 Logger.Log.PipInputVerificationMismatchExpectedNonExistence(
                     loggingContext,
+                    filePath: file.Path.ToString(pathTable));
+            }
+            else if (file.IsSourceFile)
+            {
+                Logger.Log.PipInputVerificationMismatchForSourceFile(
+                    loggingContext,
+                    actualHash: actualHash.ToHex(),
+                    expectedHash: expectedHash.ToHex(),
                     filePath: file.Path.ToString(pathTable));
             }
             else
@@ -2993,11 +2877,13 @@ namespace BuildXL.Scheduler.Artifacts
                     else
                     {
                         // We may fail to access a file due to permissions issues, or due to some other process that has the file locked (opened for writing?)
+                        var ex = possiblyDiscovered.Failure.CreateException();
                         Logger.Log.FailedToHashInputFile(
                             operationContext,
                             GetAssociatedPipDescription(declaredArtifact, consumerDescription),
                             artifactFullPath,
-                            possiblyDiscovered.Failure.CreateException());
+                            ex.LogEventErrorCode,
+                            ex.LogEventMessage);
                         return null;
                     }
 
@@ -3362,9 +3248,10 @@ namespace BuildXL.Scheduler.Artifacts
             return FileArtifact.Invalid;
         }
 
-        private void LogOutputOrigin(OperationContext operationContext, string pipDescription, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
+        private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
         {
             string hashHex = info.Hash.ToHex();
+            string pipDescription = Pip.FormatSemiStableHash(pipSemiStableHash);
             string reparsePointInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;
 
             switch (origin)
@@ -3464,6 +3351,9 @@ namespace BuildXL.Scheduler.Artifacts
 
             statistics.Add("FileContentManager_SealContents_NumDirectoryArtifacts", numDirectoryArtifacts);
             statistics.Add("FileContentManager_SealContents_NumFileArtifacts", numFileArtifacts);
+
+            statistics.Add(Statistics.TotalMaterializedInputsSize, m_stats.TotalMaterializedInputsSize);
+            statistics.Add(Statistics.TotalMaterializedOutputsSize, m_stats.TotalMaterializedOutputsSize);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
         }
@@ -3802,13 +3692,13 @@ namespace BuildXL.Scheduler.Artifacts
                         var producer = IsDeclaredProducer ? PipInfo.UnderlyingPip : m_manager.GetDeclaredProducer(file);
 
                         result = GetPipOutputOrigin(origin, producer);
-                        var producerDescription = IsDeclaredProducer
-                            ? PipInfo.Description
-                            : producer.GetDescription(m_manager.Context);
+                        var producerSemiStableHash = IsDeclaredProducer
+                            ? PipInfo.SemiStableHash
+                            : producer.SemiStableHash;
 
                         m_manager.LogOutputOrigin(
                             operationContext,
-                            producerDescription,
+                            producerSemiStableHash,
                             file.Path.ToString(m_manager.Context.PathTable),
                             materializationFile.MaterializationInfo,
                             result);
@@ -3930,6 +3820,32 @@ namespace BuildXL.Scheduler.Artifacts
             public void RemoveCompletedMaterializations()
             {
                 MaterializationFiles.RemoveAll(file => file.MaterializationCompletion.Task.IsCompleted);
+            }
+        }
+
+        /// <summary>
+        /// Failure returned by operations that are not performed due to ctrl-c cancellation of the build
+        /// </summary>
+        public class CtrlCCancellationFailure : Failure
+        {
+            private const string Message = "Operation failed because build was cancelled";
+
+            /// <inheritdoc/>
+            public override BuildXLException CreateException()
+            {
+                return new BuildXLException(Message);
+            }
+
+            /// <inheritdoc/>
+            public override string Describe()
+            {
+                return Message;
+            }
+
+            /// <inheritdoc/>
+            public override BuildXLException Throw()
+            {
+                throw new BuildXLException(Message);
             }
         }
     }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -88,7 +88,6 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeTcpClient", Justification = "TcpClient.Dispose is inaccessible due to its protection level")]
         private async Task<Possible<MultiplexingClient>> CreateMultiplexingClientAsync()
         {
-            Config.Logger.Verbose("CreateMultiplexingClient called");
             var maybeConnected = await Utils.ConnectAsync(
                 Config.MaxConnectRetries,
                 Config.ConnectRetryDelay,

@@ -5,33 +5,19 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Scheduler.IntegrationTest {
-
-    @@public
-    export const categoriesToRunInParallel =  [
-        "BaselineTests",
-        "FileAccessPolicyTests",
-        "OpaqueDirectoryTests",
-        "SharedOpaqueDirectoryTests",
-        "AllowedUndeclaredReadsTests",
-        "LazyMaterializationTests",
-        "WhitelistTests",
-        "PreserveOutputsTests",
-        "NonStandardOptionsTests",
-        "StoreNoOutputsToCacheTests",
-        // "IncrementalSchedulingTests", TODO: Some shared tests (IS vs. non-IS) create substs, and this can cause race.
-    ];
-
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-                parallelBucketCount: 20,
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
             },
+            parallelBucketCount: 30
+        },
         references: [
             Scheduler.dll,
             EngineTestUtilities.dll,
@@ -53,17 +39,10 @@ namespace Scheduler.IntegrationTest {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
-            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
-            // TODO: Move it to the root when we can access the real VmCommandProxy in CB.
-            {
-                subfolder: r`tools/VmCommandProxy/tools`,
-                contents: [
-                    importFrom("BuildXL.Utilities.UnitTests").MockVmCommandProxy.exe
-                ]
-            }
         ],
     });
 }

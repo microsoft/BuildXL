@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,6 @@ using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Microsoft.Win32.SafeHandles;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.TestUtilities.Xunit
@@ -92,7 +91,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 // C# identifiers are valid path atoms. See IsValidPathAtom and  http://msdn.microsoft.com/en-us/library/aa664670(v=vs.71).aspx
                 Contract.Assume(testClassName != null && PathAtom.Validate((StringSegment)testClassName));
 
-                m_tempBase = Path.GetFullPath(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), testClassName, testMethodNumber.ToString(CultureInfo.InvariantCulture)));
+                m_tempBase = Path.GetFullPath(Path.Combine(GetTempDir(), testClassName, testMethodNumber.ToString(CultureInfo.InvariantCulture)));
 
                 if (Directory.Exists(m_tempBase))
                 {
@@ -140,12 +139,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <summary>
         /// Returns an absolute path to the given file under <see cref="TemporaryDirectory" />.
         /// </summary>
-        protected string GetFullPath(string relativePath)
+        protected string GetFullPath(string path)
         {
-            Contract.Requires(!string.IsNullOrEmpty(relativePath));
+            Contract.Requires(!string.IsNullOrEmpty(path));
 
-            Contract.Assume(!Path.IsPathRooted(relativePath));
-            return Path.Combine(m_tempBase, relativePath);
+            return Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(m_tempBase, path);
         }
 
         /// <summary>
@@ -205,40 +205,26 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// </remarks>
         protected bool TryGetSubstSourceAndTarget(out string substSource, out string substTarget)
         {
-            substSource = null;
-            substTarget = null;
+            return FileUtilities.TryGetSubstSourceAndTarget(TemporaryDirectory, out substSource, out substTarget);
+        }
 
-            if (OperatingSystemHelper.IsUnixOS)
+        /// <summary>
+        /// Deletes the symlink at location <paramref name="link"/>.  Return value indicates success.
+        /// </summary>
+        protected bool TryDeleteSymlink(string link)
+        {
+            try
             {
-                // There is currently no subst in non-Windows OS.
+                var fullPath = GetFullPath(link);
+                FileUtilities.DeleteFile(fullPath);
+                return true;
+            }
+            catch
+            {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
                 return false;
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
             }
-
-            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
-                TemporaryDirectory,
-                FileShare.Read | FileShare.Write | FileShare.Delete,
-                out SafeFileHandle directoryHandle);
-            XAssert.IsTrue(directoryOpenResult.Succeeded);
-
-            string directoryHandlePath = FileUtilities.GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
-
-            if (!string.Equals(TemporaryDirectory, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
-            {
-                string commonPath = TemporaryDirectory.Substring(2); // Include '\' of '<Drive>:\'  for searching.
-                substTarget = TemporaryDirectory.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
-                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
-
-                if (commonIndex == -1)
-                {
-                    substTarget = null;
-                }
-                else
-                {
-                    substSource = directoryHandlePath.Substring(0, commonIndex + 1);
-                }
-            }
-
-            return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
         }
     }
 }

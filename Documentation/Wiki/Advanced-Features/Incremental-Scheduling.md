@@ -40,7 +40,7 @@ Incremental scheduling is a cross-cutting feature. In this section we describe f
 
 | Incompatible        | Sub-optimal                         | 
 | ------------------ | -----------------------------|
-| Distributed build  | Uncacheable whitelist           |
+| Distributed build  | Uncacheable allowlist           |
 |                             | Anti-dependency                 |
 |                             | Lazy output materialization  |
 |                             | Shared opaque directory      |                       
@@ -53,9 +53,9 @@ Incremental scheduling is incompatible with distributed builds because pips buil
 
 BuildXL disables incremental scheduling completely when distributed build is requested.
 
-## Uncachable whitelist
-BuildXL allows users to specify files in the configuration file that are whitelisted on checking access violation. Some pips may produce or consume files in that whitelist. If those files are in so-called uncacheable whitelist, then those pips will not be cached, and so they are expected to be executed in every build. For example, suppose that `fileX` below is in the uncacheable
-whitelist, e.g., `fileX` may contain date/time when `Process42` is executed: 
+## Uncachable allowlist
+BuildXL allows users to specify files in the configuration file that are allowlisted on checking access violation. Some pips may produce or consume files in that allowlist. If those files are in so-called uncacheable allowlist, then those pips will not be cached, and so they are expected to be executed in every build. For example, suppose that `fileX` below is in the uncacheable
+allowlist, e.g., `fileX` may contain date/time when `Process42` is executed: 
 ```
     Process42 <-- fileX <-- Process43
         ^                       |

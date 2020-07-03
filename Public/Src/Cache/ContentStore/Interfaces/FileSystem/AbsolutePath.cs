@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -50,7 +50,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new ArgumentException("does not meet minimum length", nameof(path));
             }
 
-            (Path, IsLocal, IsRoot) = Initialize(path);
+            (Path, IsLocal, IsRoot, IsVirtual) = Initialize(path);
+        }
+
+        private AbsolutePath(AbsolutePath path, bool isVirtual)
+        {
+            (Path, IsLocal, IsRoot) = (path.Path, path.IsLocal, path.IsRoot);
+            IsVirtual = isVirtual;
         }
 
         /// <inheritdoc />
@@ -82,6 +88,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Gets a value indicating whether the path is UNC.
         /// </summary>
         public bool IsUnc => !IsLocal;
+
+        /// <summary>
+        /// Gets whether the path specifies a VFS file path for placement
+        /// </summary>
+        public bool IsVirtual { get; }
 
         /// <summary>
         /// Returns a drive letter for the current path.
@@ -118,11 +129,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// The result can be null.
         /// </remarks>
-        public AbsolutePath Parent
+        public AbsolutePath? Parent
         {
             get
             {
-                string parent;
+                string? parent;
                 try
                 {
                     parent = System.IO.Path.GetDirectoryName(Path);
@@ -152,11 +163,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <summary>
+        /// Gets a non-null parent and throws if the parent is null.
+        /// </summary>
+        public AbsolutePath GetParent()
+        {
+            var parent = Parent;
+            Contract.Check(parent != null)?.Assert($"Parent of {this} must not be null");
+            return parent;
+        }
+
+        /// <summary>
         /// Removes leading long path prefix from the <paramref name="path"/> if necessary.
         /// </summary>
         public static string RemoveLongPathPrefixIfNeeded(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (!OperatingSystemHelper.IsWindowsOS)
             {
@@ -171,11 +192,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             return path;
         }
 
-        private static (string path, bool isLocal, bool isRoot) Initialize(string path)
+        private static (string path, bool isLocal, bool isRoot, bool isVirtual) Initialize(string path)
         {
             // The argument may be constructed from a ToString call of another AbsolutePath instance.
             // To keep the logic simple, we just remove a long path prefix.
-            path = RemoveLongPathPrefixIfNeeded(path);
+            path = VfsUtilities.RemoveVfsSuffix(RemoveLongPathPrefixIfNeeded(path), out var isVirtual);
 
             var isLocal = IsLocalAbsoluteCalculated(path);
             var isUnc = IsUncCalculated(path);
@@ -220,13 +241,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 resultingPath = System.IO.Path.DirectorySeparatorChar + string.Join(System.IO.Path.DirectorySeparatorChar + "", segments);
             }
 
-            return (resultingPath, isLocal, isRoot);
+            return (resultingPath, isLocal, isRoot, isVirtual);
         }
 
         /// <summary>
         /// Throws <see cref="PathTooLongException"/> if the current path is longer (or equals) then max short path and the target platform does not support long paths.
         /// </summary>
-        public void ThrowIfPathTooLong([CallerMemberName] string caller = null)
+        public void ThrowIfPathTooLong([CallerMemberName] string? caller = null)
         {
             if (OperatingSystemHelper.IsWindowsOS && IsLongPath && !AbsolutePath.LongPathsSupported)
             {
@@ -249,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static string ToLongPathIfNeeded(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (path.Length < FileSystemConstants.MaxDirectoryPath)
             {
@@ -279,7 +300,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <inheritdoc />
-        protected override PathBase GetParentPathBase()
+        protected override PathBase? GetParentPathBase()
         {
             return Parent;
         }
@@ -289,8 +310,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath operator /(AbsolutePath left, RelativePath right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
 
             return left / right.Path;
         }
@@ -300,8 +321,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath operator /(AbsolutePath left, string right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
             try
             {
                 return new AbsolutePath(System.IO.Path.Combine(left.Path, right));
@@ -310,6 +331,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             {
                 throw CreateIllegalCharactersInPathError(right);
             }
+        }
+
+        /// <summary>
+        /// Creates a new path with the given value for <see cref="IsVirtual"/>
+        /// </summary>
+        public AbsolutePath WithIsVirtual(bool isVirtual = true)
+        {
+            return new AbsolutePath(this, isVirtual);
         }
     }
 }

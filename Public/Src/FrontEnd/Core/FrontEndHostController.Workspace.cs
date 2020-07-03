@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,7 @@ using BuildXL.FrontEnd.Core.Incrementality;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -63,8 +64,6 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         private AbsolutePath m_frontEndCacheDirectory;
 
-        private readonly DScriptWorkspaceResolverFactory m_workspaceResolverFactory;
-
         private readonly bool m_collectMemoryAsSoonAsPossible;
 
         private LoggingContext LoggingContext => FrontEndContext.LoggingContext;
@@ -89,12 +88,12 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// Builds and filters the worksapce.
+        /// Builds and filters the workspace.
         /// </summary>
         [System.Diagnostics.ContractsLight.Pure]
-        internal Workspace DoPhaseBuildWorkspace(IConfiguration configuration, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter, QualifierId[] requestedQualifiers)
+        internal Workspace DoPhaseBuildWorkspace(IConfiguration configuration, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter)
         {
-            if (!TryGetWorkspaceProvider(configuration, requestedQualifiers, out var workspaceProvider, out var failures))
+            if (!TryGetWorkspaceProvider(configuration, out var workspaceProvider, out var failures))
             {
                 var workspaceConfiguration = GetWorkspaceConfiguration(configuration);
 
@@ -173,7 +172,8 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndConvertPhaseProgress(FrontEndContext.LoggingContext, counter.Count, totalSpecs);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Conversion, counter.Count, totalSpecs));
-                });
+                },
+                reportImmediately: false);
 
             return results.All(t => t);
         }
@@ -190,7 +190,9 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndWorkspacePhaseProgress(FrontEndContext.LoggingContext, counter.Count, numParseTotal);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Parse, counter.Count, numSpecs));
-                });
+                },
+                reportImmediately: false)
+            ;
         }
 
         private void NotifyProgress(WorkspaceProgressEventArgs args)
@@ -208,7 +210,8 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndWorkspaceAnalysisPhaseProgress(FrontEndContext.LoggingContext, counter.Count, numSpecsTotal);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Analysis, counter.Count, numSpecsTotal));
-                });
+                },
+                reportImmediately: false);
         }
 
         private async Task<Workspace> BuildAndFilterWorkspaceAsync(WorkspaceDefinition workspaceDefinition, IWorkspaceProvider workspaceProvider, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter)

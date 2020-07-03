@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -11,8 +11,14 @@ namespace ContentStore.Grpc
     {
         /// <nodoc />
         public RequestHeader(Guid traceId, int sessionId)
+            : this(traceId.ToString(), sessionId)
         {
-            TraceId = traceId.ToString();
+        }
+
+        /// <nodoc />
+        public RequestHeader(string traceId, int sessionId)
+        {
+            TraceId = traceId;
             SessionId = sessionId;
         }
     }

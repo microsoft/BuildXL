@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,6 +15,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -38,7 +39,7 @@ namespace BuildXL.FrontEnd.Core
         /// and therefore has a 'lock' on the file. Our delete logic is not robust enough in this case so when we have to download
         /// the nuget package and have to clean the folder first, we fail. By doing a copy we hope to prevent this double-use.
         /// </remarks>
-        private const FileRealizationMode PackageFileRealizationMode = FileRealizationMode.Copy;
+        private static readonly FileRealizationMode PackageFileRealizationMode = FileRealizationMode.Copy;
 
         private PathTable PathTable => FrontEndContext.PathTable;
 
@@ -702,7 +703,8 @@ namespace BuildXL.FrontEnd.Core
                 m_logger.DownloadToolErrorInvalidUri(loggingContext, friendlyName, url);
                 return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.InvalidUri);
             }
-
+            
+            RelativePath relativePath = RelativePath.Invalid;
             if (IsHttp(sourceUri))
             {
                 try
@@ -733,7 +735,7 @@ namespace BuildXL.FrontEnd.Core
             }
             // Copy file if (sourceUri is absolute AND protocol is 'file://') OR (url is a valid relative path)
             else if ((sourceUri.IsAbsoluteUri && sourceUri.IsFile) ||
-                (RelativePath.TryCreate(FrontEndContext.StringTable, url, out RelativePath relativePath)))
+                RelativePath.TryCreate(FrontEndContext.StringTable, url, out relativePath))
             {
                 try
                 {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -29,9 +29,9 @@ namespace BuildXL.Utilities.Tasks
             Func<T, Task<Possible<TResult>>> selector,
             CancellationToken token)
         {
-            Contract.Requires(source != null);
+            Contract.RequiresNotNull(source);
             Contract.Requires(degreeOfParallelism > 0);
-            Contract.Requires(selector != null);
+            Contract.RequiresNotNull(selector);
 
             if (source.Count == 0)
             {

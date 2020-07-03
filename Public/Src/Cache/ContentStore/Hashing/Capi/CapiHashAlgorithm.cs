@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                                                 providerType,
                                                 CapiNative.CryptAcquireContextFlags.VerifyContext,
                                                 true);
-            Initialize();
+            m_hashHandle = Initialize();
         }
         
         public void Dispose()
@@ -52,13 +52,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Reset the hash algorithm to begin hashing a new set of data
         /// </summary>
-        public void Initialize()
+        public SafeCapiHashHandle Initialize()
         {
             Contract.Ensures(m_hashHandle != null && !m_hashHandle.IsInvalid && !m_hashHandle.IsClosed);
             Contract.Assert(m_cspHandle != null);
 
             // Try to create a new hash algorithm to use
-            SafeCapiHashHandle newHashAlgorithm = null;
+            SafeCapiHashHandle? newHashAlgorithm = null;
 
             RuntimeHelpers.PrepareConstrainedRegions();
             try
@@ -91,13 +91,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             // If we created a new algorithm, dispose of the old one and use the new one
-            Debug.Assert(newHashAlgorithm != null, "newHashAlgorithm != null");
+            Contract.Assert(newHashAlgorithm != null, "newHashAlgorithm != null");
             if (m_hashHandle != null)
             {
                 m_hashHandle.Dispose();
             }
 
             m_hashHandle = newHashAlgorithm;
+            return m_hashHandle;
         }
 
         /// <summary>

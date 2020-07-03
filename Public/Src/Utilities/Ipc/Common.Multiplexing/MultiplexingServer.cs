@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -69,12 +69,12 @@ namespace BuildXL.Ipc.Common.Multiplexing
         /// <nodoc/>
         internal ConcurrentQueue<Exception> Diagnostics => m_clientListener.Diagnostics;
 
-        private ILogger Logger { get; }
+        private IIpcLogger Logger { get; }
 
         private IIpcOperationExecutor m_executor;
 
         /// <nodoc/>
-        public MultiplexingServer([CanBeNull]string name, [CanBeNull]ILogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
+        public MultiplexingServer([CanBeNull]string name, [CanBeNull]IIpcLogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
         {
             Contract.Requires(connectivityProvider != null);
             Contract.Requires(maxConcurrentClients > 0);
@@ -157,7 +157,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
 
             private string Name { get; }
 
-            private ILogger Logger => m_parent.Logger;
+            private IIpcLogger Logger => m_parent.Logger;
 
             /// <nodoc/>
             public RequestHandler(MultiplexingServer<TClient> parent, TClient client)
@@ -224,7 +224,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
             {
                 Logger.Verbose("({0}) Waiting to receive request...", Name);
                 var request = await Request.DeserializeAsync(m_stream, token);
-                Logger.Verbose("({0}) Request received: {1}", Name, request);
+                Logger.Verbose($"({Name}) Received request #{request.Id}");
 
                 request.Operation.Timestamp.Daemon_AfterReceivedTime = DateTime.UtcNow;
 
@@ -241,28 +241,28 @@ namespace BuildXL.Ipc.Common.Multiplexing
             {
                 request.Operation.Timestamp.Daemon_BeforeExecuteTime = DateTime.UtcNow;
 
-                Logger.Verbose("({0}) Executing request {1}", Name, request);
+                Logger.Verbose($"({Name}) Executing request #{request.Id}");
                 var ipcResult = await Utils.HandleExceptionsAsync(
                     IpcResultStatus.ExecutionError,
-                    () => m_parent.m_executor.ExecuteAsync(request.Operation));
+                    () => m_parent.m_executor.ExecuteAsync(request.Id, request.Operation));
 
                 if (request.Operation.ShouldWaitForServerAck)
                 {
                     var response = new Response(request.Id, ipcResult);
-                    Logger.Verbose("({0}) Posting response {1}", Name, response);
+                    Logger.Verbose($"({Name}) Posting response #{request.Id}");
                     m_sendResponseBlock.Post(response);
                 }
                 else
                 {
-                    Logger.Verbose("({0}) Response not requested for request {1}", Name, request);
+                    Logger.Verbose($"({Name}) Response not requested for request #{request.Id}");
                 }
             }
 
             private async Task SendResponseAsync(Response response)
             {
-                Logger.Verbose("({0}) Sending response {1} ...", Name, response);
+                Logger.Verbose($"({Name}) Sending response #{response.RequestId}");
                 await response.SerializeAsync(m_stream);
-                Logger.Verbose("({0}) Response sent: {1}", Name, response);
+                Logger.Verbose($"({Name}) Sent response #{response.RequestId}");
             }
 
             private bool TryDisconnectClient(TClient client)

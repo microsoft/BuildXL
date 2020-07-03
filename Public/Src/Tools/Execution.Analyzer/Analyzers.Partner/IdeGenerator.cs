@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.FrontEnd.Script.Constants;
@@ -48,7 +48,7 @@ namespace BuildXL.Execution.Analyzer
             };
 
             Ide.Generator.IdeGenerator.Configure(config, config.Startup, PathTable);
-            m_ideGenerator = new Ide.Generator.IdeGenerator(PipGraph.Context, PipGraph, PipGraph.DataflowGraph, config.Startup.ConfigFile, config.Ide);
+            m_ideGenerator = new Ide.Generator.IdeGenerator(PipGraph.Context, PipGraph, PipGraph.DirectedGraph, config.Startup.ConfigFile, config.Ide);
             m_solutionFile = Ide.Generator.IdeGenerator.GetSolutionPath(config.Ide, PathTable);
         }
 

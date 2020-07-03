@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
@@ -44,6 +45,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         private long m_numRunningOrQueued;
 
+        /// <inheritdoc/>
+        public long NumRunningOrQueued => Volatile.Read(ref m_numRunningOrQueued);
+
         /// <summary>
         /// Whether the queue can accept new external work items.
         /// </summary>
@@ -69,6 +73,15 @@ namespace BuildXL.Scheduler
                 Volatile.Write(ref m_isCancelled, value);
             }
         }
+
+        /// <summary>
+        /// The total number of process slots in the build.
+        /// </summary>
+        /// <remarks>
+        /// For the master, this is a sum of process slots of all available workers.
+        /// For a worker, this is the number of process slots on that worker.
+        /// </remarks>
+        private int m_totalProcessSlots;
 
         /// <inheritdoc/>
         public int MaxProcesses => m_queuesByKind[DispatcherKind.CPU].MaxParallelDegree;
@@ -146,7 +159,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates instance
         /// </summary>
-        public PipQueue(IScheduleConfiguration config)
+        public PipQueue(LoggingContext loggingContext, IScheduleConfiguration config)
         {
             Contract.Requires(config != null);
 
@@ -161,18 +174,20 @@ namespace BuildXL.Scheduler
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
+                                 {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, maxParallelDegree: 1)},
                                  {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
                                  {DispatcherKind.CacheLookup, new DispatcherQueue(this, config.MaxCacheLookup)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
                                  {DispatcherKind.CPU, new DispatcherQueue(this, config.MaxProcesses)},
                                  {DispatcherKind.Materialize, new DispatcherQueue(this, config.MaxMaterialize)},
-                                 {DispatcherKind.Light, new DispatcherQueue(this, config.MaxLightProcesses)}
+                                 {DispatcherKind.Light, new DispatcherQueue(this, config.MaxLightProcesses)},
+                                 {DispatcherKind.SealDirs, new DispatcherQueue(this, config.MaxSealDirs)},
                              };
 
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
 
             Tracing.Logger.Log.PipQueueConcurrency(
-                Events.StaticContext,
+                loggingContext,
                 ioLimit,
                 config.MaxChooseWorkerCacheLookup,
                 config.MaxCacheLookup,
@@ -223,6 +238,26 @@ namespace BuildXL.Scheduler
 
                 m_hasAnyChange.Reset();
 
+                if (m_config.DelayedCacheLookupMinMultiplier.HasValue)
+                {
+                    int totalSlots = m_totalProcessSlots;
+                    int minElements = (int)(totalSlots * m_config.DelayedCacheLookupMinMultiplier.Value);
+                    int maxElements = (int)(totalSlots * m_config.DelayedCacheLookupMaxMultiplier.Value);
+                    
+                    Contract.Assert(minElements <= maxElements);                    
+                    
+                    if (m_chooseWorkerCpuQueue.NumProcessesQueued > maxElements)
+                    {
+                        // we have enough pips queued, pause adding new pips
+                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(0);
+                    }
+                    else if (m_chooseWorkerCpuQueue.NumProcessesQueued <= minElements)
+                    {
+                        // not enough pips are in the queue, start adding the pips
+                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(1);
+                    }
+                }
+
                 foreach (var queue in m_queuesByKind.Values)
                 {
                     queue.StartTasks();
@@ -247,8 +282,11 @@ namespace BuildXL.Scheduler
             {
                 Contract.Assert(m_hasAnyRunning != null, "If cancellation is requested, the taskcompletionsource to keep track of running items cannot be null");
 
-                // Make sure that all running tasks are completed.
-                m_hasAnyRunning.Task.Wait();
+                if (m_queuesByKind.Sum(a => a.Value.NumRunning) != 0)
+                {
+                    // Make sure that all running tasks are completed.
+                    m_hasAnyRunning.Task.Wait();
+                }
             }
 
             IsDraining = false;
@@ -377,6 +415,12 @@ namespace BuildXL.Scheduler
         {
             Interlocked.Increment(ref m_triggerDispatcherCount);
             m_hasAnyChange.Set();
+        }
+
+        /// <inheritdoc />
+        public void SetTotalProcessSlots(int totalProcessSlots)
+        {
+            Interlocked.Exchange(ref m_totalProcessSlots, totalProcessSlots);
         }
     }
 }

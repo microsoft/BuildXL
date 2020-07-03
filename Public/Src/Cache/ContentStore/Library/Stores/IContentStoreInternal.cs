@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,8 +13,24 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Stores
 {
+    /// <summary>
+    /// Options to control the behavior of <see cref="IContentStoreInternal.PinAsync(Context, System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, PinContext, PinBulkOptions)"/>.
+    /// </summary>
+    public class PinBulkOptions
+    {
+        /// <nodoc />
+        public static PinBulkOptions Default { get; } = new PinBulkOptions();
+
+        /// <summary>
+        /// If true, then <see cref="IContentStoreInternal.PinAsync(Context, ContentHash, PinContext)"/> is called to restore pinned content after reading hibernating sessions from disk.
+        /// </summary>
+        public bool RePinFromHibernation { get; set; }
+    }
+
     /// <summary>
     ///     Interface to store that is able to store and retrieve content based on its content hash
     /// </summary>
@@ -28,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets or sets the announcer to receive updates when content added and removed.
         /// </summary>
-        IContentChangeAnnouncer Announcer { get; set; }
+        IContentChangeAnnouncer? Announcer { get; set; }
 
         /// <summary>
         ///     Pin existing content.
@@ -42,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="pinContext">
         ///     Context that will hold the pin record.
         /// </param>
-        Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext pinContext);
+        Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext? pinContext);
 
         /// <summary>
         ///     Pin existing content.
@@ -56,7 +72,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="pinContext">
         ///     Context that will hold the pin record.
         /// </param>
-        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext);
+        /// <param name="options">Options that controls the behavior of the operation.</param>
+        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext? pinContext, PinBulkOptions? options = default);
 
         /// <summary>
         /// Adds the content to the store without rehashing it.
@@ -276,6 +293,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         Task<bool> Validate(Context context);
 
         /// <summary>
+        ///     Shuts down the quota keeper to prevent eviction
+        /// </summary>
+        Task<BoolResult> ShutdownEvictionAsync(Context context);
+
+        /// <summary>
         ///     Returns list of content hashes in the order by which they should be LRU-ed.
         /// </summary>
         Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync();
@@ -288,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Purge specified content.
         /// </summary>
-        Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted);
+        Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long>? evicted);
 
         /// <summary>
         ///     Enumerate all content currently in the cache. Returns list of hashes and their respective size.
@@ -313,6 +335,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Remove given content from the store.
         /// </summary>
-        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
+        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions);
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -29,7 +29,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// Determines if this is a symlink or not.
         /// </summary>
-        public bool IsSymlink => ReparsePointType == ReparsePointType.SymLink;
+        public bool IsSymlink => FileUtilities.IsReparsePointSymbolicLink(ReparsePointType);
 
         private ReparsePointInfo(ReparsePointType reparsePointType, string targetPath)
         {

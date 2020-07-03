@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -167,23 +167,27 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             try
             {
-                var streamToPut = stream;
+                StreamWithLength streamToPut;
 
                 // Can't assume we've been given a seekable stream.
-                if (!stream.CanSeek)
+                if (stream.CanSeek)
+                {
+                    streamToPut = stream.AssertHasLength();
+                }
+                else
                 {
                     streamToPut = await CreateSeekableStreamAsync(context, stream);
                 }
 
                 using (streamToPut)
                 {
-                    Contract.Assert(streamToPut.CanSeek);
+                    Contract.Assert(streamToPut.Stream.CanSeek);
                     long contentSize = streamToPut.Length;
                     var contentHash = await HashInfoLookup.Find(hashType)
                         .CreateContentHasher()
                         .GetContentHashAsync(streamToPut)
                         .ConfigureAwait(false);
-                    streamToPut.Seek(0, SeekOrigin.Begin);
+                    streamToPut.Stream.Seek(0, SeekOrigin.Begin);
                     var putResult =
                         await PutLazyStreamAsync(context, contentHash, streamToPut, urgencyHint).ConfigureAwait(false);
                     if (!putResult.Succeeded)
@@ -244,7 +248,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private async Task<Stream> CreateSeekableStreamAsync(Context context, Stream stream)
+        private async Task<StreamWithLength> CreateSeekableStreamAsync(Context context, Stream stream)
         {
             // Must stream to a temp location to get the hash before streaming it to BlobStore
             string tempFile = TempDirectory.CreateRandomFileName().Path;

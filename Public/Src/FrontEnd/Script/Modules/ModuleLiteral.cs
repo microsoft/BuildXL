@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -733,7 +734,14 @@ namespace BuildXL.FrontEnd.Script.Values
             object[] results = await TaskUtilities.WithCancellationHandlingAsync(
                 context.LoggingContext,
                 Task.WhenAll(evaluateTasks),
-                context.Logger.EvaluationCanceled,
+                (loggingContext) =>
+                {
+                    // Many modules are potentially being evaluated at the same time. Only log the cancelation event once.
+                    if (Interlocked.Increment(ref context.Logger.EvaluationCancelledFirstLogged) == 1)
+                    {
+                        context.Logger.EvaluationCanceled(loggingContext);
+                    }
+                },
                 s_errorValueAsObjectArray,
                 context.EvaluationScheduler.CancellationToken);
 

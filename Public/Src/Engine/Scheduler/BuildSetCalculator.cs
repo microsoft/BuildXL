@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -8,8 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -27,9 +27,9 @@ namespace BuildXL.Scheduler
     internal abstract class BuildSetCalculator<TProcess, TPath, TFile, TDirectory>
     {
         /// <summary>
-        /// The dataflow graph of nodes
+        /// The directed graph of nodes
         /// </summary>
-        private readonly DirectedGraph m_graph;
+        private readonly IReadonlyDirectedGraph m_graph;
 
         /// <summary>
         /// The node visitor for the graph
@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler
         /// <param name="counters">Counter collection.</param>
         protected BuildSetCalculator(
             LoggingContext loggingContext,
-            DirectedGraph graph,
+            IReadonlyDirectedGraph graph,
             DirtyNodeTracker dirtyNodeTracker,
             CounterCollection<PipExecutorCounter> counters)
         {
@@ -179,7 +179,7 @@ namespace BuildXL.Scheduler
         #endregion
 
         /// <summary>
-        /// Result of <see cref="BuildSetCalculator{TProcess,TPath,TFile,TDirectory}.GetNodesToSchedule(bool,System.Collections.Generic.IEnumerable{BuildXL.Scheduler.Graph.NodeId},ForceSkipDependenciesMode,bool)"/>
+        /// Result of <see cref="BuildSetCalculator{TProcess,TPath,TFile,TDirectory}.GetNodesToSchedule(bool,System.Collections.Generic.IEnumerable{BuildXL.Pips.DirectedGraph.NodeId},ForceSkipDependenciesMode,bool)"/>
         /// </summary>
         public sealed class GetScheduledNodesResult
         {
@@ -818,7 +818,7 @@ namespace BuildXL.Scheduler
 
                 if (forceSkipDepsMode == ForceSkipDependenciesMode.Module)
                 {
-                    Logger.Log.DirtyBuildExplicitlyRequestedModules(Events.StaticContext, string.Join(",", explicitlyScheduledModules.Select(m => GetModuleName(m))));
+                    Logger.Log.DirtyBuildExplicitlyRequestedModules(m_loggingContext, string.Join(",", explicitlyScheduledModules.Select(m => GetModuleName(m))));
                 }
 
                 Task[] tasks = new Task[Environment.ProcessorCount];
@@ -929,11 +929,11 @@ namespace BuildXL.Scheduler
                         var tuple = state.MissingOutputs.TryGet(pipId).Item.Value;
                         var path = GetPathString(tuple.path);
                         var consumerDescription = GetDescription(tuple.id);
-                        Logger.Log.DirtyBuildProcessNotSkippedDueToMissingOutput(Events.StaticContext, description, path, consumerDescription);
+                        Logger.Log.DirtyBuildProcessNotSkippedDueToMissingOutput(m_loggingContext, description, path, consumerDescription);
                     }
                     else
                     {
-                        Logger.Log.DirtyBuildProcessNotSkipped(Events.StaticContext, description, reason.ToString());
+                        Logger.Log.DirtyBuildProcessNotSkipped(m_loggingContext, description, reason.ToString());
                     }
                 }
             }

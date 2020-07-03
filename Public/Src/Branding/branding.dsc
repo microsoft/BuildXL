@@ -36,17 +36,28 @@ export const copyright = "© Microsoft Corporation. All rights reserved.";
 
 const devBuildPreReleaseTag = "devBuild";
 
+// When running from within the context of Azure DevOps, the semantic version and prerelease tag may already
+// be encoded into the BuildID. When this is the case, parse them out and use them. But only do this when
+// they are set with the expected format.
+const specifiedBuildId = Environment.getStringValue("Build.BuildId");
+const semanticVersionFromBuildId = specifiedBuildId && specifiedBuildId.contains("-") ? specifiedBuildId.split("-")[0] : undefined;
+const prereleaseTagFromBuildId = specifiedBuildId && specifiedBuildId.contains("-") ? specifiedBuildId.split("-")[1] : undefined;
+
 @@public 
 export const semanticVersion = Environment.hasVariable("[BuildXL.Branding]SemanticVersion")
     ? Environment.getStringValue("[BuildXL.Branding]SemanticVersion")
-    : explicitSemanticVersion;
+    : semanticVersionFromBuildId 
+        ? semanticVersionFromBuildId
+        : explicitSemanticVersion;
 
 @@public
 export const prereleaseTag = Environment.hasVariable("[BuildXL.Branding]PrereleaseTag")
     ? Environment.getStringValue("[BuildXL.Branding]PrereleaseTag")
-    : Environment.hasVariable("[BuildXL.Branding]SourceIdentification")
-        ? undefined
-        : devBuildPreReleaseTag;
+    : prereleaseTagFromBuildId 
+        ? prereleaseTagFromBuildId
+        : Environment.hasVariable("[BuildXL.Branding]SourceIdentification")
+            ? undefined
+            : devBuildPreReleaseTag;
 
 @@public
 export const version = prereleaseTag
@@ -114,7 +125,7 @@ function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
     {
         preReleaseSeq = Number.parseInt(parts[1]);
         if (!preReleaseSeq || preReleaseSeq > 20) {
-            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where seq is a number not expected to go beyond 20");
+            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where seq is a number not expected to go beyond 20. Encountered prerelease tag of:'" + prereleaseTag + "' with seq of:'" + parts[1] + "'");
         }
     }
 
@@ -122,7 +133,7 @@ function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
     {
         preReleasePatch = Number.parseInt(parts[2]);
         if (!preReleasePatch || preReleasePatch > 5) {
-            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5");
+            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5. Encountered prerelease tag of:'" + prereleaseTag + "' with patch of:'" + parts[2] + "'");
         }
     }
 

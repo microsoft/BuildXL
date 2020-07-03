@@ -1,8 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -18,7 +17,6 @@ namespace BuildXL.Cache.Host.Configuration
         public const uint DefaultGracefulShutdownSeconds = 15;
         public const uint DefaultMaxPipeListeners = 128;
 
-        [JsonConstructor]
         public LocalCasServiceSettings()
         {
         }
@@ -103,6 +101,12 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int? BufferSizeForGrpcCopies { get; set; } = null;
+
+        /// <summary>
+        /// Gets or sets the the max number of proactive pushes requests handled at the same time by a server.
+        /// </summary>
+        [DataMember]
+        public int? MaxProactivePushRequestHandlers { get; set; }
 
         /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.

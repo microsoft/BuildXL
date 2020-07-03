@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Runtime.InteropServices;
@@ -36,7 +36,7 @@ namespace BuildXL.Interop.Windows
         /// <nodoc />
         [DllImport(BuildXL.Interop.Libraries.WindowsKernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool CloseHandle(IntPtr hObject);
+        public static extern bool CloseHandle(IntPtr hObject);
 
         /// <nodoc />
         private enum TOKEN_INFORMATION_CLASS
@@ -185,7 +185,118 @@ namespace BuildXL.Interop.Windows
         }
 
         /// <nodoc />
-        [DllImport(BuildXL.Interop.Libraries.WindowsKernel32, EntryPoint = "GetProcessMemoryInfo", SetLastError = true)]
+        [DllImport(BuildXL.Interop.Libraries.WindowsPsApi, EntryPoint = "GetProcessMemoryInfo", SetLastError = true)]
         public static extern bool GetProcessMemoryInfo(IntPtr handle, [In, Out] PROCESSMEMORYCOUNTERSEX ppsmemCounters, uint cb);
+
+        [Flags]
+        private enum ThreadAccess : int
+        {
+            SUSPEND_RESUME = (0x0002),
+        }
+
+        [DllImport(Libraries.WindowsKernel32, SetLastError = true)]
+        private static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+
+        [DllImport(Libraries.WindowsKernel32, SetLastError = true)]
+        private static extern int SuspendThread(IntPtr hThread);
+
+        [DllImport(Libraries.WindowsKernel32, SetLastError = true)]
+        private static extern int ResumeThread(IntPtr hThread);
+
+        /// <nodoc />
+        public static bool Suspend(System.Diagnostics.Process process)
+        {
+            foreach (System.Diagnostics.ProcessThread thread in process.Threads)
+            {
+                // Open thread with required permissions
+                IntPtr threadHandle = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
+
+                if (threadHandle == IntPtr.Zero)
+                {
+                    // If it points to zero, OpenThread function is failed.
+                    return false;
+                }
+
+                try
+                {
+                    int suspendThreadResult = SuspendThread(threadHandle);
+                    if (suspendThreadResult == -1)
+                    {
+                        return false;
+                    }
+                }
+                finally
+                {
+                    Process.CloseHandle(threadHandle);
+                }
+            }
+
+            return true;
+        }
+
+        /// <nodoc />
+        public static bool Resume(System.Diagnostics.Process process)
+        {
+            foreach (System.Diagnostics.ProcessThread thread in process.Threads)
+            {
+                var threadHandle = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
+
+                if (threadHandle == IntPtr.Zero)
+                {
+                    // If it points to zero, OpenThread function is failed.
+                    return false;
+                }
+
+                try
+                {
+                    int resumeThreadResult = ResumeThread(threadHandle);
+                    if (resumeThreadResult == -1)
+                    {
+                        return false;
+                    }
+                }
+                finally
+                {
+                    Process.CloseHandle(threadHandle);
+                }
+            }
+
+            return true;
+        }
+
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+
+        /// <remarks>
+        /// Implemented using Process.GetProcessById()
+        /// </remarks>
+        internal static bool IsAlive(int pid)
+        {
+            try
+            {
+                return System.Diagnostics.Process.GetProcessById(pid) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <remarks>
+        /// Implemented using Process.GetProcessById().Kill()
+        /// </remarks>
+        internal static bool ForceQuit(int pid)
+        {
+            try
+            {
+                System.Diagnostics.Process.GetProcessById(pid).Kill();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
     }
 }

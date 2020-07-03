@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -799,7 +800,7 @@ namespace ContentStoreTest.Stores
 
                 using (var contentStream = new MemoryStream(content))
                 {
-                    ContentHash actualContentHash = await contentStream.CalculateHashAsync(ContentHashType);
+                    ContentHash actualContentHash = await contentStream.HasLength().CalculateHashAsync(ContentHashType);
 
                     var context = new Context(Logger);
                     var result = await store.PutFileAsync(context, pathToFile, ingressModes, ContentHashType);
@@ -847,7 +848,7 @@ namespace ContentStoreTest.Stores
                 contentInfoList.Count.Should().Be(0);
             });
         }
-
+        
         private static async Task<int> CreateRandomStore(TStore store, Context context, int fileCount)
         {
             var byteCount = 0;

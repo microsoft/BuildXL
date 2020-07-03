@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -18,7 +18,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes.Containers
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class ContainerConfigurationTests : TemporaryStorageTestBase
     {
         private readonly string m_testProcessPath;
@@ -217,7 +217,7 @@ namespace Test.BuildXL.Processes.Containers
             {
                 // Write an output file to the source dir, but pass remapping information so it actually gets written in the destination directory
                 var info =
-                new SandboxedProcessInfo(PathTable, tempFiles, m_testProcessPath, disableConHostSharing: false, containerConfiguration: containerConfiguration)
+                new SandboxedProcessInfo(PathTable, tempFiles, m_testProcessPath, disableConHostSharing: false, containerConfiguration: containerConfiguration, loggingContext: LoggingContext)
                 {
                     PipSemiStableHash = 0,
                     PipDescription = "TestContainer",

@@ -4,7 +4,6 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace CMakeRunner {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Xml.Linq;
@@ -45,6 +45,20 @@ namespace Test.BuildXL.FrontEnd.Nuget
                     "testPackageHash"));
 
             return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, XDocument.Parse(xml), packageOnDisk, packagesOnConfig, false);
+        }
+
+        public NugetAnalyzedPackage AnalyzePackageStub(Dictionary<string, INugetPackage> packagesOnConfig)
+        {
+            var nugetPackage = new NugetPackage() { Id = "TestPkgStub", Version = "1.999" };
+            var packageOnDisk = new PackageOnDisk(
+                m_context.PathTable,
+                nugetPackage,
+                PackageDownloadResult.EmptyStub(
+                    "testPackageStubHash",
+                    new PackageIdentity("nuget", nugetPackage.Id, nugetPackage.Version, nugetPackage.Alias),
+                    packageFolder: AbsolutePath.Create(m_context.PathTable, X("/X/Pkgs/TestPkgStub/1.999"))));
+
+            return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, nuSpec: null, packageOnDisk, packagesOnConfig, false);
         }
     }
 }

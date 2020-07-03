@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +10,8 @@ using BuildXL.FrontEnd.Sdk;
 using Xunit;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
+using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
@@ -196,6 +198,18 @@ namespace Test.BuildXL.FrontEnd.Nuget
             Assert.True(pkg.IsManagedPackage);
             Assert.True(pkg.TargetFrameworks.Contains(m_monikers.Net45));
             Assert.True(pkg.TargetFrameworks.Contains(m_monikers.Net451));
+        }
+
+        [Fact]
+        public void TestAnalyzeStubPackage()
+        {
+            var pkg = m_packageGenerator.AnalyzePackageStub(s_packagesOnConfig);
+            XAssert.IsFalse(pkg.IsManagedPackage);
+            XAssert.IsEmpty(pkg.Dependencies);
+            XAssert.IsEmpty(pkg.DependenciesPerFramework);
+            XAssert.IsEmpty(pkg.Libraries);
+            XAssert.IsEmpty(pkg.References);
+            XAssert.SetEqual(m_monikers.WellknownMonikers, pkg.TargetFrameworks);
         }
 
         private NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, params string[] relativePaths)

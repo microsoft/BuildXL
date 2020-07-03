@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -55,7 +55,7 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.WriteCompact(Line);
             writer.Write(Text);
             writer.WriteCompact(Position);
@@ -63,7 +63,7 @@ namespace BuildXL.Utilities
 
         internal static TokenTextData Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Contract.Ensures(Contract.Result<TokenTextData>().IsValid);
             var line = reader.ReadInt32Compact();
             var text = reader.ReadTokenText();
@@ -108,7 +108,7 @@ namespace BuildXL.Utilities
         /// <returns>An updated token with recomputed line information</returns>
         public TokenTextData UpdateLineInformationForPosition(TokenTextTable table, int positionInToken)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(positionInToken >= 0);
             Contract.Requires(positionInToken <= Text.GetLength(table));
 
@@ -153,8 +153,7 @@ namespace BuildXL.Utilities
         /// <param name="pathTable">The path table used when creating the AbsolutePath in the Path field.</param>
         public string ToString(PathTable pathTable)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(pathTable);
 
             return I($"({Line}, {Position})");
         }

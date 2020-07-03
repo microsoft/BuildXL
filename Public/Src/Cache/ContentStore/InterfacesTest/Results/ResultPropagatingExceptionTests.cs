@@ -7,7 +7,6 @@
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
-
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public class ResultPropagatingExceptionTests

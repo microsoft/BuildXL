@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -105,9 +105,9 @@ namespace ContentStoreTest.Stores
             });
         }
 
-        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
-            return CreateElastic(rootPath, clock, nagleBlock, new MaxSizeQuota(MaxSizeHard));
+            return CreateElastic(rootPath, clock, new MaxSizeQuota(MaxSizeHard));
         }
     }
 }

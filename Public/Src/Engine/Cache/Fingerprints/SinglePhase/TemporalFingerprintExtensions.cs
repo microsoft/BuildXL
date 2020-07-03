@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,9 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -137,6 +139,8 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
             ContentFingerprint fingerprint,
             CacheEntry entry)
         {
+            Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Publishing temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='{entry.MetadataHash}'"));
+
             // Unblock the caller
             await Task.Yield();
 
@@ -145,8 +149,6 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
                     s_dummyPathSetHash,
                     node.NodeFingerprint,
                     entry);
-
-            Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Publishing temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='{entry.MetadataHash}' Success='{result.Succeeded}'"));
 
             if (result.Succeeded)
             {
@@ -183,6 +185,10 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
                     node,
                     fingerprint,
                     entry));
+
+                // Don't store full cache entry for parent nodes since time tree addition
+                // will trigger pins (and consequently downloads) of content for conflicting entries
+                entry = new CacheEntry(entry.MetadataHash, entry.OriginatingCache, ArrayView<ContentHash>.Empty);
 
                 node = node.Parent;
             }

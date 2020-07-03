@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Tasks;
@@ -40,6 +39,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
         /// <inheritdoc />
         protected override async Task<RunSummary> RunTestCaseAsync(IXunitTestCase testCase)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             // Tracing test methods invocation gives an ability to see what tests were running when 
             // the console runner crashed with stack overflow or similar unrecoverable error.
             m_logger.LogVerbose($"Starting '{testCase.DisplayName}'... ");
@@ -59,7 +59,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             }
             finally
             {
-                m_logger.LogVerbose($"Finished '{testCase.DisplayName}'");
+                m_logger.LogVerbose($"Finished '{testCase.DisplayName}' in {sw.ElapsedMilliseconds:n0}ms");
             }
         }
     }

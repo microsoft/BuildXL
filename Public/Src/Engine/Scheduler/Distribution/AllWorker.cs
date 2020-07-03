@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
 
@@ -12,12 +11,14 @@ namespace BuildXL.Scheduler.Distribution
     /// <summary>
     /// Defines a worker which broadcasts to all workers
     /// </summary>
-    public sealed class AllWorker : RemoteWorkerBase
+    public sealed class AllWorker : Worker
     {
         /// <nodoc />
         public const uint Id = uint.MaxValue;
         private readonly Worker[] m_workers;
-        private readonly SemaphoreSlim m_localMaterializeOutputsSemaphore = new SemaphoreSlim(Environment.ProcessorCount * 2);
+
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => m_workers.Sum(a => a.EffectiveTotalProcessSlots);
 
         /// <nodoc />
         public AllWorker(Worker[] workers)
@@ -41,18 +42,8 @@ namespace BuildXL.Scheduler.Distribution
                 for (int i = m_workers.Length - 1; i >= 0; i--)
                 {
                     var worker = m_workers[i];
-                    if (worker.IsLocal)
-                    {
-                        await m_localMaterializeOutputsSemaphore.WaitAsync();
-
-                    }
-
                     tasks[i] = Task.Run(() => worker.MaterializeOutputsAsync(runnablePip));
                 }
-
-                // Await the local worker first to release the semaphore. 
-                await tasks[LocalWorkerIndex];
-                m_localMaterializeOutputsSemaphore.Release();
 
                 var results = await Task.WhenAll(tasks);
 

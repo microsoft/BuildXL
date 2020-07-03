@@ -3,8 +3,6 @@
 
 namespace Analyzer {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlcacheanalyzer",

@@ -1,15 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -34,11 +34,11 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         /// <summary>
         /// The loaded directed graph
         /// </summary>
-        public DirectedGraph DataflowGraph
+        public IReadonlyDirectedGraph DirectedGraph
         {
             get
             {
-                return CachedGraph.DataflowGraph;
+                return CachedGraph.DirectedGraph;
             }
         }
 
@@ -85,8 +85,8 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         public AnalysisModel(CachedGraph graph)
         {
             CachedGraph = graph;
-            ChangedPips = new VisitationTracker(CachedGraph.DataflowGraph);
-            visitor = new NodeVisitor(graph.DataflowGraph);
+            ChangedPips = new VisitationTracker(CachedGraph.DirectedGraph);
+            visitor = new NodeVisitor(graph.DirectedGraph);
             LookupHashFunction = LookupHash;
         }
 
@@ -216,7 +216,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
 
         public bool HasChangedDependencies(PipId pipId)
         {
-            foreach (var incoming in DataflowGraph.GetIncomingEdges(pipId.ToNodeId()))
+            foreach (var incoming in DirectedGraph.GetIncomingEdges(pipId.ToNodeId()))
             {
                 if (ChangedPips.WasVisited(incoming.OtherNode))
                 {

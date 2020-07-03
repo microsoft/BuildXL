@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -26,7 +26,7 @@ namespace BuildXL.Ipc.Common
         }
 
         /// <inheritdoc />
-        public ILogger Logger { get; set; } = null;
+        public IIpcLogger Logger { get; set; } = null;
 
         /// <inheritdoc />
         public TimeSpan ConnectRetryDelay { get; set; } = TimeSpan.FromMilliseconds(DefaultConnectRetryDelayMillis);

@@ -5,6 +5,9 @@ import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import * as Xml from "Sdk.Xml";
 
+const TestRunDataXmlFileName = a`testRunData.xml`;
+const TestRunDataElementName = "TestRunData";
+
 /**
  * Compiles an assembly using some of the given test frameworks defaults,
  * deploys the assembly and its closure to a testRun folder and then
@@ -12,7 +15,7 @@ import * as Xml from "Sdk.Xml";
  */
 @@public
 export function test(args: TestArguments) : TestResult {
-    let testFramework = args.testFramework;
+    const testFramework = args.testFramework;
     if (!testFramework) {
         Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
     }
@@ -21,25 +24,35 @@ export function test(args: TestArguments) : TestResult {
         args = testFramework.compileArguments(args);
     }
 
-    let assembly = library(args);
+    // If there is additional content to deploy, ensure it is on the argumetns
+    // to compile the test library so that the managed deduplication semantics will apply for runtime binatires
+    if (testFramework.additionalRuntimeContent)
+    {
+        args = args.merge({
+            runtimeContent: testFramework.additionalRuntimeContent(args)
+        });
+    }
+
+    const assembly = library(args);
 
     // Deploy assemblies (with all dependencies) to special folder.
-    let testDeployFolder = Context.getNewOutputDirectory("testRun");
-    let additionalRuntimeContent = testFramework.additionalRuntimeContent
-        ? testFramework.additionalRuntimeContent(args)
-        : [];
+    const testDeployFolder = Context.getNewOutputDirectory("testRun");
     const testDeployment = Deployment.deployToDisk({
         definition: {
             contents: [
                 assembly,
-                ...additionalRuntimeContent
+                generateTestDataXmlFile(args.runTestArgs) // can be undefined, but that's fine
             ],
         },
         targetDirectory: testDeployFolder,
         primaryFile: assembly.runtime.binary.name,
         deploymentOptions: args.deploymentOptions,
         // Tag is required by ide generator to generate the right csproj file.
-        tags: [ "testDeployment" ]
+        tags: [ "testDeployment" ],
+        sealPartialWithoutScrubbing: 
+            args.runTestArgs && 
+            args.runTestArgs.unsafeTestRunArguments && 
+            args.runTestArgs.unsafeTestRunArguments.doNotScrubTestDeployment
     });
 
     return assembly.merge<TestResult>(runTestOnly(
@@ -58,13 +71,12 @@ export function runTestOnly(args: TestArguments, compileArguments: boolean, test
     if (!testFramework) {
         Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
     }
-    
+
     if (testFramework.compileArguments && compileArguments) {
         args = testFramework.compileArguments(args);
     }
 
     let testRunArgs = Object.merge(args.runTestArgs, {testDeployment: testDeployment});
-    testRunArgs = prepareForTestData(testRunArgs);
 
     let testResults = [];
 
@@ -72,8 +84,7 @@ export function runTestOnly(args: TestArguments, compileArguments: boolean, test
         if (testRunArgs.parallelBucketCount) {
             for (let i = 0; i < testRunArgs.parallelBucketCount; i++) {
                 let bucketTestRunArgs = testRunArgs.merge({
-                    parallelBucketIndex: i,
-                    
+                    parallelBucketIndex: i
                 });
 
                 testResults = testResults.concat(testFramework.runTest(bucketTestRunArgs));
@@ -125,16 +136,12 @@ namespace TestHelpers {
     }
 }
 
-function prepareForTestData(testRunArgs: TestRunArguments) : TestRunArguments
-{
-    const testRunData = testRunArgs.testRunData;
-
-    if (!testRunData)
+function generateTestDataXmlFile(testRunArgs: TestRunArguments): File {
+    if (!testRunArgs || !testRunArgs.testRunData)
     {
-        // No rundata so no need to do anything
-        return testRunArgs;
+        return undefined;
     }
-
+    const testRunData = testRunArgs.testRunData;
     const entries = testRunData
         .keys()
         .map(key => Xml.elem("Entry", 
@@ -143,29 +150,12 @@ function prepareForTestData(testRunArgs: TestRunArguments) : TestRunArguments
         );
 
     const doc = Xml.doc(
-        Xml.elem("TestRunData",
+        Xml.elem(TestRunDataElementName,
             ...entries
         )
     );
 
-    const testDataXmlFile = Xml.write(p`${Context.getNewOutputDirectory("testRunData")}/testRunData.xml`, doc);
-    return testRunArgs.merge({
-        tools: {
-            exec: {
-                // Set the environment variable so the test logic can find the data file
-                environmentVariables: [
-                    {
-                        name: "TestRunData",
-                        value: testDataXmlFile,
-                    }
-                ],
-                // Add it to the dependencies so tests can read it.
-                dependencies: [
-                    testDataXmlFile,
-                ]
-            }
-        }
-    });
+    return Xml.write(p`${Context.getNewOutputDirectory("testRunData")}/${TestRunDataXmlFileName}`, doc);
 }
 
 @@public
@@ -231,22 +221,7 @@ export interface TestRunArguments {
          * this is an optional settings for executing the test processs to 
          * allow for overidding the process execution settings
          * */
-        exec?: {
-            /** Tools dependencies. */
-            dependencies?: Transformer.InputArtifact[];
-            /** Tool outputs */
-            outputs?: Transformer.Output[];
-            /** Regex that would be used to extract errors from the output. */
-            errorRegex?: string;
-            /** Regex that would be used to extract warnings from the output. */
-            warningRegex?: string;
-            /** Environment variables. */
-            environmentVariables?: Transformer.EnvironmentVariable[];
-            /** Unsafe arguments */
-            unsafe?: Transformer.UnsafeExecuteArguments;
-            /** Mutexes to avoid running certain tests simultaneously */
-            acquireMutexes?: string[];
-        };
+        exec?: Transformer.ExecuteArgumentsComposible;
 
         /**
          * Some test frameworks might want to wrap other test runners
@@ -292,6 +267,29 @@ export interface TestRunArguments {
 
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
+
+    /** Unsafe arguments for running unit tests. */
+    unsafeTestRunArguments?: UnsafeTestRunArguments;
+
+    /** Disables code coverage. */
+    disableCodeCoverage? : boolean;
+}
+
+@@public
+export interface UnsafeTestRunArguments {
+    /** Allow testing zero test cases. */
+    allowForZeroTestCases?: boolean;
+    
+    /** Allow dependencies to go untracked. */
+    runWithUntrackedDependencies?: boolean;
+
+    /** When set, XUnit test framework is used for running admin tests irrespective of any other settings */
+    forceXunitForAdminTests?: boolean;
+
+    /** Blocks scrubbing of stale files under the test deployment. Useful when the test happens to create or lock files
+     * under the deployment root
+    */
+    doNotScrubTestDeployment?: boolean;
 }
 
 @@public

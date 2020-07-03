@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Cache.Interfaces;
-using BuildXL.Storage;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Storage.Fingerprints;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
 
 namespace BuildXL.Cache.Tests

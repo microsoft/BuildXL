@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -236,16 +236,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// If <paramref name="poolSize"/> = <paramref name="pageSize"/>, the algorithm fills up the entire pool and
         /// evicts a fraction of it in every iteration.
         /// </remarks>
-        public static IEnumerable<T> ApproximateSort<T>(this IEnumerable<T> original, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, int poolSize, int pageSize, float removalFraction)
+        public static IEnumerable<TResult> ApproximateSort<T, TResult>(this IEnumerable<T> original, IComparer<TResult> comparer, Func<IReadOnlyList<T>, IEnumerable<TResult>> query, int poolSize, int pageSize, float removalFraction, float discardFraction = 0)
         {
+            Contract.RequiresNotNull(original);
             Contract.Requires(poolSize > 0);
             Contract.Requires(pageSize > 0 && pageSize <= poolSize);
             Contract.Requires(removalFraction > 0 && removalFraction <= 1);
+            Contract.Requires(discardFraction >= 0 && discardFraction <= 1);
 
             // The pool holds up to `poolSize` candidates sorted by the comparer
-            var pool = new PriorityQueue<T>(poolSize, comparer);
+            var pool = new MinMaxHeap<TResult>(poolSize, comparer);
 
-            var source = original.GetEnumerator();
+            using var source = original.GetEnumerator();
             var sourceHasItems = true;
 
             while (true)
@@ -298,8 +300,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 for (var i = 0; i < minimumYieldSize; ++i)
                 {
-                    yield return pool.Top;
-                    pool.Pop();
+                    yield return pool.PopMinimum();
+                }
+
+                // We allow disabling the following block of code when the discard fraction is 0.
+                if (discardFraction == 0 || pool.Count == 0)
+                {
+                    continue;
+                }
+
+                // NOTE(jubayard, 12/13/2019): We've observed issues in production where the pool fills with bad
+                // candidates, which causes us to evict very little, not replace anything in the pool, and thereby
+                // end up with a suboptimal purge. This is an easy attempt to avoid that from happening via basically
+                // removing the high-cost candidates.
+                minimumYieldSize = (int)Math.Floor(discardFraction * pool.Count);
+                for (var i = 0; i < minimumYieldSize; ++i)
+                {
+                    pool.PopMaximum();
                 }
             }
         }

@@ -17,19 +17,19 @@ static int CallStat(const char *path, bool followSymlink, struct stat *result)
     {
         while((ret = stat(path, result)) < 0 && errno == EINTR);
     }
-    else 
+    else
     {
         ret = lstat(path, result);
     }
-    
+
     return ret;
 }
 
 static void ConvertStatToStatBuffer(struct stat *fileStat, StatBuffer *statBuffer)
 {
-    statBuffer->st_dev                = (int64_t)fileStat->st_dev;
-    statBuffer->st_ino                = (int64_t)fileStat->st_ino;
-    statBuffer->st_mode               = (int32_t)fileStat->st_mode;
+    statBuffer->st_dev                = fileStat->st_dev;
+    statBuffer->st_ino                = fileStat->st_ino;
+    statBuffer->st_mode               = fileStat->st_mode;
     statBuffer->st_nlink              = fileStat->st_nlink;
     statBuffer->st_uid                = fileStat->st_uid;
     statBuffer->st_gid                = fileStat->st_gid;
@@ -59,7 +59,7 @@ int StatFile(const char *path, bool followSymlink, StatBuffer *statBuffer, long 
 
     struct stat fileStat;
     int result = CallStat(path, followSymlink, &fileStat);
-    
+
     if (result == 0)
     {
         ConvertStatToStatBuffer(&fileStat, statBuffer);
@@ -101,8 +101,7 @@ int SetAttributeList(const char *path, uint commonAttr, struct timespec spec, bo
     attributes.bitmapcount = ATTR_BIT_MAP_COUNT;
     attributes.commonattr = commonAttr;
 
-    return setattrlist(
-        path, &attributes, (void*)&spec, sizeof(struct timespec), followSymLink ? 0 : FSOPT_NOFOLLOW);
+    return setattrlist(path, &attributes, (void*)&spec, sizeof(struct timespec), followSymLink ? 0 : FSOPT_NOFOLLOW);
 }
 
 int SetTimeStampsForFilePath(const char *path, bool followSymlink, StatBuffer buffer)
@@ -110,19 +109,19 @@ int SetTimeStampsForFilePath(const char *path, bool followSymlink, StatBuffer bu
     struct timespec birthTime;
     birthTime.tv_sec = buffer.st_birthtimespec;
     birthTime.tv_nsec = buffer.st_birthtimespec_nsec;
-    
+
     struct timespec mTime;
     mTime.tv_sec = buffer.st_mtimespec;
     mTime.tv_nsec = buffer.st_mtimespec_nsec;
-    
+
     struct timespec aTime;
     aTime.tv_sec = buffer.st_atimespec;
     aTime.tv_nsec = buffer.st_atimespec_nsec;
-    
+
     struct timespec cTime;
     cTime.tv_sec = buffer.st_ctimespec;
     cTime.tv_nsec = buffer.st_ctimespec_nsec;
-    
+
     int result = SetAttributeList(path, ATTR_CMN_CRTIME, birthTime, followSymlink);
     result += SetAttributeList(path, ATTR_CMN_MODTIME, mTime, followSymlink);
     result += SetAttributeList(path, ATTR_CMN_ACCTIME, aTime, followSymlink);
@@ -175,7 +174,7 @@ int GetFilePermissionsForFilePath(const char *path, bool followSymlink)
 
 int GetFileSystemType(intptr_t fd, char *fsTypeNameBuffer, size_t bufferSize)
 {
-    if (fsTypeNameBuffer == NULL || bufferSize <= 0) 
+    if (fsTypeNameBuffer == NULL || bufferSize <= 0)
     {
         return -1;
     }
@@ -183,13 +182,13 @@ int GetFileSystemType(intptr_t fd, char *fsTypeNameBuffer, size_t bufferSize)
     struct statfs statbuf;
     int result = fstatfs(ToFileDescriptorUnchecked(fd), &statbuf);
 
-    if (result == 0) 
+    if (result == 0)
     {
         size_t requiredLength = strlen(statbuf.f_fstypename) + 1;
         if (bufferSize < requiredLength)
         {
             return -1;
-        } 
+        }
 
         strncpy(fsTypeNameBuffer, statbuf.f_fstypename, requiredLength);
     }

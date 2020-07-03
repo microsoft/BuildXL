@@ -1,16 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
-using System.Diagnostics.Tracing;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using System.IO;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -19,7 +21,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
     /// </summary>
     internal sealed class Program : ToolProgram<Args>
     {
-        private PathTable m_pathTable = new PathTable();
+        private readonly PathTable m_pathTable = new PathTable();
 
         private Program()
             : base("Dsa")
@@ -90,7 +92,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             // TODO: Don't assume particular hash types (this is particularly seen in WorkspaceNugetModuleResolver.TryGetExpectedContentHash).
             ContentHashingUtilities.SetDefaultHashType();
 
-            using (Logger.SetupEventListener(EventLevel.Informational))
+            using (SetupEventListener(EventLevel.Informational))
             {
                 var logger = Logger.CreateLogger();
 
@@ -100,7 +102,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     logger,
                     m_pathTable,
                     arguments.CommandLineConfig,
-                    arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,
@@ -154,6 +155,48 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             }
         }
 
+        /// <summary>
+        /// Set up console event listener for BuildXL's ETW event sources.
+        /// </summary>
+        /// <param name="level">The level of data to be sent to the listener.</param>
+        /// <returns>An <see cref="EventListener"/> with the appropriate event sources registered.</returns>
+        [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
+        private static IDisposable SetupEventListener(EventLevel level)
+        {
+            var eventListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow, true, true, true, false, level: level);
+
+            var primarySource = global::bxlScriptAnalyzer.ETWLogger.Log;
+            if (primarySource.ConstructionException != null)
+            {
+                throw primarySource.ConstructionException;
+            }
+
+            eventListener.RegisterEventSource(primarySource);
+
+            eventListener.EnableTaskDiagnostics(global::BuildXL.Tracing.ETWLogger.Tasks.CommonInfrastructure);
+
+            var eventSources = new EventSource[]
+                               {
+                                   global::bxlScriptAnalyzer.ETWLogger.Log,
+                                   global::BuildXL.Engine.Cache.ETWLogger.Log,
+                                   global::BuildXL.Engine.ETWLogger.Log,
+                                   global::BuildXL.Scheduler.ETWLogger.Log,
+                                   global::BuildXL.Pips.ETWLogger.Log,
+                                   global::BuildXL.Tracing.ETWLogger.Log,
+                                   global::BuildXL.Storage.ETWLogger.Log,
+                               }.Concat(FrontEndControllerFactory.GeneratedEventSources);
+
+            using (var dummy = new TrackingEventListener(Events.Log))
+            {
+                foreach (var eventSource in eventSources)
+                {
+                    Events.Log.RegisterMergedEventSource(eventSource);
+                }
+            }
+
+            return eventListener;
+        }
+
         private static Analyzer AnalyzerFactory(AnalyzerKind type)
         {
             switch (type)
@@ -168,8 +211,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     return new DocumentationGenerator();
                 case AnalyzerKind.Codex:
                     return new CodexAnalyzer();
-                case AnalyzerKind.GraphFragment:
-                    return new PipGraphFragmentGenerator();
                 default:
                     return null;
             }

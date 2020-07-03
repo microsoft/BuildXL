@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
@@ -17,19 +18,19 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Creates a new instance configured to output to the given writer.
         /// </summary>
-        public StatusEventListener(Events eventSource, TextWriter writer, DateTime baseTime, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null)
+        public StatusEventListener(Events eventSource, TextWriter writer, DateTime baseTime, DisabledDueToDiskWriteFailureEventHandler? onDisabledDueToDiskWriteFailure = null)
             : base(
                 eventSource,
                 writer,
                 baseTime,
                 warningMapper: null,
                 level: EventLevel.Verbose,
-                eventMask: new EventMask(enabledEvents: new[] { (int)EventId.Status, (int)EventId.StatusHeader }, disabledEvents: null),
+                eventMask: new EventMask(enabledEvents: new[] { (int)LogEventId.Status, (int)LogEventId.StatusHeader }, disabledEvents: null),
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages: true)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
         }
 
         /// <summary>
@@ -45,16 +46,18 @@ namespace BuildXL.Tracing
         }
 
         /// <inheritdoc/>
-        protected override void Write(EventWrittenEventArgs eventData, EventLevel level, string message = null, bool suppressEvent = false)
+        protected override void Write(EventWrittenEventArgs eventData, EventLevel level, string? message = null, bool suppressEvent = false)
         {
-            if (eventData.EventId == (int)EventId.StatusHeader)
+            if (eventData.EventId == (int)LogEventId.StatusHeader)
             {
-                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
+                Contract.AssertNotNull(eventData.Payload);
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
             }
-            else if (eventData.EventId == (int)EventId.Status)
+            else if (eventData.EventId == (int)LogEventId.Status)
             {
+                Contract.AssertNotNull(eventData.Payload);
                 var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
-                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }
     }

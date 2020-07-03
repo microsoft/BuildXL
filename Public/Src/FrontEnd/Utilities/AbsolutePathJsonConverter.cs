@@ -1,8 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
 
@@ -17,24 +19,17 @@ namespace BuildXL.FrontEnd.Utilities
     public class AbsolutePathJsonConverter : ReadOnlyJsonConverter<AbsolutePath>
     {
         private readonly PathTable m_pathTable;
-        private readonly AbsolutePath m_originalRoot;
-        private readonly AbsolutePath m_redirectedRoot;
-
-        /// <nodoc/>
-        public AbsolutePathJsonConverter(PathTable pathTable) : this(pathTable, AbsolutePath.Invalid, AbsolutePath.Invalid)
-        { }
+        private readonly IReadOnlyCollection<(AbsolutePath, AbsolutePath)> m_redirection;
 
         /// <summary>
-        /// Allows for setting a single path redirection (original root to redirected root)
+        /// Allows for setting a sequence of redirections (original root to redirected root) 
         /// </summary>
-        public AbsolutePathJsonConverter(PathTable pathTable, AbsolutePath originalRoot, AbsolutePath redirectedRoot) : base()
+        public AbsolutePathJsonConverter(PathTable pathTable, IReadOnlyCollection<(AbsolutePath, AbsolutePath)> redirection = null) : base()
         {
             Contract.Requires(pathTable != null);
-            Contract.Requires(!originalRoot.IsValid || redirectedRoot.IsValid);
 
             m_pathTable = pathTable;
-            m_originalRoot = originalRoot;
-            m_redirectedRoot = redirectedRoot;
+            m_redirection = redirection;
         }
 
         /// <nodoc/>
@@ -53,14 +48,14 @@ namespace BuildXL.FrontEnd.Utilities
                 return AbsolutePath.Invalid;
             }
 
-            // If the path is within the original root, we redirect it to the redirected root
-            if (m_originalRoot.IsValid && fullPath.IsWithin(m_pathTable, m_originalRoot))
+            // If the path is within any of the the original roots, we redirect it to the corresponding redirected root
+            // The redirection collection is traversed in order and first matches win
+            if (m_redirection != null && m_redirection.FirstOrDefault(kvp => fullPath.IsWithin(m_pathTable, kvp.Item1)) is var redirectedPair && redirectedPair != default)
             {
-                return fullPath.Relocate(m_pathTable, m_originalRoot, m_redirectedRoot);
+                return fullPath.Relocate(m_pathTable, redirectedPair.Item1, redirectedPair.Item2);
             }
 
             return fullPath;
         }
-        
     }
 }

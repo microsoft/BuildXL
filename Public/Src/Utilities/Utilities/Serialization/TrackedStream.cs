@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -32,7 +32,7 @@ namespace BuildXL.Utilities.Serialization
         /// </summary>
         public TrackedStream(Stream stream, bool leaveOpen = false, long? precomputedLength = null)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
 
             BaseStream = stream;
             m_leaveOpen = leaveOpen;

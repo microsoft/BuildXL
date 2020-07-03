@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -445,11 +446,11 @@ namespace BuildXL.Engine
             }
             catch (IOException e)
             {
-                Tracing.Logger.Log.ErrorSavingSnapshot(Events.StaticContext, snapshotFile, e.Message);
+                Tracing.Logger.Log.ErrorSavingSnapshot(m_loggingContext, snapshotFile, e.Message);
             }
             catch (UnauthorizedAccessException e)
             {
-                Tracing.Logger.Log.ErrorSavingSnapshot(Events.StaticContext, snapshotFile, e.Message);
+                Tracing.Logger.Log.ErrorSavingSnapshot(m_loggingContext, snapshotFile, e.Message);
             }
         }
 

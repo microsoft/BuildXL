@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities;
@@ -109,7 +110,7 @@ function createArtifact(value: Transformer.InputArtifact | Transformer.OutputArt
             var processPips = pipGraph.RetrievePipsOfType(PipType.Process).ToList();
 
             // assert edges exist
-            Assert.All(
+            XAssert.All(
                 file2file.Edges,
                 edge =>
                 {

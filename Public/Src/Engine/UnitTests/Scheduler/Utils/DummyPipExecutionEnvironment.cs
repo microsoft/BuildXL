@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -17,6 +17,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -25,17 +26,15 @@ using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using SandboxConnectionKext = BuildXL.Processes.SandboxConnectionKext;
 using BuildXL.Utilities.VmCommandProxy;
 using Test.BuildXL.TestUtilities;
 
@@ -101,10 +100,11 @@ namespace Test.BuildXL.Scheduler.Utils
             EngineCache pipCache = null,
             SemanticPathExpander semanticPathExpander = null,
             PipContentFingerprinter.PipDataLookup pipDataLookup = null,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             bool allowUnspecifiedSealedDirectories = false,
             PipTable pipTable = null,
             IIpcProvider ipcProvider = null,
+            (string substSource, string substTarget)? subst = default,
             ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(context != null);
@@ -127,9 +127,9 @@ namespace Test.BuildXL.Scheduler.Utils
             PipFragmentRenderer = this.CreatePipFragmentRenderer();
             IpcProvider = ipcProvider ?? IpcFactory.GetProvider();
 
-            FileContentTable = fileContentTable ?? FileContentTable.CreateNew();
+            FileContentTable = fileContentTable ?? FileContentTable.CreateNew(LoggingContext);
             Cache = pipCache;
-            FileAccessWhitelist = fileAccessWhitelist;
+            FileAccessAllowlist = fileAccessAllowlist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
             m_sandboxConnectionKext = sandboxConnection;
 
@@ -149,26 +149,41 @@ namespace Test.BuildXL.Scheduler.Utils
 
             if (config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)
             {
-                preserveOutputsSalt = ContentHashingUtilities.HashString(Guid.NewGuid().ToString());
+                preserveOutputsSalt = new PreserveOutputsInfo(ContentHashingUtilities.HashString(Guid.NewGuid().ToString()), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             State = new PipExecutionState(
-                    config,
-                    cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
-                    fileAccessWhitelist: FileAccessWhitelist,
-                    directoryMembershipFingerprinter: this,
-                    pathExpander: PathExpander,
-                    executionLog: ExecutionLogRecorder,
-                    fileSystemView: fileSystemView,
-                    fileContentManager: GetFileContentManager(),
-                    directoryMembershipFinterprinterRuleSet: null,
-                    unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
-                    preserveOutputsSalt: preserveOutputsSalt,
-                    serviceManager: new DummyServiceManager());
+                config,
+                loggingContext,
+                cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
+                fileAccessAllowlist: FileAccessAllowlist,
+                directoryMembershipFingerprinter: this,
+                pathExpander: PathExpander,
+                executionLog: ExecutionLogRecorder,
+                fileSystemView: fileSystemView,
+                fileContentManager: GetFileContentManager(),
+                directoryMembershipFinterprinterRuleSet: null,
+                unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
+                preserveOutputsSalt: preserveOutputsSalt,
+                serviceManager: new DummyServiceManager(),
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             
             ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
+
+            DirectoryTranslator = new DirectoryTranslator();
+            foreach (var directoryToTranslate in config.Engine.DirectoriesToTranslate)
+            {
+                DirectoryTranslator.AddTranslation(directoryToTranslate.FromPath.ToString(context.PathTable), directoryToTranslate.ToPath.ToString(context.PathTable));
+            }
+
+            if (subst.HasValue)
+            {
+                DirectoryTranslator.AddTranslation(subst.Value.substSource, subst.Value.substTarget);
+            }
+
+            DirectoryTranslator.Seal();
         }
 
         internal void RecordExecution()
@@ -324,7 +339,7 @@ namespace Test.BuildXL.Scheduler.Utils
         public FileContentTable FileContentTable { get; }
 
         /// <inheritdoc />
-        public FileAccessWhitelist FileAccessWhitelist { get; }
+        public FileAccessAllowlist FileAccessAllowlist { get; }
 
         /// <summary>
         /// Gets the in memory content cache if applicable
@@ -351,6 +366,12 @@ namespace Test.BuildXL.Scheduler.Utils
 
         /// <inheritdoc />
         public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer => m_disabledFileMonitoringViolationAnalyzer;
+
+        /// <inheritdoc />
+        public bool MaterializeOutputsInBackground => false;
+
+        /// <inheritdoc />
+        public bool IsTerminating => false;
 
         /// <inheritdoc />
         public DirectoryFingerprint? TryQueryDirectoryFingerprint(AbsolutePath directoryPath)
@@ -557,7 +578,7 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public DirectoryTranslator DirectoryTranslator => null;
+        public DirectoryTranslator DirectoryTranslator { get; }
 
         /// <inheritdoc />
         public CounterCollection<PipExecutorCounter> Counters { get; } = new CounterCollection<PipExecutorCounter>();
@@ -585,6 +606,8 @@ namespace Test.BuildXL.Scheduler.Utils
         public VmInitializer VmInitializer { get; }
 
         public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
+
+        public SymlinkedAccessResolver SymlinkedAccessResolver => null;
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {
@@ -686,6 +709,16 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
+
+        public bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsReachableFrom(PipId from, PipId to)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     internal sealed class DummyServiceManager : ServiceManager

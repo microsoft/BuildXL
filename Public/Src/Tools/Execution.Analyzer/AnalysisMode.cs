@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -24,7 +24,8 @@ namespace BuildXL.Execution.Analyzer
         PipExecutionPerformance,
         ProcessDetouringStatus,
         ToolEnumeration,
-        Whitelist,
+        Whitelist, // compatibility
+        Allowlist,
         LogCompare,
         IdeGenerator,
         BuildStatus,
@@ -57,6 +58,6 @@ namespace BuildXL.Execution.Analyzer
         CopyFile, 
         XlgToDb,
         DebugLogs,
-        ContentPlacement
+        JavaScriptDependencyFixer
     }
 }

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.App.Tracing
 {
@@ -11,6 +11,56 @@ namespace BuildXL.App.Tracing
     /// </summary>
     public enum LogEventId
     {
+        StartupCurrentDirectory = 27,
+        CatastrophicFailureCausedByDiskSpaceExhaustion = 49,
+        CatastrophicFailureCausedByCorruptedCache = 51,
+        CatastrophicFailure = 59,
+        MappedRoot = 83,
+        StartupTimestamp = 403,
+        DominoCompletion = 406,
+        DominoCatastrophicFailure = 407,
+        DominoPerformanceSummary = 408,
+        FailedToEnumerateLogDirsForCleanup = 454,
         DominoMacOSCrashReport = 412,
+        EventWriteFailuresOccurred = 452,
+        FailedToCleanupLogDir = 455,
+        WaitingCleanupLogDir = 456,
+        CoreDumpNoPermissions = 460,
+        CrashReportProcessing = 461,
+        CancellationRequested = 470,
+        TelemetryShutDown = 471,
+        TelemetryShutDownException = 474,
+        TelemetryShutdownTimeout = 476,
+
+        Channel = 502,
+        StorageCatastrophicFailureDriveError = 730,
+        CatastrophicFailureMissingRuntimeDependency = 731,
+        
+        ChangeJournalServiceReady = 2914,
+        
+        TelemetryEnabledNotifyUser = 4301,
+        TelemetryEnabledHideNotification = 4302,
+        MemoryLoggingEnabled = 4303,
+
+        EventCount = 6302,
+
+        UsingExistingServer = 8100,
+        AppServerBuildStart = 8101,
+        AppServerBuildFinish = 8102,
+        StartingNewServer = 8103,
+        CannotStartServer = 8104,
+        DeploymentUpToDateCheckPerformed = 8105,
+        DeploymentCacheCreated = 8106,
+
+        ProcessPipsUncacheable = 14001,
+        NoCriticalPathTableHits = 14002,
+        NoSourceFilesUnchanged = 14003,
+        ServerModeDisabled = 14004,
+        GraphCacheCheckJournalDisabled = 14005,
+        SlowCacheInitialization = 14006,
+        BuildHasPerfSmells = 14010,
+        LogProcessesEnabled = 14011,
+        FrontendIOSlow = 14012,
+        // ProblematicWorkerExitError = 14013,
     }
 }

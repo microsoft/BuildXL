@@ -8,12 +8,22 @@ import * as MacOS from "Sdk.MacOS";
 const pkgContents = importFrom("Grpc.Tools").Contents.all;
 const includesFolder = d`${pkgContents.root}/build/native/include`;
 
+const currentHost = Context.getCurrentHost();
+const isHostOsOsx : boolean = currentHost.os === "macOS";
+const isHostOsWin : boolean = currentHost.os === "win";
+const isHostOsLinux : boolean = currentHost.os === "unix";
+
+const binDir = 
+    isHostOsWin   ? a`windows_x64` :
+    isHostOsOsx   ? a`macosx_x64` : 
+    isHostOsLinux ? a`linux_x64` : 
+    Contract.fail("Unsupported OS");
+
 @@public
 export const tool: Transformer.ToolDefinition = {
-    exe: pkgContents.getFile(
-        Context.getCurrentHost().os === "win"
-            ? r`tools/windows_x64/protoc.exe`
-            : r`tools/macosx_x64/protoc`),
+    exe: pkgContents.getFile(isHostOsWin
+        ? r`tools/windows_x64/protoc.exe`
+        : r`tools/${binDir}/protoc`),
     dependsOnCurrentHostOSDirectories: true
 };
 
@@ -32,7 +42,7 @@ export const includes = Transformer.sealPartialDirectory(
  * For production this should be extended to support all languages and multiple platforms
  */
 @@public
-export function generate(args: Arguments) : Result {
+export function generateCSharp(args: ArgumentsCSharp) : Result {
 
     let resultSources : File[] = [];
 
@@ -59,9 +69,9 @@ export function generate(args: Arguments) : Result {
             ...addIf(fileToProcess.isRpc,
                 Cmd.option("--grpc_out ", Artifact.none(outputDirectory)),
                 Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pkgContents.getFile(
-                    Context.getCurrentHost().os === "win"
+                    isHostOsWin
                         ? r`tools/windows_x64/grpc_csharp_plugin.exe`
-                        : r`tools/macosx_x64/grpc_csharp_plugin`)
+                        : r`tools/${binDir}/grpc_csharp_plugin`)
                     )
                 )
             ),
@@ -75,7 +85,7 @@ export function generate(args: Arguments) : Result {
         const result = Transformer.execute({
             tool: args.tool || tool,
             arguments: arguments,
-            tags:["protobufgenerator"],
+            tags:["protobufgenerator", "codegen"],
             workingDirectory: outputDirectory,
             outputs: [
                 mainCsFile,
@@ -83,7 +93,7 @@ export function generate(args: Arguments) : Result {
                     grpcCsFile
                 ),
             ],
-            dependencies: filesToProcess.map(fileToProcess => fileToProcess.file),
+            dependencies: filesToProcess.map(fileToProcess => fileToProcess.file)
         });
 
         resultSources = resultSources.push(result.getOutputFile(mainCsFile));
@@ -98,7 +108,7 @@ export function generate(args: Arguments) : Result {
 }
 
 @@public
-export interface Arguments extends Transformer.RunnerArguments{
+export interface ArgumentsCSharp extends Transformer.RunnerArguments{
     proto?: File[],
     rpc?: File[],
     includes?: StaticDirectory[],

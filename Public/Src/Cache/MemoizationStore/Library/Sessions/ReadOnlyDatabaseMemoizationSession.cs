@@ -1,13 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-extern alias Async;
-
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -38,8 +32,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <nodoc />
         public ReadOnlyDatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore)
         {
-            Contract.Requires(name != null);
-            Contract.Requires(memoizationStore != null);
+            Contract.RequiresNotNull(name);
+            Contract.RequiresNotNull(memoizationStore);
 
             Tracer = new Tracer(name);
             Name = name;
@@ -59,7 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }

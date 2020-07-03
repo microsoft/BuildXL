@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -30,7 +30,7 @@ namespace Tool.ServicePipDaemon
     /// the command line, it is to be marshaled and sent over to a running daemon server via an RPC.
     /// In such a case, the client action simply invokes <see cref="IClient.Send"/>. 
     /// 
-    /// When an RPC is received by a daemon server (<see cref="ServicePipDaemon.ParseAndExecuteCommand"/>),
+    /// When an RPC is received by a daemon server (<see cref="ServicePipDaemon.ParseAndExecuteCommandAsync"/>),
     /// a <see cref="Command"/> is unmarshaled from the payload of the RPC operation and 
     /// is interpreted on the server by executing its <see cref="ServerAction"/>.
     /// </summary>
@@ -131,10 +131,10 @@ namespace Tool.ServicePipDaemon
         public Config Config { get; }
 
         /// <nodoc/>
-        public ILogger Logger { get; }
+        public IIpcLogger Logger { get; }
 
         /// <nodoc/>
-        public ConfiguredCommand(Command command, Config config, ILogger logger)
+        public ConfiguredCommand(Command command, Config config, IIpcLogger logger)
         {
             Command = command;
             Config = config;

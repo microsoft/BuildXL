@@ -1,14 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
+#nullable enable
 
 namespace BuildXL.Ide.LanguageServer.Tracing
 {
@@ -20,19 +19,12 @@ namespace BuildXL.Ide.LanguageServer.Tracing
     /// </remarks>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptLanguageServerLogger")]
     public abstract partial class Logger
     {
         // Internal logger will prevent public users from creating an instance of the logger
         internal Logger()
         { }
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        public static Logger CreateLogger()
-        {
-            return new LoggerImpl();
-        }
 
         [GeneratedEvent(
             (ushort)LogEventId.LanguageServerStarted,

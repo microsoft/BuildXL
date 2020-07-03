@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading;
-using BuildXL.Scheduler.Filter;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Pips.Filter;
+using BuildXL.Utilities;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
 using Xunit.Abstractions;

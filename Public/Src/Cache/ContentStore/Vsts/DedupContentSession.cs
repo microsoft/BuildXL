@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,11 +13,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
+using Microsoft.VisualStudio.Services.Content.Common;
 using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
 using VstsFileSystem = Microsoft.VisualStudio.Services.Content.Common.FileSystem;
 
@@ -49,7 +49,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(
-                DedupStoreClient,
                 new KeepUntilBlobReference(EndDateTime),
                 new AppTraceSourceContextAdapter(context, "CreateUploadSession", SourceLevels.All),
                 _artifactFileSystem);
@@ -86,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, context.Token);
+                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, _artifactFileSystem, context.Token);
                 var calculatedHash = dedupNode.ToContentHash();
 
                 if (contentHash != calculatedHash)
@@ -132,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 var contentSize = GetContentSize(path);
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, context.Token);
+                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, _artifactFileSystem, context.Token);
                 var contentHash = dedupNode.ToContentHash();
 
                 if (contentHash.HashType != hashType)
@@ -281,10 +280,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 innerCts));
         }
 
-        private async Task<DedupNode> GetDedupNodeFromFileAsync(string path, CancellationToken token)
+        internal static async Task<DedupNode> GetDedupNodeFromFileAsync(string path, IFileSystem fileSystem, CancellationToken token)
         {
             var dedupNode = await ChunkerHelper.CreateFromFileAsync(
-                fileSystem: _artifactFileSystem,
+                fileSystem: fileSystem,
                 path: path,
                 cancellationToken: token,
                 configureAwait: false);

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -10,12 +10,13 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities
@@ -39,7 +40,7 @@ namespace Test.BuildXL.TestUtilities
             return new PipGraph.Builder(
                 pipTable,
                 context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 BuildXLTestBase.CreateLoggingContextForTest(),
                 configuration,
                 semanticPathExpander);
@@ -55,6 +56,7 @@ namespace Test.BuildXL.TestUtilities
             Justification = "Caller owns the returned disposables")]
         public static Tuple<Scheduler, EngineCache> Create(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             IConfiguration configuration,
             PipGraph.Builder graphBuilder,
             IPipQueue queue)
@@ -70,6 +72,7 @@ namespace Test.BuildXL.TestUtilities
 
             Scheduler scheduler = CreateInternal(
                 context,
+                loggingContext,
                 graphBuilder.Build(),
                 queue,
                 cache: cacheLayer,
@@ -88,6 +91,7 @@ namespace Test.BuildXL.TestUtilities
             Justification = "Caller owns the returned disposables")]
         public static Tuple<Scheduler, EngineCache> CreateWithCaching(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             IConfiguration configuration,
             PipGraph.Builder graphBuilder,
             IPipQueue queue)
@@ -102,6 +106,7 @@ namespace Test.BuildXL.TestUtilities
 
             Scheduler scheduler = CreateInternal(
                 context,
+                loggingContext,
                 graphBuilder.Build(),
                 queue,
                 cacheLayer,
@@ -112,6 +117,7 @@ namespace Test.BuildXL.TestUtilities
 
         private static Scheduler CreateInternal(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             PipGraph pipGraph,
             IPipQueue queue,
             EngineCache cache,
@@ -122,9 +128,9 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(cache != null);
             Contract.Requires(configuration != null);
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(loggingContext);
 
-            var fileAccessWhiteList = new FileAccessWhitelist(context);
+            var fileAccessAllowList = new FileAccessAllowlist(context);
 
             var testHooks = new SchedulerTestHooks();
 
@@ -134,9 +140,9 @@ namespace Test.BuildXL.TestUtilities
                 context,
                 fileContentTable,
                 cache: cache,
-                loggingContext: Events.StaticContext,
+                loggingContext: loggingContext,
                 configuration: configuration,
-                fileAccessWhitelist: fileAccessWhiteList,
+                fileAccessAllowlist: fileAccessAllowList,
                 testHooks: testHooks,
                 buildEngineFingerprint: null,
                 tempCleaner: new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "MoveDeletionTemp")));

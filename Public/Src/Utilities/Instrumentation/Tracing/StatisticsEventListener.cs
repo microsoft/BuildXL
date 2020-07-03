@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -21,19 +21,19 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Creates a new instance configured to output to the given writer.
         /// </summary>
-        public StatisticsEventListener(Events eventSource, TextWriter writer, LoggingContext loggingContext, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null)
+        public StatisticsEventListener(Events eventSource, TextWriter writer, LoggingContext loggingContext, DisabledDueToDiskWriteFailureEventHandler? onDisabledDueToDiskWriteFailure = null)
             : base(
                 eventSource,
                 writer,
                 DateTime.UtcNow, // The time doesn't actually matter since no times are written to the stats log
                 warningMapper: null,
                 level: EventLevel.Verbose,
-                eventMask: new EventMask(enabledEvents: new[] { (int)EventId.Statistic, (int)EventId.StatisticWithoutTelemetry }, disabledEvents: null),
+                eventMask: new EventMask(enabledEvents: new[] { (int)LogEventId.Statistic, (int)LogEventId.StatisticWithoutTelemetry }, disabledEvents: null),
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages: true)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
             m_loggingContext = loggingContext;
         }
 
@@ -53,21 +53,25 @@ namespace BuildXL.Tracing
         protected override void OnVerbose(EventWrittenEventArgs eventData)
         {
             // First we filter to events with the appropriate event id
-            if (eventData.EventId == (int)EventId.Statistic ||
-                eventData.EventId == (int)EventId.StatisticWithoutTelemetry)
+            if (eventData.EventId == (int)LogEventId.Statistic ||
+                eventData.EventId == (int)LogEventId.StatisticWithoutTelemetry)
             {
+                Contract.AssertNotNull(eventData.Payload);
+
+                var objKey = eventData.Payload[0] as string;
+                var objValue = eventData.Payload[1];
+
                 // BulkStatistic events should be normalized to have the standard statistic naming convention
                 // when they go into the file
-                var key = ((string)eventData.Payload[0]).Replace("BulkStatistic_", string.Empty);
-                var value = (long)eventData.Payload[1];
-
+                var key = (objKey ?? string.Empty).Replace("BulkStatistic_", string.Empty);
+                var value = objValue == null ? 0L : (long)objValue;
 
                 if (ShouldSendStatisticToFinalStatistics(key))
                 {
                     m_finalStatistics.AddOrUpdate(key, value, (k, v) => value);
                 }
 
-                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
             }
         }
 

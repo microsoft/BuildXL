@@ -29,12 +29,13 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Tools").ServicePipDaemon.dll,
 
+        importFrom("ItemStore.Shared").pkg,
         importFrom("ArtifactServices.App.Shared").pkg,
-        importFrom("ArtifactServices.App.Shared.Cache").pkg,        
+        importFrom("ArtifactServices.App.Shared.Cache").pkg,
         importFrom("Microsoft.ApplicationInsights").pkg,
         importFrom("Microsoft.AspNet.WebApi.Client").pkg,
         importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-        ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
+        ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
         importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
@@ -44,6 +45,9 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("Symbol.Client").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,
         importFrom("System.Reflection.Metadata").pkg,
+        ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Net.Http.dll
+            ),
     ],
     runtimeContent: symstoreX64Libs    
 });

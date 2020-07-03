@@ -1,10 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -90,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
         /// <nodoc />
         public static void LogContentLocationOperations(
-            OperationContext context,
+            Context context,
             string tracerName,
             IEnumerable<(ShortHash hash, EntryOperation op, OperationReason reason)> operations)
         {
@@ -110,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                     sb.AppendSequence(page.Select(p => p.hash), (builder, hash) => hash.ToString(builder));
 
                     sb.Append("]");
-                    context.TraceDebug(sb.ToString());
+                    context.Debug(sb.ToString());
                 }
             }
         }
@@ -129,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Add, #{eventStoreCounters[DispatchAddLocations].Value}, #{eventStoreCounters[DispatchAddLocationsHashes].Value}, {(long)eventStoreCounters[DispatchAddLocations].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Remove, #{eventStoreCounters[DispatchRemoveLocations].Value}, #{eventStoreCounters[DispatchRemoveLocationsHashes].Value}, {(long)eventStoreCounters[DispatchRemoveLocations].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Touch, #{eventStoreCounters[DispatchTouch].Value}, #{eventStoreCounters[DispatchTouchHashes].Value}, {(long)eventStoreCounters[DispatchTouch].Duration.TotalMilliseconds}ms], ")
-                .Append($"[Reconcile, #{eventStoreCounters[DispatchReconcile].Value}, N/A, {(long)eventStoreCounters[DispatchReconcile].Duration.TotalMilliseconds}ms].");
+                .Append($"[Stored, #{eventStoreCounters[DispatchBlob].Value}, N/A, {(long)eventStoreCounters[DispatchBlob].Duration.TotalMilliseconds}ms].");
             context.TraceInfo(
                 $"{nameof(EventHubContentLocationEventStore)}: processed {eventStoreCounters[ReceivedEventBatchCount].Value} message(s) by {duration}ms. {sb}");
         }
@@ -146,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Add, #{eventStoreCounters[SentAddLocationsEvents].Value}, #{eventStoreCounters[SentAddLocationsHashes].Value}], ")
                 .Append($"[Remove, #{eventStoreCounters[SentRemoveLocationsEvents].Value}, #{eventStoreCounters[SentRemoveLocationsHashes].Value}], ")
                 .Append($"[Touch, #{eventStoreCounters[SentTouchLocationsEvents].Value}, #{eventStoreCounters[SentTouchLocationsHashes].Value}], ")
-                .Append($"[Reconcile, #{eventStoreCounters[SentReconcileEvents].Value}, N/A].");
+                .Append($"[Stored, #{eventStoreCounters[SentStoredEvents].Value}, N/A].");
             context.TraceInfo($"{nameof(EventHubContentLocationEventStore)}: sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}");
         }
 
@@ -161,7 +160,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
             var message = $"{tracer.Name}: Starting content location store. "
                           + "Features: "
-                          + $"ReadMode={configuration.ReadMode}, WriteMode={configuration.WriteMode}, "
                           + $"ReconciliationEnabled={configuration.EnableReconciliation}, "
                           + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "
@@ -204,7 +202,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             RemoveMachine,
             Touch,
             Create,
-            Delete
+            Delete,
+            UpdateMetadataEntry
         }
     }
 }

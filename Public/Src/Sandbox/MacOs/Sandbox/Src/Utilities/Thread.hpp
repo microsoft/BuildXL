@@ -7,6 +7,7 @@
 #include <IOKit/IOService.h>
 #include <IOKit/IOLib.h>
 #include "BuildXLSandboxShared.hpp"
+#include "BXLLocks.hpp"
 
 #define Thread BXL_CLASS(Thread)
 
@@ -19,7 +20,7 @@ class Thread : public OSObject
 
 private:
 
-    IOLock *lock_;
+    BXLLock *lock_;
     uint64_t tid_;
 
     thread_continue_t runFunc_;

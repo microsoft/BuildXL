@@ -11,5 +11,12 @@ config({
                 f`../../../../../Sdk/Public/Transformers/package.config.dsc`,
             ]
         }
-    ]
+    ],
+    qualifiers: {
+        defaultQualifier: {
+            targetRuntime: 
+                Context.getCurrentHost().os === "win" ? "win-x64" :
+                Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
+        },
+    }
 }); 

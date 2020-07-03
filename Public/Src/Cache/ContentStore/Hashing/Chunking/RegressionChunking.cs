@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -47,17 +47,12 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
     using HashValueT = System.UInt64;
     using OffsetT = System.Int64;
     using size_t = System.UInt64;
-    using ULONG = System.UInt64;
 
     //[GeneratedCode("Copied from Windows Sources", "1.0")]
     // Adapted from https://microsoft.visualstudio.com/OS/_git/os?path=%2Fservercommon%2Fbase%2Ffs%2Fdedup%2Fmodules%2Fchunk%2FRegressionChunking.cpp&version=GBofficial%2Frsmaster&_a=contents
     public sealed class RegressionChunking
     {
-        const DWORD g_dwChunkingTruncateBits = 16;
-        const DWORD g_dwChunkingHashMatchValue = 0x5555;
-        const ULONG g_ulMinimumChunkSizeDefault = 32 * 1024;
-        public const ULONG g_ulMaximumChunkSizeDefault = 128 * 1024;
-        const ULONG g_ulAverageChunkSizeDefault = 64 * 1024;
+        const DWORD g_dwChunkingHashMatchValue = 0x55555555;
 
         // Sliding window size (in bytes) for Rabin hashing
         public const size_t m_nWindowSize = 16;
@@ -71,11 +66,10 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
         static readonly HashValueT[] g_arrPolynomialsTU = Rabin64Table.g_arrPolynomialsTU;
 
         // Parameters
-        private size_t m_nMinChunkSize => g_ulMinimumChunkSizeDefault;
-        private size_t m_nMaxChunkSize => g_ulMaximumChunkSizeDefault;
-        private size_t m_nAverageChunkSize => g_ulAverageChunkSizeDefault;
+        private readonly size_t m_nMinChunkSize;
+        private readonly size_t m_nMaxChunkSize;
+        private readonly size_t m_nAverageChunkSize;
 
-        private DWORD m_dwInitialChunkingTruncateBits => g_dwChunkingTruncateBits;
         private DWORD m_dwInitialChunkingHashMatchValue => g_dwChunkingHashMatchValue;
 
         private readonly DWORD m_dwSmallestChunkingTruncateMask;
@@ -103,8 +97,12 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
         public IReadOnlyList<DedupBasicChunkInfo> Chunks => outOffsetsVector;
 
-        public RegressionChunking(Action<DedupBasicChunkInfo> chunkCallback)
+        public RegressionChunking(ChunkerConfiguration configuration, Action<DedupBasicChunkInfo> chunkCallback)
         {
+            m_nMinChunkSize = (size_t)configuration.MinChunkSize;
+            m_nAverageChunkSize = (size_t)configuration.AvgChunkSize;
+            m_nMaxChunkSize = (size_t)configuration.MaxChunkSize;
+
             this.chunkCallback = chunkCallback;
 
             m_history = new BYTE[m_nWindowSize];
@@ -128,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
             // Initialize
             // The maximum value of N in the comparison above (default = 16 bits)
-            DWORD dwChunkingTruncateMask = (DWORD)((1 << (int)m_dwInitialChunkingTruncateBits) - 1);
+            DWORD dwChunkingTruncateMask = (DWORD)(m_nAverageChunkSize - 1);
 
             // This is the value we are using for chunking: if the least significant N bytes from the Rabin hash are equal to this value, we declare a "cut" (where N depends on the context)
             DWORD dwChunkingHashMatchValue = m_dwInitialChunkingHashMatchValue & dwChunkingTruncateMask;
@@ -174,7 +172,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
             unsafe
             {
-                fixed (byte* p = &buffer.Array[buffer.Offset]) // byte * p = buffer.GetContinuousBuffer(iSizeDone, size);
+                fixed (byte* p = &buffer.Array![buffer.Offset]) // byte * p = buffer.GetContinuousBuffer(iSizeDone, size);
                 {
                     FindRabinChunkBoundariesInternal(
                         p,

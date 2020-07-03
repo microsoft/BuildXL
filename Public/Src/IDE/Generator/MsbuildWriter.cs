@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +24,7 @@ namespace BuildXL.Ide.Generator
         private const string CSharpProjectTypeGuid = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}";
         private const string NativeProjectTypeGuid = "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}";
         private const string SolutionItemsGuid = "{11111111-1111-1111-1111-111111111111}";
+        private const string DirSepMoniker = "$(DIR-SEP)";
 
         private static readonly XName ProjectXName = XName.Get("Project");
         private static readonly XName PropertyGroupXName = XName.Get("PropertyGroup");
@@ -127,7 +128,7 @@ namespace BuildXL.Ide.Generator
                 var projectFile = new XDocument(
                     new XElement(
                         ProjectXName,
-                        targetFrameworks != null ? new[] { new XAttribute("Sdk", "Microsoft.NET.Sdk") } : new XAttribute[0],
+                        targetFrameworks != null ? new[] { new XAttribute("Sdk", msbuildFile.Sdk) } : new XAttribute[0],
                         new XElement(
                             PropertyGroupXName,
                             new XElement(XName.Get("SolutionRoot"), solutionRootExpression),
@@ -153,7 +154,7 @@ namespace BuildXL.Ide.Generator
                 Directory.CreateDirectory(m_context.SolutionRootStr);
             }
 
-            WriteCommonImports(m_context.EnlistmentRootStr, m_context.SolutionRootStr);
+            WriteCommonImports(m_context.ProjectsRoot.ToString(m_context.PathTable), m_context.SolutionRootStr);
             WriteSolution(m_context.PathTable, m_context.SolutionFilePathStr);
 
             if (!string.IsNullOrEmpty(m_context.DotSettingsPathStr))
@@ -325,7 +326,7 @@ namespace BuildXL.Ide.Generator
             return m_context.PathTable.ExpandName(path.Value, m_rootExpander);
         }
 
-        private void WriteCommonImports(string enlistmentDir, string ideDir)
+        private void WriteCommonImports(string projectsRoot, string ideDir)
         {
             var rootSettingsPath = Path.Combine(ideDir, "RootSettings.props");
             var rootSettingsFile = new XDocument(
@@ -346,7 +347,7 @@ namespace BuildXL.Ide.Generator
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Common.props", Path.Combine(ideDir, "Common.props"));
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Common.targets", Path.Combine(ideDir, "Common.targets"));
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.NuGet.config", Path.Combine(ideDir, "NuGet.config"));
-            WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Directory.Build.props", Path.Combine(enlistmentDir, "Directory.Build.Props"));
+            WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Directory.Build.props", Path.Combine(projectsRoot, "Directory.Build.Props"));
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202")]
@@ -528,15 +529,18 @@ namespace BuildXL.Ide.Generator
         {
             return string.Format(
                 CultureInfo.InvariantCulture,
-                @"$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\{0}'))",
-                PathUtilities.Relativize(pathToRelativize, basePath));
+                @"$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory){0}{1}'))",
+                Path.DirectorySeparatorChar,
+                PathUtilities.ToRelativizedUri(new Uri(pathToRelativize), new Uri(basePath)));
         }
 
         internal static void WriteFile(string resourceName, string filePath)
         {
             // TODO: Compare if the file is actually different and only write when different
             // TODO: Handle errors more gracefully in case someone has a 'lock' on the files.
-            File.WriteAllText(filePath, GetEmbeddedResourceFile(resourceName));
+            File.WriteAllText(
+                filePath,
+                GetEmbeddedResourceFile(resourceName).Replace(DirSepMoniker, Path.DirectorySeparatorChar.ToString()));
         }
 
         private string ProcessFolderEntry(

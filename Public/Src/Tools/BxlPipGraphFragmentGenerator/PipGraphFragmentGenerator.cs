@@ -1,28 +1,29 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.PipGraphFragmentGenerator.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Pips;
+using BuildXL.PipGraphFragmentGenerator.Tracing;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
-using CancellationToken = System.Threading.CancellationToken;
 
 namespace BuildXL.PipGraphFragmentGenerator
 {
@@ -71,8 +72,6 @@ namespace BuildXL.PipGraphFragmentGenerator
                 return false;
             }
 
-            IPipGraph pipGraphBuilder = null;
-
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
                     new InMemoryArtifactContentCache(),
@@ -88,11 +87,12 @@ namespace BuildXL.PipGraphFragmentGenerator
                     InputTracker.CreateDisabledTracker(loggingContext),
                     null,
                     null,
-                    () => FileContentTable.CreateStub(),
+                    () => FileContentTable.CreateStub(loggingContext),
                     5000,
-                    false);
+                    false,
+                    controller.RegisteredFrontEnds);
 
-                pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
+                var pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
                     ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander)
                     : new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
 
@@ -135,7 +135,7 @@ namespace BuildXL.PipGraphFragmentGenerator
         private static bool SerializeFragmentIfRequested(
             PipGraphFragmentGeneratorConfiguration pipGraphFragmentGeneratorConfig,
             FrontEndContext context,
-            IPipGraph pipGraph)
+            IPipScheduleTraversal pipGraph)
         {
             Contract.Requires(context != null);
             Contract.Requires(pipGraph != null);

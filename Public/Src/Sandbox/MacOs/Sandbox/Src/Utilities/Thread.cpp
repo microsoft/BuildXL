@@ -41,7 +41,7 @@ bool Thread::init(void *funcArgs, thread_continue_t func)
         return false;
     }
 
-    lock_ = IOLockAlloc();
+    lock_ = BXLLockAlloc();
     if (lock_ == nullptr)
     {
         return false;
@@ -59,7 +59,7 @@ void Thread::free()
 {
     if (lock_ != nullptr)
     {
-        IOLockFree(lock_);
+        BXLLockFree(lock_);
         lock_ = nullptr;
     }
 
@@ -90,24 +90,24 @@ void Thread::run(wait_result_t result)
 
     runFunc_(runFuncArgs_, result);
 
-    IOLockLock(lock_);
+    BXLLockLock(lock_);
     {
         finished_ = true;
-        IOLockWakeup(lock_, &finished_, false);
+        BXLLockWakeup(lock_, &finished_, false);
     }
-    IOLockUnlock(lock_);
+    BXLLockUnlock(lock_);
 
     log_debug("Thread %lld exited", tid_);
 }
 
 void Thread::join()
 {
-    IOLockLock(lock_);
+    BXLLockLock(lock_);
     {
         while (!finished_)
         {
-            IOLockSleep(lock_, &finished_, THREAD_INTERRUPTIBLE);
+            BXLLockSleep(lock_, &finished_, THREAD_INTERRUPTIBLE);
         }
     }
-    IOLockUnlock(lock_);
+    BXLLockUnlock(lock_);
 }

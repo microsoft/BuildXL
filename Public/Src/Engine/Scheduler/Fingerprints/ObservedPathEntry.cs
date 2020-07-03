@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -29,22 +29,22 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.Path"/>.
         /// </summary>
-        public const string Path = "Path";
+        public const string Path = nameof(Path);
 
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.Flags"/>.
         /// </summary>
-        public const string Flags = "Flags";
+        public const string Flags = nameof(Flags);
 
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.EnumeratePatternRegex"/>.
         /// </summary>
-        public const string EnumeratePatternRegex = "EnumeratePatternRegex";
+        public const string EnumeratePatternRegex = nameof(EnumeratePatternRegex);
 
         /// <summary>
         /// Hashing label for <see cref="ObservedPathSet"/>.
         /// </summary>
-        public const string PathSet = "PathSet";
+        public const string PathSet = nameof(PathSet);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public bool Equals(ObservedPathEntry other)
         {
-            return other.Path == Path && other.Flags == Flags;
+            return other.Path == Path && other.Flags == Flags && other.EnumeratePatternRegex == EnumeratePatternRegex;
         }
 
         /// <inheritdoc />
@@ -130,7 +130,10 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Path.GetHashCode(), Flags.GetHashCode());
+            return HashCodeHelper.Combine(
+                Path.GetHashCode(), 
+                Flags.GetHashCode(), 
+                EnumeratePatternRegex == null ? 0 : EnumeratePatternRegex.GetHashCode());
         }
 
         public void Serialize(BuildXLWriter writer)

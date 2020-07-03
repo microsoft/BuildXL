@@ -2,6 +2,10 @@
 <Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <!-- Import the Common.targets in place of the Directory.Build.targets (which occurs sufficiently late in the import chain to 
+        work as a good place to override targets) in order to disable Build/Rebuild/Clean targets. -->
+    <DirectoryBuildTargetsPath>$(MSBuildThisFileDirectory)$(DIR-SEP)Common.targets</DirectoryBuildTargetsPath>
   </PropertyGroup>
 
   <Import Project="RootSettings.props" />
@@ -34,8 +38,8 @@
 
   <PropertyGroup>
     <VSDominoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))</VSDominoRoot>
-    <IntermediatesRoot>$(VSDominoRoot)output\obj</IntermediatesRoot>
-    <BaseIntermediateOutputPath>$(IntermediatesRoot)\$(Configuration)\$(Platform)\$(MSBuildProjectName)</BaseIntermediateOutputPath>
+    <IntermediatesRoot>$(VSDominoRoot)output$(DIR-SEP)obj</IntermediatesRoot>
+    <BaseIntermediateOutputPath>$(IntermediatesRoot)$(DIR-SEP)$(Configuration)$(DIR-SEP)$(Platform)$(DIR-SEP)$(MSBuildProjectName)</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
     <!-- OutPath is set below -->
 

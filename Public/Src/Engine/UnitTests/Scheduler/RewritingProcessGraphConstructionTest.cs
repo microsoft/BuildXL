@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -20,6 +20,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Theory]
@@ -67,7 +68,7 @@ namespace Test.BuildXL.Scheduler
 
                 if (hasPreserveOutput)
                 {
-                    AssertVerboseEventLogged(EventId.RewritingPreservedOutput, count: 1);
+                    AssertVerboseEventLogged(LogEventId.RewritingPreservedOutput, count: 1);
                 }
             }
         }

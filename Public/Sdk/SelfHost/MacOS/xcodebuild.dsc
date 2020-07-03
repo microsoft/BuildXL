@@ -3,7 +3,7 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
-export namespace XCode {
+export namespace Xcode {
     const userName = Environment.getStringValue("USER") || "";
 
     @@public
@@ -19,7 +19,22 @@ export namespace XCode {
         | "clean";
 
     @@public
+    export interface HeaderSearchPath {
+        /** Type of header search path location */
+        type: "system" | "user";
+
+        /** Location where the custom headers can be found */
+        directory: StaticDirectory;
+
+        /** Recursively enumrate target location */
+        recursive: boolean;
+    }
+
+    @@public
     export interface Arguments {
+        /** Indicates if llbuild or the legacy build engine should be used */
+        useModernBuildSystem: boolean;
+        
         /** Location where the outputs go */
         derivedDataPath: Directory;
 
@@ -62,8 +77,15 @@ export namespace XCode {
         /** override xcconfig */
         xcconfig?: File;
 
-         /** override xcodebuild default location */
+        /** override xcodebuild default location */
         overrideXcodeBuildPath?: File;
+
+        /** allow for a custom header search locations */
+        headerSearchPaths?: HeaderSearchPath[];
+    }
+
+    function modernBuildSystemIndicatorToString(useModernBuildSystem: boolean): string {
+        return useModernBuildSystem ? "YES" : "NO";
     }
 
     @@public
@@ -71,6 +93,9 @@ export namespace XCode {
         Contract.requires(args.derivedDataPath !== undefined);
 
         const wd = Context.getNewOutputDirectory("xcodebuild");
+        
+        const customSystemHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "system").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
+        const customUserHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "user").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
 
         const exeArgs: Transformer.ExecuteArguments = {
             tool: args.tool || {
@@ -83,6 +108,8 @@ export namespace XCode {
             workingDirectory: wd,
             consoleOutput: p`${wd}/stdout.txt`,
             arguments: [
+                Cmd.flag("-allTargets ", args.allTargets),
+                Cmd.args(args.actions),
                 Cmd.option("-project ", Artifact.input(args.project)),
                 Cmd.option("-target ", args.target),
                 Cmd.option("-workspace ", Artifact.none(args.workspace)),
@@ -91,8 +118,10 @@ export namespace XCode {
                 Cmd.option("-arch ", args.arch),
                 Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
                 Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),
-                Cmd.flag("-allTargets ", args.allTargets),
-                Cmd.args(args.actions)
+                
+                Cmd.option("SYSTEM_HEADER_SEARCH_PATHS=", Cmd.join(" ", customSystemHeaderSearchPaths)),
+                Cmd.option("HEADER_SEARCH_PATHS=", Cmd.join(" ", customUserHeaderSearchPaths)),
+                Cmd.option("-UseModernBuildSystem=", modernBuildSystemIndicatorToString(args.useModernBuildSystem))
             ],
             acquireSemaphores: (args.semaphores || []).map(name => <Transformer.SemaphoreInfo>{
                 name: name,
@@ -100,7 +129,10 @@ export namespace XCode {
                 incrementBy: 1
             }),
             outputs: args.declaredOutputs,
-            dependencies: args.dependencies
+            dependencies: args.dependencies,
+            allowedSurvivingChildProcessNames: [
+                ...(args.useModernBuildSystem ? [ "XCBBuildService"] : [])
+            ]
         };
 
         // Debug.writeLine([

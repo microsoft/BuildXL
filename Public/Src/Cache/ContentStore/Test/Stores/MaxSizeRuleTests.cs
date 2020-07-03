@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Stores;
@@ -65,7 +65,6 @@ namespace ContentStoreTest.Stores
         {
             return new MaxSizeRule(
                 new MaxSizeQuota(Hard, Soft),
-                (context, contentHashInfo, onlyUnlinked) => Task.FromResult(evictResult ?? new EvictResult("error")),
                 () => currentSize);
         }
     }

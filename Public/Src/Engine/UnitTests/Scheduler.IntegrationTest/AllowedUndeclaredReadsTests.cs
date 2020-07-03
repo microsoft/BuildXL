@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -186,7 +186,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             // Create a pip that writes a file under a shared opaque
             var fileToWrite = CreateOutputFileArtifact(SharedOpaqueDirectoryRoot);
-            CreateAndScheduleSharedOpaqueProducer(SharedOpaqueDirectoryRoot, filesToProduce: fileToWrite);
+            CreateAndScheduleSharedOpaqueProducer(SharedOpaqueDirectoryRoot, filesToProduceDynamically: fileToWrite);
 
             // Create a source file (different from fileToWrite) under the shared opaque and read it
             FileArtifact source = CreateSourceFile(SharedOpaqueDirectoryRoot);
@@ -226,7 +226,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Create a pip that writes a file under a shared opaque
             var fileToWrite = CreateOutputFileArtifact(enumerationPath);
-            var sharedOpaqueProducer = CreateAndScheduleSharedOpaqueProducer(enumerationPath, filesToProduce: fileToWrite);
+            var sharedOpaqueProducer = CreateAndScheduleSharedOpaqueProducer(enumerationPath, filesToProduceDynamically: fileToWrite);
 
             // Create a pip which enumerates the shared opaque
             var enumeratingPipBuilder = CreatePipBuilder(new[]
@@ -402,6 +402,27 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
             IgnoreWarnings();
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteOnExistingFile);
+        }
+
+        /// <summary>
+        /// TODO: blocking writes on existing undeclared inputs is not implemented on Mac yet
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void WritingUntrackedUndeclaredInputsUnderSharedOpaquesAreAllowed()
+        {
+            // Create an undeclared source file under the cone of a shared opaque
+            var source = CreateSourceFile(SharedOpaqueDirectoryRoot);
+
+            // Run a pip that writes into the source file
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(source, doNotInfer: true) });
+            pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
+            // Make sure the source file is untracked
+            pipBuilder.AddUntrackedFile(source);
+            pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
         }
 
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]

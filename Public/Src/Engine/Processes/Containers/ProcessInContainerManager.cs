@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -105,6 +105,22 @@ namespace BuildXL.Processes.Containers
         }
 
         /// <summary>
+        /// <see cref="TryGetRedirectedOpaqueFile(AbsolutePath, AbsolutePath, ContainerConfiguration, out AbsolutePath)"/>
+        /// </summary>
+        /// <remarks>
+        /// The provided original output is assumed to be part of the container configuration
+        /// </remarks>
+        public AbsolutePath GetRedirectedOpaqueFile(AbsolutePath originalOutput, AbsolutePath sharedOpaqueRoot, ContainerConfiguration containerConfiguration)
+        {
+            if (!TryGetRedirectedOpaqueFile(originalOutput, sharedOpaqueRoot, containerConfiguration, out var redirectedOutputFile))
+            {
+                Contract.Assert(false, $"A redirected directory for '{originalOutput.GetParent(m_pathTable).ToString(m_pathTable)}' should be present in the container configuration");
+            }
+
+            return redirectedOutputFile;
+        }
+
+        /// <summary>
         /// Tries to return the redirected output corresponding to the given original opaque directory root and opaque output
         /// </summary>
         public bool TryGetRedirectedOpaqueFile(AbsolutePath originalOutput, AbsolutePath sharedOpaqueRoot, ContainerConfiguration containerConfiguration, out AbsolutePath redirectedOutputFile)
@@ -123,7 +139,7 @@ namespace BuildXL.Processes.Containers
         /// <summary>
         /// Merges the outputs of the given redirected process to its original location based on configured policies
         /// </summary>
-        public Task<bool> MergeOutputsIfNeededAsync(Process process, ContainerConfiguration containerConfiguration, PipExecutionContext pipExecutionContext, IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicWrites)
+        public Task<bool> MergeOutputsIfNeededAsync(Process process, ContainerConfiguration containerConfiguration, PipExecutionContext pipExecutionContext, IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicWrites)
         {
             Contract.Requires(containerConfiguration != null);
             Contract.Requires(pipExecutionContext != null);
@@ -210,7 +226,7 @@ namespace BuildXL.Processes.Containers
             Process process, 
             ContainerConfiguration containerConfiguration, 
             PipExecutionContext pipExecutionContext, 
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicWrites, 
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicWrites, 
             HashSet<AbsolutePath> createdDirectories)
         {
             bool isolateSharedOpaques = process.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
@@ -231,16 +247,16 @@ namespace BuildXL.Processes.Containers
                     // Here we don't need to check for WCI reparse points. We know those outputs are there based on what detours is saying.
                     // However, we need to check for tombstone files: those represent deleted files in some scenarios (for example, moves), so we don't hardlink them
                     var sharedOpaqueContent = sharedDynamicWrites[directoryOutput.Path];
-                    foreach (AbsolutePath sharedOpaqueFile in sharedOpaqueContent)
+                    foreach (FileArtifactWithAttributes sharedOpaqueFile in sharedOpaqueContent)
                     {
-                        string sourcePath = sharedOpaqueFile.Relocate(m_pathTable, directoryOutput.Path, redirectedDirectory).ToString(m_pathTable);
+                        string sourcePath = sharedOpaqueFile.Path.Relocate(m_pathTable, directoryOutput.Path, redirectedDirectory).ToString(m_pathTable);
                         // The file may not exist because the pip could have created it but later deleted it, or be a tombstone file 
                         if (!FileUtilities.Exists(sourcePath) || FileUtilities.IsWciTombstoneFile(sourcePath))
                         {
                             continue;
                         }
 
-                        ExpandedAbsolutePath destinationPath = sharedOpaqueFile.Expand(m_pathTable);
+                        ExpandedAbsolutePath destinationPath = sharedOpaqueFile.Path.Expand(m_pathTable);
                         // Files in an opaque always have rewrite count 1
                         var result = TryCreateHardlinkForOutput(destinationPath, rewriteCount: 1, sourcePath, process, pipExecutionContext, createdDirectories);
                         if (result != MergeResult.Success)

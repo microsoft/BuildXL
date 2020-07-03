@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -21,6 +22,7 @@ namespace BuildXL.Scheduler
             Pip pip,
             PipExecutionContext context)
         {
+            Contract.Requires(pip != null);
             m_context = context;
             UnderlyingPip = pip;
         }

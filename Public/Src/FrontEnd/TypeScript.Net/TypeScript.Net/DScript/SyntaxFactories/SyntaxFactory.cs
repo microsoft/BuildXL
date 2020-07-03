@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -155,6 +155,28 @@ namespace TypeScript.Net.DScript
                         Types = new NodeArray<ITypeNode>(literals),
                         Kind = SyntaxKind.UnionType,
                     }));
+        }
+
+        /// <summary>
+        /// Creates a union type with multiple fields each with a propertyName and a set of cases represented by the literalTypes/>.
+        /// </summary>
+        public static ITypeLiteralNode UnionType(params (string propertyName, IEnumerable<string> literalTypes)[] members)
+        {
+            Contract.Requires(members.Length > 0);
+
+            return new TypeLiteralNode(
+                members.Select(member => 
+                    new PropertySignature(
+                        member.propertyName,
+                        new UnionOrIntersectionTypeNode()
+                        {
+                            Types = new NodeArray<ITypeNode>(
+                                member.literalTypes.Select(lt => new StringLiteralTypeNode(lt)
+                            ).ToArray()),
+                            Kind = SyntaxKind.UnionType,
+                        })
+                ).ToArray()
+            );
         }
 
         /// <summary>

@@ -1,18 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BuildXL.Native.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using static BuildXL.Utilities.BuildParameters;
-using System.Linq;
 
 namespace BuildXL.Processes
 {
@@ -69,7 +71,20 @@ namespace BuildXL.Processes
         /// <summary>
         /// An optional shared opaque output logger to use to record file writes under shared opaque directories as soon as they happen.
         /// </summary>
-        public SharedOpaqueOutputLogger SharedOpaqueOutputLogger { get; }
+        public SidebandWriter SidebandWriter { get; }
+
+        /// <summary>
+        /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object 
+        /// with limit <see cref="JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"/>
+        /// </summary>
+        /// <remarks>
+        /// Defaults to true. This is useful to ensure that any process started by the current process will
+        /// terminate when the current process terminates. This is always the case for BuildXL since we don't want
+        /// any process creation to 'leak' outside the lifespan of a build.
+        /// Setting this to false implies that processes allowed to breakaway may survive the main process. This setting is
+        /// used by external projects that use the sandbox as a library.
+        /// </remarks>
+        public bool CreateJobObjectForCurrentProcess { get; }
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -81,14 +96,24 @@ namespace BuildXL.Processes
         /// compile against this assembly and already depend on this constructor.
         /// </remarks>
         public SandboxedProcessInfo(
-             ISandboxedProcessFileStorage fileStorage,
+             [CanBeNull] ISandboxedProcessFileStorage fileStorage,
              string fileName,
              bool disableConHostSharing,
              bool testRetries = false,
              LoggingContext loggingContext = null,
              IDetoursEventListener detoursEventListener = null,
-             ISandboxConnection sandboxConnection = null)
-             : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
+             ISandboxConnection sandboxConnection = null,
+             bool createJobObjectForCurrentProcess = true)
+             : this(
+                   new PathTable(), 
+                   fileStorage, 
+                   fileName, 
+                   disableConHostSharing, 
+                   loggingContext ?? new LoggingContext("ExternalComponent"),
+                   testRetries,
+                   detoursEventListener, 
+                   sandboxConnection, 
+                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
         {
         }
 
@@ -97,20 +122,20 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            ISandboxedProcessFileStorage fileStorage,
+            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
             string fileName,
             FileAccessManifest fileAccessManifest,
             bool disableConHostSharing,
             ContainerConfiguration containerConfiguration,
+            LoggingContext loggingContext,
             bool testRetries = false,
-            LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
-            SharedOpaqueOutputLogger sharedOpaqueOutputLogger = null)
+            SidebandWriter sidebandWriter = null,
+            bool createJobObjectForCurrentProcess = true)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(fileStorage != null);
-            Contract.Requires(fileName != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(fileName);
 
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest;
@@ -126,7 +151,8 @@ namespace BuildXL.Processes
             DetoursEventListener = detoursEventListener;
             SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
-            SharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
+            SidebandWriter = sidebandWriter;
+            CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
         }
 
         /// <summary>
@@ -134,15 +160,16 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            ISandboxedProcessFileStorage fileStorage,
+            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
             string fileName,
             bool disableConHostSharing,
+            LoggingContext loggingContext,
             bool testRetries = false,
-            LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
             ContainerConfiguration containerConfiguration = null,
-            FileAccessManifest fileAccessManifest = null)
+            FileAccessManifest fileAccessManifest = null,
+            bool createJobObjectForCurrentProcess = true)
             : this(
                   pathTable,
                   fileStorage,
@@ -150,14 +177,14 @@ namespace BuildXL.Processes
                   fileAccessManifest ?? new FileAccessManifest(pathTable),
                   disableConHostSharing,
                   containerConfiguration ?? ContainerConfiguration.DisabledIsolation,
-                  testRetries,
                   loggingContext,
+                  testRetries,
                   detoursEventListener,
-                  sandboxConnection)
+                  sandboxConnection,
+                  createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(fileStorage != null);
-            Contract.Requires(fileName != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(fileName);
         }
 
         /// <summary>
@@ -172,12 +199,12 @@ namespace BuildXL.Processes
         public PathTable PathTable { get; }
 
         /// <summary>
-        /// White-list of allowed file accesses, and general file access reporting flags
+        /// Allow-list of allowed file accesses, and general file access reporting flags
         /// </summary>
         public FileAccessManifest FileAccessManifest { get; }
 
         /// <summary>
-        /// Access to file storage
+        /// Optional file storage options for stdout and stderr output streams.
         /// </summary>
         public ISandboxedProcessFileStorage FileStorage { get; }
 
@@ -227,6 +254,14 @@ namespace BuildXL.Processes
         /// Working directory (can be null)
         /// </summary>
         public string WorkingDirectory { get; set; }
+
+        /// <summary>
+        /// Root jail information (can be null)
+        /// </summary>
+        /// <remarks>
+        /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
+        /// </remarks>
+        public RootJailInfo? RootJailInfo { get; set; } 
 
         /// <summary>
         /// Environment variables (can be null)
@@ -285,6 +320,11 @@ namespace BuildXL.Processes
         /// Number of bytes for output buffers
         /// </summary>
         public static int BufferSize => BufSize;
+
+        /// <summary>
+        /// File where Detours log failure message, e.g., communication failure, injection failure, etc.
+        /// </summary>
+        public string DetoursFailureFile { get; set; }
 
         /// <summary>
         /// Gets the command line, comprised of the executable file name and the arguments.
@@ -375,12 +415,7 @@ namespace BuildXL.Processes
         public string PipDescription { get; set; }
 
         /// <summary>
-        /// Notify this delegate once process id becomes available.
-        /// </summary>
-        public Action<int> ProcessIdListener { get; set; }
-
-        /// <summary>
-        /// Standard output and error for sandboxed process.
+        /// Standard output and error options for the sandboxed process.
         /// </summary>
         /// <remarks>
         /// This instance of <see cref="SandboxedProcessStandardFiles"/> is used as an alternative to <see cref="FileStorage"/>.
@@ -409,7 +444,7 @@ namespace BuildXL.Processes
         public string Provenance => $"[Pip{PipSemiStableHash:X16} -- {PipDescription}] ";
 
         /// <summary>
-        /// Overrides <see cref="SandboxedProcessMac.ReportQueueProcessTimeout"/> when running tests
+        /// Overrides <see cref="SandboxedProcessUnix.ReportQueueProcessTimeout"/> when running tests
         /// </summary>
         public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
 
@@ -428,6 +463,7 @@ namespace BuildXL.Processes
                 writer.Write(StandardOutputEncoding, (w, v) => w.Write(v));
                 writer.Write(StandardErrorEncoding, (w, v) => w.Write(v));
                 writer.WriteNullableString(WorkingDirectory);
+                writer.Write(RootJailInfo, (w, v) => v.Serialize(w));
                 writer.Write(
                     EnvironmentVariables,
                     (w, v) => w.WriteReadOnlyList(
@@ -450,7 +486,14 @@ namespace BuildXL.Processes
 
                 if (SandboxedProcessStandardFiles == null)
                 {
-                    SandboxedProcessStandardFiles.From(FileStorage).Serialize(writer);
+                    if (FileStorage != null)
+                    {
+                        SandboxedProcessStandardFiles.From(FileStorage).Serialize(writer);
+                    }
+                    else
+                    {
+                        SandboxedProcessStandardFiles.SerializeEmpty(writer);
+                    }
                 }
                 else
                 {
@@ -463,16 +506,16 @@ namespace BuildXL.Processes
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
-                writer.Write(SharedOpaqueOutputLogger, (w, v) => v.Serialize(w));
+                writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
+                writer.Write(CreateJobObjectForCurrentProcess);
+                writer.WriteNullableString(DetoursFailureFile);
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
         }
 
-        /// <summary>
-        /// IMPORTANT: the caller is responsible of disposing the <see cref="SandboxedProcessInfo.SharedOpaqueOutputLogger"/> property of the returned value.
-        /// </summary>
+        /// <nodoc />
         public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener detoursEventListener)
         {
             using (var reader = new BuildXLReader(false, stream, true))
@@ -485,6 +528,7 @@ namespace BuildXL.Processes
                 Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 string workingDirectory = reader.ReadNullableString();
+                RootJailInfo? rootJailInfo = reader.ReadNullableStruct(r => BuildXL.Processes.RootJailInfo.Deserialize(r));
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
                 if (envVars != null)
@@ -505,20 +549,23 @@ namespace BuildXL.Processes
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
-                var sharedOpaqueOutputLogger = reader.ReadNullable(r => Processes.SharedOpaqueOutputLogger.Deserialize(r));
+                var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
+                var createJobObjectForCurrentProcess = reader.ReadBoolean();
+                var detoursFailureFile = reader.ReadNullableString();
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
                     new PathTable(),
-                    new StandardFileStorage(sandboxedProcessStandardFiles),
+                    sandboxedProcessStandardFiles != null ? new StandardFileStorage(sandboxedProcessStandardFiles) : null,
                     fileName,
                     fam,
                     disableConHostSharing,
                     // TODO: serialize/deserialize container configuration.
                     containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
-                    sharedOpaqueOutputLogger: sharedOpaqueOutputLogger,
-                    detoursEventListener: detoursEventListener)
+                    sidebandWriter: sidebandWritter,
+                    detoursEventListener: detoursEventListener,
+                    createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,
@@ -526,6 +573,7 @@ namespace BuildXL.Processes
                     StandardOutputEncoding = standardOutputEncoding,
                     StandardErrorEncoding = standardErrorEncoding,
                     WorkingDirectory = workingDirectory,
+                    RootJailInfo = rootJailInfo,
                     EnvironmentVariables = buildParameters,
                     AllowedSurvivingChildProcessNames = allowedSurvivingChildNames,
                     MaxLengthInMemory = maxLengthInMemory,
@@ -538,7 +586,8 @@ namespace BuildXL.Processes
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor,
-                    RedirectedTempFolders = redirectedTempFolder
+                    RedirectedTempFolders = redirectedTempFolder,
+                    DetoursFailureFile = detoursFailureFile
                 };
             }
         }

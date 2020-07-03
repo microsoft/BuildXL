@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -39,7 +39,7 @@ namespace Test.BuildXL.TestUtilities
         public const string NonStandardOptions = "NonStandardOptions"; // Command line options that can affect how processes are run
         public const string UndeclaredAccess = "UndeclaredAccess";
         public const string UntrackedAccess = "UntrackedAccess";
-        public const string Whitelist = "Whitelist";
+        public const string Allowlist = "Allowlist";
         public const string WriteFilePip = "WriteFilePip";
 #pragma warning restore 1591
     }

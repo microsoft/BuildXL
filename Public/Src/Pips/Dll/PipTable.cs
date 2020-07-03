@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -85,26 +85,24 @@ namespace BuildXL.Pips
         private long m_writeTicks;
 
         private readonly PipTableSerializationScheduler m_serializationScheduler;
-
         private readonly Pip m_dummyHashSourceFilePip;
 
         /// <summary>
         /// Creates a new pip table
         /// </summary>
         public PipTable(PathTable pathTable, SymbolTable symbolTable, int initialBufferSize, int maxDegreeOfParallelism, bool debug)
+            : this(
+                  pathTable,
+                  new PageablePipStore(pathTable, symbolTable, initialBufferSize, debug),
+                  new ConcurrentDenseIndex<MutablePipState>(debug),
+                  maxDegreeOfParallelism: maxDegreeOfParallelism,
+                  debug: debug)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(symbolTable != null);
             Contract.Requires(initialBufferSize >= 0);
             Contract.Requires(maxDegreeOfParallelism >= -1);
             Contract.Requires(maxDegreeOfParallelism > 0 || debug);
-
-            m_store = new PageablePipStore(pathTable, symbolTable, initialBufferSize, debug);
-            m_mutables = new ConcurrentDenseIndex<MutablePipState>(debug);
-            m_serializationScheduler = new PipTableSerializationScheduler(maxDegreeOfParallelism, debug, ProcessQueueItem);
-
-            AbsolutePath dummyFilePath = AbsolutePath.Create(pathTable, PathGeneratorUtilities.GetAbsolutePath("B", "DUMMY_HASH_SOURCE_FILE"));
-            m_dummyHashSourceFilePip = new HashSourceFile(FileArtifact.CreateSourceFile(dummyFilePath));
         }
 
         /// <summary>
@@ -113,20 +111,29 @@ namespace BuildXL.Pips
         public bool IsDisposed { get; private set; }
 
         /// <summary>
-        /// Constructor used by deserialization
+        /// Base constructor that every other constructor should call.
         /// </summary>
-        private PipTable(PageablePipStore store, ConcurrentDenseIndex<MutablePipState> mutables, int pipCount, int maxDegreeOfParallelism)
+        private PipTable(PathTable pathTable, PageablePipStore store, ConcurrentDenseIndex<MutablePipState> mutables, int maxDegreeOfParallelism, bool debug)
         {
             Contract.Requires(store != null);
             Contract.Requires(mutables != null);
 
-            m_lastId = pipCount;
-            m_count = pipCount;
             m_store = store;
             m_mutables = mutables;
+            m_serializationScheduler = new PipTableSerializationScheduler(maxDegreeOfParallelism, debug: debug, serializer: ProcessQueueItem);
+            m_dummyHashSourceFilePip = new HashSourceFile(
+                FileArtifact.CreateSourceFile(
+                    AbsolutePath.Create(pathTable, PathGeneratorUtilities.GetAbsolutePath("B", "DUMMY_HASH_SOURCE_FILE"))));
+        }
 
-            m_serializationScheduler = new PipTableSerializationScheduler(maxDegreeOfParallelism, debug: false, serializer: ProcessQueueItem);
-            m_serializationScheduler.Complete(); // Don't allow more changes
+        /// <summary>
+        /// Don't allow more changes
+        /// </summary>
+        private void Complete(int pipCount)
+        {
+            m_lastId = pipCount;
+            m_count = pipCount;
+            m_serializationScheduler.Complete();
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2004:GCKeepAlive")]
@@ -661,19 +668,22 @@ namespace BuildXL.Pips
             Contract.Requires(maxDegreeOfParallelism >= -1);
 
             PageablePipStore store = await PageablePipStore.DeserializeAsync(reader, pathTableTask, symbolTableTask, initialBufferSize);
-            if (store != null)
+            if (store == null)
             {
-                var mutables = new ConcurrentDenseIndex<MutablePipState>(debug);
-                int pipCount = reader.ReadInt32();
-                for (uint i = 0; i < pipCount; i++)
-                {
-                    mutables[i + 1] = MutablePipState.Deserialize(reader);
-                }
-
-                return new PipTable(store, mutables, pipCount, maxDegreeOfParallelism);
+                return null;
             }
 
-            return null;
+            var mutables = new ConcurrentDenseIndex<MutablePipState>(debug);
+            int pipCount = reader.ReadInt32();
+            for (uint i = 0; i < pipCount; i++)
+            {
+                mutables[i + 1] = MutablePipState.Deserialize(reader);
+            }
+
+            // TODO: the 'debug' property should be serialized in "Serialize(BuildXLWriter, int)" and deserialized here
+            var pipTable = new PipTable(await pathTableTask, store, mutables, maxDegreeOfParallelism, debug: false);
+            pipTable.Complete(pipCount);
+            return pipTable;
         }
 
         /// <nodoc />

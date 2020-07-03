@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Tasks;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
@@ -25,8 +26,8 @@ using Microsoft.VisualStudio.Services.Drop.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Newtonsoft.Json;
-using static BuildXL.Utilities.FormattableStringEx;
 using Tool.ServicePipDaemon;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.DropDaemon
 {
@@ -84,7 +85,7 @@ namespace Tool.DropDaemon
         }
         #endregion
 
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
         private readonly DropConfig m_config;
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
@@ -104,7 +105,7 @@ namespace Tool.DropDaemon
 
         private VssCredentials GetCredentials() =>
             new VsoCredentialHelper(m => m_logger.Verbose(m))
-                .GetCredentials(m_config.Service, true, null);
+                .GetCredentials(m_config.Service, true, null, null, PromptBehavior.Never);
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
@@ -125,7 +126,7 @@ namespace Tool.DropDaemon
         public string DropUrl => ServiceEndpoint + "/_apis/drop/drops/" + DropName;
 
         /// <nodoc />
-        public VsoClient(ILogger logger, DropConfig dropConfig)
+        public VsoClient(IIpcLogger logger, DropConfig dropConfig)
         {
             Contract.Requires(dropConfig != null);
 
@@ -157,10 +158,16 @@ namespace Tool.DropDaemon
             // create and set up timer for triggering the batch block
             TimeSpan timerInterval = m_config.NagleTime;
             m_batchTimer = new Timer(FlushBatchBlock, null, timerInterval, timerInterval);
+
+            if (m_config.ArtifactLogName != null)
+            {
+                DropAppTraceSource.SingleInstance.SetSourceLevel(System.Diagnostics.SourceLevels.Verbose);
+                Tracer.AddFileTraceListener(Path.Combine(m_config.LogDir, m_config.ArtifactLogName));
+            }
         }
 
         /// <summary>
-        ///     Invokes <see cref="IDropServiceClient.CreateAsync"/>.
+        ///     Invokes <see cref="IDropServiceClient.CreateAsync(string, bool, DateTime?, bool, CancellationToken)"/>.
         /// </summary>
         public async Task<DropItem> CreateAsync(CancellationToken token)
         {
@@ -256,6 +263,7 @@ namespace Tool.DropDaemon
                 new DropClientTelemetry(ServiceEndpoint, Tracer, enable: m_config.EnableTelemetry),
                 Tracer);
             Interlocked.Add(ref Stats.AuthTimeMs, ElapsedMillis(startTime));
+
             return client;
         }
 
@@ -549,7 +557,7 @@ namespace Tool.DropDaemon
                             relativePath: m_dropItem.RelativeDropPath,
                             fileSize: m_dropItem.FileLength,
                             blobId: m_dropItem.BlobIdentifier),
-                        m_dropItem.FullFilePath);
+                        absolutePath: null); // If we pass it in, the client will actually try to use the file, and we cannot be sure that it has been materialized.
                 }
                 else
                 {

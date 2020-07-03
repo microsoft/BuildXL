@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -107,11 +107,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 return false;
             }
 
-            if (left.Kind == EventKind.Reconcile)
+            if (left.Kind == EventKind.Blob)
             {
                 // Reconcile blobs do not have hashes so just check blob id equality
-                var leftReconcile = (ReconcileContentLocationEventData)left;
-                var rightReconcile = (ReconcileContentLocationEventData)right;
+                var leftReconcile = (BlobContentLocationEventData)left;
+                var rightReconcile = (BlobContentLocationEventData)right;
                 return leftReconcile.BlobId == rightReconcile.BlobId;
             }
 
@@ -157,8 +157,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             switch (eventData)
             {
-                case ReconcileContentLocationEventData reconcile:
-                    return $"{reconcile.BlobId}";
+                case BlobContentLocationEventData blobEvent:
+                    return $"{blobEvent.BlobId}";
                 default:
                     return string.Join(", ", Enumerable.Range(0, eventData.ContentHashes.Count).Select(index => PrintHashInfo(eventData, index)));
             }
@@ -174,6 +174,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 builder.AppendLine($"{header} Emitting original event information:");
 
                 foreach (var eventData in originalEventDatas)
+                {
+                    builder.AppendLine($"{eventData.Kind}[{eventData.ContentHashes.Count}]({GetTraceInfo(eventData)})");
+                }
+
+                builder.AppendLine($"Deserialized event information:");
+                foreach (var eventData in deserializedEvents)
                 {
                     builder.AppendLine($"{eventData.Kind}[{eventData.ContentHashes.Count}]({GetTraceInfo(eventData)})");
                 }
@@ -199,28 +205,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private IEnumerable<EventData> SerializeCore(OperationContext context, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
             // TODO: Maybe a serialization format header. (bug 1365340)
-            var splittedEventEntries = SplitLargeInstancesIfNeeded(eventDatas);
+            var splitLargeInstancesIfNeeded = SplitLargeInstancesIfNeeded(context, eventDatas);
 
-            if (splittedEventEntries.Count != eventDatas.Count)
+            if (splitLargeInstancesIfNeeded.Count != eventDatas.Count)
             {
-                context.TraceDebug($"{Prefix}: split {eventDatas.Count} to {splittedEventEntries.Count} because of size restrictions.");
+                context.TraceDebug($"{Prefix}: split {eventDatas.Count} to {splitLargeInstancesIfNeeded.Count} because of size restrictions.");
             }
 
             using (_writer.PreservePosition())
             {
                 int currentCount = 0;
 
-                while (currentCount < splittedEventEntries.Count)
+                while (currentCount < splitLargeInstancesIfNeeded.Count)
                 {
                     long oldOffset = _writer.Buffer.Position;
 
-                    splittedEventEntries[currentCount].Serialize(_writer.Writer);
+                    splitLargeInstancesIfNeeded[currentCount].Serialize(_writer.Writer);
 
                     long newOffset = _writer.Buffer.Position;
                     long eventSize = newOffset - oldOffset;
-                    Contract.Assert(eventSize <= MaxEventDataPayloadSize, "No mitigation for single event that is too large");
 
-                    bool isLast = currentCount == (splittedEventEntries.Count - 1);
+                    Contract.Check(eventSize <= MaxEventDataPayloadSize)?.Assert($"No mitigation for single {splitLargeInstancesIfNeeded[currentCount].Kind} event that is too large");
+                    bool isLast = currentCount == (splitLargeInstancesIfNeeded.Count - 1);
                     bool isOverflow = newOffset > MaxEventDataPayloadSize;
 
                     if (isOverflow || isLast)
@@ -251,27 +257,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public void SerializeReconcileData(OperationContext context, BuildXLWriter writer, MachineId machine, IReadOnlyList<ShortHashWithSize> addedContent, IReadOnlyList<ShortHash> removedContent)
+        public void SerializeEvents(BuildXLWriter writer, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
-            var entries = new ContentLocationEventData[]
-            {
-                new AddContentLocationEventData(machine, addedContent),
-                new RemoveContentLocationEventData(machine, removedContent)
-            };
-
-            var finalEntries = SplitLargeInstancesIfNeeded(entries);
-
-            context.TraceDebug($"{nameof(ContentLocationEventDataSerializer)}: EntriesCount={finalEntries.Count}");
-
-            writer.WriteCompact(finalEntries.Count);
-            foreach (var eventData in finalEntries)
+            writer.WriteCompact(eventDatas.Count);
+            foreach (var eventData in eventDatas)
             {
                 eventData.Serialize(writer);
             }
         }
 
         /// <nodoc />
-        public IEnumerable<ContentLocationEventData> DeserializeReconcileData(BuildXLReader reader)
+        public IEnumerable<ContentLocationEventData> DeserializeEvents(BuildXLReader reader)
         {
             var entriesCount = reader.ReadInt32Compact();
 
@@ -296,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public static IReadOnlyList<ContentLocationEventData> SplitLargeInstancesIfNeeded(IReadOnlyList<ContentLocationEventData> source)
+        public static IReadOnlyList<ContentLocationEventData> SplitLargeInstancesIfNeeded(OperationContext context, IReadOnlyList<ContentLocationEventData> source)
         {
             var estimatedSizes = source.Select(e => e.EstimateSerializedInstanceSize()).ToList();
             if (!estimatedSizes.Any(es => es > MaxEventDataPayloadSize))
@@ -315,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     // Splitting the incoming instances only if their estimated size is greater then the max payload size.
                     if (estimatedSizes[i] > MaxEventDataPayloadSize)
                     {
-                        foreach (var entry in source[i].Split(MaxEventDataPayloadSize))
+                        foreach (var entry in source[i].Split(context, MaxEventDataPayloadSize))
                         {
                             yield return entry;
                         }

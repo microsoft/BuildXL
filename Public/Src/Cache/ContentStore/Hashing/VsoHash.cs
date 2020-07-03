@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -40,9 +40,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public delegate Task MultipleBlockBlobCallbackAsync(byte[] block, int blockLength, BlobBlockHash blockHash, bool isFinalBlock);
 
-        private delegate void MultipleBlockBlobSealCallback(BlobIdentifierWithBlocks blobIdWithBlocks);
+        private delegate void MultipleBlockBlobSealCallback(BlobIdentifierWithBlocks? blobIdWithBlocks);
 
-        public delegate Task MultipleBlockBlobSealCallbackAsync(BlobIdentifierWithBlocks blobIdWithBlocks);
+        public delegate Task MultipleBlockBlobSealCallbackAsync(BlobIdentifierWithBlocks? blobIdWithBlocks);
 
         private delegate void SingleBlockBlobCallback(byte[] block, int blockLength, BlobIdentifierWithBlocks blobIdWithBlocks);
 
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             long? bytesToReadFromStream = null)
         {
             bytesToReadFromStream = bytesToReadFromStream ?? (stream.Length - stream.Position);
-            BlobIdentifierWithBlocks blobIdWithBlocks = default(BlobIdentifierWithBlocks);
+            BlobIdentifierWithBlocks? blobIdWithBlocks = null;
             await WalkMultiBlockBlobAsync(
                 stream,
                 blockActionSemaphore,
@@ -99,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     return Task.FromResult(0);
                 },
                 bytesToReadFromStream.GetValueOrDefault()).ConfigureAwait(false);
-            return blobIdWithBlocks;
+            return blobIdWithBlocks!;
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <param name="bytesToReadFromStream">Number of bytes to read from the stream. Specify -1 to read to the end of the stream.</param>
         public static async Task WalkBlocksAsync(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             bool multipleBlocksInParallel,
             SingleBlockBlobCallbackAsync singleBlockCallback,
             MultipleBlockBlobCallbackAsync multipleBlockCallback,
@@ -136,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static void WalkBlocks(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             bool multipleBlocksInParallel,
             SingleBlockBlobCallback singleBlockCallback,
             MultipleBlockBlobCallback multipleBlockCallback,
@@ -158,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public static BlobIdentifierWithBlocks CalculateBlobIdentifierWithBlocks(Stream stream)
         {
-            BlobIdentifierWithBlocks result = null;
+            BlobIdentifierWithBlocks? result = null;
 
             WalkBlocks(
                 stream,
@@ -186,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public static async Task<BlobIdentifierWithBlocks> CalculateBlobIdentifierWithBlocksAsync(Stream stream)
         {
-            BlobIdentifierWithBlocks result = null;
+            BlobIdentifierWithBlocks? result = null;
 
             await WalkBlocksAsync(
                 stream,
@@ -243,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
-        private static void ReadBlock(Stream stream, SemaphoreSlim blockActionSemaphore, long bytesLeftInBlob, BlockReadComplete readCallback)
+        private static void ReadBlock(Stream stream, SemaphoreSlim? blockActionSemaphore, long bytesLeftInBlob, BlockReadComplete readCallback)
         {
             blockActionSemaphore?.Wait();
 
@@ -294,7 +294,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static async Task ReadBlockAsync(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             long bytesLeftInBlob,
             BlockReadCompleteAsync readCallback)
         {
@@ -350,14 +350,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static void WalkMultiBlockBlob(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             bool multiBlocksInParallel,
             MultipleBlockBlobCallback multipleBlockCallback,
             MultipleBlockBlobSealCallback multipleBlockSealCallback,
             long bytesLeftInBlob)
         {
             var rollingId = new RollingBlobIdentifierWithBlocks();
-            BlobIdentifierWithBlocks blobIdentifierWithBlocks = null;
+            BlobIdentifierWithBlocks? blobIdentifierWithBlocks = null;
 
             Lazy<List<Task>> tasks = new Lazy<List<Task>>(() => new List<Task>());
             do
@@ -427,14 +427,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static async Task WalkMultiBlockBlobAsync(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             bool multiBlocksInParallel,
             MultipleBlockBlobCallbackAsync multipleBlockCallback,
             MultipleBlockBlobSealCallbackAsync multipleBlockSealCallback,
             long bytesLeftInBlob)
         {
             var rollingId = new RollingBlobIdentifierWithBlocks();
-            BlobIdentifierWithBlocks blobIdentifierWithBlocks = null;
+            BlobIdentifierWithBlocks? blobIdentifierWithBlocks = null;
 
             var tasks = new List<Task>();
             do
@@ -492,13 +492,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static void CleanupBufferAndSemaphore(
             Pool<byte[]>.PoolHandle blockBufferHandle,
-            SemaphoreSlim blockActionSemaphore)
+            SemaphoreSlim? blockActionSemaphore)
         {
             blockBufferHandle.Dispose();
             blockActionSemaphore?.Release();
         }
 
-        private static void WalkSingleBlockBlob(Stream stream, SemaphoreSlim blockActionSemaphore, SingleBlockBlobCallback singleBlockCallback, long bytesLeftInBlob)
+        private static void WalkSingleBlockBlob(Stream stream, SemaphoreSlim? blockActionSemaphore, SingleBlockBlobCallback singleBlockCallback, long bytesLeftInBlob)
         {
             ReadBlock(
                 stream,
@@ -522,7 +522,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static Task WalkSingleBlockBlobAsync(
             Stream stream,
-            SemaphoreSlim blockActionSemaphore,
+            SemaphoreSlim? blockActionSemaphore,
             SingleBlockBlobCallbackAsync singleBlockCallback,
             long bytesLeftInBlob)
         {

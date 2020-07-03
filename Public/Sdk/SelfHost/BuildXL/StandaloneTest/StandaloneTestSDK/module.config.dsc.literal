@@ -1,4 +1,0 @@
-module({
-    name: "StandaloneTestSDK",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences
-});

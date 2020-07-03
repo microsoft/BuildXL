@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Script.Constants;
 using TypeScript.Net.DScript;
@@ -134,7 +134,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
         }
 
         /// <summary>
-        /// DScript prints a whitelist before each list with five or more elements
+        /// DScript prints an allowlist before each list with five or more elements
         /// </summary>
         public override void VisitPropertyAssignment(PropertyAssignment node)
         {

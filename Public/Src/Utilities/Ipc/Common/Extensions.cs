@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Globalization;
@@ -11,21 +11,21 @@ using BuildXL.Utilities;
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// Extension methods for <see cref="ILogger"/>.
+    /// Extension methods for <see cref="IIpcLogger "/>.
     /// </summary>
     public static class LoggerExtensions
     {
         /// <nodoc />
-        public static void Info(this ILogger logger, string format, params object[] args) => logger?.Log(LogLevel.Info, format, args);
+        public static void Info(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Info, format, args);
 
         /// <nodoc />
-        public static void Verbose(this ILogger logger, string format, params object[] args) => logger?.Log(LogLevel.Verbose, format, args);
+        public static void Verbose(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Verbose, format, args);
 
         /// <nodoc />
-        public static void Warning(this ILogger logger, string format, params object[] args) => logger?.Log(LogLevel.Warning, format, args);
+        public static void Warning(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Warning, format, args);
 
         /// <nodoc />
-        public static void Error(this ILogger logger, string format, params object[] args) => logger?.Log(LogLevel.Error, format, args);
+        public static void Error(this IIpcLogger logger, string format, params object[] args) => logger?.Log(LogLevel.Error, format, args);
 
         /// <summary>
         /// Formats log message using some default formatting.

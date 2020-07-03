@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.VerticalAggregator
     {
         private readonly ICache m_localCache;
         private readonly ICache m_remoteCache;
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
         private readonly bool m_remoteIsReadOnly;
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace BuildXL.Cache.VerticalAggregator
         {
             m_localCache = localCache;
             m_remoteCache = remoteCache;
-            m_cacheId = localCache.CacheId + "_" + remoteCache.CacheId;
+            m_cacheId = new CacheId(localCache.CacheId, remoteCache.CacheId);
             m_remoteIsReadOnly = remoteIsReadOnly || remoteCache.IsReadOnly;
             m_remoteContentIsReadOnly = remoteContentIsReadOnly;
             WriteThroughCasData = writeThroughCasData && !remoteContentIsReadOnly;
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.VerticalAggregator
         /// <remarks>
         /// The ID of a vertical aggregator is the concatenation of local and remote cache ID's
         /// </remarks>
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         /// <inheritdoc/>
         public Guid CacheGuid => m_remoteCache.IsDisconnected ? m_localCache.CacheGuid : m_remoteCache.CacheGuid;
@@ -332,7 +332,7 @@ namespace BuildXL.Cache.VerticalAggregator
             {
                 if (remotePossible.Succeeded)
                 {
-                    return CacheId;
+                    return CacheId.ToString();
                 }
 
                 return remotePossible.Failure;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -87,5 +87,29 @@ namespace BuildXL.Utilities.Configuration
         /// Using the fingerprint store in the given directory
         /// </summary>
         CustomPath
+    }
+
+    /// <summary>
+    /// Cache miss diff format.
+    /// </summary>
+    public enum CacheMissDiffFormat
+    {
+        /// <summary>
+        /// Custom (i.e., non-standard) Json diff format.
+        /// </summary>
+        CustomJsonDiff,
+
+        /// <summary>
+        /// Json patch diff format.
+        /// </summary>
+        /// <remarks>
+        /// This format will soon be deprecated because 
+        /// - the format is not easy to understand and looks cryptic, and
+        /// - it relies on a buggy thrid-party package.
+        /// However, some customers have already play around with this format. Thus,
+        /// to avoid breaking customers hard, this format is preserved, but needs to be selected
+        /// as the default will be <see cref="CustomJsonDiff"/>.
+        /// </remarks>
+        JsonPatchDiff,
     }
 }

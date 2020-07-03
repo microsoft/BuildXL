@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
         /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
         /// </remarks>
-        Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
+        Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
 
         /// <summary>
         ///     Copy a file from one path to another.
@@ -168,5 +169,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Get information on the volume hosting the given path.
         /// </summary>
         VolumeInfo GetVolumeInfo(AbsolutePath path);
+
+        /// <summary>
+        ///     Gets the creation time of the directory, in UTC
+        /// </summary>
+        DateTime GetDirectoryCreationTimeUtc(AbsolutePath path);
     }
 }

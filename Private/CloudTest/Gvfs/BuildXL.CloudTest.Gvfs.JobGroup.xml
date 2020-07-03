@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestJobGroup>
+    <ResourceSpec>
+        <Resource Image="2019-Datacenter" SKU="Standard_D2s_v3"/>
+    </ResourceSpec>
+
+    <Setup TimeoutMins="15">
+        <BuildFiles>
+            <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\*"/>
+        </BuildFiles>
+        <Scripts>
+            <Script Path="[WorkingDirectory]\Gvfs\Setup.cmd" Args="" />
+        </Scripts>
+    </Setup>
+
+    <TestJob OwnerAliases="buildxl-cloudtest" Name="BuildXL.CloudTest.Gvfs">
+        <Execution Type="Exe" Path="c:\dotnet\dotnet.exe" Args=" [WorkingDirectory]\Gvfs\xunit.console.dll [WorkingDirectory]\Gvfs\BuildXL.CloudTest.Gvfs.dll -noshadow -noappdomain -xml [LoggingDirectory]\testResult.xunit.xml -html [LoggingDirectory]\testResults.html -nunit [LoggingDirectory]\testResult.xml" Parser="NUnitXml"/>
+    </TestJob>
+
+    <Cleanup TimeoutMins="3"/>
+
+</TestJobGroup>

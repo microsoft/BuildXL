@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -99,7 +99,7 @@ namespace Test.BuildXL.Scheduler
             return new ObservedPathSet(
                 sortedPathIds, 
                 emptyObservedAccessFileNames, 
-                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, ContentHashingUtilities.CreateRandom()));
+                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), 0)));
         }
     }
 }

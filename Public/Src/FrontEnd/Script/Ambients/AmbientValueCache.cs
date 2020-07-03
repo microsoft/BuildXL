@@ -1,19 +1,24 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
+using System.Linq.Expressions;
+using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
+using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {
@@ -36,15 +41,42 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 new[]
                 {
                     Function("getOrAdd", GetOrAdd, GetOrAddSignature),
+                    Function("getOrAddWithState", GetOrAddWithState, GetOrAddWithStateSignature),
                 });
         }
 
+        /// <summary>
+        /// DScript exposes a value cache. The backing store is kept inside of 'IEvaluationScheduler'.
+        /// Values from this cache should never be returned directly; instead, the result should be cloned first 
+        /// (to avoid exposing an observable side effect).
+        /// </summary>
         private EvaluationResult GetOrAdd(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             Args.CheckArgumentIndex(args, 0);
             var key = args[0];
             var closure = Args.AsClosure(args, 1);
 
+            return DoGetOrAdd(context, env, key, null, closure);
+        }
+
+        /// <summary>
+        /// Same as <see cref="GetOrAdd(Context, ModuleLiteral, EvaluationStackFrame)"/> except that a state is 
+        /// passed to the function and then propagated to the callback.
+        /// </summary>
+        private EvaluationResult GetOrAddWithState(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            Args.CheckArgumentIndex(args, 0);
+            var key = args[0];
+
+            Args.CheckArgumentIndex(args, 0);
+            var state = args[1];
+            var closure = Args.AsClosure(args, 2);
+
+            return DoGetOrAdd(context, env, key, state, closure);
+        }
+
+        private EvaluationResult DoGetOrAdd(Context context, ModuleLiteral env, EvaluationResult key, EvaluationResult? state, Closure factoryClosure)
+        {
             var helper = new HashingHelper(context.PathTable, recordFingerprintString: false);
 
             // Add the qualifier to the key
@@ -56,38 +88,71 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 return EvaluationResult.Error;
             }
 
-            var keyFingerprint = helper.GenerateHash();
+            var keyFingerprint = helper.GenerateHash().ToHex();
+            var thunkCreatedByThisThread = false;
 
-            var resultToClone = context.ContextTree.ValueCache.GetOrAdd(
+            // ensure that all concurrent evaluations of the same value cache key will get the same thunk and module
+            var thunkAndModule = context.EvaluationScheduler.ValueCacheGetOrAdd(
                 keyFingerprint,
-                _ =>
+                () =>
                 {
-                    int paramsCount = closure.Function.Params;
-                    var newValue = context.InvokeClosure(closure, closure.Frame);
-                    if (newValue.IsErrorValue)
-                    {
-                        return EvaluationResult.Error;
-                    }
+                    var factoryArgs = state.HasValue 
+                        ? new Expression[] { new LocalReferenceExpression(SymbolAtom.Create(context.StringTable, "state"), index: factoryClosure.Frame.Length, default) }
+                        : CollectionUtilities.EmptyArray<Expression>();
 
-                    return newValue;
+                    var thunk = new Thunk(ApplyExpression.Create(factoryClosure, factoryArgs, factoryClosure.Location), null);
+                    var module = context.LastActiveUsedModule;
+                    thunkCreatedByThisThread = true;
+                    return (thunk, module);
+                });
+
+            // proceed to evaluate that same thunk concurrently; the cycle detector will detect cycles if any
+
+            var contextFactory = new Thunk.MutableContextFactory(
+                thunkAndModule.thunk,
+                FullSymbol.Create(context.SymbolTable, "vc_" + keyFingerprint),
+                thunkAndModule.module, 
+                templateValue: null,
+                location: factoryClosure.Location,
+                // this makes sure that exactly the thread that created the thunk gets to evaluate it
+                // (semantically, this doesn't change anything; it just makes debugging more intuitive)
+                forceWaitForResult: !thunkCreatedByThisThread);
+
+            var frame = EvaluationStackFrame.Empty();
+            if (state.HasValue)
+            {
+                frame = EvaluationStackFrame.Create(frameSize: factoryClosure.Frame.Length + 1, paramsCount: 1, paramsOffset: factoryClosure.Frame.Length);
+                for (int i = 0; i < factoryClosure.Frame.Length; i++)
+                {
+                    frame[i] = factoryClosure.Frame[i];
                 }
-            );
+                frame[factoryClosure.Frame.Length] = state.Value;
+            }
+            
+            using (frame)
+            {
+                var resultToClone = thunkAndModule.thunk.Evaluate(context, thunkAndModule.module, frame, ref contextFactory);
 
-            // The object returned will always be a cloned copy.
-            // DScript is a side effect free language, but we use object identity
-            // for equality comparison so to avoid making cache hits observable to
-            // users we opt to clone the value from the cache each time, even after the
-            // first time we add it to the cache.
-            // This is also the reason why we don't have separate functions for inspecting or simply adding
-            // because the results would be observable and potentially invalidating all the
-            // incremental evaluations in DScript.
-            return DeepCloneValue(resultToClone);
+                // The object returned will always be a cloned copy.
+                // DScript is a side effect free language, but we use object identity
+                // for equality comparison so to avoid making cache hits observable to
+                // users we opt to clone the value from the cache each time, even after the
+                // first time we add it to the cache.
+                // This is also the reason why we don't have separate functions for inspecting or simply adding
+                // because the results would be observable and potentially invalidating all the
+                // incremental evaluations in DScript.
+                return DeepCloneValue(resultToClone);
+            }
         }
 
         private CallSignature GetOrAddSignature => CreateSignature(
             required: RequiredParameters(PrimitiveType.AnyType, PrimitiveType.AnyType),
             returnType: PrimitiveType.AnyType);
 
+        private CallSignature GetOrAddWithStateSignature => CreateSignature(
+            required: RequiredParameters(PrimitiveType.AnyType, PrimitiveType.AnyType, PrimitiveType.AnyType),
+            returnType: PrimitiveType.AnyType);
+        
         /// <summary>
         /// Helper to Deeply clone values
         /// </summary>

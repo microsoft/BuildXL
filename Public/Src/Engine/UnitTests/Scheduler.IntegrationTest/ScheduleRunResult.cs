@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Configuration;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Instrumentation.Common;
+using static BuildXL.Utilities.Instrumentation.Common.LoggingContext;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -38,6 +39,8 @@ namespace Test.BuildXL.Scheduler
         public PipCountersByTelemetryTag ProcessPipCountersByTelemetryTag { get; set; }
 
         public SchedulerState SchedulerState { get; set; }
+
+        public SessionInfo Session { get; set; }
 
         public ScheduleRunResult AssertSuccess()
         {
@@ -156,7 +159,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     XAssert.AreEqual(pipAndExpectedStatus[i].status, actualStatus, "Pip at index " + i + " has an unexpected status");
                 }
-                else
+                else if (pipAndExpectedStatus[i].status != PipResultStatus.Skipped)
                 {
                     XAssert.Fail("Pip at index " + i + " is not scheduled");
                 }

@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.IO;
 using System.Diagnostics.Tracing;
+using System.IO;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ImplementationSupport
         /// If we had a formal way to do tail-calls in C# we would
         /// have done that.  This is as close as it gets.
         /// </notes>
-        public Possible<Stream, Failure> Returns(Possible<Stream, Failure> result)
+        public Possible<T, Failure> Returns<T>(Possible<T, Failure> result)
         {
             if (result.Succeeded)
             {

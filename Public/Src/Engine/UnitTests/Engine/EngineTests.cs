@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Engine.Tracing;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -92,7 +93,7 @@ namespace Test.BuildXL.EngineTests
             // but there will be nothing to clean
             XAssert.IsTrue(TestHooks.TempCleanerTempDirectory != null);
             XAssert.IsTrue(Directory.Exists(TestHooks.TempCleanerTempDirectory));
-            AssertVerboseEventLogged(EventId.PipTempCleanerThreadSummary);
+            AssertVerboseEventLogged(SchedulerLogEventId.PipTempCleanerThreadSummary);
 
             // Using the value of the temp directory for FileUtilities,
             // simulate FileUtilities moving a "deleted" file to FileUtilities.TempDirectory
@@ -106,7 +107,7 @@ namespace Test.BuildXL.EngineTests
             // The next time the engine runs, TempCleaner should clean up FileUtilities.TempDirectory
             XAssert.IsTrue(Directory.GetFileSystemEntries(TestHooks.TempCleanerTempDirectory).Length == 0);
             XAssert.IsFalse(File.Exists(deletedFile));
-            AssertVerboseEventLogged(EventId.PipTempCleanerThreadSummary);
+            AssertVerboseEventLogged(SchedulerLogEventId.PipTempCleanerThreadSummary);
             XAssert.IsTrue(EventListener.GetLog().Contains("Temp cleaner thread exited with 1 cleaned, 0 remaining and 0 failed temp directories"));
         }
 
@@ -125,7 +126,7 @@ namespace Test.BuildXL.EngineTests
             RunEngine();
 
             // Expect empty object root to be scrubbed always
-            AssertVerboseEventLogged(EventId.ScrubbingFinished);
+            AssertVerboseEventLogged(LogEventId.ScrubbingFinished);
 
             var objectDirectoryPath = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
 
@@ -142,7 +143,7 @@ namespace Test.BuildXL.EngineTests
             string eventLog = EventListener.GetLog();
 
             // File underneath object root should be scrubbed
-            AssertVerboseEventLogged(EventId.ScrubbingFile);
+            AssertVerboseEventLogged(LogEventId.ScrubbingFile);
             XAssert.IsTrue(eventLog.Contains($"Scrubber deletes file '{ scrubbedFile }"));
             XAssert.IsFalse(File.Exists(scrubbedFile));
 
@@ -437,9 +438,9 @@ import {Artifact, Cmd, Tool, Transformer} from 'Sdk.Transformers';
 const exclusiveOpaque: Directory = d`obj/exclusive`;
 const sharedOpaque: Directory = d`obj/shared`;
 
-export const cmdTool: Transformer.ToolDefinition = {
-    exe: f`${Environment.getPathValue(""COMSPEC"")}`,
-};
+export const cmdTool: Transformer.ToolDefinition = {" +
+    $"exe: f`{(OperatingSystemHelper.IsUnixOS ? "/bin/sh" : @"${Environment.getPathValue(""COMSPEC"")}")}`"
++ @"};
 
 const pip = Transformer.execute({
     tool: cmdTool,

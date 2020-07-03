@@ -1,16 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using BuildXL.Interop.Windows;
-
-#if NET_CORE
 using System.Runtime.InteropServices;
-#endif
-
-#if FEATURE_SAFE_PROCESS_HANDLE
-using Microsoft.Win32.SafeHandles;
-#endif
+using BuildXL.Interop.Unix;
+using static BuildXL.Interop.Windows.Memory;
 
 namespace BuildXL.Interop
 {
@@ -45,21 +39,44 @@ namespace BuildXL.Interop
         }
 
         /// <summary>
+        /// Returns true when executing on OSX.
+        /// </summary>
+        public static readonly bool IsMacOS = CurrentOS() == OperatingSystem.MacOS;
+
+        /// <summary>
+        /// Returns true when executing on Windows.
+        /// </summary>
+        public static readonly bool IsWinOS = CurrentOS() == OperatingSystem.Win;
+
+        /// <summary>
         /// Gets the elevated status of the process.
         /// </summary>
         /// <returns>True if process is running elevated, otherwise false.</returns>
-        public static bool IsElevated()
-        {
-            switch (s_currentOS)
-            {
-                case OperatingSystem.MacOS:
-                    return MacOS.Process.IsElevated();
-                case OperatingSystem.Win:
-                    return Windows.Process.IsElevated();
-                default:
-                    throw new PlatformNotSupportedException();
-            }
-        }
+        public static bool IsElevated() => IsWinOS
+            ? Windows.Process.IsElevated()
+            : Unix.Process.IsElevated();
+
+        /// <summary>
+        /// Checks if a process with id <paramref name="pid"/> exists.
+        /// </summary>
+        /// <param name="pid">ID of the process to check</param>
+        public static bool IsProcessAlive(int pid) => IsWinOS
+            ? Windows.Process.IsAlive(pid)
+            : Unix.Process.IsAlive(pid);
+
+        /// <summary>
+        /// Forcefully terminates a process with id <paramref name="pid"/>.
+        /// The return value indicates success.
+        /// </summary>
+        /// <param name="pid">ID of the process to kill</param>
+        public static bool ForceQuit(int pid) => IsWinOS
+            ? Windows.Process.ForceQuit(pid)
+            : Unix.Process.ForceQuit(pid);
+
+        /// <summary>
+        /// Forcefully terminates this process.
+        /// </summary>
+        public static void ForceQuit() => ForceQuit(System.Diagnostics.Process.GetCurrentProcess().Id);
 
         /// <summary>
         /// Returns total processor time for a given process.  The process must be running or else an exception is thrown.
@@ -68,18 +85,14 @@ namespace BuildXL.Interop
         {
             switch (s_currentOS)
             {
-                case OperatingSystem.MacOS:
-                {
-                    var buffer = new MacOS.Process.ProcessResourceUsage();
-                    MacOS.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
-                    long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
-                    return new TimeSpan(ticks);
-                }
+                case OperatingSystem.Win:
+                    return proc.TotalProcessorTime;
 
                 default:
-                {
-                    return proc.TotalProcessorTime;
-                }
+                    var buffer = new Unix.Process.ProcessResourceUsage();
+                    Unix.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
+                    long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
+                    return new TimeSpan(ticks);
             }
         }
 
@@ -88,31 +101,57 @@ namespace BuildXL.Interop
         /// </summary>
         /// <param name="handle">When calling from Windows the SafeProcessHandle is required</param>
         /// <param name="pid">On non-windows systems a process id has to be provided</param>
-        public static ulong? GetActivePeakMemoryUsage(IntPtr handle, int pid)
+        public static ulong? GetActivePeakWorkingSet(IntPtr handle, int pid)
         {
             switch (s_currentOS)
             {
-                case OperatingSystem.MacOS:
-                    {
-                        ulong peakMemoryUsage = 0;
-                        if (MacOS.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS)
-                        {
-                            return peakMemoryUsage;
-                        }
+                case OperatingSystem.Win:
+                    return Windows.Memory.GetMemoryUsageCounters(handle)?.PeakWorkingSetSize;
 
-                        return null;
-                    }
                 default:
+                    ulong peakMemoryUsage = 0;
+                    return Unix.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS
+                        ? peakMemoryUsage
+                        : (ulong?)null;
+            }
+        }
+
+        /// <summary>
+        /// Returns the memory counters of a specific process
+        /// </summary>
+        /// <param name="handle">When calling from Windows the SafeProcessHandle is required</param>
+        /// <param name="pid">On non-windows systems a process id has to be provided</param>
+        public static ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot(IntPtr handle, int pid)
+        {
+            switch (s_currentOS)
+            {
+                case OperatingSystem.Win:
+                    var counters = Windows.Memory.GetMemoryUsageCounters(handle);
+                    if (counters != null)
                     {
-                        Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
-
-                        if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
-                        {
-                            return processMemoryCounters.PeakWorkingSetSize;
-                        }
-
-                        return null;
+                        return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                            counters.PeakWorkingSetSize,
+                            counters.WorkingSetSize,
+                            (counters.WorkingSetSize + counters.PeakWorkingSetSize) / 2,
+                            counters.PeakPagefileUsage,
+                            counters.PagefileUsage);
                     }
+
+                    return null;
+
+                default:
+                    ulong peakMemoryUsage = 0;
+                    if (Unix.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS)
+                    { 
+                        return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                            peakWorkingSet: peakMemoryUsage,
+                            lastWorkingSet: peakMemoryUsage,
+                            averageWorkingSet: peakMemoryUsage,
+                            peakCommitSize: 0,
+                            lastCommitSize: 0);
+                    }
+                    
+                    return null;
             }
         }
     }

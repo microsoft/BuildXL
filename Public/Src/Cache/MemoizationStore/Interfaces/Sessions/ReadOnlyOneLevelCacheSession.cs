@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -16,31 +14,19 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
-using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <summary>
     ///     An IReadOnlyCacheSession implemented with one level of content and memoization.
     /// </summary>
-    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession
+    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession, IConfigurablePin
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
         /// </summary>
         protected readonly ImplicitPin ImplicitPin;
-
-        /// <summary>
-        ///     The content store backing the session.
-        /// </summary>
-        protected readonly IContentStore ContentStore;
-
-        /// <summary>
-        ///     The memoization store backing the session.
-        /// </summary>
-        protected readonly IMemoizationStore MemoizationStore;
 
         /// <summary>
         ///     The content session backing the session.
@@ -184,7 +170,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }
@@ -211,6 +197,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
             return _contentReadOnlySession.PinAsync(context, contentHash, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration configuration)
+        {
+            return _contentReadOnlySession.PinAsync(context, contentHashes, configuration);
         }
 
         /// <inheritdoc />
@@ -266,6 +258,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             return _contentReadOnlySession is IHibernateContentSession session
                 ? session.PinBulkAsync(context, contentHashes)
                 : Task.FromResult(0);
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            return _contentReadOnlySession is IHibernateContentSession session
+                ? session.ShutdownEvictionAsync(context)
+                : BoolResult.SuccessTask;
         }
     }
 }

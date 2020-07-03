@@ -1,18 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -971,7 +972,7 @@ namespace Test.BuildXL.Scheduler
             private readonly MutableDirectedGraph m_graph;
 
             public TestBuildSetCalculator(MutableDirectedGraph graph, DirtyNodeTracker incrementalSchedulingState = null) 
-                : base(Events.StaticContext, graph, incrementalSchedulingState, new CounterCollection<PipExecutorCounter>())
+                : base(CreateLoggingContextForTest(), graph, incrementalSchedulingState, new CounterCollection<PipExecutorCounter>())
             {
                 m_graph = graph;
             }

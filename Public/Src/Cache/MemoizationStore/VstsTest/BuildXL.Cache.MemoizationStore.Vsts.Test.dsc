@@ -29,19 +29,21 @@ namespace VstsTest {
             VstsInterfaces.dll,
             Vsts.dll,
 
-            importFrom("Newtonsoft.Json.v10").pkg,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            importFrom("Newtonsoft.Json").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
-        deploymentOptions: {
-            excludedDeployableItems: [
-            // This code uses newtonsoft v10 but depends transitively on code with the latest version. This needs to use v10, so block deployment of the latest version.
-            importFrom("Newtonsoft.Json").pkg,
-        ]},
         runtimeContent: [
-            ...importFrom("Redis-64").Contents.all.contents,
+            {
+                subfolder: r`redisServer`,
+                contents: [
+                    ...BuildXLSdk.isTargetRuntimeOsx 
+                        ? importFrom("Redis-osx-x64").Contents.all.contents 
+                        : importFrom("Redis-64").Contents.all.contents,
+                ]
+            },
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg
             ),

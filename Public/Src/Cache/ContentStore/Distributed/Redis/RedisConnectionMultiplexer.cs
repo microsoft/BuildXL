@@ -1,10 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using StackExchange.Redis;
 
@@ -25,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Creates a <see cref="IConnectionMultiplexer"/> using given <see cref="IConnectionStringProvider"/>
         /// </summary>
-        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider)
+        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity = Severity.Unknown)
         {
             if (TestConnectionMultiplexer != null)
             {
@@ -37,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             {
                 var errorMessage =
                     $"Failed to get connection string from provider {connectionStringProvider.GetType().Name}. {connectionStringResult.ErrorMessage}. Diagnostics: {connectionStringResult.Diagnostics}";
-                context.Logger.Error(errorMessage);
+                context.Error(errorMessage);
                 throw new ArgumentException(errorMessage, nameof(connectionStringProvider));
             }
 
@@ -60,24 +63,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var multiplexerTask = Multiplexers.GetOrAdd(
                 endpoints,
-                _ =>
-                {
-                    return new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(options));
-                });
+                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, logSeverity)));
 
             return await multiplexerTask.Value;
         }
 
-        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(ConfigurationOptions options)
+        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(Context context, ConfigurationOptions options, Severity logSeverity)
         {
-            var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(options);
-            connectionMultiplexer.PreserveAsyncOrder = false;
-            return connectionMultiplexer;
+            Contract.RequiresNotNull(context);
+
+            if (logSeverity != Severity.Unknown)
+            {
+                var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
+                var logger = new TextWriterAdapter(replacementContext, logSeverity, component: "Redis.StackExchange");
+                return await ConnectionMultiplexer.ConnectAsync(options, logger);
+            }
+
+            return await ConnectionMultiplexer.ConnectAsync(options);
         }
 
         private static string AllowAdminIfNeeded(string connectionString)
         {
-            // alloAdmin=true option is needed in order to call InfoAsync.
+            // allowAdmin=true option is needed in order to call InfoAsync.
             string allowAdmin = "allowAdmin=true";
             if (connectionString.IndexOf(allowAdmin, StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -92,8 +99,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public static async Task ForgetAsync(ConfigurationOptions options)
         {
-            Lazy<Task<IConnectionMultiplexer>> multiplexerTask;
-            if (Multiplexers.TryRemove(options.SslHost, out multiplexerTask))
+            if (Multiplexers.TryRemove(options.SslHost, out var multiplexerTask))
             {
                 IConnectionMultiplexer multiplexer = await multiplexerTask.Value;
                 await multiplexer.CloseAsync(allowCommandsToComplete: true);

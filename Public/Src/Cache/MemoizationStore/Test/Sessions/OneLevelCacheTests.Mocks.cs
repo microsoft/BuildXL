@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -26,13 +24,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     {
         private readonly IContentSession _contentSession;
 
-        public bool StartupCompleted => throw new NotImplementedException();
+        public bool StartupCompleted => true;
 
-        public bool StartupStarted => throw new NotImplementedException();
+        public bool StartupStarted => true;
 
-        public bool ShutdownCompleted => throw new NotImplementedException();
+        public bool ShutdownCompleted => false;
 
-        public bool ShutdownStarted => throw new NotImplementedException();
+        public bool ShutdownStarted => false;
 
         public TestContentStore(IContentSession testContentSession)
         {
@@ -68,7 +66,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             return Task.FromResult(BoolResult.Success);
         }
 
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
         {
             throw new NotImplementedException();
         }
@@ -114,6 +112,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
         {
             throw new NotImplementedException();
         }
@@ -168,13 +171,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     {
         private readonly IMemoizationSession _memoizationSession;
 
-        public bool StartupCompleted => throw new NotImplementedException();
+        public bool StartupCompleted => true;
 
-        public bool StartupStarted => throw new NotImplementedException();
+        public bool StartupStarted => true;
 
-        public bool ShutdownCompleted => throw new NotImplementedException();
+        public bool ShutdownCompleted => false;
 
-        public bool ShutdownStarted => throw new NotImplementedException();
+        public bool ShutdownStarted => false;
 
         public TestMemoizationStore(IMemoizationSession iMemoizationSession)
         {
@@ -200,7 +203,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
         }
 
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             throw new NotImplementedException();
         }
@@ -255,7 +258,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }

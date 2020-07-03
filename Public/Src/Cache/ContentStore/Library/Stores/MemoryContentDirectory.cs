@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!_fileSystem.DirectoryExists(directoryPath))
             {
-                throw new ArgumentException("must be path to a directory", nameof(directoryPath));
+                throw new ArgumentException("must be path to an existing directory", nameof(directoryPath));
             }
 
             FilePath = _filePath;
@@ -255,10 +255,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                             headerContext.Serialize(entries.Length);
                             headerContext.Serialize(contentSize);
                             headerContext.Serialize(replicaCount);
-                            stream.Write(headerBuffer, 0, headerBuffer.Length);
+                            stream.Stream.Write(headerBuffer, 0, headerBuffer.Length);
                         }
 
-                        stream.Write(partitionBuffer, 0, partitionContext.Offset);
+                        stream.Stream.Write(partitionBuffer, 0, partitionContext.Offset);
                     }
                 };
 
@@ -285,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (var stream = await _fileSystem.OpenSafeAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read))
                 {
                     var header = new byte[BinaryHeaderSizeV2];
-                    stream.Read(header, 0, header.Length);
+                    stream.Stream.Read(header, 0, header.Length);
                     var headerContext = new BufferSerializeContext(header);
                     directoryHeader.MagicFlag = headerContext.DeserializeByte();
                     if (directoryHeader.MagicFlag != BinaryFormatMagicFlag)
@@ -298,7 +298,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (directoryHeader.Version == BinaryFormatVersion)
                     {
                         header = new byte[BinaryHeaderExtraSizeV3];
-                        stream.Read(header, 0, header.Length);
+                        stream.Stream.Read(header, 0, header.Length);
                         headerContext = new BufferSerializeContext(header);
                         directoryHeader.ContentSize = headerContext.DeserializeInt64();
                         directoryHeader.ReplicaCount = headerContext.DeserializeInt64();
@@ -363,21 +363,21 @@ namespace BuildXL.Cache.ContentStore.Stores
                 },
                 _counters[MemoryContentDirectoryCounters.InitializeContentDirectory]).ThrowIfFailure();
 
-                return result.Value;
+            return result.Value;
         }
 
         [SuppressMessage("AsyncUsage", "AsyncFixer02:Long running or blocking operations under an async method")]
         private async Task<ContentMap> DeserializeBodyAsync(Context context, MemoryContentDirectoryHeader header, AbsolutePath path, bool isLoadingBackup)
         {
             var contentDirectory = new ContentMap();
-            
+
             try
             {
                 var sw = Stopwatch.StartNew();
                 using (var stream = await _fileSystem.OpenSafeAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read))
                 {
                     byte[] headerBuffer = new byte[header.HeaderSize];
-                    stream.Read(headerBuffer, 0, header.HeaderSize);
+                    stream.Stream.Read(headerBuffer, 0, header.HeaderSize);
 
                     var streamSync = new object();
                     var entriesSync = new object();
@@ -400,7 +400,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         lock (streamSync)
                         {
-                            bytesRead = stream.Read(buffer, 0, bufferLength);
+                            bytesRead = stream.Stream.Read(buffer, 0, bufferLength);
                         }
 
                         if (bytesRead != buffer.Length)
@@ -524,6 +524,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 existingInfo.UpdateLastAccessed(lastAccess);
             }
+        }
+
+        /// <summary>
+        /// For testing purposes only.
+        /// Attempts to add the given file info for the hash.
+        /// </summary>
+        internal bool TryAdd(ContentHash hash, ContentFileInfo fileInfo)
+        {
+            return ContentDirectory.TryAdd(hash, fileInfo);
         }
 
         /// <inheritdoc />

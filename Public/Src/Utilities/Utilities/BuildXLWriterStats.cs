@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -32,7 +32,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int GetTypeId(Type type)
         {
-            Contract.Requires(type != null);
+            Contract.RequiresNotNull(type);
             return s_types.GetOrAdd(type, _ => HashCodeHelper.GetOrdinalHashCode(type.FullName));
         }
 
@@ -65,7 +65,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static string GetName(Type type)
         {
-            Contract.Requires(type != null);
+            Contract.RequiresNotNull(type);
             return type.GetTypeInfo().IsGenericType
                 ? type.Name.Substring(0, type.Name.IndexOf('`')) + "<" + string.Join(", ", type.GetGenericArguments().Select(u => GetName(u))) + ">"
                 : type.Name;

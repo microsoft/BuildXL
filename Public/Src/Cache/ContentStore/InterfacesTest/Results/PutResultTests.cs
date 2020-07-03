@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -53,12 +53,25 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             var result = new PutResult(contentHash, 7);
             Assert.Equal(contentHash, result.ContentHash);
             Assert.Equal(7, result.ContentSize);
+            Assert.False(result.ContentAlreadyExistsInCache);
+        }
+
+        [Fact]
+        public void ConstructorWithOptionalParamsSetsProperties()
+        {
+            var contentHash = ContentHash.Random();
+            var result = new PutResult(contentHash, 7, true);
+            Assert.Equal(contentHash, result.ContentHash);
+            Assert.Equal(7, result.ContentSize);
+            Assert.True(result.ContentAlreadyExistsInCache);
         }
 
         [Fact]
         public void Success()
         {
             Assert.True(new PutResult(ContentHash.Random(), 27).Succeeded);
+            Assert.True(new PutResult(ContentHash.Random(), 27, true).Succeeded);
+            Assert.True(new PutResult(ContentHash.Random(), 27, false).Succeeded);
         }
 
         [Fact]

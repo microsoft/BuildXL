@@ -15,15 +15,12 @@ namespace App {
         appConfig: f`App.Config`,
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [
-                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-                importFrom("Microsoft.Extensions.PlatformAbstractions").withQualifier({targetFramework: "net472"}).pkg,
+                importFrom("CLAP-DotNetCore").pkg,
             ] : [
-                importFrom("Microsoft.Azure.Kusto.Ingest").withQualifier({targetFramework: "net472"}).pkg,
+                importFrom("CLAP").pkg,
             ]
             ),
+            ...kustoPackages,
             UtilitiesCore.dll,
             Grpc.dll,
             Hashing.dll,
@@ -34,10 +31,8 @@ namespace App {
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
 
-            // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
-            importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
-
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Newtonsoft.Json").pkg,
@@ -45,6 +40,7 @@ namespace App {
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
 
             importFrom("WindowsAzure.Storage").pkg,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         tools: {
             csc: {

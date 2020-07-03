@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -32,7 +32,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public PathMapSerializer(string filePath)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(filePath));
+            Contract.RequiresNotNullOrWhiteSpace(filePath);
 
             m_filePath = filePath;
             m_pathTable = new PathTable();
@@ -42,7 +42,7 @@ namespace BuildXL.Utilities
         /// <inheritdoc />
         void IObserver<KeyValuePair<string, string>>.OnCompleted()
         {
-            Contract.Assert(m_filePath != null);
+            Contract.AssertNotNull(m_filePath);
             Save(m_filePath);
         }
 

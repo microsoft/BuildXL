@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -10,6 +10,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -44,6 +45,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public IReadOnlyList<ProcessStrongFingerprintComputationData> StrongFingerprintComputations;
 
+        /// <summary>
+        /// Session id of the build who creates the cache entry corresponding to this fingerprint.
+        /// </summary>
+        public string SessionId;
+
+        /// <summary>
+        /// Related session id of the build who creates the cache entry corresponding to this fingerprint.
+        /// </summary>
+        public string RelatedSessionId;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<ProcessFingerprintComputationEventData> Metadata => ExecutionLogMetadata.ProcessFingerprintComputation;
 
@@ -53,6 +64,8 @@ namespace BuildXL.Scheduler.Tracing
             writer.WriteCompact(PipId.Value);
             writer.WriteCompact((int)Kind);
             writer.Write(WeakFingerprint);
+            writer.WriteNullableString(SessionId);
+            writer.WriteNullableString(RelatedSessionId);
             writer.WriteReadOnlyList(StrongFingerprintComputations, (w, v) => v.Serialize((BinaryLogger.EventWriter)w));
         }
 
@@ -62,6 +75,8 @@ namespace BuildXL.Scheduler.Tracing
             PipId = new PipId(reader.ReadUInt32Compact());
             Kind = (FingerprintComputationKind)reader.ReadInt32Compact();
             WeakFingerprint = reader.ReadWeakFingerprint();
+            SessionId = reader.ReadNullableString();
+            RelatedSessionId = reader.ReadNullableString();
             StrongFingerprintComputations = reader.ReadReadOnlyList(r => new ProcessStrongFingerprintComputationData((BinaryLogReader.EventReader)r));
         }
     }
@@ -141,6 +156,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public ReadOnlyArray<ObservedInput> ObservedInputs { get; private set; }
 
+        /// <summary>
+        /// Indicates that this instance of <see cref="ProcessStrongFingerprintComputationData"/> is the result of publishing a new augmented weak fingerprint.
+        /// </summary>
+        public bool IsNewlyPublishedAugmentedWeakFingerprint { get; set; }
+
+        /// <summary>
+        /// Associated augmented weak fingerprint if any.
+        /// </summary>
+        public WeakContentFingerprint? AugmentedWeakFingerprint { get; set; }
+
         /// <nodoc />
         public ProcessStrongFingerprintComputationData(
             ContentHash pathSetHash,
@@ -154,8 +179,10 @@ namespace BuildXL.Scheduler.Tracing
             // Initial defaults
             Succeeded = false;
             IsStrongFingerprintHit = false;
-            ObservedInputs = default(ReadOnlyArray<ObservedInput>);
-            ComputedStrongFingerprint = default(StrongContentFingerprint);
+            ObservedInputs = default;
+            ComputedStrongFingerprint = default;
+            IsNewlyPublishedAugmentedWeakFingerprint = false;
+            AugmentedWeakFingerprint = default;
         }
 
         /// <summary>
@@ -177,6 +204,9 @@ namespace BuildXL.Scheduler.Tracing
             data.IsStrongFingerprintHit = false;
             data.ObservedInputs = observedInputs;
             data.ComputedStrongFingerprint = strongFingerprint;
+            data.IsNewlyPublishedAugmentedWeakFingerprint = false;
+            data.AugmentedWeakFingerprint = default;
+
             return data;
         }
 
@@ -211,12 +241,16 @@ namespace BuildXL.Scheduler.Tracing
                 IsStrongFingerprintHit = reader.ReadBoolean();
                 ObservedInputs = reader.ReadReadOnlyArray(r => ObservedInput.Deserialize(r));
                 ComputedStrongFingerprint = reader.ReadStrongFingerprint();
+                IsNewlyPublishedAugmentedWeakFingerprint = reader.ReadBoolean();
+                AugmentedWeakFingerprint = reader.ReadNullableStruct(r => r.ReadWeakFingerprint());
             }
             else
             {
                 IsStrongFingerprintHit = false;
-                ObservedInputs = default(ReadOnlyArray<ObservedInput>);
-                ComputedStrongFingerprint = default(StrongContentFingerprint);
+                ObservedInputs = default;
+                ComputedStrongFingerprint = default;
+                IsNewlyPublishedAugmentedWeakFingerprint = false;
+                AugmentedWeakFingerprint = default;
             }
         }
 
@@ -228,6 +262,7 @@ namespace BuildXL.Scheduler.Tracing
             PathSet.Serialize(
                 writer.PathTable, 
                 writer, 
+                preservePathCasing: false,
                 pathWriter: (w, v) => w.Write(v), 
                 stringWriter: (w, v) => ((BinaryLogger.EventWriter)w).WriteDynamicStringId(v));
             writer.WriteReadOnlyList(PriorStrongFingerprints, (w, v) => w.Write(v));
@@ -238,6 +273,8 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(IsStrongFingerprintHit);
                 writer.Write(ObservedInputs, (w, v) => v.Serialize(w));
                 writer.Write(ComputedStrongFingerprint);
+                writer.Write(IsNewlyPublishedAugmentedWeakFingerprint);
+                writer.Write(AugmentedWeakFingerprint, (w, v) => w.Write(v));
             }
         }
 
@@ -269,21 +306,10 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public void WriteFingerprintInputs(IFingerprinter writer)
         {
-            using (var stream = new MemoryStream())
-            {
-                using (var buildXLWriter = new BuildXLWriter(
-                    debug: false,
-                    stream: stream,
-                    leaveOpen: false,
-                    logStats: false))
-                {
-                    UnsafeOptions.Serialize(buildXLWriter);
-                    writer.Add("SerializedUnsafeOptions", System.BitConverter.ToString(stream.ToArray()));
-                }
-            }
+            writer.AddNested(ObservedPathSet.Labels.UnsafeOptions, UnsafeOptions.ComputeFingerprint);
 
             var thisRef = this;
-            writer.AddNested(ObservedPathEntryConstants.PathSet, w =>
+            writer.AddNested(ObservedPathSet.Labels.Paths, w =>
             {
                 foreach (var p in thisRef.PathEntries)
                 {
@@ -300,7 +326,7 @@ namespace BuildXL.Scheduler.Tracing
             });
 
             writer.AddCollection<StringId, ReadOnlyArray<StringId>>(
-                "ObservedAccessedFileNames", 
+                ObservedPathSet.Labels.ObservedAccessedFileNames, 
                 ObservedAccessedFileNames, 
                 (w, v) => w.Add(v));
 

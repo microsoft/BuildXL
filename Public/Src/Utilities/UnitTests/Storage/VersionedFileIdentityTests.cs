@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.IO;
 using System.Threading;
@@ -30,8 +30,8 @@ namespace Test.BuildXL.Storage
                 var idA = VersionedFileIdentity.TryQuery(streamA.SafeFileHandle);
                 var idB = VersionedFileIdentity.TryQuery(streamB.SafeFileHandle);
 
-                XAssert.IsTrue(idA.Succeeded);
-                XAssert.IsTrue(idB.Succeeded);
+                XAssert.PossiblySucceeded(idA);
+                XAssert.PossiblySucceeded(idB);
 
                 XAssert.AreEqual(idA.Result.VolumeSerialNumber, idB.Result.VolumeSerialNumber);
                 XAssert.AreNotEqual(
@@ -128,7 +128,7 @@ namespace Test.BuildXL.Storage
             using (var stream = File.Open(fullPath, FileMode.Open))
             {
                 var mayBeId = VersionedFileIdentity.TryEstablishStrong(stream.SafeFileHandle, true);
-                XAssert.IsTrue(mayBeId.Succeeded);
+                XAssert.PossiblySucceeded(mayBeId);
                 id1 = mayBeId.Result;
             }
 
@@ -139,11 +139,11 @@ namespace Test.BuildXL.Storage
             using (var stream = File.Open(fullPath, FileMode.Open))
             {
                 var mayBeId = VersionedFileIdentity.TryQuery(stream.SafeFileHandle);
-                XAssert.IsTrue(mayBeId.Succeeded);
+                XAssert.PossiblySucceeded(mayBeId);
                 id2 = mayBeId.Result;
             }
 
-            XAssert.IsTrue(id1.Usn < id2.Usn);
+            XAssert.IsTrue(id1.Usn < id2.Usn, "Expected USN to increase after a write, but it didn't; before: {0}, after: {1}", id1.Usn, id2.Usn);
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -157,33 +157,41 @@ namespace Test.BuildXL.Storage
             string symlinkPath2 = Path.Combine(Path.GetDirectoryName(fullPath), "sym2.link");
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkPath2, fullPath, true));
 
-            var openResult1 = FileUtilities.TryCreateOrOpenFile(
-                symlinkPath1, 
-                FileDesiredAccess.GenericRead, 
-                FileShare.Delete | FileShare.Read, 
-                FileMode.Open, 
-                FileFlagsAndAttributes.FileFlagOpenReparsePoint, 
-                out SafeFileHandle symlink1Handle);
-            XAssert.IsTrue(openResult1.Succeeded);
-
-            var openResult2 = FileUtilities.TryCreateOrOpenFile(
-                symlinkPath2,
-                FileDesiredAccess.GenericRead,
-                FileShare.Delete | FileShare.Read,
-                FileMode.Open,
-                FileFlagsAndAttributes.FileFlagOpenReparsePoint,
-                out SafeFileHandle symlink2Handle);
-            XAssert.IsTrue(openResult2.Succeeded);
-
-            using (symlink1Handle)
-            using (symlink2Handle)
+            try
             {
-                var id1 = VersionedFileIdentity.TryQuery(symlink1Handle);
-                var id2 = VersionedFileIdentity.TryQuery(symlink2Handle);
+                var openResult1 = FileUtilities.TryCreateOrOpenFile(
+                    symlinkPath1,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.Delete | FileShare.Read,
+                    FileMode.Open,
+                    FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    out SafeFileHandle symlink1Handle);
+                XAssert.IsTrue(openResult1.Succeeded);
 
-                XAssert.IsTrue(id1.Succeeded);
-                XAssert.IsTrue(id2.Succeeded);
-                XAssert.AreNotEqual(id1.Result.FileId, id2.Result.FileId);
+                var openResult2 = FileUtilities.TryCreateOrOpenFile(
+                    symlinkPath2,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.Delete | FileShare.Read,
+                    FileMode.Open,
+                    FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    out SafeFileHandle symlink2Handle);
+                XAssert.IsTrue(openResult2.Succeeded);
+
+                using (symlink1Handle)
+                using (symlink2Handle)
+                {
+                    var id1 = VersionedFileIdentity.TryQuery(symlink1Handle);
+                    var id2 = VersionedFileIdentity.TryQuery(symlink2Handle);
+
+                    XAssert.PossiblySucceeded(id1);
+                    XAssert.PossiblySucceeded(id2);
+                    XAssert.AreNotEqual(id1.Result.FileId, id2.Result.FileId);
+                }
+            }
+            finally
+            {
+                TryDeleteSymlink(symlinkPath1);
+                TryDeleteSymlink(symlinkPath2);
             }
         }
     }

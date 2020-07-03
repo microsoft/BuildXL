@@ -1,8 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.Tracing;
+using System.Linq;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -23,7 +25,19 @@ namespace BuildXL.PipGraphFragmentGenerator
         }
 
         /// <nodoc />
-        public static int Main(string[] arguments) => new Program().MainHandler(arguments);
+        public static int Main(string[] arguments)
+        {
+            try
+            {
+                return new Program().MainHandler(arguments);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Unexpected exception: {e}");
+                return -1;
+            }
+        }
+
 
         /// <inheritdoc />
         public override bool TryParse(string[] rawArgs, out Args arguments)
@@ -84,18 +98,14 @@ namespace BuildXL.PipGraphFragmentGenerator
 
             var eventSources = new EventSource[]
                                {
-                                   bxl.ETWLogger.Log,
                                    BxlPipGraphFragmentGenerator.ETWLogger.Log,
                                    BuildXL.Engine.Cache.ETWLogger.Log,
                                    BuildXL.Engine.ETWLogger.Log,
                                    BuildXL.Scheduler.ETWLogger.Log,
+                                   BuildXL.Pips.ETWLogger.Log,
                                    BuildXL.Tracing.ETWLogger.Log,
                                    BuildXL.Storage.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Core.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Script.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Download.ETWLogger.Log,
-                               };
+                               }.Concat(FrontEndControllerFactory.GeneratedEventSources);
 
             using (var dummy = new TrackingEventListener(Events.Log))
             {

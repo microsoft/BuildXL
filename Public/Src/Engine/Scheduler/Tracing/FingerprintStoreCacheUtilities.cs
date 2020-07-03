@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +12,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.SinglePhase;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -55,6 +56,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Store the fingerprint store directory to the cache
         /// </summary>
+        /// <remark>
+        /// The order of storing should be:
+        /// 1. The actual content(files) of the fingerprint store
+        /// 2. The metadata(descriptor) of the content.
+        /// 3. Publich the cache entry of the fingerprint store.
+        /// </remark>
         public static async Task<Possible<long>> TrySaveFingerprintStoreAsync(
             this EngineCache cache,
             LoggingContext loggingContext,
@@ -76,20 +83,28 @@ namespace BuildXL.Scheduler.Tracing
                     using (await concurrencyLimiter.AcquireAsync())
                     {
                         var filePath = path.Combine(pathTable, name);
+                        ExpandedAbsolutePath expandedFilePath = filePath.Expand(pathTable);
+
                         var storeResult = await cache.ArtifactContentCache.TryStoreAsync(
                             FileRealizationMode.Copy,
-                            filePath.Expand(pathTable));
+                            expandedFilePath);
 
-                        if (storeResult.Succeeded)
-                        {
-                            Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
-                        }
-
-                        return storeResult.Then(result => new StringKeyedHash()
+                        var result = storeResult.Then(result => new StringKeyedHash()
                         {
                             Key = path.ExpandRelative(pathTable, filePath),
                             ContentHash = result.ToBondContentHash()
                         });
+
+                        string message = I($"Saving fingerprint store to cache: Success='{result.Succeeded}', FilePath='{expandedFilePath}'");
+
+                        if (result.Succeeded)
+                        {
+                            Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
+                            message += I($", Key='{result.Result.Key}', Hash='{result.Result.ContentHash.ToContentHash()}'");
+                        }
+
+                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, message);
+                        return result;
                     }
                 });
 
@@ -97,6 +112,12 @@ namespace BuildXL.Scheduler.Tracing
             });
 
             var storedFiles = await Task.WhenAll(tasks);
+
+            if (storedFiles.Length == 0 || size.Value == 0)
+            {
+                Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Empty fingerprint store is not saved."));
+                return 0;
+            }
 
             var failure = storedFiles.Where(p => !p.Succeeded).Select(p => p.Failure).FirstOrDefault();
             Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store to cache: Success='{failure == null}', FileCount={storedFiles.Length} Size={size.Value}"));

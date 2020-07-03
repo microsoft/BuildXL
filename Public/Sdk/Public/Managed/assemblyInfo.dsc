@@ -109,7 +109,7 @@ const assemblyInfoTemplate = [
     "",
 ];
 
-export function generateAssemblyInfoFile(framework: Shared.Framework, assemblyName: string, assemblyInfo: AssemblyInfo) : File {
+export function generateAssemblyInfoFile(assemblyInfo: AssemblyInfo, assemblyName: string, framework: Shared.Framework) : File {
 
     const defaultAssemblyInfo = {
         productName: assemblyName,

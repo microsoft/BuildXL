@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -68,11 +68,6 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath FileContentTableFile { get; }
 
         /// <summary>
-        /// Path to file defining symlinks
-        /// </summary>
-        AbsolutePath SymlinkDefinitionFile { get; }
-
-        /// <summary>
         /// File change tracker file.
         /// </summary>
         AbsolutePath SchedulerFileChangeTrackerFile { get; }
@@ -102,5 +97,10 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether a user profile has been redirected
         /// </summary>
         AbsolutePath RedirectedUserProfileJunctionRoot { get; }
+
+        /// <summary>
+        /// Directory containing files used to communicate between BuildXL process and tools for external execution, e.g., VmCommandProxy.
+        /// </summary>
+        AbsolutePath ExternalSandboxedProcessDirectory { get; set; }
     }
 }

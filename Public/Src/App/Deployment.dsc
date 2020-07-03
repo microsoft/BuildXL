@@ -33,16 +33,12 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                RunInSubst.withQualifier({configuration: qualifier.configuration, platform: "x86"}).deployment,
+                RunInSubst.withQualifier({platform: "x86"}).deployment,
             ]),
 
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.kext,
-                MacServices.Deployment.sandboxMonitor,
-                MacServices.Deployment.ariaLibrary,
-                MacServices.Deployment.interopLibrary,
+            ...addIfLazy(qualifier.targetRuntime === "osx-x64" || 
+                         qualifier.targetRuntime === "linux-x64", () => [
                 MacServices.Deployment.buildXLScripts,
-                MacServices.Deployment.sandboxLoadScripts
             ]),
 
             isServerDeployment ? inBoxServerSdks : inBoxSdks

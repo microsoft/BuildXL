@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -32,7 +32,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// </summary>
     public abstract class ContentSessionBase : StartupShutdownBase, IContentSession
     {
-        private readonly CounterCollection<ContentSessionBaseCounters> _counters;
+        /// <nodoc />
+        protected readonly CounterCollection<ContentSessionBaseCounters> BaseCounters;
 
         /// <inheritdoc />
         public string Name { get; }
@@ -50,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected ContentSessionBase(string name, CounterTracker counterTracker = null)
         {
             Name = name;
-            _counters = CounterTracker.CreateCounterCollection<ContentSessionBaseCounters>(counterTracker);
+            BaseCounters = CounterTracker.CreateCounterCollection<ContentSessionBaseCounters>(counterTracker);
         }
 
         /// <inheritdoc />
@@ -65,9 +66,10 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => OpenStreamCoreAsync(operationContext, contentHash, urgencyHint, _counters[ContentSessionBaseCounters.OpenStreamRetries]),
+                    () => OpenStreamCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.OpenStreamRetries]),
+                    traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.OpenStream]));
+                    counter: BaseCounters[ContentSessionBaseCounters.OpenStream]));
         }
 
         /// <nodoc />
@@ -89,12 +91,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PinCoreAsync(operationContext, contentHash, urgencyHint, _counters[ContentSessionBaseCounters.PinRetries]),
+                    () => PinCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.PinRetries]),
                     traceOperationStarted: TraceOperationStarted,
                     traceOperationFinished: TracePinFinished,
                     traceErrorsOnly: TraceErrorsOnly,
                     extraEndMessage: _ => $"input=[{contentHash.ToShortString()}]",
-                    counter: _counters[ContentSessionBaseCounters.Pin]));
+                    counter: BaseCounters[ContentSessionBaseCounters.Pin]));
         }
 
         /// <nodoc />
@@ -116,21 +118,46 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformNonResultOperationAsync(
                     Tracer,
-                    () => PinCoreAsync(operationContext, contentHashes, urgencyHint, _counters[ContentSessionBaseCounters.PinBulkRetries], _counters[ContentSessionBaseCounters.PinBulkFileCount]),
+                    () => PinCoreAsync(operationContext, contentHashes, urgencyHint, retryCounter: BaseCounters[ContentSessionBaseCounters.PinBulkRetries], fileCounter: BaseCounters[ContentSessionBaseCounters.PinBulkFileCount]),
                     extraEndMessage: results =>
                     {
+                        var copies = 0;
                         var resultString = string.Join(",", results.Select(task =>
                         {
                             // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
                             var result = task.Result;
+
+                            if (result.Item is DistributedPinResult distributedPinResult)
+                            {
+                                if (distributedPinResult.CopyLocally)
+                                {
+                                    copies++;
+                                }
+                            }
+
                             return $"{contentHashes[result.Index].ToShortString()}:{result.Item}";
                         }));
 
-                        return $"Count={contentHashes.Count}, Hashes=[{resultString}]";
+                        return $"Count={contentHashes.Count}, Copies={copies}, Hashes=[{resultString}]";
                     },
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PinBulk]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PinBulk]));
+        }
+
+        /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context, 
+            IReadOnlyList<ContentHash> contentHashes, 
+            PinOperationConfiguration configuration)
+        {
+            return WithOperationContext(
+                context,
+                configuration.CancellationToken,
+                operationContext => operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => PinAsync(operationContext, contentHashes, configuration.CancellationToken, configuration.UrgencyHint),
+                    extraStartMessage: $"{nameof(ContentSessionBase)} subtype {GetType().FullName} does not implement its own {nameof(IConfigurablePin)}.{nameof(IConfigurablePin.PinAsync)}. Falling back on {nameof(ContentSessionBase)}.{nameof(ContentSessionBase.PinAsync)}"));
         }
 
         /// <nodoc />
@@ -157,13 +184,27 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileRetries]),
+                    () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PlaceFileRetries]),
                     extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceOperationStarted: TraceOperationStarted,
-                    extraEndMessage: (_) => $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
-                    traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PlaceFile]));
+                    extraEndMessage: result =>
+                                     {
+                                         var message = $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})";
+                                         if (result.Metadata == null)
+                                         {
+                                             return message;
+                                         }
+
+                                         return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
+                                     },
+                    traceErrorsOnly: TraceErrorsOnlyForPlaceFile(path),
+                    counter: BaseCounters[ContentSessionBaseCounters.PlaceFile]));
         }
+
+        /// <summary>
+        /// Gets whether only errors should be traced for place file operations to the given path.
+        /// </summary>
+        protected virtual bool TraceErrorsOnlyForPlaceFile(AbsolutePath path) => TraceErrorsOnly;
 
         /// <nodoc />
         protected abstract Task<PlaceFileResult> PlaceFileCoreAsync(
@@ -191,11 +232,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformNonResultOperationAsync(
                     Tracer,
-                    () => PlaceFileCoreAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileBulkRetries]),
+                    () => PlaceFileCoreAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PlaceFileBulkRetries]),
                     traceOperationStarted: TraceOperationStarted,
                     traceOperationFinished: false,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PlaceFileBulk]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PlaceFileBulk]));
         }
 
         /// <nodoc />
@@ -222,21 +263,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
+                    () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
                     extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
                     {
                         var message = $"({path},{realizationMode}) trusted=false";
-                        if (result.Metadata == null)
+                        if (result.MetaData == null)
                         {
                             return message;
                         }
 
-                        return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
+                        return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
                     },
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PutFile]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PutFile]));
         }
 
         /// <summary>
@@ -266,12 +307,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
+                    () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
                     extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
-                    extraEndMessage: _ => $"({path},{realizationMode}) trusted=false",
+                    extraEndMessage: result =>
+                                     {
+                                         var message = $"({path},{realizationMode}) trusted=false";
+                                         if (result.MetaData == null)
+                                         {
+                                             return message;
+                                         }
+
+                                         return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
+                                     },
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PutFile]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PutFile]));
         }
 
         /// <summary>
@@ -300,11 +350,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
+                    () => PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutStreamRetries]),
                     extraStartMessage: $"({hashType})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PutStream]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PutStream]));
         }
 
         /// <summary>
@@ -332,11 +382,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
+                    () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutStreamRetries]),
                     extraStartMessage: $"({contentHash.ToShortString()})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: _counters[ContentSessionBaseCounters.PutStream]));
+                    counter: BaseCounters[ContentSessionBaseCounters.PutStream]));
         }
 
         /// <summary>
@@ -352,6 +402,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
             => throw new NotImplementedException();
 
         /// <nodoc />
-        protected virtual CounterSet GetCounters() => _counters.ToCounterSet();
+        protected internal virtual CounterSet GetCounters() => BaseCounters.ToCounterSet();
     }
 }

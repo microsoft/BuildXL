@@ -1,30 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Tracing;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using StackExchange.Redis;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -80,32 +71,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Perform an operation against the redis hash using logic to ensure that result of operation comes from instance with latest updates and is resilient to data loss in one of the instances
         /// </summary>
-        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string caller = null)
+        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string? caller = null)
         {
             // Query to see which db has highest version number
-            (var primaryVersionedResult, var secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async redisDb =>
-            {
-                var operationResult = await redisDb.ExecuteBatchAsync(context,
-                    async batch =>
+            (Result<(T result, long version)>? primaryVersionedResult, Result<(T result, long version)>? secondaryVersionedResult) =
+                await _redis.ExecuteRaidedAsync(
+                    context,
+                    async (redisDb, token) =>
                     {
-                        var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
-                        var result = await addOperations(batch, _key);
-                        var version = await versionTask;
-                        return (result, version);
+                        (T result, long version) operationResult = await redisDb.ExecuteBatchAsync(
+                            context,
+                            async batch =>
+                            {
+                                var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
+                                var addOperationsTask = addOperations(batch, _key);
+                                await Task.WhenAll(versionTask, addOperationsTask);
+
+                                var result = await addOperationsTask;
+                                var version = await versionTask;
+                                return (result, version);
+                            },
+                            operation);
+
+                        return Result.Success(operationResult);
                     },
-                    operation);
+                    retryWindow,
+                    // Always run on primary first to ensure that primary version will always be greater or equal in cases of
+                    // concurrent writers to the key in normal case where primary and secondary are both updated successfully
+                    concurrent: false,
+                    caller: caller);
 
-                return Result.Success(operationResult);
-            },
+            // Either primary or secondary result may be null.
+            if (primaryVersionedResult == null || secondaryVersionedResult == null)
+            {
+                // In this case just return an available result.
+                var availableResult = (primaryVersionedResult ?? secondaryVersionedResult)!;
+                if (!availableResult.Succeeded)
+                {
+                    return new Result<T>(availableResult);
+                }
 
-            // Always run on primary first to ensure that primary version will always be greater or equal in cases of
-            // concurrent writers to the key in normal case where primary and secondary are both updated successfully
-            concurrent: false,
-            caller: caller);
+                return new Result<T>(availableResult.Value.result, isNullAllowed: true);
+            }
 
             if (!_redis.HasSecondary || !secondaryVersionedResult.Succeeded)
             {
                 // No secondary or error in secondary, just use primary result
+                if (!primaryVersionedResult.Succeeded)
+                {
+                    // Both: the primary and the secondary failed.
+                    return new Result<T>(primaryVersionedResult);
+                }
+
                 return new Result<T>(primaryVersionedResult.Value.result, isNullAllowed: true);
             }
 
@@ -117,9 +134,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Prefer db with highest version number (or primary if equal)
             bool preferPrimary = primaryVersionedResult.Value.version >= secondaryVersionedResult.Value.version;
+            if (!preferPrimary)
+            {
+                using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+                if (retryWindow != null)
+                {
+                    cancellationTokenSource.CancelAfter(retryWindow.Value);
+                }
+
+                // The primary might have a smaller version simply because it was modified first in time (i.e. not
+                // because there were failures). Requery again after the secondary to ensure that we are not in this particular
+                // race condition
+                var newPrimaryVersion = await _redis.ExecuteAndCaptureRedisErrorsAsync(
+                    _redis.PrimaryRedisDb,
+                    async (redisDb, token) =>
+                    {
+                        long version = await redisDb.ExecuteBatchAsync(
+                            context,
+                            batch => batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber), value: 0)),
+                            operation);
+
+                        return Result.Success(version);
+                    },
+                    cancellationTokenSource.Token);
+                
+                if (newPrimaryVersion.Succeeded
+                    && newPrimaryVersion.Value >= secondaryVersionedResult.Value.version)
+                {
+                    preferPrimary = true;
+                }
+            }
 
             if (_host.CanMirror && !_lastMirrorTime.IsRecent(_clock.UtcNow, _host.MirrorInterval))
             {
+                Contract.AssertNotNull(_redis.SecondaryRedisDb);
+
                 _lastMirrorTime = _clock.UtcNow;
 
                 if (preferPrimary)
@@ -128,7 +177,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     await TryMirrorRedisHashDataAsync(
                         context,
                         source: _redis.PrimaryRedisDb,
-                        target: _redis.SecondaryRedisDb);
+                        target: _redis.SecondaryRedisDb,
+                        primaryVersion: primaryVersionedResult.Value.version,
+                        secondaryVersion: secondaryVersionedResult.Value.version);
                 }
                 else
                 {
@@ -136,6 +187,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         context,
                         source: _redis.SecondaryRedisDb,
                         target: _redis.PrimaryRedisDb,
+                        primaryVersion: primaryVersionedResult.Value.version,
+                        secondaryVersion: secondaryVersionedResult.Value.version,
 
                         // Set version of secondary db to its prior version so primary will now take precedence
                         // Primary will have the current version of secondary after mirroring and secondary will have 
@@ -147,7 +200,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<T>(result, isNullAllowed: true);
         }
 
-        private async Task TryMirrorRedisHashDataAsync(OperationContext context, RedisDatabaseAdapter source, RedisDatabaseAdapter target, long? postMirrorSourceVersion = null)
+        private async Task TryMirrorRedisHashDataAsync(
+            OperationContext context,
+            RedisDatabaseAdapter source,
+            RedisDatabaseAdapter target,
+            long primaryVersion,
+            long secondaryVersion,
+            long? postMirrorSourceVersion = null)
         {
             await context.PerformOperationAsync(
                 _host.Tracer,
@@ -175,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(sourceDump.Length);
                 },
-                extraStartMessage: $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, PostMirrorSourceVersion={postMirrorSourceVersion ?? -1L}",
+                extraStartMessage: $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, PreMirrorVersions:(primary={primaryVersion}, secondary={secondaryVersion}), PostMirrorSourceVersion={postMirrorSourceVersion ?? -1L}",
                 extraEndMessage: r => $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, Length={r.GetValueOrDefault(-1)}").IgnoreFailure();
         }
 

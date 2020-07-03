@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -10,12 +10,12 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Ide.JsonRpc;
 using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Ide.LanguageServer.Tracing;
 using BuildXL.Storage;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using LanguageServer;
 using LanguageServer.Json;
@@ -287,7 +287,7 @@ namespace BuildXL.Ide.LanguageServer
 
             if (initializeParams.RootUri != null)
             {
-                m_rootUri = new Uri(initializeParams.RootUri);
+                m_rootUri = initializeParams.RootUri;
             }
 
             // We can start loading the workspace as soon as a folder gets opened
@@ -415,7 +415,7 @@ namespace BuildXL.Ide.LanguageServer
                 {
                     // This is an unknown document. Force the full workspace reload.
                     // Temporary solution: the work item for a proper solution is - 1178366
-                    Logger.LanguageServerNewFileWasAdded(LoggingContext, document.Uri);
+                    Logger.LanguageServerNewFileWasAdded(LoggingContext, document.Uri.ToString());
                     if (ReloadWorkspaceAndWaitForCompletion(appState.DocumentManager, out appState, out providers))
                     {
                         // Workspace reconstruction recreates providers
@@ -465,7 +465,7 @@ namespace BuildXL.Ide.LanguageServer
                 {
                     // The file was removed. Force the full workspace reload.
                     // Temporary solution: the work item for a proper solution is - 1178366
-                    Logger.LanguageServerFileWasRemoved(LoggingContext, paramsObject.TextDocument.Uri);
+                    Logger.LanguageServerFileWasRemoved(LoggingContext, paramsObject.TextDocument.Uri.ToString());
                     ReloadWorkspaceAndWaitForCompletion(appState.DocumentManager, out _, out _);
                 }
             }
@@ -489,7 +489,7 @@ namespace BuildXL.Ide.LanguageServer
             Logger.ReportConfigurationChanged(LoggingContext, paramsObject.Settings.ToString());
 
             var settings = (JObject)paramsObject.Settings;
-            var parsedSettings = settings["DScript"].ToObject<DScriptSettings>();
+            var parsedSettings = settings[IdeProviderBase.DScriptLanguage].ToObject<DScriptSettings>();
 
             UpdateSettings(parsedSettings);
         }

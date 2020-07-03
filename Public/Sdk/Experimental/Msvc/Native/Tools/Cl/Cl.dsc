@@ -36,6 +36,7 @@ export const defaultClArguments: Arguments = {
     includes: [],
     additionalUsingDirectories: [],
     precompiledHeaderMemoryAllocationFactor: 100,
+    guardControlFlow: true,
 
     precompiledHeaderSourceFile: undefined,
     precompiledHeaderName: undefined
@@ -259,7 +260,11 @@ function evaluateOneSourceFile(
         arguments: cmdArgs,
         dependencies: [...includes, ...implicitInputs],
         implicitOutputs: implicitOutputs,
-        tags: args.tags,
+        tags: [ 
+            "compile",
+            "telemetry:cl", 
+            ...(args.tags || [])
+        ],
     });
 
     let compOutput = <CompilationOutput> {

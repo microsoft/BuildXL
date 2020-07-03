@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -34,6 +34,21 @@ namespace BuildXL.Cache.ContentStore.Extensions
             }
 
             return ((ICollection<KeyValuePair<TKey, TValue>>)dictionary).Remove(new KeyValuePair<TKey, TValue>(key, value));
+        }
+
+        /// <nodoc />
+        public static IEnumerable<T> AppendItem<T>(this IEnumerable<T> sequence, T item)
+        {
+#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
+                var tmp = new List<T>();
+                tmp.AddRange(sequence);
+                tmp.Add(item);
+                return tmp;
+#else
+            // Add build id hash to hashes so build ring machines can be updated
+            return sequence.Append(item);
+#endif
+
         }
 
         /// <summary>

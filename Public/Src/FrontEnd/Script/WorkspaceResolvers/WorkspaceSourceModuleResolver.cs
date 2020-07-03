@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -148,13 +148,12 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <nodoc/>
-        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
+        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var sourceResolverSettings = resolverSettings as IDScriptResolverSettings;
             Contract.Assert(sourceResolverSettings != null);

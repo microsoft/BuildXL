@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -42,6 +43,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             Contract.Requires(header != null);
             Contract.Requires(writeBody != null);
 
+            header = "*** " + header + " ***";
             writer.WriteLine(header);
             writer.WriteLine(new string('=', header.Length));
             writeBody(writer);

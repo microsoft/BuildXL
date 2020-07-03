@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -18,6 +19,8 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly Scheduler m_scheduler;
 
+        private readonly int m_workerId;
+
         /// <summary>
         /// Handle the events from workers
         /// </summary>
@@ -26,7 +29,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
-            return this;
+            return new MasterSpecificExecutionLogTarget(m_loggingContext, m_scheduler, (int)workerId);
         }
 
         /// <summary>
@@ -34,10 +37,12 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public MasterSpecificExecutionLogTarget(
             LoggingContext loggingContext,
-            Scheduler scheduler)
+            Scheduler scheduler,
+            int workerId = 0)
         {
             m_loggingContext = loggingContext;
             m_scheduler = scheduler;
+            m_workerId = workerId;
         }
 
         /// <inheritdoc/>
@@ -55,6 +60,20 @@ namespace BuildXL.Scheduler.Tracing
                 m_loggingContext,
                 process.GetDescription(m_scheduler.Context),
                 descriptionFailure);
+        }
+
+        /// <inheritdoc/>
+        public override void StatusReported(StatusEventData data)
+        {
+            var worker = m_scheduler.Workers[m_workerId];
+
+            worker.ActualFreeMemoryMb = data.RamFreeMb;
+            worker.ActualFreeCommitMb = data.CommitFreeMb;
+            if (worker.IsRemote)
+            {
+                worker.TotalCommitMb = data.CommitUsedMb + data.CommitFreeMb;
+                ((RemoteWorkerBase)worker).SetEffectiveTotalProcessSlots(data.EffectiveTotalProcessSlots);
+            }
         }
     }
 }

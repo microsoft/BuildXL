@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -20,7 +21,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public BloomFilter(Parameters parameters)
         {
-            Contract.Requires(parameters != null);
+            Contract.RequiresNotNull(parameters);
 
             m_bits = new ConcurrentBitArray(parameters.NumberOfBits);
             m_parameters = parameters;
@@ -130,8 +131,8 @@ namespace BuildXL.Utilities.Collections
         public BloomFilter(Parameters parameters, Func<T, MurmurHash3> hasher)
             : base(parameters)
         {
-            Contract.Requires(hasher != null);
-            Contract.Requires(parameters != null);
+            Contract.RequiresNotNull(hasher);
+            Contract.RequiresNotNull(parameters);
 
             m_hasher = hasher;
         }

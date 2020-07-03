@@ -1,11 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -53,35 +53,27 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public override Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        protected override async Task<Result<bool>> CompareExchangeCore(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
         {
             var newReplacementToken = Guid.NewGuid().ToString();
-            return CompareExchange(context, strongFingerprint, expectedReplacementToken, expected, replacement, newReplacementToken);
+            return Result.Success(await CompareExchangeInternalAsync(context, strongFingerprint, expectedReplacementToken, expected, replacement, newReplacementToken));
         }
 
-        private Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement, string newReplacementToken)
+        private Task<bool> CompareExchangeInternalAsync(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement, string newReplacementToken)
         {
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    var key = GetKey(strongFingerprint.WeakFingerprint);
-                    var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow.ToFileTimeUtc());
-                    var replacementBytes = SerializeMetadataEntry(replacementMetadata);
+            var key = GetKey(strongFingerprint.WeakFingerprint);
+            var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow.ToFileTimeUtc());
+            var replacementBytes = SerializeMetadataEntry(replacementMetadata);
 
-                    byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
-                    byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
+            byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
+            byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
-
-                    var result = await _redis.ExecuteBatchAsync(context, batch =>
-                    {
-                        var task = batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken);
-                        batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(context);
-                        return task;
-                    }, RedisOperation.CompareExchange);
-                    return new Result<bool>(result);
-                },
-                traceOperationStarted: false);
+            return _redis.ExecuteBatchAsync(context, batch =>
+            {
+                var task = batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken);
+                batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(context);
+                return task;
+            }, RedisOperation.CompareExchange);
         }
 
         /// <inheritdoc />
@@ -91,7 +83,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
 
@@ -118,13 +110,19 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // Update the time, only if no one else has changed it in the mean time. We don't
             // really care if this succeeds or not, because if it doesn't it only means someone
             // else changed the stored value before this operation but after it was read.
-            await CompareExchange(context, strongFingerprint, replacementToken, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism, replacementToken).ThrowIfFailure();
+            await CompareExchangeInternalAsync(
+                context,
+                strongFingerprint,
+                replacementToken,
+                metadata.ContentHashListWithDeterminism,
+                metadata.ContentHashListWithDeterminism,
+                replacementToken);
 
             return new Result<(ContentHashListWithDeterminism, string)>((metadata.ContentHashListWithDeterminism, replacementToken));
         }
 
         /// <inheritdoc />
-        public override async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        protected override async Task<Result<LevelSelectors>> GetLevelSelectorsCoreAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
             var weakFingerprintKey = GetKey(weakFingerprint);
 

@@ -1,10 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Text;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -30,14 +29,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly string m_machineName;
         private readonly string m_substSource;
         private readonly string m_substTarget;
-        private readonly ContentHash m_preserveOutputSalt;
+        private readonly PreserveOutputsInfo m_preserveOutputSalt;
         private readonly int m_hashCode;
 
         private GraphAgnosticIncrementalSchedulingStateId(
             string machineName,
             string substSource,
             string substTarget,
-            ContentHash preserveOutputSalt)
+            PreserveOutputsInfo preserveOutputSalt)
         {
             Contract.Requires(machineName != null);
 
@@ -59,7 +58,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public bool IsAsSafeOrSaferThan(GraphAgnosticIncrementalSchedulingStateId otherId)
         {
             return EqualsModuloPreserveOutputSalt(otherId) 
-                && (m_preserveOutputSalt == otherId.m_preserveOutputSalt || m_preserveOutputSalt == UnsafeOptions.PreserveOutputsNotUsed);
+                && (m_preserveOutputSalt.IsAsSafeOrSaferThan(otherId.m_preserveOutputSalt) || m_preserveOutputSalt == UnsafeOptions.PreserveOutputsNotUsed);
 
         }
 
@@ -74,7 +73,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <summary>
         /// Creates an instance of <see cref="GraphAgnosticIncrementalSchedulingStateId" /> from <see cref="IConfiguration" />.
         /// </summary>
-        public static GraphAgnosticIncrementalSchedulingStateId Create(PathTable pathTable, IConfiguration configuration, ContentHash preserveOutputSalt)
+        public static GraphAgnosticIncrementalSchedulingStateId Create(PathTable pathTable, IConfiguration configuration, PreserveOutputsInfo preserveOutputSalt)
         {
             return new GraphAgnosticIncrementalSchedulingStateId(
                 Environment.MachineName,
@@ -121,7 +120,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             var machineName = reader.ReadString();
             var substSource = reader.ReadString();
             var substTarget = reader.ReadString();
-            var preserveOutputSalt = new ContentHash(reader);
+            var preserveOutputSalt = new PreserveOutputsInfo(reader);
 
             return new GraphAgnosticIncrementalSchedulingStateId(
                 machineName,

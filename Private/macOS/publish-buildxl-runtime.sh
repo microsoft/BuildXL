@@ -27,6 +27,7 @@ readonly COREDUMPTESTER_NAME=CoreDumpTester
 readonly ARIA_DYLIB_NAME=libBuildXLAria.dylib
 readonly INTEROP_DYLIB_NAME=libBuildXLInterop.dylib
 readonly MONITOR_NAME=SandboxMonitor
+readonly DETOURS_DYLIB_NAME=libBuildXLDetours.dylib
 
 function updateFileAtLine() {
     local _srcFile=$1
@@ -109,10 +110,10 @@ function updateBuildXLConfigDscFile() {
 function updateRequiredKextVersion() {
     local _newVersion=$1
 
-    updateSingleLineInFile                                                 \
-        ${buildxlDir}/Public/Src/Engine/Processes/SandboxConnectionKext.cs \
-        "public const string RequiredKextVersionNumber = "                 \
-        ' = ".*"'                                                          \
+    updateSingleLineInFile                                         \
+        ${buildxlDir}/Public/Src/Pips/Dll/Fingerprints/KextInfo.cs \
+        "public const string RequiredKextVersionNumber = "         \
+        ' = ".*"'                                                  \
         ' = "'$_newVersion'"'
 }
 
@@ -129,7 +130,7 @@ function buildBuildXLBinaries() {
     kext="/f:output='*/osx-x64/native/macOS/*'or"
     libs="output='*/osx-x64/libBuildXL*'or"
     monitor="output='*/osx-x64/SandboxMonitor'or"
-    tester="output='*/osx-x64/TestProj/tests/shared_bin/TestProcess/MacOs/CoreDumpTester'"
+    tester="output='*/osx-x64/CoreDumpTester'"
 
     local args=(
         --internal
@@ -173,10 +174,11 @@ function prepareNugetDestinationFolder() {
 function copyBinariesForConfiguration() {
     local _ariaDylibFile="$1"
     local _interopDylibFile="$2"
-    local _coredumptesterExe="$3"
-    local _monitorExe="$4"
-    local _kextDir="$5"
-    local _destDir="$6"
+    local _detoursDylibFile="$3"
+    local _coredumptesterExe="$4"
+    local _monitorExe="$5"
+    local _kextDir="$6"
+    local _destDir="$7"
 
     if [[ ! -f $_ariaDylibFile ]]; then
         echo "[ERROR] Dylib not found: $_ariaDylibFile"
@@ -185,6 +187,11 @@ function copyBinariesForConfiguration() {
 
     if [[ ! -f $_interopDylibFile ]]; then
         echo "[ERROR] Dylib not found: $_interopDylibFile"
+        exit 1
+    fi
+
+    if [[ ! -f $_detoursDylibFile ]]; then
+        echo "[ERROR] Dylib not found: $_detoursDylibFile"
         exit 1
     fi
 
@@ -221,6 +228,9 @@ function copyBinariesForConfiguration() {
 
     echo "  - deploying interop lib $_interopDylibFile --> $_destDir"
     cp "$_interopDylibFile" "$_destDir"/
+
+    echo "  - deploying interop lib $_detoursDylibFile --> $_destDir"
+    cp "$_detoursDylibFile" "$_destDir"/
 
     echo "  - deploying core dump tester exe $_coredumptesterExe --> $_destDir"
     cp "$_coredumptesterExe" "$_destDir"/
@@ -366,7 +376,8 @@ do
     copyBinariesForConfiguration                                                                                   \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$ARIA_DYLIB_NAME"                                                       \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$INTEROP_DYLIB_NAME"                                                    \
-        "$buildxlDir/Out/Bin/tests/$conf/osx-x64/TestProj/tests/shared_bin/TestProcess/MacOs/$COREDUMPTESTER_NAME" \
+        "$buildxlDir/Out/Bin/$conf/osx-x64/$DETOURS_DYLIB_NAME"                                                    \
+        "$buildxlDir/Out/Bin/$conf/tools/CoreDumpTester/osx-x64/$COREDUMPTESTER_NAME"                              \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$MONITOR_NAME"                                                          \
         "$buildxlDir/Out/Bin/$conf/osx-x64/native/macOS/$KEXT_NAME"                                                \
         $destDir
@@ -396,7 +407,7 @@ if [[ -n $(which mono) && -f "$nugetExe" ]]; then
     fi
 
     echo "Building with /phase:Schedule to confirm that the new nuget can be downloaded and to regenerate cg/nuget/cgmanifest.json"
-    ${buildxlDir}/bxl.sh --internal --minimal /phase:Schedule
+    ${buildxlDir}/bxl.sh --internal --minimal --cgmanifest /phase:Schedule
 else
     echo " !!! Must publish $nupkgFile manually to feed: '${nugetFeed}'"
 fi

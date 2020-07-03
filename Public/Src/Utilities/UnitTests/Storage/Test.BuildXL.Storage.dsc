@@ -6,10 +6,15 @@ import * as Managed from "Sdk.Managed";
 namespace Storage {
     @@public
     export const dll = BuildXLSdk.test({
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // when run as admin, tests leave some files around that causes qtest to fail with
+                // System.IO.IOException: The data present in the reparse point buffer is invalid.
+                forceXunitForAdminTests: true
+            }
+        },
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

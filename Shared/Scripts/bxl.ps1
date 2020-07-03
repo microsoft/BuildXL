@@ -79,14 +79,11 @@ param(
     [string]$TestClass = "",
 
     [Parameter(Mandatory=$false)]
-    [switch]$DeployStandaloneTest = $false,
-
-    [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
     [string]$SharedCacheMode = "Disable",
 
     [Parameter(Mandatory=$false)]
-    [switch]$DevCache = $false,
+    [switch]$DevCache = $true,
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -109,6 +106,8 @@ param(
 
     [switch]$DeployDev = $false,
 
+    [switch]$Bvfs = $false,
+
     [switch]$PatchDev = $false,
 
     [switch]$DisableInteractive = $false,
@@ -117,7 +116,10 @@ param(
 
     [Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
-	
+
+    [Parameter(Mandatory=$false)]
+    [switch]$UseVfs = $false,
+
     [string]$VsoAccount = "mseng",
 
     [string]$CacheNamespace = "BuildXLSelfhost",
@@ -126,10 +128,16 @@ param(
     [switch]$Vs = $false,
 
     [Parameter(Mandatory=$false)]
-    [switch]$VsNew = $false,
+    [switch]$VsAll = $false,
+	
+    [Parameter(Mandatory=$false)]
+    [switch]$UseManagedSharedCompilation = $true,
 
     [Parameter(ValueFromRemainingArguments=$true)]
-    [string[]]$DominoArguments
+    [string[]]$DominoArguments,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoQTest = $false
 )
 
 $ErrorActionPreference = "Stop";
@@ -148,7 +156,7 @@ $NormalizationLockRelativePath = "Out\.NormalizationLock"
 $NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+ /cachemiss");
 # Add the new-cache options including a unique build session name
 $NonVanillaOptions += @(
-        '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace('\', '-'), [System.Net.Dns]::GetHostName())
+        '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace(' ', '-').Replace('\', '-'), [System.Net.Dns]::GetHostName())
 );
 
 if ($SelfhostHelp) {
@@ -186,6 +194,27 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
+# Even if managed shared compilation was requested to be on, we turn it off when:
+# - /ado option is present, so AzDevOps scenarios are kept unchanged. 
+# - this is not considered an internal build
+# We might decide to relax this once shared compilation gets enough mileage.
+if ($UseManagedSharedCompilation -and 
+        (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal))) {
+    $UseManagedSharedCompilation = $false
+}
+
+if ($UseManagedSharedCompilation) {
+    [Environment]::SetEnvironmentVariable("[Sdk.BuildXL]useManagedSharedCompilation", "1")
+}
+
+# Dev cache adds 5-10s to TTFP due to cache initialization. Since we want tight inner loop (code-test-debug) 
+# to be crisp, we disable dev cache when TestMethod or TestClass is specified, i.e., when testing
+# a single unit test method or a single unit test class. 
+# This behavior can still be overriden by specifying explicitly the SharedCacheMode.
+if ($TestMethod -ne "" -or $TestClass -ne "") {
+    $DevCache = $false;
+}
+
 if ($DevCache) {
     if ($SharedCacheMode -eq "Disable") {
         $SharedCacheMode = "Consume";
@@ -193,7 +222,6 @@ if ($DevCache) {
 }
 
 $useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
-$useL3Cache = $useSharedCache;
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
@@ -209,15 +237,6 @@ $AdditionalBuildXLArguments = @()
 if ($DeployDev) {
     $Deploy = "Dev";
     $Minimal = $true;
-}
-
-if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
-{
-    $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
-}
-if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
-{
-    $AdditionalDominoArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
 }
 
 $BuildXLExeName = "bxl.exe";
@@ -247,21 +266,35 @@ if ($TestClass -ne "") {
     $AdditionalBuildXLArguments += "/p:[UnitTest]Filter.testClass=$TestClass";
 }
 
-if ($DeployStandaloneTest) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]DeployStandaloneTest=true";
+if ($Vs -or $VsAll) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
+    if ($VsAll) {
+        # -vsAll builds both .NET Core and Net472 and doesn't specify any /vsTargetFramework filters 
+        $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";
+    } else {
+        # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1";
+    }
 }
 
-if ($Vs) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
-}
-
-if ($VsNew) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs /vsnew /solutionName:BuildXLNew";
-}
+# Various tools consume language pack files under this path if they are installed. Untrack them to prevent DFAs in local builds
+$AdditionalBuildXLArguments +=@("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
-$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/scrubDirectory:${enlistmentRoot}\out\objects", "/storeFingerprints", "/cacheMiss");
-$AdditionalBuildXLArguments += @("/p:[Sdk.BuildXL]useQTest=true");
+$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
+
+# Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
+# running under ADO (so we keep the feature out of PR validations for now).
+if (-not ($DominoArguments -like '*/ado*') -and $isMicrosoftInternal) {
+    $AdditionalBuildXLArguments += @("/exp:LazySODeletion");
+}
+
+if ($NoQTest) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]useQTest=false";
+}
+else {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]useQTest=true";
+}
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {
     $AdditionalBuildXLArguments += "/logsToRetain:20";
@@ -295,14 +328,14 @@ function New-Deployment {
 }
 
 function Write-CacheConfigJson {
-    param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [bool]$UseL3Cache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
 
-    $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -UseL3Cache $UseL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
     Set-Content -Path $configPath -Value (ConvertTo-Json $configOptions)
 }
 
 function Get-CacheConfig {
-    param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [bool]$UseL3Cache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
     
     $localCache = @{
          Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
@@ -312,38 +345,31 @@ function Get-CacheConfig {
          CacheRootPath = $cacheDirectory;
          CacheLogPath = "[BuildXLSelectedLogPath]";
          UseStreamCAS = $true;
-         <# TODO: Enable elasticity when new lkg is published. #>
-         <# EnableElasticity = $true; #>
+         UseRocksDbMemoizationStore = $true;
     };
+
+    if ($UseVfs) {
+        $localCache.Add("VfsCasRoot", "[VfsCasRoot]");
+    }
 
     if (! $UseSharedCache) {
         return $localCache;
     }
 
-    if ($UseL3Cache) {
-        $remoteCache = @{
-            Assembly = "BuildXL.Cache.BuildCacheAdapter";
-            Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
-            CacheId = "L3Cache";
-            CacheLogPath = "[BuildXLSelectedLogPath].new";
-            CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
-            CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
-            UseBlobContentHashLists = $true;
-            CacheNamespace = $CacheNamespace;
-        };
-		
-		<# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
-		if ($UseDedupStore) {
-			$remoteCache.Add("UseDedupStore", $true);
-		}
-    } else {
-        $remoteCache = @{
-            Assembly = "BuildXL.Cache.BasicFilesystem";
-            Type = "BuildXL.Cache.BasicFilesystem.BasicFilesystemCacheFactory";
-            CacheId = "SelfhostBasicFileSystemL2";
-            CacheRootPath = $SharedCachePath;
-            StrictMetadataCasCoupling = $true;
-        };
+    $remoteCache = @{
+        Assembly = "BuildXL.Cache.BuildCacheAdapter";
+        Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
+        CacheId = "L3Cache";
+        CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
+        CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
+        CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
+        UseBlobContentHashLists = $true;
+        CacheNamespace = $CacheNamespace;
+    };
+    
+    <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
+    if ($UseDedupStore) {
+        $remoteCache.Add("UseDedupStore", $true);
     }
 
     return @{
@@ -352,6 +378,7 @@ function Get-CacheConfig {
         RemoteIsReadOnly = !($PublishToSharedCache);
         LocalCache = $localCache;
         RemoteCache = $remoteCache;
+        RemoteConstructionTimeoutMilliseconds = 5000;
     };
 }
 
@@ -402,6 +429,7 @@ function Run-ProcessWithNormalizedPath {
         $remappedArgs += "/substTarget:$NormalizationDrive\ /substSource:$enlistmentrootTrimmed\"
 
         $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
+
         Write-Host -ForegroundColor Green $remappedExecutableRunner @remappedArgs;
         $p = Start-Process -FilePath $remappedExecutableRunner -ArgumentList $remappedArgs -WorkingDirectory (pwd).Path -NoNewWindow -PassThru;
         Wait-Process -InputObject $p;
@@ -474,9 +502,13 @@ $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifest
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -UseL3Cache $useL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
+}
+
+if ($UseVfs) {
+    $AdditionalBuildXLArguments += "/vfsCasRoot:" + (Join-Path $cacheDirectory vfs);
 }
 
 if ($useDeployment.EnableServerMode) {
@@ -548,7 +580,7 @@ for($i = 0; $i -lt $DominoArguments.Count; $i++){
 
 if (!$skipFilter){
 
-    $AllCacheProjectsFilter = "(spec='Public\Src\Cache\ContentStore\*')or(spec='Public\Src\Cache\MemoizationStore\*')or(spec='Public\Src\Cache\DistributedCache.Host\*')or(spec='Public\Src\Deployment\cache.dsc')";
+    $AllCacheProjectsFilter = "(spec='Public\Src\Cache\ContentStore\*')or(spec='Public\Src\Cache\MemoizationStore\*')or(spec='Public\Src\Cache\DistributedCache.Host\*')or(spec='Public\Src\Cache\Monitor\*')or(spec='Public\Src\Cache\Logging\*')or(spec='Public\Src\Deployment\cache.dsc')";
     $CacheNugetFilter = "spec='Public\Src\Deployment\cache.nugetpackages.dsc'";
     $CacheOutputFilter = "output='out\bin\$DeployConfig\cache\*'";
     $CacheLongRunningFilter = "tag='LongRunningTest'";
@@ -571,7 +603,7 @@ if (!$skipFilter){
         elseif ($CacheNuget) {
             $AdditionalBuildXLArguments += "/f:($CacheNugetFilter)"
         }
-        else {
+        elseif (!$Minimal) {
             $AdditionalBuildXLArguments += "/f:($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and(($CacheOutputFilter)or(tag='test'))"
         }
     }
@@ -595,11 +627,20 @@ if (!$skipFilter){
     if ($SkipTests) {
         $AdditionalBuildXLArguments +=  "/f:~($CacheLongRunningFilter)and~($CacheNugetFilter)"
     }
+
+    if ($Bvfs) {
+        $AdditionalBuildXLArguments += "/q:DebugNet472 /f:output='out/bin/debug/tools/bvfs/*'"
+    }
 }
 
 if ($Analyze) {
     $AdditionalBuildXLArguments = @()
     $DominoArguments.RemoveAt(0);
+}
+
+if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
+{
+    $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
 }
 
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })

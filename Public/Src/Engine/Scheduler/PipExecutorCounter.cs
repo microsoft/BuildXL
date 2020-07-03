@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities.Tracing;
 
@@ -46,7 +46,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// The amount of time it took to execute all process pips. This only includes the time spent executing the process.
-        /// It does not include any pre or post processing
+        /// It does not include any pre or post processing. It does not include any processes that were canceled.
         /// </summary>
         /// <remarks>
         /// In distributed builds, this counter only includes processes executed on one machine, even if the machine
@@ -353,6 +353,11 @@ namespace BuildXL.Scheduler
         CacheMissesForDescriptorsDueToWeakFingerprints,
 
         /// <summary>
+        /// Number of times a process pip cache entry was not found using augmented weak fingerprint (no prior execution information).
+        /// </summary>
+        CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
+
+        /// <summary>
         /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artifial cache miss injection.
         /// </summary>
         CacheMissesForDescriptorsDueToArtificialMissOptions,
@@ -622,9 +627,36 @@ namespace BuildXL.Scheduler
         AzureWatsonExitCodeRetriesCount,
 
         /// <summary>
+        /// The total pip execution time that was later retried for internal reasons.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedInternalExecutionDuration,
+
+        /// <summary>
         /// Counts the number of retries for pips because users allow them to be retried, e.g., based on their exit codes.
         /// </summary>
         ProcessUserRetries,
+
+        /// <summary>
+        /// The total count of unique pips impacted by user allowed retries.
+        /// </summary>
+        ProcessUserRetriesImpactedPipsCount,
+
+        /// <summary>
+        /// The count of pips that eventually succeeded for user allowed retries
+        /// </summary>
+        ProcessUserRetriesSucceededPipsCount,
+
+        /// <summary>
+        /// The count of pips that still failed after exhausting all user allowed tretries
+        /// </summary>
+        ProcessUserRetriesFailedPipsCount,
+
+        /// <summary>
+        /// The total pip execution time that was later retried for because users allowed them to be retried.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedUserExecutionDuration,
 
         /// <summary>
         /// Counts the number of process pips executed on remote workers
@@ -722,11 +754,6 @@ namespace BuildXL.Scheduler
         IpcPipsSucceededRemotely,
 
         /// <summary>
-        /// Counts the number of times processes were killed and retried due to resource limits
-        /// </summary>
-        ProcessRetriesDueToResourceLimits,
-
-        /// <summary>
         /// The end-to-end time spent running a process, including any possible retries
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -773,6 +800,38 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         QueryRamUsageDuration,
+
+        /// <summary>
+        /// The time spent emptying the working set
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ResumeProcessDuration,
+
+        /// <summary>
+        /// The time spent emptying the working set
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        EmptyWorkingSetDuration,
+
+        /// <summary>
+        /// The number of successful EmptyWorkingSet operations
+        /// </summary>
+        EmptyWorkingSetSucceeded,
+
+        /// <summary>
+        /// The number of times pips empty their workingset more than once. 
+        /// </summary>
+        EmptyWorkingSetSucceededMoreThanOnce,
+
+        /// <summary>
+        /// Counts the number of times processes were killed and retried due to resource limits
+        /// </summary>
+        ProcessRetriesDueToResourceLimits,
+
+        /// <summary>
+        /// Counts the number of times processes were killed and retried due to suspend or resume failures
+        /// </summary>
+        ProcessRetriesDueToSuspendOrResumeFailure,
 
         /// <summary>
         /// The time spent cancelling processes due exceeding resource limits
@@ -1029,6 +1088,14 @@ namespace BuildXL.Scheduler
         RemoteWorker_AwaitExecutionBlobCompletionDuration,
 
         /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ProcessExecutionLogDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ProcessExecutionLogWaitDuration,
+
+        /// <nodoc/>
         RemoteWorker_EarlyReleaseDrainDurationMs,
 
         /// <nodoc/>
@@ -1113,7 +1180,69 @@ namespace BuildXL.Scheduler
         NumFilesFailedToMaterialize,
 
         /// <nodoc/>
-        NumFilesFailedToMaterializeDueToEarlyWorkerRelease
+        NumFilesFailedToMaterializeDueToEarlyWorkerRelease,
+
+        /// <summary>
+        /// Number of process pips that would have been executed due to being a cache miss but were skipped because the
+        /// build ran under <see cref="BuildXL.Utilities.Configuration.IScheduleConfiguration.CacheOnly"/> mode. This
+        /// only includes the pips that had a cache lookup performed. Downstream pips of the miss will also be skipped
+        /// but they are not included in this counter because no cache lookup was performed.
+        /// </summary>
+        ProcessPipsSkippedExecutionDueToCacheOnly,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        PipQueueEnqueueDuration,
+
+        /// <summary>
+        /// The amount of time it took to execute all process pips that later converged with existing entries in cache.
+        /// It does not include any pre or post processing. It does not include any processes that were canceled.
+        /// </summary>
+        /// <remarks>
+        /// The durations of converged processes are tracked by both this and ExecuteProcessDuration counter.
+        /// </remarks>
+        [CounterType(CounterType.Stopwatch)]
+        ExecuteConvergedProcessDuration,
+
+        /// <summary>
+        /// Number of times when the local resources become unavailable due to low available commit memory
+        /// </summary>
+        MemoryResourceBecomeUnavailableDueToCommit,
+
+        /// <summary>
+        /// Number of times when the local resources become unavailable due to low available ram memory
+        /// </summary>
+        MemoryResourceBecomeUnavailableDueToRam,
+
+        /// <summary>
+        /// Number of times when the available ram is in the critical level.
+        /// </summary>
+        CriticalLowRamMemory,
+
+        /// <summary>
+        /// Number of times when the available commit is in the critical level.
+        /// </summary>
+        CriticalLowCommitMemory,
+
+        /// <summary>
+        /// Number of times when we cancel a suspended pip due to the lack of active processes.
+        /// </summary>
+        CancelSuspendedPipDueToNoRunningProcess,
+
+        /// <summary>
+        /// Number of times ExistingFileProbe was reclassified as AbsentPathProbe due to path being both
+        /// an explicitly declared output and inside a shared opaque directory.
+        /// </summary>
+        ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput,
+
+        /// <summary>
+        /// Time spent computing which files must be included in a composite SOD. Includes:
+        /// - getting the list of files for each directory inside of a composite SOD
+        /// - deduping this list
+        /// - applying a filter (if specified)
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ComputeCompositeSharedOpaqueContentDuration,
     }
 
     /// <summary>

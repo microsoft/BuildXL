@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Pips;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 
-namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
+namespace IntegrationTest.BuildXL.Scheduler
 {
     /// <summary>
     /// Extension for <see cref="ScheduleRunResult"/> used for incremental scheduling tests.

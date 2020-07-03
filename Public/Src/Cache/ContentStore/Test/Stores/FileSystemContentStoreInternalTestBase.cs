@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using BuildXL.Cache.ContentStore.Utils;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -51,60 +50,45 @@ namespace ContentStoreTest.Stores
             MaxSizeQuota.Target.Should().Be(MaxSizeTarget);
         }
 
-        protected Task TestStore(Context context, ITestClock clock, Func<TestFileSystemContentStoreInternal, Task> func)
-        {
-            return TestStoreImpl(context, clock, func);
-        }
-
-        protected Task TestStore
-            (
+        protected Task TestStore(
             Context context,
             ITestClock clock,
             DisposableDirectory testDirectory,
             Func<TestFileSystemContentStoreInternal, Task> func,
-            Action<TestFileSystemContentStoreInternal> preStartupAction = null
-            )
+            Action<TestFileSystemContentStoreInternal> preStartupAction = null)
         {
             return TestStoreImpl(context, clock, func, testDirectory, preStartupAction: preStartupAction);
         }
 
-        protected Task TestStore
-            (
+        protected Task TestStore(
             Context context,
             ITestClock clock,
             IContentChangeAnnouncer announcer,
-            Func<TestFileSystemContentStoreInternal, Task> func
-            )
+            Func<TestFileSystemContentStoreInternal, Task> func)
         {
             return TestStoreImpl(context, clock, func, announcer: announcer);
         }
 
-        protected Task TestStore
-        (
+        protected Task TestStore(
             Context context,
             ITestClock clock,
-            Func<TestFileSystemContentStoreInternal, Task> func,
-            NagleQueue<ContentHash> nagleBlock
-        )
+            Func<TestFileSystemContentStoreInternal, Task> func)
         {
-            return TestStoreImpl(context, clock, func, nagleBlock: nagleBlock);
+            return TestStoreImpl(context, clock, func);
         }
 
-        private async Task TestStoreImpl
-            (
+        private async Task TestStoreImpl(
             Context context,
             ITestClock clock,
             Func<TestFileSystemContentStoreInternal, Task> func,
             DisposableDirectory testDirectory = null,
             IContentChangeAnnouncer announcer = null,
-            NagleQueue<ContentHash> nagleBlock = null,
-            Action<TestFileSystemContentStoreInternal> preStartupAction = null
-            )
+            Action<TestFileSystemContentStoreInternal> preStartupAction = null)
         {
             using (var tempTestDirectory = new DisposableDirectory(FileSystem))
             {
                 DisposableDirectory disposableDirectory = testDirectory ?? tempTestDirectory;
-                using (var store = Create(disposableDirectory.Path, clock, nagleBlock))
+                using (var store = Create(disposableDirectory.Path, clock))
                 {
                     if (announcer != null)
                     {
@@ -130,15 +114,14 @@ namespace ContentStoreTest.Stores
             }
         }
 
-        protected virtual TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected virtual TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
-            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, Config, nagleQueue: nagleBlock, settings: ContentStoreSettings);
+            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, Config, settings: ContentStoreSettings);
         }
 
         protected virtual TestFileSystemContentStoreInternal CreateElastic(
             AbsolutePath rootPath,
             ITestClock clock,
-            NagleQueue<ContentHash> nagleBlock = null,
             MaxSizeQuota initialQuota = null,
             int? windowSize = default(int?))
         {
@@ -147,7 +130,7 @@ namespace ContentStoreTest.Stores
             // Some tests rely on maxSizeQuota being set in the configuration although it is ignored if elasticity is enabled.
             var config = new ContentStoreConfiguration(maxSizeQuota: maxSizeQuota, enableElasticity: true, initialElasticSize: maxSizeQuota, historyWindowSize: windowSize);
 
-            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, nagleQueue: nagleBlock, settings: ContentStoreSettings);
+            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, settings: ContentStoreSettings);
         }
 
         protected async Task<ElasticSizeRule.LoadQuotaResult> LoadElasticQuotaAsync(AbsolutePath rootPath)

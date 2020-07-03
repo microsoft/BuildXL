@@ -8,8 +8,6 @@ import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Ninja {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.Ninja",
@@ -28,7 +26,7 @@ namespace Ninja {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("Newtonsoft.Json").pkg,
-            BuildXL.FrontEnd.Utilities.dll,
+            Utilities.dll,
             Serialization.dll,
             TypeScript.Net.dll,
             Script.dll,

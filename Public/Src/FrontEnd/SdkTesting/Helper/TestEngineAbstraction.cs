@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -78,6 +78,12 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             }
 
             return FileContent.Invalid;
+        }
+
+        /// <inheritdoc />
+        public override Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path)
+        {
+            return File.ReadAllText(path.ToString(m_pathTable));
         }
 
         /// <inheritdoc />

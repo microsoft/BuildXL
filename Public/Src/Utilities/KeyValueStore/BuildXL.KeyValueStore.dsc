@@ -19,7 +19,7 @@ namespace KeyValueStore {
             $.dll,
             Collections.dll,
             Native.dll,
-            importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
         ],
     });
 }

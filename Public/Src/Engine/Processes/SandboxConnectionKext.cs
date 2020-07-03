@@ -1,17 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
 {
@@ -20,6 +24,9 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionKext : ISandboxConnection
     {
+        /// <inheritdoc />
+        public SandboxKind Kind => SandboxKind.MacOsKext;
+
         /// <summary>
         /// Configuration for <see cref="SandboxConnectionKext"/>.
         /// </summary>
@@ -64,17 +71,16 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         private string KextInstallHelper { get; } = string.Format(KextInstallHelperFormat, s_buildXLBin);
 
         /// <summary>
-        /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
-        /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
+        /// <see cref="BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber"/>
         /// </summary>
-        public const string RequiredKextVersionNumber = "2.2.99";
+        public const string RequiredKextVersionNumber = BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber;
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem
         /// </summary>
         private const int MaxVersionNumberLength = 17;
 
-        private readonly ConcurrentDictionary<long, SandboxedProcessMac> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessMac>();
+        private readonly ConcurrentDictionary<long, SandboxedProcessUnix> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessUnix>();
 
         private Sandbox.KextConnectionInfo m_kextConnectionInfo;
         private readonly Sandbox.KextSharedMemoryInfo m_sharedMemoryInfo;
@@ -97,7 +103,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         public TimeSpan CurrentDrought => DateTime.UtcNow.Subtract(new DateTime(ticks: LastReportReceivedTimestampTicks));
 
         /// <summary>
-        /// Initializes the sandbox kernel extension connection manager, setting up the kernel extension connection and workers that drain the
+        /// Initializes the sandbox kernel extension connection, setting up the kernel extension connection and workers that drain the
         /// kernel event queue and report file accesses
         /// </summary>
         public SandboxConnectionKext(Config config = null, bool skipDisposingForTests = false)
@@ -166,16 +172,16 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             m_workerThread.IsBackground = true;
             m_workerThread.Priority = ThreadPriority.Highest;
             m_workerThread.Start();
+        }
 
-            unsafe bool SetFailureNotificationHandler()
-            {
-                return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        private unsafe bool SetFailureNotificationHandler()
+        {
+            return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        }
 
-                void KextFailureCallback(void* refCon, int status)
-                {
-                    m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
-                }
-            }
+        private unsafe void KextFailureCallback(void* refCon, int status)
+        {
+            m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
         }
 
         /// <summary>
@@ -246,7 +252,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process)
+        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
             Contract.Requires(fam.PipId != 0);
@@ -267,6 +273,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             {
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
+                    loggingContext,
                     setup,
                     wrapper.Instance,
                     timeoutMins: 10, // don't care because on Mac we don't kill the process from the Kext once it times out
@@ -287,13 +294,26 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        {
+            return Enumerable.Empty<(string, string)>();
+        }
+
+        /// <inheritdoc />
         public void NotifyPipProcessTerminated(long pipId, int processId)
         {
             Sandbox.SendPipProcessTerminated(pipId, processId, type: Sandbox.ConnectionType.Kext, info: ref m_kextConnectionInfo);
         }
 
         /// <inheritdoc />
-        public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process)
+        public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
+        {
+            // this implementation keeps track of what the root process is an when it exits,
+            // so it doesn't need to be notified about it separately
+        }
+
+        /// <inheritdoc />
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
         {
             if (m_pipProcesses.TryRemove(pipId, out var proc))
             {

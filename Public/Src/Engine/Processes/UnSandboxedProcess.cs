@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.ComponentModel;
@@ -11,16 +11,18 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
-#if PLATFORM_OSX
-using static BuildXL.Interop.MacOS.IO;
+#if !PLATFORM_WIN
+using static BuildXL.Interop.Unix.IO;
 #endif
+
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
 {
@@ -29,15 +31,15 @@ namespace BuildXL.Processes
     /// </summary>
     public class UnsandboxedProcess : ISandboxedProcess
     {
-        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
+        private ISet<ReportedFileAccess> EmptyFileAccessesSet => new HashSet<ReportedFileAccess>();
+
+        private static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
+        private readonly AsyncProcessExecutor m_processExecutor;
 
         private DateTime m_reportsReceivedTime;
-
-        private AsyncProcessExecutor m_processExecutor;
         private Exception m_dumpCreationException;
 
         internal class CpuTimes
@@ -57,7 +59,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Delegate type for <see cref="ProcessStarted"/> event.
         /// </summary>
-        protected delegate void ProcessStartedHandler();
+        protected delegate void ProcessStartedHandler(int processId);
 
         /// <summary>
         /// Raised right after the process is started.
@@ -71,19 +73,34 @@ namespace BuildXL.Processes
         protected virtual bool Killed => m_processExecutor?.Killed ?? false;
 
         /// <summary>
-        /// Process information associated with this process.
-        /// </summary>
-        protected SandboxedProcessInfo ProcessInfo { get; }
-
-        /// <summary>
         /// Underlying managed <see cref="Process"/> object.
         /// </summary>
         protected Process Process => m_processExecutor?.Process;
 
         /// <summary>
+        /// Logging context from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        protected LoggingContext LoggingContext { get; }
+
+        /// <summary>
+        /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        public string PipDescription { get; }
+
+        /// <summary>
+        /// Pip's semi-stable hash from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        public long PipSemiStableHash { get; }
+
+        /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
         /// </summary>
-        protected PathTable PathTable => ProcessInfo.PathTable;
+        internal PathTable PathTable { get; }
+
+        /// <summary>
+        /// Whether /logObservedFileAccesses has been requested
+        /// </summary>
+        protected bool ShouldReportFileAccesses { get; }
 
         /// <summary>
         /// Whether there were any failures regarding sandboxing (e.g., sandbox
@@ -91,33 +108,57 @@ namespace BuildXL.Processes
         /// </summary>
         protected virtual bool HasSandboxFailures => false;
 
-        /// <nodoc />
+        private string TimeoutDumpDirectory { get; }
+
+        private IDetoursEventListener DetoursListener { get; }
+
+        /// <remarks>
+        /// IMPORTANT: For memory efficiency reasons don't keep a reference to <paramref name="info"/>
+        ///            or its  <see cref="SandboxedProcessInfo.FileAccessManifest"/> property
+        ///            (at least not after the process has been started)
+        /// </remarks>
         public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
-            info.Timeout = info.Timeout ?? DefaultProcessTimeout;
-            ProcessInfo = info;
+            Started = false;
+            PathTable = info.PathTable;
+            LoggingContext = info.LoggingContext;
+            PipDescription = info.PipDescription;
+            PipSemiStableHash = info.PipSemiStableHash;
+            TimeoutDumpDirectory = info.TimeoutDumpDirectory;
+            ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
+            DetoursListener = info.DetoursEventListener;
+
+            info.Timeout ??= s_defaultProcessTimeout;
 
             m_output = new SandboxedProcessOutputBuilder(
-                ProcessInfo.StandardOutputEncoding ?? Console.OutputEncoding,
-                ProcessInfo.MaxLengthInMemory,
-                ProcessInfo.FileStorage,
+                info.StandardOutputEncoding ?? Console.OutputEncoding,
+                info.MaxLengthInMemory,
+                info.FileStorage,
                 SandboxedProcessFile.StandardOutput,
-                ProcessInfo.StandardOutputObserver);
+                info.StandardOutputObserver);
 
             m_error = new SandboxedProcessOutputBuilder(
-                ProcessInfo.StandardErrorEncoding ?? Console.OutputEncoding,
-                ProcessInfo.MaxLengthInMemory,
-                ProcessInfo.FileStorage,
+                info.StandardErrorEncoding ?? Console.OutputEncoding,
+                info.MaxLengthInMemory,
+                info.FileStorage,
                 SandboxedProcessFile.StandardError,
-                ProcessInfo.StandardErrorObserver);
+                info.StandardErrorObserver);
+
+            m_processExecutor = new AsyncProcessExecutor(
+                CreateProcess(info),
+                info.Timeout ?? s_defaultProcessTimeout,
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
+                info.Provenance,
+                msg => LogProcessState(msg));
         }
 
         /// <summary>
         /// Whether this process has been started (i.e., the <see cref="Start"/> method has been called on it).
         /// </summary>
-        public bool Started => Process != null;
+        public bool Started { get; private set; }
 
         /// <summary>
         /// Difference between now and when the process was started.
@@ -128,24 +169,42 @@ namespace BuildXL.Processes
             return DateTime.UtcNow.Subtract(m_processExecutor.StartTime);
         }
 
+        /// <summary>
+        /// Unix only: sets u+x on <paramref name="fileName"/>.  Throws if file doesn't exists and <paramref name="throwIfNotFound"/> is true.
+        /// </summary>
+        protected void SetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
+        {
+#if !PLATFORM_WIN
+            var mode = GetFilePermissionsForFilePath(fileName, followSymlink: false);
+            if (mode < 0)
+            {
+                if (throwIfNotFound)
+                {
+                    ThrowBuildXLException($"Process creation failed: File '{fileName}' not found", new Win32Exception(0x2));
+                }
+
+                return;
+            }
+
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
+            }
+#endif
+        }
+
         /// <inheritdoc />
         public void Start()
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
-            m_processExecutor = new AsyncProcessExecutor(
-                CreateProcess(),
-                ProcessInfo.Timeout ?? DefaultProcessTimeout,
-                line => FeedStdOut(m_output, line),
-                line => FeedStdErr(m_error, line),
-                ProcessInfo.Provenance,
-                msg => LogProcessState(msg));
+            SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
 
+            Started = true;
             m_processExecutor.Start();
-
-            ProcessStarted?.Invoke();
-
-            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
+            ProcessStarted?.Invoke(ProcessId);
         }
 
         /// <inheritdoc />
@@ -180,7 +239,7 @@ namespace BuildXL.Processes
         public string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public ulong? GetActivePeakMemoryUsage()
+        public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
             try
             {
@@ -189,7 +248,7 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return Dispatch.GetActivePeakMemoryUsage(Process.Handle, ProcessId);
+                return Dispatch.GetMemoryCountersSnapshot(Process.Handle, ProcessId);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch
@@ -198,6 +257,12 @@ namespace BuildXL.Processes
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
+
+        /// <inheritdoc />
+        public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend) => EmptyWorkingSetResult.None; // Only SandboxedProcess is supported.
+
+        /// <inheritdoc />
+        public bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize() => 0;
@@ -227,8 +292,7 @@ namespace BuildXL.Processes
 
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
-            var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
-            var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
+            var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? EmptyFileAccessesSet) : null;
 
             return new SandboxedProcessResult
             {
@@ -240,14 +304,14 @@ namespace BuildXL.Processes
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
-                AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? s_emptyFileAccessesSet,
+                AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
                 FileAccesses                        = fileAccesses,
                 DetouringStatuses                   = reports?.ProcessDetoursStatuses,
-                ExplicitlyReportedFileAccesses      = reports?.ExplicitlyReportedFileAccesses,
+                ExplicitlyReportedFileAccesses      = reports?.ExplicitlyReportedFileAccesses ?? EmptyFileAccessesSet,
                 Processes                           = CoalesceProcesses(reports?.Processes),
                 MessageProcessingFailure            = reports?.MessageProcessingFailure,
                 DumpCreationException               = m_dumpCreationException,
-                DumpFileDirectory                   = ProcessInfo.TimeoutDumpDirectory,
+                DumpFileDirectory                   = TimeoutDumpDirectory,
                 PrimaryProcessTimes                 = GetProcessTimes(),
                 SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
             };
@@ -269,7 +333,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
+            ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException);
 
             LogProcessState($"UnsandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
@@ -278,32 +342,22 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates a <see cref="Process"/>.
         /// </summary>
-        protected virtual Process CreateProcess()
+        /// <remarks>
+        /// This method is called in the constructor of <see cref="UnsandboxedProcess"/>. During the construction,
+        /// the instance is only partially created. Thus, do not access member fields in the body of this method.
+        /// The created process should only depends on the passed <see cref="SandboxedProcessInfo"/> or some constant/static data.
+        /// </remarks>
+        protected virtual Process CreateProcess(SandboxedProcessInfo info)
         {
-            Contract.Requires(Process == null);
-
-#if !PLATFORM_WIN
-            var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
-            if (mode < 0)
-            {
-                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found", new Win32Exception(0x2));
-            }
-
-            var filePermissions = checked((FilePermissions)mode);
-            FilePermissions exePermission = FilePermissions.S_IXUSR;
-            if (!filePermissions.HasFlag(exePermission))
-            {
-                SetFilePermissionsForFilePath(ProcessInfo.FileName, exePermission);
-            }
-#endif
+            Contract.Requires(!Started);
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = ProcessInfo.FileName,
-                    Arguments = ProcessInfo.Arguments,
-                    WorkingDirectory = ProcessInfo.WorkingDirectory,
+                    FileName = info.FileName,
+                    Arguments = info.Arguments,
+                    WorkingDirectory = info.WorkingDirectory,
                     StandardErrorEncoding = m_output.Encoding,
                     StandardOutputEncoding = m_error.Encoding,
                     RedirectStandardError = true,
@@ -315,9 +369,9 @@ namespace BuildXL.Processes
             };
 
             process.StartInfo.EnvironmentVariables.Clear();
-            if (ProcessInfo.EnvironmentVariables != null)
+            if (info.EnvironmentVariables != null)
             {
-                foreach (var envKvp in ProcessInfo.EnvironmentVariables.ToDictionary())
+                foreach (var envKvp in info.EnvironmentVariables.ToDictionary())
                 {
                     process.StartInfo.EnvironmentVariables[envKvp.Key] = envKvp.Value;
                 }
@@ -350,7 +404,7 @@ namespace BuildXL.Processes
         protected void ThrowBuildXLException(string message, Exception inner = null)
         {
             Process?.StandardInput?.Close();
-            throw new BuildXLException($"[Pip{ProcessInfo.PipSemiStableHash} -- {ProcessInfo.PipDescription}] {message}", inner);
+            throw new BuildXLException($"[Pip{PipSemiStableHash:X} -- {PipDescription}] {message}", inner);
         }
 
         /// <nodoc />
@@ -359,10 +413,16 @@ namespace BuildXL.Processes
         /// <nodoc />
         protected void LogProcessState(string message)
         {
-            if (ProcessInfo.LoggingContext != null)
+            string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
+
+            if (DetoursListener != null)
             {
-                string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
-                Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
+                DetoursListener.HandleDebugMessage(PipSemiStableHash, PipDescription, fullMessage);
+            }
+
+            if (LoggingContext != null)
+            {
+                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, fullMessage);
             }
         }
 

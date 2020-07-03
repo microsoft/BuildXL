@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,14 +12,13 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace Test.BuildXL.Storage
 {
     /// <summary>
     /// Tests for <see cref="VolumeMap"/>
     /// </summary>
-     [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class VolumeMapTests : TemporaryStorageTestBase
     {
         [Fact]

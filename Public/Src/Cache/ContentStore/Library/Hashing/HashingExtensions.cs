@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.IO;
 using System.Threading.Tasks;
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Calculate content hash of content in a stream.
         /// </summary>
-        public static async Task<ContentHash> CalculateHashAsync(this Stream stream, HashType hashType)
+        public static async Task<ContentHash> CalculateHashAsync(this StreamWithLength stream, HashType hashType)
         {
             using (var hasher = HashInfoLookup.Find(hashType).CreateContentHasher())
             {

@@ -1,15 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Scheduler.Graph.NodeId>;
+using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Pips.DirectedGraph.NodeId>;
 
 namespace Test.BuildXL.Scheduler
 {

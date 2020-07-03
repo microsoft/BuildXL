@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -104,8 +104,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public BinaryLogReader(Stream logStream, PipExecutionContext context, bool closeStreamOnDispose = true)
         {
-            Contract.Requires(logStream != null);
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(logStream);
+            Contract.RequiresNotNull(context);
 
             LogStream = logStream;
             m_context = context;
@@ -368,9 +368,10 @@ namespace BuildXL.Utilities.Tracing
                         return AbsolutePath.Invalid;
                     case BinaryLogger.AbsolutePathType.Static:
                         return base.ReadAbsolutePath();
-                    default:
-                        Contract.Assert(absolutePathType == BinaryLogger.AbsolutePathType.Dynamic);
+                    case BinaryLogger.AbsolutePathType.Dynamic:
                         return LogReader.m_capturedPaths[(uint)ReadInt32Compact()];
+                    default:
+                        throw Contract.AssertFailure($"Unrecognized path type: {absolutePathType}. The XLG file format has potentially changed.");
                 }
             }
 

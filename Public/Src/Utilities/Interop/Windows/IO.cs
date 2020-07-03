@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -248,6 +248,35 @@ namespace BuildXL.Interop.Windows
             public long SorageManagerName1;
 
             // public byte[] StorageManagerName = new byte[24];
+        }
+
+        /// <summary>
+        /// DiskStats contains some values that are not a part of DeviceIoControl along with DISK_PERFORMANCE
+        /// </summary>
+        public struct DiskStats
+        {
+            /// <nodoc/>
+            public DiskStats(double? availableDiskSpace = null, DISK_PERFORMANCE diskPerformance = default(DISK_PERFORMANCE))
+            {
+                IsValid = true;
+                AvailableSpaceGb = availableDiskSpace;
+                DiskPerformance = diskPerformance;
+            }
+
+            /// <summary>
+            /// Whether the struct is valid
+            /// </summary>
+            public bool IsValid;
+
+            /// <summary>
+            /// Available Disk Space in GigaBytes
+            /// </summary>
+            public double? AvailableSpaceGb;
+
+            /// <summary>
+            /// DISK_PERFORMANCE from DeviceIoControl
+            /// </summary>
+            public DISK_PERFORMANCE DiskPerformance;
         }
 
         /// <nodoc />

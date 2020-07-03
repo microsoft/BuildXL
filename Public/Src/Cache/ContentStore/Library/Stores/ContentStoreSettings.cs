@@ -1,5 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 #nullable enable
 
@@ -16,11 +19,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// files behind our back.
         /// </summary>
         public bool CheckFiles { get; set; } = true;
-
-        /// <summary>
-        /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-        /// </summary>
-        public bool UseEmptyFileHashShortcut { get; set; } = true;
 
         /// <summary>
         /// Whether the shortcuts for redundant put files are used.
@@ -40,12 +38,32 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Whether to trace diagnostic-level messages emitted by <see cref="FileSystemContentStore"/> and <see cref="FileSystemContentStoreInternal"/> like hashing or placing files.
         /// </summary>
-        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = true;
+
+        /// <summary>
+        /// If a file system operation takes longer than this threshold it will be traced regardless of other flags.
+        /// </summary>
+        public TimeSpan SilentOperationDurationThreshold { get; set; } = DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+
+        /// <summary>
+        /// Whether to skip touching the content and acquiring a hash lock when PinAsync is called by hibernated session.
+        /// </summary>
+        public bool SkipTouchAndLockAcquisitionWhenPinningFromHibernation { get; set; } = false;
 
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
 
         /// <nodoc />
         public SelfCheckSettings? SelfCheckSettings { get; set; }
+    }
+
+    /// <nodoc />
+    public static class ContentStoreSettingsExtensions
+    {
+        /// <nodoc />
+        public static TimeSpan GetLongOperationDurationThreshold(this ContentStoreSettings? settings)
+        {
+            return settings?.SilentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+        }
     }
 }

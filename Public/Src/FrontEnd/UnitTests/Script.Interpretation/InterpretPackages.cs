@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Tracing;
@@ -71,7 +71,9 @@ pckage({
             configWriter.AddDefaultSourceResolver();
 
             var result = Evaluate(testWriter, @"MyPack/package.dsc", new[] { "MyPack.x" });
-            result.ExpectErrorCode((int)LogEventId.UnknownFunctionCallInPackageConfigurationFile, count: 1);
+            result.ExpectErrorCode(
+                (int)LogEventId.UnknownFunctionCallInPackageConfigurationFile, 
+                count: 2 /* Because of 2 source resolvers */);
         }
 
         [Fact]
@@ -98,7 +100,9 @@ const x = 42;");
             configWriter.AddDefaultSourceResolver();
 
             var result = Evaluate(testWriter, @"MyPack/package.dsc", new[] { "MyPack.x" });
-            result.ExpectErrorCode((int)LogEventId.UnknownFunctionCallInPackageConfigurationFile, count: 1);
+            result.ExpectErrorCode(
+                (int)LogEventId.UnknownFunctionCallInPackageConfigurationFile, 
+                count: 2 /* because of two source resolvers */);
         }
 
         [Fact]

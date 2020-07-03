@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Utilities;
 
 namespace BuildXL.Processes
@@ -26,8 +27,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an instance of <see cref="ExternalToolSandboxedProcess"/>.
         /// </summary>
-        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool)
-            : base(sandboxedProcessInfo)
+        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool, string externalSandboxedProcessDirectory)
+            : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalToolSandboxedProcess)))
         {
             Contract.Requires(tool != null);
             m_tool = tool;
@@ -57,7 +58,13 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
+        public override ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot() => m_processExecutor?.GetMemoryCountersSnapshot();
+
+        /// <inheritdoc />
+        public override EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend) => EmptyWorkingSetResult.None; // Only SandboxedProcess is supported.
+
+        /// <inheritdoc />
+        public override bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()
@@ -87,6 +94,8 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Start()
         {
+            base.Start();
+
             SerializeSandboxedProcessInfoToFile();
 
             var process = new Process
@@ -94,7 +103,7 @@ namespace BuildXL.Processes
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = m_tool.ExecutablePath,
-                    Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
+                    Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
                     WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,

@@ -1,15 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.VerticalAggregator
 {
@@ -82,6 +84,18 @@ namespace BuildXL.Cache.VerticalAggregator
             /// </summary>
             [DefaultValue(false)]
             public bool RemoteContentIsReadOnly { get; set; }
+
+            /// <summary>
+            /// Create only the local cache.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool UseLocalOnly { get; set; }
+
+            /// <summary>
+            /// Timeout for the amount of time it can take to construct the remote cache.
+            /// </summary>
+            [DefaultValue(Timeout.Infinite)]
+            public int RemoteConstructionTimeoutMilliseconds { get; set; }
         }
 
         /// <inheritdoc />
@@ -123,7 +137,12 @@ namespace BuildXL.Cache.VerticalAggregator
                     return eventing.StopFailure(new VerticalCacheAggregatorNeedsWriteableLocalFailure(local.CacheId));
                 }
 
-                maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId);
+                if (cacheAggregatorConfig.UseLocalOnly)
+                {
+                    return eventing.Returns(Possible.Create(local));
+                }
+
+                maybeCache = await ConstructRemoteCacheAsync(activityId, cacheAggregatorConfig);
                 if (!maybeCache.Succeeded)
                 {
                     eventing.Write(CacheActivity.CriticalDataOptions, new { RemoteCacheFailed = maybeCache.Failure });
@@ -169,6 +188,24 @@ namespace BuildXL.Cache.VerticalAggregator
                     return eventing.StopFailure(new CacheConstructionFailure(cacheId, e));
                 }
             }
+        }
+
+        private static async Task<Possible<ICache, Failure>> ConstructRemoteCacheAsync(Guid activityId, Config cacheAggregatorConfig)
+        {
+            var timeout = TimeSpan.FromMilliseconds(cacheAggregatorConfig.RemoteConstructionTimeoutMilliseconds);
+
+            try
+            {
+                return await TaskUtilities.WithTimeoutAsync(
+                    CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId),
+                    timeout);
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (TimeoutException)
+            {
+                return new Failure<string>($"Remote cache construction timed out after waiting for {timeout}");
+            }
+#pragma warning restore CA1031 // Do not catch general exception types
         }
 
         /// <inheritdoc />

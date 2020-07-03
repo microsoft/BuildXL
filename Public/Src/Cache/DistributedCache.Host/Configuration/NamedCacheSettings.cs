@@ -1,10 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -28,16 +27,15 @@ namespace BuildXL.Cache.Host.Configuration
             RequiredCapabilities = requiredCapabilites?.ToList();
         }
 
-        [JsonConstructor]
-        private NamedCacheSettings()
+        public NamedCacheSettings()
         {
         }
 
         [DataMember]
-        public string CacheRootPath { get; private set; }
+        public string CacheRootPath { get; set; }
 
         [DataMember]
-        public string CacheSizeQuotaString { get; private set; }
+        public string CacheSizeQuotaString { get; set; }
 
         [DataMember]
         public bool SupportsSensitiveSessions { get; private set; }

@@ -1,7 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
@@ -105,6 +107,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
                 I($"The left hand-side of a withQualifier expression should evaluates to 'TypeOrNamespaceModuleLiteral' but got '{moduleCandidate.Value.GetType()}'"));
 
             Contract.Assert(module.CurrentFileModule != null, "module.CurrentFileModule != null");
+            var currentQualifier = env.CurrentFileModule.Qualifier.Qualifier;
 
             // QualifierExpression can be an object literal or anything that ended up as an object literal.
             EvaluationResult objectQualifier;
@@ -119,12 +122,38 @@ namespace BuildXL.FrontEnd.Script.Expressions
                 return EvaluationResult.Error;
             }
 
-            var qualifierLiteral = objectQualifier.Value as ObjectLiteral;
+            var requestedQualifier = objectQualifier.Value as ObjectLiteral;
             Contract.Assert(
-                qualifierLiteral != null,
+                requestedQualifier != null,
                 I($"The right hand-side of a withQualifier expression should evaluates to 'ObjectLiteral' but got '{objectQualifier.Value.GetType()}'"));
 
-            if (!QualifierValue.TryCreate(context, env, qualifierLiteral, out QualifierValue qualifierValue, qualifierLiteral.Location))
+            // TODO: This can be made more efficient by talking with the qualifier table directly
+            // and maintaining a global map of qualifier id to object literal rather than have many copies of
+            // object literal floating around, but that would be more changes than warranted at the moment
+            // since withqualifier is not used that heavily at the moment, when this starts showing up on profiles
+            // we should consider improving the logic here.
+            var qualifierBindings = new Dictionary<StringId, Binding>();
+            foreach (var member in currentQualifier.Members)
+            {
+                qualifierBindings[member.Key] = new Binding(member.Key, member.Value, requestedQualifier.Location);
+            }
+
+            foreach (var member in requestedQualifier.Members)
+            {
+                if (member.Value.IsUndefined)
+                {
+                    // setting a value to undefined implies explicitly removing they qualifier key.
+                    qualifierBindings.Remove(member.Key);
+                }
+                else
+                {
+                    qualifierBindings[member.Key] = new Binding(member.Key, member.Value, requestedQualifier.Location); 
+                }
+            }
+            var qualifierToUse = ObjectLiteral.Create(qualifierBindings.Values.ToArray());
+            
+
+            if (!QualifierValue.TryCreate(context, env, qualifierToUse, out QualifierValue qualifierValue, requestedQualifier.Location))
             {
                 // Error has been reported.
                 return EvaluationResult.Error;

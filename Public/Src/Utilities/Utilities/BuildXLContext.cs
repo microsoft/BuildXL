@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -27,7 +27,7 @@ namespace BuildXL.Utilities
             context.QualifierTable,
             context.TokenTextTable)
         {
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace BuildXL.Utilities
                 symbolTable,
                 qualifierTable)
         {
-            Contract.Requires(tokenTextTable != null);
+            Contract.RequiresNotNull(tokenTextTable);
 
             m_tokenTextTable = tokenTextTable;
         }
@@ -65,7 +65,18 @@ namespace BuildXL.Utilities
             var qualifierTable = new QualifierTable(stringTable);
             var tokenTextTable = new TokenTextTable();
 
-            return new BuildXLTestContext(stringTable, pathTable, symbolTable, qualifierTable, tokenTextTable);
+            return new BuildXLTestContext(stringTable, pathTable, symbolTable, qualifierTable, tokenTextTable, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Creates a new context for testing purposes only using existing context and cancellation token
+        /// Real components should create a derived class
+        /// </summary>
+        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "BuildXLContext takes ownership for disposal.")]
+        public static BuildXLContext CreateInstanceForTestingWithCancellationToken(BuildXLContext context, CancellationToken cancellationToken)
+        {
+            return new BuildXLTestContext(context.StringTable, context.PathTable, context.SymbolTable, context.QualifierTable, context.TokenTextTable, cancellationToken);
         }
 
         /// <summary>
@@ -75,7 +86,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<TokenTextTable>() != null);
                 return m_tokenTextTable;
             }
         }
@@ -104,9 +114,10 @@ namespace BuildXL.Utilities
                 PathTable pathTable,
                 SymbolTable symbolTable,
                 QualifierTable qualifierTable,
-                TokenTextTable tokenTextTable)
+                TokenTextTable tokenTextTable,
+                CancellationToken cancellationToken)
                 : base(
-                    CancellationToken.None,
+                    cancellationToken,
                     stringTable,
                     pathTable,
                     symbolTable,

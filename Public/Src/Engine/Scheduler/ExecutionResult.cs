@@ -1,16 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -37,8 +39,8 @@ namespace BuildXL.Scheduler
         }
 
         private PipResultStatus m_result;
-        private IReadOnlyList<ReportedFileAccess> m_fileAccessViolationsNotWhitelisted;
-        private IReadOnlyList<ReportedFileAccess> m_whitelistedFileAccessViolations;
+        private IReadOnlyList<ReportedFileAccess> m_fileAccessViolationsNotAllowlisted;
+        private IReadOnlyList<ReportedFileAccess> m_allowlistedFileAccessViolations;
         private int m_numberOfWarnings;
         private ProcessPipExecutionPerformance m_performanceInformation;
         private WeakContentFingerprint? m_weakFingerprint;
@@ -48,11 +50,15 @@ namespace BuildXL.Scheduler
         private bool m_mustBeConsideredPerpetuallyDirty;
         private bool m_converged;
         private ReadOnlyArray<AbsolutePath> m_dynamicallyObservedFiles;
+        private ReadOnlyArray<AbsolutePath> m_dynamicallyProbedFiles;
         private ReadOnlyArray<AbsolutePath> m_dynamicallyObservedEnumerations;
         private IReadOnlySet<AbsolutePath> m_allowedUndeclaredSourceReads;
         private IReadOnlySet<AbsolutePath> m_absentPathProbesUnderOutputDirectories;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
+        private IReadOnlyDictionary<string, int> m_pipProperties;
+        private bool m_hasUserRetries;
+        private CancellationReason m_cancellationReason;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -86,7 +92,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets observed ownership for shared dynamic directories
         /// </summary>
-        public IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> SharedDynamicDirectoryWriteAccesses { get; private set; }
+        public IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> SharedDynamicDirectoryWriteAccesses { get; private set; }
 
         /// <summary>
         /// Observed allowed undeclared source reads
@@ -144,7 +150,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Sets the pip result for the process execution. An error must be logged before calling this method
         /// </summary>
-        public void SetResult(LoggingContext context, PipResultStatus status)
+        public void SetResult(LoggingContext context, 
+            PipResultStatus status, 
+            CancellationReason cancellationReason = CancellationReason.None)
         {
             if (status == PipResultStatus.Failed)
             {
@@ -153,41 +161,42 @@ namespace BuildXL.Scheduler
 
             EnsureUnsealed();
             InnerUnsealedState.Result = status;
+            m_cancellationReason = cancellationReason;
         }
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were not whitelisted. These are 'violations'.
+        /// Gets the collection of unexpected file accesses reported so far that were not allowlisted. These are 'violations'.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotWhitelisted
+        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotAllowlisted
         {
             get
             {
                 EnsureSealed();
-                return m_fileAccessViolationsNotWhitelisted;
+                return m_fileAccessViolationsNotAllowlisted;
             }
 
             set
             {
                 EnsureUnsealed();
-                InnerUnsealedState.FileAccessViolationsNotWhitelisted = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
+                InnerUnsealedState.FileAccessViolationsNotAllowlisted = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
             }
         }
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were whitelisted.
+        /// Gets the collection of unexpected file accesses reported so far that were allowlisted.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> WhitelistedFileAccessViolations
+        public IReadOnlyList<ReportedFileAccess> AllowlistedFileAccessViolations
         {
             get
             {
                 EnsureSealed();
-                return m_whitelistedFileAccessViolations;
+                return m_allowlistedFileAccessViolations;
             }
 
             set
             {
                 EnsureUnsealed();
-                InnerUnsealedState.WhitelistedFileAccessViolations = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
+                InnerUnsealedState.AllowlistedFileAccessViolations = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
             }
         }
 
@@ -334,6 +343,22 @@ namespace BuildXL.Scheduler
         }
 
         /// <nodoc />
+        public ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles
+        {
+            get
+            {
+                EnsureSealed();
+                return m_dynamicallyProbedFiles;
+            }
+
+            set
+            {
+                EnsureUnsealed();
+                InnerUnsealedState.DynamicallyProbedFiles = value;
+            }
+        }
+
+        /// <nodoc />
         public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations
         {
             get
@@ -366,6 +391,40 @@ namespace BuildXL.Scheduler
         /// </summary>
         public bool IsSealed { get; private set; }
 
+        /// <summary>
+        /// Whether or not the process was retried due to user specified exit codes
+        /// </summary>
+        public bool HasUserRetries
+        {
+            get
+            {
+                return m_hasUserRetries;
+            }
+        }
+
+        /// <summary>
+        /// Whether the pip was cancelled. Returns the reason for cancellation.
+        /// </summary>
+        public CancellationReason CancellationReason
+        {
+            get
+            {
+                return m_cancellationReason;
+            }
+        }
+
+        /// <summary>
+        /// Returns any pip properties (with their counts) extracted from the process output
+        /// </summary>
+        public IReadOnlyDictionary<string, int> PipProperties
+        {
+            get
+            {
+                EnsureSealed();
+                return m_pipProperties;
+            }
+        }
+
         #endregion Reported State
 
         /// <summary>
@@ -378,10 +437,11 @@ namespace BuildXL.Scheduler
             ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs,
             ProcessPipExecutionPerformance performanceInformation,
             WeakContentFingerprint? fingerprint,
-            IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotWhitelisted,
-            IReadOnlyList<ReportedFileAccess> whitelistedFileAccessViolations,
+            IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotAllowlisted,
+            IReadOnlyList<ReportedFileAccess> allowlistedFileAccessViolations,
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
@@ -389,7 +449,10 @@ namespace BuildXL.Scheduler
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
             ObservedPathSet? pathSet,
-            CacheLookupPerfInfo cacheLookupStepDurations)
+            CacheLookupPerfInfo cacheLookupStepDurations,
+            IReadOnlyDictionary<string, int> pipProperties,
+            bool hasUserRetries,
+            CancellationReason pipCancellationReason)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -401,10 +464,11 @@ namespace BuildXL.Scheduler
                     SharedDynamicDirectoryWriteAccesses = ComputeSharedDynamicAccessesFrom(directoryOutputs),
                     m_performanceInformation = performanceInformation,
                     m_weakFingerprint = fingerprint,
-                    m_fileAccessViolationsNotWhitelisted = fileAccessViolationsNotWhitelisted,
-                    m_whitelistedFileAccessViolations = whitelistedFileAccessViolations,
+                    m_fileAccessViolationsNotAllowlisted = fileAccessViolationsNotAllowlisted,
+                    m_allowlistedFileAccessViolations = allowlistedFileAccessViolations,
                     m_mustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty,
                     m_dynamicallyObservedFiles = dynamicallyObservedFiles,
+                    m_dynamicallyProbedFiles = dynamicallyProbedFiles,
                     m_dynamicallyObservedEnumerations = dynamicallyObservedEnumerations,
                     m_allowedUndeclaredSourceReads = allowedUndeclaredSourceReads,
                     m_absentPathProbesUnderOutputDirectories = absentPathProbesUnderOutputDirectories,
@@ -413,7 +477,10 @@ namespace BuildXL.Scheduler
                     Converged = converged,
                     IsSealed = true,
                     m_pathSet = pathSet,
-                    m_cacheLookupPerfInfo = cacheLookupStepDurations
+                    m_cacheLookupPerfInfo = cacheLookupStepDurations,
+                    m_pipProperties = pipProperties,
+                    m_hasUserRetries = hasUserRetries,
+                    m_cancellationReason = pipCancellationReason,
                 };
             return processExecutionResult;
         }
@@ -440,19 +507,23 @@ namespace BuildXL.Scheduler
                 convergedCacheResult.DirectoryOutputs,
                 PerformanceInformation,
                 WeakFingerprint,
-                FileAccessViolationsNotWhitelisted,
-                WhitelistedFileAccessViolations,
+                FileAccessViolationsNotAllowlisted,
+                AllowlistedFileAccessViolations,
                 convergedCacheResult.MustBeConsideredPerpetuallyDirty,
                 // Converged result does not have values for the following dynamic observations. Use the observations from this result.
                 DynamicallyObservedFiles,
+                DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations,
                 AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories,
-                TwoPhaseCachingInfo,
-                PipCacheDescriptorV2Metadata,
+                convergedCacheResult.TwoPhaseCachingInfo,
+                convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
                 pathSet: convergedCacheResult.PathSet,
-                cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo);
+                cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
+                PipProperties,
+                HasUserRetries,
+                CancellationReason);
         }
 
         /// <summary>
@@ -470,10 +541,11 @@ namespace BuildXL.Scheduler
                 DirectoryOutputs,
                 PerformanceInformation,
                 WeakFingerprint,
-                FileAccessViolationsNotWhitelisted,
-                WhitelistedFileAccessViolations,
+                FileAccessViolationsNotAllowlisted,
+                AllowlistedFileAccessViolations,
                 MustBeConsideredPerpetuallyDirty,
                 DynamicallyObservedFiles,
+                DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations,
                 AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories,
@@ -481,7 +553,35 @@ namespace BuildXL.Scheduler
                 PipCacheDescriptorV2Metadata,
                 Converged,
                 PathSet,
-                CacheLookupPerfInfo);
+                CacheLookupPerfInfo,
+                PipProperties,
+                HasUserRetries,
+                CancellationReason);
+        }
+
+        /// <summary>
+        /// Populates high level cache info from the given cache result.
+        /// Specifically <see cref="PathSet"/>, <see cref="WeakFingerprint"/>, <see cref="PipCacheDescriptorV2Metadata"/>, and <see cref="TwoPhaseCachingInfo"/> 
+        /// are populated.
+        /// </summary>
+        public void PopulateCacheInfoFromCacheResult(RunnableFromCacheResult cacheResult)
+        {
+            EnsureUnsealed();
+
+            WeakFingerprint = cacheResult.WeakFingerprint;
+            if (cacheResult.CanRunFromCache)
+            {
+                var cacheHitData = cacheResult.GetCacheHitData();
+                PathSet = cacheHitData.PathSet;
+                PipCacheDescriptorV2Metadata = cacheHitData.Metadata;
+                TwoPhaseCachingInfo = new TwoPhaseCachingInfo(
+                    weakFingerprint: cacheResult.WeakFingerprint,
+                    pathSetHash: cacheHitData.PathSetHash,
+                    strongFingerprint: cacheHitData.StrongFingerprint,
+
+                    // NOTE: This should not be used so we set it to default values except the metadata hash (it is used for HistoricMetadataCache).
+                    cacheEntry: new CacheEntry(cacheHitData.MetadataHash, "<Unspecified>", ArrayView<ContentHash>.Empty));
+            }
         }
 
         /// <summary>
@@ -500,6 +600,9 @@ namespace BuildXL.Scheduler
         {
             EnsureUnsealed();
             m_numberOfWarnings = executionResult.NumberOfWarnings;
+            m_pipProperties = executionResult.PipProperties;
+            m_hasUserRetries = executionResult.HadUserRetries;
+            m_cancellationReason = executionResult.CancellationReason;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
         }
@@ -555,6 +658,30 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Gets a canceled result without run information.
+        /// </summary>
+        public static ExecutionResult GetCanceledNotRunResult(LoggingContext loggingContext, CancellationReason cancellationReason)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Canceled, cancellationReason);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets an empty success result for Materialization
+        /// </summary>
+        public static ExecutionResult GetEmptySuccessResult(LoggingContext loggingContext)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Succeeded);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
         /// Disallow further modifications, finalize state, and allow reading state
         /// </summary>
         public void Seal()
@@ -578,12 +705,15 @@ namespace BuildXL.Scheduler
 
                     m_mustBeConsideredPerpetuallyDirty = m_unsealedState.MustBeConsideredPerpetuallyDirty;
                     m_dynamicallyObservedFiles = m_unsealedState.DynamicallyObservedFiles;
+                    m_dynamicallyProbedFiles = m_unsealedState.DynamicallyProbedFiles;
                     m_dynamicallyObservedEnumerations = m_unsealedState.DynamicallyObservedEnumerations;
                     m_allowedUndeclaredSourceReads = m_unsealedState.AllowedUndeclaredSourceReads;
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
-                    if (processResult != null && processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed)
+                    if (processResult != null && 
+                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
+                        !processResult.CancellationReason.IsPrepRetryableFailure())
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
@@ -602,14 +732,14 @@ namespace BuildXL.Scheduler
                             m_unsealedState.UnexpectedFileAccessCounters.HasValue,
                             "File access counters are available when the status is not PreparationFailed");
                         Contract.Assert(
-                            m_unsealedState.FileAccessViolationsNotWhitelisted.IsValid,
+                            m_unsealedState.FileAccessViolationsNotAllowlisted.IsValid,
                             "File access violations not set when the status is not PreparationFailed");
 
                         TimeSpan wallClockTime = (TimeSpan)processResult.PrimaryProcessTimes?.TotalWallClockTime;
                         JobObject.AccountingInformation jobAccounting = processResult.JobAccountingInformation ??
                                                                         default(JobObject.AccountingInformation);
-                        m_fileAccessViolationsNotWhitelisted = m_unsealedState.FileAccessViolationsNotWhitelisted.Value;
-                        m_whitelistedFileAccessViolations = m_unsealedState.WhitelistedFileAccessViolations.Value;
+                        m_fileAccessViolationsNotAllowlisted = m_unsealedState.FileAccessViolationsNotAllowlisted.Value;
+                        m_allowlistedFileAccessViolations = m_unsealedState.AllowlistedFileAccessViolations.Value;
 
                         m_performanceInformation = new ProcessPipExecutionPerformance(
                             m_result.ToExecutionLevel(),
@@ -621,9 +751,10 @@ namespace BuildXL.Scheduler
                             ioCounters: jobAccounting.IO,
                             userTime: jobAccounting.UserTime,
                             kernelTime: jobAccounting.KernelTime,
-                            peakMemoryUsage: jobAccounting.PeakMemoryUsage,
+                            memoryCounters: jobAccounting.MemoryCounters,
                             numberOfProcesses: jobAccounting.NumberOfProcesses,
-                            workerId: 0);
+                            workerId: 0,
+                            suspendedDurationMs: processResult.SuspendedDurationMs);
                     }
                 }
                 else
@@ -631,6 +762,7 @@ namespace BuildXL.Scheduler
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty;
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.Empty;
                     m_dynamicallyObservedFiles = ReadOnlyArray<AbsolutePath>.Empty;
+                    m_dynamicallyProbedFiles = ReadOnlyArray<AbsolutePath>.Empty;
                     m_dynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
                     m_allowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
                     m_absentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
@@ -641,21 +773,21 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs)
+        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs)
         {
             var sharedDynamicAccesses = directoryOutputs
                 .Where(kvp => kvp.Item1.IsSharedOpaque)
-                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<AbsolutePath>) kvp.Item2.SelectArray(fileArtifact => fileArtifact.Path));
+                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>) kvp.Item2.SelectArray(fileArtifact => FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required)));
 
-            return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>(sharedDynamicAccesses);
+            return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(sharedDynamicAccesses);
         }
 
         private static FileMonitoringViolationCounters ConvertFileMonitoringViolationCounters(UnexpectedFileAccessCounters counters)
         {
             return new FileMonitoringViolationCounters(
-                numFileAccessViolationsNotWhitelisted: counters.NumFileAccessViolationsNotWhitelisted,
-                numFileAccessesWhitelistedAndCacheable: counters.NumFileAccessesWhitelistedAndCacheable,
-                numFileAccessesWhitelistedButNotCacheable: counters.NumFileAccessesWhitelistedButNotCacheable);
+                numFileAccessViolationsNotAllowlisted: counters.NumFileAccessViolationsNotAllowlisted,
+                numFileAccessesAllowlistedAndCacheable: counters.NumFileAccessesAllowlistedAndCacheable,
+                numFileAccessesAllowlistedButNotCacheable: counters.NumFileAccessesAllowlistedButNotCacheable);
         }
 
         private sealed class UnsealedState
@@ -663,8 +795,8 @@ namespace BuildXL.Scheduler
             private SandboxedProcessPipExecutionResult m_executionResult;
 
             public bool SandboxedResultReported { get; private set; }
-            public Optional<IReadOnlyList<ReportedFileAccess>> FileAccessViolationsNotWhitelisted;
-            public Optional<IReadOnlyList<ReportedFileAccess>> WhitelistedFileAccessViolations;
+            public Optional<IReadOnlyList<ReportedFileAccess>> FileAccessViolationsNotAllowlisted;
+            public Optional<IReadOnlyList<ReportedFileAccess>> AllowlistedFileAccessViolations;
             public PipResultStatus? Result;
             public SandboxedProcessPipExecutionResult ExecutionResult
             {
@@ -679,6 +811,7 @@ namespace BuildXL.Scheduler
             public DateTime ExecutionStop;
             public bool MustBeConsideredPerpetuallyDirty;
             public ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles = ReadOnlyArray<AbsolutePath>.Empty;
+            public ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles = ReadOnlyArray<AbsolutePath>.Empty;
             public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
             public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
             public IReadOnlySet<AbsolutePath> AbsentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();

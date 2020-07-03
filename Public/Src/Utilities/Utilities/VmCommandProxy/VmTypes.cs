@@ -1,19 +1,27 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using Newtonsoft.Json;
 
 namespace BuildXL.Utilities
 {
     /// <summary>
-    /// Input for 'StartBuild' command.
+    /// Input for 'InitializeVM' command.
     /// </summary>
-    /// <remarks>
-    /// To be deprecated.
-    /// </remarks>
     [JsonObject(MemberSerialization.OptIn)]
-    public class StartBuildRequest
+    public class InitializeVmRequest
     {
+        /// <summary>
+        /// Subst drive.
+        /// </summary>
+        [JsonProperty]
+        public string SubstDrive { get; set; }
+
+        /// <summary>
+        /// Subst path.
+        /// </summary>
+        [JsonProperty]
+        public string SubstPath { get; set; }
     }
 
     /// <summary>

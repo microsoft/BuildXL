@@ -8,8 +8,6 @@ import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
 namespace MsBuild {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.MsBuild",
@@ -28,15 +26,34 @@ namespace MsBuild {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("Newtonsoft.Json").pkg,
-            BuildXL.FrontEnd.Utilities.dll,
+            Utilities.dll,
             TypeScript.Net.dll,
             Script.dll,
             Core.dll,
             Serialization.dll,
             Sdk.dll,
+            SdkProjectGraph.dll,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.MsBuild",
         ],
+        runtimeContent: [
+            // CODESYNC: \Public\Src\IDE\VsCode\BuildXL.IDE.VsCode.dsc 
+            // We exclude the VbCsCompiler from the VsCode extension to save space.
+            {
+                subfolder: r`tools/vbcslogger/net472`,
+                contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
+                    .withQualifier({ targetFramework: "net472" }).dll]
+            },
+            {
+                subfolder: r`tools/vbcslogger/dotnetcore`,
+                contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
+                    .withQualifier({ targetFramework: "netcoreapp3.1" }).dll]
+            },
+            {
+                subfolder: r`tools`,
+                contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment],
+            }
+        ]
     });
 }

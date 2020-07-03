@@ -3,12 +3,14 @@
 
 namespace Storage.Untracked {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.test({
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.BuildXL.Storage.Admin",
         sources: globR(d`.`, "*.cs"),
         references: [

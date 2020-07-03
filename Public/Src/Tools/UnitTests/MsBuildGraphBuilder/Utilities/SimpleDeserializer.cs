@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 namespace Test.ProjectGraphBuilder.Utilities
 {
     /// <summary>
-    /// Can deserialize a  <see cref="ProjectGraphWithPredictions{string}"/> from a file
+    /// Can deserialize a  <see cref="ProjectGraphWithPredictions{TPathType}"/> from a file
     /// </summary>
     public class SimpleDeserializer
     {

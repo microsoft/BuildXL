@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -298,7 +298,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int Combine<T>(T[] values, Func<T, int> converter)
         {
-            Contract.Requires(converter != null);
+            Contract.RequiresNotNull(converter);
             if (values == null)
             {
                 return 0;
@@ -387,7 +387,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static long Combine<T>(IEnumerable<T> values, Func<T, long> converter)
         {
-            Contract.Requires(converter != null);
+            Contract.RequiresNotNull(converter);
 
             if (values == null)
             {

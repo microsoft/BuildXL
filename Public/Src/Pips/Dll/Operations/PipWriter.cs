@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -71,7 +71,6 @@ namespace BuildXL.Pips.Operations
 
         public virtual void Write(in ProcessSemaphoreInfo value)
         {
-            Contract.Requires(value != null);
             Start<ProcessSemaphoreInfo>();
             value.Serialize(this);
             End();

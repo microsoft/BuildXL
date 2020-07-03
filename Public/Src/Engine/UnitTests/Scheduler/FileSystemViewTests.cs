@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,17 +8,16 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {
-    using StructTuple = StructTuple;
-    using PathTuple = ValueTuple<AbsolutePath, AbsolutePath>;
     using System.Collections.Concurrent;
-    using global::BuildXL.Scheduler.Graph;
     using global::BuildXL.Scheduler.FileSystem;
+    using PathTuple = ValueTuple<AbsolutePath, AbsolutePath>;
 
     [Trait("Category", "FileContentManagerTests")]
     public sealed partial class FileSystemViewTests : PipTestBase

@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
 
@@ -18,6 +19,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             DedupNode rootFromhash;
             using (var hasher = new DedupNodeHashAlgorithm())
             {
+                hasher.SetInputLength(1);
                 hasher.ComputeHash(new byte[1]);
                 rootFromhash = hasher.GetNode().ChildNodes.Single();
             }
@@ -28,38 +30,42 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void ChunksEnumeratedAsFileIsReadManaged()
         {
-            ChunksEnumeratedAsFileIsRead(() => new ManagedChunker());
+            ChunksEnumeratedAsFileIsRead(() => new ManagedChunker(ChunkerConfiguration.Default));
         }
 
-        [Fact]
+        [MtaFact]
         [Trait("Category", "WindowsOSOnly")]
         public void ChunksEnumeratedAsFileIsReadCOM()
         {
-            ChunksEnumeratedAsFileIsRead(() => new ComChunker());
+            ChunksEnumeratedAsFileIsRead(() => new ComChunker(ChunkerConfiguration.Default));
         }
 
         private void ChunksEnumeratedAsFileIsRead(Func<IChunker> chunkerFactory)
         {
             var chunks = new List<ChunkInfo>();
 
-            byte[] bytes = new byte[4 * Chunker.MinPushBufferSize];
+            byte[] bytes;
 
-            var r = new Random(Seed: 0);
-            r.NextBytes(bytes);
+            using (var chunker = chunkerFactory())
+            {
+                bytes = new byte[4 * chunker.Configuration.MinPushBufferSize];
 
-            using (var chunker = DedupNodeHashAlgorithm.CreateChunker())
-            using (var session = chunker.BeginChunking(chunk =>
-            {
-                chunks.Add(chunk);
-            }))
-            {
-                int pushSize = 2 * (int)Chunker.MinPushBufferSize;
-                int lastChunkCount = 0;
-                for (int i = 0; i < bytes.Length; i += pushSize)
+                var r = new Random(Seed: 0);
+                r.NextBytes(bytes);
+
+                using (var session = chunker.BeginChunking(chunk =>
                 {
-                    session.PushBuffer(bytes, i, Math.Min(pushSize, bytes.Length - i));
-                    Assert.True(chunks.Count > lastChunkCount);
-                    lastChunkCount = chunks.Count;
+                    chunks.Add(chunk);
+                }))
+                {
+                    int pushSize = 2 * chunker.Configuration.MinPushBufferSize;
+                    int lastChunkCount = 0;
+                    for (int i = 0; i < bytes.Length; i += pushSize)
+                    {
+                        session.PushBuffer(bytes, i, Math.Min(pushSize, bytes.Length - i));
+                        Assert.True(chunks.Count > lastChunkCount);
+                        lastChunkCount = chunks.Count;
+                    }
                 }
             }
 
@@ -69,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             string[] actualChunkHashes;
             using (var hasher = new DedupNodeHashAlgorithm())
             {
+                hasher.SetInputLength(bytes.Length);
                 hasher.ComputeHash(bytes);
                 rootFromhash = hasher.GetNode();
                 actualChunkHashes = rootFromhash.EnumerateChunkLeafsInOrder().Select(c => c.Hash.ToHex()).ToArray();

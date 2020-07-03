@@ -1,16 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using BuildXL.Utilities.Configuration;
-using System.Reflection;
-using System.IO;
-using System.Linq;
 
 namespace Test.BuildXL.Utilities
 {
@@ -89,6 +88,35 @@ namespace Test.BuildXL.Utilities
             var msg = $"prop: '{propertyInfo.Name}'; safe value: '{safePropertyValue}'; unsafe property value: '{unsafePropertyValue}'";
             XAssert.IsTrue(safeConf.IsAsSafeOrSaferThan(unsafeConf), msg);
             XAssert.IsFalse(unsafeConf.IsAsSafeOrSaferThan(safeConf), msg);
+        }
+
+        [Theory]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreNothing, DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreNothing, DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, true)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreNothing, DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreNothing, DynamicWriteOnAbsentProbePolicy.IgnoreAll, true)]
+        //
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, DynamicWriteOnAbsentProbePolicy.IgnoreNothing, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, true)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, DynamicWriteOnAbsentProbePolicy.IgnoreAll, true)]
+        //
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, DynamicWriteOnAbsentProbePolicy.IgnoreNothing, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, DynamicWriteOnAbsentProbePolicy.IgnoreAll, true)]
+        //
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreAll, DynamicWriteOnAbsentProbePolicy.IgnoreNothing, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreAll, DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreAll, DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, false)]
+        [InlineData(DynamicWriteOnAbsentProbePolicy.IgnoreAll, DynamicWriteOnAbsentProbePolicy.IgnoreAll, true)]
+        public void TestIsAsSafeOrSaferDynamicWriteOnAbsentProbePolicy(DynamicWriteOnAbsentProbePolicy lhs, DynamicWriteOnAbsentProbePolicy rhs, bool expectedOutcome)
+        {
+            XAssert.AreEqual(expectedOutcome, UnsafeSandboxConfigurationExtensions.IsAsSafeOrSafer(lhs, rhs));
+
+            var lhsConf = new UnsafeSandboxConfiguration { IgnoreDynamicWritesOnAbsentProbes = lhs };
+            var rhsConf = new UnsafeSandboxConfiguration { IgnoreDynamicWritesOnAbsentProbes = rhs };
+            XAssert.AreEqual(expectedOutcome, lhsConf.IsAsSafeOrSaferThan(rhsConf));
         }
 
         public static IEnumerable<object[]> TestSerializationIncludesPropertyData()

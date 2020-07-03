@@ -1,20 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -35,7 +34,7 @@ namespace Test.BuildXL.Scheduler
 
         public ScheduleRunData RunData { get; } = new ScheduleRunData();
 
-        protected override bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
+        public bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
 
         protected override bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection SandboxConnectionKext = null)
         {
@@ -56,14 +55,14 @@ namespace Test.BuildXL.Scheduler
             FileContentTable fileContentTable,
             EngineCache cache,
             IConfiguration configuration,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
             ITempCleaner tempCleaner = null,
-            PipRuntimeTimeTable runningTimeTable = null,
+            HistoricPerfDataTable runningTimeTable = null,
             JournalState journalState = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
-            ContentHash? previousInputsSalt = null,
+            PreserveOutputsInfo? previousInputsSalt = null,
             IEnumerable<Pip> successfulPips = null,
             IEnumerable<Pip> failedPips = null,
             LoggingContext loggingContext = null,
@@ -71,8 +70,8 @@ namespace Test.BuildXL.Scheduler
             DirectoryTranslator directoryTranslator = null,
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null) : base(graph, pipQueue, context, fileContentTable, cache,
-                configuration, fileAccessWhitelist, loggingContext, null, directoryMembershipFingerprinterRules,
-                tempCleaner, AsyncLazy<PipRuntimeTimeTable>.FromResult(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
+                configuration, fileAccessAllowlist, loggingContext, null, directoryMembershipFingerprinterRules,
+                tempCleaner, AsyncLazy<HistoricPerfDataTable>.FromResult(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
                 ipcProvider: ipcProvider, 
                 directoryTranslator: directoryTranslator, 
                 journalState: journalState, 

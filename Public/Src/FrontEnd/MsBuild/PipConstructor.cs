@@ -1,15 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -18,8 +20,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
@@ -28,11 +28,11 @@ namespace BuildXL.FrontEnd.MsBuild
     /// <summary>
     /// Creates a pip based on a <see cref="ProjectWithPredictions"/>
     /// </summary>
-    internal sealed class PipConstructor
+    internal sealed class PipConstructor : IProjectToPipConstructor<ProjectWithPredictions>
     {
         private readonly FrontEndContext m_context;
         private readonly ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs> m_processOutputsPerProject = new ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs>();
-        
+
         // Only used if resolverSettings.EnableTransitiveProjectReferences = true
         private readonly ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>>();
 
@@ -45,13 +45,15 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             "/NoLogo",
             "/p:TrackFileAccess=false", // Turns off MSBuild's Detours based tracking. Required always to prevent Detouring a Detour which is not supported
-            "/p:UseSharedCompilation=false", //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
             "/m:1", // Tells MsBuild not to create child processes for building, but instead to simply execute the specified project file within a single process
             "/IgnoreProjectExtensions:.sln", // Tells MSBuild to avoid scanning the local file system for sln files to build, but instead to simply use the provided project file.
             "/ConsoleLoggerParameters:Verbosity=Minimal", // Minimize the console logger
             "/noAutoResponse", // do not include any MSBuild.rsp file automatically,
             "/nodeReuse:false" // Even though we are already passing /m:1, when an MSBuild task is requested with an architecture that doesn't match the one of the host process, /nodeReuse will be true unless set otherwise
         };
+
+        // Keep in sync with the bxl deployment
+        internal const string VBCSCompilerLogger = "VBCSCompilerLogger.dll";
 
         private AbsolutePath Root => m_resolverSettings.Root;
 
@@ -60,7 +62,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
-        
+
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
 
@@ -75,6 +77,8 @@ namespace BuildXL.FrontEnd.MsBuild
         // All projects should contain this property since the build graph is created by MSBuild under the /graph option
         // TODO: it would be better if MSBuild provided the property name
         internal const string s_isGraphBuildProperty = "IsGraphBuild";
+
+        private bool UseSharedCompilation => m_resolverSettings.UseManagedSharedCompilation != false;
 
         /// <nodoc/>
         public PipConstructor(
@@ -114,9 +118,9 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </summary>
         /// <remarks>
         /// The project is assumed to be scheduled in the right order, where all dependencies are scheduled first.
-        /// See topographical sort performed in <see cref="PipGraphConstructor"/>.
+        /// See topographical sort performed in <see cref="ProjectGraphToPipGraphConstructor{TProject}"/>.
         /// </remarks>
-        public bool TrySchedulePipForFile(ProjectWithPredictions project, QualifierId qualifierId, out string failureDetail, out Process process)
+        public Possible<Process> TrySchedulePipForProject(ProjectWithPredictions project, QualifierId qualifierId)
         {
             try
             {
@@ -124,15 +128,17 @@ namespace BuildXL.FrontEnd.MsBuild
                 if (!TryExecuteArgumentsToPipBuilder(
                     project,
                     qualifierId,
-                    out failureDetail,
-                    out process))
+                    out var failureDetail,
+                    out var process))
                 {
                     Tracing.Logger.Log.SchedulingPipFailure(
                         m_context.LoggingContext,
                         Location.FromFile(project.FullPath.ToString(PathTable)),
                         failureDetail);
-                    return false;
+                    return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, failureDetail, m_context.PathTable));
                 }
+
+                return process;
             }
             catch (Exception ex)
             {
@@ -142,13 +148,8 @@ namespace BuildXL.FrontEnd.MsBuild
                     ex.GetLogEventMessage(),
                     ex.StackTrace);
 
-                process = null;
-                failureDetail = ex.ToString();
-
-                return false;
+                return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, ex.ToString(), m_context.PathTable));
             }
-
-            return true;
         }
 
         private IReadOnlyDictionary<string, string> CreateEnvironment(AbsolutePath logDirectory, ProjectWithPredictions project)
@@ -220,13 +221,18 @@ namespace BuildXL.FrontEnd.MsBuild
             out string failureDetail,
             out Process scheduledProcess)
         {
+            // Let's compute the project properties that are different from the globally specified ones. This is to avoid unnecesarily long names when computing
+            // the project pip symbol and log directory: we distinguish projects that only differ on global properties by their difference wrt the globally specified ones, and
+            // not by all its properties (which can result in a very long string if many properties are used)
+            var deltaGlobalProperties = ComputeDeltaForGlobalProperties(project.GlobalProperties, m_resolverSettings.GlobalProperties);
+            
             // We create a pip construction helper for each project
-            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
+            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId, deltaGlobalProperties);
 
             using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, out AbsolutePath outputResultCacheFile, out failureDetail))
+                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, deltaGlobalProperties, out AbsolutePath outputResultCacheFile, out failureDetail))
                 {
                     scheduledProcess = null;
                     return false;
@@ -262,11 +268,11 @@ namespace BuildXL.FrontEnd.MsBuild
 
                     projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
                 }
-                
-                // If the project is not implementing the target protocol, emit corresponding warn/verbose 
+
+                // If the project is not implementing the target protocol, emit corresponding warn/verbose
                 if (!project.ImplementsTargetProtocol)
                 {
-                    if (project.ProjectReferences.Count != 0)
+                    if (project.Dependencies.Count != 0)
                     {
                         // Let's warn about this. Targets of the referenced projects may not be accurate
                         Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
@@ -275,7 +281,7 @@ namespace BuildXL.FrontEnd.MsBuild
                             project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
                     }
                     else
-                    { 
+                    {
                         // Just a verbose message in this case
                         Tracing.Logger.Log.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(
                             m_context.LoggingContext,
@@ -302,6 +308,16 @@ namespace BuildXL.FrontEnd.MsBuild
         }
 
         /// <summary>
+        /// Returns all the project global properties that are either not defined in the initial global properties or its value is different
+        /// </summary>
+        private GlobalProperties ComputeDeltaForGlobalProperties(GlobalProperties projectGlobalProperties, IReadOnlyDictionary<string, string> globalProperties)
+        {
+            var initialGlobalProperties = globalProperties == null ? GlobalProperties.Empty : new GlobalProperties(m_resolverSettings.GlobalProperties);
+
+            return new GlobalProperties(projectGlobalProperties.Where(kvp => !initialGlobalProperties.TryGetValue(kvp.Key, out string value) || value != kvp.Value));
+        }
+
+        /// <summary>
         /// Adds all predicted dependencies as inputs, plus all individual inputs predicted for the project
         /// </summary>
         /// <remarks>
@@ -310,11 +326,11 @@ namespace BuildXL.FrontEnd.MsBuild
         /// otherwise will likely be just a shared opaque output at the root).
         /// </remarks>
         private void ProcessInputs(
-            ProjectWithPredictions project, 
+            ProjectWithPredictions project,
             ProcessBuilder processBuilder)
         {
             // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
-            var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
+            var knownOutputDirectories = project.Dependencies.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
 
             var pkgRefGen = PathAtom.Create(PathTable.StringTable, ".pkgrefgen");
 
@@ -332,13 +348,13 @@ namespace BuildXL.FrontEnd.MsBuild
                     continue;
                 }
 
-                // Nuget restore does not produce deterministic files under the project .pkgrefgen folder, and many times they have absolute paths embedded. 
+                // Nuget restore does not produce deterministic files under the project .pkgrefgen folder, and many times they have absolute paths embedded.
                 // This blocks shared cache from working when the project file (and therefore the corresponding .pkgrefgen folder) is placed on machine-dependent folders
                 // Even though untracking these generated files is not completely safe from a caching perspective, in practice this should be harmless since the generation
                 // is controlled by files (e.g. project.assents.json or global.json) that are declared as inputs.
                 // In this case, we not only skip declaring it as an input, but we also untrack it as well
-                if (buildInput.GetParent(PathTable) is AbsolutePath parent && 
-                    parent.IsValid && 
+                if (buildInput.GetParent(PathTable) is AbsolutePath parent &&
+                    parent.IsValid &&
                     parent.GetName(PathTable) == pkgRefGen)
                 {
                     processBuilder.AddUntrackedFile(buildInput);
@@ -366,11 +382,11 @@ namespace BuildXL.FrontEnd.MsBuild
             }
             else
             {
-                // Only direct dependencies are declared. 
+                // Only direct dependencies are declared.
                 // Add all known explicit inputs from project references. But rule out
                 // projects that have a known empty list of targets: those projects are not scheduled, so
                 // there is nothing to consume from them.
-                references = project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
+                references = project.Dependencies.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
             }
 
             var argumentsBuilder = processBuilder.ArgumentsBuilder;
@@ -413,7 +429,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 return;
             }
 
-            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
+            foreach (ProjectWithPredictions dependency in project.Dependencies.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
             {
                 accumulatedDependencies.Add(dependency);
                 ComputeTransitiveDependenciesFor(dependency, accumulatedDependencies);
@@ -465,45 +481,11 @@ namespace BuildXL.FrontEnd.MsBuild
             return AbsolutePathUtilities.CollapseDirectories(sharedOutputDirectories, PathTable);
         }
 
-        private void SetProcessEnvironmentVariables(IReadOnlyDictionary<string, string> environment, ProcessBuilder processBuilder)
-        {
-            foreach (KeyValuePair<string, string> kvp in environment)
-            {
-                if (kvp.Value != null)
-                {
-                    var envPipData = new PipDataBuilder(m_context.StringTable);
-
-                    // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
-                    // represents a path, and normalize it
-                    string value = kvp.Value;
-                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(PathTable, value, out var absolutePath))
-                    {
-                        envPipData.Add(absolutePath);
-                    }
-                    else
-                    {
-                        envPipData.Add(value);
-                    }
-                    
-                    processBuilder.SetEnvironmentVariable(
-                        StringId.Create(m_context.StringTable, kvp.Key),
-                        envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
-                }
-            }
-
-            if (m_userDefinedPassthroughVariables != null)
-            {
-                foreach (string passThroughVariable in m_userDefinedPassthroughVariables)
-                {
-                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, passThroughVariable));
-                }
-            }
-        }
-
         private bool TryConfigureProcessBuilder(
-            ProcessBuilder processBuilder, 
-            PipConstructionHelper pipConstructionHelper, 
+            ProcessBuilder processBuilder,
+            PipConstructionHelper pipConstructionHelper,
             ProjectWithPredictions project,
+            GlobalProperties deltaGlobalProperties,
             out AbsolutePath outputResultCacheFile,
             out string failureDetail)
         {
@@ -537,7 +519,7 @@ namespace BuildXL.FrontEnd.MsBuild
             SetUntrackedFilesAndDirectories(processBuilder);
 
             // Add the log directory and its corresponding files
-            AbsolutePath logDirectory = GetLogDirectory(project);
+            AbsolutePath logDirectory = GetLogDirectory(project, deltaGlobalProperties);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.log"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.wrn"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
@@ -565,7 +547,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 .ForceCreation(true)
                 .Prefix("@")
                 .Build();
-                                                    
+
             processBuilder.SetResponseFileSpecification(rspFileSpec);
 
             if (!TryAddMsBuildArguments(project, processBuilder.ArgumentsBuilder, logDirectory, outputResultCacheFile, out failureDetail))
@@ -586,15 +568,29 @@ namespace BuildXL.FrontEnd.MsBuild
             // TODO: Can we stop it running? https://stackoverflow.microsoft.com/questions/74425/how-to-disable-vctip-exe-in-vc14
             //
             // conhost.exe: This process needs a little bit more time to finish after the main process, but killing it right away
-            // is inconsequential. 
+            // is inconsequential.
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
-            processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
+            var allowedSurvivingChildProcessNames = new List<PathAtom>() {
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"),
-                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe")};
+
+            // If the sandbox supports process breakaway and shared compilation is configured to run, we configure VBCSCompiler as such
+            // Otherwise, we add it as a process that is safe to kill when it survives
+            var vbcsCompiler = PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe");
+            if (UseSharedCompilation)
+            {
+                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(vbcsCompiler);
+            }
+            else
+            {
+                allowedSurvivingChildProcessNames.Add(vbcsCompiler);
+            }
+
+            processBuilder.AllowedSurvivingChildProcessNames = allowedSurvivingChildProcessNames.ToReadOnlyArray();
+
             // There are some cases (e.g. a 64-bit MSBuild launched as a child process from a 32-bit MSBuild instance) where
             // processes need a little bit more time to finish. Increasing the timeout does not affect job objects where no child
             // processes survive, or job object where the only surviving processes are the ones explicitly allowed to survive (which
@@ -602,7 +598,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // bit longer (and hopefully succeed)
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(500);
 
-            SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
+            FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
 
             failureDetail = string.Empty;
             return true;
@@ -612,6 +608,31 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             // Common arguments to all MsBuildExe invocations
             pipDataBuilder.AddRange(s_commonArgumentsToMsBuildExe.Select(argument => PipDataAtom.FromString(argument)));
+
+            // If process breakaway is supported and shared compilation is configured to run, set up the logger that will mimic all the proper accesses
+            // Otherwise, disable shared compilation
+            if (UseSharedCompilation)
+            {
+                var vbcsCompilerLoggerPath = AbsolutePath.Create(PathTable, Assembly.GetAssembly(typeof(PipConstructor)).Location)
+                    .GetParent(PathTable)
+                    .Combine(PathTable, "tools")
+                    .Combine(PathTable, "vbcslogger")
+                    // Depending on the framework of the MSBuild we are using, we should provide the corresponding logger
+                    // Keep in sync with BuildXL deployment
+                    .Combine(PathTable, m_resolverSettings.ShouldRunDotNetCoreMSBuild()? "dotnetcore" : "net472")
+                    .Combine(PathTable, VBCSCompilerLogger);
+
+                using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
+                {
+                    pipDataBuilder.Add(PipDataAtom.FromString(I($"/logger:")));
+                    pipDataBuilder.Add(PipDataAtom.FromAbsolutePath(vbcsCompilerLoggerPath));
+                }
+            }
+            else
+            {
+                //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
+                pipDataBuilder.Add(PipDataAtom.FromString("/p:UseSharedCompilation=false"));
+            }
 
             // Log verbosity
             if (!TryGetLogVerbosity(m_resolverSettings.LogVerbosity, out string logVerbosity))
@@ -664,7 +685,7 @@ namespace BuildXL.FrontEnd.MsBuild
             else
             {
                 // In legacy (non-isolated) mode, we still have to rely on SDKs honoring this flag
-                pipDataBuilder.Add(PipDataAtom.FromString("/p:buildprojectreferences=false")); 
+                pipDataBuilder.Add(PipDataAtom.FromString("/p:buildprojectreferences=false"));
             }
 
             failureDetail = string.Empty;
@@ -733,7 +754,7 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
-            {             
+            {
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
@@ -749,7 +770,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
         }
 
-        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile)
+        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile, GlobalProperties deltaGlobalProperties)
         {
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
@@ -764,7 +785,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // Build a string with global property values (e.g. 'debug-x86'). That should be unique enough.
             // Projects can be evaluated multiple times with different global properties
-            List<string> values = projectFile.GlobalProperties
+            List<string> values = deltaGlobalProperties
                 .Where(kvp => kvp.Key != s_isGraphBuildProperty)
                 .Select(kvp => PipConstructionUtilities.SanitizeStringForSymbol(kvp.Value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
@@ -812,13 +833,13 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId)
+        private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId, GlobalProperties deltaGlobalProperties)
         {
             var pathToProject = project.FullPath;
 
             // We might be adding the same spec file pip more than once when the same project is evaluated
             // under different global properties, but that's fine, the pip graph ignores duplicates
-            m_frontEndHost.PipGraph.AddSpecFile(
+            m_frontEndHost.PipGraph?.AddSpecFile(
                 new SpecFilePip(
                     FileArtifact.CreateSourceFile(pathToProject),
                     new LocationData(pathToProject, 0, 0),
@@ -831,7 +852,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Get a symbol that is unique for this particular project instance
-            var fullSymbol = GetFullSymbolFromProject(project);
+            var fullSymbol = GetFullSymbolFromProject(project, deltaGlobalProperties);
 
             var pipConstructionHelper = PipConstructionHelper.Create(
                 m_context,
@@ -849,28 +870,28 @@ namespace BuildXL.FrontEnd.MsBuild
             return pipConstructionHelper;
         }
 
-        private FullSymbol GetFullSymbolFromProject(ProjectWithPredictions project)
+        private FullSymbol GetFullSymbolFromProject(ProjectWithPredictions project, GlobalProperties deltaGlobalProperties)
         {
             // We construct the name of the value using the project name and its global properties
             // Observe this symbol has to be unique wrt another symbol coming from the same physical project (i.e. same project full
-            // path) but different global properties. The project full path is already being passed as part of the 'key' when creating the 
+            // path) but different global properties. The project full path is already being passed as part of the 'key' when creating the
             // pip construction helper
             var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.FullPath.GetName(PathTable).ToString(m_context.StringTable));
 
             // If global properties are present, we append to the value name a flatten representation of them
             // There should always be a 'IsGraphBuild' property, so we count > 1
-            Contract.Assert(project.GlobalProperties.ContainsKey(s_isGraphBuildProperty));
-            if (project.GlobalProperties.Count > 1)
+            Contract.Assert(deltaGlobalProperties.ContainsKey(s_isGraphBuildProperty));
+            if (deltaGlobalProperties.Count > 1)
             {
                 valueName += ".";
             }
             valueName += string.Join(
                 ".",
-                project.GlobalProperties
+                deltaGlobalProperties
                     // let's sort global properties keys to make sure the same string is generated consistently
-                    // case-sensitivity is already handled (and ignored) by GlobalProperties class 
+                    // case-sensitivity is already handled (and ignored) by GlobalProperties class
                     .Where(kvp => kvp.Key != s_isGraphBuildProperty)
-                    .OrderBy(kvp => kvp.Key, StringComparer.Ordinal) 
+                    .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
                     .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(gp.Key)}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
 
             var fullSymbol = FullSymbol.Create(m_context.SymbolTable, valueName);
@@ -890,12 +911,22 @@ namespace BuildXL.FrontEnd.MsBuild
                 builder.Append("|");
                 builder.Append(projectWithPredictions.PredictedTargetsToExecute.IsDefaultTargetsAppended);
                 builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
- 
+
                 builder.Append("|");
                 builder.Append(string.Join("|", projectWithPredictions.GlobalProperties.Select(kvp => kvp.Key + "|" + kvp.Value)));
 
                 return PipConstructionUtilities.ComputeSha256(builder.ToString());
             }
+        }
+
+        /// <inheritdoc/>
+        public void NotifyProjectNotScheduled(ProjectWithPredictions<AbsolutePath> project)
+        {
+            // Just log a verbose message indicating the project was not scheduled
+            Tracing.Logger.Log.ProjectWithEmptyTargetsIsNotScheduled(
+                m_context.LoggingContext,
+                Location.FromFile(project.FullPath.ToString(m_context.PathTable)),
+                project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
         }
 
         /// <summary>
@@ -907,7 +938,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private readonly struct MSBuildProjectOutputs
         {
             /// <summary>
-            /// Creates a project that is built in isolation, and therefore it produces an output cache file 
+            /// Creates a project that is built in isolation, and therefore it produces an output cache file
             /// </summary>
             public static MSBuildProjectOutputs CreateIsolated(IEnumerable<StaticDirectory> outputDirectories, FileArtifact outputCacheFile)
             {
@@ -948,7 +979,7 @@ namespace BuildXL.FrontEnd.MsBuild
             /// <remarks>
             /// Invalid when the legacy (non-isolated) mode is used
             /// </remarks>
-            public FileArtifact OutputCacheFile { get; } 
+            public FileArtifact OutputCacheFile { get; }
         }
     }
 }

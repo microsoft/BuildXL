@@ -1,26 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache.Fingerprints;
+using System.Threading;
+using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.CLI;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -90,7 +91,78 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+        }
+
+        [Fact]
+        public void StopSchedulerDueToLowPhysicalMemory()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            RunScheduler(testHooks: new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
+                {
+                    AvailableRamMb = 100,
+                    EffectiveAvailableRamMb = 100,
+                    RamUsagePercentage = 99,
+                    EffectiveRamUsagePercentage = 99,
+                    TotalRamMb = 10000,
+                    CommitUsedMb = 10000,
+                    CommitUsagePercentage = 10,
+                    CommitLimitMb = 100000,
+                }
+            });
+
+            AssertVerboseEventLogged(LogEventId.LowRamMemory);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
+        }
+
+        [Fact]
+        public void StopSchedulerDueToLowCommitMemory()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            RunScheduler(testHooks: new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
+                {
+                    AvailableRamMb = 9000,
+                    EffectiveAvailableRamMb = 9000,
+                    RamUsagePercentage = 10,
+                    EffectiveRamUsagePercentage = 10,
+                    TotalRamMb = 10000,
+                    CommitUsedMb = 99000,
+                    CommitUsagePercentage = 99,
+                    CommitLimitMb = 100000,
+                }
+
+            });
+
+            AssertVerboseEventLogged(LogEventId.LowCommitMemory);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory); 
         }
 
         [Theory]
@@ -120,10 +192,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(pipBuilder);
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.AbortObservedInputProcessorBecauseFileUntracked);
+            AssertErrorEventLogged(SchedulerLogEventId.AbortObservedInputProcessorBecauseFileUntracked);
             if (!shouldPipSucceed)
             {
-                AssertErrorEventLogged(EventId.PipProcessError);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
             }
         }
 
@@ -153,10 +225,33 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertFailure();
             IgnoreWarnings();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             if (!shouldPipSucceed)
             {
-                AssertErrorEventLogged(EventId.PipProcessError);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            }
+        }
+
+        [Fact]
+        public void VerifyGracefulTeardownWhenAvailableDiskSpaceLowerThanMinimumDiskSpaceForPipsGb()
+        {
+            Configuration.Schedule.MinimumDiskSpaceForPipsGb = int.MaxValue - 1;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10), testHooks: new PerformanceCollector.TestHooks(){ AvailableDiskSpace = 0 }))
+            {
+                RunScheduler(performanceCollector: performanceCollector).AssertFailure();
+                IgnoreWarnings();
+                AssertErrorEventLogged(LogEventId.WorkerFailedDueToLowDiskSpace);
             }
         }
 
@@ -188,12 +283,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             if (partialSealDirectory)
             {
-                AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
+                AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             }
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -222,12 +317,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.SetTempDirectory(tempdir);
             SchedulePipBuilder(builder);
 
-            using (var tempCleaner = new TempCleaner())
+            using (var tempCleaner = new TempCleaner(LoggingContext))
             {
                 if (shouldPipFail)
                 {
                     RunScheduler(tempCleaner: tempCleaner).AssertFailure();
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                     tempCleaner.WaitPendingTasksForCompletion();
                     XAssert.IsTrue(Directory.Exists(tempdirStr), $"TEMP directory deleted but wasn't supposed to: {tempdirStr}");
                     XAssert.IsTrue(File.Exists(fileStr), $"Temp file deleted but wasn't supposed to: {fileStr}");
@@ -256,10 +351,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // Fail on unspecified output
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -279,9 +374,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Fail on missing output
             RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
         }
 
         [Fact]
@@ -565,12 +660,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Theory]
-        [InlineData(true, "")]
-        [InlineData(false, "")]
-        [InlineData(true, "*")]
-        [InlineData(false, "*")]
-        public void ValidateCachingDirectoryEnumerationReadOnlyMount(bool topLevelTest, string enumeratePattern)
+        [MemberData(nameof(CrossProduct), 
+            new object[] { true, false }, 
+            new object[] { true, false },
+            new object[] { "", "*" })]
+        public void ValidateCachingDirectoryEnumerationReadOnlyMount(bool logObservedFileAccesses, bool topLevelTest, string enumeratePattern)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             AbsolutePath readonlyRootPath;
             AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyRootPath);
             DirectoryArtifact readonlyRootDir = DirectoryArtifact.CreateWithZeroPartialSealId(readonlyRootPath);
@@ -646,9 +743,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
-        [Fact]
-        public void ValidateCachingDirectoryEnumerationWithFilterReadOnlyMount()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void ValidateCachingDirectoryEnumerationWithFilterReadOnlyMount(bool logObservedFileAccesses)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             AbsolutePath readonlyPath;
             AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyPath);
             DirectoryArtifact readonlyDir = DirectoryArtifact.CreateWithZeroPartialSealId(readonlyPath);
@@ -708,8 +808,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // we currently cannot detect enumerate pattern with macOS sandbox
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // we currently cannot detect enumerate pattern with macOS sandbox
         public void ValidateCachingDirectoryEnumerationWithComplexFilterReadOnlyMount()
         {
             AbsolutePath readonlyPath;
@@ -777,10 +876,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Theory]
-        [InlineData("*")]
-        [InlineData("*.txt")]
-        public void ValidateCachingDirectoryEnumerationReadWriteMount(string enumeratePattern)
+        [MemberData(nameof(CrossProduct),
+            new object[] { true, false }, 
+            new object[] { "*", "*.txt" })]
+        public void ValidateCachingDirectoryEnumerationReadWriteMount(bool logObservedFileAccesses, string enumeratePattern)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             var outDir = CreateOutputDirectoryArtifact();
             var outDirStr = ArtifactToString(outDir);
             Directory.CreateDirectory(outDirStr);
@@ -997,164 +1099,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
-
-        /// <summary>
-        /// The basic idea of this test is to create a pip for which each invocation generates a new path set.
-        /// The pip reads a file A which prompts it to read another file B_x. 
-        /// In iteration 0 it reads { A, B_0 }, in iteration 1 { A, B_1 }, ... and so forth.
-        /// 
-        /// This tests behavior for augmenting weak fingerprints whereby the fingerprint eventually gets augmented with (at the very
-        /// least A) and thus changes for every iteration over the threshold.
-        /// </summary>
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void AugmentedWeakFingerprint(bool augmentWeakFingerprint)
-        {
-            const int threshold = 3;
-            const int iterations = 7;
-
-            if (Configuration.Schedule.IncrementalScheduling)
-            {
-                // Test relies on cache info which would not be available when running with incremental scheduling
-                // since the pip may be skipped
-                return;
-            }
-
-            var sealDirectoryPath = CreateUniqueDirectory(ObjectRoot);
-            var path = sealDirectoryPath.ToString(Context.PathTable);
-            var fileA = CreateSourceFile(path);
-
-            DirectoryArtifact dir = SealDirectory(sealDirectoryPath, SealDirectoryKind.SourceAllDirectories);
-
-            var ops = new Operation[]
-            {
-                Operation.EnumerateDir(dir),
-                Operation.ReadFileFromOtherFile(fileA, doNotInfer: true),
-                Operation.WriteFile(CreateOutputFileArtifact())
-            };
-
-            var fileBPathByIteration = Enumerable.Range(0, iterations).Select(i => CreateSourceFile(path)).Select(s => s.Path.ToString(Context.PathTable)).ToArray();
-
-            var lastFileBPath = fileBPathByIteration.Last();
-
-            var builder = CreatePipBuilder(ops);
-            builder.AddInputDirectory(dir);
-            Process pip = SchedulePipBuilder(builder).Process;
-
-            if (augmentWeakFingerprint)
-            {
-                Configuration.Cache.AugmentWeakFingerprintPathSetThreshold = threshold;
-            }
-
-            HashSet<WeakContentFingerprint> weakFingerprints = new HashSet<WeakContentFingerprint>();
-            List<WeakContentFingerprint> orderedWeakFingerprints = new List<WeakContentFingerprint>();
-            HashSet<ContentHash> pathSetHashes = new HashSet<ContentHash>();
-            List<ContentHash> orderedPathSetHashes = new List<ContentHash>();
-
-            // Part 1: Ensure that we get cache misses and generate new augmented weak fingerprints when
-            // over the threshold
-            for (int i = 0; i < fileBPathByIteration.Length; i++)
-            {
-                // Indicate to from file A that file B_i should be read
-                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
-
-                var result = RunScheduler().AssertCacheMiss();
-
-                var weakFingerprint = result.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
-                bool addedWeakFingerprint = weakFingerprints.Add(weakFingerprint);
-
-                // Record the weak fingerprints so in the second phase we can check that the cache lookups get
-                // hits against the appropriate fingerprints
-                orderedWeakFingerprints.Add(weakFingerprint);
-
-                if (augmentWeakFingerprint)
-                {
-                    if (i >= threshold)
-                    {
-                        Assert.True(addedWeakFingerprint, "Weak fingerprint should keep changing when over the threshold.");
-                    }
-                    else if (i > 0)
-                    {
-                        Assert.False(addedWeakFingerprint, "Weak fingerprint should NOT keep changing when under the threshold.");
-                    }
-                }
-                else
-                {
-                    Assert.True(weakFingerprints.Count == 1, "Weak fingerprint should not change unless weak fingerprint augmentation is enabled.");
-                }
-
-                ContentHash pathSetHash = result.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
-                bool addedPathSet = pathSetHashes.Add(pathSetHash);
-                Assert.True(addedPathSet, "Every invocation should have a unique path set.");
-
-                // Record the path sets so in the second phase we can check that the cache lookups get
-                // hits with the appropriate path sets
-                orderedPathSetHashes.Add(pathSetHash);
-            }
-
-            // Part 2: Test behavior of multiple strong fingerprints for the same augmented weak fingerprint
-
-            // Indicate to from file A that the last file B_i should be read
-            File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: lastFileBPath);
-
-            HashSet<StrongContentFingerprint> strongFingerprints = new HashSet<StrongContentFingerprint>();
-
-            for (int i = 0; i < iterations; i++)
-            {
-                // Change content of file B
-                File.WriteAllText(path: lastFileBPath, contents: Guid.NewGuid().ToString());
-
-                var executionResult = RunScheduler().AssertCacheMiss();
-                var weakFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
-                ContentHash pathSetHash = executionResult.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
-                var executionStrongFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].StrongFingerprint;
-                var addedStrongFingerprint = strongFingerprints.Add(executionStrongFingerprint);
-
-                // Weak fingerprint should not change since file B should not be in the augmenting path set
-                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
-
-                // Set of paths is not changing
-                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
-
-                Assert.True(addedStrongFingerprint, "New strong fingerprint should be computed since file B has unique content");
-
-                var cacheHitResult = RunScheduler().AssertCacheHit();
-
-                weakFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
-                pathSetHash = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
-                var cacheLookupStrongFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().StrongFingerprint;
-
-                // Weak fingerprint should not change since file B should not be in path set
-                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
-
-                // Weak fingerprint should not change since file B should not be in path set
-                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
-
-                // Should get a hit against the strong fingerprint just added above
-                Assert.Equal(expected: executionStrongFingerprint, actual: cacheLookupStrongFingerprint);
-            }
-
-            // Part 3: Ensure that we get cache hits when inputs are the same
-            for (int i = 0; i < fileBPathByIteration.Length; i++)
-            {
-                // Indicate to from file A that file B_i should be read
-                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
-
-                // We should get a hit for the same inputs
-                var result = RunScheduler().AssertCacheHit();
-
-                // Weak fingerprint should be the same as the first run with this configuration (i.e. the
-                // augmented fingerprint when over the threshold)
-                var weakFingerprint = result.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
-                Assert.Equal(expected: orderedWeakFingerprints[i], actual: weakFingerprint);
-
-                // Path set should be the same as the first run with this configuration
-                ContentHash pathSetHash = result.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
-                Assert.Equal(expected: orderedPathSetHashes[i], actual: pathSetHash);
-            }
-        }
-
         /// <summary>
         /// This test goes back to "Bug #1343546: ObservedInputProcessor;ProcessInternal: If the access is a file content read, then the FileContentInfo cannot be null"
         /// </summary>
@@ -1191,12 +1135,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var result = RunScheduler().AssertSuccess();
 
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning, count: 1);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning, count: 1);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectory()
         {
             // Create \temp.
@@ -1245,8 +1188,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// This test shows our limitation in supporting MoveDirectory.
         /// </summary>
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectoryFailed()
         {
             // Create \temp.
@@ -1398,6 +1340,249 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
+        }
+
+        /// <summary>
+        /// Tests the logic for the CacheOnly mode which only performs cache lookups and skips executing pips upon misses
+        /// </summary>
+        [Fact]
+        public void CacheOnlyMode()
+        {
+            // Create a build graph with pip dependency ordering of:
+            // pipA -> pipB -> pipC
+            var pipAInput = CreateSourceFile();
+            var pipAOutput = CreateOutputFileArtifact();
+            var pipA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(pipAInput),
+                Operation.WriteFile(pipAOutput),
+            });
+
+            var pipBInput = CreateSourceFile();
+            var pipBOutput = CreateOutputFileArtifact();
+            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(pipBInput),
+                Operation.ReadFile(pipAOutput),
+                Operation.WriteFile(pipBOutput),
+            });
+
+            var pipC = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.ReadFile(pipBOutput),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            // Run the build to get all pips in the cache
+            RunScheduler().AssertSuccess();
+
+            // Ensure they're all cached
+            RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId);
+
+            // Modify the input to pipB and rerun with CacheOnly mode
+            File.AppendAllText(ToString(pipBInput.Path), "ChangedFileContent");
+            Configuration.Schedule.CacheOnly = true;
+            ScheduleRunResult cacheOnlyRun = RunScheduler();
+
+            // We expect the build to succeed, PipA to be cached
+            cacheOnlyRun.AssertSuccess();
+            cacheOnlyRun.AssertCacheHit(pipA.Process.PipId);
+            // PipB should be skipped because its input changed
+            XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipB.Process.PipId]);
+            // PipB should also be skipped because its upstream dependency was skipped
+            XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipC.Process.PipId]);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        [Trait("Category", "SkipLinux")] // TODO(BUG): flaky
+        public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+            Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
+            Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
+            Configuration.Schedule.MaxRetriesDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
+
+            CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            bool triggeredCancellation = false;
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                SimulateHighMemoryPressure = true,
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (triggeredCancellation)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    if (scheduler.MaxExternalProcessesRan == 2)
+                    {
+                        triggeredCancellation = true;
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 100,
+                            EffectiveAvailableRamMb = 100,
+                            RamUsagePercentage = 99,
+                            EffectiveRamUsagePercentage = 99,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo()
+                    {
+                        AvailableRamMb = 9000,
+                        EffectiveAvailableRamMb = 9000,
+                        RamUsagePercentage = 10,
+                        EffectiveRamUsagePercentage = 10,
+                        TotalRamMb = 10000,
+                        CommitUsedMb = 5000,
+                        CommitUsagePercentage = 50,
+                        CommitLimitMb = 10000,
+                    };
+                }
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
+            AssertVerboseEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
+
+            if (!allowLowMemoryRetry)
+            {
+                AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // suspend/resume is not available on macOS
+        public void SuspendResumePipOnHighMemoryUsage()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+            Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
+
+            CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            bool triggeredResume = false;
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (triggeredResume)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    if (scheduler.State.ResourceManager.NumSuspended > 0)
+                    {
+                        triggeredResume = true;
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 9000,
+                            EffectiveAvailableRamMb = 9000,
+                            RamUsagePercentage = 10,
+                            EffectiveRamUsagePercentage = 10,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    if (scheduler.MaxExternalProcessesRan == 2)
+                    {
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 100,
+                            EffectiveAvailableRamMb = 100,
+                            RamUsagePercentage = 99,
+                            EffectiveRamUsagePercentage = 99,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo()
+                    {
+                        AvailableRamMb = 9000,
+                        EffectiveAvailableRamMb = 9000,
+                        RamUsagePercentage = 10,
+                        EffectiveRamUsagePercentage = 10,
+                        TotalRamMb = 10000,
+                        CommitUsedMb = 5000,
+                        CommitUsagePercentage = 50,
+                        CommitLimitMb = 10000,
+                    };
+                }
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+
+            AssertErrorEventLogged(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            AssertVerboseEventLogged(LogEventId.EmptyWorkingSet);
+            AssertVerboseEventLogged(LogEventId.ResumeProcess);
+        }
+
+        [Fact]
+        public void SurvivingChildProcessesNotReportedOnCancelation()
+        {
+            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.Block()),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (scheduler.RetrieveExecutingProcessPips().Count() > 0)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo();
+                },
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -25,14 +25,16 @@ namespace Test.BuildXL.TestUtilities.Xunit
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class TheoryIfSupportedAttribute : TheoryAttribute, ITraitAttribute
     {
-        /// <nodoc/>
-        public bool RequiresAdmin { get; set; }
+        /// <inheritdoc />
+        public TestRequirements Requirements => m_inner.Requirements;
+
+        private readonly ITestIfSupportedTraitAttribute m_inner;
 
         /// <nodoc/>
-        public bool RequiresJournalScan { get; set; }
-
-        /// <nodoc/>
-        public bool RequiresSymlinkPermission { get; set; }
+        public TheoryIfSupportedAttribute(TestRequirements requirements)
+            : this(additionalRequirements: requirements)
+        {
+        }
 
         /// <nodoc/>
         public TheoryIfSupportedAttribute(
@@ -41,21 +43,23 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresSymlinkPermission = false, 
             bool requiresWindowsBasedOperatingSystem = false, 
             bool requiresUnixBasedOperatingSystem = false, 
-            bool requiresHeliumDriversAvailable = false)
+            bool requiresHeliumDriversAvailable = false,
+            bool requiresMacOperatingSystem = false,
+            TestRequirements additionalRequirements = TestRequirements.None)
         {
-            RequiresAdmin = requiresAdmin;
-            RequiresJournalScan = requiresJournalScan;
-            RequiresSymlinkPermission = requiresSymlinkPermission;
-
             // Use same logic and underlying static state to determine wheter to Skip tests
-            Skip = new FactIfSupportedAttribute(
+            m_inner = new FactIfSupportedAttribute(
                 requiresAdmin: requiresAdmin,
                 requiresJournalScan: requiresJournalScan,
                 requiresSymlinkPermission: requiresSymlinkPermission,
                 requiresWindowsBasedOperatingSystem: requiresWindowsBasedOperatingSystem,
                 requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem,
-                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable
-            ).Skip;
+                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable,
+                requiresMacOperatingSystem: requiresMacOperatingSystem,
+                additionalRequirements: additionalRequirements
+            );
+
+            Skip = m_inner.Skip;
         }
     }
 }

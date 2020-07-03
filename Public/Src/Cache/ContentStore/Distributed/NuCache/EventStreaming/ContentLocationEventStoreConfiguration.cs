@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -37,6 +37,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public bool SelfCheckSerialization { get; set; } = false;
 
         /// <summary>
+        /// If enabled, self-check serialization failures will trigger an error instead of just getting traced.
+        /// </summary>
+        public bool SelfCheckSerializationShouldFail { get; set; } = false;
+
+        /// <summary>
         /// The max concurrency to use for events processing.
         /// </summary>
         public int MaxEventProcessingConcurrency { get; set; } = 1;
@@ -50,13 +55,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Configuration type for <see cref="MemoryEventHubClient"/>.
     /// </summary>
-    public sealed class MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
+    public class MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
     {
         /// <nodoc />
         public MemoryContentLocationEventStoreConfiguration()
         {
             EventBatchSize = 1;
             MaxEventProcessingConcurrency = 1;
+
+            // Since all tests run with in-memory EventHub, we force them to run with self-check by default, which
+            // helps catch errors (i.e. serialization, race conditions) early on.
+            SelfCheckSerialization = true;
+            SelfCheckSerializationShouldFail = true;
         }
 
         /// <summary>

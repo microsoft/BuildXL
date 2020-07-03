@@ -198,10 +198,10 @@
   <data name="String" xml:space="preserve">
     <value />
   </data>
-  <data name="WhitelistFileAccessCategory" xml:space="preserve">
-    <value>WhitelistFileAccess</value>
+  <data name="AllowlistFileAccessCategory" xml:space="preserve">
+    <value>AllowlistFileAccess</value>
   </data>
-  <data name="WhitelistFileAccessEntryMatchesPrefix" xml:space="preserve">
+  <data name="AllowlistFileAccessEntryMatchesPrefix" xml:space="preserve">
     <value>EntryMatches.{0}</value>
   </data>
   <data name="CacheSalt" xml:space="preserve">

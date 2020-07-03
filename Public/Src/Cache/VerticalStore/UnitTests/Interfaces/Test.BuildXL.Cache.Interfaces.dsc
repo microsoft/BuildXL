@@ -2,8 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Interfaces {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;  
-    @@public  
+    @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "BuildXL.Cache.Interfaces.Test",
         sources: globR(d`.`, "*.cs"),

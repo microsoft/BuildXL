@@ -19,17 +19,20 @@ static void checkProbe(PolicyResult policy, bool isDir, AccessCheckResult *check
 
 static void checkRead(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
 {
-    RequestedReadAccess requestedAccess = isDir
-        ? RequestedReadAccess::Enumerate
-        : RequestedReadAccess::Read;
-    
-    *checkResult = policy.CheckReadAccess(requestedAccess, FileReadContext(FileExistence::Existent, isDir));
+    if (isDir)
+    {
+        Checkers::CheckEnumerateDir(policy, isDir, checkResult);
+    }
+    else
+    {
+        *checkResult = policy.CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent, isDir));
+    }
 }
 
 static void checkLookup(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
 {
     *checkResult = policy.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Nonexistent));
-    checkResult->RequestedAccess = RequestedAccess::Lookup;
+    checkResult->Access = RequestedAccess::Lookup;
 }
 
 static void checkEnumerateDir(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
@@ -68,6 +71,16 @@ static void checkCreateDirectory(PolicyResult policy, bool isDir, AccessCheckRes
     *checkResult = policy.CheckCreateDirectoryAccess();
 }
 
+static void checkCreateDirectoryNoEnforcement(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
+{
+    // CODESYNC: CreateDirectoryW in DetouredFunctions.cpp
+    *checkResult = policy.CheckCreateDirectoryAccess();
+    if (checkResult->ShouldDenyAccess())
+    {
+        checkProbe(policy, isDir, checkResult);
+    }
+}
+
 CheckFunc Checkers::CheckRead            = checkRead;
 CheckFunc Checkers::CheckLookup          = checkLookup;
 CheckFunc Checkers::CheckWrite           = checkWrite;
@@ -77,3 +90,4 @@ CheckFunc Checkers::CheckReadWrite       = checkReadWrite;
 CheckFunc Checkers::CheckEnumerateDir    = checkEnumerateDir;
 CheckFunc Checkers::CheckCreateSymlink   = checkCreateSymlink;
 CheckFunc Checkers::CheckCreateDirectory = checkCreateDirectory;
+CheckFunc Checkers::CheckCreateDirectoryNoEnforcement = checkCreateDirectoryNoEnforcement;

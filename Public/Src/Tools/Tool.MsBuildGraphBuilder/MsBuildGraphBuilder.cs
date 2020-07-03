@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
@@ -23,7 +24,6 @@ using Newtonsoft.Json;
 using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictionsResult<string>;
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
-using BuildXL.Utilities.Collections;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -455,7 +455,7 @@ namespace MsBuildGraphBuilderTool
                     .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference])
                     .ToHashSet();
 
-                projectWithPredictions.SetReferences(references);
+                projectWithPredictions.SetDependencies(references);
             }
 
             reporter.ReportMessage("Done predicting inputs and outputs.");

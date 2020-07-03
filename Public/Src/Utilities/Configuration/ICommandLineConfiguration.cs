@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using JetBrains.Annotations;
 
@@ -14,11 +14,6 @@ namespace BuildXL.Utilities.Configuration
         /// Whether to show help or not
         /// </summary>
         HelpLevel Help { get; }
-
-        /// <summary>
-        /// DX code to show specific help for
-        /// </summary>
-        int HelpCode { get; }
 
         /// <summary>
         /// Whether nologo is on or not.
@@ -75,18 +70,13 @@ namespace BuildXL.Utilities.Configuration
         None = 0,
 
         /// <summary>
-        /// Help for a specific DxCode
-        /// </summary>
-        DxCode = 1,
-
-        /// <summary>
         /// The standard help
         /// </summary>
-        Standard = 2,
+        Standard = 1,
 
         /// <summary>
         /// The full help including verbose obscure options
         /// </summary>
-        Verbose = 3,
+        Verbose = 2,
     }
 }

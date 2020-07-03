@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public static string GetFileName(this AbsolutePath path)
         {
             string fileName = Path.GetFileName(path.Path);
-            Contract.Assume(fileName != null);
+            Contract.AssertNotNull(fileName);
             return fileName;
         }
     }

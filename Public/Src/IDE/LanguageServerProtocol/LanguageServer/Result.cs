@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
-using Newtonsoft.Json;
-using LanguageServer.Json;
 using LanguageServer.Infrastructure.JsonDotNet;
+using LanguageServer.Json;
+using Newtonsoft.Json;
 
 #pragma warning disable SA1649 // File name must match first type name
 #pragma warning disable SA1402 // File name must match first type name

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -15,6 +15,21 @@ namespace BuildXL.Utilities.Configuration
     /// </summary>
     public static class EngineEnvironmentSettings
     {
+        /// <nodoc />
+        public static readonly Setting<int?> DesiredCommitPercentToFreeSlack = CreateSetting("BuildXLDesiredCommitPercentToFreeSlack", value => ParseInt32(value));
+
+        /// <nodoc />
+        public static readonly Setting<int?> DesiredRamPercentToFreeSlack = CreateSetting("BuildXLDesiredRamPercentToFreeSlack", value => ParseInt32(value));
+
+        /// <nodoc />
+        public static readonly Setting<bool> DisableUseAverageCountersForResume = CreateSetting("BuildXLDisableUseAverageCountersForResume", value => value == "1");
+
+        /// <nodoc />
+        public static readonly Setting<bool> SetMaxWorkingSetToMin = CreateSetting("BuildXLSetMaxWorkingSetToMin", value => value == "1");
+
+        /// <nodoc />
+        public static readonly Setting<bool> SetMaxWorkingSetToPeakBeforeResume = CreateSetting("BuildXLSetMaxWorkingSetToPeakBeforeResume", value => value == "1");
+
         /// <summary>
         /// The maximum number pips to perform the on-the-fly cache miss analysis
         /// </summary>
@@ -23,7 +38,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The maximum number of RPC 
         /// </summary>
-        public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 100);
+        public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
         /// Defines whether BuildXL should launch the debugger after a particular engine phase.
@@ -60,11 +75,6 @@ namespace BuildXL.Utilities.Configuration
         /// Bypass NuGet up to date checks
         /// </summary>
         public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");
-
-        /// <summary>
-        /// Emit file with all symlink definitions
-        /// </summary>
-        public static readonly Setting<bool> DebugSymlinkDefinitions = CreateSetting("DebugSymlinkDefinitions", value => value == "1");
 
         /// <summary>
         /// Allows optionally specifying an alternative timeout fo connect between IDE service and BuildXL task
@@ -117,6 +127,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> SkipExtraneousPins = CreateSetting("BuildXLSkipExtraneousPins", value => value == "1");
 
         /// <summary>
+        /// Specifies whether remote workers should inline and block waiting for execution log notification messages sent to master to be processed.
+        /// </summary>
+        public static readonly Setting<bool> InlineWorkerXLGHandling = CreateSetting("BuildXLInlineWorkerXLGHandling", value => value == "1");
+
+        /// <summary>
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities 
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
@@ -124,6 +139,21 @@ namespace BuildXL.Utilities.Configuration
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
 
+        /// <summary>
+        /// Specifies whether a new pip should not be inlined if it runs on the same queue with the pip that schedules it.
+        /// </summary>
+        public static readonly Setting<bool> DoNotInlineWhenNewPipRunInSameQueue = CreateSetting("BuildXLDoNotInlineWhenNewPipRunInSameQueue", value => value == "1");
+
+        /// <summary>
+        /// Specifies to decouple the materialize slots from process slots.
+        /// </summary>
+        public static readonly Setting<bool> DecoupleMaterializeSlotsFromProcessSlots = CreateSetting("BuildXLDecoupleMaterializeSlotsFromProcessSlots", value => value == "1");
+
+        /// <summary>
+        /// Specifies to disable load balance among workers.
+        /// </summary>
+        public static readonly Setting<double?> DisableLoadBalanceMultiplier = CreateSetting("BuildXLDisableLoadBalanceMultiplier", value => ParseDouble(value));
+        
         #region Distribution-related timeouts
 
         /// <summary>
@@ -214,6 +244,17 @@ namespace BuildXL.Utilities.Configuration
         {
             int result;
             if (int.TryParse(valueString, out result) && result != 0)
+            {
+                return result;
+            }
+
+            return null;
+        }
+
+        private static double? ParseDouble(string valueString)
+        {
+            double result;
+            if (double.TryParse(valueString, out result))
             {
                 return result;
             }

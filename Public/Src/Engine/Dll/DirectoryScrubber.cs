@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,6 +12,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -98,6 +99,10 @@ namespace BuildXL.Engine
         /// <param name="blockedPaths">
         /// Stop the above enumeration performed by directory scrubber. All file/directories underneath a blocked path should not be removed.
         /// </param>
+        /// <param name="statisticIdentifier">
+        /// Identifies the purpose of this scrubber invocation in telemetry and logging. Use this to differentiate since there can
+        /// be multiple scrubber invocations in the same build session for different purposes.
+        /// </param>
         /// <param name="nonDeletableRootDirectories">
         /// Contains list of directory paths that can never be deleted, however,
         /// the contents of the directory can be scrubbed. For example, mount roots should not be deleted.
@@ -105,12 +110,17 @@ namespace BuildXL.Engine
         /// <param name="mountPathExpander">
         /// Optional mount path expander.  When used, its roots are treated as non-deletable.
         /// </param>
+        /// <param name="logRemovedFiles">
+        /// Optional flag for logging removed files.
+        /// </param>
         public bool RemoveExtraneousFilesAndDirectories(
             Func<string, bool> isPathInBuild,
             IEnumerable<string> pathsToScrub,
             IEnumerable<string> blockedPaths,
             IEnumerable<string> nonDeletableRootDirectories,
-            MountPathExpander mountPathExpander = null)
+            string statisticIdentifier = Category,
+            MountPathExpander mountPathExpander = null,
+            bool logRemovedFiles = true)
         {
             var finalPathsToScrub = CollapsePaths(pathsToScrub).ToList();
             var finalBlockedPaths = new HashSet<string>(blockedPaths, StringComparer.OrdinalIgnoreCase);
@@ -120,7 +130,7 @@ namespace BuildXL.Engine
                 finalNonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
             }
 
-            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander);
+            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander, logRemovedFiles, statisticIdentifier);
         }
 
         private bool RemoveExtraneousFilesAndDirectories(
@@ -128,8 +138,10 @@ namespace BuildXL.Engine
             List<string> pathsToScrub,
             HashSet<string> blockedPaths,
             HashSet<string> nonDeletableRootDirectories,
-            MountPathExpander mountPathExpander = null)
-        { 
+            MountPathExpander mountPathExpander,
+            bool logRemovedFiles,
+            string statisticIdentifier)
+        {
             int directoriesEncountered = 0;
             int filesEncountered = 0;
             int filesRemoved = 0;
@@ -137,23 +149,23 @@ namespace BuildXL.Engine
 
             using (var pm = PerformanceMeasurement.Start(
                 m_loggingContext,
-                Category,
+                statisticIdentifier,
                 // The start of the scrubbing is logged before calling this function, since there are two sources of scrubbing (regular scrubbing and shared opaque scrubbing)
                 // with particular messages
                 (_ => {}),
                 loggingContext =>
-                    {
-                        Tracing.Logger.Log.ScrubbingFinished(loggingContext, directoriesEncountered, filesEncountered, filesRemoved, directoriesRemovedRecursively);
-                        Logger.Log.BulkStatistic(
-                            loggingContext,
-                            new Dictionary<string, long>
-                            {
-                                [I($"{Category}.DirectoriesEncountered")] = directoriesEncountered,
-                                [I($"{Category}.FilesEncountered")] = filesEncountered,
-                                [I($"{Category}.FilesRemoved")] = filesRemoved,
-                                [I($"{Category}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
-                            });
-                    }))
+                {
+                    Tracing.Logger.Log.ScrubbingFinished(loggingContext, directoriesEncountered, filesEncountered, filesRemoved, directoriesRemovedRecursively);
+                    Logger.Log.BulkStatistic(
+                        loggingContext,
+                        new Dictionary<string, long>
+                        {
+                            [I($"{Category}.DirectoriesEncountered")] = directoriesEncountered,
+                            [I($"{Category}.FilesEncountered")] = filesEncountered,
+                            [I($"{Category}.FilesRemoved")] = filesRemoved,
+                            [I($"{Category}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
+                        });
+                }))
             using (var timer = new Timer(
                 o =>
                 {
@@ -161,12 +173,13 @@ namespace BuildXL.Engine
                     Tracing.Logger.Log.ScrubbingStatus(m_loggingContext, filesEncountered);
                 },
                 null,
-                dueTime: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration),
-                period: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration)))
+                dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
+                period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
                 var deletableDirectoryCandidates = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var nondeletableDirectories = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var directoriesToEnumerate = new BlockingCollection<string>();
+                var allEnumeratedDirectories = new ConcurrentBigSet<string>();
 
                 foreach (var path in pathsToScrub)
                 {
@@ -182,6 +195,7 @@ namespace BuildXL.Engine
                         if (!isPathInBuild(path))
                         {
                             directoriesToEnumerate.Add(path);
+                            allEnumeratedDirectories.Add(path);
                         }
                         else
                         {
@@ -237,9 +251,20 @@ namespace BuildXL.Engine
                                             return;
                                         }
 
-                                        // important to not follow directory symlinks because that can cause 
-                                        // re-enumerating and scrubbing the same physical folder multiple times
-                                        if (FileUtilities.IsDirectoryNoFollow(attributes))
+                                        string realPath = fullPath;
+                                        
+                                        // If this is a symlinked directory, get the final real target directory that it points to, so we can track duplicate work properly
+                                        var isDirectorySymlink = FileUtilities.IsDirectorySymlinkOrJunction(fullPath);
+                                        if (isDirectorySymlink &&
+                                            FileUtilities.TryGetLastReparsePointTargetInChain(handle: null, sourcePath: fullPath) is var maybeRealPath &&
+                                            maybeRealPath.Succeeded)
+                                        {
+                                            realPath = maybeRealPath.Result;
+                                        }
+
+                                        // If the current path is a directory, only follow it if we haven't followed it before (making sure we use the real path in case of symlinks)
+                                        var shouldEnumerateDirectory = (attributes & FileAttributes.Directory) == FileAttributes.Directory && !allEnumeratedDirectories.GetOrAdd(realPath).IsFound;
+                                        if (shouldEnumerateDirectory)
                                         {
                                             if (nondeletableDirectories.ContainsKey(fullPath))
                                             {
@@ -271,14 +296,26 @@ namespace BuildXL.Engine
                                                 shouldDeleteCurrentDirectory = false;
                                             }
                                         }
-                                        else
+
+                                        // On Mac directory symlinks are treated like any files, and so we must delete them if 
+                                        // when they happen to be marked as shared opaque directory output.  
+                                        //
+                                        // When 'fullPath' is a directory symlink the 'if' right above this 'if' will add it to 
+                                        // 'deletableDirectoryCandidates'; there is code that deletes all directories added to this
+                                        // list but that code expects a real directory and so might fail to delete a directory symlink.
+                                        if (!shouldEnumerateDirectory || (isDirectorySymlink && OperatingSystemHelper.IsMacOS))
                                         {
                                             Interlocked.Increment(ref filesEncountered);
 
-                                            if (!isPathInBuild(fullPath))
+                                            // For the Windows case we never want to delete directory symlinks. Rationale: creating
+                                            // them as part of the build is not supported yet (so we should never delete them) and
+                                            // we may end up here if the content of a dir symlink is already being deleted in another thread
+                                            // (using the real path or another symlink that points to the same location) and therefore we 
+                                            // got a !shouldEnumerateDirectory because allEnumeratedDirectories.GetOrAdd(realPath) returned false
+                                            if (!isPathInBuild(fullPath) && (OperatingSystemHelper.IsMacOS || !isDirectorySymlink))
                                             {
                                                 // File is not in the build, delete it.
-                                                if (TryDeleteFile(pm.LoggingContext, fullPath))
+                                                if (TryDeleteFile(pm.LoggingContext, fullPath, logRemovedFiles))
                                                 {
                                                     Interlocked.Increment(ref filesRemoved);
                                                 }
@@ -378,37 +415,54 @@ namespace BuildXL.Engine
         /// Deletion failures are handled gracefully (by logging a warning).
         /// Returns the number of successfully deleted files.
         /// </summary>
-        public int DeleteFiles(string[] filePaths)
+        public int DeleteFiles(
+            IReadOnlyList<string> filePaths, 
+            bool logDeletedFiles = true,
+            TestHooks testHook = null)
         {
             int numRemoved = 0;
             using (var timer = new Timer(
-                _ => Tracing.Logger.Log.ScrubbingProgress(m_loggingContext, "", numRemoved, filePaths.Length),
+                _ => Tracing.Logger.Log.ScrubbingProgress(m_loggingContext, "", numRemoved, filePaths.Count),
                 null,
-                dueTime: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration),
-                period: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration)))
+                dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
+                period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
-                filePaths
+                try
+                {
+                    filePaths
                     .AsParallel()
                     .WithDegreeOfParallelism(m_maxDegreeParallelism)
                     .WithCancellation(m_cancellationToken)
                     .ForAll(path =>
                     {
-                        if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path))
+                        testHook?.OnDeletion?.Invoke(path, numRemoved);
+                        if (!m_cancellationToken.IsCancellationRequested &&
+                            FileUtilities.FileExistsNoFollow(path) &&
+                            TryDeleteFile(m_loggingContext, path, logDeletedFiles))
                         {
                             Interlocked.Increment(ref numRemoved);
                         }
                     });
-                Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Length, numRemoved, 0);
+                    Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Count, numRemoved, 0);
+                }
+                catch (OperationCanceledException) {
+                    Tracing.Logger.Log.ScrubbingCancelled(m_loggingContext, filePaths.Count, numRemoved);
+                }
                 return numRemoved;
             }
         }
 
-        private bool TryDeleteFile(LoggingContext loggingContext, string path)
+        private bool TryDeleteFile(LoggingContext loggingContext, string path, bool logDeletedFile)
         {
             try
             {
                 FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
-                Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
+
+                if (logDeletedFile)
+                {
+                    Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
+                }
+
                 return true;
             }
             catch (BuildXLException ex)
@@ -416,6 +470,18 @@ namespace BuildXL.Engine
                 Tracing.Logger.Log.ScrubbingExternalFileOrDirectoryFailed(loggingContext, path, ex.LogEventMessage);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Test hooks for DirectoryScrubber
+        /// </summary>
+        public class TestHooks
+        {
+            /// <summary>
+            /// Method to be called on deletion calls from Unit Tests
+            /// Receives file path as a string and number of files already removed as inputs
+            /// </summary>
+            public Action<string, int> OnDeletion { get; set; }
         }
     }
 }

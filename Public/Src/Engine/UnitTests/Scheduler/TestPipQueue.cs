@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
@@ -28,7 +28,7 @@ namespace Test.BuildXL.Scheduler
 
         private readonly object m_lock = new object();
         private Queue<Action> m_pausedQueueActions;
-        private readonly Dictionary<PipId, HashSet<PipId>> m_runBeforeConstraints = new Dictionary<PipId, HashSet<PipId>>(); 
+        private readonly Dictionary<PipId, HashSet<PipId>> m_runBeforeConstraints = new Dictionary<PipId, HashSet<PipId>>();
         private readonly Dictionary<PipId, int> m_pendingConstraintCount = new Dictionary<PipId, int>();
         private readonly Dictionary<PipId, Action> m_pendingConstraintEnqueueAction = new Dictionary<PipId, Action>();
         private readonly LoggingContext m_loggingContext;
@@ -147,7 +147,7 @@ namespace Test.BuildXL.Scheduler
         public void ConstrainExecutionOrderAfterSourceFileHashing(PipTable pipTable, PipGraph pipGraph, Pip after)
         {
             Contract.Requires(Paused, "Queue must be initially paused, since pips must be added to the schedule to get an ID for constraints");
-            
+
             lock (m_lock)
             {
                 foreach (PipId hashSourceFilePip in pipTable.Keys)
@@ -158,7 +158,7 @@ namespace Test.BuildXL.Scheduler
                     }
 
                     var nodeId = hashSourceFilePip.ToNodeId();
-                    bool runnableOnDemand = pipGraph.DataflowGraph.GetOutgoingEdges(nodeId).All(edge => edge.IsLight);
+                    bool runnableOnDemand = pipGraph.DirectedGraph.GetOutgoingEdges(nodeId).All(edge => edge.IsLight);
 
                     if (!runnableOnDemand)
                     {
@@ -243,6 +243,21 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
+        public long NumRunningOrQueued
+        {
+            get
+            {
+                long total = 0;
+                foreach (DispatcherKind kind in Enum.GetValues(typeof(DispatcherKind)))
+                {
+                    total += GetNumRunningByKind(kind) + GetNumQueuedByKind(kind);
+                }
+
+                return total;
+            }
+        }
+
+        /// <inheritdoc/>
         public int GetNumRunningByKind(DispatcherKind queueKind) => m_innerQueue.GetNumRunningByKind(queueKind);
 
         /// <inheritdoc/>
@@ -264,6 +279,12 @@ namespace Test.BuildXL.Scheduler
         public void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo)
         {
             m_innerQueue.AdjustIOParallelDegree(machinePerfInfo);
+        }
+
+        /// <inheritdoc/>
+        public void SetTotalProcessSlots(int totalProcessSlots)
+        {
+            m_innerQueue.SetTotalProcessSlots(totalProcessSlots);
         }
 
         /// <inheritdoc/>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -27,7 +27,7 @@ using LineInfo = TypeScript.Net.Utilities.LineInfo;
 namespace BuildXL.FrontEnd.Script
 {
     /// <summary>
-    /// Resolver for DScript source kinds. It heavily relies on a <see cref="DScriptWorkspaceResolverFactory"/>
+    /// Resolver for DScript source kinds. It heavily relies on a <see cref="WorkspaceSourceModuleResolver"/>
     /// to handle package configuration interpretation and determining package ownership. The factory passed at construction time must
     /// contain a registered workspace resolver that can handle source and default source kinds. This is a temporary stage while:
     /// - IResolver contains package-related logic.
@@ -254,6 +254,8 @@ namespace BuildXL.FrontEnd.Script
         /// <inheritdoc/>
         public void NotifyEvaluationFinished()
         {
+            EvaluationStackFrame.TearDownPool();
+
             // In case a decorator is present, we notify evaluation is over
             if (m_evaluationDecorator != null)
             {

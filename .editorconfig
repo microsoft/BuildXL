@@ -8,7 +8,8 @@ indent_style = space
 indent_size = 4
 
 [*.cs]
-
+dotnet_diagnostic.IDE0073.severity = warning
+file_header_template = Copyright (c) Microsoft Corporation.\nLicensed under the MIT License.
 #######################################################################################
 #                             C# code style settings                                  #
 #######################################################################################
@@ -119,7 +120,7 @@ csharp_new_line_before_finally                                      = true
 csharp_new_line_before_members_in_object_initializers               = true
 csharp_new_line_before_members_in_anonymous_types                   = true
 csharp_new_line_between_query_expression_clauses                    = true
-csharp_indent_case_contents                                         = false
+csharp_indent_case_contents                                         = true
 csharp_indent_switch_labels                                         = true
 csharp_indent_labels                                                = one_less_than_current
 csharp_space_after_cast                                             = false
@@ -209,3 +210,16 @@ dotnet_naming_rule.members_should_be_pascal_case.style                          
 dotnet_naming_symbols.all_members.applicable_kinds                              = *
 
 dotnet_naming_style.pascal_case_style.capitalization                            = pascal_case
+
+# FXCop Roslyn-Based analyzers
+# CA1063: Implement IDisposable Correctly
+dotnet_diagnostic.CA1063.severity = none
+
+# CA2237: Mark ISerializable types with serializable
+dotnet_diagnostic.CA2237.severity = none
+                                        
+# CA2217: Do not mark enums with FlagsAttribute
+dotnet_diagnostic.CA2217.severity = none
+
+# RA004:  User-defined message is missing in a contract assertion.
+dotnet_diagnostic.RA004.severity = none

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -19,8 +19,10 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 WorkerId = message.WorkerId,
 
-                AvailableRamMb = message.AvailableRamMb ?? 100000,
-                MaxConcurrency = message.MaxConcurrency,
+                AvailableRamMb = message.AvailableRamMb ?? 0,
+                AvailableCommitMb = message.AvailableCommitMb ?? 0,
+                MaxProcesses = message.MaxProcesses,
+                MaxMaterialize = message.MaxMaterialize,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.Data.ToByteString(),
             };
         }
@@ -32,7 +34,9 @@ namespace BuildXL.Engine.Distribution.Grpc
                 WorkerId = message.WorkerId,
                 
                 AvailableRamMb = message.AvailableRamMb,
-                MaxConcurrency = message.MaxConcurrency,
+                AvailableCommitMb = message.AvailableCommitMb,
+                MaxProcesses = message.MaxProcesses,
+                MaxMaterialize = message.MaxMaterialize,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
             };
         }
@@ -63,15 +67,35 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             foreach (var i in message.ForwardedEvents)
             {
-                workerNotificationArgs.ForwardedEvents.Add(new EventMessage()
+                var eventMessage = new EventMessage()
                 {
                     EventId = i.EventId,
                     EventKeywords = i.EventKeywords,
                     EventName = i.EventName,
                     Id = i.Id,
                     Level = i.Level,
-                    Text = i.Text
-                });
+                    Text = i.Text,
+                };
+
+                if (i.PipProcessErrorEvent != null)
+                {
+                    eventMessage.PipProcessErrorEvent = new global::BuildXL.Distribution.Grpc.PipProcessErrorEvent()
+                    {
+                        PipSemiStableHash = i.PipProcessErrorEvent.PipSemiStableHash,
+                        PipDescription = i.PipProcessErrorEvent.PipDescription,
+                        PipSpecPath = i.PipProcessErrorEvent.PipSpecPath,
+                        PipWorkingDirectory = i.PipProcessErrorEvent.PipWorkingDirectory,
+                        PipExe = i.PipProcessErrorEvent.PipExe,
+                        OutputToLog = i.PipProcessErrorEvent.OutputToLog,
+                        MessageAboutPathsToLog = i.PipProcessErrorEvent.MessageAboutPathsToLog,
+                        PathsToLog = i.PipProcessErrorEvent.PathsToLog,
+                        ExitCode = i.PipProcessErrorEvent.ExitCode,
+                        OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                    };
+                }
+
+                workerNotificationArgs.ForwardedEvents.Add(eventMessage);
             }
 
             return workerNotificationArgs;
@@ -102,7 +126,21 @@ namespace BuildXL.Engine.Distribution.Grpc
                     EventName = i.EventName,
                     Id = i.Id,
                     Level = i.Level,
-                    Text = i.Text
+                    Text = i.Text,
+                    PipProcessErrorEvent = i.ErrorEventCase == EventMessage.ErrorEventOneofCase.PipProcessErrorEvent ? new OpenBond.PipProcessErrorEvent()
+                    {
+                        PipSemiStableHash = i.PipProcessErrorEvent.PipSemiStableHash,
+                        PipDescription = i.PipProcessErrorEvent.PipDescription,
+                        PipSpecPath = i.PipProcessErrorEvent.PipSpecPath,
+                        PipWorkingDirectory = i.PipProcessErrorEvent.PipWorkingDirectory,
+                        PipExe = i.PipProcessErrorEvent.PipExe,
+                        OutputToLog = i.PipProcessErrorEvent.OutputToLog,
+                        MessageAboutPathsToLog = i.PipProcessErrorEvent.MessageAboutPathsToLog,
+                        PathsToLog = i.PipProcessErrorEvent.PathsToLog,
+                        ExitCode = i.PipProcessErrorEvent.ExitCode,
+                        OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                    } : null,
                 });
             }
 
@@ -212,6 +250,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointType = (FileArtifactKeyedHash.Types.GrpcReparsePointType)i.ReparsePointType,
                     RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 };
 
                 if (i.ReparsePointTarget != null)
@@ -240,7 +279,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 var singlePipBuildRequest = new SinglePipBuildRequest()
                 {
                     ActivityId = i.ActivityId,
-                    ExpectedRamUsageMb = i.ExpectedRamUsageMb ?? 0,
+                    ExpectedPeakWorkingSetMb = i.ExpectedPeakWorkingSetMb,
+                    ExpectedAverageWorkingSetMb = i.ExpectedAverageWorkingSetMb,
+                    ExpectedPeakCommitSizeMb = i.ExpectedPeakCommitSizeMb,
+                    ExpectedAverageCommitSizeMb = i.ExpectedAverageCommitSizeMb,
                     Fingerprint = i.Fingerprint.Data.ToByteString(),
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,
@@ -280,7 +322,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointTarget = i.ReparsePointTarget,
                     ReparsePointType = (BondReparsePointType)((int)i.ReparsePointType),
-                    RewriteCount = i.RewriteCount
+                    RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 });
             }
 
@@ -290,7 +333,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 pips.Add(new OpenBond.SinglePipBuildRequest()
                 {
                     ActivityId = i.ActivityId,
-                    ExpectedRamUsageMb = i.ExpectedRamUsageMb,
+                    ExpectedPeakWorkingSetMb = i.ExpectedPeakWorkingSetMb,
+                    ExpectedAverageWorkingSetMb = i.ExpectedAverageWorkingSetMb,
+                    ExpectedPeakCommitSizeMb = i.ExpectedPeakCommitSizeMb,
+                    ExpectedAverageCommitSizeMb = i.ExpectedAverageCommitSizeMb,
                     Fingerprint = new BondFingerprint() { Data = i.Fingerprint.ToArraySegmentByte() },
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,

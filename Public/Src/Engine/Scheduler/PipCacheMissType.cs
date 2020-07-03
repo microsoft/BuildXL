@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Scheduler
 {
@@ -24,6 +24,11 @@ namespace BuildXL.Scheduler
         /// Number of times a process pip cache entry was not found (no prior execution information).
         /// </summary>
         MissForDescriptorsDueToWeakFingerprints = PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,
+
+        /// <summary>
+        /// Number of times a process pip cache entry was not found (no prior execution information).
+        /// </summary>
+        MissForDescriptorsDueToAugmentedWeakFingerprints = PipExecutorCounter.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
 
         /// <summary>
         /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artifial cache miss injection.

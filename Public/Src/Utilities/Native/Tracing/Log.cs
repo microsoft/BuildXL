@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Native.Tracing
 {
@@ -14,6 +14,7 @@ namespace BuildXL.Native.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("NativeLogger")]
     public abstract partial class Logger
     {
         /// <summary>
@@ -119,5 +120,14 @@ namespace BuildXL.Native.Tracing
             EventTask = (int)Tasks.Storage,
             Message = "Opening the file with file ID {0:X16}-{1:X16} on {2:X16} failed with HRESULT 0x{3:X8}")]
         public abstract void StorageTryOpenFileByIdFailure(LoggingContext context, ulong idHigh, ulong idLow, ulong volumeSerial, int hresult);
+
+        [GeneratedEvent(
+            (int)LogEventId.DetouredProcessAccessViolationException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.SandboxedProcessExecutor,
+            Message = "[{pipDescription}] AccessViolationException is occurred in Detours.")]
+        public abstract void DetouredProcessAccessViolationException(LoggingContext context, string pipDescription);
     }
 }

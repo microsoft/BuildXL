@@ -1,8 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using Xunit;
 
@@ -21,7 +24,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var dcs = DistributedContentSettings.CreateDisabled();
             TestSerializationRoundTrip(dcs);
 
-            dcs = DistributedContentSettings.CreateEnabled(new Dictionary<string, string>(), true);
+            dcs = DistributedContentSettings.CreateEnabled();
             TestSerializationRoundTrip(dcs);
         }
 
@@ -33,6 +36,24 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var newDcs = TestSerializationRoundTrip(dcs);
             Assert.NotNull(newDcs.RetryIntervalForCopiesMs);
             Assert.Equal(DistributedContentSettings.DefaultRetryIntervalForCopiesMs.Length, newDcs.RetryIntervalForCopiesMs.Length);
+        }
+
+        [Fact]
+        public void AllPublicPropertiesShouldBeMarkedWithDataMemberAttributes()
+        {
+            var type = typeof(DistributedContentSettings);
+            foreach (var property in type.GetProperties(BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public))
+            {
+                // Checking only read-write properties, because it is possible to have get-only properties that are not serializable.
+                if (property.CanRead && property.CanWrite)
+                {
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DataMemberAttribute));
+                    if (attribute == null)
+                    {
+                        throw new Exception($"Property '{property.Name}' is not marked with 'DataMemberAttribute'.");
+                    }
+                }
+            }
         }
 
         private DistributedContentSettings TestSerializationRoundTrip(DistributedContentSettings dcs)

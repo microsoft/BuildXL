@@ -1,7 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
@@ -25,41 +26,46 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="CreateSessionResult{T}"/> class.
         /// </summary>
-        public CreateSessionResult(string errorMessage, string diagnostics = null)
+        public CreateSessionResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            Session = default;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="CreateSessionResult{T}"/> class.
         /// </summary>
-        public CreateSessionResult(Exception exception, string message = null)
+        public CreateSessionResult(Exception exception, string? message = null)
             : base(exception, message)
         {
+            Session = default;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="CreateSessionResult{T}"/> class.
         /// </summary>
-        public CreateSessionResult(ResultBase other, string message = null)
+        public CreateSessionResult(ResultBase other, string? message = null)
             : base(other, message)
         {
+            Session = default;
         }
 
         /// <summary>
         /// Gets the created session.
         /// </summary>
+        [AllowNull]
+        [MaybeNull]
         public readonly T Session;
 
         /// <inheritdoc />
         public bool Equals(CreateSessionResult<T> other)
         {
-            if (other == null || !base.Equals(other))
+            if (other is null || !base.Equals(other))
             {
                 return false;
             }
 
-            if (Session.Name != other.Session.Name)
+            if (Session?.Name != other.Session?.Name)
             {
                 return false;
             }
@@ -68,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is CreateSessionResult<T> other && Equals(other);
         }
@@ -76,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return base.GetHashCode() ^ Session.Name.GetHashCode();
+            return base.GetHashCode() ^ (Session?.Name.GetHashCode() ?? 0);
         }
 
         /// <nodoc />
@@ -85,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (Success)
             {
-                return new CreateSessionResult<B>(transform(Session));
+                return new CreateSessionResult<B>(transform(Session!));
             }
             else
             {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Runtime.CompilerServices;
@@ -14,15 +14,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
     public class Context
     {
         /// <summary>
+        ///     Cached string representation of <see cref="Id"/> property for performance reasons
+        /// </summary>
+        private readonly string _idAsString;
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
         /// <param name="logger">
         ///     Caller's logger to be invoked as processing occurs.
         /// </param>
         public Context(ILogger logger)
+            : this(Guid.NewGuid(), logger)
         {
-            Id = Guid.NewGuid();
-            Logger = logger;
         }
 
         /// <summary>
@@ -32,36 +36,51 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         {
             Id = id;
             Logger = logger;
+            _idAsString = id.ToString();
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, [CallerMemberName]string caller = null)
-            : this(other, Guid.NewGuid(), caller)
+        public Context(Context other, string? componentName = null, [CallerMemberName]string? caller = null)
+            : this(other, Guid.NewGuid(), componentName, caller)
         {
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id, [CallerMemberName]string caller = null)
+        public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
+            : this(id, other.Logger)
         {
-            Id = id;
-            Logger = other.Logger;
-            Debug($"{caller}: {other.Id} parent to {Id}");
+            Debug($"{caller}: {other._idAsString} parent to {_idAsString}");
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Context"/> class.
+        /// </summary>
+        public Context(Context other, Guid id, string? componentName, [CallerMemberName]string? caller = null)
+            : this(id, other.Logger)
+        {
+            string prefix = caller!;
+            if (!string.IsNullOrEmpty(componentName))
+            {
+                prefix = string.Concat(componentName, ".", prefix);
+            }
+
+            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}");
         }
 
         /// <nodoc />
-        public Context CreateNested([CallerMemberName]string caller = null)
+        public Context CreateNested(string? componentName = null, [CallerMemberName]string? caller = null)
         {
-            return new Context(this, caller);
+            return new Context(this, componentName, caller);
         }
 
         /// <nodoc />
-        public Context CreateNested(Guid id, [CallerMemberName]string caller = null)
+        public Context CreateNested(Guid id, string? componentName = null, [CallerMemberName]string? caller = null)
         {
-            return new Context(this, id, caller);
+            return new Context(this, id, componentName, caller);
         }
 
         /// <summary>
@@ -92,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Always(string message)
         {
-            Logger?.Log(Severity.Always, message);
+            TraceMessage(Severity.Always, message);
         }
 
         /// <summary>
@@ -100,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Error(string message)
         {
-            Logger?.Log(Severity.Error, message);
+            TraceMessage(Severity.Error, message);
         }
 
         /// <summary>
@@ -108,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Warning(string message)
         {
-            Logger?.Log(Severity.Warning, message);
+            TraceMessage(Severity.Warning, message);
         }
 
         /// <summary>
@@ -116,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Info(string message)
         {
-            Logger?.Log(Severity.Info, message);
+            TraceMessage(Severity.Info, message);
         }
 
         /// <summary>
@@ -124,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Debug(string message)
         {
-            Logger?.Log(Severity.Debug, message);
+            TraceMessage(Severity.Debug, message);
         }
 
         /// <summary>
@@ -132,7 +151,80 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void TraceMessage(Severity severity, string message)
         {
-            Logger?.Log(severity, $"{Id} {message}");
+            if (Logger == null)
+            {
+                return;
+            }
+
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                structuredLogger.Log(severity, _idAsString, message);
+            }
+            else
+            {
+                Logger.Log(severity, $"{_idAsString} {message}");
+            }
+        }
+
+        /// <summary>
+        ///     Trace a message if current severity is set to at least the given severity.
+        /// </summary>
+        public void TraceMessage(Severity severity, string message, string? component = null, [CallerMemberName] string? operation = null)
+        {
+            if (Logger == null)
+            {
+                return;
+            }
+
+            component ??= string.Empty;
+            operation ??= string.Empty;
+
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                structuredLogger.Log(new LogMessage(message, operation, component, OperationKind.None, _idAsString, severity));
+            }
+            else
+            {
+                string? provenance;
+                if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(operation))
+                {
+                    provenance = $"{component}{operation}: ";
+
+                    if (provenance.Equals(": "))
+                    {
+                        provenance = string.Empty;
+                    }
+                }
+                else
+                {
+                    provenance = $"{component}.{operation}: ";
+                }
+
+                Logger.Log(severity, $"{_idAsString} {provenance}{message}");
+            }
+        }
+
+        /// <summary>
+        /// Trace operation start.
+        /// </summary>
+        public void OperationStarted(
+            string message,
+            string operationName,
+            string componentName,
+            Severity severity,
+            OperationKind kind)
+        {
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                // Note, that 'message' here is a plain message from the client
+                // without correlation id.
+                var operation = new OperationStarted(message, operationName, componentName, kind, _idAsString, severity);
+                structuredLogger.LogOperationStarted(operation);
+            }
+            else
+            {
+                TraceMessage(severity, message);
+            }
         }
 
         /// <summary>
@@ -151,12 +243,32 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 severity = result.IsCriticalFailure ? Severity.Error : (kind == OperationKind.Startup ? Severity.Warning : Severity.Info);
             }
 
-            TraceMessage(severity, message);
+            bool messageWasTraced = false;
 
-            if (Logger is IOperationLogger operationLogger)
+            // The Logger instance may implement both IOperationLogger and IStructuredLogger
+            // (this is actually the case right now for the new logging infrastructure).
+            // And to get correct behavior in this case we need to check IStructuredLogger
+            // first because that kind of logger does two things:
+            // 1. Traces the operation and
+            // 2. Emit metrics.
+            // But other IOperationLogger implementation just trace the metrics and a text racing should be done separately.
+            if (Logger is IStructuredLogger structuredLogger)
             {
-                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, Id, severity);
+                // Note, that 'message' here is a plain message from the client
+                // without correlation id.
+                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
+                structuredLogger.LogOperationFinished(operationResult);
+                messageWasTraced = true;
+            }
+            else if (Logger is IOperationLogger operationLogger)
+            {
+                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
                 operationLogger.OperationFinished(operationResult);
+            }
+
+            if (!messageWasTraced)
+            {
+                TraceMessage(severity, message);
             }
 
             static OperationStatus statusFromResult(ResultBase resultBase)
@@ -201,18 +313,48 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
+        public void ChangeRole(string role)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole, role);
+        }
+
+        /// <nodoc />
         public void RegisterBuildId(string buildId)
         {
-            if (Logger is IOperationLogger operationLogger)
-            {
-                operationLogger.RegisterBuildId(buildId);
-            }
+            Logger.RegisterBuildId(buildId);
         }
 
         /// <nodoc />
         public void UnregisterBuildId()
         {
-            if (Logger is IOperationLogger operationLogger)
+            Logger.UnregisterBuildId();
+        }
+    }
+
+    /// <nodoc />
+    public static class LoggerExtensions
+    {
+        /// <summary>
+        /// Sets build id as an ambient information used by tracing infrastructure.
+        /// </summary>
+        public static void RegisterBuildId(this ILogger logger, string buildId)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, buildId);
+
+            if (logger is IOperationLogger operationLogger)
+            {
+                operationLogger.RegisterBuildId(buildId);
+            }
+        }
+
+        /// <summary>
+        /// Clears an existing build id set by <see cref="RegisterBuildId"/>.
+        /// </summary>
+        public static void UnregisterBuildId(this ILogger logger)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, value: null);
+
+            if (logger is IOperationLogger operationLogger)
             {
                 operationLogger.UnregisterBuildId();
             }

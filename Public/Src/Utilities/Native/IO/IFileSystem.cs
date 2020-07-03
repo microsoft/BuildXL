@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace BuildXL.Native.IO
     /// <summary>
     /// Interface for file system related functions and calls
     /// </summary>
-    public interface IFileSystem
+    internal interface IFileSystem
     {
         #region Path related functions
 
@@ -32,6 +32,18 @@ namespace BuildXL.Native.IO
         /// Checks if a character is a directory separator.
         /// </summary>
         bool IsDirectorySeparator(char c);
+
+        /// <summary>
+        /// Gets the full path of the specified path.
+        /// </summary>
+        /// <param name="path">The file or directory for which to obtain absolute path information. Cannot be null or empty.</param>
+        /// <remarks>
+        /// This method functions like <see cref="Path.GetFullPath(string)"/>, i.e., it merges the name of the current drive and directory with
+        /// a specified file name to determine the full path of a specified file.
+        /// Automatically adds long path prefix for Windows to the given path if needed.
+        /// </remarks>
+        /// <exception cref="BuildXLException">On failure</exception>
+        string GetFullPath(string path);
 
         #endregion
 
@@ -101,7 +113,7 @@ namespace BuildXL.Native.IO
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/> handleEntry,
             bool isEnumerationForDirectoryDeletion = false,
             bool followSymlinksToDirectories = false);
-        
+
         /// <summary>
         /// Enumerates the files in the given directory using a search pattern.
         /// </summary>
@@ -263,6 +275,13 @@ namespace BuildXL.Native.IO
         /// </remarks>
         void SetFileAttributes(string path, FileAttributes attributes);
 
+        /// <summary>
+        /// Synchronously writes the specified content to the given handle, representing a file or IO device
+        /// </summary>
+        /// <remarks>The handle must have been created with write access</remarks>
+        /// <result>Whether the write succeeds. If the write fails, the native error code contains the root cause</result>
+        bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode);
+
         #endregion
 
         #region Soft- (Junction) and Hardlink functions
@@ -309,6 +328,13 @@ namespace BuildXL.Native.IO
         /// <param name="reparsePointType">The type of the reparse point.</param>
         /// <returns>true if this is an actionable reparse point, otherwise false.</returns>
         bool IsReparsePointActionable(ReparsePointType reparsePointType);
+
+        /// <summary>
+        /// Returns whether the reparse point type is a symbolic link.
+        /// </summary>
+        /// <param name="reparsePointType">The type of the reparse point.</param>
+        /// <returns>true if this is an reparse point of symbolic link type, otherwise false.</returns>
+        bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType);
 
         /// <summary>
         /// Returns <see cref="ReparsePointType"/> of a path.
@@ -513,8 +539,8 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// This function tries to get file identity as in <see cref="TryGetFileIdentityByHandle(SafeFileHandle)"/>. In addition
         /// to the file identity, this function also tries to establish the file version. The notion of version depends on the OS.
-        /// For Windows, the version is the USN after inserting a close record. For Unix, where journaling is not always available, the version can be file timestamp.
-        /// The version is simply represented using <see cref="Usn"/>.
+        /// For Windows, the version is the USN after inserting a close record. For Unix, where journaling is not always available, 
+        /// the version can be file timestamp. The version is simply represented using <see cref="Usn"/>.
         ///
         /// The <paramref name="flushPageCache"/> parameter is often needed on Windows to avoid subsequent USN change after a close record is inserted.
         /// </remarks>
@@ -595,6 +621,14 @@ namespace BuildXL.Native.IO
         string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false);
 
         /// <summary>
+        /// Attempts to open a handle to the given path and then calls <see cref="GetFinalPathNameByHandle(SafeFileHandle, bool)"/>
+        /// </summary>
+        /// <remarks>
+        /// This function never throws. On failure <paramref name="nativeErrorCode"/> contains the error.
+        /// </remarks>
+        bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false);
+
+        /// <summary>
         /// Flushes cached pages for a file back to the filesystem. Unlike <c>FlushFileBuffers</c>, this does NOT
         /// issue a *disk-wide* cache flush, and so does NOT guarantee that written data is durable on disk (but it does
         /// force pages dirtied by e.g. a writable memory-mapping to be visible to the filesystem).
@@ -616,6 +650,11 @@ namespace BuildXL.Native.IO
         /// Flag indicating if the enlistment volume supports copy on write.
         /// </summary>
         bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
+
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        bool IsDirectorySymlinkOrJunction(string path);
 
         #endregion
     }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,8 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using Newtonsoft.Json;
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -24,6 +26,8 @@ namespace BuildXL.Execution.Analyzer
             bool allPips = false;
             bool noBanner = false;
             long sshValue = -1;
+            CacheMissDiffFormat cacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
+
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase) ||
@@ -43,6 +47,10 @@ namespace BuildXL.Execution.Analyzer
                 else if (opt.Name.Equals("nobanner", StringComparison.OrdinalIgnoreCase))
                 {
                     noBanner = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("cacheMissDiffFormat", StringComparison.OrdinalIgnoreCase))
+                {
+                    cacheMissDiffFormat = ParseEnumOption<CacheMissDiffFormat>(opt);
                 }
                 else
                 {
@@ -76,6 +84,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteOption("outputDirectory", "Required. The directory where to write the results", shortName: "o");
             writer.WriteOption("allPips", "Optional. Defaults to false.");
             writer.WriteOption("pipId", "Optional. Run for specific pip.", shortName: "p");
+            writer.WriteOption("diffFormat", "Optional. Diff format. Allowed values are JsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff");
         }
     }
 
@@ -105,6 +114,11 @@ namespace BuildXL.Execution.Analyzer
         /// Run cache miss for this pip
         /// </summary>
         public long SemiStableHashToRun;
+
+        /// <summary>
+        /// Diff format.
+        /// </summary>
+        public CacheMissDiffFormat CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
 
         /// <summary>
         /// Analysis model based on the new build.
@@ -254,7 +268,7 @@ namespace BuildXL.Execution.Analyzer
                         var possibleMatch = PipTable.GetPipSemiStableHash(pipId);
                         if (possibleMatch == SemiStableHashToRun)
                         {
-                            firstMiss = new PipCacheMissInfo(pipId, PipCacheMissType.Hit);
+                            firstMiss = new PipCacheMissInfo(pipId, PipCacheMissType.Hit, null);
                         }
                     }
                 }
@@ -307,6 +321,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 pipUniqueOutputHashStr = pipUniqueOutputHash.ToString();
             }
+
             WriteLine(pip.GetDescription(PipGraph.Context));
 
             var analysisResult = CacheMissAnalysisResult.Invalid;
@@ -316,21 +331,25 @@ namespace BuildXL.Execution.Analyzer
             {
                 // Strong fingerprint miss analysis is most accurate when compared to the fingerprints computed at cache lookup time
                 // because those fingerprints capture the state of the disk at cache lookup time, including dynamic observations
-                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                    writer,
+                var resultAndDetail = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                     miss,
                     () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
-                    () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr));
+                    () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    CacheMissDiffFormat);
+                analysisResult = resultAndDetail.Result;
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
             }
             else
             {
-                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                    m_writer,
+                var resultAndDetail = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                     miss,
-                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
-                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()));
+                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    CacheMissDiffFormat);
+                analysisResult = resultAndDetail.Result;
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
             }
-
+          
             if (analysisResult == CacheMissAnalysisResult.MissingFromOldBuild)
             {
                 Tracing.Logger.Log.FingerprintStorePipMissingFromOldBuild(LoggingContext);

@@ -1,7 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;
@@ -15,7 +16,7 @@ namespace Test.DScript.Ast.Interpretation
     {
         public ServicePipTests(ITestOutputHelper output) : base(output) { }
 
-        protected override IPipGraph GetPipGraph() => new TestPipGraph();
+        protected override TestPipGraph GetPipGraph() => new TestPipGraph();
 
         [Fact]
         public void TestServiceId()

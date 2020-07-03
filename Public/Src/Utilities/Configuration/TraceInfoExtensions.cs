@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -9,14 +9,14 @@ namespace BuildXL.Utilities.Configuration
     public static class TraceInfoExtensions
     {
         /// <summary>
-        /// The argument to specify the branch name in CB.
-        /// </summary>
-        public const string Branch = "Branch";
-
-        /// <summary>
         /// The argument to specify the queue name in CB.
         /// </summary>
         public const string CloudBuildQueue = "CloudBuildQueue";
+
+        /// <summary>
+        /// The argument to specify a custom key that contributes to fingerprinting of HistoricMetadataCache, HistoricRunningTimeTable, and FingerprintStore.
+        /// </summary>
+        public const string CustomFingerprint = "CustomFingerprint";
 
         /// <summary>
         /// The argument to specify the AB Testing.

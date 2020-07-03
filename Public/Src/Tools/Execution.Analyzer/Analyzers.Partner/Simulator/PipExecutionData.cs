@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using BuildXL.Engine;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -18,7 +19,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         #region Loaded State
 
         // Loaded state
-        public DirectedGraph DataflowGraph { get; set; }
+        public IReadonlyDirectedGraph DirectedGraph { get; set; }
 
         public CachedGraph CachedGraph { get; }
         public ConcurrentNodeDictionary<ulong> StartTimes = new ConcurrentNodeDictionary<ulong>(false);
@@ -62,10 +63,10 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 
         #endregion
 
-        public PipExecutionData(CachedGraph cachedGraph, DirectedGraph dataflowGraphOverride = null)
+        public PipExecutionData(CachedGraph cachedGraph, IReadonlyDirectedGraph dataflowGraphOverride = null)
         {
             CachedGraph = cachedGraph;
-            DataflowGraph = dataflowGraphOverride ?? CachedGraph.DataflowGraph;
+            DirectedGraph = dataflowGraphOverride ?? CachedGraph.DirectedGraph;
         }
 
         public string GetName(NodeId node)
@@ -94,7 +95,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
                 baseline.Priority = ulong.MaxValue;
             }
 
-            foreach (var node in DataflowGraph.Nodes)
+            foreach (var node in DirectedGraph.Nodes)
             {
                 if (selector(node))
                 {
@@ -141,7 +142,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
             LongestRunningPips = GetSortedPips(20, true, n => true, n => Durations[n]);
             ShortestRunningProcesses = GetSortedPips(20, false, n => GetPipType(n) == PipType.Process, n => Durations[n]);
 
-            foreach (var node in DataflowGraph.Nodes)
+            foreach (var node in DirectedGraph.Nodes)
             {
                 var pipType = GetPipType(node);
                 Interlocked.Increment(ref PipTypeCounts[(int)pipType]);
@@ -238,12 +239,12 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         {
             PipAndPriority maxPipAndPriority = default(PipAndPriority);
             List<NodeId> sortedNodes = new List<NodeId>();
-            sortedNodes.AddRange(DataflowGraph.Nodes);
-            sortedNodes.Sort((n1, n2) => DataflowGraph.GetNodeHeight(n1).CompareTo(DataflowGraph.GetNodeHeight(n2)));
+            sortedNodes.AddRange(DirectedGraph.Nodes);
+            sortedNodes.Sort((n1, n2) => DirectedGraph.GetNodeHeight(n1).CompareTo(DirectedGraph.GetNodeHeight(n2)));
             foreach (var node in sortedNodes)
             {
                 ulong aggregateCost = 0;
-                foreach (var incoming in DataflowGraph.GetIncomingEdges(node))
+                foreach (var incoming in DirectedGraph.GetIncomingEdges(node))
                 {
                     BottomUpAggregateCosts[incoming.OtherNode].Max(ref aggregateCost);
                 }
@@ -252,13 +253,13 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
                 BottomUpAggregateCosts[node] = aggregateCost;
             }
 
-            sortedNodes.Sort((n1, n2) => -DataflowGraph.GetNodeHeight(n1).CompareTo(DataflowGraph.GetNodeHeight(n2)));
+            sortedNodes.Sort((n1, n2) => -DirectedGraph.GetNodeHeight(n1).CompareTo(DirectedGraph.GetNodeHeight(n2)));
             foreach (var node in sortedNodes)
             {
                 // int maxConeConcurrency = 0;
                 ulong aggregateCost = 0, constrainedAggregateCost = 0;
                 NodeId maxChild = NodeId.Invalid;
-                foreach (var outgoing in DataflowGraph.GetOutgoingEdges(node))
+                foreach (var outgoing in DirectedGraph.GetOutgoingEdges(node))
                 {
                     ConstrainedAggregateCosts[outgoing.OtherNode].Max(ref constrainedAggregateCost);
 

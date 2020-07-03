@@ -25,8 +25,8 @@ Transformer.execute({
         d`./Out/Directory3`,
     ],
     optionalImplicitOutputs: [f`./Out/outputFile5.txt`],
-    environmentVariables: [{name: "TEMP", value: p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`}, {name: "TMP", value: p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`}],
-    tempDirectory: d`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`,
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
     unsafe: {
         untrackedPaths: [p`./src/tool/untrackedFile.txt`],
         untrackedScopes: [
@@ -40,7 +40,7 @@ Transformer.execute({
             p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
             p`\${Context.getMount('AppData').path}`,
             p`\${Context.getMount('LocalAppData').path}`,
-            p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
         ],
     },
 });

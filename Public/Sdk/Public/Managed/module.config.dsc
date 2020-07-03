@@ -2,6 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Sdk.Managed",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    name: "Sdk.Managed"
 });

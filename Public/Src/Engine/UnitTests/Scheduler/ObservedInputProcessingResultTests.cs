@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -7,6 +7,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -133,6 +134,7 @@ namespace Test.BuildXL.Scheduler
                 sorted, 
                 emptyObservedAccessFileNames, 
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.Empty, 
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.Empty,
                 dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.Empty, 
                 allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(), 
                 absentPathProbesUnderNonDependenceOutputDirectories: CollectionUtilities.EmptySet<AbsolutePath>());

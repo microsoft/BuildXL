@@ -4,11 +4,14 @@
 import * as Managed from "Sdk.Managed";
 
 namespace Processes.TestPrograms.DetoursCrossBitTests {
-    interface PlatformSpecificManagedCode extends Qualifier, BuildXLSdk.DefaultQualifier
+    interface PlatformSpecificManagedCode extends Qualifier, BuildXLSdk.DefaultQualifierWithNet472
     {
         platform: "x86" | "x64";
     }
 
+    // This has to remain in net472 because buildxl.processes test uses this
+    // and it doesn't deploy it to a subfolder, so since that test has to run in
+    // net472 it would collide with nuget dependencies.
     export declare const qualifier: PlatformSpecificManagedCode;
 
     @@public
@@ -25,6 +28,7 @@ namespace Processes.TestPrograms.DetoursCrossBitTests {
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

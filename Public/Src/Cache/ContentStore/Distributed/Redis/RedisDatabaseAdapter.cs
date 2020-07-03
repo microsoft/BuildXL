@@ -1,16 +1,23 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Practices.TransientFaultHandling;
 using StackExchange.Redis;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -67,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        InvalidateLocalMachine,
+        SetLocalMachineState,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -169,22 +176,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <nodoc />
     internal class RedisDatabaseAdapter
     {
+        private readonly RedisDatabaseAdapterConfiguration _configuration;
+        private readonly Tracer _tracer = new Tracer(nameof(RedisDatabaseAdapter));
+
         /// <summary>
         /// The keyspace used to prefix keys in the database
         /// </summary>
-        public string KeySpace { get; }
+        public string KeySpace => _configuration.KeySpace;
 
         private readonly RedisDatabaseFactory _databaseFactory;
         private readonly RetryPolicy _redisRetryStrategy;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="RedisDatabaseAdapter"/> class.
-        /// </summary>
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace)
+        // In some cases, Redis.StackExchange library may fail to reset the connection to Azure Redis Cache.
+        // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
+        private int _connectionErrorCount;
+        private readonly IClock _clock;
+        private DateTime _lastRedisReconnectDateTime = DateTime.MinValue;
+        private readonly object _resetConnectionsLock = new object();
+        private int _reconnectionCount;
+
+        /// <nodoc />
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, RedisDatabaseAdapterConfiguration configuration, IClock? clock = null)
         {
+            _configuration = configuration;
+            _redisRetryStrategy = configuration.CreateRetryPolicy(OnRedisException);
             _databaseFactory = databaseFactory;
-            KeySpace = keySpace;
-            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(), RetryStrategy.DefaultExponential);
+            _clock = clock ?? SystemClock.Instance;
+        }
+
+        /// <nodoc />
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, IClock? clock = null)
+            : this(databaseFactory, new RedisDatabaseAdapterConfiguration(keySpace), clock)
+        {
         }
 
         /// <summary>
@@ -192,25 +215,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public CounterCollection<RedisOperation> Counters { get; } = new CounterCollection<RedisOperation>();
 
+        /// <nodoc />
+        public string DatabaseName => _configuration.DatabaseName;
+
         /// <summary>
         /// Creates a retryable Redis operation.
         /// </summary>
         /// <returns>A batch that can be used to enqueue batch operations.</returns>
         public IRedisBatch CreateBatchOperation(RedisOperation operation)
         {
-            return new RedisBatch(operation, KeySpace);
+            return new RedisBatch(operation, KeySpace, _configuration.DatabaseName);
         }
 
         /// <nodoc />
         public RedisBatch CreateBatch(RedisOperation operation)
         {
-            return new RedisBatch(operation, KeySpace);
+            return new RedisBatch(operation, KeySpace, _configuration.DatabaseName);
         }
 
         /// <summary>
         /// Enumerates all endpoints with a sample keys for each of them.
         /// </summary>
-        public List<(string serverId, string serverSampleKey)> GetServerKeys(string serverId = null)
+        public List<(string serverId, string serverSampleKey)> GetServerKeys(string? serverId = null)
         {
             return GetServers(serverId)
                 .Select(tpl => ((serverId: tpl.serverId, serverSampleKey: (string)tpl.server.Keys(pageSize: 1).FirstOrDefault())))
@@ -226,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Obtains statistics from Redis.
         /// </summary>
-        public async Task<List<(string serverId, RedisInfo info)>> GetInfoAsync(string serverId = null)
+        public async Task<List<(string serverId, RedisInfo info)>> GetInfoAsync(string? serverId = null)
         {
             var servers = GetServers(serverId);
 
@@ -240,25 +266,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return result;
         }
 
-        private List<(IServer server, string serverId)> GetServers(string serverId = null)
+        private List<(IServer server, string serverId)> GetServers(string? serverId = null)
         {
             return _databaseFactory.GetEndPoints()
                 .Select(ep => _databaseFactory.GetServer(ep))
                 .Where(server => !server.IsSlave)
                 .Where(server => serverId == null || GetServerId(server) == serverId)
-                .Select(server => (server: server, serverId: GetServerId(server)))
+                .Select(server => (server: server, serverId: GetServerId(server)!))
                 .Where(tpl => tpl.serverId != null)
                 .ToList();
         }
 
-        private static string GetServerId(IServer server)
+        private static string? GetServerId(IServer server)
         {
-            if (server?.ClusterConfiguration == null)
-            {
-                return null;
-            }
-
-            return server.ClusterConfiguration[server.EndPoint]?.NodeId;
+            return server?.ClusterConfiguration?[server.EndPoint]?.NodeId;
         }
 
         /// <summary>
@@ -270,30 +291,155 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <returns>A task that completes when all items in the batch are done.</returns>
         public async Task<BoolResult> ExecuteBatchOperationAsync(Context context, IRedisBatch batch, CancellationToken cancellationToken)
         {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.Batch].Start())
-            using (Counters[batch.Operation].Start())
-            {
-                Counters[RedisOperation.BatchSize].Add(batch.BatchSize);
-
-                try
-                {
-                    await _redisRetryStrategy.ExecuteAsync(
-                        async () =>
+            var operationContext = new OperationContext(context, cancellationToken);
+            var result = await operationContext
+                .CreateOperation(
+                    _tracer,
+                    async () =>
+                    {
+                        using (Counters[RedisOperation.All].Start())
+                        using (Counters[RedisOperation.Batch].Start())
+                        using (Counters[batch.Operation].Start())
                         {
-                            var database = await GetDatabaseAsync(context);
-                            await batch.ExecuteBatchOperationAndGetCompletion(context, database);
-                        },
-                        cancellationToken);
-                    await batch.NotifyConsumersOfSuccess();
-                    return BoolResult.Success;
-                }
-                catch (Exception ex)
+                            Counters[RedisOperation.BatchSize].Add(batch.BatchSize);
+
+                            try
+                            {
+                                await _redisRetryStrategy.ExecuteAsync(
+                                    context,
+                                    async () =>
+                                    {
+                                        var database = await GetDatabaseAsync(context);
+                                        await batch.ExecuteBatchOperationAndGetCompletion(context, database);
+                                    },
+                                    cancellationToken,
+                                    _configuration.TraceTransientFailures);
+                                await batch.NotifyConsumersOfSuccess();
+
+                                return BoolResult.Success;
+                            }
+                            catch (Exception ex)
+                            {
+                                batch.NotifyConsumersOfFailure(ex);
+                                return new BoolResult(ex);
+                            }
+                        }
+                    })
+                .TraceErrorsOnlyIfEnabled(
+                    _configuration.TraceOperationFailures,
+                    endMessageFactory: r => $"Operation={batch.Operation}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}")
+                .RunAsync();
+
+            HandleOperationResult(context, result);
+            return result;
+        }
+
+        private void HandleOperationResult(Context context, BoolResult result)
+        {
+            if (result)
+            {
+                RedisOperationSucceeded(context);
+            }
+            else if (result.Exception != null)
+            {
+                HandleRedisExceptionAndResetMultiplexerIfNeeded(context, result.Exception);
+            }
+        }
+
+        private void RedisOperationSucceeded(Context context)
+        {
+            // If the operation is successful, then reset the error and reconnection count to 0.
+            var previousConnectionErrorCount = Interlocked.Exchange(ref _connectionErrorCount, 0);
+            var previousReconnectionCount = Interlocked.Exchange(ref _reconnectionCount, 0);
+            if (previousConnectionErrorCount != 0)
+            {
+                // It means that the service just reconnected to a redis instance.
+                context.Info($"Successfully reconnected to {DatabaseName}. Previous ConnectionErrorCount={previousConnectionErrorCount}, previous ReconnectionCount={previousReconnectionCount}");
+            }
+
+            
+        }
+
+        /// <summary>
+        /// This method "handles" redis connectivity errors and reset the connection multiplexer if there are no successful operations happening.
+        /// </summary>
+        private void HandleRedisExceptionAndResetMultiplexerIfNeeded(Context context, Exception exception)
+        {
+            if (IsRedisConnectionException(exception))
+            {
+                // We treat the "unable to connect" RedisConnectionExceptions differently, as the average connectivity error is caused by misconfiguration
+                if (IsRedisUnableToConnectException(exception))
                 {
-                    batch.NotifyConsumersOfFailure(ex);
-                    return new BoolResult(ex);
+                    context.Error($"Unable to connect to Redis database {DatabaseName} with exception: {exception}");
+                    return;
+                }
+
+                // Using double-checked locking approach to reset the connection multiplexer only once.
+                // Checking for greater then or equals because another thread can increment _connectionErrorCount.
+                if (Interlocked.Increment(ref _connectionErrorCount) >= _configuration.RedisConnectionErrorLimit)
+                {
+                    lock (_resetConnectionsLock)
+                    {
+                        // The second read of _connectionErrorCount is a non-interlocked read, but it should be fine because it is happening under the lock.
+                        var timeSinceLastReconnect = _clock.UtcNow.Subtract(_lastRedisReconnectDateTime);
+
+                        if (_connectionErrorCount >= _configuration.RedisConnectionErrorLimit && timeSinceLastReconnect >= _configuration.MinReconnectInterval)
+                        {
+                            // This means that there is no successful operations happening, and all the errors that we're seeing are redis connectivity issues.
+                            // This is, effectively, a work-around for the issue in StackExchange.Redis library (https://github.com/StackExchange/StackExchange.Redis/issues/559).
+                            context.Warning($"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}, ReconnectCount={_reconnectionCount}, LastReconnectDateTimeUtc={_lastRedisReconnectDateTime}.");
+
+                            _databaseFactory.ResetConnectionMultiplexer();
+
+                            Interlocked.Exchange(ref _connectionErrorCount, 0);
+                            _lastRedisReconnectDateTime = _clock.UtcNow;
+                            Interlocked.Increment(ref _reconnectionCount);
+
+                            // In some cases the service can't connect to redis and the only option is to shut down the service.
+                            if (_reconnectionCount >= _configuration.RedisReconnectionLimitBeforeServiceRestart)
+                            {
+                                LifetimeManager.RequestTeardown(context, $"Requesting teardown because redis reconnection limit of {_configuration.RedisReconnectionLimitBeforeServiceRestart} is reached for {DatabaseName}.");
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// The call back that is called by the redis retry strategy.
+        /// </summary>
+        /// <remarks>
+        /// There are two very similar methods: <see cref="OnRedisException"/> and <see cref="HandleRedisExceptionAndResetMultiplexerIfNeeded"/>. The first one (the current method) is called
+        /// by the retry strategy to track and increment the failure count for all the retries not only for the final ones.
+        /// The later is called manually after each failed operation and that method takes a context that allows us to trace and actually may reset the connection mutliplexer
+        /// due to a number of redis connection exceptions.
+        /// </remarks>
+        private void OnRedisException(Exception exception)
+        {
+            // Lets be very pessimistic here: reset the connectivity errors every time when the operation succeed or any other exception
+            // but redis connection exception occurs.
+            if (IsRedisConnectionException(exception) && !IsRedisUnableToConnectException(exception))
+            {
+                Interlocked.Increment(ref _connectionErrorCount);
+            }
+
+            // Don't reset the connection error count if another error occurs.
+            // The counter is set to 0 for all the successful operations only.
+        }
+
+        private bool IsRedisConnectionException(Exception exception)
+        {
+            return exception is RedisConnectionException;
+        }
+
+        /// <summary>
+        /// There are different reasons for redis connectivity issues such as configuration errors.
+        /// This function addresses specifically for connecting to nonexistent instances.
+        /// </summary>
+        public static bool IsRedisUnableToConnectException(Exception exception)
+        {
+            return exception is RedisConnectionException && exception.ToString().Contains("UnableToConnect");
         }
 
         /// <summary>
@@ -358,18 +504,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public Task<bool> SetHashValueAsync(Context context, RedisKey key, RedisValue hashField, RedisValue value, When when, CancellationToken token)
             => PerformDatabaseOperationAsync(context, db => db.HashSetAsync(key, hashField, value, when), Counters[RedisOperation.HashSetValue], token);
 
-        private Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token)
+        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token, [CallerMemberName]string? operationName = null)
         {
-            using (Counters[RedisOperation.All].Start())
-            using (stopwatch.Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
+            var operationContext = new OperationContext(context, token);
+            
+            var result = await operationContext
+                .CreateOperation(
+                    _tracer,
                     async () =>
                     {
-                        var database = await GetDatabaseAsync(context);
-                        return await operation(database);
-                    }, token);
-            }
+                        using (Counters[RedisOperation.All].Start())
+                        using (stopwatch.Start())
+                        {
+                            try
+                            {
+                                var r = await _redisRetryStrategy.ExecuteAsync(
+                                    context,
+                                    async () =>
+                                    {
+                                        var database = await GetDatabaseAsync(context);
+                                        return await operation(database);
+                                    },
+                                    token,
+                                    _configuration.TraceTransientFailures,
+                                    _configuration.DatabaseName);
+
+                                return new Result<T>(r, isNullAllowed: true);
+                            }
+                            catch (Exception e)
+                            {
+                                return new Result<T>(e);
+                            }
+                        }
+                    })
+                .TraceErrorsOnlyIfEnabled(
+                    _configuration.TraceOperationFailures,
+                    endMessageFactory: r => $"Operation={operationName}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}")
+                .RunAsync();
+
+            HandleOperationResult(context, result);
+            return result.ThrowIfFailure();
         }
 
         private Task<IDatabase> GetDatabaseAsync(Context context)
@@ -377,17 +551,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return _databaseFactory.GetDatabaseWithKeyPrefix(context, KeySpace);
         }
 
-        private class RedisRetryPolicy : ITransientErrorDetectionStrategy
+        internal class RedisRetryPolicy : ITransientErrorDetectionStrategy
         {
+            private readonly Action<Exception>? _exceptionObserver;
+
+            /// <nodoc />
+            public RedisRetryPolicy(Action<Exception>? exceptionObserver = null) => _exceptionObserver = exceptionObserver;
+
             /// <inheritdoc />
             public bool IsTransient(Exception ex)
             {
+                _exceptionObserver?.Invoke(ex);
+
                 // naively retry all redis server exceptions.
 
                 if (ex is RedisException redisException)
-                {
+                { 
+                    if (RedisDatabaseAdapter.IsRedisUnableToConnectException(redisException))
+                    {
+                        return false;
+                    }
+
                     // If the error contains the following text, then the error is not transient.
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));
+                }
+
+                if (ex is RedisTimeoutException)
+                {
+                    return true;
                 }
 
                 return false;

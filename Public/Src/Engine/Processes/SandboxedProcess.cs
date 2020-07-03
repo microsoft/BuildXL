@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
@@ -18,10 +19,14 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
+using static BuildXL.Interop.Windows.Memory;
+using static BuildXL.Utilities.OperatingSystemHelper;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
@@ -30,7 +35,7 @@ namespace BuildXL.Processes
 {
     /// <summary>
     /// A process abstraction for BuildXL that can monitor environment interactions, in particular file accesses, that ensures
-    /// that all file accesses are on a white-list.
+    /// that all file accesses are on an allowlist.
     /// Under the hood, the sandboxed process uses Detours.
     /// </summary>
     /// <remarks>
@@ -41,6 +46,7 @@ namespace BuildXL.Processes
         private const int MaxProcessPathLength = 1024;
         private static BinaryPaths s_binaryPaths;
         private static readonly Guid s_payloadGuid = new Guid("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
+        private static readonly UIntPtr s_defaultMin = new UIntPtr(204800);
 
         private readonly int m_bufferSize;
 
@@ -54,7 +60,7 @@ namespace BuildXL.Processes
 
         private readonly TextReader m_standardInputReader;
         private readonly TimeSpan m_nestedProcessTerminationTimeout;
-
+        private readonly LoggingContext m_loggingContext;
         private DetouredProcess m_detouredProcess;
         private bool m_processStarted;
         private bool m_disposeStarted;
@@ -65,10 +71,15 @@ namespace BuildXL.Processes
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess> m_survivingChildProcesses;
         private readonly uint m_timeoutMins;
-        private readonly Action<int> m_processIdListener;
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
+
+        private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_workingSet = new PerformanceCollector.Aggregation();
+
+        private readonly PerformanceCollector.Aggregation m_peakCommitSize = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_commitSize = new PerformanceCollector.Aggregation();
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
@@ -94,6 +105,7 @@ namespace BuildXL.Processes
             m_bufferSize = SandboxedProcessInfo.BufferSize;
             m_allowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
+            m_loggingContext = info.LoggingContext;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;
@@ -123,13 +135,12 @@ namespace BuildXL.Processes
                     info.PipDescription,
                     info.LoggingContext,
                     info.DetoursEventListener,
-                    info.SharedOpaqueOutputLogger) : null;
-
+                    info.SidebandWriter) : null;
+            
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-
-            m_processIdListener = info.ProcessIdListener;
+            
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -147,7 +158,11 @@ namespace BuildXL.Processes
                     info.DisableConHostSharing,
                     info.LoggingContext,
                     info.TimeoutDumpDirectory,
-                    info.ContainerConfiguration);
+                    info.ContainerConfiguration,
+                    // If there is any process configured to breakway from the sandbox, then we need to allow
+                    // this to happen at the job object level
+                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
+                    info.CreateJobObjectForCurrentProcess);
         }
 
         /// <inheritdoc />
@@ -181,24 +196,218 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        /// <remarks>
-        /// Gets the peak memory usage for the job object associated with the detoured process while the process is active.
-        /// </remarks>
-        public ulong? GetActivePeakMemoryUsage()
+        public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend)
+        {
+            // Accessing jobObject needs to be protected by m_queryJobDataLock.
+            // After we collected the child process ids, we might dispose the job object and the child process might be invalid.
+            // Acquiring the reader lock will prevent the job object from disposing. 
+            using (m_queryJobDataLock.AcquireReadLock())
+            {
+                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
+
+                if (jobObject == null)
+                {
+                    return EmptyWorkingSetResult.None;
+                }
+
+                EmptyWorkingSetResult result = EmptyWorkingSetResult.Success;
+
+                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, pid) =>
+                {
+                    if (isSuspend)
+                    {
+                        bool isSuspendFailed = false;
+                        try
+                        {
+                            isSuspendFailed = !Interop.Windows.Process.Suspend(System.Diagnostics.Process.GetProcessById((int)pid));
+                        }
+#pragma warning disable ERP022
+                    catch (Exception)
+                        {
+                            isSuspendFailed = true;
+                        }
+#pragma warning restore ERP022
+
+                    if (isSuspendFailed)
+                        {
+                        // If suspending the process fails, no need to continue going through the other processes.
+                        result |= EmptyWorkingSetResult.SuspendFailed;
+                        }
+                    }
+
+                    if (!Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle()))
+                    {
+                        result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
+                    }
+
+                    if (EngineEnvironmentSettings.SetMaxWorkingSetToMin)
+                    {
+                        if (!Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
+                                processHandle.DangerousGetHandle(),
+                                s_defaultMin, // the default on systems with 4k pages
+                                s_defaultMin,
+                                Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable))
+                        {
+                            result |= EmptyWorkingSetResult.SetMaxWorkingSetFailed;
+                        }
+                    }
+                });
+
+
+                return result;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryResumeProcess()
         {
             using (m_queryJobDataLock.AcquireReadLock())
             {
-                var detouredProcess = m_detouredProcess;
-                if (detouredProcess == null ||
-                    !detouredProcess.HasStarted ||
-                    detouredProcess.HasExited ||
-                    m_disposeStarted)
+                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
+
+                if (jobObject == null)
+                {
+                    return false;
+                }
+
+                bool anyFailure = false;
+
+                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, pid) =>
+                {
+                    ulong peakWorkingSet = 0;
+                    if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
+                    {
+                    // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
+                    // Those memory counters will be used when setting the maxworkingsetsize of the process.
+                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                        peakWorkingSet = memoryUsage?.PeakWorkingSetSize ?? 0;
+                    }
+
+                    if (peakWorkingSet != 0)
+                    {
+                        Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
+                            processHandle.DangerousGetHandle(),
+                            s_defaultMin, // the default on systems with 4k pages
+                            new UIntPtr(peakWorkingSet),
+                            Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable);
+                    }
+
+                    try
+                    {
+                        anyFailure |= !Interop.Windows.Process.Resume(System.Diagnostics.Process.GetProcessById((int)pid));
+                    }
+#pragma warning disable ERP022
+                catch (Exception)
+                    {
+                        anyFailure = true;
+                    }
+#pragma warning restore ERP022
+            });
+
+
+                return !anyFailure;
+            }
+        }
+
+        /// <inheritdoc />
+        public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
+        {
+            using (m_queryJobDataLock.AcquireReadLock())
+            {
+                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
+
+                if (jobObject == null)
                 {
                     return null;
                 }
 
-                return detouredProcess.GetJobObject()?.GetPeakMemoryUsage();
+                ulong lastPeakWorkingSet = 0;
+                ulong lastPeakCommitSize = 0;
+                ulong lastWorkingSet = 0;
+                ulong lastCommitSize = 0;
+                bool isCollectedData = false;
+
+                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, _) =>
+                {
+                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                    if (memoryUsage != null)
+                    {
+                        isCollectedData = true;
+                        lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
+                        lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
+                        lastWorkingSet += memoryUsage.WorkingSetSize;
+                        lastCommitSize += memoryUsage.PagefileUsage;
+                    }
+                });
+
+                if (isCollectedData)
+                {
+                    m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
+                    m_peakCommitSize.RegisterSample(lastPeakCommitSize);
+
+                    m_workingSet.RegisterSample(lastWorkingSet);
+                    m_commitSize.RegisterSample(lastCommitSize);
+                }
+
+                return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                    lastPeakWorkingSet,
+                    lastWorkingSet,
+                    Convert.ToUInt64(m_workingSet.Average),
+                    lastPeakCommitSize,
+                    lastCommitSize);
             }
+        }
+
+        private void VisitJobObjectProcesses(JobObject jobObject, uint[] childProcessIds, Action<SafeProcessHandle, uint> actionForProcess)
+        {
+            foreach (uint processId in childProcessIds)
+            {
+                using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
+                    ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION | ProcessSecurityAndAccessRights.PROCESS_SET_QUOTA,
+                    false,
+                    processId))
+                {
+                    if (processHandle.IsInvalid)
+                    {
+                        // we are too late: could not open process
+                        continue;
+                    }
+
+                    if (!jobObject.ContainsProcess(processHandle))
+                    {
+                        // we are too late: process id got reused by another process
+                        continue;
+                    }
+
+                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
+                    {
+                        // we are too late: process id got reused by another process
+                        continue;
+                    }
+
+                    actionForProcess(processHandle, processId);
+                }
+            }
+        }
+
+        private (JobObject, uint[]) GetJobObjectWithChildProcessIds()
+        {
+            var detouredProcess = m_detouredProcess;
+            if (detouredProcess == null ||
+                !detouredProcess.HasStarted ||
+                detouredProcess.HasExited ||
+                m_disposeStarted)
+            {
+                return (null, null);
+            }
+
+            var jobObject = detouredProcess.GetJobObject();
+            if (jobObject == null || !jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds) || childProcessIds.Length == 0)
+            {
+                return (null, null);
+            }
+
+            return (jobObject, childProcessIds);
         }
 
         /// <inheritdoc />
@@ -294,7 +503,6 @@ namespace BuildXL.Processes
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
                 SafeFileHandle reportHandle;
-
                 try
                 {
                     Pipes.CreateInheritablePipe(
@@ -315,7 +523,7 @@ namespace BuildXL.Processes
                     ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
                     if (m_fileAccessManifest != null)
                     {
-                        manifestBytes = m_fileAccessManifest.GetPayloadBytes(setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
+                        manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
                     }
 
                     if (!debugFlagsMatch)
@@ -337,7 +545,23 @@ namespace BuildXL.Processes
                     m_processStarted = true;
 
                     ProcessId = detouredProcess.GetProcessId();
-                    m_processIdListener?.Invoke(ProcessId);
+                }
+                catch (AccessViolationException)
+                {
+                    int ramPercent = 0, availableRamMb = 0, availablePageFileMb = 0, totalPageFileMb = 0;
+
+                    MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+                    if (GlobalMemoryStatusEx(memoryStatusEx))
+                    {
+                        ramPercent = (int)memoryStatusEx.dwMemoryLoad;
+                        availableRamMb = new FileSize(memoryStatusEx.ullAvailPhys).MB;
+                        availablePageFileMb = new FileSize(memoryStatusEx.ullAvailPageFile).MB;
+                        totalPageFileMb = new FileSize(memoryStatusEx.ullTotalPageFile).MB;
+                    }
+
+                    string memUsage = $"RamPercent: {ramPercent}, AvailableRamMb: {availableRamMb}, AvailablePageFileMb: {availablePageFileMb}, TotalPageFileMb: {totalPageFileMb}";
+                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, (m_reports?.PipDescription ?? "") + " - " + memUsage);
+                    throw;
                 }
                 finally
                 {
@@ -429,7 +653,7 @@ namespace BuildXL.Processes
                 {
                     // If there are any remaining child processes, we wait for a moment.
                     // This should be a rare case, and even if we have to wait it should typically only be for a fraction of a second, so we simply wait synchronously (blocking the current thread).
-                    if (!(await jobObject.WaitAsync(m_nestedProcessTerminationTimeout)))
+                    if (!(await jobObject.WaitAsync(m_loggingContext, m_nestedProcessTerminationTimeout)))
                     {
                         HandleSurvivingChildProcesses(jobObject);
                     }
@@ -454,7 +678,14 @@ namespace BuildXL.Processes
             JobObject jobObject = m_detouredProcess.GetJobObject();
             if (jobObject != null)
             {
-                jobAccountingInformation = jobObject.GetAccountingInformation();
+                var accountingInfo = jobObject.GetAccountingInformation();
+                accountingInfo.MemoryCounters = Pips.ProcessMemoryCounters.CreateFromBytes(
+                    peakWorkingSet: Convert.ToUInt64(m_peakWorkingSet.Maximum),
+                    averageWorkingSet: Convert.ToUInt64(m_workingSet.Average),
+                    peakCommitSize: Convert.ToUInt64(m_peakCommitSize.Maximum),
+                    averageCommitSize: Convert.ToUInt64(m_commitSize.Average));
+
+                jobAccountingInformation = accountingInfo;
             }
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();
@@ -512,9 +743,9 @@ namespace BuildXL.Processes
             SetResult(result);
         }
 
-        private static Dictionary<uint, ReportedProcess> GetSurvivingChildProcesses(JobObject jobObject)
+        private Dictionary<uint, ReportedProcess> GetSurvivingChildProcesses(JobObject jobObject)
         {
-            if (!jobObject.TryGetProcessIds(out uint[] survivingChildProcessIds) || survivingChildProcessIds.Length == 0)
+            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] survivingChildProcessIds) || survivingChildProcessIds.Length == 0)
             {
                 return null;
             }

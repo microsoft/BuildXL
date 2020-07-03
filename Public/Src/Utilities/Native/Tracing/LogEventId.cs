@@ -1,7 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System.Diagnostics.CodeAnalysis;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Native.Tracing
 {
@@ -46,6 +44,7 @@ namespace BuildXL.Native.Tracing
         StorageTryOpenFileByIdFailure = 722,
         StorageVolumeCollision = 723,
         StorageTryOpenOrCreateFileFailure = 724,
+        DetouredProcessAccessViolationException = 734,
 
         RetryOnFailureException = 744,
     }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading;
@@ -28,7 +28,6 @@ namespace BuildXL.Utilities.Tasks
         internal TaskSourceSlim(bool runContinuationsAsynchronously)
             : this()
         {
-#if NET461Plus
             TaskCreationOptions flags = runContinuationsAsynchronously
                 ? TaskCreationOptions.RunContinuationsAsynchronously
                 : TaskCreationOptions.None;
@@ -36,10 +35,6 @@ namespace BuildXL.Utilities.Tasks
             // When a task completion source is constructed with RunContinuationsAsynchronously flag,
             // then it makes no sense to SetResult from a separate thread.
             m_setResultAsynchonously = false;
-#else
-            m_tcs = new TaskCompletionSource<TResult>();
-            m_setResultAsynchonously = runContinuationsAsynchronously;
-#endif
         }
 
         /// <summary>
@@ -118,6 +113,32 @@ namespace BuildXL.Utilities.Tasks
                     else
                     {
                         @this.TrySetResult(task.Result);
+                    }
+                }
+            );
+        }
+
+        /// <summary>
+        /// Connects a task to this TaskSource
+        /// </summary>
+        public void LinkToTask<T, TData>(Task<T> task, TData data, Func<T, TData, TResult> getResult)
+        {
+            var @this = this;
+
+            task.ContinueWith(
+                (Task continuation) =>
+                {
+                    if (continuation.IsFaulted)
+                    {
+                        @this.TrySetException(task.Exception);
+                    }
+                    else if (continuation.IsCanceled)
+                    {
+                        @this.TrySetCanceled();
+                    }
+                    else
+                    {
+                        @this.TrySetResult(getResult(task.Result, data));
                     }
                 }
             );

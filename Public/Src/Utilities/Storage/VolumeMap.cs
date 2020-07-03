@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -25,16 +25,25 @@ namespace BuildXL.Storage
     {
         private readonly Dictionary<ulong, VolumeGuidPath> m_volumePathsBySerial = new Dictionary<ulong, VolumeGuidPath>();
         private readonly Dictionary<string, FileIdAndVolumeId> m_junctionRootFileIds = new Dictionary<string, FileIdAndVolumeId>();
+        private readonly Dictionary<string, FileIdAndVolumeId> m_gvfsProjections = new Dictionary<string, FileIdAndVolumeId>();
+
+        private readonly List<string> m_unchangedJunctionRoots = new List<string>();
+        private readonly List<string> m_changedGvfsProjections = new List<string>();
 
         /// <summary>
         /// Unchanged junction roots
         /// </summary>
-        public IReadOnlyList<string> UnchangedJunctionRoots = new List<string>();
+        public IReadOnlyList<string> UnchangedJunctionRoots => m_unchangedJunctionRoots;
 
         /// <summary>
-        /// Changed junction roots
+        /// All GVFS_projection files found in all readable mounts.
         /// </summary>
-        public IReadOnlyList<string> ChangedJunctionRoots = new List<string>();
+        public IReadOnlyCollection<string> GvfsProjections => m_gvfsProjections.Keys;
+
+        /// <summary>
+        /// Roots of GVFS repos whose file projections changed
+        /// </summary>
+        public IReadOnlyList<string> ChangedGvfsProjections => m_changedGvfsProjections;
 
         /// <summary>
         /// Hooks used by unit tests to skip tracking volumes that do not have journal capability.
@@ -50,7 +59,10 @@ namespace BuildXL.Storage
         /// a warning is logged and those volumes are excluded from the map. On failure, returns null.
         /// </summary>
         [ContractVerification(false)]
-        public static VolumeMap TryCreateMapOfAllLocalVolumes(LoggingContext loggingContext, IReadOnlyList<string> junctionRoots = null)
+        public static VolumeMap CreateMapOfAllLocalVolumes(
+            LoggingContext loggingContext,
+            IReadOnlyList<string> junctionRoots = null,
+            IReadOnlyList<string> gvfsProjectionFiles = null)
         {
             var map = new VolumeMap();
 
@@ -68,7 +80,7 @@ namespace BuildXL.Storage
                     {
                         // This could be an error. Instead, we optimistically create a partial map and hope that theese volumes are not relevant to the build.
                         // Some users have reported VHD-creation automation (concurrent with BuildXL) causing a collision.
-                        Tracing.Logger.Log.StorageVolumeCollision(loggingContext, volume.Item2, volume.Item1.Path, collidedGuidPath.Path);
+                        Logger.Log.StorageVolumeCollision(loggingContext, volume.Item2, volume.Item1.Path, collidedGuidPath.Path);
 
                         // Poison this entry so that we know it is unusable on lookup (ambiguous)
                         map.m_volumePathsBySerial[volume.Item2] = VolumeGuidPath.Invalid;
@@ -80,66 +92,72 @@ namespace BuildXL.Storage
                 }
             }
 
-            if (junctionRoots != null)
+            toDictionary(junctionRoots, map.m_junctionRootFileIds);
+            toDictionary(gvfsProjectionFiles, map.m_gvfsProjections);
+
+            return map;
+
+            void toDictionary(IEnumerable<string> paths, Dictionary<string, FileIdAndVolumeId> result)
             {
-                foreach (var pathStr in junctionRoots)
+                if (paths != null)
                 {
-                    FileIdAndVolumeId? id = TryGetFinalFileIdAndVolumeId(pathStr);
-                    if (id.HasValue)
+                    foreach (var pathStr in paths)
                     {
-                        map.m_junctionRootFileIds[pathStr] = id.Value;
+                        FileIdAndVolumeId? id = TryGetFinalFileIdAndVolumeId(pathStr);
+                        if (id.HasValue)
+                        {
+                            result[pathStr] = id.Value;
+                        }
                     }
                 }
             }
-
-            // No failure cases currently (but there used to be).
-            return map;
         }
 
         /// <summary>
         /// Gets all (volume serial, volume guid path) pairs in this map.
         /// </summary>
         public IEnumerable<KeyValuePair<ulong, VolumeGuidPath>> Volumes =>
-                // Exclude collision markers from enumeration of valid volumes.
-                m_volumePathsBySerial.Where(kvp => kvp.Value.IsValid);
+            // Exclude collision markers from enumeration of valid volumes.
+            m_volumePathsBySerial.Where(kvp => kvp.Value.IsValid);
 
         /// <summary>
         /// Validate junction roots
         /// </summary>
         public void ValidateJunctionRoots(LoggingContext loggingContext, VolumeMap previousMap)
         {
-            var changed = new List<string>();
-            var unchanged = new List<string>();
+            m_unchangedJunctionRoots.Clear();
+            m_changedGvfsProjections.Clear();
 
             foreach (var junction in m_junctionRootFileIds)
             {
                 string path = junction.Key;
-                FileIdAndVolumeId previousId;
-                JunctionRootValidationResult result;
-                if (previousMap.m_junctionRootFileIds.TryGetValue(junction.Key, out previousId))
-                {
-                    if (previousId == junction.Value)
-                    {
-                        unchanged.Add(path);
-                        result = JunctionRootValidationResult.Unchanged;
-                    }
-                    else
-                    {
-                        changed.Add(path);
-                        result = JunctionRootValidationResult.Changed;
-                    }
-                }
-                else
-                {
-                    changed.Add(path);
-                    result = JunctionRootValidationResult.NotFound;
-                }
-
+                var result = compareToPrevious(path, junction.Value, previousMap.m_junctionRootFileIds);
                 Logger.Log.ValidateJunctionRoot(loggingContext, path, result.ToString());
+                if (result == PathValidationResult.Unchanged)
+                {
+                    m_unchangedJunctionRoots.Add(path);
+                }
             }
 
-            ChangedJunctionRoots = changed;
-            UnchangedJunctionRoots = unchanged;
+            foreach (var gvfsProjection in m_gvfsProjections)
+            {
+                string gvfsProjectionFile = gvfsProjection.Key;
+                var result = compareToPrevious(gvfsProjectionFile, gvfsProjection.Value, previousMap.m_gvfsProjections);
+                Logger.Log.ValidateJunctionRoot(loggingContext, gvfsProjectionFile, result.ToString());
+                if (result != PathValidationResult.Unchanged)
+                {
+                    m_changedGvfsProjections.Add(gvfsProjectionFile);
+                }
+            }
+
+            PathValidationResult compareToPrevious(string path, FileIdAndVolumeId id, Dictionary<string, FileIdAndVolumeId> previousMap)
+            {
+                var previousFound = previousMap.TryGetValue(path, out var previousId);
+                return
+                    previousFound && previousId == id ? PathValidationResult.Unchanged :
+                    previousFound && previousId != id ? PathValidationResult.Changed :
+                    PathValidationResult.NewlyCreated;
+            }
         }
 
         /// <summary>
@@ -208,12 +226,8 @@ namespace BuildXL.Storage
                 }
             }
 
-            writer.WriteCompact(m_junctionRootFileIds.Count);
-            foreach (var junction in m_junctionRootFileIds)
-            {
-                writer.Write(junction.Key);
-                junction.Value.Serialize(writer);
-            }
+            WriteDictionary(writer, m_junctionRootFileIds);
+            WriteDictionary(writer, m_gvfsProjections);
         }
 
         /// <summary>
@@ -234,15 +248,31 @@ namespace BuildXL.Storage
                 volumeMap.m_volumePathsBySerial.Add(serialNumber, path);
             }
 
-            int numJunctionRoots = reader.ReadInt32Compact();
-            for (int i = 0; i < numJunctionRoots; ++i)
+            ReadDictionary(reader, volumeMap.m_junctionRootFileIds);
+            ReadDictionary(reader, volumeMap.m_gvfsProjections);
+
+            return volumeMap;
+        }
+
+        private static void WriteDictionary(BuildXLWriter writer, Dictionary<string, FileIdAndVolumeId> dict)
+        {
+            writer.WriteCompact(dict.Count);
+            foreach (var kvp in dict)
+            {
+                writer.Write(kvp.Key);
+                kvp.Value.Serialize(writer);
+            }
+        }
+
+        private static void ReadDictionary(BuildXLReader reader, Dictionary<string, FileIdAndVolumeId> dict)
+        {
+            int count = reader.ReadInt32Compact();
+            for (int i = 0; i < count; ++i)
             {
                 string path = reader.ReadString();
                 var id = FileIdAndVolumeId.Deserialize(reader);
-                volumeMap.m_junctionRootFileIds.Add(path, id);
+                dict.Add(path, id);
             }
-
-            return volumeMap;
         }
 
         private static FileIdAndVolumeId? TryGetFinalFileIdAndVolumeId(string path)
@@ -268,24 +298,24 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
-        /// Result of junction root validation.
+        /// Result of path validation.
         /// </summary>
-        private enum JunctionRootValidationResult
+        private enum PathValidationResult
         {
             /// <summary>
-            /// Junction root unchanged.
+            /// The path is unchanged, i.e., the corresponding file still has the same volume/file id.
             /// </summary>
             Unchanged,
 
             /// <summary>
-            /// Junction root changed.
+            /// The path has changed, i.e., the same path now corresponds to a file with a different volume/file id.
             /// </summary>
             Changed,
 
             /// <summary>
-            /// Junction root not found.
+            /// The path did not previously exist but it exists now.
             /// </summary>
-            NotFound
+            NewlyCreated
         }
     }
 

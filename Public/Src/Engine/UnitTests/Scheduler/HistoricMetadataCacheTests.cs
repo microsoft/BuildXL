@@ -1,28 +1,29 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
-using BuildXL.Scheduler;
-using BuildXL.Utilities;
-using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
-using Xunit.Abstractions;
+using System.IO;
 using System.Threading.Tasks;
-using BuildXL.Scheduler.Cache;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.Artifacts;
-using BuildXL.Pips;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints;
-using System.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
+using BuildXL.Scheduler.Cache;
+using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using System;
-using BuildXL.Storage;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -44,8 +45,8 @@ namespace Test.BuildXL.Scheduler
             {
                 CreateHistoricCache(loggingContext, hmcFolderName, out context, out cache, out var memoryArtifactCache);
 
-                var process1 = CreateDummyProcess(context, new PipId(1));
-                var process2 = CreateDummyProcess(context, new PipId(2));
+                var process1 = SchedulerTest.CreateDummyProcess(context, new PipId(1));
+                var process2 = SchedulerTest.CreateDummyProcess(context, new PipId(2));
 
                 var pathTable = context.PathTable;
 
@@ -77,7 +78,7 @@ namespace Test.BuildXL.Scheduler
                                             }
                     };
 
-                var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1);
+                var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1, preservePathCasing: false);
                 var storedMetadata1 = await cache.TryStoreMetadataAsync(metadata1);
 
                 var weakFingerprint1 = new WeakContentFingerprint(FingerprintUtilities.CreateRandom());
@@ -123,7 +124,7 @@ namespace Test.BuildXL.Scheduler
                                          }
                     };
 
-                var storedPathSet2 = await cache.TryStorePathSetAsync(pathSet2);
+                var storedPathSet2 = await cache.TryStorePathSetAsync(pathSet2, preservePathCasing: false);
                 var storedMetadata2 = await cache.TryStoreMetadataAsync(metadata2);
                 var cacheEntry2 = new CacheEntry(storedMetadata2.Result, nameof(HistoricMetadataCacheTests), ArrayView<ContentHash>.Empty);
 
@@ -210,42 +211,6 @@ namespace Test.BuildXL.Scheduler
                 new PathExpander(),
                 AbsolutePath.Create(context.PathTable, Path.Combine(TemporaryDirectory, locationName)),
                 loadTask);
-        }
-
-        private static Process CreateDummyProcess(PipExecutionContext context, PipId pipId)
-        {
-            var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, X("/X/exe")));
-            List<FileArtifact> dependencies = new List<FileArtifact> { exe };
-
-            var p = new Process(
-                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
-                executable: exe,
-                workingDirectory: AbsolutePath.Create(context.PathTable, X("/X")),
-                arguments: new PipDataBuilder(context.StringTable).ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
-                responseFile: FileArtifact.Invalid,
-                responseFileData: PipData.Invalid,
-                environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
-                standardInput: FileArtifact.Invalid,
-                standardOutput: FileArtifact.Invalid,
-                standardError: FileArtifact.Invalid,
-                standardDirectory: AbsolutePath.Create(context.PathTable, X("/X/std")),
-                warningTimeout: null,
-                timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.From(dependencies),
-                outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                orderDependencies: ReadOnlyArray<PipId>.Empty,
-                untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
-                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
-                tags: ReadOnlyArray<StringId>.Empty,
-                successExitCodes: ReadOnlyArray<int>.Empty,
-                semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
-                provenance: PipProvenance.CreateDummy(context),
-                toolDescription: StringId.Invalid,
-                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty)
-            { PipId = pipId };
-
-            return p;
         }
 
         private static void AssertPathSetEquals(PathTable pathTable1, ObservedPathSet pathSet1, PathTable pathTable2, ObservedPathSet pathSet2)

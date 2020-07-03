@@ -1,8 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -10,10 +9,9 @@ namespace BuildXL.Cache.Host.Configuration
     public class LocalCasClientSettings
     {
         public const uint DefaultConnectionsPerSession = 4;
-        public const uint DefaultRetryIntervalSecondsOnFailServiceCalls = 5;
+        public const uint DefaultRetryIntervalSecondsOnFailServiceCalls = 10;
         public const uint DefaultRetryCountOnFailServiceCalls = 12;
 
-        [JsonConstructor]
         public LocalCasClientSettings()
         {
         }

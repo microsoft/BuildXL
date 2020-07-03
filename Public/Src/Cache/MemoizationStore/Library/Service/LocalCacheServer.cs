@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Linq;
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// </summary>
     public class LocalCacheServer : LocalContentServerBase<ICache, ICacheSession>
     {
-        private readonly GrpcCacheServer _grcpCacheServer;
+        private readonly GrpcCacheServer _grpcCacheServer;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
@@ -54,11 +54,11 @@ namespace BuildXL.Cache.MemoizationStore.Service
                     nameof(cacheFactory));
             });
 
-            _grcpCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore);
+            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration);
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => _grcpCacheServer.Bind();
+        protected override ServerServiceDefinition[] BindServices() => _grpcCacheServer.Bind();
 
         /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(ICache store, OperationContext context) => store.GetStatsAsync(context);
@@ -69,7 +69,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await _grcpCacheServer.StartupAsync(context).ThrowIfFailure();
+            await _grpcCacheServer.StartupAsync(context).ThrowIfFailure();
 
             return await base.StartupCoreAsync(context);
         }
@@ -77,9 +77,12 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            // Tracing content server statistics at shutdown, because currently no one calls GetStats on this instance.
+            Tracer.TraceStatisticsAtShutdown(context, _grpcCacheServer.Counters.ToCounterSet(), prefix: "GrpcContentServer");
+
             var result = await base.ShutdownCoreAsync(context);
 
-            result &= await _grcpCacheServer.ShutdownAsync(context);
+            result &= await _grpcCacheServer.ShutdownAsync(context);
 
             return result;
         }

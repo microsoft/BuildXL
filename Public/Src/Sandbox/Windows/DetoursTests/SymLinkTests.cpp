@@ -293,6 +293,33 @@ int CallDetouredCopyFileNotFollowingChainOfSymlinks()
     return (int)GetLastError();
 }
 
+int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
+{
+    if (!TestCreateSymbolicLinkW(L"LinkToDestination.link", L"Destination.txt", 0))
+    {
+        return (int)GetLastError();
+    }
+
+    CopyFileExW(
+        L"LinkToSource.link",
+        L"LinkToDestination.link",
+        (LPPROGRESS_ROUTINE)NULL,
+        (LPVOID)NULL,
+        (LPBOOL)NULL,
+        copySymlink ? COPY_FILE_COPY_SYMLINK : (DWORD)0x0);
+
+    return (int)GetLastError();
+}
+int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(false);
+}
+
+int CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(true);
+}
+
 int CallAccessNestedSiblingSymLinkOnFiles()
 {
     HANDLE hFile = CreateFileW(
@@ -500,4 +527,50 @@ int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag()
 int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
 {
     return CallDetouredCreateFileWForSymlinkProbeOnly(false);
+}
+
+int CallProbeDirectorySymlink()
+{
+    DWORD attributes = GetFileAttributesW(L"directory.lnk");
+    if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+    {
+        return -1;
+    }
+
+    return (int)GetLastError();
+}
+
+int CallProbeDirectorySymlinkTarget(bool withReparsePointFlag)
+{
+    DWORD flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    flagsAndAttributes = withReparsePointFlag
+        ? flagsAndAttributes | FILE_FLAG_OPEN_REPARSE_POINT
+        : flagsAndAttributes;
+
+    HANDLE hFile = CreateFileW(
+        L"directory.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) 
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+    return (int)GetLastError();
+}
+
+int CallProbeDirectorySymlinkTargetWithReparsePointFlag()
+{
+    return CallProbeDirectorySymlinkTarget(true);
+}
+
+int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag()
+{
+    return CallProbeDirectorySymlinkTarget(false);
 }

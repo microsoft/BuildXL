@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -29,7 +29,7 @@ namespace BuildXL.Scheduler.Tracing
     /// Tracks operations associated with pip execution
     ///
     /// At a high level, operations start from a root operation (via <see cref="OperationContext"/>
-    /// returned by <see cref="StartOperation(OperationKind, PipId, PipType, LoggingContext, Action{OperationKind,TimeSpan})"/>). An operation may start be started from the context
+    /// returned by StartOperation). An operation may start be started from the context
     /// either as a nested operation or a new operation thread. Nested operations are awaited by the current
     /// <see cref="OperationThread.ActiveOperation"/> and become the new <see cref="OperationThread.ActiveOperation"/>
     /// for the duration of their scope. A new operation thread represents an operation
@@ -44,6 +44,12 @@ namespace BuildXL.Scheduler.Tracing
         /// Enables tracing of operations
         /// </summary>
         private static bool s_enableDebugTracing = Environment.GetEnvironmentVariable("BuildXLTraceOperation") == "1";
+
+        /// <summary>
+        /// LoggingCOntext to use when debugging the operation tracker. 
+        /// Okay to have a separate one since this should never go to telemetry anyway.
+        /// </summary>
+        public static LoggingContext s_debugTracingLoggingContext = new LoggingContext("BuildXLTraceOperationDebugging");
 
         /// <summary>
         /// The minimum amount of time for an operation to run before reporting as a max operation
@@ -224,7 +230,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 m_lastCounterFileWriteTime = m_stopwatch.Elapsed;
 
-                var performanceStatsJsonPath = loggingConfiguration.StatsLog.ToString(context.PathTable) + "prf.json";
+                var performanceStatsJsonPath = loggingConfiguration.StatsPrfLog.ToString(context.PathTable);
 
                 try
                 {
@@ -294,7 +300,7 @@ namespace BuildXL.Scheduler.Tracing
                                 string line;
                                 while ((line = reader.ReadLine()) != null)
                                 {
-                                    m_etwOnlyTextLogger.TextLogEtwOnly((int)EventId.StatsPerformanceLog,
+                                    m_etwOnlyTextLogger.TextLogEtwOnly((int)LogEventId.StatsPerformanceLog,
                                          refreshInterval == null ? "Performance" : "IncrementalPerformance", line);
                                 }
                             }
@@ -1069,13 +1075,13 @@ namespace BuildXL.Scheduler.Tracing
 
                             if (builder.Length > 200000)
                             {
-                                Events.Log.ErrorEvent(builder.ToString());
+                                Logger.Log.OperationTrackerAssert(s_debugTracingLoggingContext, builder.ToString());
                                 builder.Clear();
                             }
                         }
                     }
 
-                    Events.Log.ErrorEvent(builder.ToString());
+                    Logger.Log.OperationTrackerAssert(s_debugTracingLoggingContext, builder.ToString());
                     builder.Clear();
 
                     message = message ?? string.Empty;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -81,6 +81,13 @@ namespace BuildXL.FrontEnd.Script.Util
         public static bool IsString(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(string).TypeHandle);
+        }
+
+        /// <nodoc />
+        [Pure]
+        public static bool IsFullSymbol(this RuntimeTypeHandle type)
+        {
+            return type.Equals(typeof(FullSymbol).TypeHandle);
         }
 
         /// <nodoc />

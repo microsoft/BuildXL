@@ -20,7 +20,9 @@ struct BondFingerprint
 
 enum BondReparsePointType {
     None,
-    SymLink,
+    FileSymlink,
+    DirectorySymlink,
+    UnixSymlink,
     MountPoint,
     NonActionable
 }
@@ -267,6 +269,16 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     13: string WeakFingerprint;
     14: string StrongFingerprint;
     15: int64 SemiStableHash;
+
+    /// <summary>
+    /// Session Id of the build who creates this metadata
+    /// </summary>
+    16: string SessionId;
+
+    /// <summary>
+    /// Related session Id of the build who creates this metadata
+    /// </summary>
+    17: string RelatedSessionId;
 };
 
 /// <summary>

@@ -82,7 +82,7 @@ function print_header {
 source "$MY_DIR/env.sh"
 
 readonly bxlOutDir="$MY_DIR/out"
-readonly bxlObjDir="$bxlOutDir/objects"
+readonly bxlObjDir="$bxlOutDir/objects.noindex"
 readonly bxlLogDir="$bxlOutDir/logs"
 readonly bxlLogFile="$bxlLogDir/BuildXL.log"
 
@@ -93,37 +93,13 @@ if [[ ! -f $unusedFilePath ]]; then
 fi
 
 # start with clean Out dir
-rm -rf "$bxlOutDir"
+ls -1 "$bxlOutDir" | grep -v -i casaas | xargs rm -rf 
 
 # 1st run
 print_header "1st run: clean build"
 run_build_and_check_stuff $GRAPH_NOT_RELOADED $NOT_FULLY_CACHED
 if [[ $? != 0 ]]; then
     print_error "1st build failed"
-    exit 1
-fi
-
-# Check that scrubbing deletes symlinks within shared opaque directories
-print_header "Run with /phase:Schedule and check that symlinks are deleted"
-run_build /phase:Schedule
-declare producedSymlinkFileName="module.config.dsc"
-declare scrubbedSymlinkFile=$(grep -o "Scrubber deletes file '.*/$producedSymlinkFileName'" $bxlLogFile | grep -o "'.*'")
-if [[ -z $scrubbedSymlinkFile ]]; then
-    print_error "Expected produced symlink to $producedSymlinkFileName to have been deleted"
-    exit 1
-fi
-
-print_info "Symlink was scrubbed: $scrubbedSymlinkFile"
-
-if [[ -f $scrubbedSymlinkFile ]]; then
-    print_error "File '$scrubbedSymlinkFile' exists on disk"
-    exit 1
-fi
-
-declare foundSymlinkFiles=$(find $bxlOutDir -type f -name $producedSymlinkFileName)
-if [[ -n $foundSymlinkFiles ]]; then
-    print_error "File '$producedSymlinkFileName' found in object folder:"
-    echo $foundSymlinkFiles
     exit 1
 fi
 
@@ -149,9 +125,38 @@ fi
 echo
 print_header "3rd run: fully cached and graph reloaded (because nothing changed since last run)."
 run_build_and_check_stuff $GRAPH_RELOADED $FULLY_CACHED
-if [[ $status != 0 ]]; then
-    print_error "3nd build failed"
+if [[ $? != 0 ]]; then
+    print_error "3rd build failed"
     exit 2
 fi
 
 echo "${tputBold}${tputGreen}Build Validation Succeeded${tputReset}"
+
+# 4th run: check that eager scrubbing deletes symlinks within shared opaque directories
+echo
+print_header "4th run: and check that symlinks are eagerly deleted when running with /exp:LazySODeletion- /phase:Schedule"
+run_build /phase:Schedule /exp:LazySODeletion-
+if [[ $? != 0 ]]; then
+    print_error "4th build failed"
+    exit 2
+fi
+declare producedSymlinkFileName="module.config.dsc"
+declare scrubbedSymlinkFile=$(grep -o "Scrubber deletes file '.*/$producedSymlinkFileName'" $bxlLogFile | grep -o "'.*'")
+if [[ -z $scrubbedSymlinkFile ]]; then
+    print_error "Expected produced symlink to $producedSymlinkFileName to have been deleted"
+    exit 1
+fi
+
+print_info "Symlink was scrubbed: $scrubbedSymlinkFile"
+
+if [[ -f $scrubbedSymlinkFile ]]; then
+    print_error "File '$scrubbedSymlinkFile' exists on disk"
+    exit 1
+fi
+
+declare foundSymlinkFiles=$(find $bxlOutDir -type f -name $producedSymlinkFileName)
+if [[ -n $foundSymlinkFiles ]]; then
+    print_error "File '$producedSymlinkFileName' found in object folder:"
+    echo $foundSymlinkFiles
+    exit 1
+fi

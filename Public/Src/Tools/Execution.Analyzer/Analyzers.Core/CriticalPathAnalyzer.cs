@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,8 +7,7 @@ using System.Globalization;
 using System.IO;
 using BuildXL.Execution.Analyzer.Model;
 using BuildXL.Pips;
-using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -106,11 +105,11 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             Console.WriteLine("Starting analysis");
-            HashSet<NodeId> sourceNodes = new HashSet<NodeId>(CachedGraph.DataflowGraph.GetSourceNodes());
+            HashSet<NodeId> sourceNodes = new HashSet<NodeId>(CachedGraph.DirectedGraph.GetSourceNodes());
             NodeAndCriticalPath[] criticalPaths = new NodeAndCriticalPath[sourceNodes.Count];
 
             Console.WriteLine("Computing critical paths");
-            VisitationTracker visitedNodes = new VisitationTracker(CachedGraph.DataflowGraph);
+            VisitationTracker visitedNodes = new VisitationTracker(CachedGraph.DirectedGraph);
             int i = 0;
             foreach (var sourceNode in sourceNodes)
             {
@@ -191,7 +190,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             NodeAndCriticalPath maxDependencyCriticalPath = default(NodeAndCriticalPath);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 var dependencyCriticalPath = ComputeCriticalPath(dependency.OtherNode, visitedNodes);
                 if (dependencyCriticalPath.Time > maxDependencyCriticalPath.Time)
@@ -240,7 +239,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc />
         public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
         {
-            if (data.Step.IncludeInRunningTime())
+            if (data.IncludeInRunningTime)
             {
                 var times = m_elapsedTimes[data.PipId.Value];
                 times.WallClockTime = data.Duration > times.WallClockTime ? data.Duration : times.WallClockTime;

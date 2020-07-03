@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/Public/Src/Sandbox/Linux",
+                "${workspaceFolder}/Public/Src/Sandbox/MacOs/Interop/Sandbox/Data",
+                "${workspaceFolder}/Public/Src/Sandbox/MacOs/Sandbox/Src",
+                "${workspaceFolder}/Public/Src/Sandbox/MacOs/Sandbox/Src/FileAccessManifest",
+                "${workspaceFolder}/Public/Src/Sandbox/Windows/DetoursServices",
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

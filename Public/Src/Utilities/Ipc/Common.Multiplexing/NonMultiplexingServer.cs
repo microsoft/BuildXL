@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -22,6 +22,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
     {
         private readonly IConnectivityProvider<TClient> m_connectivityProvider;
         private readonly GenericServer<TClient> m_clientListener;
+        private static int s_requestIdCounter = 0;
 
         /// <summary>Arbitrary name only for descriptive purposes.</summary>
         public string Name { get; }
@@ -51,7 +52,8 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 using (client)
                 using (var bundle = m_connectivityProvider.GetStreamForClient(client))
                 {
-                    await Utils.ReceiveOperationAndExecuteLocallyAsync(bundle, executor, CancellationToken.None);
+                    int id = Interlocked.Increment(ref s_requestIdCounter);
+                    await Utils.ReceiveOperationAndExecuteLocallyAsync(id, bundle, executor, CancellationToken.None);
                 }
             });
         }

@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
@@ -43,46 +42,43 @@ namespace ContentStoreTest.Distributed.Sessions
             _redis = redis;
         }
 
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
         {
             var rootPath = testDirectory.Path / "Root";
-            var tempPath = testDirectory.Path / "Temp";
             var configurationModel = new ConfigurationModel(configuration);
-            var fileCopier = new TestFileCopier();
 
-            var localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-            var localMachineDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+            var primaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+            var secondaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
 
             var localMachineLocation = new MachineLocation(rootPath.Path);
-            var storeFactory = new MockRedisContentLocationStoreFactory(localDatabase, localMachineDatabase, rootPath);
+            var storeFactory = new MockContentLocationStoreFactory(primaryDatabase, secondaryDatabase, rootPath);
+
+            var settings = CreateSettings();
 
             return new DistributedContentStore<AbsolutePath>(
-                localMachineLocation.Data,
-                (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
+                localMachineLocation,
+                rootPath,
+                (contentStoreSettings, distributedStore) =>
                     new FileSystemContentStore(
                         FileSystem,
                         SystemClock.Instance,
                         rootPath,
                         configurationModel,
-                        nagleQueue: nagleBlock,
-                        distributedEvictionSettings: distributedEvictionSettings,
                         settings: contentStoreSettings,
-                        trimBulkAsync: trimBulkAsync),
+                        distributedStore: distributedStore),
                 storeFactory,
-                fileCopier,
-                fileCopier,
-                storeFactory.PathTransformer,
-                copyRequester: null,
-                ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist,
-                tempPath,
-                FileSystem,
-                RedisContentLocationStoreConstants.DefaultBatchSize,
-                settings: new DistributedContentStoreSettings
-                {
-                    RetryIntervalForCopies = DefaultRetryIntervalsForTest
-                },
-                setPostInitializationCompletionAfterStartup: true);
+                settings: settings,
+                distributedCopier: storeFactory.GetCopier());
+        }
+
+        protected virtual DistributedContentStoreSettings CreateSettings()
+        {
+            return new DistributedContentStoreSettings
+            {
+                LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
+                RetryIntervalForCopies = DefaultRetryIntervalsForTest,
+                SetPostInitializationCompletionAfterStartup = true
+            };
         }
     }
 }

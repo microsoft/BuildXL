@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Qualifier;
 
@@ -26,7 +27,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The loaded directed graph
         /// </summary>
-        public DirectedGraph DataflowGraph => PipGraph.DataflowGraph;
+        public IReadonlyDirectedGraph DirectedGraph => PipGraph.DirectedGraph;
 
         /// <summary>
         /// The loaded pip table
@@ -84,7 +85,9 @@ namespace BuildXL.Scheduler.Tracing
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public Pip GetPip(PipId pipId)
         {
-            return PipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer);
+            return pipId.IsValid
+                ? PipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer)
+                : null;
         }
 
         /// <summary>
@@ -93,7 +96,9 @@ namespace BuildXL.Scheduler.Tracing
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public Pip GetPip(NodeId nodeId)
         {
-            return PipTable.HydratePip(nodeId.ToPipId(), PipQueryContext.ViewerAnalyzer);
+            return nodeId.IsValid
+                ? PipTable.HydratePip(nodeId.ToPipId(), PipQueryContext.ViewerAnalyzer)
+                : null;
         }
 
         /// <summary>

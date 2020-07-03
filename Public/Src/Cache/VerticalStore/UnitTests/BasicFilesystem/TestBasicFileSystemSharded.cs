@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -61,7 +61,8 @@ namespace BuildXL.Cache.Tests
         {
             string cacheDir = GenerateCacheFolderPath("C");
 
-            using (StreamWriter writer = new StreamWriter(Path.Combine(cacheDir, "SHARDS")))
+            string shardsFile = Path.Combine(cacheDir, BuildXL.Cache.BasicFilesystem.BasicFilesystemCache.SHARDS_FILE_NAME);
+            using (StreamWriter writer = new StreamWriter(shardsFile))
             {
                 writer.Write(m_shardFileSource(cacheDir));
             }

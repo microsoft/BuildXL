@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
@@ -31,7 +31,7 @@ namespace BuildXL.Processes
     public static class SandboxedProcessFileExtenstions
     {
         /// <summary>
-        /// The default file name
+        /// Gets the default file name for stdout or stderr redirection.
         /// </summary>
         /// <param name="file">The output stream</param>
         /// <returns>The resulting default file name</returns>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Native.Processes;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -352,6 +353,28 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // The auto-response option should be always off
             Assert.Contains(argument, arguments);
+        }
+
+        [Fact]
+        public void SharedCompilationIsTurnedOnWhenAvailable()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            // We need to explicitly turn on shared compilation because for tests it is off by default
+            var testProj = Start(new MsBuildResolverSettings { UseLegacyProjectIsolation = true, UseManagedSharedCompilation = true })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // - not turn off shared compilation, 
+            // - let VBCSCompiler escape the sandbox
+            // - attach the VBCSCompiler logger to compensate for missing accesses
+            Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
+            Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
+            Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
         }
     }
 }

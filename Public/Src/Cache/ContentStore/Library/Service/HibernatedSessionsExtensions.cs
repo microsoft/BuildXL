@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             var jsonPath = rootPath / FileName;
 
-            using (var stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
             {
                 return stream.DeserializeFromJSON<HibernatedSessions>();
             }

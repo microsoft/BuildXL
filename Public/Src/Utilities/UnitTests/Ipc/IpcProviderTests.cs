@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Ipc.MultiplexingSocketBasedIpc;
 using BuildXL.Ipc.SocketBasedIpc;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -237,7 +240,7 @@ namespace Test.BuildXL.Ipc
 
         /// <summary>
         ///     When execution fails, asynchronous operations still succeed, while synchronous
-        ///     fail with <see cref="IIpcResult.Status.ExecutionError"/>.
+        ///     fail with <see cref="IpcResultStatus.ExecutionError"/>.
         /// </summary>
         [Theory]
         [MemberData(nameof(ProvidersData))]
@@ -267,6 +270,49 @@ namespace Test.BuildXL.Ipc
                         client.Completion.GetAwaiter().GetResult();
                     }
                 });
+        }
+
+        /// <summary>
+        ///     When connection fails, <see cref="IClient.Send(IIpcOperation)"> should fail with <see cref="IpcResultStatus.ConnectionError"/>.
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(ProvidersData))]
+        public async Task TestWithConnectionErrorAsync(IIpcProvider provider)
+        {
+            var testName = nameof(TestWithConnectionErrorAsync);
+            var connectionString = provider.CreateNewConnectionString();
+            var config = new ClientConfig()
+            {
+                Logger = VerboseLogger(testName),
+                MaxConnectRetries = 2,
+                ConnectRetryDelay = TimeSpan.FromMilliseconds(1)
+            };
+            using var client = provider.GetClient(connectionString, config);
+            var syncOpResult = await client.Send(new IpcOperation("sync hi", waitForServerAck: true));
+            var asyncOpResult = await client.Send(new IpcOperation("async hi", waitForServerAck: false));
+
+            // operations should fail because no server was started
+            XAssert.AreEqual(IpcResultStatus.ConnectionError, syncOpResult.ExitCode);
+            XAssert.AreEqual(IpcResultStatus.ConnectionError, asyncOpResult.ExitCode);
+            XAssert.IsFalse(syncOpResult.Succeeded);
+            XAssert.IsFalse(asyncOpResult.Succeeded);
+        }
+
+        [Theory]
+        [MemberData(nameof(ProvidersData))]
+        public void TestLoadOrCreteMoniker(IIpcProvider provider)
+        {
+            var monikerId = "some arbitrary string";
+            var moniker = provider.LoadOrCreateMoniker(monikerId);
+            XAssert.AreEqual(monikerId, moniker.Id);
+            var monikerClone = provider.LoadOrCreateMoniker(monikerId);
+            XAssert.AreEqual(moniker, monikerClone);
+            XAssert.AreEqual(moniker.GetHashCode(), monikerClone.GetHashCode());
+
+            var differentMoniker = provider.CreateNewMoniker();
+            XAssert.AreNotEqual(moniker, differentMoniker);
+            XAssert.AreNotEqual(moniker.GetHashCode(), differentMoniker.GetHashCode());
+
         }
 
         public static IEnumerable<object[]> ProvidersData()

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -28,7 +28,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool CheckpointAvailable => !string.IsNullOrEmpty(CheckpointId);
 
         /// <nodoc />
-        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime)
+        public MachineLocation Producer { get; }
+
+        /// <nodoc />
+        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime, MachineLocation producer)
         {
             Contract.Requires(!string.IsNullOrEmpty(checkpointId));
 
@@ -36,6 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             StartSequencePoint = startSequencePoint;
             CheckpointId = checkpointId;
             CheckpointTime = checkpointTime;
+            Producer = producer;
         }
 
         /// <nodoc />
@@ -55,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc />
         public override string ToString()
         {
-            return CheckpointAvailable ? CheckpointId : "Unavailable";
+            return CheckpointAvailable ? $"Id={CheckpointId}, Time={CheckpointTime}, StartSeqPt={StartSequencePoint}" : "Unavailable";
 
         }
     }

@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using BuildXL.Pips;
-using BuildXL.Scheduler.Filter;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -129,7 +129,7 @@ namespace BuildXL.Execution.Analyzer
             var outputs = PipGraph.FilterOutputs(rootFilter);
             var pips = new List<PipId>();
 
-            if (PipGraph.FilterNodesToBuild(Events.StaticContext, rootFilter, out var nodes))
+            if (PipGraph.FilterNodesToBuild(LoggingContext, rootFilter, out var nodes))
             {
                 foreach (var node in nodes)
                 {

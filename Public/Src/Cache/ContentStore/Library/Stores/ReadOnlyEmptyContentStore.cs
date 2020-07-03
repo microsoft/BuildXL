@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
 
         /// <inheritdoc />
-        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash) => Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"{nameof(ReadOnlyEmptyContentStore)} cannot contain any content to delete"));
+        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) => Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"{nameof(ReadOnlyEmptyContentStore)} cannot contain any content to delete"));
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }

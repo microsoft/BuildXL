@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -223,7 +223,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int BitCount(byte[] data, int offset = 0)
         {
-            Contract.Requires(data != null);
+            Contract.RequiresNotNull(data);
             Contract.Requires(offset <= data.Length);
 
             int result = 0;

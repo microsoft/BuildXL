@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -186,6 +186,10 @@ namespace BuildXL
             #region Logging
 
             hw.WriteOption(
+                "/maxNumPipTelemetryBatches:<int>",
+                Strings.HelpText_DisplayHelp_MaxNumPipTelemetryBatches);
+            
+            hw.WriteOption(
                 "/logsDirectory:<path>",
                 Strings.HelpText_DisplayHelp_LogsDirectory);
 
@@ -342,6 +346,11 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
             hw.WriteOption(
+                "/trackGvfsProjections[+-]",
+                Strings.HelpText_DisplayHelp_TrackGvfsProjections,
+                HelpLevel.Verbose
+                );
+            hw.WriteOption(
                 "/trackMethodInvocations[+|-]",
                 string.Format(
                     CultureInfo.InvariantCulture,
@@ -356,6 +365,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/cacheMiss[+|-|<path>|{<changeset list}]",
                 Strings.HelpText_DisplayHelp_CacheMiss,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/cacheMissDiffFormat:[format]",
+                Strings.HelpText_DisplayHelp_CacheMissDiffFormat,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -430,11 +444,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/cacheMemoryUsage[+|-]",
-                Strings.HelpText_DisplayHelp_CacheMemoryUsage,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/compressGraphFiles[+|-]",
                 Strings.HelpText_DisplayHelp_CompressGraphFiles,
                 HelpLevel.Verbose);
@@ -499,6 +508,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/pathSetAugmentationMonitoring",
+                Strings.HelpText_DisplayHelp_PathSetAugmentationMonitoring,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/vfsCasRoot<vfs cas root directory>",
                 Strings.HelpText_DisplayHelp_VfsCasRoot,
                 HelpLevel.Verbose);
@@ -513,6 +527,10 @@ namespace BuildXL
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ExecutionControlBanner);
 
             #region ExecutionControl
+            hw.WriteOption(
+                "/unsafe_AllowDuplicateTemporaryDirectory[+|-]",
+                Strings.HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory);
+
             hw.WriteOption(
                 "/incremental[+|-]",
                 Strings.HelpText_DisplayHelp_Incremental);
@@ -596,6 +614,16 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_LowPriority);
 
             hw.WriteOption(
+                "/enableHistoricCommitMemoryProjection[+|-]",
+                Strings.HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection,
+                HelpLevel.Verbose);
+            
+            hw.WriteOption(
+                "/maxCommitUtilizationPercentage:<number>",
+                Strings.HelpText_DisplayHelp_MaxCommitUtilizationPercentage,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/maxRamUtilizationPercentage:<number>",
                 Strings.HelpText_DisplayHelp_MaxRamUtilizationPercentage,
                 HelpLevel.Verbose);
@@ -603,6 +631,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/minAvailableRamMb:<number>",
                 Strings.HelpText_DisplayHelp_MinAvailableRam,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/manageMemoryMode:<memory mode>",
+                Strings.HelpText_DisplayHelp_ManageMemoryMode,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -636,6 +669,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/cleanOnly[+|-]",
                 Strings.HelpText_DisplayHelp_CleanOnly,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/cacheOnly[+|-]",
+                Strings.HelpText_DisplayHelp_CacheOnly,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -771,6 +809,11 @@ namespace BuildXL
                 "/adminRequiredProcessExecutionMode:<mode>",
                 Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/vmConcurrencyLimit:<max number of processes executed in VM>",
+                Strings.HelpText_DisplayHelp_VmConcurrencyLimit,
+                HelpLevel.Verbose);
             #endregion
 
             hw.WriteBanner(
@@ -876,12 +919,17 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/unsafe_IgnoreFullSymlinkResolving[+|-]",
+                Strings.HelpText_DisplayHelp_IgnoreFullSymlinkResolving,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/unsafe_IgnorePreloadedDlls[+|-]",
                 Strings.HelpText_DisplayHelp_IgnorePreloadedDlls,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-]",
+                "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-|:IgnoreNothing|:IgnoreDirectoryProbes|:IgnoreFileProbes|:IgnoreAll]",
                 Strings.HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes,
                 HelpLevel.Verbose);
 
@@ -1090,9 +1138,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_SnapshotMode,
                 HelpLevel.Verbose);
 
+            /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
             hw.WriteOption(
                 "/viewer:<mode>",
-                Strings.HelpText_DisplayHelp_ViewerOptions);
+                Strings.HelpText_DisplayHelp_ViewerOptions);*/
 
             hw.WriteOption(
                 "/relatedActivityId:<guid>",
@@ -1114,32 +1163,12 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/symlinkDefinitionFile:<file>",
-                Strings.HelpText_DisplayHelp_SymlinkDefinitionFile);
-
-            hw.WriteOption(
                 "/inputChanges:<file>",
                 Strings.HelpText_DisplayHelp_InputChanges);
 
             hw.WriteOption(
                 "/telemetryTagPrefix:<string>",
                 Strings.HelpText_DisplayHelp_TelemetryTagPrefix);
-
-            hw.WriteOption(
-                "/populateSymlinkDirectory:<file>",
-                Strings.HelpText_DisplayHelp_PopulateSymlinkDirectory);
-
-            hw.WriteOption(
-                "/unsafe_LazySymlinkCreation[+|-]",
-                Strings.HelpText_DisplayHelp_LazySymlinkCreation);
-
-            hw.WriteOption(
-                "/unsafe_LazySymlinkCreation[+|-]",
-                Strings.HelpText_DisplayHelp_LazySymlinkCreation);
-
-            hw.WriteOption(
-                "/unexpectedSymlinkAccessReportingMode:<mode>",
-                Strings.HelpText_DisplayHelp_UnexpectedSymlinkAccessReportingMode);
 
             hw.WriteOption(
                 "/unsafe_DisableGraphPostValidation[+|-]",
@@ -1152,6 +1181,12 @@ namespace BuildXL
             hw.WriteOption(
                 "/posixDeleteMode:[NoRun|RunFirst|RunLast]",
                 Strings.HelpText_DisplayHelp_PosixDeleteMode);
+
+            hw.WriteOption("/minimumDiskSpaceForPipsGb:<int representing disk space in Gigabyte>",
+                Strings.HelpText_DisplayHelp_DiskSpaceForPip);
+
+            hw.WriteOption("/numRetryFailedPipsOnAnotherWorker:<int>",
+               Strings.HelpText_DisplayHelp_NumberofFailedPipRetry);
 
             #endregion
 

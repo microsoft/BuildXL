@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -98,6 +98,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
+        private SymbolAtom m_uncancellable;
+        private SymbolAtom m_outputDirectoryExclusions;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
         private SymbolAtom m_executeEnableMultiLineErrorScanning;
@@ -165,10 +167,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeHasUntrackedChildProcesses;
         private SymbolAtom m_unsafeAllowPreservedOutputs;
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
-        private SymbolAtom m_unsafePreserveOutputWhitelist;
+        private SymbolAtom m_unsafePreserveOutputAllowlist;
         private SymbolAtom m_unsafeIncrementalTool;
         private SymbolAtom m_unsafeRequireGlobalDependencies;
-
+        private SymbolAtom m_unsafeChildProcessesToBreakawayFromSandbox;
+        private SymbolAtom m_unsafeTrustStaticallyDeclaredAccesses;
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
         private SymbolAtom m_semaphoreInfoIncrementBy;
@@ -238,6 +241,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
             m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
+            m_uncancellable = Symbol("uncancellable");
+            m_outputDirectoryExclusions = Symbol("outputDirectoryExclusions");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
             m_executeServiceFinalizationCmds = Symbol("serviceFinalizationCmds");
@@ -315,9 +320,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeHasUntrackedChildProcesses = Symbol("hasUntrackedChildProcesses");
             m_unsafeAllowPreservedOutputs = Symbol("allowPreservedOutputs");
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
-            m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
+            m_unsafePreserveOutputAllowlist = Symbol("preserveOutputWhitelist"); // compatibility
+            m_unsafePreserveOutputAllowlist = Symbol("preserveOutputAllowlist");
             m_unsafeIncrementalTool = Symbol("incrementalTool");
             m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
+            m_unsafeChildProcessesToBreakawayFromSandbox = Symbol("childProcessesToBreakawayFromSandbox");
+            m_unsafeTrustStaticallyDeclaredAccesses = Symbol("trustStaticallyDeclaredAccesses");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -507,6 +515,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
             processBuilder.AdditionalTempDirectories = ProcessOptionalPathArray(obj, m_executeAdditionalTempDirectories, strict: false, skipUndefined: true);
 
+
+            // Set the default value before processing unsafeOption in case unsafeOption doesn't exist.
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             // Unsafe options.
             var unsafeOptions = Converter.ExtractObjectLiteral(obj, m_executeUnsafe, allowUndefined: true);
             if (unsafeOptions != null)
@@ -554,17 +565,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // Tags.
-            var tags = Converter.ExtractArrayLiteral(obj, m_executeTags, allowUndefined: true);
-            if (tags != null && tags.Count > 0)
-            {
-                var tagIds = new StringId[tags.Count];
-                for (var i = 0; i < tags.Count; i++)
-                {
-                    var tag = Converter.ExpectString(tags[i], context: new ConversionContext(pos: i, objectCtx: tags));
-                    tagIds[i] = StringId.Create(context.StringTable, tag);
-                }
-                processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(tagIds);
-            }
+            ProcessTags(context, obj, processBuilder);
 
             // service pip dependencies (only if this pip is not a service)
             processBuilder.ServiceKind = serviceKind;
@@ -627,14 +628,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Container isolation level
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var containerIsolationLevel = Converter.ExtractEnumValue<ContainerIsolationLevel>(obj, m_executeContainerIsolationLevel, allowUndefined: true);
-            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue?
+            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue ?
                     containerIsolationLevel.Value :
                     context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
             // Container double write policy
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var doubleWritePolicy = Converter.ExtractStringLiteral(obj, m_executeDoubleWritePolicy, s_doubleWritePolicyMap.Keys, allowUndefined: true);
-            processBuilder.DoubleWritePolicy = doubleWritePolicy != null?
+            processBuilder.DoubleWritePolicy = doubleWritePolicy != null ?
                     s_doubleWritePolicyMap[doubleWritePolicy] :
                     context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.DoubleWritePolicy();
 
@@ -648,6 +649,19 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_disableCacheLookup) == true)
             {
                 processBuilder.Options |= Process.Options.DisableCacheLookup;
+            }
+
+            // uncancellable flag
+            if (Converter.ExtractOptionalBoolean(obj, m_uncancellable) == true)
+            {
+                processBuilder.Options |= Process.Options.Uncancellable;
+            }
+
+            // outputDirectoryExclusions
+            var outputDirectoryExclusions = Converter.ExtractOptionalArrayLiteral(obj, m_outputDirectoryExclusions, allowUndefined: true);
+            if (outputDirectoryExclusions != null)
+            {
+                ProcessOutputDirectoryExclusions(context, processBuilder, outputDirectoryExclusions);
             }
 
             // Surviving process settings.
@@ -675,6 +689,63 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (executeDependsOnCurrentHostOSDirectories == true)
             {
                 processBuilder.AddCurrentHostOSDirectories();
+            }
+        }
+
+        private void ProcessTags(Context context, ObjectLiteral obj, ProcessBuilder processBuilder)
+        {
+            QualifierValue currentQualifierValue = context.LastActiveModuleQualifier;
+            ObjectLiteral currentQualifier = currentQualifierValue.Qualifier;
+
+            var userDefinedTags = Converter.ExtractArrayLiteral(obj, m_executeTags, allowUndefined: true);
+
+            // Shortcut processing if there are no tags to set
+            int userTagCount = userDefinedTags == null ? 0 : userDefinedTags.Count;
+            if (userTagCount == 0 && currentQualifierValue.IsEmpty())
+            {
+                return;
+            }
+
+            var tagIds = new StringId[userTagCount + currentQualifier.Count];
+
+            // Add tags for each qualifier entry with shape 'key=value'. This is just to facilitate pip filtering for some scenarios.
+            int i = 0;
+            foreach(StringId key in currentQualifier.Keys)
+            {
+                tagIds[i] = StringId.Create(context.StringTable, $"{key.ToString(context.StringTable)}={currentQualifier[key].Value}");
+                i++;
+            }
+
+            // Add now the user defined tags
+            for (int j = 0; j < userTagCount; j++)
+            {
+                var tag = Converter.ExpectString(userDefinedTags[j], context: new ConversionContext(pos: j, objectCtx: userDefinedTags));
+                tagIds[i] = StringId.Create(context.StringTable, tag);
+                i++;
+            }
+
+            processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(tagIds);
+        }
+
+        private void ProcessOutputDirectoryExclusions(Context context, ProcessBuilder processBuilder, ArrayLiteral outputDirectoryExclusions)
+        {
+            Contract.AssertNotNull(outputDirectoryExclusions);
+            Contract.Assert(context != null);
+            Contract.Assert(processBuilder != null);
+
+            for (var i = 0; i < outputDirectoryExclusions.Length; ++i)
+            {
+                var outputDirectoryExclusion = outputDirectoryExclusions[i];
+                if (outputDirectoryExclusion.IsUndefined)
+                {
+                    continue;
+                }
+
+                var directory = Converter.ExpectDirectory(
+                    outputDirectoryExclusion, 
+                    new ConversionContext(pos: i, objectCtx: outputDirectoryExclusions));
+                
+                processBuilder.AddOutputDirectoryExclusion(directory.Path);
             }
         }
 
@@ -967,6 +1038,30 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             return ReadOnlyArray<int>.Empty;
         }
 
+        private static ReadOnlyArray<T> ProcessOptionalValueArray<T>(ObjectLiteral obj, SymbolAtom fieldName, bool skipUndefined) where T : struct
+        {
+            var array = Converter.ExtractArrayLiteral(obj, fieldName, allowUndefined: true);
+            if (array != null && array.Length > 0)
+            {
+                var items = new T[array.Length];
+
+                for (var i = 0; i < array.Length; i++)
+                {
+                    if (skipUndefined && array[i].IsUndefined)
+                    {
+                        continue;
+                    }
+
+                    var value = Converter.ExpectValue<T>(array[i], context: new ConversionContext(pos: i, objectCtx: array, name: fieldName));
+                    items[i] = value;
+                }
+
+                return ReadOnlyArray<T>.FromWithoutCopy(items);
+            }
+
+            return ReadOnlyArray<T>.Empty;
+        }
+
         /// <summary>
         /// Process tool outputs. Declared in DScript as:
         /// export type Output = Path | File | Directory | DirectoryOutput | FileOrPathOutput;
@@ -1220,9 +1315,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.requireGlobalDependencies
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) != false)
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) == false)
             {
-                processBuilder.Options |= Process.Options.RequireGlobalDependencies;
+                processBuilder.Options &= ~Process.Options.RequireGlobalDependencies;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables
@@ -1236,7 +1331,16 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
             }
 
-            processBuilder.PreserveOutputWhitelist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputWhitelist, strict: false, skipUndefined: true);
+            processBuilder.PreserveOutputAllowlist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputAllowlist, strict: false, skipUndefined: true);
+
+            // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
+            processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);
+
+            // UnsafeExecuteArguments.trustStaticallyDeclaredAccesses
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeTrustStaticallyDeclaredAccesses) == true)
+            {
+                processBuilder.Options |= Process.Options.TrustStaticallyDeclaredAccesses;
+            }
         }
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)

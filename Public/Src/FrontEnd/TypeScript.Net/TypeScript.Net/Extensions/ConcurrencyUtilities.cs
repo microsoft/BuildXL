@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -22,7 +22,7 @@ namespace TypeScript.Net.Extensions
             TState state,
             Func<TItem, TResult> getter,
             Action<TItem, TResult> setter,
-            Func<TItem, TState, TResult> factory) where TResult : class
+            Func<TItem, TState, TResult> factory) where TItem : class where TResult : class
         {
             var candidate = getter(item);
 

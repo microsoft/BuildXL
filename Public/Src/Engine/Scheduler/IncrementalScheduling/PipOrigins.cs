@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingStateWriteTextHelpers;
@@ -18,6 +17,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     /// </summary>
     internal sealed class PipOrigins
     {
+        /// <summary>
+        /// Number of tracked pip origins.
+        /// </summary>
+        public int Count => m_pipOrigins.Count;
+
         /// <summary>
         /// Mappings from pip fingerprints to their semi-stable hash, (index of) origin pip graph, and pip id.
         /// </summary>
@@ -72,20 +76,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             return false;
         }
-
-        /// <summary>
-        /// Tries to add origin.
-        /// </summary>
-        public PipStableId GetOrAddOrigin(in ContentFingerprint fingerprint, (long semiStableHash, int pipGraphIndex) origin)
-        {
-            var result = m_pipOrigins.GetOrAdd(fingerprint, origin);
-            return CreateStableId(result.Index);
-        }
-
-        /// <summary>
-        /// Updates pip origin, and gets back pip id.
-        /// </summary>
-        public void Update(in ContentFingerprint fingerprint, (long semiStableHash, int pipGraphIndex) origin) => m_pipOrigins[fingerprint] = origin;
 
         /// <summary>
         /// Adds or updates pip origin, and gets back pip id.

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Acceptable time difference between local last access time and content tracker's last access time.
         /// </summary>
-        internal static readonly TimeSpan TargetRange = TimeSpan.FromMinutes(1);
+        internal static readonly TimeSpan TargetRange = TimeSpan.FromMinutes(10);
 
         #endregion
 

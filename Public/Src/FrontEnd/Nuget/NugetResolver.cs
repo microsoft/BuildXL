@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -90,7 +90,8 @@ namespace BuildXL.FrontEnd.Script
                     }
                 }
 
-                if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
+                if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid &&
+                    !Configuration.FrontEnd.GenerateCgManifestForNugets.Equals(Configuration.FrontEnd.ValidateCgManifestForNugets))
                 {
                     // Save the generated CG Manifets to File
                     if (!(await SaveCgManifetsFileAsync(generatedCgManifest)))

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -7,11 +7,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using BuildXL.Utilities;
+using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Analyzer;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Analyzer;
-using BuildXL.FrontEnd.Core;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Types;
 
@@ -133,7 +133,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             // TODO: This may have performance issues if there are a lot of files that needs to be changed.
             // TODO: Need to optimize RecomputeWorkspace to handle multiple file changes efficiently.
             // TODO: Task 15106291: Optimize RecomputeWorkspace to handle multiple files.
-            var changedDocuments = new HashSet<string>();
+            var changedDocuments = new HashSet<Uri>();
 
             foreach (var doc in stackSnapshot)
             {

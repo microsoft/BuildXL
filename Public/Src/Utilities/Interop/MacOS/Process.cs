@@ -1,10 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Runtime.InteropServices;
 using System.Text;
+using static BuildXL.Interop.Dispatch;
+using static BuildXL.Interop.Unix.Constants;
+using static BuildXL.Interop.Unix.Impl_Common;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Process class offers interop calls for process based tasks into operating system facilities
@@ -42,8 +45,17 @@ namespace BuildXL.Interop.MacOS
             public ulong DiskBytesWritten;
         }
 
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        private static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
+        /// <remarks>
+        /// Implemented by calling "kill -0".
+        /// This should be much cheaper than calling Process.GetProcessById().
+        /// </remarks>
+        public static bool IsAlive(int pid) => Impl_Common.kill(pid, 0) == 0;
+
+        /// <remarks>
+        /// Implemented by sending SIGKILL to a process with id <paramref name="pid"/>.
+        /// The return value indicates whether the KILL signal was sent successfully.
+        /// </remarks>
+        public static bool ForceQuit(int pid) => Impl_Common.kill(pid, 9) == 0;
 
         /// <summary>
         /// Returns process resource usage information to the caller
@@ -51,8 +63,9 @@ namespace BuildXL.Interop.MacOS
         /// <param name="pid">The process id to check</param>
         /// <param name="buffer">A ProcessResourceUsage struct to hold the process resource information</param>
         /// <param name="includeChildProcesses">Whether the result should include the execution times of all the child processes</param>
-        public static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses)
-            => GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
+        public static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses) => IsMacOS
+            ? Impl_Mac.GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses)
+            : ERROR;
 
         /// <summary>
         /// Returns true if core dump file creation for abnormal process exits has been set up successfully, and passes out
@@ -61,18 +74,20 @@ namespace BuildXL.Interop.MacOS
         /// <param name="logsDirectory">The logs directory</param>
         /// <param name="buffer">A buffer to hold the core dump file directory</param>
         /// <param name="length">The buffer length</param>
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static extern bool SetupProcessDumps(string logsDirectory, StringBuilder buffer, long length);
+        public static bool SetupProcessDumps(string logsDirectory, StringBuilder buffer, long length) => IsMacOS
+            ? Impl_Mac.SetupProcessDumps(logsDirectory, buffer, length)
+            : false;
 
         /// <summary>
         /// Cleans up the core dump facilities created by calling <see cref="SetupProcessDumps(string, StringBuilder, long)"/>
         /// </summary>
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static extern void TeardownProcessDumps();
-
-        /// <nodoc />
-        [DllImport("libc", SetLastError = true)]
-        private static extern uint geteuid();
+        public static void TeardownProcessDumps()
+        {
+            if (IsMacOS)
+            {
+                Impl_Mac.TeardownProcessDumps();
+            }
+        }
 
         /// <inheritdoc />
         public static bool IsElevated()

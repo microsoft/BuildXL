@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
@@ -33,7 +34,7 @@ namespace BuildXL.Cache.Compositing
             PinnedToCas.TryAdd(CasHash.NoItem, 0);
         }
 
-        public string CacheId => Cache.CacheId;
+        public CacheId CacheId => Cache.CacheId;
 
         public string CacheSessionId => m_metadataSession.CacheSessionId;
 
@@ -122,7 +123,7 @@ namespace BuildXL.Cache.Compositing
             return Task.FromResult(new Possible<ValidateContentStatus, Failure>(ValidateContentStatus.NotSupported));
         }
 
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var eventing = new GetStreamActivity(CompositingCache.EventSource, activityId, this))
             {

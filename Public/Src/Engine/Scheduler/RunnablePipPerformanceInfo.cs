@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using BuildXL.Processes;
 using BuildXL.Scheduler.WorkDispatcher;
 
 namespace BuildXL.Scheduler
@@ -46,7 +48,35 @@ namespace BuildXL.Scheduler
 
         internal TimeSpan CacheMissAnalysisDuration { get; private set; }
 
+        internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
+
         internal bool IsExecuted { get; private set; }
+
+        internal long InputMaterializationCostMbForBestWorker { get; private set; }
+
+        internal long InputMaterializationCostMbForChosenWorker { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted due to stopped worker 
+        /// </summary>
+        internal int RetryCountDueToStoppedWorker { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted due to low memory
+        /// </summary>
+        internal int RetryCountDueToLowMemory { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted due to retryable failures in SanboxedProcessPipExecutor errors
+        /// </summary>
+        internal int RetryCountDueToRetryableFailures { get; private set; }
+
+        internal int RetryCount => RetryCountDueToStoppedWorker + RetryCountDueToLowMemory + RetryCountDueToRetryableFailures;
+
+        /// <summary>
+        /// Suspended duration of the process due to memory management
+        /// </summary>
+        internal long SuspendedDurationMs { get; private set; }
 
         /// <remarks>
         /// MaterializeOutput is executed per each worker
@@ -67,18 +97,51 @@ namespace BuildXL.Scheduler
             Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
         }
 
+        internal void Retried(CancellationReason pipCancellationReason)
+        {
+            Contract.Requires(pipCancellationReason != CancellationReason.None, "If retry occurs, we need to have cancellation");
+
+            switch (pipCancellationReason)
+            {
+                case CancellationReason.ResourceExhaustion:
+                    RetryCountDueToLowMemory++;
+                    break;
+                case CancellationReason.ProcessStartFailure:
+                case CancellationReason.TempDirectoryCleanupFailure:
+                    RetryCountDueToRetryableFailures++;
+                    break;
+                case CancellationReason.StoppedWorker:
+                    RetryCountDueToStoppedWorker++;
+                    break;
+            }
+        }
+
+        internal void Suspended(long suspendedDurationMs)
+        {
+            SuspendedDurationMs += suspendedDurationMs;
+        }
+
         internal void Enqueued(DispatcherKind kind)
         {
             m_currentQueue = kind;
             m_queueEnterTime = DateTime.UtcNow;
         }
 
-        internal void Dequeued()
+        internal void Dequeued(bool hasWaitedForMaterializeOutputsInBackground)
         {
             if (m_currentQueue != DispatcherKind.None)
             {
                 var duration = DateTime.UtcNow - m_queueEnterTime;
-                QueueDurations.Value[(int)m_currentQueue] += duration;
+
+                if (hasWaitedForMaterializeOutputsInBackground)
+                {
+                    QueueWaitDurationForMaterializeOutputsInBackground = duration;
+                }
+                else
+                {
+                    QueueDurations.Value[(int)m_currentQueue] += duration;
+                }
+
                 m_currentQueue = DispatcherKind.None;
             }
         }
@@ -133,13 +196,13 @@ namespace BuildXL.Scheduler
             m_cacheLookupPerfInfo = info;
         }
 
-        internal long CalculatePipDurationMs()
+        internal long CalculatePipDurationMs(IPipExecutionEnvironment environment)
         {
             long pipDuration = 0;
             for (int i = 0; i < StepDurations.Length; i++)
             {
                 var step = (PipExecutionStep)i;
-                if (step.IncludeInRunningTime())
+                if (step.IncludeInRunningTime(environment))
                 {
                     pipDuration += (long)StepDurations[i].TotalMilliseconds;
                 }
@@ -151,6 +214,12 @@ namespace BuildXL.Scheduler
         internal long CalculateQueueDurationMs()
         {
             return QueueDurations.Value.Sum(a => (long)a.TotalMilliseconds);
+        }
+
+        internal void SetInputMaterializationCost(long costMbForBestWorker, long costMbForChosenWorker)
+        {
+            InputMaterializationCostMbForBestWorker = costMbForBestWorker;
+            InputMaterializationCostMbForChosenWorker = costMbForChosenWorker;
         }
     }
 }

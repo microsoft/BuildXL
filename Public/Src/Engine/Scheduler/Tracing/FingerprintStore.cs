@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -14,12 +14,14 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
 
@@ -33,13 +35,23 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The label for <see cref="BuildXL.Engine.Cache.Fingerprints.WeakContentFingerprint"/>s.
         /// </summary>
-        public const string WeakFingerprint = "WeakFingerprint";
+        public const string WeakFingerprint = nameof(WeakFingerprint);
 
         /// <summary>
         /// The label for <see cref="BuildXL.Engine.Cache.Fingerprints.StrongContentFingerprint"/>s.
         /// </summary>
-        public const string StrongFingerprint = "StrongFingerprint";
+        public const string StrongFingerprint = nameof(StrongFingerprint);
 
+        /// <summary>
+        /// The label for session Id of a build.
+        /// </summary>
+        public const string SessionId = nameof(SessionId);
+
+        /// <summary>
+        /// The label for related session Id of a build.
+        /// </summary>
+        public const string RelatedSessionId = nameof(RelatedSessionId);
+        
         /// <summary>
         /// The label for <see cref="PipCacheMissInfo.PipId"/>s.
         /// </summary>
@@ -71,6 +83,60 @@ namespace BuildXL.Scheduler.Tracing
         /// Where minimal IO should be performed. This may omit log files.
         /// </summary>
         public bool MinimalIO;
+
+        /// <summary>
+        /// Runtime cache misses.
+        /// </summary>
+        public ConcurrentDictionary<PipId, CacheMissData> RuntimeCacheMisses;
+
+        /// <summary>
+        /// Creates an instance of <see cref="FingerprintStoreTestHooks"/> with <see cref="MinimalIO"/> defaults to true.
+        /// </summary>
+        public FingerprintStoreTestHooks() => MinimalIO = true;
+
+        /// <summary>
+        /// Inits runtime cache misses data.
+        /// </summary>
+        public void InitRuntimeCacheMisses() => RuntimeCacheMisses = new ConcurrentDictionary<PipId, CacheMissData>();
+
+        /// <summary>
+        /// Adds cache miss data.
+        /// </summary>
+        public void AddCacheMiss(PipId pipId, CacheMissData cacheMiss) => RuntimeCacheMisses?.TryAdd(pipId, cacheMiss);
+
+        /// <summary>
+        /// Gets cache miss data.
+        /// </summary>
+        public bool TryGetCacheMiss(PipId pipId, out CacheMissData cacheMiss)
+        {
+            cacheMiss = default;
+            return RuntimeCacheMisses?.TryGetValue(pipId, out cacheMiss) ?? false;
+        }
+
+        /// <summary>
+        /// Cache miss data.
+        /// </summary>
+        public struct CacheMissData
+        {
+            /// <summary>
+            /// Indicates if cache miss was performed during cache look-up or post execution.
+            /// </summary>
+            public bool IsFromCacheLookUp;
+
+            /// <summary>
+            /// Cache miss analysis result and detail
+            /// </summary>
+            public CacheMissAnalysisDetailAndResult DetailAndResult;
+
+            /// <summary>
+            /// Creates an instance of <see cref="CacheMissData"/>.
+            /// </summary>
+            public CacheMissData(bool isFromCacheLookUp, CacheMissAnalysisDetailAndResult detailAndResult)
+            {
+                IsFromCacheLookUp = isFromCacheLookUp;
+                DetailAndResult = detailAndResult;
+            }
+        }
     }
 
     /// <summary>
@@ -89,12 +155,18 @@ namespace BuildXL.Scheduler.Tracing
         public PipCacheMissType CacheMissType;
 
         /// <summary>
+        /// Missed outputs from cache
+        /// </summary>
+        public IReadOnlyList<string> MissedOutputs;
+
+        /// <summary>
         /// Constructor.
         /// </summary>
-        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType)
+        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType, IReadOnlyList<string> missedOutputs = null)
         {
             PipId = pipId;
             CacheMissType = cacheMissType;
+            MissedOutputs = missedOutputs;
         }
 
         /// <summary>
@@ -104,6 +176,20 @@ namespace BuildXL.Scheduler.Tracing
         {
             writer.Write(PipId.Value);
             writer.Write(Convert.ToByte(CacheMissType));
+
+            if (MissedOutputs != null)
+            {
+                writer.Write(true);
+                writer.Write(MissedOutputs.Count);
+                foreach (var o in MissedOutputs)
+                {
+                    writer.Write(o);
+                }
+            }
+            else
+            {
+                writer.Write(false);
+            }
         }
 
         /// <summary>
@@ -111,7 +197,26 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public static PipCacheMissInfo Deserialize(BinaryReader reader)
         {
-            return new PipCacheMissInfo(new PipId(reader.ReadUInt32()), (PipCacheMissType)reader.ReadByte());
+            var pipId = new PipId(reader.ReadUInt32());
+            var pipCacheMissType = (PipCacheMissType)reader.ReadByte();
+            var hasMissedOutputs = reader.ReadBoolean();
+
+            List<string> missedOutputs = null;
+            if (hasMissedOutputs)
+            {
+                var missedOutputCount = reader.ReadUInt32();
+                if (missedOutputCount > 0)
+                {
+                    missedOutputs = new List<string>();
+
+                    for (int i = 0; i < missedOutputCount; ++i)
+                    {
+                        missedOutputs.Add(reader.ReadString());
+                    }
+                }
+            }
+
+            return new PipCacheMissInfo(pipId, pipCacheMissType, missedOutputs);
         }
     }
 
@@ -135,7 +240,7 @@ namespace BuildXL.Scheduler.Tracing
 
             /// <summary>
             /// The version changes whenever the fingerprint store format changes or the 
-            /// <see cref="BuildXL.Scheduler.Fingerprints.PipFingerprintingVersion"/> changes
+            /// <see cref="BuildXL.Pips.Graph.PipFingerprintingVersion"/> changes
             /// since a new fingerprint version inherently changes the contents of a fingerprint and what is stored in the fingerprint entry.
             /// 
             /// IMPORTANT: These identifiers must only always increase and never overlap with a prior value.
@@ -143,7 +248,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <remarks>
             /// A change in the version number will cause the entire previous fingerprint store to be deleted.
             /// </remarks>
-            Version = 8 + Fingerprints.PipFingerprintingVersion.TwoPhaseV2,
+            Version = 8 + PipFingerprintingVersion.TwoPhaseV2,
         }
 
         /// <summary>
@@ -268,6 +373,10 @@ namespace BuildXL.Scheduler.Tracing
             public const string PathSet = ObservedPathEntryConstants.PathSet;
 
             public const string DirectoryEnumeration = ObservedInputConstants.DirectoryEnumeration;
+
+            public const string SessionId = FingerprintStoreConstants.SessionId;
+
+            public const string RelatedSessionId = FingerprintStoreConstants.RelatedSessionId;
         }
 
         /// <summary>
@@ -294,16 +403,32 @@ namespace BuildXL.Scheduler.Tracing
             public string FormattedPathSetHash;
 
             /// <summary>
+            /// Unique ID which will be assigned to a given session who execute the pip.
+            /// This is used only for displaying in analysis result but not validation.
+            /// </summary>
+            public string SessionId;
+
+            /// <summary>
+            /// Related id of the session who execute the pip
+            /// This is used only for displaying in analysis result but not validation.
+            /// </summary>
+            public string RelatedSessionId;
+
+            /// <summary>
             /// Constructor for convenience.
             /// </summary>
             public PipFingerprintKeys(
                 WeakContentFingerprint weakFingerprint,
                 StrongContentFingerprint strongFingerprint,
-                string pathSetHash)
+                string pathSetHash,
+                string sessionId,
+                string relatedSessionId)
             {
                 WeakFingerprint = weakFingerprint.ToString();
                 StrongFingerprint = strongFingerprint.ToString();
                 FormattedPathSetHash = pathSetHash;
+                SessionId = sessionId;
+                RelatedSessionId = relatedSessionId;
             }
 
             /// <inheritdoc />
@@ -315,6 +440,8 @@ namespace BuildXL.Scheduler.Tracing
                     writer.Add(PropertyNames.WeakFingerprint, keys.WeakFingerprint);
                     writer.Add(PropertyNames.StrongFingerprint, keys.StrongFingerprint);
                     writer.Add(PropertyNames.PathSet, keys.FormattedPathSetHash);
+                    writer.Add(PropertyNames.SessionId, keys.SessionId);
+                    writer.Add(PropertyNames.RelatedSessionId, keys.RelatedSessionId);
                 },
                 formatting: Newtonsoft.Json.Formatting.Indented);
             }
@@ -338,23 +465,23 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Column for weak fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
             /// </summary>
-            public const string WeakFingerprints = "WeakFingerprints";
+            public const string WeakFingerprints = nameof(WeakFingerprints);
 
             /// <summary>
             /// Column for strong fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
             /// </summary>
-            public const string StrongFingerprints = "StrongFingerprints";
+            public const string StrongFingerprints = nameof(StrongFingerprints);
 
             /// <summary>
             /// Column for directory membership fingerprint and path set hash inputs, keyed on the respective content hashes.
             /// </summary>
-            public const string ContentHashes = "ContentHashes";
+            public const string ContentHashes = nameof(ContentHashes);
 
             /// <summary>
             /// Column for <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>es, keyed on the pip unique output hash computed by
             /// <see cref="BuildXL.Pips.Operations.Process.TryComputePipUniqueOutputHash(PathTable, out long, PathExpander)"/>.
             /// </summary>
-            public const string PipUniqueOutputHashes = "PipUniqueOutputHashes";
+            public const string PipUniqueOutputHashes = nameof(PipUniqueOutputHashes);
 
             /// <summary>
             /// Convenience array for iterating through all the columns except the default,
@@ -391,11 +518,6 @@ namespace BuildXL.Scheduler.Tracing
             ColumnNames.WeakFingerprints,
             ColumnNames.StrongFingerprints,
         };
-
-        /// <summary>
-        /// Date time format when serializing or parsing date times for the fingerprint store.
-        /// </summary>
-        private const string DateTimeFormat = "u";
 
         /// <summary>
         /// Time-to-live for an entry is 3 days unless otherwise specified (a get or a put renews the TTL).
@@ -623,6 +745,8 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private readonly FingerprintStoreMode m_mode = FingerprintStoreMode.Default;
 
+        private static readonly ObjectPool<List<(string, string, string)>> s_putEntriesPool = Pools.CreateListPool<(string, string, string)>();
+
         /// <summary>
         /// Opens or creates a new fingerprint store.
         /// </summary>
@@ -631,6 +755,9 @@ namespace BuildXL.Scheduler.Tracing
         /// </param>
         /// <param name="readOnly">
         /// Whether the store should be opened read-only.
+        /// </param>
+        /// <param name="bulkLoad">
+        /// Whether the store should be opened with bulk load.
         /// </param>
         /// <param name="maxEntryAge">
         /// Optional max entry age of entries. Any entries older than this age will be garbage collected.
@@ -652,6 +779,7 @@ namespace BuildXL.Scheduler.Tracing
         public static Possible<FingerprintStore> Open(
             string storeDirectory,
             bool readOnly = false,
+            bool bulkLoad = false,
             TimeSpan? maxEntryAge = null,
             LoggingContext loggingContext = null,
             FingerprintStoreMode mode = FingerprintStoreMode.Default,
@@ -694,6 +822,7 @@ namespace BuildXL.Scheduler.Tracing
                 additionalKeyTrackedColumns: s_additionalKeyTrackedColumns,
                 failureHandler: (f) => { failureHandler?.Invoke(f.Failure); },
                 openReadOnly: readOnly,
+                openBulkLoad: bulkLoad,
                 onFailureDeleteExistingStoreAndRetry: true);
 
             if (possibleAccessor.Succeeded)
@@ -869,25 +998,34 @@ namespace BuildXL.Scheduler.Tracing
             Contract.Requires(!storePathSet || !string.IsNullOrEmpty(entry.StrongFingerprintEntry.PathSetHashToInputs.Key), "A non-empty path set hash must be provided to store a path set entry.");
             Contract.Requires(!Accessor.ReadOnly);
 
-            Analysis.IgnoreResult(
-                Accessor.Use(store =>
-                {
-                    store.Put(entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value));
-                    store.Put(entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, columnFamilyName: ColumnNames.WeakFingerprints);
-
-                    var sfEntry = entry.StrongFingerprintEntry;
-                    store.Put(entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, columnFamilyName: ColumnNames.StrongFingerprints);
-
-                    if (storePathSet)
+            using (Counters.StartStopwatch(FingerprintStoreCounters.PutFingerprintStoreEntryTime))
+            {
+                Analysis.IgnoreResult(
+                    Accessor.Use(store =>
                     {
-                        Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
-                        store.Put(sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, columnFamilyName: ColumnNames.ContentHashes);
-                    }
-                })
-            );
+                        // Batch multiple put operations to speed up writes.
+                        using (var entriesWrapper = s_putEntriesPool.GetInstance())
+                        {
+                            var entries = entriesWrapper.Instance;
+                            entries.Add((entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value), null));
+                            entries.Add((entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, ColumnNames.WeakFingerprints));
+                            var sfEntry = entry.StrongFingerprintEntry;
+                            entries.Add((entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, ColumnNames.StrongFingerprints));
 
-            // Renew TTL on entries
-            m_lruEntryTracker?.TrackFingerprintStoreEntry(entry.PipToFingerprintKeys.Key, entry.PipToFingerprintKeys.Value);
+                            if (storePathSet)
+                            {
+                                Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
+                                entries.Add((sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, ColumnNames.ContentHashes));
+                            }
+
+                            store.PutMultiple(entries);
+                        }
+                    })
+                );
+
+                // Renew TTL on entries
+                m_lruEntryTracker?.TrackFingerprintStoreEntry(entry.PipToFingerprintKeys.Key, entry.PipToFingerprintKeys.Value);
+            }
         }
 
         /// <summary>
@@ -986,7 +1124,7 @@ namespace BuildXL.Scheduler.Tracing
             // First attempt to use the pip output hash which is a more reliable way to identify pips across builds
             // than the pip semi stable hash
 
-            return TryGetFingerprintStoreEntryByPipUniqueOutputHash(pipUniqueOutputHash, out entry)
+            return (pipUniqueOutputHash != null && TryGetFingerprintStoreEntryByPipUniqueOutputHash(pipUniqueOutputHash, out entry))
                 || TryGetFingerprintStoreEntryBySemiStableHash(formattedSemiStableHash, out entry);
         }
 
@@ -1069,7 +1207,9 @@ namespace BuildXL.Scheduler.Tracing
             pipFingerprintKeys = new PipFingerprintKeys();
             if (!reader.TryGetPropertyValue(PropertyNames.WeakFingerprint, out pipFingerprintKeys.WeakFingerprint)
                 || !reader.TryGetPropertyValue(PropertyNames.StrongFingerprint, out pipFingerprintKeys.StrongFingerprint)
-                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.FormattedPathSetHash))
+                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.FormattedPathSetHash)
+                || !reader.TryGetPropertyValue(PropertyNames.SessionId, out pipFingerprintKeys.SessionId)
+                || !reader.TryGetPropertyValue(PropertyNames.RelatedSessionId, out pipFingerprintKeys.RelatedSessionId))
             {
                 return false;
             }
@@ -1236,7 +1376,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Checks if a content hash already exists in the store.
         /// </summary>
-        public bool ContainsContentHash(string contentHash)
+        public bool ContainsContentHash(string contentHash, bool putPurposeCheck = false)
         {
             return ContainsInternal(contentHash.ToString(), ColumnNames.ContentHashes);
         }
@@ -1278,6 +1418,8 @@ namespace BuildXL.Scheduler.Tracing
                         writer.Add(FingerprintStoreConstants.WeakFingerprint, pfk.WeakFingerprint);
                         writer.Add(FingerprintStoreConstants.StrongFingerprint, pfk.StrongFingerprint);
                         writer.Add(ObservedPathEntryConstants.PathSet, pfk.FormattedPathSetHash);
+                        writer.Add(FingerprintStoreConstants.SessionId, pfk.SessionId);
+                        writer.Add(FingerprintStoreConstants.RelatedSessionId, pfk.RelatedSessionId);
                     });
             }
         }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -11,21 +11,20 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Engine.Cache.Fingerprints;
+using System.Xml;
 using BuildXL.Execution.Analyzer.Analyzers;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-#if !DISABLE_FEATURE_HTMLWRITER
-using System.Web.UI;
-#endif
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -422,17 +421,11 @@ namespace BuildXL.Execution.Analyzer
 
                     if (HtmlOutput)
                     {
-#if DISABLE_FEATURE_HTMLWRITER
-                        Console.WriteLine("HTMLWriter is not enabled in .NET Core implementation");
-                        return 1;
-#else
-
-                        using (var htmlWriter = new HtmlTextWriter(writer))
+                        using (var xmlWriter = new XmlTextWriter(writer))
                         {
                             var summaryAnalyzerHtmlWritter = new SummaryAnalyzerHtmlWritter(this);
-                            summaryAnalyzerHtmlWritter.PrintHtmlReport(analyzer, htmlWriter);
+                            summaryAnalyzerHtmlWritter.PrintHtmlReport(analyzer, xmlWriter);
                         }
-#endif
                     }
                     else
                     {
@@ -557,9 +550,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (SingleLog)
             {
-#if !DISABLE_FEATURE_HTMLWRITER
                 GenerateReport();
-#endif
             }
 
             return 0;
@@ -1088,7 +1079,6 @@ namespace BuildXL.Execution.Analyzer
         }
 
         #region Hygienator // Methods deal with analysis of single log
-#if !DISABLE_FEATURE_HTMLWRITER
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public int GenerateReport()
         {
@@ -1097,17 +1087,16 @@ namespace BuildXL.Execution.Analyzer
             {
                 using (var writer = new StreamWriter(compareFileStream))
                 {
-                    using (var htmlWriter = new HtmlTextWriter(writer))
+                    using (var xmlTextWriter = new XmlTextWriter(writer))
                     {
                         var summaryAnalyzerHtmlWritter = new SummaryAnalyzerHtmlWritter(this);
-                        summaryAnalyzerHtmlWritter.PrintHtmlReport(htmlWriter);
+                        summaryAnalyzerHtmlWritter.PrintHtmlReport(xmlTextWriter);
                     }
                 }
             }
 
             return 0;
         }
-#endif
 
         internal List<Process> GetPipsExecutionLevel(PipExecutionLevel executionLevel)
         {
@@ -1356,7 +1345,7 @@ namespace BuildXL.Execution.Analyzer
         private void GetDependentNodes(NodeId node, HashSet<NodeId> visitedNodes)
         {
             visitedNodes.Add(node);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 if (visitedNodes.Contains(dependency.OtherNode))
                 {
@@ -1377,7 +1366,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             NodeAndCriticalPath maxDependencyCriticalPath = default(NodeAndCriticalPath);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 var dependencyCriticalPath = ComputeCriticalPath(dependency.OtherNode);
                 if (dependencyCriticalPath.Time > maxDependencyCriticalPath.Time)
@@ -1686,7 +1675,12 @@ namespace BuildXL.Execution.Analyzer
             {
                 flagsDifference.Add("IgnoreReparsePoints");
             }
-
+            
+            if (currentSalts.IgnoreFullSymlinkResolving != previousSalts.IgnoreFullSymlinkResolving)
+            {
+                flagsDifference.Add("IgnoreFullSymlinkResolving");
+            }
+            
             if (currentSalts.IgnorePreloadedDlls != previousSalts.IgnorePreloadedDlls)
             {
                 flagsDifference.Add("IgnorePreloadedDlls");

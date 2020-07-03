@@ -57,7 +57,8 @@ namespace Clang {
             arguments: cmdArgs,
             implicitOutputs: [
                 outDir
-            ]
+            ],
+            tags: ["compile"],
         });
         return result.getOutputFile(outFile);
     }

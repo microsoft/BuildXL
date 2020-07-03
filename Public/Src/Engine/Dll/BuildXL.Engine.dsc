@@ -8,7 +8,6 @@ namespace Engine {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine",
         generateLogs: true,
-        generateLogsLite: false,
         sources: [
             ...globR(d`.`, "*.cs"),
         ],
@@ -29,8 +28,6 @@ namespace Engine {
             Scheduler.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,
-            importFrom("Bond.Core.CSharp").pkg,
-            importFrom("Bond.Runtime.CSharp").pkg,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
@@ -51,6 +48,7 @@ namespace Engine {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Google.Protobuf").pkg,
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [

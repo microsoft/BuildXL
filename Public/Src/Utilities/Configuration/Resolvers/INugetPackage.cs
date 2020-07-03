@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -31,6 +31,15 @@ namespace BuildXL.Utilities.Configuration
         /// Optional target framework
         /// </summary>
         string Tfm { get; }
+
+        /// <summary>
+        /// Host operating systems on which to skip downloading this NuGet package.
+        /// 
+        /// A stub DScript module is always generated.
+        /// 
+        /// For valid values are: "win", "macOS", and "unix".
+        /// </summary>
+        List<string> OsSkip { get; }
 
         /// <summary>
         /// Optional dependent Nuget packages to skip when resolving dependencies during package generation, a list of Nuget package Ids

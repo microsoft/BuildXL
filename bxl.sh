@@ -2,17 +2,38 @@
 
 set -e
 
-# Make sure we are running in our own working directory
-pushd "$(dirname "$0")"
-
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/Sandbox/MacOs/scripts/env.sh"
 
 declare arg_Positional=()
 declare arg_DeployDev=""
-declare arg_UseDev=()
+declare arg_DeployDevRelease=""
+declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
+declare arg_Cgmanifest=""
+
+if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+    readonly HostQualifier=Linux
+    readonly DeploymentFolder=linux-x64
+elif [[ "${OSTYPE}" == "darwin"* ]]; then
+    readonly HostQualifier=DotNetCoreMac
+    readonly DeploymentFolder=osx-x64
+else
+    print_error "Operating system not supported: ${OSTYPE}"
+    exit 1
+fi
+
+function callNuget() {
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        nuget "$@"
+    elif [[ "${OSTYPE}" == "darwin"* ]]; then
+        $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
+    else
+        print_error "Operating system not supported: ${OSTYPE}"
+        return 1
+    fi
+}
 
 function findMono() {
     local monoLocation=$(which mono)
@@ -32,40 +53,39 @@ function getLkg() {
     fi
 
     local BUILDXL_LKG_VERSION=$(grep "BUILDXL_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
-    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/osx-x64/g' | tr -d '\r')
+    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/'${DeploymentFolder}'/g' | tr -d '\r')
     local BUILDXL_LKG_FEED_1=$(grep "BUILDXL_LKG_FEED_1" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
 
     print_info "Nuget Feed: $BUILDXL_LKG_FEED_1"
     print_info "Getting package: $BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
-    $MONO_HOME/mono Shared/Tools/NuGet.exe install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
+    callNuget install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 }
 
 function setMinimal() {
-    arg_Positional+=(/q:DebugDotNetCoreMac "/f:output='$MY_DIR/Out/bin/debug/osx-x64/*'")
+    arg_Positional+=(/q:Debug${HostQualifier} "/f:output='$MY_DIR/Out/bin/debug/${DeploymentFolder}/*'")
 }
 
 function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
-    
-    for arg in "$@" 
+    arg_Positional+=("/remoteTelemetry+")
+
+    for arg in "$@"
     do
         to_lower=`printf '%s\n' "$arg" | awk '{ print tolower($0) }'`
         if [[ " $to_lower " == *"endpointsecurity"* ]]; then
             return
         fi
     done
-    
-    arg_Positional+=(/sandboxKind:macOsKext)
 }
 
 function compileWithBxl() {
     local args=(
-        --config "$MY_DIR/config.dsc" 
-        /generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json"
+        --config "$MY_DIR/config.dsc"
         /fancyConsoleMaxStatusPips:10
+        /exp:LazySODeletion
         /nowarn:11319 # DX11319: nuget version mismatch
         "$@"
     )
@@ -79,7 +99,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev[-release]] [--use-dev] [--minimal] [--internal] [--shared-comp] [--cgmanifest] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -96,6 +116,10 @@ function parseArgs() {
             arg_DeployDev="1"
             shift
             ;;
+        --deploy-dev-release)
+            arg_DeployDevRelease="1"
+            shift
+            ;;
         --use-dev)
             arg_UseDev="1"
             shift
@@ -106,6 +130,33 @@ function parseArgs() {
             ;;
         --internal)
             arg_Internal="1"
+            shift
+            ;;
+        --cgmanifest)
+            arg_Cgmanifest="1"
+            shift
+            ;;
+        --test-class)
+            arg_Positional+=("/p:[UnitTest]Filter.testClass=$2")
+            shift
+            shift
+            ;;
+        --test-method)
+            arg_Positional+=("/p:[UnitTest]Filter.testMethod=$2")
+            shift
+            shift
+            ;;
+        --shared-comp)
+            arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
+            shift
+            ;;
+        --vs)
+            arg_Positional+=(
+                "/vs"
+                "/vsTargetFramework:netcoreapp3.0"
+                "/vsTargetFramework:netcoreapp3.1"
+                "/vsTargetFramework:netstandard2.0"
+                "/vsTargetFramework:netstandard2.1")
             shift
             ;;
         *)
@@ -122,8 +173,16 @@ function deployBxl { # (fromDir, toDir)
 
     mkdir -p "$toDir"
     /usr/bin/rsync -arhq "$fromDir/" "$toDir" --delete
-    print_info "Successfully deployed developer build to: $toDir; use it with the '--use-dev' flag now."
+    print_info "Successfully deployed developer build from $fromDir to: $toDir; use it with the '--use-dev' flag now."
 }
+
+# allow this script to be sourced, in which case we shouldn't execute anything
+if [[ "$0" != "${BASH_SOURCE[0]}" ]]; then 
+    return 0
+fi
+
+# Make sure we are running in our own working directory
+pushd "$MY_DIR"
 
 parseArgs "$@"
 
@@ -133,8 +192,16 @@ if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
     setMinimal
 fi
 
+if [[ -n "$arg_DeployDevRelease" ]]; then
+    arg_Positional+=(/q:Release${HostQualifier} "/f:output='$MY_DIR/Out/bin/release/${DeploymentFolder}/*'")
+fi
+
 if [[ -n "$arg_Internal" ]]; then
     setInternal $@
+fi
+
+if [[ -n "$arg_Cgmanifest" ]]; then
+    arg_Positional+=(/generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json")
 fi
 
 if [[ -n "$arg_UseDev" ]]; then
@@ -151,7 +218,11 @@ fi
 compileWithBxl ${arg_Positional[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/debug/osx-x64" "$MY_DIR/Out/Selfhost/Dev"
+    deployBxl "$MY_DIR/Out/Bin/debug/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+fi
+
+if [[ -n "$arg_DeployDevRelease" ]]; then
+    deployBxl "$MY_DIR/Out/Bin/release/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 popd

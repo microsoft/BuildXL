@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
@@ -32,7 +32,8 @@ namespace Test.DScript.Ast.Interpretation
         [InlineData("Transformer.sealPartialDirectory(d`.`, [])", "PartialStaticContentDirectory")]
         [InlineData("Transformer.sealSourceDirectory(d`.`, Transformer.SealSourceDirectoryOption.allDirectories)", "SourceAllDirectory")]
         [InlineData("Transformer.sealSourceDirectory(d`.`, Transformer.SealSourceDirectoryOption.topDirectoryOnly)", "SourceTopDirectory")]
-        [InlineData("Transformer.composeSharedOpaqueDirectories(d`.`, [])", "SharedOpaqueDirectory")]
+        [InlineData("Transformer.composeSharedOpaqueDirectories(d`.`, [], {kind:\"Include\", regex:\".*\"})", "SharedOpaqueDirectory")]
+        [InlineData("Transformer.filterSharedOpaqueDirectory(d`.`, {kind:\"Include\", regex:\".*\"})", "SharedOpaqueDirectory")]
         [InlineData("Transformer.execute({tool: {exe: f`myExe`}, arguments:[], workingDirectory: d`.`, outputs: [{kind: 'exclusive', directory: d`Out`}]}).getOutputDirectory(d`Out`)", "ExclusiveOpaqueDirectory")]
         public void InterpretTypeOfTest(string expr, string typeName)
         {

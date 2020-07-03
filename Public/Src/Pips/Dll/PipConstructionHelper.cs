@@ -1,13 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.Text;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
@@ -38,7 +42,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The graph
         /// </summary>
-        public IPipGraph PipGraph { get; }
+        public IMutablePipGraph PipGraph { get; }
 
         /// <summary>
         /// A unique relative path for this value pip
@@ -78,7 +82,7 @@ namespace BuildXL.Pips
             AbsolutePath objectRoot,
             AbsolutePath redirectedRoot,
             AbsolutePath tempRoot,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             ModuleId moduleId,
             string moduleName,
             ValuePip valuePip,
@@ -111,7 +115,7 @@ namespace BuildXL.Pips
             AbsolutePath objectRoot,
             AbsolutePath redirectedRoot,
             AbsolutePath tempRoot,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             ModuleId moduleId,
             string moduleName,
             RelativePath specRelativePath,
@@ -182,7 +186,7 @@ namespace BuildXL.Pips
             AbsolutePath? objectRoot = null,
             AbsolutePath? redirectedRoot = null,
             AbsolutePath? tempRoot = null,
-            IPipGraph pipGraph = null,
+            IMutablePipGraph pipGraph = null,
             string moduleName = null,
             string specRelativePath = null,
             string symbol = null,
@@ -265,6 +269,7 @@ namespace BuildXL.Pips
         public bool TrySealDirectory(
             AbsolutePath directoryRoot,
             SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> contents,
+            SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> outputDirectorycontents,
             SealDirectoryKind kind,
             string[] tags,
             string description,
@@ -274,14 +279,17 @@ namespace BuildXL.Pips
         {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents.IsValid);
+            Contract.Requires(outputDirectorycontents.IsValid);
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files - ", 
+                    outputDirectorycontents.Length.ToString(CultureInfo.InvariantCulture), " output directories]" });
 
             var pip = new SealDirectory(
                 directoryRoot,
                 contents,
+                outputDirectorycontents,
                 kind,
                 CreatePipProvenance(usage),
                 ToStringIds(tags),
@@ -308,8 +316,9 @@ namespace BuildXL.Pips
         public bool TryComposeSharedOpaqueDirectory(
             AbsolutePath directoryRoot,
             IReadOnlyList<DirectoryArtifact> contents,
+            SealDirectoryContentFilter? contentFilter,
             [CanBeNull] string description,
-            string[] tags,
+            [CanBeNull] string[] tags,
             out DirectoryArtifact sharedOpaqueDirectory)
         {
             Contract.Requires(directoryRoot.IsValid);
@@ -323,7 +332,9 @@ namespace BuildXL.Pips
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, " [", contents.Count.ToString(CultureInfo.InvariantCulture), " shared opaque directories]" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Count.ToString(CultureInfo.InvariantCulture),
+                    " shared opaque directories, filter: ",
+                    contentFilter.HasValue ? $"'{contentFilter.Value.Regex}' (kind: {Enum.GetName(typeof(SealDirectoryContentFilter.ContentFilterKind),     contentFilter.Value.Kind)})" : "''",  "]" });
 
             sharedOpaqueDirectory = PipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
 
@@ -331,7 +342,8 @@ namespace BuildXL.Pips
                     directoryRoot,
                     contents,
                     CreatePipProvenance(usage),
-                    ToStringIds(tags));
+                    ToStringIds(tags),
+                    contentFilter);
 
             // The seal directory is ready to be initialized, since the directory artifact has been reserved already
             pip.SetDirectoryArtifact(sharedOpaqueDirectory);
@@ -486,8 +498,8 @@ namespace BuildXL.Pips
 
         private static string Hash(string content)
         {
-            var hashedBlob = FingerprintUtilities.Hash(content);
-            return FingerprintUtilities.FingerprintToFileName(hashedBlob);
+            var murmurHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(content));
+            return FingerprintUtilities.FingerprintToFileName(murmurHash.ToByteArray());
         }
 
         /// <summary>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -20,6 +20,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
+using VfsUtilities = BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts
@@ -63,6 +64,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         private readonly string m_vfsCasRoot;
 
         /// <summary>
+        /// String used to identify existing file deletion failures
+        /// </summary>
+        public const string ExistingFileDeletionFailure = "Try materialize file from cache failed due to file deletion failure";
+
+        /// <summary>
         /// Creates a store which tracks files and content with the provided <paramref name="fileContentTable"/> and <paramref name="fileChangeTracker"/>.
         /// The change tracker is allowed to fail each tracking operation, so long as it can record that tracking is incomplete (<see cref="FileChangeTracker.CreateDisabledTracker"/> is sufficient).
         /// The caller retains ownership of both structures and is expected to save and reload them later as needed.
@@ -86,7 +92,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             m_fileContentTable = fileContentTable;
             m_pathToNormalizedPathTranslator = directoryTranslator;
             m_normalizedPathToRealPathTranslator = directoryTranslator?.GetReverseTranslator();
-            m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(pathTable, fileChangeTracker);
+            m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(m_loggingContext, pathTable, fileChangeTracker);
             m_vfsCasRoot = vfsCasRoot.IsValid ? vfsCasRoot.ToString(pathTable) : null;
             if (m_vfsCasRoot != null && m_normalizedPathToRealPathTranslator != null)
             {
@@ -118,10 +124,32 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
-                bool virtualize = !(symlinkTarget.IsValid || reparsePointInfo?.IsActionableReparsePoint == true) && IsVirtualizedPath(expandedPath.ExpandedPath);
+
+                var reparsePointType = ReparsePointType.None;
+                if (reparsePointInfo == null && symlinkTarget.IsValid)
+                {
+                    if (OperatingSystemHelper.IsUnixOS)
+                    {
+                        reparsePointType = ReparsePointType.UnixSymlink;
+                    }
+                    else
+                    {
+                        var existenceCheck = FileUtilities.TryProbePathExistence(symlinkTarget.ToString(m_pathTable), followSymlink: false);
+                        if (!existenceCheck.Succeeded)
+                        {
+                            return existenceCheck.Failure;
+                        }
+
+                        reparsePointType = existenceCheck.Result == PathExistence.ExistsAsFile 
+                            ? ReparsePointType.FileSymlink 
+                            : ReparsePointType.DirectorySymlink;
+                    }
+                    
+                    reparsePointInfo = ReparsePointInfo.Create(reparsePointType, symlinkTarget.ToString(m_pathTable));
+                }
 
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
-                if (!virtualize && FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
+                if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
                 {
                     var openFlags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
 
@@ -168,9 +196,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             handle,
                                             expandedPath,
                                             existingDestinationIdentityAndHash,
-                                            reparsePointInfo: reparsePointInfo ?? (symlinkTarget.IsValid
-                                                ? ReparsePointInfo.Create(ReparsePointType.SymLink, symlinkTarget.ToString(m_pathTable))
-                                                : (ReparsePointInfo?)null))
+                                            reparsePointInfo: reparsePointInfo)
                                         : TrackedFileContentInfo.CreateUntracked(existingDestinationIdentityAndHash.FileContentInfo);
 
                                     // If couldn't get file name or the file (failure in tracking) name does not match, we need to materialize from the cache
@@ -200,7 +226,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 }
 
                 Possible<Unit, Failure> possibleMaterialization;
-                if (!symlinkTarget.IsValid && (reparsePointInfo == null || !reparsePointInfo.Value.IsActionableReparsePoint))
+                if (reparsePointInfo == null || !reparsePointInfo.Value.IsActionableReparsePoint)
                 {
                     possibleMaterialization = await cache.TryMaterializeAsync(
                         fileRealizationModes,
@@ -211,26 +237,20 @@ namespace BuildXL.Engine.Cache.Artifacts
                     {
                         return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed");
                     }
-                    else if (virtualize)
-                    {
-                        return possibleMaterialization.Then(p =>
-                            new ContentMaterializationResult(
-                                ContentMaterializationOrigin.DeployedFromCache,
-                                TrackedFileContentInfo.CreateUntrackedWithUnknownLength(contentHash, PathExistence.ExistsAsFile)));
-                    }
                 }
                 else
                 {
-                    possibleMaterialization = symlinkTarget.IsValid
-                        ? CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, symlinkTarget)
-                        : CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget());
+                    possibleMaterialization = CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget(), reparsePointInfo.Value.ReparsePointType);
                 }
+
+                bool isSymlink = symlinkTarget.IsValid || (reparsePointInfo != null && reparsePointInfo.Value.IsSymlink);
 
                 Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(
                         expandedPath,
                         contentHash,
                         fileName,
+                        isSymlink,
                         trackPath: trackPath,
                         recordPathInFileContentTable: recordPathInFileContentTable));
 
@@ -242,33 +262,16 @@ namespace BuildXL.Engine.Cache.Artifacts
         private string ExpandFileName(ref PathAtom fileName) => fileName.IsValid ? fileName.ToString(m_pathTable.StringTable) : default;
 
         /// <summary>
-        /// Creates a symlink
+        /// Creates a symlink. SymlinkTarget must be a non-empty string.
         /// </summary>
-        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, AbsolutePath symlinkTarget)
-        {
-            var source = Expand(symlink);
-            var target = Expand(symlinkTarget);
-            bool created;
-
-            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, target.ExpandedPath, true, out created);
-            if (!maybeSymbolicLink.Succeeded)
-            {
-                return new Failure<string>($"Failed to create symlink from '{source}' to '{target}'", maybeSymbolicLink.Failure);
-            }
-
-            return Unit.Void;
-        }
-
-        /// <summary>
-        /// Creates a symlink. SymlinkTarget can be any non-empty string.
-        /// </summary>
-        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, string symlinkTarget)
+        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, string symlinkTarget, ReparsePointType type)
         {
             Contract.Requires(!string.IsNullOrEmpty(symlinkTarget));
+
             var source = Expand(symlink);
             bool created;
 
-            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, symlinkTarget, true, out created);
+            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, symlinkTarget, type != ReparsePointType.DirectorySymlink, out created);
             if (!maybeSymbolicLink.Succeeded)
             {
                 return new Failure<string>($"Failed to create symlink from '{source}' to '{symlinkTarget}'", maybeSymbolicLink.Failure);
@@ -313,11 +316,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 var updatedDestination = destination.Substring(0, destination.Length - requiredFileName.Length) + requiredFileName;
 
                 // Move file to temporary location
-                var changeCasing = await FileUtilities.MoveFileAsync(destination, updatedDestination, replaceExisting: false);
-                if (!changeCasing)
-                {
-                    return new Failure<string>(I($"Could not move file '{destination}' to change file name casing to '{requiredFileName}'."));
-                }
+                await FileUtilities.MoveFileAsync(destination, updatedDestination, replaceExisting: false);
 
                 return Unit.Void;
             }
@@ -567,7 +566,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                                         finalLocation = possibleFinalLocation.Result;
 
-                                        hash = ComputePathHash(finalLocation);
+                                        hash = ComputePathHash(finalLocation, out var isVirtual);
                                         contentPath = expandedPath;
                                         contentLength = finalLocation.Length;
                                         Tracing.Logger.Log.HashedSymlinkAsTargetPath(m_loggingContext, expandedPath, finalLocation);
@@ -581,7 +580,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                     using (var stream = file.CreateReadableStream())
                                     using (var innerCounter = Counters.StartStopwatch(LocalDiskContentStoreCounter.TryDiscoverTime_HashFileContent))
                                     {
-                                        hash = await ContentHashingUtilities.HashContentStreamAsync((Stream)stream);
+                                        hash = await ContentHashingUtilities.HashContentStreamAsync(stream.AssertHasLength());
                                         contentPath = stream.File.Path ?? "<unknown-path>";
                                         contentLength = stream.Length;
                                         hashingDuration = innerCounter.Elapsed;
@@ -617,7 +616,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                             if (natEx != null)
                             {
                                 Tracing.Logger.Log.ClosingFileStreamAfterHashingFailed(
-                                    Events.StaticContext,
+                                    m_loggingContext,
                                     expandedPath,
                                     ioEx.Message + "|" + natEx.Message,
                                     natEx.ToStringDemystified());
@@ -655,7 +654,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         public ContentHash ComputePathHash(AbsolutePath path)
         {
-            return ComputePathHash(Expand(path).ExpandedPath);
+            return ComputePathHash(Expand(path).ExpandedPath, out _);
         }
 
         /// <summary>
@@ -680,7 +679,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Computes hash of a given file path.
         /// </summary>
-        public ContentHash ComputePathHash(string filePath)
+        public ContentHash ComputePathHash(string filePath, out bool isVirtual)
         {
             Contract.Requires(filePath != null);
 
@@ -689,6 +688,17 @@ namespace BuildXL.Engine.Cache.Artifacts
                 filePath = m_pathToNormalizedPathTranslator.Translate(filePath);
             }
 
+            if (m_vfsCasRoot != null && filePath.IsPathWithin(m_vfsCasRoot))
+            {
+                if (VfsUtilities.TryGetRelativePath(filePath, m_vfsCasRoot, out var relativePath)
+                    && VfsUtilities.TryParseCasRelativePath(relativePath, out var placementData))
+                {
+                    isVirtual = true;
+                    return placementData.Hash;
+                }
+            }
+
+            isVirtual = false;
             return ContentHashingUtilities.HashString(filePath.ToUpperInvariant());
         }
 
@@ -774,8 +784,8 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (!isSymlink.HasValue)
             {
-                var possibleReparsePoint = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
-                isSymlink = possibleReparsePoint.Succeeded && possibleReparsePoint.Result == ReparsePointType.SymLink;
+                var possibleReparsePointType = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
+                isSymlink = possibleReparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(possibleReparsePointType.Result);
             }
 
             if (isSymlink == true)
@@ -798,7 +808,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
                 return await possiblyStored.ThenAsync(
-                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, trackPath: trackPath));
+                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink.Value, trackPath: trackPath));
             }
             else
             {
@@ -807,7 +817,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     expandedPath);
 
                 return await possiblyStored.ThenAsync(
-                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, trackPath: trackPath));
+                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isSymlink.Value, trackPath: trackPath));
             }
         }
 
@@ -819,7 +829,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool tryFlushPageCacheToFileSystem,
             ContentHash? knownContentHash = null,
             bool ignoreKnownContentHashOnDiscoveringContent = false,
-            bool createHandleWithSequentialScan = false)
+            bool createHandleWithSequentialScan = false,
+            bool isSymlink = false)
         {
             Contract.Requires(file.IsValid);
 
@@ -836,7 +847,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (knownContentHash.HasValue)
             {
-                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName);
+                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink);
             }
 
             var possibleDiscover = await TryDiscoverAsync(
@@ -904,7 +915,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     FileDesiredAccess.GenericWrite | FileDesiredAccess.GenericRead,
                     FileShare.Read | FileShare.Delete,
                     FileMode.Open,
-                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                     out handle);
 
                 if (openResultForWriting.Succeeded)
@@ -947,13 +958,12 @@ namespace BuildXL.Engine.Cache.Artifacts
             ExpandedAbsolutePath path,
             ContentHash hash,
             PathAtom fileName,
+            bool isSymlink,
             bool trackPath = true,
             // For legacy reason, recordPathInFileContentTable is default to false because if trackPath is false,
             // then recordPathInFileContentTable used to automatically be false.
             bool recordPathInFileContentTable = false)
         {
-            Contract.Requires(path != null);
-
             // If path needs to be tracked, then path needs to be recorded in the file content table.
             recordPathInFileContentTable = trackPath ? true : recordPathInFileContentTable;
 
@@ -968,15 +978,26 @@ namespace BuildXL.Engine.Cache.Artifacts
             return Helpers.RetryOnFailure(
                     lastAttempt =>
                     {
+                        var flags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
+
+                        if (isSymlink)
+                        {
+                            flags |= FileFlagsAndAttributes.FileFlagBackupSemantics;
+                        }
+
                         var attempt = FileUtilities.UsingFileHandleAndFileLength(
                             path.ExpandedPath,
                             FileDesiredAccess.GenericRead,
                             FileShare.Read | FileShare.Delete,
                             FileMode.Open,
-                            FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                            flags,
                             (handle, length) =>
                             {
                                 VersionedFileIdentityAndContentInfo? identityAndContentInfo = default;
+
+                                var fileContentInfo = IsVirtualizedPath(path.ExpandedPath)
+                                    ? FileContentInfo.CreateWithUnknownLength(hash, PathExistence.ExistsAsFile)
+                                    : new FileContentInfo(hash, length);
 
                                 if (recordPathInFileContentTable)
                                 {
@@ -987,14 +1008,14 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             hash,
                                             length,
                                             strict: false);
-                                    identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, new FileContentInfo(hash, length));
+                                    identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, fileContentInfo);
                                 }
 
                                 if (!trackPath)
                                 {
                                     // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
                                     // but we need the file length, and potentially need to ensure that the file name casing match.
-                                    return new TrackedFileContentInfo(new FileContentInfo(hash, length), FileChangeTrackingSubscription.Invalid, fileName);
+                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName);
                                 }
 
                                 Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);

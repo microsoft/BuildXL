@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
@@ -23,7 +23,7 @@ namespace BuildXL.Utilities.Collections
 #pragma warning restore CA1825 // Avoid unncecessary zero-length array allocations.
             }
 
-            internal static class Dictionary<TKey,TValue>
+            internal static class Dictionary<TKey,TValue> where TKey : notnull
             {
 #pragma warning disable CA1825 // Avoid unncecessary zero-length array allocations.
                 public static readonly IReadOnlyDictionary<TKey, TValue> Instance = new System.Collections.Generic.Dictionary<TKey, TValue>(0);

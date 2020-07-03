@@ -5,25 +5,24 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Tests {
-    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
 
-    @@public
-    export const deployment : Deployment.Definition = {
-        contents: [
-            ...(qualifier.targetFramework === "net472" ? [
-                importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
-                importFrom("BuildXL.Tools").VerifyFileContentTable.exe,
-            ] : []),
-            {
-                subfolder: a`osx-x64`,
-                contents: qualifier.targetRuntime === "osx-x64" ? [Tests.Osx.deployment] : []
-            }
-        ]
+    const deployment : Deployment.Definition = {
+        contents: qualifier.targetFramework === "net472" ? [
+            importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
+            importFrom("BuildXL.Tools").VerifyFileContentTable.exe,
+        ] : []
     };
 
     @@public
-    export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+    export const deployed = (qualifier.targetFramework === "net472") && BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment, 
-        targetLocation: r`tests/${qualifier.configuration}`, 
+        targetLocation: r`tests/${qualifier.configuration}`
+    });
+
+    @@public
+    export const linuxTestsDeployed = (qualifier.targetRuntime === "linux-x64") && BuildXLSdk.DeploymentHelpers.deploy({
+        definition: Tests.Linux.deployment,
+        targetLocation: r`linux-x64-tests/${qualifier.configuration}`
     });
 }

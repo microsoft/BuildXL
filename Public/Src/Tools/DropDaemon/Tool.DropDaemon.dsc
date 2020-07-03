@@ -35,17 +35,22 @@ export namespace DropDaemon {
             importFrom("ArtifactServices.App.Shared.Cache").pkg,
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
-            importFrom("Drop.RemotableClient.Interfaces").pkg,
             importFrom("ItemStore.Shared").pkg,
             importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("WindowsAzure.Storage").pkg,
+            importFrom("Microsoft.Azure.Storage.Common").pkg,
+
+            // We need to reference this even though the codepath which uses the path is never activated 
+            // because of the way that runtime assemblies are loaded into memory.
+            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
@@ -85,6 +90,7 @@ export namespace DropDaemon {
             f`Tool.DropDaemonRunner.dsc`,
             f`Tool.DropDaemonRunnerOfficeShim.dsc`,
             f`Tool.DropDaemonInterfaces.dsc`,
+            f`Tool.DropDaemonCloudBuildHelper.dsc`,
             {file: f`LiteralFiles/package.dsc.literal`, targetFileName: a`package.dsc`},
             {file: f`LiteralFiles/package.config.dsc.literal`, targetFileName: a`package.config.dsc`},
             {

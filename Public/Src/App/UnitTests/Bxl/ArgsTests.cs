@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Linq;
@@ -138,6 +138,27 @@ namespace Test.BuildXL
             XAssert.IsFalse(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, "/storeFingerprints:Gibberish" }, pt, out config));
         }
 
+        [Theory]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes-", DynamicWriteOnAbsentProbePolicy.IgnoreNothing)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes+", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreNothing", DynamicWriteOnAbsentProbePolicy.IgnoreNothing)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreDirectoryProbes", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreFileProbes", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:Gibberish", null)]
+
+        public void IgnoreDynamicWritesOnAbsentProbesOption(string cmdLineOption, DynamicWriteOnAbsentProbePolicy? result)
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            XAssert.AreEqual(result.HasValue, argsParser.TryParse(new[] { @"/c:" + m_specFilePath, cmdLineOption }, pt, out var config));
+            if (result.HasValue)
+            {
+                XAssert.AreEqual(result.Value, config.Sandbox.UnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes);
+            }
+        }
+
         /// <summary>
         /// Primarily makes sure help text format strings do not have any crashes
         /// </summary>
@@ -148,20 +169,24 @@ namespace Test.BuildXL
             HelpText.DisplayHelp(global::BuildXL.ToolSupport.HelpLevel.Verbose);
         }
 
-        [Fact]
-        public void ABTestingOption()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ABTestingOption(bool wrapInQuotes)
         {
             ICommandLineConfiguration config;
             PathTable pt = new PathTable();
             var argsParser = new Args();
 
-            string abTestingArg = "/incrementalScheduling+ /maxIO:1";
+            string args = "/incrementalScheduling+ /maxIO:1";
+
+            string abTestingArg = wrapInQuotes ? $"\"{args}\"" : args;
 
             XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, $"/abTesting:Id1={abTestingArg}" }, pt, out config));
             XAssert.IsTrue(config.Schedule.IncrementalScheduling);
             XAssert.IsTrue(config.Schedule.MaxIO == 1);
             XAssert.IsTrue(config.Logging.TraceInfo.ContainsKey(TraceInfoExtensions.ABTesting));
-            XAssert.IsTrue(config.Logging.TraceInfo.Values.Contains($"Id1;{abTestingArg.GetHashCode()}"));
+            XAssert.IsTrue(config.Logging.TraceInfo.Values.Any(a => a.Contains($"Id1")));
         }
 
         [Fact]
@@ -187,6 +212,6 @@ namespace Test.BuildXL
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config4));
             XAssert.Equals(chosen, config4.Startup.ChosenABTestingKey);
-        }
+        }        
     }
 }

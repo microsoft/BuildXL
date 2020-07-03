@@ -1,17 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.Interfaces.Test;
+using BuildXL.Cache.MemoizationStoreAdapter;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using Xunit;
 using BuildXLCacheDeterminism = BuildXL.Cache.Interfaces.CacheDeterminism;
 using BuildXLStrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;

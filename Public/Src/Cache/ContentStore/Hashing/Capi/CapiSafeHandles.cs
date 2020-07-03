@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #endif
     internal sealed class SafeCapiKeyHandle : SafeCapiHandleBase
     {
-        private static volatile SafeCapiKeyHandle s_invalidHandle;
+        private static volatile SafeCapiKeyHandle? s_invalidHandle;
 
 #if FEATURE_CORESYSTEM
         [System.Security.SecurityCritical]

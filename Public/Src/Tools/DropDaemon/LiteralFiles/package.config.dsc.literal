@@ -1,5 +1,11 @@
 module({
     name: "Sdk.Drop",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [ p`package.dsc`, p`Tool.DropDaemonInterfaces.dsc`, p`Tool.DropDaemonRunner.dsc`, p`Tool.DropDaemonRunnerOfficeShim.dsc`, p`Tool.DropDaemonTool.dsc`]
+    projects: [ 
+        p`package.dsc`, 
+        p`Tool.DropDaemonInterfaces.dsc`, 
+        p`Tool.DropDaemonRunner.dsc`, 
+        p`Tool.DropDaemonRunnerOfficeShim.dsc`, 
+        p`Tool.DropDaemonTool.dsc`,
+        p`Tool.DropDaemonCloudBuildHelper.dsc`]
 });

@@ -1,12 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute=JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Scheduler
 {
@@ -49,6 +48,11 @@ namespace BuildXL.Scheduler
         /// The total number of pips waited for semaphore resources so far
         /// </summary>
         int TotalNumSemaphoreQueued { get; }
+
+        /// <summary>
+        /// How many work items there are in the dispatcher as pending or actively running.
+        /// </summary>
+        long NumRunningOrQueued { get; }
 
         /// <summary>
         /// Gets the number of running pips in the given queue
@@ -94,5 +98,10 @@ namespace BuildXL.Scheduler
         /// Adjusts the concurrency limit for the IO queue
         /// </summary>
         void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo);
+        
+        /// <summary>
+        /// Sets the total number of process slots in the build.
+        /// </summary>
+        void SetTotalProcessSlots(int totalProcessSlots);
     }
 }

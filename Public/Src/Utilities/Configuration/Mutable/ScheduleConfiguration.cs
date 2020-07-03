@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -20,8 +20,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableLazyOutputMaterialization = true;
             UseHistoricalPerformanceInfo = true;
             TreatDirectoryAsAbsentFileOnHashingInputContent = true;
-            MaximumRamUtilizationPercentage = 85;
-            MinimumTotalAvailableRamMb = 500;
+            MaximumRamUtilizationPercentage = 90;
+            MaximumCommitUtilizationPercentage = 95;
             MaximumAllowedMemoryPressureLevel = Memory.PressureLevel.Normal;
 
             AllowCopySymlink = true;
@@ -37,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Based on the benchmarks, the cache lookup limit is 2 times the number of logical cores.
             MaxCacheLookup = Environment.ProcessorCount * 2;
             MaxMaterialize = Environment.ProcessorCount * 2;
+            MaxSealDirs = Environment.ProcessorCount;
 
             MaxChooseWorkerCpu = 5;
             MaxChooseWorkerCacheLookup = 1;
@@ -44,11 +45,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CanonicalizeFilterOutputs = true;
 
             UnsafeDisableGraphPostValidation = false;
+            UnsafeLazySODeletion = false;
 
             ProcessRetries = 0;
 
-            UnsafeLazySymlinkCreation = false;
-            UnexpectedSymlinkAccessReportingMode = UnexpectedSymlinkAccessReportingMode.All;
             StoreOutputsToCache = true;
 
             // TODO: Fix me.
@@ -62,7 +62,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = new List<AbsolutePath>();
 
             IncrementalScheduling = false;
-            GraphAgnosticIncrementalScheduling = true;
             ComputePipStaticFingerprints = false;
             LogPipStaticFingerprintTexts = false;
 
@@ -75,6 +74,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
+
+            EnableSetupCostWhenChoosingWorker = true;
+            EnableLessAggresiveMemoryProjection = false;
+            ManageMemoryMode = ManageMemoryMode.CancellationRam;
+            MaxRetriesDueToRetryableFailures = 5;
         }
 
         /// <nodoc />
@@ -102,6 +106,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatDirectoryAsAbsentFileOnHashingInputContent = template.TreatDirectoryAsAbsentFileOnHashingInputContent;
             MaximumRamUtilizationPercentage = template.MaximumRamUtilizationPercentage;
             MinimumTotalAvailableRamMb = template.MinimumTotalAvailableRamMb;
+            MinimumDiskSpaceForPipsGb = template.MinimumDiskSpaceForPipsGb;
             MaximumAllowedMemoryPressureLevel = template.MaximumAllowedMemoryPressureLevel;
             AllowCopySymlink = template.AllowCopySymlink;
             AdaptiveIO = template.AdaptiveIO;
@@ -115,8 +120,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeDisableGraphPostValidation = template.UnsafeDisableGraphPostValidation;
 
             ProcessRetries = template.ProcessRetries;
-            UnsafeLazySymlinkCreation = template.UnsafeLazySymlinkCreation;
-            UnexpectedSymlinkAccessReportingMode = template.UnexpectedSymlinkAccessReportingMode;
             StoreOutputsToCache = template.StoreOutputsToCache;
 
             EnableLazyWriteFileMaterialization = template.EnableLazyWriteFileMaterialization;
@@ -124,7 +127,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = pathRemapper.Remap(template.OutputMaterializationExclusionRoots);
 
             IncrementalScheduling = template.IncrementalScheduling;
-            GraphAgnosticIncrementalScheduling = template.GraphAgnosticIncrementalScheduling;
             ComputePipStaticFingerprints = template.ComputePipStaticFingerprints;
             LogPipStaticFingerprintTexts = template.LogPipStaticFingerprintTexts;
 
@@ -139,8 +141,20 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            UnsafeLazySODeletion = template.UnsafeLazySODeletion;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
+            CacheOnly = template.CacheOnly;
+            EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
+            MaxSealDirs = template.MaxSealDirs;
+            EnableHistoricCommitMemoryProjection = template.EnableHistoricCommitMemoryProjection;
+            MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
+            DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
+            DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
+            MaxRetriesDueToLowMemory = template.MaxRetriesDueToLowMemory;
+            MaxRetriesDueToRetryableFailures = template.MaxRetriesDueToRetryableFailures;
+            EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
+            ManageMemoryMode = template.ManageMemoryMode;
         }
 
         /// <inheritdoc />
@@ -209,7 +223,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ForceUseEngineInfoFromCache { get; set; }
-
+        
         /// <inheritdoc />
         public bool? UseHistoricalRamUsageInfo { get; set; }
 
@@ -236,7 +250,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int MaximumRamUtilizationPercentage { get; set; }
 
         /// <inheritdoc />
-        public int MinimumTotalAvailableRamMb { get; set; }
+        public int? MinimumTotalAvailableRamMb { get; set; }
 
         /// <inheritdoc />
         public Memory.PressureLevel MaximumAllowedMemoryPressureLevel { get; set; }
@@ -256,6 +270,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool UnsafeDisableGraphPostValidation { get; set; }
 
         /// <inheritdoc />
+        public bool UnsafeLazySODeletion { get; set; }
+
+        /// <inheritdoc />
         public string EnvironmentFingerprint { get; set; }
 
         /// <inheritdoc />
@@ -268,16 +285,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int ProcessRetries { get; set; }
 
         /// <inheritdoc />
-        public bool UnsafeLazySymlinkCreation { get; set; }
-
-        /// <inheritdoc />
         public bool EnableLazyWriteFileMaterialization { get; set; }
 
         /// <inheritdoc />
         public bool WriteIpcOutput { get; set; }
-
-        /// <inheritdoc />
-        public UnexpectedSymlinkAccessReportingMode UnexpectedSymlinkAccessReportingMode { get; set; }
 
         /// <inheritdoc />
         public bool StoreOutputsToCache { get; set; }
@@ -287,9 +298,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IncrementalScheduling { get; set; }
-
-        /// <inheritdoc />
-        public bool GraphAgnosticIncrementalScheduling { get; set; }
 
         /// <inheritdoc />
         public bool ComputePipStaticFingerprints { get; set; }
@@ -323,12 +331,54 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; set; }
 
         /// <inheritdoc />
-        public bool UseHistoricalCpuUsageInfo { get; set; }
+        public bool? UseHistoricalCpuUsageInfo { get; set; }
 
         /// <inheritdoc />
         public bool UseFixedApiServerMoniker { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath InputChanges { get; set; }
+
+        /// <inheritdoc />
+        public int? MinimumDiskSpaceForPipsGb { get; set; }
+
+        /// <inheritdoc />
+        public int? MaxRetriesDueToLowMemory { get; set; }
+
+        /// <inheritdoc />
+        public int MaxRetriesDueToRetryableFailures { get; set; }
+
+        /// <inheritdoc />
+        public bool CacheOnly { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableSetupCostWhenChoosingWorker { get; set;  }
+
+        /// <inheritdoc />
+        public int MaxSealDirs { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableHistoricCommitMemoryProjection { get; set; }
+
+        /// <inheritdoc />
+        public int MaximumCommitUtilizationPercentage { get; set; }
+
+        /// <inheritdoc />
+        public double? DelayedCacheLookupMinMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public double? DelayedCacheLookupMaxMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableLessAggresiveMemoryProjection { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableEmptyingWorkingSet { get; set; }
+
+        /// <inheritdoc />
+        public ManageMemoryMode ManageMemoryMode { get; set; }
+
+        /// <inheritdoc />
+        public bool? DisableCompositeOpaqueFilters { get; set; }
     }
 }

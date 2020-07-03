@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using Xunit;
 
@@ -11,6 +12,21 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
     public class ReadOnlyFixedBytesTests
     {
+        [Fact]
+        public void ToHexTest()
+        {
+            var bytes = Enumerable.Range(0, ReadOnlyFixedBytes.MaxLength).Select(i => (byte)i).ToArray();
+            var fixedBytes = new ReadOnlyFixedBytes(bytes);
+
+            var string1 = fixedBytes.ToHex();
+
+            var sb = new StringBuilder();
+            fixedBytes.ToHex(sb, 0, fixedBytes.Length);
+            var string2 = sb.ToString();
+
+            Assert.Equal(string1, string2);
+        }
+
         [Fact]
         public void LengthConstantIsExpectedValue()
         {

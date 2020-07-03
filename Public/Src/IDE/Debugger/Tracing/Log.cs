@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.FrontEnd.Script.Debugger.Tracing
 {
@@ -14,16 +14,9 @@ namespace BuildXL.FrontEnd.Script.Debugger.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptDebuggerLogger")]
     public abstract partial class Logger
     {
-        /// <summary>
-        /// Factory method that creates instances of this logger.
-        /// </summary>
-        public static Logger CreateLogger()
-        {
-            return new LoggerImpl();
-        }
-
         [GeneratedEvent(
             (ushort)LogEventId.DebuggerServerStarted,
             EventGenerators = EventGenerators.LocalOnly,

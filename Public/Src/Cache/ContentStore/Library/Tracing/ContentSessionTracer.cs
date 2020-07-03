@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma warning disable 1591
 #pragma warning disable SA1600 // Elements must be documented
 
@@ -9,10 +10,12 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stats;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -40,11 +43,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly CallCounter _putFileCallCounter;
 
         protected readonly Collection<Counter> Counters = new Collection<Counter>();
-        private readonly Counter _placeFileRetryCounter;
         private readonly Counter _pinBulkFileCountCounter;
 
-        public ContentSessionTracer(string name)
-            : base(name)
+        public ContentSessionTracer(string name, bool useTracerName = false)
+            : base(name, useTracerName)
         {
             CallCounters.Add(_getStatsCallCounter = new CallCounter(GetStatsCallName));
             CallCounters.Add(_pinCallCounter = new CallCounter(PinCallName));
@@ -54,7 +56,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             CallCounters.Add(_putStreamCallCounter = new CallCounter(PutStreamCallName));
             CallCounters.Add(_putFileCallCounter = new CallCounter(PutFileCallName));
 
-            Counters.Add(_placeFileRetryCounter = new Counter(PlaceFileRetryCounterName));
             Counters.Add(_pinBulkFileCountCounter = new Counter(PinBulkFileCountCounterName));
         }
 
@@ -127,7 +128,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        public void PinBulkStop(Context context, TimeSpan duration, IReadOnlyList<ContentHash> contentHashes, IEnumerable<Indexed<PinResult>> results, Exception error)
+        public void PinBulkStop(
+            Context context,
+            TimeSpan duration,
+            IReadOnlyList<ContentHash> contentHashes,
+            IEnumerable<Indexed<PinResult>> results,
+            Exception error,
+            PinBulkOptions pinBulkOptions)
         {
             if (context.IsEnabled)
             {
@@ -138,13 +145,21 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
                 if (pinStatus == Success)
                 {
-                    // Successful case
-                    TraceBulk(
-                        $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
-                        results.Select((result, index) => (result, hash: contentHashes[index])),
-                        contentHashes.Count,
-                        itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
-                        printAction: message => Debug(context, message));
+                    // Trace successful case differently when the pins were restored at startup by reading hibernated sessions.
+                    if (pinBulkOptions.RePinFromHibernation)
+                    {
+                        TracerOperationFinished(context, BoolResult.Success, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). FromHibernation=True.");
+                    }
+                    else
+                    {
+                        // Regular successful case
+                        TraceBulk(
+                            $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
+                            results.Select((result, index) => (result, hash: contentHashes[index])),
+                            contentHashes.Count,
+                            itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
+                            printAction: message => Debug(context, message));
+                    }
                 }
                 else if (pinStatus == Error)
                 {
@@ -171,11 +186,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _openStreamCallCounter.Started();
         }
 
-        public virtual void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result)
+        public virtual void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result, Severity successSeverity = Severity.Debug)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms input=[{contentHash.ToShortString()}] result=[{result}]");
+                TracerOperationFinished(
+                    context,
+                    result,
+                    $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms input=[{contentHash.ToShortString()}] result=[{result}]",
+                    successSeverity);
             }
 
             _openStreamCallCounter.Completed(result.Duration.Ticks);
@@ -193,26 +212,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _placeFileCallCounter.Started();
         }
 
-        public void PlaceFileRetry(Context context, int retry)
-        {
-            if (retry <= 0)
-            {
-                return;
-            }
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.{PlaceFileCallName}() retry #{retry}");
-            }
-
-            _placeFileRetryCounter.Increment();
-        }
-
-        public virtual void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode)
+        public virtual void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, Severity successSeverity = Severity.Debug)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName}({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode}) stop {result.DurationMs}ms result=[{result}]");
+                TracerOperationFinished(
+                    context,
+                    result,
+                    $"{Name}.{PlaceFileCallName}({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode}) stop {result.DurationMs}ms result=[{result}]",
+                    successSeverity);
             }
 
             _placeFileCallCounter.Completed(result.Duration.Ticks);
@@ -230,11 +238,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _putFileCallCounter.Started();
         }
 
-        public virtual void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode)
+        public virtual void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode, Severity successSeverity = Severity.Debug)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PutFileCallName}({path},{mode},{result.ContentHash.HashType}) stop {result.DurationMs}ms result=[{result}] trusted={trusted}");
+                TracerOperationFinished(
+                    context,
+                    result,
+                    $"{Name}.{PutFileCallName}({path},{mode},{result.ContentHash.HashType}) stop {result.DurationMs}ms result=[{result}] trusted={trusted}",
+                    successSeverity);
             }
 
             _putFileCallCounter.Completed(result.Duration.Ticks);
@@ -252,11 +264,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _putStreamCallCounter.Started();
         }
 
-        public virtual void PutStreamStop(Context context, PutResult result)
+        public virtual void PutStreamStop(Context context, PutResult result, Severity successSeverity = Severity.Debug)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PutStreamCallName} stop {result.DurationMs}ms result=[{result}]");
+                TracerOperationFinished(
+                    context,
+                    result,
+                    $"{Name}.{PutStreamCallName} stop {result.DurationMs}ms result=[{result}]",
+                    successSeverity);
             }
 
             _putStreamCallCounter.Completed(result.Duration.Ticks);

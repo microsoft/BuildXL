@@ -1,13 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Storage;
-using BuildXL.Utilities;
 using BuildXL.Native.IO;
-using System.IO;
+using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 
 namespace BuildXL.Pips
 {
@@ -188,14 +187,9 @@ namespace BuildXL.Pips
         public TimeSpan KernelTime { get; }
 
         /// <summary>
-        /// Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
+        /// Memory counters
         /// </summary>
-        public ulong PeakMemoryUsage { get; }
-
-        /// <summary>
-        /// <see cref="PeakMemoryUsage"/> in megabytes
-        /// </summary>
-        public int PeakMemoryUsageMb => (int)(PeakMemoryUsage / (1024 * 1024));
+        public ProcessMemoryCounters MemoryCounters { get; }
 
         /// <summary>
         /// Number of processes that executed as part of the pip (the entry-point process may start children).
@@ -217,6 +211,16 @@ namespace BuildXL.Pips
         /// </summary>
         public ulong? CacheDescriptorId { get; }
 
+        /// <summary>
+        /// Processor used in % (150 means one processor fully used and the other half used)
+        /// </summary>
+        public ushort ProcessorsInPercents { get; }
+
+        /// <summary>
+        /// Suspended duration in ms
+        /// </summary>
+        public long SuspendedDurationMs { get; }
+
         /// <nodoc />
         public ProcessPipExecutionPerformance(
             PipExecutionLevel level,
@@ -228,9 +232,10 @@ namespace BuildXL.Pips
             IOCounters ioCounters,
             TimeSpan userTime,
             TimeSpan kernelTime,
-            ulong peakMemoryUsage,
+            ProcessMemoryCounters memoryCounters,
             uint numberOfProcesses,
-            uint workerId)
+            uint workerId,
+            long suspendedDurationMs)
             : base(level, executionStart, executionStop, workerId)
         {
             Contract.Requires(executionStart.Kind == DateTimeKind.Utc);
@@ -245,8 +250,14 @@ namespace BuildXL.Pips
             IO = ioCounters;
             UserTime = userTime;
             KernelTime = kernelTime;
-            PeakMemoryUsage = peakMemoryUsage;
+            MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
+
+            var durationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, ProcessExecutionTime.TotalMilliseconds));
+            double cpuTime = KernelTime.TotalMilliseconds + UserTime.TotalMilliseconds;
+            double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
+            ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
+            SuspendedDurationMs = suspendedDurationMs;
         }
 
         /// <summary>
@@ -281,8 +292,10 @@ namespace BuildXL.Pips
             IO.Serialize(writer);
             writer.Write(UserTime);
             writer.Write(KernelTime);
-            writer.Write(PeakMemoryUsage);
+            MemoryCounters.Serialize(writer);
             writer.WriteCompact(NumberOfProcesses);
+            writer.WriteCompact(SuspendedDurationMs);
+
         }
 
         internal static ProcessPipExecutionPerformance Deserialize(BuildXLReader reader, PipExecutionLevel level, DateTime executionStart, DateTime executionStop, uint workerId)
@@ -294,9 +307,10 @@ namespace BuildXL.Pips
             IOCounters ioCounters = IOCounters.Deserialize(reader);
             TimeSpan userTime = reader.ReadTimeSpan();
             TimeSpan kernelTime = reader.ReadTimeSpan();
-            ulong peakMemoryUsage = reader.ReadUInt64();
-            uint numberOfProcesses = reader.ReadUInt32Compact();
+            ProcessMemoryCounters memoryCounters = ProcessMemoryCounters.Deserialize(reader);
 
+            uint numberOfProcesses = reader.ReadUInt32Compact();
+            long suspendedDurationMs = reader.ReadInt64Compact();
             return new ProcessPipExecutionPerformance(
                 fingerprint: fingerprint,
                 level: level,
@@ -307,24 +321,25 @@ namespace BuildXL.Pips
                 ioCounters: ioCounters,
                 userTime: userTime,
                 kernelTime: kernelTime,
-                peakMemoryUsage: peakMemoryUsage,
+                memoryCounters: memoryCounters,
                 numberOfProcesses: numberOfProcesses,
-                workerId: workerId);
+                workerId: workerId,
+                suspendedDurationMs: suspendedDurationMs);
         }
 
         private static FileMonitoringViolationCounters ReadFileMonitoringViolationCounters(BuildXLReader reader)
         {
             return new FileMonitoringViolationCounters(
-                numFileAccessViolationsNotWhitelisted: reader.ReadInt32Compact(),
-                numFileAccessesWhitelistedButNotCacheable: reader.ReadInt32Compact(),
-                numFileAccessesWhitelistedAndCacheable: reader.ReadInt32Compact());
+                numFileAccessViolationsNotAllowlisted: reader.ReadInt32Compact(),
+                numFileAccessesAllowlistedButNotCacheable: reader.ReadInt32Compact(),
+                numFileAccessesAllowlistedAndCacheable: reader.ReadInt32Compact());
         }
 
         private static void WriteFileMonitoringViolationCounters(BuildXLWriter writer, FileMonitoringViolationCounters counters)
         {
-            writer.WriteCompact((int)counters.NumFileAccessViolationsNotWhitelisted);
-            writer.WriteCompact((int)counters.NumFileAccessesWhitelistedButNotCacheable);
-            writer.WriteCompact((int)counters.NumFileAccessesWhitelistedAndCacheable);
+            writer.WriteCompact((int)counters.NumFileAccessViolationsNotAllowlisted);
+            writer.WriteCompact((int)counters.NumFileAccessesAllowlistedButNotCacheable);
+            writer.WriteCompact((int)counters.NumFileAccessesAllowlistedAndCacheable);
         }
     }
 
@@ -335,42 +350,42 @@ namespace BuildXL.Pips
     public readonly struct FileMonitoringViolationCounters
     {
         /// <summary>
-        /// Count of accesses such that the access was whitelisted, but was not in the cache-friendly part of the whitelist. The pip should not be cached.
+        /// Count of accesses such that the access was allowlisted, but was not in the cache-friendly part of the allowlist. The pip should not be cached.
         /// </summary>
-        public readonly int NumFileAccessesWhitelistedButNotCacheable;
+        public readonly int NumFileAccessesAllowlistedButNotCacheable;
 
         /// <summary>
-        /// Count of accesses such that the access was whitelisted, via the cache-friendly part of the whitelist. The pip may be cached.
+        /// Count of accesses such that the access was allowlisted, via the cache-friendly part of the allowlist. The pip may be cached.
         /// </summary>
-        public readonly int NumFileAccessesWhitelistedAndCacheable;
+        public readonly int NumFileAccessesAllowlistedAndCacheable;
 
         /// <summary>
-        /// Count of accesses such that the access was not whitelisted at all, and should be reported as a violation.
+        /// Count of accesses such that the access was not allowlisted at all, and should be reported as a violation.
         /// </summary>
-        public readonly int NumFileAccessViolationsNotWhitelisted;
+        public readonly int NumFileAccessViolationsNotAllowlisted;
 
         /// <nodoc />
         public FileMonitoringViolationCounters(
-            int numFileAccessesWhitelistedButNotCacheable,
-            int numFileAccessesWhitelistedAndCacheable,
-            int numFileAccessViolationsNotWhitelisted)
+            int numFileAccessesAllowlistedButNotCacheable,
+            int numFileAccessesAllowlistedAndCacheable,
+            int numFileAccessViolationsNotAllowlisted)
         {
-            NumFileAccessViolationsNotWhitelisted = numFileAccessViolationsNotWhitelisted;
-            NumFileAccessesWhitelistedAndCacheable = numFileAccessesWhitelistedAndCacheable;
-            NumFileAccessesWhitelistedButNotCacheable = numFileAccessesWhitelistedButNotCacheable;
+            NumFileAccessViolationsNotAllowlisted = numFileAccessViolationsNotAllowlisted;
+            NumFileAccessesAllowlistedAndCacheable = numFileAccessesAllowlistedAndCacheable;
+            NumFileAccessesAllowlistedButNotCacheable = numFileAccessesAllowlistedButNotCacheable;
         }
 
         /// <nodoc />
-        public int Total => NumFileAccessesWhitelistedButNotCacheable + NumFileAccessesWhitelistedAndCacheable + NumFileAccessViolationsNotWhitelisted;
+        public int Total => NumFileAccessesAllowlistedButNotCacheable + NumFileAccessesAllowlistedAndCacheable + NumFileAccessViolationsNotAllowlisted;
 
         /// <summary>
-        /// Total violations whitelisted. This is the sum of cacheable and non-cacheable violations.
+        /// Total violations allowlisted. This is the sum of cacheable and non-cacheable violations.
         /// </summary>
-        public int TotalWhitelisted => NumFileAccessesWhitelistedAndCacheable + NumFileAccessesWhitelistedButNotCacheable;
+        public int TotalAllowlisted => NumFileAccessesAllowlistedAndCacheable + NumFileAccessesAllowlistedButNotCacheable;
 
         /// <summary>
         /// Indicates if this context has reported accesses which should mark the owning process as cache-ineligible.
         /// </summary>
-        public bool HasUncacheableFileAccesses => NumFileAccessesWhitelistedButNotCacheable > 0;
+        public bool HasUncacheableFileAccesses => NumFileAccessesAllowlistedButNotCacheable > 0;
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace Test.BuildXL.Engine
 {
@@ -68,7 +69,11 @@ namespace Test.BuildXL.Engine
 
             // Capture scheduler
             TestHooks.Scheduler = new BoxRef<Scheduler>();
-            ConfigureInMemoryCache(m_testCache);
+            if (!HasCacheInitializer)
+            {
+                ConfigureInMemoryCache(m_testCache);
+            }
+
             var snapshot = EventListener.SnapshotEventCounts();
             XAssert.AreEqual(0, EventListener.ErrorCount, "Errors already logged before attempting Build()");
 
@@ -83,12 +88,12 @@ namespace Test.BuildXL.Engine
 
             return new BuildCounters
             {
-                PipsExecuted = EventListener.GetEventCountSinceSnapshot(EventId.ProcessPipCacheMiss, snapshot),
+                PipsExecuted = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.ProcessPipCacheMiss, snapshot),
                 ProcessPipsCached = checked((int)scheduleStats.ProcessPipsSatisfiedFromCache),
-                CachedOutputsCopied = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputDeployedFromCache, snapshot),
-                CachedOutputsUpToDate = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputUpToDate, snapshot),
-                OutputsProduced = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputProduced, snapshot),
-                PipsBringContentToLocal = EventListener.GetEventCountSinceSnapshot(EventId.TryBringContentToLocalCache, snapshot)
+                CachedOutputsCopied = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputDeployedFromCache, snapshot),
+                CachedOutputsUpToDate = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputUpToDate, snapshot),
+                OutputsProduced = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputProduced, snapshot),
+                PipsBringContentToLocal = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.TryBringContentToLocalCache, snapshot)
             };
         }
 

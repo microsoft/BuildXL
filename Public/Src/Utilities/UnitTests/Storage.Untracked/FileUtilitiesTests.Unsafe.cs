@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,19 +12,17 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Native.IO.Windows.FileUtilitiesWin;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
+using NativeLogEventId = BuildXL.Native.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
 namespace Test.BuildXL.Storage
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class FileUtilitiesUnsafeTests : TemporaryStorageTestBase
     {
         public FileUtilitiesUnsafeTests()
@@ -156,15 +154,17 @@ namespace Test.BuildXL.Storage
                 {
                     exception = e;
                 }
-                XAssert.IsTrue(exception != null);
+                XAssert.IsNotNull(exception);
                 XAssert.IsTrue(FileUtilities.Exists(dir));
             }
 
-            AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+            AssertVerboseEventLogged(NativeLogEventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+            FileUtilities.DeleteDirectoryContents(dir, deleteRootDirectory: true);
+            XAssert.IsFalse(FileUtilities.Exists(dir));
         }
 
         /// <summary>
-        /// Check that <see cref="FileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool})"/> retries
+        /// Check that <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string,bool}(string))"/> retries
         /// on ERROR_DIR_NOT_EMPTY when deleting an empty directory immediately after verifying the deletion of that same directories contents
         /// </summary>
         /// <remarks>
@@ -233,7 +233,7 @@ namespace Test.BuildXL.Storage
                 XAssert.IsFalse(File.Exists(nestedFile));
 
                 // Check for retries and ERROR_DIR_NOT_EMPTY
-                AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+                AssertVerboseEventLogged(NativeLogEventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
                 string logs = EventListener.GetLog();
                 var numMatches = Regex.Matches(logs, Regex.Escape("Native: RemoveDirectoryW for RemoveDirectory failed (0x91: The directory is not empty")).Count;
                 XAssert.AreEqual(Helpers.DefaultNumberOfAttempts, numMatches);
@@ -360,7 +360,10 @@ namespace Test.BuildXL.Storage
                 builder.AppendLine(dir);
                 builder.AppendLine(FileUtilitiesMessages.NoProcessesUsingHandle);
                 builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
-                XAssert.IsTrue(openHandles.Contains(builder.ToString()));
+                // Windows 10 Version 2004 unified the pending deletion queue behavior for files and directories.
+                // With Windows 10 Version 2004 and later, directories that are in pending deletion queue are not discoverable by FindFirstFileW WinAPI
+                // and are considered deleted by Directory.Exists(dir).
+                XAssert.IsTrue(openHandles.Contains(builder.ToString()) || /* Check for Windows 10 Version 2004 and later */ !Directory.Exists(dir));
                 XAssert.IsFalse(openHandles.Contains(FileUtilitiesMessages.ActiveHandleUsage + dir));
             }
 
@@ -465,15 +468,16 @@ namespace Test.BuildXL.Storage
         /// This test does not test any BuildXL code, but exists to document the behavior
         /// of Windows deletes.
         /// </remarks>
-        [Theory]
-        public void DeleteDirectoryStressTest(int x)
+        [Theory(Skip = "Long running test")]
+        [InlineData(100000)]
+        public void DeleteDirectoryStressTest(int numDirs)
         {
             string target = Path.Combine(TemporaryDirectory, "loop");
             string nested = Path.Combine(target, "nested");
             Exception exception = null;
             try
             {
-                for (int i = 0; i < 100000; ++i)
+                for (int i = 0; i < numDirs; ++i)
                 {
                     Directory.CreateDirectory(target);
                     Directory.CreateDirectory(nested);
@@ -531,7 +535,7 @@ namespace Test.BuildXL.Storage
             }
 
             // Should succeed when the executable is no longer running.
-            File.Delete(exeLink);
+            FileUtilities.DeleteFile(exeLink);
         }
 
         /// <remarks>
@@ -803,11 +807,14 @@ namespace Test.BuildXL.Storage
             }
 
             // File access successfully removed
-            XAssert.IsTrue(exception != null);
+            XAssert.IsNotNull(exception);
 
             // Both versions will return correctly
             XAssert.IsTrue(FileUtilities.Exists(file));
             XAssert.IsTrue(File.Exists(file));
+
+            // don't leave inaccessible file around
+            FileUtilities.DeleteFile(file, tempDirectoryCleaner: MoveDeleteCleaner);
         }
 
         /// <remarks>
@@ -893,7 +900,8 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void CreateHardlinkSupportsLongPath()
         {
-            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            var rootDir = Path.Combine(TemporaryDirectory, "dir");
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(rootDir, (path, _) => Path.Combine(path, "dir"));
 
             FileUtilities.CreateDirectory(longPath);
 
@@ -915,6 +923,7 @@ namespace Test.BuildXL.Storage
             }
 
             XAssert.IsTrue(CreateHardLinkIfSupported(link: link, linkTarget: file));
+            FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
         }
 
         [Fact]
@@ -927,10 +936,18 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void LongPathAccessControlTest()
         {
-            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            // Skip this test if running on .NET Framework with vstest
+            // Reason: new FileInfo(longPath) fails with PathTooLongException (interestingly, it works fine when executed by xunit)
+            if (!OperatingSystemHelper.IsDotNetCore && IsRunningInVsTestTestHost())
+            {
+                return;
+            }
+
+            var rootDir = Path.Combine(TemporaryDirectory, "dir");
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(rootDir, (path, _) => Path.Combine(path, "dir"));
             var file = Path.Combine(longPath, "fileWithWriteAccess.txt");
 
-            FileUtilities.CreateDirectory(longPath);           
+            FileUtilities.CreateDirectory(longPath);
             SafeFileHandle fileHandle;
             var result = FileUtilities.TryCreateOrOpenFile(
                 file,
@@ -944,11 +961,11 @@ namespace Test.BuildXL.Storage
             FileUtilities.SetFileAccessControl(file, FileSystemRights.WriteAttributes, true);
             XAssert.IsTrue(FileUtilities.HasWritableAccessControl(file));
 
-            //Delete the created directory
+            // Delete the created directory
             fileHandle.Close();
-            FileUtilities.DeleteDirectoryContents(longPath, deleteRootDirectory: true);
+            FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
+            XAssert.FileDoesNotExist(file);
         }
-
 
         private static void SetReadonlyFlag(string path)
         {
@@ -1033,6 +1050,11 @@ namespace Test.BuildXL.Storage
             {
                 return false;
             }
+        }
+
+        private string NormalizeDirectoryPath(string path)
+        {
+            return new global::BuildXL.Native.IO.Windows.FileUtilitiesWin(LoggingContext).NormalizeDirectoryPath(path);
         }
     }
 }

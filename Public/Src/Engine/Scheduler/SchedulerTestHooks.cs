@@ -1,11 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
+using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Storage.ChangeTracking;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
@@ -40,5 +44,25 @@ namespace BuildXL.Scheduler
         /// Test hooks for the <see cref="FingerprintStore"/>.
         /// </summary>
         public FingerprintStoreTestHooks FingerprintStoreTestHooks { get; set; }
+
+        /// <summary>
+        /// Listener to collect detours reported accesses
+        /// </summary>
+        public IDetoursEventListener DetoursListener { get; set; }
+
+        /// <summary>
+        /// A function to generate synthetic machine perf info
+        /// </summary>
+        public Func<LoggingContext, Scheduler, PerformanceCollector.MachinePerfInfo> GenerateSyntheticMachinePerfInfo { get; set; }
+
+        /// <summary>
+        /// Shortcut to get <see cref="CounterCollection{FingerprintStoreCounters}"/>.
+        /// </summary>
+        public CounterCollection<FingerprintStoreCounters> FingerprintStoreCounters => FingerprintStoreTestHooks?.Counters;
+
+        /// <summary>
+        /// Flag used to enable Pip Cancellation due to high memory on Mac
+        /// </summary>
+        public bool SimulateHighMemoryPressure { get; set; }
     }
 }

@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -22,6 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
     public sealed class MemoryContentLocationDatabase : ContentLocationDatabase
     {
         private readonly ConcurrentDictionary<ShortHash, ContentLocationEntry> _map = new ConcurrentDictionary<ShortHash, ContentLocationEntry>();
+        private readonly ConcurrentDictionary<string, string> _globalEntryMap = new ConcurrentDictionary<string, string>();
 
         /// <inheritdoc />
         public MemoryContentLocationDatabase(IClock clock, MemoryContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
@@ -35,6 +35,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             // Intentionally doing nothing.
             Tracer.Info(context, "Initializing in-memory content location database.");
             return BoolResult.Success;
+        }
+
+        /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            if (value == null)
+            {
+                _globalEntryMap.TryRemove(key, out _);
+            }
+            else
+            {
+                _globalEntryMap[key] = value;
+            }
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            return _globalEntryMap.TryGetValue(key, out value);
         }
 
         /// <inheritdoc />
@@ -53,7 +72,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 
 
         /// <inheritdoc />
-        public override Possible<bool> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        public override Possible<bool> TryUpsert(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism replacement,
+            Func<MetadataEntry, bool> shouldReplace)
         {
             throw new NotImplementedException();
         }
@@ -77,21 +100,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
+        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
         {
             return _map.Keys.OrderBy(h => h);
         }
 
         /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
-            CancellationToken token,
-            EnumerationFilter filter = null)
+            OperationContext context,
+            EnumerationFilter valueFilter,
+            bool returnKeysOnly)
         {
             return _map
+                // Directly calling OrderBy on ConcurrentDictionary instance is not thread-safe.
+                // Making a copy by calling instance ToArray method first.
+                .ToArray()
                 .OrderBy(kvp => kvp.Key)
-                .SkipWhile(kvp => filter?.StartingPoint != null && filter.StartingPoint > kvp.Key)
-                .Where(kvp => filter?.ShouldEnumerate == null || filter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true)
-                .Select(kvp => (kvp.Key, kvp.Value));
+                .SkipWhile(kvp => valueFilter?.StartingPoint != null && valueFilter.StartingPoint > kvp.Key)
+                .Where(kvp => {
+                    if (returnKeysOnly)
+                    {
+                        return true;
+                    }
+
+                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true;
+                })
+                .Select(kvp => (kvp.Key, returnKeysOnly ? null : kvp.Value));
         }
 
         /// <inheritdoc />
@@ -129,6 +163,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
         {
             throw new NotImplementedException();
         }

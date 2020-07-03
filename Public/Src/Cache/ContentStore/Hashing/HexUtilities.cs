@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -67,6 +67,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
             const string ExceptionMessage = "Invalid hex string ";
             try
             {
+                
                 for (; cur < (hex.Length - 1); cur += 2)
                 {
                     int b = (s_hexToNybble[hex[cur] - '0'] << 4) | s_hexToNybble[hex[cur + 1] - '0'];
@@ -87,6 +88,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
 
             return result;
         }
+
+#if NET_COREAPP
+        /// <summary>
+        /// Parses hexadecimal strings of the form '1234abcd' or '0x9876fedb' into
+        /// a pre-allocated array of bytes.
+        /// </summary>
+        /// <param name="hex">The hex string. Assumed to be non-null and to contain valid hex characters.</param>
+        /// <param name="buffer">
+        /// A caller-allocated buffer that is assumed to be non-null and at least the correct
+        /// length, floor(hex.Length / 2), to accept the bytes.
+        /// </param>
+        /// <returns>
+        /// A span on <paramref name="buffer"/> referring to the resulting bytes.
+        /// If the length of the buffer is longer than the bytes generated from the
+        /// hexadecimal, this span can be shorter than the buffer.
+        /// </returns>
+        /// <remarks>
+        /// We use a bit of custom code to avoid thrashing the heap with temp strings when
+        /// using Convert.ToByte(hex.Substring(n, 2)). This method only parses an even number of
+        /// hexadecimal digits; any odd-length hex string is parsed leaving the last character
+        /// un-parsed.
+        /// </remarks>
+        public static ReadOnlySpan<byte> HexToBytes(string hex, byte[] buffer)
+        {
+            int index = 0;
+
+            for (int cur = 0; cur < (hex.Length - 1); cur += 2)
+            {
+                int b = (s_hexToNybble[hex[cur] - '0'] << 4) | s_hexToNybble[hex[cur + 1] - '0'];
+                buffer[index++] = (byte)b;
+            }
+
+            return buffer.AsSpan(0, index);
+        }
+#endif
 
         /// <summary>
         /// Converts the provided bytes into a hexadecimal string of the form '1234abcd'.

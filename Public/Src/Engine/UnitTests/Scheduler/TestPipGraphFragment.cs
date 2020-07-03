@@ -1,16 +1,16 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
@@ -29,8 +29,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Internal pip graph.
         /// </summary>
-        public IPipGraph PipGraph { get; }
-
+        public PipGraphFragmentBuilder PipGraph { get; }
         private readonly AbsolutePath m_sourceRoot;
         private readonly AbsolutePath m_objectRoot;
         private readonly LoggingContext m_loggingContext;

@@ -5,3 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Native from "Sdk.Native";
 
 export {BuildXLSdk, Native};
+
+namespace Runtime {
+    export const isHostOsWindows = Context.getCurrentHost().os === "win";
+}

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
+using BuildXL.Cache.ContentStore.Stores;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -159,10 +160,10 @@ namespace ContentStoreTest.Stores
 
                     // First place should error
                     result.Code.Should().Be(PlaceFileResult.ResultCode.Error);
-                    using (Stream stream = await FileSystem.OpenAsync(
+                    using (StreamWithLength? stream = await FileSystem.OpenAsync(
                         placePath, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
-                        (await stream.CalculateHashAsync(ContentHashType)).Should().Be(
+                        (await stream.Value.CalculateHashAsync(ContentHashType)).Should().Be(
                             new byte[] {0}.CalculateHash(ContentHashType));
                     }
 
@@ -331,6 +332,38 @@ namespace ContentStoreTest.Stores
                         await store.ShutdownAsync(context).ShouldBeSuccess();
                     }
                 }
+            }
+        }
+
+        [Fact]
+        public async Task RecoverFromFailedHardlink()
+        {
+            // Checks that if some content has allow attribute write set to false, we'll set it to true and succeed hardlinks.
+
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+                var store = Create(testDirectory.Path, _clock);
+
+                await store.StartupAsync(context).ShouldBeSuccess();
+
+                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+
+                FileSystem.DenyAttributeWrites(pathInCache);
+
+                var placeResult = await store.PlaceFileAsync(
+                    context,
+                    putResult.ContentHash,
+                    destinationPath: testDirectory.CreateRandomFileName(),
+                    FileAccessMode.ReadOnly,
+                    FileReplacementMode.FailIfExists,
+                    FileRealizationMode.HardLink,
+                    pinRequest: null).ShouldBeSuccess();
+
+                placeResult.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithHardLink);
+
+                await store.ShutdownAsync(context).ShouldBeSuccess();
             }
         }
     }

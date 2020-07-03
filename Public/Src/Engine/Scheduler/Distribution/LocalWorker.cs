@@ -1,12 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Distribution
@@ -17,19 +21,32 @@ namespace BuildXL.Scheduler.Distribution
     public sealed class LocalWorker : Worker
     {
         /// <summary>
-        /// Set of pips that are currently executing. Executing here means an external child process is running.
+        /// Set of pips that are currently executing. Executing here means running under PipExecutor.
         /// </summary>
-        public ConcurrentDictionary<PipId, Unit> CurrentlyExecutingPips = new ConcurrentDictionary<PipId, Unit>();
+        public ConcurrentDictionary<PipId, Unit> RunningPipExecutorProcesses = new ConcurrentDictionary<PipId, Unit>();
+
+        /// <summary>
+        /// The number of processes that are currently running (i.e., the associated OS-process is still alive and running)
+        /// </summary>
+        public int RunningProcesses => Volatile.Read(ref m_currentlyRunningPipCount);
+
+        private int m_currentlyRunningPipCount = 0;
+        private readonly IDetoursEventListener m_detoursListener;
+        
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => MemoryResourceAvailable ? TotalProcessSlots : 1;
 
         /// <summary>
         /// Constructor
         /// </summary>
-        public LocalWorker(int totalProcessSlots, int totalCacheLookupSlots)
+        public LocalWorker(IScheduleConfiguration scheduleConfig, IDetoursEventListener detoursListener)
             : base(workerId: 0, name: "#0 (Local)")
         {
-            TotalProcessSlots = totalProcessSlots;
-            TotalCacheLookupSlots = totalCacheLookupSlots;
+            TotalProcessSlots = scheduleConfig.MaxProcesses;
+            TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
+            TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
             Start();
+            m_detoursListener = detoursListener;
         }
 
         /// <inheritdoc />
@@ -52,11 +69,7 @@ namespace BuildXL.Scheduler.Distribution
                 var cachingInfo = runnablePip.ExecutionResult?.TwoPhaseCachingInfo;
 
                 Task cachingInfoAvailableCompletion = Unit.VoidTask;
-
-
                 PipResultStatus result = await PipExecutor.MaterializeOutputsAsync(operationContext, runnablePip.Environment, runnablePip.Pip);
-
-
                 return result;
             }
         }
@@ -66,7 +79,7 @@ namespace BuildXL.Scheduler.Distribution
         {
             using (OnPipExecutionStarted(processRunnable))
             {
-                CurrentlyExecutingPips.TryAdd(processRunnable.PipId, Unit.Void);
+                RunningPipExecutorProcesses.TryAdd(processRunnable.PipId, Unit.Void);
 
                 var environment = processRunnable.Environment;
                 var process = processRunnable.Process;
@@ -81,13 +94,29 @@ namespace BuildXL.Scheduler.Distribution
                     environment.State.GetScope(process),
                     process,
                     fingerprint,
-                    expectedRamUsageMb: GetExpectedRamUsageMb(processRunnable));
+                    processIdListener: UpdateCurrentlyRunningPipsCount,
+                    expectedMemoryCounters: processRunnable.ExpectedMemoryCounters.Value,
+                    detoursEventListener: m_detoursListener);
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;
-                CurrentlyExecutingPips.TryRemove(processRunnable.PipId, out ignore);
+                RunningPipExecutorProcesses.TryRemove(processRunnable.PipId, out ignore);
 
                 return executionResult;
+            }
+        }
+
+        private void UpdateCurrentlyRunningPipsCount(int pipProcessId)
+        {
+            if (pipProcessId > 0)
+            {
+                // process started
+                Interlocked.Increment(ref m_currentlyRunningPipCount);
+            }
+            else if (pipProcessId < 0)
+            {
+                // process exited
+                Interlocked.Decrement(ref m_currentlyRunningPipCount);
             }
         }
 
@@ -126,14 +155,16 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task<RunnableFromCacheResult> CacheLookupAsync(
+        public override async Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
         {
             using (OnPipExecutionStarted(runnablePip))
             {
-                return await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess);
+                var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess);
+
+                return ValueTuple.Create(cacheResult, cacheResult == null ? PipResultStatus.Failed : PipResultStatus.Succeeded);
             }
         }
     }

@@ -1,7 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>
-        public static async Task<ObjectResult<TResult>> TraceIfFailure<TResult>(this Task<ObjectResult<TResult>> task, Context context, [CallerMemberName]string operationName = null) where TResult : class
+        public static async Task<ObjectResult<TResult>> TraceIfFailure<TResult>(this Task<ObjectResult<TResult>> task, Context context, [CallerMemberName]string? operationName = null) where TResult : class
         {
             var result = await task;
             if (!result)
@@ -41,9 +42,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>
-        public static async Task<TResult> TraceIfFailure<TResult>(this Task<TResult> task, Context context, [CallerMemberName]string operationName = null) where TResult : ResultBase
+        public static async Task<TResult> TraceIfFailure<TResult>(this Task<TResult> task, Context context, [CallerMemberName]string? operationName = null) where TResult : ResultBase
         {
             var result = await task;
+            result.TraceIfFailure(context, operationName);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Traces the <paramref name="result"/> if the result is not successful.
+        /// </summary>
+        public static TResult TraceIfFailure<TResult>(this TResult result, Context context, [CallerMemberName] string? operationName = null)
+            where TResult : ResultBase
+        {
             if (!result.Succeeded)
             {
                 context.Warning($"Operation '{operationName}' failed with an error={result}");
@@ -77,10 +89,25 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return selector(result.Value);
+                return selector(result.Value!);
             }
 
             return new ErrorResult(result).AsResult<TResult>();
+        }
+
+        /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
+        public static Result<TResult> Select<T, TResult>(this Result<T> result, Func<T, TResult> selector)
+        {
+            if (result.Succeeded)
+            {
+                return Result.Success(selector(result.Value!));
+            }
+            else
+            {
+                return new Result<TResult>(result);
+            }
         }
 
         /// <summary>
@@ -93,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value;
+            return result.Value!;
         }
 
         /// <summary>
@@ -158,6 +185,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
         /// </summary>
+        [return: MaybeNull]
         public static T GetValueOrDefault<T>(this Result<T> result, T defaultValue = default)
         {
             return result.Succeeded ? result.Value : defaultValue;
@@ -176,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value;
+            return result.Value!;
         }
 
         /// <summary>
@@ -192,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Data;
+            return result.Data!;
         }
 
         /// <summary>
@@ -201,14 +229,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <remarks>
         /// Unlike <see cref="ObjectResult{T}.Data"/>, this method will not throw contract violation if the result is not successful.
         /// </remarks>
-        public static T GetValueOrThrow<T>(this ObjectResult<T> result) where T : class
+        public static T? GetValueOrThrow<T>(this ObjectResult<T> result) where T : class
         {
             if (!result)
             {
                 throw new ResultPropagationException(result);
             }
 
-            return result.Data;
+            return result.Data!;
+        }
+
+        /// <summary>
+        /// Tries to get the value from the result.
+        /// </summary>
+        /// <returns>Whether the value was gotten successfully.</returns>
+        public static bool TryGetValue<T>(this Result<T> result, [MaybeNull]out T value)
+        {
+            value = result.Succeeded ? result.Value : default;
+            return result.Succeeded;
         }
     }
 }

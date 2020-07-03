@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -43,7 +43,7 @@ namespace Test.BuildXL.Ipc
             e.SetObserved();
         }
 
-        protected ILogger VerboseLogger(string testName)
+        protected IIpcLogger VerboseLogger(string testName)
         {
             return new LambdaLogger((level, format, args) =>
             {

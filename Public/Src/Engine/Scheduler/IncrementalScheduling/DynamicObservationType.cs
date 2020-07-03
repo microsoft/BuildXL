@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {
@@ -9,13 +9,18 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     public enum DynamicObservationType : byte
     {
         /// <summary>
-        /// Dynamically observed file read or possibly path probe.
+        /// Dynamically observed file read.
         /// </summary>
         ObservedFile = 0,
 
         /// <summary>
+        /// Dynamically observed file probe.
+        /// </summary>
+        ProbedFile = 1,
+
+        /// <summary>
         /// Dynamically observed directory enumeration.
         /// </summary>
-        Enumeration = 1,
+        Enumeration = 2,
     }
 }

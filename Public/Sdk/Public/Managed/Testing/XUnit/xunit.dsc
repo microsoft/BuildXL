@@ -28,7 +28,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     let testDeployment = args.testDeployment;
 
     const tool : Transformer.ToolDefinition = Managed.Factory.createTool({
-        exe: qualifier.targetFramework === "netcoreapp3.0"
+        exe: qualifier.targetFramework === "netcoreapp3.1"
             ? testDeployment.contents.getFile(r`xunit.console.dll`)
             // Using xunit executable from different folders depending on the target framework.
             // This allow us to actually to run tests targeting different frameworks.
@@ -36,20 +36,37 @@ export function runConsoleTest(args: TestRunArguments): Result {
         runtimeDirectoryDependencies: [
             xunitConsolePackage,
         ],
+        dependsOnCurrentHostOSDirectories: true
     });
 
     const testMethod = args.method || Environment.getStringValue("[UnitTest]Filter.testMethod");
     const testClass  = args.className || Environment.getStringValue("[UnitTest]Filter.testClass");
 
+    if (Context.getCurrentHost().os !== "win") {
+        args = args.merge<TestRunArguments>({
+            noTraits: [
+                "WindowsOSOnly", 
+                "QTestSkip",
+                "Performance",
+                "SkipDotNetCore",
+                ...(args.noTraits || [])
+            ].unique().map(categoryToTrait)
+        });
+    }
+
     let arguments : Argument[] = CreateCommandLineArgument(testDeployment.primaryFile, args, testClass, testMethod);
 
     let execArguments : Transformer.ExecuteArguments = {
         tool: args.tool || tool,
-        tags: args.tags,
-        arguments: arguments,
-        dependencies: [
-            testDeployment.contents,
+        tags: [
+            "test", 
+            ...(args.tags || [])
         ],
+        arguments: arguments,
+        // When test directory is untracked, declare dependencies to individual files instead of the seal directory.
+        // Reason: if the same directory is both untracked and declared as a dependency it's not clear which one takes
+        //         precedence in terms of allowed/disallowed file accesses.
+        dependencies: args.untrackTestDirectory ? testDeployment.contents.contents : [ testDeployment.contents, ...(testDeployment.targetOpaques || []) ], 
         warningRegex: "^(?=a)b", // This is a never matching warning regex. StartOfLine followed by the next char must be 'a' (look ahead), and the next char must be a 'b'.
         workingDirectory: testDeployment.contents.root,
         retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1] : [],
@@ -58,7 +75,23 @@ export function runConsoleTest(args: TestRunArguments): Result {
         weight: args.weight,
     };
 
-    if (qualifier.targetFramework === "netcoreapp3.0") {
+    if (Context.getCurrentHost().os !== "win") {
+        execArguments = execArguments.merge<Transformer.ExecuteArguments>({
+            environmentVariables: [
+                {name: "COMPlus_DefaultStackSize", value: "200000"},
+                ...passThroughEnvVars([
+                    "HOME",
+                    "TMPDIR",
+                    "USER"
+                ])
+            ],
+            unsafe: {
+                untrackedPaths: addIf(Environment.hasVariable("HOME"), f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`)
+            },
+        });
+    }
+
+    if (qualifier.targetFramework === "netcoreapp3.1") {
         execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(execArguments);
     }
 
@@ -88,9 +121,19 @@ export function runConsoleTest(args: TestRunArguments): Result {
     };
 }
 
+function passThroughEnvVars(envVarNames: string[]): Transformer.EnvironmentVariable[] {
+    return envVarNames
+        .mapMany(envVarName => Environment.hasVariable(envVarName)
+            ? [ {name: envVarName, value: Environment.getStringValue(envVarName)} ]
+            : []);
+}
+
+function categoryToTrait(cat: string) {
+    return {name: "Category", value: cat};
+};
 
 function renameOutputFile(name: string, file: Path) : Path {
-    return file && file.changeExtension(a`${name}.${file.extension}`);
+    return file && file.changeExtension(a`.${name}${file.extension}`);
 }
 
 function runMultipleConsoleTests(args: TestRunArguments) : Result
@@ -105,7 +148,7 @@ function runMultipleConsoleTests(args: TestRunArguments) : Result
             // Avoid double-writes
             xmlFile: renameOutputFile(testGroup, args.xmlFile),
             xmlV1File: renameOutputFile(testGroup, args.xmlV1File),
-            xmlFnunitFileile: renameOutputFile(testGroup, args.nunitFile),
+            nunitFile: renameOutputFile(testGroup, args.nunitFile),
             htmlFile: renameOutputFile(testGroup, args.htmlFile),
 
             traits: [

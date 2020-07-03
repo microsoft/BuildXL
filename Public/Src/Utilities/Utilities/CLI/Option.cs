@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -70,7 +70,6 @@ namespace BuildXL.Utilities.CLI
         /// <summary>A single option value may be expanded into a number of option/value pairs (e.g., when reading additional values from a config file).</summary>
         public virtual IEnumerable<ParsedOption> Expand(string value)
         {
-            Contract.Ensures(Contract.Result<IEnumerable<ParsedOption>>() != null);
 
             return Expander != null ? Expander(value) : ParsedOption.EmptyCollection;
         }
@@ -78,7 +77,7 @@ namespace BuildXL.Utilities.CLI
         /// <summary>Initializer for all the fields (and nothing more).</summary>
         public Option(string longName)
         {
-            Contract.Requires(longName != null);
+            Contract.RequiresNotNull(longName);
 
             LongName = longName;
         }
@@ -129,7 +128,7 @@ namespace BuildXL.Utilities.CLI
         public Option(Converter<TValue> converter, string longName)
             : base(longName)
         {
-            Contract.Requires(converter != null);
+            Contract.RequiresNotNull(converter);
 
             Converter = converter;
         }
@@ -138,7 +137,7 @@ namespace BuildXL.Utilities.CLI
         public Option(Option<TValue> clone)
             : base(clone)
         {
-            Contract.Requires(clone != null);
+            Contract.RequiresNotNull(clone);
 
             Converter = clone.Converter;
             Validator = clone.Validator;

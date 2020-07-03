@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -11,12 +11,12 @@ using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
-using System.Reflection;
 using System.Runtime;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using BuildXL.App.Tracing;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Utilities;
@@ -25,6 +25,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Strings = bxl.Strings;
+using Logger = BuildXL.App.Tracing.Logger;
 
 namespace BuildXL
 {
@@ -110,7 +111,7 @@ namespace BuildXL
             Justification = "A using statement is used for both the BufferedStream and NamedPipeServerStream.")]
         public ExitKind Run(StartupParameters startupParameters)
         {
-            Contract.Requires(startupParameters != null);
+            Contract.RequiresNotNull(startupParameters);
 
             m_startupParameters = startupParameters;
             string pipeName = GetPipeName(startupParameters.UniqueAppServerName);
@@ -122,7 +123,7 @@ namespace BuildXL
                     return ExitKind.InternalError;
                 }
 
-                Contract.Assert(pipeInstance != null);
+                Contract.AssertNotNull(pipeInstance);
 
                 using (BufferedStream bufferedStream = new BufferedStream(pipeInstance))
                 {
@@ -712,9 +713,6 @@ namespace BuildXL
 
         private static string GetStableAppServerName(LightConfig lightConfig, Fingerprint serverBinaryHash, out List<KeyValuePair<string, string>> variablesToPassThrough)
         {
-            PathTranslator translator;
-            PathTranslator.CreateIfEnabled(lightConfig.SubstTarget, lightConfig.SubstSource, out translator);
-
             using (var wrapper = Pools.StringBuilderPool.GetInstance())
             {
                 const char Delimiter = '!';
@@ -722,22 +720,35 @@ namespace BuildXL
                 sb.Append(Environment.UserName);
 
                 sb.Append(Delimiter);
-                string baseDirectoryPath = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
-                sb.Append(translator?.Translate(baseDirectoryPath) ?? baseDirectoryPath);
+                sb.Append(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
 
+                // Because app server carries some state in memmory, we need to get the full path of the config 
+                // so that different repos do not share the same app server.
                 sb.Append(Delimiter);
-                sb.Append(lightConfig.Config);
+                sb.Append(Path.GetFullPath(lightConfig.Config));
 
                 // Stable app server depends on the hash of the content of BuildXL binaries
                 sb.Append(Delimiter);
                 sb.Append(serverBinaryHash.ToHex());
 
                 // The identity needs to include whether the server process is elevated in case the client switches elevation
+                sb.Append(Delimiter);
                 sb.Append("Elevated:" + CurrentProcess.IsElevated);
 
-                // Include HashType because client may switch between VSO or Dedup hashes
+                // Include HashType because client may switch between VSO or Dedup hashes. HashType isn't configurable in the
+                // traditional sense. It's currenty implemented as a global static setting for the application so a server
+                // initialized with one setting may not be reused if that setting changes.
                 sb.Append(Delimiter);
                 sb.Append("EnableDedup:" + lightConfig.EnableDedup);
+                sb.Append(Delimiter);
+                sb.Append("HashType:" + lightConfig.HashType);
+
+                // Subst collapses different paths into the same path. For example, different config locations can have
+                // the same subst'd path, and thus the above full path of config is not sufficient.
+                sb.Append(Delimiter);
+                sb.Append("SubstSource:" + (lightConfig.SubstSource ?? string.Empty));
+                sb.Append(Delimiter);
+                sb.Append("SubstTarget:" + (lightConfig.SubstTarget ?? string.Empty));
 
                 // Need to include environment variables in the app server identity in case they change between runs.
                 //
@@ -848,8 +859,8 @@ namespace BuildXL
 
             internal Connection(NamedPipeClientStream clientStream, IConsole console)
             {
-                Contract.Requires(clientStream != null);
-                Contract.Requires(console != null);
+                Contract.RequiresNotNull(clientStream);
+                Contract.RequiresNotNull(console);
 
                 m_console = console;
                 m_clientStream = clientStream;
@@ -864,10 +875,9 @@ namespace BuildXL
             public ExitKind RunWithArgs(
                 IReadOnlyList<string> rawArgs,
                 List<KeyValuePair<string, string>> environmentVariables,
-                ServerModeStatusAndPerf serverModeStatusAndPerf,
-                string serverDeploymentDirectory)
+                ServerModeStatusAndPerf serverModeStatusAndPerf)
             {
-                Contract.Requires(rawArgs != null);
+                Contract.RequiresNotNull(rawArgs);
 
                 return ExceptionUtilities.HandleRecoverableIOException(
                     () =>
@@ -1061,8 +1071,8 @@ namespace BuildXL
 
             private StartupParameters(Guid guid, string uniqueAppServerName, string timestampBasedHash, string pathToProcess, int serverMaxIdleTimeInMinutes)
             {
-                Contract.Requires(!string.IsNullOrEmpty(uniqueAppServerName));
-                Contract.Requires(!string.IsNullOrEmpty(pathToProcess));
+                Contract.RequiresNotNullOrEmpty(uniqueAppServerName);
+                Contract.RequiresNotNullOrEmpty(pathToProcess);
                 Contract.Requires(serverMaxIdleTimeInMinutes > 0);
 
                 UniqueAppServerName = uniqueAppServerName;
@@ -1077,8 +1087,8 @@ namespace BuildXL
             /// </summary>
             public static StartupParameters CreateForNewAppServer(string uniqueAppServerName, string timestampBasedHash, string pathToProcess, int serverMaxIdleTimeInMinutes)
             {
-                Contract.Requires(!string.IsNullOrEmpty(uniqueAppServerName));
-                Contract.Requires(!string.IsNullOrEmpty(pathToProcess));
+                Contract.RequiresNotNullOrEmpty(uniqueAppServerName);
+                Contract.RequiresNotNullOrEmpty(pathToProcess);
                 Contract.Requires(serverMaxIdleTimeInMinutes > 0);
 
                 return new StartupParameters(Guid.NewGuid(), uniqueAppServerName, timestampBasedHash, pathToProcess, serverMaxIdleTimeInMinutes);
@@ -1295,7 +1305,7 @@ namespace BuildXL
                 Logger.Log.UsingExistingServer(loggingContext, start);
             }
 
-            Contract.Assume(m_startupParameters != null, "StartupParameters should have previously been set.");
+            Contract.AssertNotNull(m_startupParameters, "StartupParameters should have previously been set.");
             Logger.Log.ServerModeBuildStarted(loggingContext, start, m_startupParameters.UniqueAppServerName);
 
             m_timesUsed++;

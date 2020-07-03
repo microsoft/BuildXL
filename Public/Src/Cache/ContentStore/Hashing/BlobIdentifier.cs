@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new BlobIdentifier(valueIncludingAlgorithm);
         }
 
-        public static bool operator ==(BlobIdentifier left, BlobIdentifier right)
+        public static bool operator ==(BlobIdentifier? left, BlobIdentifier? right)
         {
             if (left is null)
             {
@@ -99,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return left.Equals(right);
         }
 
-        public static bool operator !=(BlobIdentifier left, BlobIdentifier right)
+        public static bool operator !=(BlobIdentifier? left, BlobIdentifier? right)
         {
             return !(left == right);
         }
@@ -111,10 +111,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>
         /// <c>true</c> if the objects are equal, otherwise <c>false</c>.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             var other = obj as BlobIdentifier;
-            return other != null && Equals(other);
+            return other is object && Equals(other);
         }
 
         /// <summary>
@@ -124,14 +124,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>
         /// <c>true</c> if the objects are equal, otherwise <c>false</c>.
         /// </returns>
-        public bool Equals(BlobIdentifier other)
+        public bool Equals(BlobIdentifier? other)
         {
             if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
-            return (other != null) && _identifierValue.SequenceEqual(other._identifierValue);
+            return (other is object) && _identifierValue.SequenceEqual(other._identifierValue);
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return $"Blob:{ValueString}";
         }
 
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             if (!(obj is BlobIdentifier))
             {

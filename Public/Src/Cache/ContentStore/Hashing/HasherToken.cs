@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public readonly struct HasherToken : IEquatable<HasherToken>, IDisposable
     {
-        private readonly Pool<HashAlgorithm>.PoolHandle _poolHandle;
+        private readonly IPoolHandle<HashAlgorithm> _poolHandle;
 
         /// <summary>
         ///     Gets hash algorithm this token uses.
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     When the token is disposed, the hasher will be added back to the object pool.
         /// </remarks>
-        public HasherToken(Pool<HashAlgorithm>.PoolHandle pooledHasher)
+        public HasherToken(IPoolHandle<HashAlgorithm> pooledHasher)
         {
             Contract.Requires(pooledHasher.Value != null);
 
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is HasherToken)
             {

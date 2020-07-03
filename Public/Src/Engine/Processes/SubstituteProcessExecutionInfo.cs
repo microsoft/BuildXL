@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -24,17 +24,40 @@ namespace BuildXL.Processes
             ShimAllProcesses = shimAllProcesses;
             ShimProcessMatches = processMatches ?? Array.Empty<ShimProcessMatch>();
         }
-        
+
+
         /// <summary>
-        /// Children of the Detoured process are not directly executed,
-        /// but instead this substitute shim process is injected instead, with
-        /// the original process's command line appended.
+        /// Path to substitute shim process.
         /// </summary>
+        /// <remarks>
+        /// Children of the Detoured process are not directly executed, but instead this substitute shim process is injected, with
+        /// the original process's command line appended, and with the original process's environment and working directory.
+        /// </remarks>
         public AbsolutePath SubstituteProcessExecutionShimPath { get; set; }
 
         /// <summary>
+        /// Path to an unmanaged 32-bit plugin DLL to load and call when determining whether to run child processes directly
+        /// or to inject the substitute process specified in <see cref="SubstituteProcessExecutionShimPath"/>.
+        /// </summary>
+        /// <remarks>
+        /// This DLL must implement a <code>CommandMatches</code> method; see <code>SubstituteProcessExecutionPluginFunc</code>
+        /// in Public\Src\Sandbox\Windows\DetoursServices\globals.h.
+        /// </remarks>
+        public AbsolutePath SubstituteProcessExecutionPluginDll32Path { get; set; }
+
+        /// <summary>
+        /// Path to an unmanaged 64-bit plugin DLL to load and call when determining whether to run child processes directly
+        /// or to inject the substitute process specified in <see cref="SubstituteProcessExecutionShimPath"/>.
+        /// </summary>
+        /// <remarks>
+        /// This DLL must implement a <code>CommandMatches</code> method; see <code>SubstituteProcessExecutionPluginFunc</code>
+        /// in Public\Src\Sandbox\Windows\DetoursServices\globals.h.
+        /// </remarks>
+        public AbsolutePath SubstituteProcessExecutionPluginDll64Path { get; set; }
+        
+        /// <summary>
         /// Specifies the shim injection mode. When true, <see cref="ShimProcessMatches"/>
-        /// specifies the processes that should not be shimmed. When false, ShimProcessMatches
+        /// specifies the processes that should not be shimmed. When false, <see cref="ShimProcessMatches"/>
         /// specifies the processes that should be shimmed.
         /// </summary>
         public bool ShimAllProcesses { get; }

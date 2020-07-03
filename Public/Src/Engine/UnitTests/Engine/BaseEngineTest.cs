@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +16,6 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -49,23 +48,26 @@ namespace Test.BuildXL.Engine
 
         protected string TestRoot => Path.Combine(TemporaryDirectory, "src");
 
-        private readonly ITestOutputHelper m_testOutput;
+        protected ITestOutputHelper TestOutput { get; }
 
         protected IMutableFileSystem FileSystem { get; }
+
+        protected bool HasCacheInitializer { get; set; }
 
         protected BaseEngineTest(ITestOutputHelper output)
             : base(output)
         {
-            m_testOutput = output;
+            TestOutput = output;
             m_ignoreWarnings = OperatingSystemHelper.IsUnixOS; // ignoring /bin/sh is being used as a source file 
 
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
-            ParseAndEvaluateLogger = Logger.CreateLogger();
+            ParseAndEvaluateLogger = Logger.CreateLoggerWithTracking();
             InitializationLogger = InitializationLogger.CreateLogger();
 
             var pathTable = new PathTable();
@@ -145,10 +147,26 @@ namespace Test.BuildXL.Engine
                     }
             };
 
-            AbsolutePath Combine(AbsolutePath parent, string name)
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
             {
-                return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));
+                // Directory translation is needed here particularly when the test temporary directory
+                // is inside a directory that is actually a junction to another place. 
+                // For example, the temporary directory is D:\src\BuildXL\Out\Object\abc\t_1, but
+                // the path D:\src\BuildXL\Out or D:\src\BuildXL\Out\Object is a junction to K:\Out.
+                // Some tool, like cmd, can access the path in K:\Out, and thus the test will have a DFA
+                // if there's no directory translation.
+                // This problem does not occur when only substs are involved, but no junctions. The method
+                // TryGetSubstSourceAndTarget works to get translations due to substs or junctions.
+                AbsolutePath substSourcePath = AbsolutePath.Create(Context.PathTable, substSource);
+                AbsolutePath substTargetPath = AbsolutePath.Create(Context.PathTable, substTarget);
+                Configuration.Engine.DirectoriesToTranslate.Add(
+                    new TranslateDirectoryData(I($"{substSource}<{substTarget}"), substSourcePath, substTargetPath));
             }
+        }
+
+        protected AbsolutePath Combine(AbsolutePath parent, string name)
+        {
+            return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));
         }
 
         protected string GetOsShellCmdToolDefinition()
@@ -186,9 +204,9 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
         protected void LogTestMarker(string message)
         {
-            m_testOutput.WriteLine("################################################################################");
-            m_testOutput.WriteLine("## " + message);
-            m_testOutput.WriteLine("################################################################################");
+            TestOutput.WriteLine("################################################################################");
+            TestOutput.WriteLine("## " + message);
+            TestOutput.WriteLine("################################################################################");
         }
 
         protected EngineTestHooksData TestHooks
@@ -230,14 +248,6 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 var frontEndStatistics = new FrontEndStatistics();
                 var moduleRegistry = new ModuleRegistry(symbolTable);
 
-                var workspaceFactory = new DScriptWorkspaceResolverFactory();
-                workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
-                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-                workspaceFactory.RegisterResolver(KnownResolverKind.DScriptResolverKind,
-                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-                workspaceFactory.RegisterResolver(KnownResolverKind.DefaultSourceResolverKind,
-                    () => new WorkspaceDefaultSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-
                 var frontEndFactory = FrontEndFactory.CreateInstanceForTesting(
                     () => new ConfigurationProcessor(new FrontEndStatistics(), ParseAndEvaluateLogger),
                     new DScriptFrontEnd(frontEndStatistics, ParseAndEvaluateLogger));
@@ -245,7 +255,6 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 var evaluationScheduler = new EvaluationScheduler(degreeOfParallelism: 1);
                 return new FrontEndHostController(
                     frontEndFactory,
-                    workspaceFactory,
                     evaluationScheduler,
                     moduleRegistry,
                     new FrontEndStatistics(),
@@ -274,6 +283,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
         protected void ConfigureCache(CacheInitializer cacheInitializer)
         {
+            HasCacheInitializer = true;
             TestHooks.CacheFactory = () => cacheInitializer.CreateCacheForContext();
         }
 
@@ -287,17 +297,21 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             AbsolutePath cacheConfigPath = WriteTestCacheConfigToDisk(cacheDirectory);
 
             var translator = new RootTranslator();
+            if (TryGetSubstSourceAndTarget(out var substSource, out var substTarget))
+            {
+                translator.AddTranslation(substTarget, substSource);
+            }
+
             translator.Seal();
+
+            Configuration.Cache.CacheConfigFile = cacheConfigPath;
+            Configuration.Cache.CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log");
 
             var maybeCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,
                 Context.PathTable,
                 cacheDirectory,
-                new CacheConfiguration
-                {
-                    CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log"),
-                    CacheConfigFile = cacheConfigPath
-                },
+                Configuration.Cache,
                 translator,
                 recoveryStatus: false,
                 cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
@@ -339,7 +353,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
     ""CacheLogPath"":  ""[BuildXLSelectedLogPath]"",
     ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory"",
     ""CacheRootPath"":  ""{cacheDirectory.Replace("\\", "\\\\")}"",
-    ""UseStreamCAS"":  true
+    ""UseStreamCAS"":  true,
+    ""VfsCasRoot"": ""[VfsCasRoot]""
 }}";
         }
 

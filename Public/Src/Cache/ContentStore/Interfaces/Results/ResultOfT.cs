@@ -1,7 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
@@ -22,10 +23,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <nodoc />
-        public static Result<T> FromException<T>(Exception e, string message = null) => new Result<T>(e, message);
+        public static Result<T> FromException<T>(Exception e, string? message = null) => new Result<T>(e, message);
 
         /// <nodoc />
-        public static Result<T> FromErrorMessage<T>(string message, string diagnostics = null) => new Result<T>(message, diagnostics);
+        public static Result<T> FromErrorMessage<T>(string message, string? diagnostics = null) => new Result<T>(message, diagnostics);
     }
 
     /// <summary>
@@ -33,6 +34,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public class Result<T> : BoolResult, IEquatable<Result<T>>
     {
+        [AllowNull]
         private readonly T _result;
 
         /// <summary>
@@ -56,36 +58,36 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public Result(string errorMessage, string diagnostics = null)
+        public Result(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            _result = default;
         }
 
         /// <inheritdoc />
-        public Result(Exception exception, string message = null)
+        public Result(Exception exception, string? message = null)
             : base(exception, message)
         {
+            _result = default;
         }
 
         /// <inheritdoc />
-        public Result(ResultBase other, string message = null)
+        public Result(ResultBase other, string? message = null)
             : base(other, message)
         {
+            _result = default;
         }
 
         /// <summary>
-        /// Gets the counters.
+        /// Gets the resulting value.
         /// </summary>
+        [MaybeNull]
         public T Value
         {
             get
             {
                 // Using Assert instead of Requires in order to skip message computation for successful cases.
-                if (!Succeeded)
-                {
-                    Contract.Assert(false, $"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
-                }
-
+                Contract.Check(Succeeded)?.Assert($"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
                 return _result;
             }
         }
@@ -99,13 +101,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         public bool Equals(Result<T> other)
         {
-            return Succeeded && other.Succeeded ? Value.Equals(other.Value) : ErrorEquals(other);
+            return Succeeded && other.Succeeded ? Value!.Equals(other.Value) : ErrorEquals(other);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Succeeded ? Value.GetHashCode() : base.GetHashCode();
+            return Succeeded ? Value!.GetHashCode() : base.GetHashCode();
         }
     }
 }

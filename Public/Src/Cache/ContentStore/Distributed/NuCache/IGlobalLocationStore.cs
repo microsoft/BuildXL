@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,6 +10,8 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -18,19 +20,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public interface IGlobalLocationStore : ICheckpointRegistry, IStartupShutdownSlim
     {
         /// <summary>
-        /// Machine id for the current machine as represented in the global cluster state.
+        /// The cluster state containing global and machine-specific information registered in the global cluster state
         /// </summary>
-        MachineId LocalMachineId { get; }
+        ClusterState ClusterState { get; }
 
         /// <summary>
-        /// Machine location for the current machine as represented in the global cluster state.
+        /// Calls a central store and updates <paramref name="clusterState"/> based on the result.
         /// </summary>
-        MachineLocation LocalMachineLocation { get; }
-
-        /// <summary>
-        /// Calls a central store and updates <paramref name="state"/> based on the result.
-        /// </summary>
-        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state);
+        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, MachineState machineState = MachineState.Open);
 
         /// <summary>
         /// Notifies a central store that another machine should be selected as a master.
@@ -39,9 +36,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         Task<Role?> ReleaseRoleIfNecessaryAsync(OperationContext context);
 
         /// <summary>
-        /// Notifies a central store that the current machine is about to be repaired and will be inactive.
+        /// Notifies a central store that the current machine (and all associated machine ids) is about to be repaired and will be inactive.
         /// </summary>
-        Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context);
+        Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state);
 
         /// <summary>
         /// Gets the list of <see cref="ContentLocationEntry"/> for every hash specified by <paramref name="contentHashes"/> from a central store.
@@ -54,17 +51,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes);
+        Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes);
 
         /// <summary>
         /// Puts a blob into the content location store.
         /// </summary>
-        Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob);
+        Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob);
 
         /// <summary>
         /// Gets a blob from the content location store.
         /// </summary>
-        Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash);
+        Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash);
 
         /// <summary>
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
@@ -76,5 +73,126 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         CounterCollection<GlobalStoreCounters> Counters { get; }
+    }
+
+    /// <nodoc />
+    public class PutBlobResult : BoolResult
+    {
+        /// <nodoc />
+        public ContentHash Hash { get; }
+
+        /// <nodoc />
+        public long BlobSize { get; }
+
+        /// <nodoc />
+        public bool AlreadyInRedis { get; }
+
+        /// <nodoc />
+        public long? NewCapacityInRedis { get; }
+
+        /// <nodoc />
+        public string? RedisKey { get; }
+
+        /// <nodoc />
+        public PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newCapacity = null, string? redisKey = null)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+            AlreadyInRedis = alreadyInRedis;
+            NewCapacityInRedis = newCapacity;
+            RedisKey = redisKey;
+        }
+
+        /// <nodoc />
+        public PutBlobResult(ContentHash hash, long blobSize, string errorMessage)
+            : base(errorMessage)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+        }
+
+        /// <nodoc />
+        public PutBlobResult(ResultBase other, string message, ContentHash hash, long blobSize)
+            : base(other, message)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+        }
+
+        /// <nodoc />
+        public PutBlobResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            string baseResult = $"Hash=[{Hash.ToShortString()}], BlobSize=[{BlobSize}]";
+            if (Succeeded)
+            {
+                if (AlreadyInRedis)
+                {
+                    return $"{baseResult}, AlreadyInRedis=[{AlreadyInRedis}]";
+                }
+
+                return $"{baseResult}. AlreadyInRedis=[False], RedisKey=[{RedisKey}], NewCapacity=[{NewCapacityInRedis}].";
+            }
+
+            return $"{baseResult}. {ErrorMessage}";
+        }
+    }
+
+    /// <nodoc />
+    public class GetBlobResult : BoolResult
+    {
+        /// <nodoc />
+        public ContentHash Hash { get; }
+
+        /// <summary>
+        /// True if the blob is found.
+        /// </summary>
+        public bool Found => Blob != null;
+
+        /// <nodoc />
+        public byte[]? Blob { get; }
+
+        /// <nodoc />
+        public GetBlobResult(ContentHash hash, byte[]? blob)
+        {
+            Hash = hash;
+            Blob = blob;
+        }
+
+        /// <nodoc />
+        public GetBlobResult(string errorMessage, string? diagnostics = null)
+            : base(errorMessage, diagnostics)
+        {
+
+        }
+
+        /// <nodoc />
+        public GetBlobResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
+        /// <nodoc />
+        public GetBlobResult(ResultBase other, string message, ContentHash hash)
+            : base(other, message)
+        {
+            Hash = hash;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (Succeeded)
+            {
+                return $"Hash=[{Hash.ToShortString()}], Found={Found}";
+            }
+
+            return base.ToString();
+        }
     }
 }

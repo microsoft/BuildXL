@@ -1,19 +1,23 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace BuildXL.Interop.MacOS
+using static BuildXL.Interop.Dispatch;
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The IO class offers interop calls for I/O based tasks into operating system facilities
     /// </summary>
     public static class IO
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
         /// <summary>
         /// Errorno codes
@@ -101,10 +105,10 @@ namespace BuildXL.Interop.MacOS
         [StructLayout(LayoutKind.Sequential)]
         public struct StatBuffer
         {
-            public long DeviceID;
-            public long InodeNumber;
-            public int Mode;
-            public long HardLinks;
+            public int DeviceID;
+            public ulong InodeNumber;
+            public ushort Mode;
+            public ushort HardLinks;
             public uint UserID;
             public uint GroupID;
             public long Size;
@@ -116,6 +120,13 @@ namespace BuildXL.Interop.MacOS
             public long TimeNSecLastStatusChange;
             public long TimeCreation;
             public long TimeNSecCreation;
+
+            public DateTime GetLastAccessUtcTime() => ToUtcDateTime(TimeLastAccess, TimeNSecLastAccess);
+            public DateTime GetLastModificationUtcTime() => ToUtcDateTime(TimeLastModification, TimeNSecLastModification);
+            public DateTime GetLastStatusChangeUtcTime() => ToUtcDateTime(TimeLastStatusChange, TimeNSecLastStatusChange);
+            public DateTime GetCreationUtcTime() => ToUtcDateTime(TimeCreation, TimeNSecCreation);
+
+            public DateTime ToUtcDateTime(long sec, long nsec) => new Timespec { Tv_sec = sec, Tv_nsec = nsec }.ToUtcTime();
         }
 
         public enum FilePermissions : int
@@ -151,67 +162,165 @@ namespace BuildXL.Interop.MacOS
             S_IFSOCK = 0xC000, // Socket
         }
 
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        private static extern int StatFile(string path, bool followSymlink, ref StatBuffer statBuf, long statBufferSize);
+        internal static int ToInt(SafeFileHandle fd) => fd.DangerousGetHandle().ToInt32();
 
-        public static int StatFile(string path, bool followSymlink, ref StatBuffer statBuf)
-            => StatFile(path, followSymlink, ref statBuf, Marshal.SizeOf(statBuf));
+        /// <summary>
+        /// Implements the standard unix 'stat' command. 
+        /// </summary>
+        /// <returns>
+        /// Upon successful completion a value of 0 is returned and the result is stored in <paramref name="statBuf"/>; 
+        /// otherwise, a value of -1 is returned and <see cref="Marshal.GetLastWin32Error"/> is set to indicate the error.
+        /// </returns>
+        public static int StatFile(string path, bool followSymlink, ref StatBuffer statBuf) => IsMacOS
+            ? Impl_Mac.StatFile(path, followSymlink, ref statBuf)
+            : Impl_Linux.StatFile(path, followSymlink, ref statBuf);
 
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        private static extern int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf, long statBufferSize);
+        /// <summary>
+        /// Same as <see cref="StatFile" /> except that the target file is given as a file descriptor (<paramref name="fd" />).
+        /// </summary>
+        public static int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf) => IsMacOS
+            ? Impl_Mac.StatFileDescriptor(fd, ref statBuf)
+            : Impl_Linux.StatFileDescriptor(fd, ref statBuf);
 
-        public static int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf)
-            => StatFileDescriptor(fd, ref statBuf, Marshal.SizeOf(statBuf));
+        /// <summary>
+        /// Gets the name (e.g., "EXT4", "APFS", etc.) of the filesystem on which file <paramref name="fd" /> resides.
+        /// </summary>
+        /// <returns>
+        /// There result (filesystem name) is stored in the <paramref name="fsTypeName"/> buffer.
+        /// The return value is the length of that buffer or -1 upon error.
+        /// </returns>
+        public static int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize) => IsMacOS
+            ? Impl_Mac.GetFileSystemType(fd, fsTypeName, bufferSize)
+            : Impl_Linux.GetFileSystemType(fd, fsTypeName, bufferSize);
 
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true, CharSet = CharSet.Ansi)]
-        public static extern int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize);
+        /// <summary>
+        /// Returns the root mount for a given path or <c>null</c> in case of an error.
+        /// </summary>
+        /// <param name="path">Path name of any file or directory within the mounted file system</param>
+        /// <returns>String containing the mount name</returns>
+        public static string GetMountNameForPath(string path) => IsMacOS
+            ? Impl_Mac.GetMountNameForPath(path)
+            : Impl_Linux.GetMountNameForPath(path);
 
         /// <summary>
         /// Sets the creation, modification, change and access time of a file specified at path
         /// </summary>
         /// <returns>Returns zero in case of success, otherwise error</returns>
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern int SetTimeStampsForFilePath(string path, bool followSymlink, StatBuffer buffer);
+        public static int SetTimeStampsForFilePath(string path, bool followSymlink, StatBuffer buffer) => IsMacOS
+            ? Impl_Mac.SetTimeStampsForFilePath(path, followSymlink, buffer)
+            : Impl_Linux.SetTimeStampsForFilePath(path, followSymlink, buffer);
+
+        /// <summary>
+        /// Sets atime and mtime to current time.
+        /// </summary>
+        public static int Touch(string pathname, bool followSymlink)
+        {
+            var timespec = Timespec.CreateFromUtcDateTime(DateTime.UtcNow);
+            var buf = new StatBuffer
+            {
+                TimeLastAccess = timespec.Tv_sec,
+                TimeNSecLastAccess = timespec.Tv_nsec,
+                TimeLastModification = timespec.Tv_sec,
+                TimeNSecLastModification = timespec.Tv_nsec,
+            };
+            return SetTimeStampsForFilePath(pathname, followSymlink, buf);
+        }
 
         /// <summary>
         /// Read the value of a symbolic link specified by <paramref name="link"/>
         /// Returns number of bytes placed in buf, and -1 otherwise.
         /// </summary>
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true, CharSet = CharSet.Ansi)]
-        public static extern long SafeReadLink(string link, StringBuilder buffer, long length);
+        public static long SafeReadLink(string link, StringBuilder buffer, long length) => IsMacOS
+            ? Impl_Mac.SafeReadLink(link, buffer, length)
+            : Impl_Linux.SafeReadLink(link, buffer, length);
 
         /// <summary>
         /// Gets the file permissions flag for the entry at <paramref name="path"/>
         /// </summary>
         /// <returns>Returns zero in case of success, otherwise error</returns>
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern int GetFilePermissionsForFilePath(string path, bool followSymlink = true);
+        public static int GetFilePermissionsForFilePath(string path, bool followSymlink = true) => IsMacOS
+            ? Impl_Mac.GetFilePermissionsForFilePath(path, followSymlink)
+            : Impl_Linux.GetFilePermissionsForFilePath(path, followSymlink);
 
         /// <summary>
         /// Sets the file permissions flag for the entry at <paramref name="path"/>
         /// </summary>
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern int SetFilePermissionsForFilePath(string path, FilePermissions permissions, bool followSymlink = true);
+        public static int SetFilePermissionsForFilePath(string path, FilePermissions permissions, bool followSymlink = true) => IsMacOS
+            ? Impl_Mac.SetFilePermissionsForFilePath(path, permissions, followSymlink)
+            : Impl_Linux.SetFilePermissionsForFilePath(path, permissions, followSymlink);
+
+        /// <summary>
+        /// Sets the value of the extended attribute identified by <paramref name="name"/> and associated
+        /// with the given <paramref name="path"/> in the filesystem.  If <paramref name="name"/> is a symlink,
+        /// the attribute is set on the link itself and not the file it refers to.
+        /// </summary>
+        public static unsafe int SetXattrNoFollow(string path, string name, long value) => IsMacOS
+            ? Impl_Mac.setxattr(path, name, &value, sizeof(long), 0, Impl_Mac.XATTR_NOFOLLOW)
+            : Impl_Linux.lsetxattr(path, "user." + name, &value, sizeof(long), 0);
+
+        /// <summary>
+        /// Retrieves  the  value  of  the extended attribute identified by <paramref name="name"/> and associated
+        /// with the given <paramref name="path"/> in the filesystem. If <paramref name="name"/> is a symlink,
+        /// the attribute is retrieved from the link itself and not the file it refers to.
+        /// </summary>
+        public static unsafe long GetXattrNoFollow(string path, string name, ref long value) => IsMacOS
+            ? Impl_Mac.getxattr(path, name, ref value, sizeof(long), 0, Impl_Mac.XATTR_NOFOLLOW)
+            : Impl_Linux.lgetxattr(path, "user." + name, ref value, sizeof(long), 0);
 
         /// <summary>
         /// Opens a file at a specified path.
         /// </summary>
-        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern SafeFileHandle Open(string pathname, OpenFlags flags, FilePermissions permission);
+        public static SafeFileHandle Open(string pathname, OpenFlags flags, FilePermissions permission) => IsMacOS
+            ? Impl_Mac.Open(pathname, flags, permission)
+            : Impl_Linux.Open(pathname, flags, permission);
+
+        /// <summary>
+        /// Invokes the 'read' syscall, retrying on <see cref="Errno.EINTR"/>.
+        /// </summary>
+        /// <param name="handle">File descriptor</param>
+        /// <param name="bytes">Buffer to which to read</param>
+        /// <param name="offset">Index in <paramref name="bytes"/> at which to save read bytes</param>
+        /// <param name="length">Max number of bytes to read</param>
+        /// <returns>
+        /// 0 on EOF, -1 on error, or number of bytes read otherwise.  
+        /// Returning a positive number that is less than <paramref name="length"/> does not indicate error.
+        /// </returns>
+        public unsafe static int Read(SafeFileHandle handle, byte[] bytes, int offset, int length)
+        {
+            Contract.Requires(bytes.Length >= offset + length);
+
+            fixed (byte* buf = &bytes[offset])
+            {
+                int result;
+                do
+                {
+                    result = Impl_Common.read(ToInt(handle), buf, length);
+                }
+                while (result < 0 && Marshal.GetLastWin32Error() == (int)Errno.EINTR);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Creates a FIFO special file (a.k.a. named pipe).
+        /// </summary>
+        /// <returns>0 on success, -1 on error</returns>
+        public static int MkFifo(string pathname, FilePermissions permission)
+            => Impl_Common.mkfifo(pathname, permission);
 
         /// <summary>
         /// Creates a symbolic link at <paramref name="symlinkFilePath"/> pointing to <paramref name="target"/>.
         /// Returns 0 upon successful completion, and -1 otherwise.
         /// </summary>
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        public static extern int symlink(string target, string symlinkFilePath);
+        public static int symlink(string target, string symlinkFilePath)
+            => Impl_Common.symlink(target, symlinkFilePath);
 
         /// <summary>
         /// Creates a new hardlink for file / directory specified by <paramref name="link"/> at <paramref name="hardlinkFilePath"/>.
         /// Returns 0 upon successful completion, and -1 otherwise.
         /// </summary>
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        public static extern int link(string link, string hardlinkFilePath);
+        public static int link(string link, string hardlinkFilePath)
+            => Impl_Common.link(link, hardlinkFilePath);
 
         /// <summary>
         /// Flags for <see cref="Open"/>
@@ -232,7 +341,7 @@ namespace BuildXL.Interop.MacOS
             O_NOFOLLOW = 0x0100,  // do not follow symlinks
             O_SYMLINK = 0x200000, // allow open of symlinks
             O_EVTONLY = 0x8000,   // descriptor requested for event notifications only
-            O_CLOEXEX = 0x1000000 // mark as close-on-exec
+            O_CLOEXEC = 0x1000000 // mark as close-on-exec
         }
 
         /// <summary>
@@ -261,12 +370,16 @@ namespace BuildXL.Interop.MacOS
         public const string BinSh                     = "/bin/sh";
         public const string Dev                       = "/dev";
         public const string Etc                       = "/etc";
+        public const string EtcOsRelease              = "/etc/os-release"; // symlink on Linux
+        public const string EtcMasterPasswd           = "/etc/master.passwd";
+        public const string LibLinuxGnu               = "/lib/x86_64-linux-gnu";
         public const string Library                   = "/Library";
         public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
         public const string Private                   = "/private";
         public const string PrivateVar                = "/private/var";
         public const string Proc                      = "/proc";
         public const string Sbin                      = "/sbin";
+        public const string Sys                       = "/sys";
         public const string System                    = "/System";
         public const string SystemLibrary             = "/System/Library";
         public const string TmpDir                    = "/tmp";
@@ -279,13 +392,13 @@ namespace BuildXL.Interop.MacOS
         public const string UsrStandalone             = "/usr/standalone";
         public const string UsrSbin                   = "/usr/sbin";
         public const string Var                       = "/var";
-        
+
         public static readonly string UserProvisioning      = $"/Users/{s_user}/Library/MobileDevice/Provisioning Profiles";
         public static readonly string UserKeyChainsDb       = $"/Users/{s_user}/Library/Keychains/login.keychain-db";
         public static readonly string UserKeyChains         = $"/Users/{s_user}/Library/Keychains/login.keychain";
         public static readonly string UserCFTextEncoding    = $"/Users/{s_user}/.CFUserTextEncoding";
         public static readonly string UserPreferences       = $"/Users/{s_user}/Library/Preferences";
-
-#pragma warning restore CS1591
+        public static readonly string EtcLocalTime         = $"/etc/localtime";
     }
 }
+#pragma warning restore CS1591

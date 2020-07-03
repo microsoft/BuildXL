@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogExecution = true;
             FingerprintStoreMode = FingerprintStoreMode.Default;
             FingerprintStoreMaxEntryAgeMinutes = 4320; // 3 days
+            FingerprintStoreBulkLoad = false;
             EngineCacheLogDirectory = AbsolutePath.Invalid;
             EngineCacheCorruptFilesLogDirectory = AbsolutePath.Invalid;
             FingerprintsLogDirectory = AbsolutePath.Invalid;
@@ -43,6 +44,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FailPipOnFileAccessError = true;
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
+            CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
+            AriaIndividualMessageSizeLimitBytes = (int)(0.8 * 1024 * 1024); // 0.8Mb out of Aria's current 1Mb max limit
+            MaxNumPipTelemetryBatches = 1;
+            CacheMissBatch = true;
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 
@@ -62,8 +67,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogExecution = template.LogExecution;
             ExecutionLog = pathRemapper.Remap(template.ExecutionLog);
             StoreFingerprints = template.StoreFingerprints;
+            SaveFingerprintStoreToLogs = template.SaveFingerprintStoreToLogs;
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
+            FingerprintStoreBulkLoad = template.FingerprintStoreBulkLoad;
             FingerprintsLogDirectory = pathRemapper.Remap(template.FingerprintsLogDirectory);
             ExecutionFingerprintStoreLogDirectory = pathRemapper.Remap(template.ExecutionFingerprintStoreLogDirectory);
             CacheLookupFingerprintStoreLogDirectory = pathRemapper.Remap(template.CacheLookupFingerprintStoreLogDirectory);
@@ -91,6 +98,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStats = template.LogStats;
             EnableAsyncLogging = template.EnableAsyncLogging;
             StatsLog = pathRemapper.Remap(template.StatsLog);
+            StatsPrfLog = pathRemapper.Remap(template.StatsPrfLog);
             EventSummaryLog = pathRemapper.Remap(template.EventSummaryLog);
             Environment = template.Environment;
             RemoteTelemetry = template.RemoteTelemetry;
@@ -124,10 +132,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 template.CacheMissAnalysisOption.Mode,
                 new List<string>(template.CacheMissAnalysisOption.Keys),
                 pathRemapper.Remap(template.CacheMissAnalysisOption.CustomPath));
+            CacheMissDiffFormat = template.CacheMissDiffFormat;
+            CacheMissBatch = template.CacheMissBatch;
             OptimizeConsoleOutputForAzureDevOps = template.OptimizeConsoleOutputForAzureDevOps;
             InvocationExpandedCommandLineArguments = template.InvocationExpandedCommandLineArguments;
             OptimizeProgressUpdatingForAzureDevOps = template.OptimizeProgressUpdatingForAzureDevOps;
             OptimizeVsoAnnotationsForAzureDevOps = template.OptimizeVsoAnnotationsForAzureDevOps;
+            AriaIndividualMessageSizeLimitBytes = template.AriaIndividualMessageSizeLimitBytes;
+            MaxNumPipTelemetryBatches = template.MaxNumPipTelemetryBatches;
         }
 
         /// <inheritdoc />
@@ -173,7 +185,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public FingerprintStoreMode FingerprintStoreMode { get; set; }
 
         /// <inheritdoc />
+        public bool? SaveFingerprintStoreToLogs { get; set; }
+
+        /// <inheritdoc />
         public int FingerprintStoreMaxEntryAgeMinutes { get; set; }
+
+        /// <inheritdoc />
+        public bool FingerprintStoreBulkLoad { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath FingerprintsLogDirectory { get; set; }
@@ -238,6 +256,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath StatsLog { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath StatsPrfLog { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath EventSummaryLog { get; set; }
@@ -315,6 +336,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public CacheMissAnalysisOption CacheMissAnalysisOption { get; set; }
 
         /// <inheritdoc />
+        public CacheMissDiffFormat CacheMissDiffFormat { get; set; }
+
+        /// <inheritdoc />
+        public bool CacheMissBatch { get; set; }
+
+        /// <inheritdoc />
         public bool OptimizeConsoleOutputForAzureDevOps { get; set; }
 
         /// <inheritdoc />
@@ -328,5 +355,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool OptimizeWarningOrErrorAnnotationsForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public int AriaIndividualMessageSizeLimitBytes { get; set; }
+
+        /// <inheritdoc />
+        public int MaxNumPipTelemetryBatches { get; set; }
     }
 }

@@ -43,6 +43,11 @@ export interface Assembly extends Deployment.Deployable {
     targetFramework: string,
 
     /**
+     * Optional target runtime this assembly is compiled against
+     */
+    targetRuntime?: string,
+
+    /**
      * The assembly to pass for compilation
      */
     compile?: Binary;
@@ -74,7 +79,7 @@ export interface Assembly extends Deployment.Deployable {
 
     /**
      * List of deployable items to skip when deploying the dependencies of this assembly.
-     * This is usefull for when you take a dependency on an assembly or a package but it comes with files or nuget packages
+     * This is useful for when you take a dependency on an assembly or a package but it comes with files or nuget packages
      * that conflict with other dependencies.
      */
     runtimeContentToSkip?: Deployment.DeployableItem[];
@@ -107,8 +112,13 @@ export interface ManagedNugetPackage extends NugetPackage, Deployment.Deployable
 
     /**
      * Roslyn analyzers that can validate the referencing project
+     * The generated extracts per: https://docs.microsoft.com/en-us/nuget/guides/analyzers-conventions#analyzers-path-format
      */
-    analyzers?: Binary[];
+    analyzers?: {
+        framework?: string,
+        language?: string,
+        analyzers: Binary[],
+    };
 
     /**
      * Extra content/files to be deployed with the assembly when running. i.e. native dlls that are PIvoked, config files etc.
@@ -142,10 +152,13 @@ export function isAssembly(item: any) : item is Assembly {
 
 @@public
 export function isManagedPackage(item: any) : item is ManagedNugetPackage {
-    return item["compile"] !== undefined ||
-           item["runtime"] !== undefined ||
-           item["runtimeContent"] !== undefined ||
-           item["analyzers"] !== undefined;
+    return item["contents"] !== undefined  && 
+           item["dependencies"] !== undefined && (
+                item["compile"] !== undefined ||
+                item["runtime"] !== undefined ||
+                item["runtimeContent"] !== undefined ||
+                item["analyzers"] !== undefined
+            );
 }
 
 @@public

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -56,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             var statsResult = await Store.GetStatsAsync(operationContext);
             if (statsResult.Succeeded)
             {
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operationContext, s));
+                Tracer.TraceStatisticsAtShutdown(operationContext, statsResult.CounterSet, prefix: "FileSystemContentSessionStats");
             }
 
             return BoolResult.Success;
@@ -127,16 +128,23 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
+        async Task IHibernateContentSession.PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
         {
             var contentHashList = contentHashes as List<ContentHash> ?? contentHashes.ToList();
-            var results = (await Store.PinAsync(context, contentHashList, _pinContext)).ToList();
+            // Passing 'RePinFromHibernation' to use more optimal pinning logic.
+            var results = (await Store.PinAsync(context, contentHashList, _pinContext, new PinBulkOptions() { RePinFromHibernation = true })).ToList();
 
             var failed = results.Where(r => !r.Item.Succeeded);
             foreach (var result in failed)
             {
                 Tracer.Warning(context, $"Failed to pin contentHash=[{contentHashList[result.Index]}]");
             }
+        }
+
+        /// <inheritdoc />
+        Task<BoolResult> IHibernateContentSession.ShutdownEvictionAsync(Context context)
+        {
+            return Store.ShutdownEvictionAsync(context);
         }
 
         /// <summary>

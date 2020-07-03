@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.Tracing
         public KeyValuePair<string, CounterTracker>[] ChildCounterTrackers => _trackers.ToArray();
 
         /// <nodoc />
-        public CounterCollection<T> AddOrGetCounterCollection<T>() where T : struct
+        public CounterCollection<T> AddOrGetCounterCollection<T>() where T : System.Enum
             => (CounterCollection<T>)_counters.GetOrAdd(typeof(T), _ => new CounterCollection<T>());
 
         /// <nodoc />
@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Tracing
         /// Creates a new CounterCollection with a CounterTracker as a parent.
         /// </summary>
         public static CounterCollection<TEnum> CreateCounterCollection<TEnum>(CounterTracker counterTracker)
-            where TEnum : struct
+            where TEnum : System.Enum
         {
             var parent = counterTracker?.AddOrGetCounterCollection<TEnum>();
             return new CounterCollection<TEnum>(parent);

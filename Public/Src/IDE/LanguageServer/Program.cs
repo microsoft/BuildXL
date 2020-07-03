@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -8,8 +8,10 @@ using System.IO.Pipes;
 using System.Linq;
 using BuildXL.Utilities;
 
+#if !PLATFORM_WIN
 using BuildXL.Ide.JsonRpc;
 using System.Net.Sockets;
+#endif
 
 namespace BuildXL.Ide.LanguageServer
 {

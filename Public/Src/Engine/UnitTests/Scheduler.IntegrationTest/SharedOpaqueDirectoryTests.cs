@@ -1,21 +1,22 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -23,6 +24,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -32,7 +34,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public SharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
-            // TODO: remove when the default changes
+            // TODO: remove when the default changes.
             ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreUndeclaredAccessesUnderSharedOpaques = false;
         }
 
@@ -60,14 +62,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipB = SchedulePipBuilder(builderB);
 
             // B should be able to consume the file in the opaque directory. Second build should have both cached
-            var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
-            AssertWritesJournaled(result, pipA, outputInSharedOpaque);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 0);
-            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 0) ;
+            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
 
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 1);
-            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 1);
 
             // Make sure we can replay the file in the opaque directory
             File.Delete(ArtifactToString(outputInSharedOpaque));
@@ -78,14 +75,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(source), "New content");
             RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
-        }
-
-        private void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
-        {
-            // Assert that shared opaque outputs were journaled and the explicitly declared ones were not
-            var journaledWrites = GetJournaledWritesForProcess(result, pip.Process);
-            XAssert.Contains(journaledWrites, outputInSharedOpaque);
-            XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
         }
 
         [Theory]
@@ -161,12 +150,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
             RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
 
-            // Assert the output was produced. 
+            // Assert the output was produced.
             XAssert.IsTrue(File.Exists(outputInSharedOpaque.Path.ToString(Context.PathTable)));
 
             // Run the pip again. It should still be a hit. This makes sure that
             // accesses related to outputs don't end up as part of the fingerprint. In this
-            // particular case, we should be skipping an access for the directory creation and 
+            // particular case, we should be skipping an access for the directory creation and
             // another one for the file creation
             RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
         }
@@ -182,7 +171,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: FileArtifact.Invalid, sourceFileToRead: FileArtifact.Invalid, CreateOutputFileArtifact(sharedOpaqueDir));
 
             RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(EventId.PreserveOutputsDoNotApplyToSharedOpaques);
+            AssertWarningEventLogged(global::BuildXL.Pips.Tracing.LogEventId.PreserveOutputsDoNotApplyToSharedOpaques);
         }
 
         /// <summary>
@@ -212,7 +201,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileUtilities.DeleteDirectoryContents(ArtifactToString(sharedOpaqueDirArtifact));
 
             // Replay from the cache
-            RunScheduler().AssertSuccess(); 
+            RunScheduler().AssertSuccess();
 
             // The output file should exist, the directory shouldn't
             XAssert.IsTrue(File.Exists(ArtifactToString(outputFile)));
@@ -248,6 +237,46 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
             XAssert.IsTrue(File.Exists(ArtifactToString(outputArtifact)));
             XAssert.IsFalse(File.Exists(ArtifactToString(outputArtifactLaterDeleted)));
+        }
+
+        [Fact]
+        public void MoveDirectoryUnderASharedOpaqueBehavior()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            AbsolutePath subDirSrc = sharedOpaqueDirPath.Combine(Context.PathTable, "subdir-src");
+            AbsolutePath subDirTarget = sharedOpaqueDirPath.Combine(Context.PathTable, "subdir-target");
+
+            var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            var subDirSourceDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(subDirSrc);
+            var subDirTargetDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(subDirTarget);
+
+            var outputArtifact = CreateOutputFileArtifact(subDirSourceDirectoryArtifact);
+
+            // Create a directory, a file under it and then move the directory to a sibling place
+            var builderA = CreatePipBuilder(new List<Operation>
+                             {
+                                 Operation.CreateDir(subDirSourceDirectoryArtifact, doNotInfer: true),
+                                 Operation.WriteFile(outputArtifact, doNotInfer: true),
+                                 Operation.MoveDir(subDirSourceDirectoryArtifact, subDirTargetDirectoryArtifact),
+                             });
+            builderA.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            // Create a file with the same name as the directory originally created by pip A
+            var fileExDirectory = new FileArtifact(subDirSrc);
+            var builderB = CreatePipBuilder(new List<Operation>
+                             {
+                                 Operation.WriteFile(fileExDirectory, doNotInfer: true),
+                             });
+            builderB.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
+            // Avoid races
+            builderB.AddOrderDependency(pipA.Process.PipId);
+            SchedulePipBuilder(builderB);
+
+            // Everything should be fine. The directory move operation coming from pip A should be discarded for the directory itself,
+            // so pip B should be able to create a file with the same path without triggering a double write.
+            RunScheduler().AssertSuccess();
         }
 
         /// <summary>
@@ -300,8 +329,44 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             RunScheduler().AssertFailure();
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+        }
+
+        /// <summary>
+        /// Make sure that a DisallowedFileAccess on a shared opaque produced file yields the appropriate related pip information
+        /// in the error log
+        /// </summary>
+        [Fact]
+        public void UndeclaredConsumersAreCorrectlyReferencedInViolationError()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // PipA produces outputArtifactA in a shared opaque directory
+            FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
+            // Dummy output, just to force an order between pips and avoid races
+            FileArtifact dummyOutputA = CreateOutputFileArtifact();
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: dummyOutputA, CreateSourceFile(), new KeyValuePair<FileArtifact, string>(outputArtifactA, null));
+
+            // PipB consumed outputArtifactA without declaring it.
+            FileArtifact outputArtifactB = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(dummyOutputA),
+                Operation.ReadFile(outputArtifactA, doNotInfer: true),
+                Operation.WriteFile(outputArtifactB),
+            });
+
+            SchedulePipBuilder(builderB);
+
+            // Build should fail with a Disallowed File Access
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
+
+            // And we should have a related pip
+            AssertLogContains(caseSensitive: false, "Violations related to pip");
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         /// <summary>
@@ -332,8 +397,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             RunScheduler().AssertFailure();
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -342,7 +407,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
 
-            // PipA writes outputArtifactA in a shared opaque directory 
+            // PipA writes outputArtifactA in a shared opaque directory
             FileArtifact directory = CreateOutputFileArtifact(sharedOpaqueDir);
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
@@ -364,12 +429,43 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void DirectoryDoubleDeletionIsAllowedUnderASharedOpaque()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // PipA creates and removes a directory
+            FileArtifact directory = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.CreateDir(directory, doNotInfer: true),
+                                                       Operation.DeleteDir(directory, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            // PipB creates and remove the same directory
+            var builderB = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.CreateDir(directory, doNotInfer: true),
+                                                       Operation.DeleteDir(directory, doNotInfer: true),
+                                                   });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Order pips just to avoid races
+            builderB.AddOrderDependency(pipA.Process.PipId);
+            SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
         public void TwoPipsProducingTheSameFileDynamicallyAndStaticallyUnderASharedOpaqueDirectoryIsBlocked()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
 
-            // PipA writes outputArtifactA in a shared opaque directory 
+            // PipA writes outputArtifactA in a shared opaque directory
             FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
@@ -378,12 +474,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resA = SchedulePipBuilder(builderA);
 
-            // PipB produces the same artifact outputArtifactA but statically 
+            // PipB produces the same artifact outputArtifactA but statically
             var builderB = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFileWithRetries(outputArtifactA),
                                                    });
-            
+
             // Let's make B depend on A so we avoid potential file locks on the double write
             builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
 
@@ -391,14 +487,14 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             IgnoreWarnings();
             RunScheduler().AssertFailure();
-            
+
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.StorageCachePutContentFailed);
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -433,11 +529,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.StorageCachePutContentFailed);
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -476,13 +572,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderB);
 
             IgnoreWarnings();
-            RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(ToString(tempDirUnderSharedPath))).AssertFailure();
+            RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(LoggingContext, ToString(tempDirUnderSharedPath))).AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationSharedOpaqueWriteInTempDirectory);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -517,13 +613,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write as a verbose message.
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             // We inform about a mismatch in the file content (due to the ignored double write)
-            AssertVerboseEventLogged(EventId.FileArtifactContentMismatch);
+            AssertVerboseEventLogged(LogEventId.FileArtifactContentMismatch);
 
             // Verify the process not stored to cache event is raised
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         [Fact]
@@ -534,8 +630,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             AbsolutePath nestedPath = AbsolutePath.Create(Context.PathTable, nested);
 
-            // PipA writes outputArtifactA in a shared opaque directory 
-            // and an untracked file underneath 
+            // PipA writes outputArtifactA in a shared opaque directory
+            // and an untracked file underneath
             FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
             FileArtifact untrackedArtifact = CreateOutputFileArtifact(nested);
 
@@ -582,9 +678,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             IgnoreWarnings();
             RunScheduler().AssertFailure();
-            
+
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -596,7 +692,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Let's write a file that will serve as a source file for the pip below
             var sourceFile = CreateSourceFile(sharedOpaqueDir);
 
-            // PipA writes to the source file under a shared opaque. 
+            // PipA writes to the source file under a shared opaque.
             var dummyOutput = CreateOutputFileArtifact();
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
@@ -611,43 +707,66 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             RunScheduler().AssertFailure();
 
-            // We are expecting a file monitor violation 
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            // We are expecting a file monitor violation
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             // It gets reported as a double write (between the writing pip and the hash source file pip)
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
-        [Fact]
-        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed()
+        [Theory]
+        [InlineData(DoubleWritePolicy.AllowSameContentDoubleWrites)]
+        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
+        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed(DoubleWritePolicy doubleWritePolicy)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            const string ContentToWrite = "content";
 
             // The first pip writes a file under a shared opaque
             var dependencyInOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
-                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                       Operation.WriteFile(dependencyInOpaque, content: ContentToWrite, doNotInfer: true),
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderA.DoubleWritePolicy = doubleWritePolicy;
+            
             var resA = SchedulePipBuilder(builderA);
 
-            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file
-            var builderB = CreatePipBuilder(new Operation[]
-                                                   {
-                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
-                                                   });
+            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file (with same content)
+            var operations = new List<Operation>();
+            if (doubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+            {
+                // Delete the file first, since write file operation implies append
+                // and we want to be sure we write the same content than the first time
+                operations.Add(Operation.DeleteFile(dependencyInOpaque, doNotInfer: true));
+            }
+            operations.Add(Operation.WriteFile(dependencyInOpaque, content: ContentToWrite, doNotInfer: true));
+
+            var builderB = CreatePipBuilder(operations);
             builderB.AddInputDirectory(resA.ProcessOutputs.GetOutputDirectories().Single().Root);
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.DoubleWritePolicy = doubleWritePolicy;
+
             SchedulePipBuilder(builderB);
 
             IgnoreWarnings();
-            RunScheduler().AssertFailure();
+            var result = RunScheduler();
 
-            // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
-            // It gets reported as a double write
-            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            {
+                result.AssertFailure();
+                // We are expecting a file monitor violation
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                // It gets reported as a double write
+                AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            }
+            else
+            {
+                // Given the same content was written, if the double write policy is to allow it, we should be good
+                result.AssertSuccess();
+            }
         }
 
         [Fact]
@@ -676,7 +795,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -690,7 +809,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileUtilities.CreateDirectory(partialDir);
             FileArtifact outputUnderSharedOpaqueAndPartialSealed = CreateOutputFileArtifact(partialDir);
 
-            // PipA writes under the shared opaque, but also under the partial sealed underneath, as an explicitly defined output 
+            // PipA writes under the shared opaque, but also under the partial sealed underneath, as an explicitly defined output
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFile(outputUnderSharedOpaqueAndPartialSealed),
@@ -717,6 +836,38 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        /// <summary>
+        /// If a pip consumes a SOD that is a subDir of a produced SOD, that pip is allowed to write in the cone 
+        /// of the consumed SOD because the produced SOD subsumes it.
+        /// </summary>
+        [Fact]
+        public void WritingInTheConeOfAnInputSharedOpaqueSubdirectoryIsAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sod-subDirInput-test");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
+
+            // PipA produces 'sod-subDirInput-test\subDir' shared opaque
+            var outputArtifactA = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueSubDir, fileToProduceStatically: CreateOutputFileArtifact(), CreateSourceFile(), new KeyValuePair<FileArtifact, string>(outputArtifactA, null));
+
+            //PipB consumes 'sod-subDirInput-test\subDir'
+            //     produces 'sod-subDirInput-test'
+            //       writes 'sod-subDirInput-test\subDir\outputArtifactB'
+            var outputArtifactB = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputArtifactB, doNotInfer: true),
+            });
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDirPath));
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertSuccess();
+        }
+
         [Fact]
         public void TwoPipsProducingTheSameFileDynamicallyUnderASharedOpaqueDirectoryIsBlockedEvenWhenRunFromCache()
         {
@@ -740,7 +891,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resB = SchedulePipBuilder(builderB);
-            
+
             IgnoreWarnings();
             RunScheduler().AssertSuccess().AssertCacheMiss(resA.Process.PipId, resB.Process.PipId);
 
@@ -769,7 +920,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -813,7 +964,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // We are expecting a write after an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -865,7 +1016,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 // We are expecting a write on an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -920,7 +1071,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // PipB writes absentFileUnderSharedOpaque into a shared opaque directory sharedopaquedir.
             var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
-            var builderB = CreatePipBuilder(new Operation[] 
+            var builderB = CreatePipBuilder(new Operation[]
                 {
                     forceDependency
                         ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
@@ -955,7 +1106,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 // We are expecting a write after an absent path probe (one message per run)
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
             }
         }
 
@@ -1008,7 +1159,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 firstResult.AssertFailure();
                 secondResult.AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
                 IgnoreWarnings();
             }
         }
@@ -1063,18 +1214,18 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void FirstDoubleWriteWinsMakesPipUnCacheable()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
-            AbsolutePath sharedOpaqueDirPath = 
+            AbsolutePath sharedOpaqueDirPath =
                 AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
-            IEnumerable<Operation> writeOperations = 
+            IEnumerable<Operation> writeOperations =
                 new Operation[]
                 {
                     Operation.WriteFileWithRetries(
-                        CreateOutputFileArtifact(sharedOpaqueDir), 
+                        CreateOutputFileArtifact(sharedOpaqueDir),
                         doNotInfer: true)
                 };
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperations, 
+                writeOperations,
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: false,
                 doubleWriteProducerPipCacheHitExpected: false);
@@ -1082,7 +1233,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ResetPipGraphBuilder();
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperations, 
+                writeOperations,
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: true,
                 doubleWriteProducerPipCacheHitExpected: false);
@@ -1091,7 +1242,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void CacheConvergenceCanTriggerAdditionalOutputContentAwareViolations()
         {
-            // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time. 
+            // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time.
             // This enables us to recreate cache convergence
             Configuration.Cache.ArtificialCacheMissOptions = new ArtificialCacheMissConfig()
             {
@@ -1152,13 +1303,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // The post-convergence analysis should find the double write
             // Since we are running with DFAs as warnings, it won't be logger as an error
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
         private void FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-            IEnumerable<Operation> writeOperations, 
-            AbsolutePath sharedOpaqueDirPath, 
+            IEnumerable<Operation> writeOperations,
+            AbsolutePath sharedOpaqueDirPath,
             bool originalProducerPipCacheHitExpected,
             bool doubleWriteProducerPipCacheHitExpected)
         {
@@ -1202,13 +1353,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write as a verbose message.
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             // We inform about a mismatch in the file content (due to the ignored double write)
-            AssertVerboseEventLogged(EventId.FileArtifactContentMismatch);
+            AssertVerboseEventLogged(LogEventId.FileArtifactContentMismatch);
 
             // Verify the process not stored to cache event is raised
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         [Theory]
@@ -1253,10 +1404,10 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
                 // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
-                // the fact whether a pip was incrementally skipped or not: 
+                // the fact whether a pip was incrementally skipped or not:
                 var result = RunScheduler();
                 if (Configuration.Schedule.IncrementalScheduling)
                 {
@@ -1266,7 +1417,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 else
                 {
                     result.AssertFailure();
-                    AssertErrorEventLogged(EventId.FileMonitoringError);
+                    AssertErrorEventLogged(LogEventId.FileMonitoringError);
                     AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 }
             }
@@ -1295,6 +1446,55 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
+        [Trait("Category", "SkipLinux")] // TODO(BUG)
+        [MemberData(
+            nameof(CrossProduct),
+            new object[] { true, false },
+            new object[] { true, false })]
+        public void ProbeBeforeWriteIsAllowedWhenLazyDeletionIsDisabled(bool isLazyDeletionEnabled, bool areDependent)
+        {
+            Configuration.Schedule.UnsafeLazySODeletion = isLazyDeletionEnabled;
+
+            var sod = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "sod-read-cycle"));
+            var outFile = CreateOutputFileArtifact(root: sod, prefix: "sod-file");
+
+            var proberPip = CreateAndSchedulePipBuilder(new[]
+            {
+                // probe the file produced by its downstream pip
+                Operation.Probe(outFile, doNotInfer: true),
+
+                // some output
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            var producerBuilder = CreatePipBuilder(new[]
+            {
+                // establish dependency to prober
+                Operation.ReadFile(areDependent 
+                    ? proberPip.ProcessOutputs.GetOutputFiles().First()
+                    : CreateSourceFile()),
+
+                // produce the file the prober probed
+                Operation.WriteFile(outFile),
+            });
+            producerBuilder.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(producerBuilder);
+
+            var result = RunScheduler();
+            if (!isLazyDeletionEnabled && areDependent)
+            {
+                result.AssertSuccess();
+                result.AssertPipExecutorStatCounted(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput, 1);
+            }
+            else
+            {
+                result.AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            }
+        }
+
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void ProbingDirectoryUnderSharedOpaque(bool enableLazyOutputMaterialization)
@@ -1309,7 +1509,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Depends on Pip1
                 Probes Dir1\SubDir
                 Produces files in Dir1 (not overlapping with PipA output)
-                
+
             The probe of Dir1\SubDir should be allowed.
              */
 
@@ -1361,23 +1561,23 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// <see cref="SharedOpaqueOutputHelper.IsSharedOpaqueOutput"/> unconditionally returns true if 
-        /// the path given to it points to a directory or a non-existent file. 
-        /// 
+        /// <see cref="SharedOpaqueOutputHelper.IsSharedOpaqueOutput"/> unconditionally returns true if
+        /// the path given to it points to a directory or a non-existent file.
+        ///
         /// This unit test tests this behavior in presence of symbolic links.
         /// </summary>
         [TheoryIfSupported(requiresUnixBasedOperatingSystem: true)]
         [InlineData(/*isSymlink*/  true, /*isDir*/  true, /*expected*/ false)] // symlink to dir     --> no (because symlink is a file)
         [InlineData(/*isSymlink*/  true, /*isDir*/ false, /*expected*/ false)] // symlink to file    --> no
         [InlineData(/*isSymlink*/  true, /*isDir*/  null, /*expected*/ false)] // symlink to missing --> no (because symlink is a file that exists)
-        [InlineData(/*isSymlink*/ false, /*isDir*/  true, /*expected*/ true)]  // dir                --> yes 
+        [InlineData(/*isSymlink*/ false, /*isDir*/  true, /*expected*/ true)]  // dir                --> yes
         [InlineData(/*isSymlink*/ false, /*isDir*/ false, /*expected*/ false)] // file               --> no
         [InlineData(/*isSymlink*/ false, /*isDir*/  null, /*expected*/ true)]  // missing            --> yes
         public void IsSharedOpaqueOutputTests(bool isSymlink, bool? isDir, bool expected)
         {
             AbsolutePath targetPath =
                 isDir == null ? CreateUniqueSourcePath("missing") :
-                isDir == true ? CreateUniqueDirectory(prefix: "dir") : 
+                isDir == true ? CreateUniqueDirectory(prefix: "dir") :
                 CreateSourceFile();
 
             if (isDir == true)
@@ -1405,8 +1605,6 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             XAssert.AreEqual(expected, SharedOpaqueOutputHelper.IsSharedOpaqueOutput(ToString(finalPath)));
         }
-
-        
 
         [Theory]
         [InlineData(true)]
@@ -1476,7 +1674,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
             AssertTimestamps();
 
-            AssertWarningEventLogged(EventId.ConvertToRunnableFromCacheFailed, count: 0, allowMore: true);
+            AssertWarningEventLogged(LogEventId.ConvertToRunnableFromCacheFailed, count: 0, allowMore: true);
 
             // helper inner functions
 
@@ -1494,7 +1692,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ProbesAndEnumerationsOnPathsLeadingToProducedFiles()
+        public void ProbesAndEnumerationsOnPathsLeadingToProducedFile()
         {
             /*
                 pipA->sod\subDir\file1
@@ -1504,16 +1702,16 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 2nd run: begin->pipA->pipB->end
 
-                Note: Operation.CreateDir -- even though it's a 'write' access, it will be converted into either 
+                Note: Operation.CreateDir -- even though it's a 'write' access, it will be converted into either
                                              AbsentPathProbe or ExistingDirectoryProbe in ObserveInputProcessor
 
                 We use Priority, Weight, and OrderDependency to force pips to run in a particular order without
                 declaring an artifact dependency between them.
             */
 
-            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(ProbesAndEnumerationsOnPathsLeadingToProducedFile)}");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
-            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);            
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
 
             var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
             var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
@@ -1521,34 +1719,34 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var firstOutputInSharedOpaqueSubDir = CreateOutputFileArtifact(sharedOpaqueSubDir);
             var secondOutputInSharedOpaqueSubDir = CreateOutputFileArtifact(sharedOpaqueSubDir);
-            
+
             var fileContent = "content";
-            
+
             var builderA = CreatePipBuilder(new Operation[]
             {
                 Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),
                 Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer: true),
                 Operation.WriteFile(firstOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),
-                
+
                 Operation.Probe(sharedOpaqueSubDirArtifact, doNotInfer: true),
                 Operation.EnumerateDir(sharedOpaqueSubDirArtifact, doNotInfer: true)
             });
-            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);            
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
             builderA.Weight = 99;
             builderA.Priority = 0;
 
             var pipA = SchedulePipBuilder(builderA);
 
             var builderB = CreatePipBuilder(new Operation[]
-            {    
-                Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),                
-                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer:true),                                
-                Operation.WriteFile(secondOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),                
-            });            
-            builderB.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);            
+            {
+                Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),
+                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer:true),
+                Operation.WriteFile(secondOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),
+            });
+            builderB.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
             builderB.Weight = 99;
             builderB.Priority = 99;
-            
+
             // We do not need order dependency here because there is no prior content,
             // so no meaningful cache check will be happening.
             var pipB = SchedulePipBuilder(builderB);
@@ -1556,25 +1754,341 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
 
             // reset the graph and add the pips in a different order
-            ResetPipGraphBuilder(); 
-            
+            ResetPipGraphBuilder();
+
             builderA.Priority = 99;
             builderB.Priority = 0;
-            
+
             pipA = SchedulePipBuilder(builderA);
 
             // without order dependency both pips will do the cache lookup at the same time, and we do not want that
             builderB.AddOrderDependency(pipA.Process.PipId);
-            pipB = SchedulePipBuilder(builderB);            
+            pipB = SchedulePipBuilder(builderB);
 
             var result = RunScheduler();
 
             // the following assert captures the current logic of how we handle the Operation.EnumerateDir
             // if you change that logic, you might need to change the assert as well
             result.AssertCacheHit(pipA.Process.PipId);
-            
+
             // this asserts checks that the probes do not affect the cacheability of the pip
-            result.AssertCacheHit(pipB.Process.PipId);            
+            result.AssertCacheHit(pipB.Process.PipId);
+        }
+
+        [Fact]
+        public void NestedSharedOpaqueDirectories()
+        {
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
+            /*
+                PipA -> [sod] \ sodFile
+                        [sod\subDir1] \ sodSubDir1File
+                        [sod\sibDir2] \ sodSubDir2File
+                
+                Allowed accesses:
+                PipB <- [sod] && sodFile
+                PipC <- [sod\subDir1] && sodSubDir1File
+                PipD <- [sod\sibDir2] && sodSubDir2File
+
+                Disallowed accesses:
+                PipE <- [sod] && sodSubDir2File
+             */
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(NestedSharedOpaqueDirectories)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var sharedOpaqueSubDir1 = Path.Combine(sharedOpaqueDir, "subDir1");
+            var sharedOpaqueSubDir1Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir1);
+            var sharedOpaqueSubDir1Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir1Path);
+
+            var sharedOpaqueSubDir2 = Path.Combine(sharedOpaqueDir, "subDir2");
+            var sharedOpaqueSubDir2Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir2);
+            var sharedOpaqueSubDir2Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir2Path);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var sodSubDir1File = CreateOutputFileArtifact(sharedOpaqueSubDir1);
+            var sodSubDir2File = CreateOutputFileArtifact(sharedOpaqueSubDir2);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sodFile, doNotInfer: true),
+                Operation.WriteFile(sodSubDir1File, doNotInfer: true),
+                Operation.WriteFile(sodSubDir2File, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir1Artifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir2Artifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
+            var pipB = SchedulePipBuilder(builderB);
+
+            var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir1Path), sodSubDir1File);
+            var pipC = SchedulePipBuilder(builderC);
+
+            var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir2Path), sodSubDir2File);
+            var pipD = SchedulePipBuilder(builderD);
+
+            RunScheduler().AssertSuccess();
+
+            ResetPipGraphBuilder();
+
+            pipA = SchedulePipBuilder(builderA);
+            pipB = SchedulePipBuilder(builderB);
+            pipC = SchedulePipBuilder(builderC);
+            pipD = SchedulePipBuilder(builderD);
+
+            // takes dependency on the root directory artifact, but tries to read a file from a subdirectory
+            // this should result in a DFA (since that artifact does not contain that file)
+            var builderE = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodSubDir2File);
+            var pipE = SchedulePipBuilder(builderE);
+
+            RunScheduler().AssertFailure().AssertCacheHitWithoutAssertingSuccess(
+                pipA.Process.PipId,
+                pipB.Process.PipId,
+                pipC.Process.PipId,
+                pipD.Process.PipId);
+
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
+        }
+
+        [Fact]
+        public void NestedSharedOpaquesProperContentMaterialization()
+        {
+            /*
+                PipA -> [sod] \ sodFile
+                        [sod\subDir1] \ sodSubDir1File
+                        [sod\sibDir2] \ sodSubDir2File                
+
+                PipB <- [sod] && sodFile && inputB
+                PipC <- [sod\subDir1] && sodSubDir1File && inputC
+                PipD <- [sod\sibDir2] && sodSubDir2File && inputD    
+             */
+            Configuration.Schedule.EnableLazyOutputMaterialization = true;
+            Configuration.Schedule.RequiredOutputMaterialization = RequiredOutputMaterialization.Minimal;
+
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(Test)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var sharedOpaqueSubDir1 = Path.Combine(sharedOpaqueDir, "subDir1");
+            var sharedOpaqueSubDir1Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir1);
+            var sharedOpaqueSubDir1Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir1Path);
+
+            var sharedOpaqueSubDir2 = Path.Combine(sharedOpaqueDir, "subDir2");
+            var sharedOpaqueSubDir2Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir2);
+            var sharedOpaqueSubDir2Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir2Path);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var sodSubDir1File = CreateOutputFileArtifact(sharedOpaqueSubDir1);
+            var sodSubDir2File = CreateOutputFileArtifact(sharedOpaqueSubDir2);
+            var inputB = CreateSourceFile();
+            var inputC = CreateSourceFile();
+            var inputD = CreateSourceFile();
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sodFile, doNotInfer: true),
+                Operation.WriteFile(sodSubDir1File, doNotInfer: true),
+                Operation.WriteFile(sodSubDir2File, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir1Artifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir2Artifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputB, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
+            var pipB = SchedulePipBuilder(builderB);            
+                       
+            var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputC, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir1Path), sodSubDir1File);
+            var pipC = SchedulePipBuilder(builderC);
+                       
+            var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputD, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir2Path), sodSubDir2File);
+            var pipD = SchedulePipBuilder(builderD);
+
+            // populate the cache
+            RunScheduler().AssertSuccess();
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputB -> pipB is executed -> only sodFile is materialized
+            File.WriteAllText(ArtifactToString(inputB), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipC.Process.PipId, pipD.Process.PipId)
+                .AssertCacheMiss(pipB.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodFile)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodSubDir1File)) || File.Exists(ArtifactToString(sodSubDir2File)));
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputC -> pipC is executed -> only sodSubDir1File is materialized
+            File.WriteAllText(ArtifactToString(inputC), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipD.Process.PipId)
+                .AssertCacheMiss(pipC.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodSubDir1File)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodFile)) || File.Exists(ArtifactToString(sodSubDir2File)));
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputD -> pipD is executed -> only sodSubDir2File is materialized
+            File.WriteAllText(ArtifactToString(inputD), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId)
+                .AssertCacheMiss(pipD.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodSubDir2File)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodFile)) || File.Exists(ArtifactToString(sodSubDir1File)));
+        }
+
+        [Theory]
+        [InlineData("od/unrelated", 0, SealDirectoryKind.SharedOpaque)]
+        [InlineData("od/nested", 1, SealDirectoryKind.SharedOpaque)]
+        [InlineData(".", 2, SealDirectoryKind.SharedOpaque)]
+        [InlineData("od/unrelated", 0, SealDirectoryKind.Opaque)]
+        [InlineData("od/nested", 1, SealDirectoryKind.Opaque)]
+        [InlineData(".", 2, SealDirectoryKind.Opaque)]
+        public void OpaqueWithExclusionsIsHonored(string exclusionRelativePath, int expectedExcludedFiles, SealDirectoryKind outputDirectoryKind)
+        {
+            // Create two output files: od/o1 and od/nested/o2
+            var opaqueDir = Path.Combine(ObjectRoot, "od");
+            var nestedOpaqueDir = Path.Combine(opaqueDir, "nested");
+            var opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
+            var nestedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, nestedOpaqueDir);
+            var opaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(opaqueDirPath);
+            var outputFile1 = CreateOutputFileArtifact(opaqueDir);
+            var outputFile2 = CreateOutputFileArtifact(nestedOpaqueDir);
+
+            // Write both files under the opaque
+            var builderA = CreatePipBuilder(new Operation[]
+                            {
+                                Operation.WriteFile(outputFile1, doNotInfer: true),
+                                Operation.CreateDir(DirectoryArtifact.CreateWithZeroPartialSealId(nestedOpaqueDirPath), doNotInfer: true),
+                                Operation.WriteFile(outputFile2, doNotInfer: true)
+                            });
+            builderA.AddOutputDirectory(opaqueDirArtifact, outputDirectoryKind);
+
+            // Set up an exclusion
+            var exclusion = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, exclusionRelativePath));
+            builderA.AddOutputDirectoryExclusion(exclusion);
+            
+            SchedulePipBuilder(builderA);
+
+            var result = RunScheduler();
+
+            // Validate the expected excluded files, which should manifest in DFAs for writing undeclared outputs
+            if (expectedExcludedFiles == 0)
+            { 
+                result.AssertSuccess(); 
+            }
+            else 
+            { 
+                result.AssertFailure(); 
+            }
+
+            // On error, this event is logged once
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, expectedExcludedFiles > 0 ? 1 : 0);
+            // This event is logged once per undeclared output
+            AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput, expectedExcludedFiles);
+            IgnoreWarnings();
+        }
+
+        [Fact]
+        public void OpaqueOutputsAreCleanedOnRetryExitCode()
+        {
+            Configuration.Schedule.ProcessRetries = 1;
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            FileArtifact untrackedFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "untracked.txt"));
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            FileArtifact sodOutput1 = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+            FileArtifact sodOutput2 = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // a dummy output so the engine does not complain about a pip with no outputs
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt"))),                
+                // if untracked.txt contains "0", create sodOutput1
+                Operation.WriteFileIfInputEqual(sodOutput1, ToString(untrackedFile.Path), "0"),
+                // if untracked.txt contains "01", create sodOutput2 ("01" because WriteFile appends to the file)
+                Operation.WriteFileIfInputEqual(sodOutput2, ToString(untrackedFile.Path), "01"),
+                // Change the content of untracked.txt. This makes the pip non-deterministic.
+                Operation.WriteFile(untrackedFile, content: "1", doNotInfer: true),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42)
+            });
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+            builder.AddUntrackedFile(untrackedFile.Path);
+            builder.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builder);
+
+            // set the initial value
+            File.WriteAllText(ToString(untrackedFile.Path), "0");
+            // sanity check - sod outputs should not exist at this point
+            XAssert.IsFalse(File.Exists(ToString(sodOutput1.Path)));
+            XAssert.IsFalse(File.Exists(ToString(sodOutput2.Path)));
+
+            var result = RunScheduler();
+
+            result.AssertSuccess();
+            AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, 1);
+
+            /* 
+             * sodOutput1 should not exist:
+             *  pip starts
+             *  untrackedFile.txt contains "0" -> sodOutput1 is created
+             *  untrackedFile.txt contains "0" -> sodOutput2 is NOT created
+             *  "1" is written to untrackedFile.txt
+             *  pip exits with a retrieable exit code
+             *  
+             *  pip is retried (previous outputs must be cleaned)
+             *  untrackedFile.txt contains "01" -> sodOutput1 is NOT created
+             *  untrackedFile.txt contains "01" -> sodOutput2 is created
+             */
+            XAssert.IsFalse(File.Exists(ToString(sodOutput1.Path)));
+            XAssert.IsTrue(File.Exists(ToString(sodOutput2.Path)));
+        }
+
+        [Fact]
+        public void TreatAPathAsBothFileAndDirectoryIsHandled()
+        {
+            // Creates a pip that writes and deletes a file and later creates a directory using the same path 
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.CreateDir(outputInSharedOpaque, doNotInfer:true)
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            // Just probe the directory and create a dummy file
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(outputInSharedOpaque, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            var pipB = SchedulePipBuilder(builderB);
+
+            // Even though there is a write in a path that is a shared opaque candidate, the fact that the final artifact on that
+            // path ends up being a directory should be enough to discard all writes.
+            RunScheduler().AssertSuccess();
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);

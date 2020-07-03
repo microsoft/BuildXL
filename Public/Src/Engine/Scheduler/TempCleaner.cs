@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -8,6 +8,7 @@ using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler
 {
@@ -60,6 +61,7 @@ namespace BuildXL.Scheduler
 
         private readonly BlockingCollection<FileOrDirectoryWrapper> m_pathsToDelete = new BlockingCollection<FileOrDirectoryWrapper>();
         private readonly CancellationTokenSource m_cancellationSource = new CancellationTokenSource();
+        private readonly LoggingContext m_loggingContext;
 
         /// <inheritdoc />
         /// <remarks>
@@ -71,8 +73,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates a <see cref="TempCleaner"/> instance.
         /// </summary>
-        public TempCleaner(string tempDirectory = null)
+        public TempCleaner(LoggingContext loggingContext, string tempDirectory = null)
         {
+            m_loggingContext = loggingContext;
             TempDirectory = tempDirectory;
             if (TempDirectory != null)
             {
@@ -127,7 +130,7 @@ namespace BuildXL.Scheduler
                 WaitPendingTasksForCompletion();
 
                 Tracing.Logger.Log.PipTempCleanerSummary(
-                    Events.StaticContext,
+                    m_loggingContext,
                     SucceededDirectories,
                     FailedDirectories,
                     PendingDirectories,
@@ -214,7 +217,7 @@ namespace BuildXL.Scheduler
             catch (Exception ex) when (ex is BuildXLException || ex is OperationCanceledException)
             {
                 // Temp directory cleanup is best effort. Keep track of failures for the sake of reporting
-                Tracing.Logger.Log.PipFailedTempDirectoryCleanup(Events.StaticContext, path, ex.Message);
+                Tracing.Logger.Log.PipFailedTempDirectoryCleanup(m_loggingContext, path, ex.Message);
                 Interlocked.Increment(ref m_directoriesFailedToClean);
             }
         }
@@ -230,7 +233,7 @@ namespace BuildXL.Scheduler
             }
             catch (BuildXLException ex)
             {
-                Tracing.Logger.Log.PipFailedTempFileCleanup(Events.StaticContext, path, ex.LogEventMessage);
+                Tracing.Logger.Log.PipFailedTempFileCleanup(m_loggingContext, path, ex.LogEventMessage);
                 Interlocked.Increment(ref m_filesFailedToClean);
             }
         }

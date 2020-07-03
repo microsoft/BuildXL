@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -21,7 +21,12 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool DisableDefaultSourceResolver(this IConfiguration configuration)
         {
-            return configuration.DisableDefaultSourceResolver ?? false;
+            // The default source resolver is still needed when modules or projects are specified. So in case an explicit value is not provided
+            // disable it when no modules nor projects are defined. In this way we avoid the enumeration of the whole repo looking for DScript files.
+            return configuration.DisableDefaultSourceResolver 
+                ?? ((configuration.Modules == null || configuration.Modules.Count == 0) 
+                && (configuration.Packages == null || configuration.Packages.Count == 0)
+                && (configuration.Projects == null || configuration.Projects.Count == 0));
         }
 
         /// <summary>
@@ -35,8 +40,29 @@ namespace BuildXL.Utilities.Configuration
             return configuration.Logging.StoreFingerprints.HasValue
                 && configuration.Logging.StoreFingerprints.Value
                 && configuration.Distribution.BuildRole != DistributedBuildRoles.Worker
-                && configuration.Layout.FingerprintStoreDirectory.IsValid 
+                && configuration.Layout.FingerprintStoreDirectory.IsValid
                 && configuration.Engine.Phase.HasFlag(EnginePhases.Execute);
+        }
+
+        /// <summary>
+        /// Gets the update and delay time for status timers
+        /// </summary>
+        public static int GetTimerUpdatePeriodInMs(this ILoggingConfiguration loggingConfig)
+        {
+            if (loggingConfig != null)
+            {
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
+                {
+                    return 10_000;
+                }
+
+                if (loggingConfig.FancyConsole)
+                {
+                    return 2_000;
+                }
+            }
+
+            return 5_000;
         }
     }
 }

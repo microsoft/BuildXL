@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Runtime.InteropServices;
 
-namespace BuildXL.Interop.MacOS
+using static BuildXL.Interop.Dispatch;
+
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Memory class offers interop calls for memory based tasks into operating system facilities
@@ -14,56 +16,12 @@ namespace BuildXL.Interop.MacOS
         [StructLayout(LayoutKind.Sequential)]
         public struct RamUsageInfo
         {
-            /// <nodoc />
-            public ulong Active;
+            /// <summary>Total usable main memory size in bytes</summary>
+            public ulong TotalBytes;
 
-            /// <nodoc />
-            public ulong Inactive;
-
-            /// <nodoc />
-            public ulong Wired;
-
-            /// <nodoc />
-            public ulong Speculative;
-
-            /// <nodoc />
-            public ulong Free;
-
-            /// <nodoc />
-            public ulong Purgable;
-
-            /// <nodoc />
-            public ulong FileBacked;
-
-            /// <nodoc />
-            public ulong Compressed;
-
-            /// <nodoc />
-            public ulong Internal;
-
-            /// <summary>
-            /// The "AppMemory" is defined to be the difference of <see cref="Internal"/> and <see cref="Purgable"/>
-            /// </summary>
-            public ulong AppMemory => Internal - Purgable;
+            /// <summary>Available main memory size in bytes</summary>
+            public ulong FreeBytes;
         }
-
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        private static extern int GetRamUsageInfo(ref RamUsageInfo buffer, long bufferSize);
-
-        /// <summary>
-        /// Returns the current host memory usage information to the caller
-        /// </summary>
-        /// <param name="buffer">A RamUsageInfo struct pointer to hold memory statistics</param>
-        public static int GetRamUsageInfo(ref RamUsageInfo buffer)
-            => GetRamUsageInfo(ref buffer, Marshal.SizeOf(buffer));
-
-        /// <summary>
-        /// Returns a process peak working set size in bytes
-        /// </summary>
-        /// <param name="pid">The process id to check</param>
-        /// <param name="buffer">A long pointer to hold the process peak memory usage</param>
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer);
 
         /// <summary>
         /// PressureLevel models the possible VM memory pressure levels on macOS
@@ -71,21 +29,36 @@ namespace BuildXL.Interop.MacOS
         /// </summary>
         public enum PressureLevel : int
         {
-            /// <nodoc />
+            #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             Normal = 1,
-
-            /// <nodoc />
             Warning = 2,
-
-            /// <nodoc />
             Critical = 4
+            #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         }
+
+        /// <summary>
+        /// Returns the current host memory usage information to the caller
+        /// </summary>
+        /// <param name="buffer">A RamUsageInfo struct pointer to hold memory statistics</param>
+        public static int GetRamUsageInfo(ref RamUsageInfo buffer) => IsMacOS
+            ? Impl_Mac.GetRamUsageInfo(ref buffer)
+            : Impl_Linux.GetRamUsageInfo(ref buffer);
+
+        /// <summary>
+        /// Returns a process peak working set size in bytes
+        /// </summary>
+        /// <param name="pid">The process id to check</param>
+        /// <param name="buffer">A long pointer to hold the process peak memory usage</param>
+        public static int GetPeakWorkingSetSize(int pid, ref ulong buffer) => IsMacOS
+            ? Impl_Mac.GetPeakWorkingSetSize(pid, ref buffer)
+            : Impl_Linux.GetPeakWorkingSetSize(pid, ref buffer);
 
         /// <summary>
         /// Returns the current memory pressure level of the VM
         /// </summary>
         /// <param name="level">A PressureLevel pointer to hold the current VM memory pressure level</param>
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static extern int GetMemoryPressureLevel(ref PressureLevel level);
+        public static int GetMemoryPressureLevel(ref PressureLevel level) => IsMacOS
+            ? Impl_Mac.GetMemoryPressureLevel(ref level)
+            : Impl_Linux.GetMemoryPressureLevel(ref level);
     }
 }

@@ -7,7 +7,7 @@ set /A INDEX=0
 set ENLISTMENTROOT=%~dp0
 FOR %%a IN ("%ENLISTMENTROOT:~0,-1%") DO SET NETCOREROOT=%%~dpaBuildXL_CoreCLR
 set SCRIPTROOT=%~dp0Shared\Scripts\
-set EXE_DIR=%~dp0out\Bin\Debug\net472
+set EXE_DIR=%~dp0out\Bin\Release\win-x64
 set FINGERPRINT_ERROR_DIR=\\fsu\shares\MsEng\Domino\RunCheckInTests-FingerprintErrorReports
 set BUILDXL_ARGS=
 set RUN_PART_A=1
@@ -17,7 +17,8 @@ set MINIMAL_LAB=0
 REM These are provided to bxl.cmd only when /lab is specified (automated builds).
 REM For lab builds, log full outputs.
 REM For lab builds, retry unit tests automatically.
-set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado
+REM For lab builds, disable VirusScanEnabledForPath warning.
+set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado /nowarn:2841 
 set INTERNAL_BUILD_ARGS=/p:[Sdk.BuildXL]microsoftInternal=1
 
 if not defined [BuildXL.Branding]SemanticVersion (
@@ -52,6 +53,7 @@ if %ERRORLEVEL% NEQ 0 (
 REM we kill any old bxl.exe instances that accidentally lingered and cleanup the out/bin and out/objects folders
 echo Terminating existing runnings builds on this machine first
 call %ENLISTMENTROOT%\Shared\Scripts\KillBxlInstancesInRepo.cmd
+
 if EXIST %ENLISTMENTROOT%\Out\Bin (
     echo Cleaning %ENLISTMENTROOT%\Out\Bin
     rmdir /S /Q %ENLISTMENTROOT%\Out\Bin
@@ -70,9 +72,9 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 )
 
 set start=%time%
-set stepName=Building 'debug\net472' and 'debug\win-x64' using Lkg and deploying to RunCheckinTests
+set stepName=Building 'release\win-x64' and DistributedBuildRunner using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
+    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json 
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
@@ -137,30 +139,11 @@ endlocal && exit /b 0
     exit /b 0
 
 :PartB
-    set start=!time!
-    set stepName=Running BuildXL on the CoreCLR with a minimal end to end scenario
-    call :StatusMessage !stepName!
-        echo Running BuildXL on the CoreCLR, preparing a few things...
-        robocopy %ENLISTMENTROOT%\Out\Bin\debug\win-x64 %NETCOREROOT% /E /MT:8 /NS /NC /NFL /NDL /NP
-        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph- /logsToRetain:20
-        set CORECLR_ERRORLEVEL=%ERRORLEVEL%
-        rmdir /s /q %NETCOREROOT%
-        if !CORECLR_ERRORLEVEL! NEQ 0 (exit /b 1)
-    call :RecordStep "!stepName!" !start!
-
-    set start=!time!
-    set stepName=Running Example DotNetCoreBuild on CoreCLR
-    call :StatusMessage !stepName!
-        set BUILDXL_BIN=%ENLISTMENTROOT%\Out\Bin\debug\win-x64
-        call %ENLISTMENTROOT%\Examples\DotNetCoreBuild\build.bat
-        set EXAMPLE_BUILD_ERRORLEVEL=%ERRORLEVEL%
-        if !EXAMPLE_BUILD_ERRORLEVEL! NEQ 0 (exit /b 1)
-    call :RecordStep "!stepName!" !start!
 
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests /q:DebugNet472 %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /viewer:disable /TraceInfo:RunCheckinTests=CleanOnly
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -235,7 +218,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /viewer:disable /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
@@ -243,19 +226,9 @@ endlocal && exit /b 0
 
     if "!MINIMAL_LAB!" == "0" (
 
-        REM populate Release\*
-        set start=!time!
-        set stepName=Populating release for distribution tests
-        call :StatusMessage !stepName!
-            call :RunBxl -Use RunCheckinTests /q:ReleaseNet472 /f:output='%ENLISTMENTROOT%\Out\Bin\release\net472\*' %BUILDXL_ARGS%
-            if !ERRORLEVEL! NEQ 0 (
-                echo.
-                echo !stepName! FAILED  ERRORLEVEL:!ERRORLEVEL! 1>&2
-                exit /b 1
-            )
-        call :RecordStep "!stepName!" !start!
+        set BUILDXL_BIN_DIRECTORY=%~dp0out\Bin\release\win-x64
+        set BUILDXL_TEST_BIN_DIRECTORY=%~dp0out\Bin\release\tools\DistributedBuildRunner\win-x64
 
-        set BUILDXL_BIN_DIRECTORY=%~dp0out\Bin\release\net472
         set start=!time!
         set stepName=Building Test Project Distributed
         call :StatusMessage !stepName!
@@ -347,7 +320,8 @@ endlocal && exit /b 0
 
 
 :RunBxl
-    call %ENLISTMENTROOT%\Bxl.cmd %*
+    REM Make sure (for now) shared compilation is turned off for any BuildXL invocation under RunCheckInTests
+    call %ENLISTMENTROOT%\Bxl.cmd -UseManagedSharedCompilation:$false %*
     if %ERRORLEVEL% NEQ 0 (
         echo. 1>&2
         echo --------------------------------------------------------------- 1>&2

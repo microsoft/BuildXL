@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,15 +12,18 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Interop.MacOS.Memory;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
+#if PLATFORM_OSX
+using static BuildXL.Interop.Unix.Memory;
+#endif
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -176,7 +179,10 @@ namespace BuildXL
             {
                 var cl = new CommandLineUtilities(args);
 
-                var configuration = new BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration();
+                // Setting engine configuration has to be done before the creation of configuration.
+                SetEngineConfigurationVersionIfSpecified(cl);
+
+                var configuration = new Utilities.Configuration.Mutable.CommandLineConfiguration();
                 var startupConfiguration = configuration.Startup;
                 var engineConfiguration = configuration.Engine;
                 var layoutConfiguration = configuration.Layout;
@@ -248,12 +254,18 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheGraph",
                             opt => cacheConfiguration.CacheGraph = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "cacheMemoryUsage",
-                            opt => cacheConfiguration.CacheMemoryUsage = CommandLineUtilities.ParseEnumOption<MemoryUsageOption>(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
                             (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cacheMissBatch",
+                            sign => loggingConfiguration.CacheMissBatch = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "cacheMissDiffFormat",
+                            opt => CommandLineUtilities.ParseEnumOption<CacheMissDiffFormat>(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cacheOnly",
+                            opt => schedulingConfiguration.CacheOnly = opt),
                         OptionHandlerFactory.CreateOption(
                             "cacheSessionName",
                             opt => cacheConfiguration.CacheSessionName = CommandLineUtilities.ParseStringOption(opt)),
@@ -304,6 +316,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "debugScript",
                             opt => frontEndConfiguration.DebugScript = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "delayCacheLookupMin",
+                            opt => schedulingConfiguration.DelayedCacheLookupMinMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 100)),
+                        OptionHandlerFactory.CreateOption(
+                            "delayCacheLookupMax",
+                            opt => schedulingConfiguration.DelayedCacheLookupMaxMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 100)),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowSlowest",
                             opt => frontEndConfiguration.ShowSlowestElementsStatistics = opt),
@@ -342,6 +360,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "disableProcessRetryOnResourceExhaustion",
                             sign => schedulingConfiguration.DisableProcessRetryOnResourceExhaustion = sign),
+                        // TODO: This is a temporary flag. Remove it once we no longer need it.
+                        OptionHandlerFactory.CreateBoolOption(
+                            "disableCompositeOpaqueFilters",
+                            sign => schedulingConfiguration.DisableCompositeOpaqueFilters = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "distributeCacheLookups",
                             sign => distributionConfiguration.DistributeCacheLookups = sign),
@@ -371,12 +393,29 @@ namespace BuildXL
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableEmptyingWorkingSet",
+                            sign => schedulingConfiguration.EnableEmptyingWorkingSet = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableHistoricCommitMemoryProjection",
+                            sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableDedup",
                             sign =>
                             {
                                 if (sign)
                                 {
                                     ContentHashingUtilities.SetDefaultHashType(HashType.DedupNodeOrChunk);
+                                    cacheConfiguration.UseDedupStore = true;
+                                }
+                            }),
+                        OptionHandlerFactory.CreateOption(
+                            "hashType",
+                            option =>
+                            {
+                                var hashType = option.Value.FindHashTypeByName();
+                                ContentHashingUtilities.SetDefaultHashType(hashType);
+                                if (hashType == HashType.DedupNodeOrChunk)
+                                {
                                     cacheConfiguration.UseDedupStore = true;
                                 }
                             }),
@@ -392,6 +431,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "enableLazyOutputs",
                             (opt, sign) => HandleLazyOutputMaterializationOption(opt, sign, schedulingConfiguration)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableLessAggresiveMemoryProjection",
+                            sign => schedulingConfiguration.EnableLessAggresiveMemoryProjection = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableSetupCostWhenChoosingWorker",
+                            sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
                         OptionHandlerFactory.CreateOption(
                             "engineCacheDirectory",
                             opt => layoutConfiguration.EngineCacheDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
@@ -462,9 +507,15 @@ namespace BuildXL
                             "filter",
                             "f",
                             opt => configuration.Filter = CommandLineUtilities.ParseStringOptionalOption(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "fingerprintStoreBulkLoad",
+                            sign => loggingConfiguration.FingerprintStoreBulkLoad = sign),
                         OptionHandlerFactory.CreateOption(
                             "fingerprintStoreMaxEntryAgeMinutes",
-                            opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                            opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "fireForgetMaterializeOutput",
+                            sign => distributionConfiguration.FireForgetMaterializeOutput = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "flushPageCacheToFileSystemOnStoringOutputsToCache",
                             sign => sandboxConfiguration.FlushPageCacheToFileSystemOnStoringOutputsToCache = sign),
@@ -472,17 +523,11 @@ namespace BuildXL
                             "forcePopulatePackageCache",
                             sign => frontEndConfiguration.ForcePopulatePackageCache = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "usePackagesFromFileSystem",
-                            sign => frontEndConfiguration.UsePackagesFromFileSystem = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "forceUseEngineInfoFromCache",
                             sign => schedulingConfiguration.ForceUseEngineInfoFromCache = sign),
                         OptionHandlerFactory.CreateOption(
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
-                            "validateCgManifestForNugets",
-                            opt => frontEndConfiguration.ValidateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "hardExitOnErrorInDetours",
                             sign => sandboxConfiguration.HardExitOnErrorInDetours = sign),
@@ -533,9 +578,7 @@ namespace BuildXL
                             "?",
                             opt =>
                             {
-                                var help = ParseHelpOption(opt);
-                                configuration.Help = help.Key;
-                                configuration.HelpCode = help.Value;
+                                configuration.Help = ParseHelpOption(opt);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
@@ -612,6 +655,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "lowPriority",
                             sign => schedulingConfiguration.LowPriority = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "manageMemoryMode",
+                            opt => schedulingConfiguration.ManageMemoryMode = CommandLineUtilities.ParseEnumOption<ManageMemoryMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "maskUntrackedAccesses",
                             sign => sandboxConfiguration.MaskUntrackedAccesses = sign),
@@ -651,6 +697,9 @@ namespace BuildXL
                             "maxLightProc",
                             opt => schedulingConfiguration.MaxLightProcesses = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "maxNumPipTelemetryBatches",
+                            opt => loggingConfiguration.MaxNumPipTelemetryBatches = CommandLineUtilities.ParseInt32Option(opt, 1, 100)),
+                        OptionHandlerFactory.CreateOption(
                             "maxMaterialize",
                             opt => schedulingConfiguration.MaxMaterialize = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -662,11 +711,23 @@ namespace BuildXL
                             schedulingConfiguration.MaxProcesses =
                             (int)Math.Max(1, Environment.ProcessorCount * CommandLineUtilities.ParseDoubleOption(opt, 0, int.MaxValue))),
                         OptionHandlerFactory.CreateOption(
+                            "maxCommitUtilizationPercentage",
+                            opt => schedulingConfiguration.MaximumCommitUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
+                        OptionHandlerFactory.CreateOption(
                             "maxRamUtilizationPercentage",
                             opt => schedulingConfiguration.MaximumRamUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
                         OptionHandlerFactory.CreateOption(
                             "maxRelativeOutputDirectoryLength",
                             opt => engineConfiguration.MaxRelativeOutputDirectoryLength = CommandLineUtilities.ParseInt32Option(opt, 49, 260)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxRetriesDueToLowMemory",
+                            opt => schedulingConfiguration.MaxRetriesDueToLowMemory = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxRetriesDueToRetryableFailures",
+                            opt => schedulingConfiguration.MaxRetriesDueToRetryableFailures = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxSealDirs",
+                            opt => schedulingConfiguration.MaxSealDirs = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "maxTypeCheckingConcurrency",
                             opt => frontEndConfiguration.MaxTypeCheckingConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
@@ -676,6 +737,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "minCacheContentReplica",
                             opt => cacheConfiguration.MinimumReplicaCountForStrongGuarantee = (byte)CommandLineUtilities.ParseInt32Option(opt, 0, 32)),
+                        OptionHandlerFactory.CreateOption(
+                            "minimumDiskSpaceForPipsGb",
+                            opt => schedulingConfiguration.MinimumDiskSpaceForPipsGb = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "minWorkers",
                             opt => distributionConfiguration.MinimumWorkers = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
@@ -694,6 +758,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "noWarn",
                             opt => ParseInt32ListOption(opt, loggingConfiguration.NoWarnings)),
+                        OptionHandlerFactory.CreateOption(
+                            "numRetryFailedPipsOnAnotherWorker",
+                            opt => distributionConfiguration.NumRetryFailedPipsOnAnotherWorker = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption2(
                             "objectDirectory",
                             "o",
@@ -725,6 +792,9 @@ namespace BuildXL
                             "augmentingPathSetCommonalityFactor",
                             opt =>  cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
+                            "pathSetAugmentationMonitoring",
+                            opt => cacheConfiguration.MonitorAugmentedPathSets = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
@@ -747,9 +817,6 @@ namespace BuildXL
                             "pipWarningTimeoutMultiplier",
                             opt =>
                             sandboxConfiguration.WarningTimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
-                        OptionHandlerFactory.CreateOption(
-                            "populateSymlinkDirectory",
-                            opt => engineConfiguration.PopulateSymlinkDirectories.Add(CommandLineUtilities.ParsePathOption(opt, pathTable))),
                         OptionHandlerFactory.CreateOption(
                             "posixDeleteMode",
                             opt => FileUtilities.PosixDeleteMode = CommandLineUtilities.ParseEnumOption<PosixDeleteMode>(opt)),
@@ -818,7 +885,8 @@ namespace BuildXL
                             {
                                 var parsedOption = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
 #if PLATFORM_OSX
-                                if (parsedOption == SandboxKind.MacOsEndpointSecurity && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
+                                var isEndpointSecurityOrHybridSandboxKind = (parsedOption == SandboxKind.MacOsEndpointSecurity || parsedOption == SandboxKind.MacOsHybrid);
+                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
                                 {
                                     parsedOption = SandboxKind.MacOsKext;
                                 }
@@ -831,6 +899,9 @@ namespace BuildXL
                                     throw CommandLineUtilities.Error(Strings.Args_SandboxKind_WrongPlatform, parsedOption, osName);
                                 }
                             }),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "SaveFingerprintStoreToLogs",
+                            sign => loggingConfiguration.SaveFingerprintStoreToLogs = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "scanChangeJournal",
                             sign => engineConfiguration.ScanChangeJournal = sign),
@@ -912,9 +983,6 @@ namespace BuildXL
                             "substTarget",
                             opt => loggingConfiguration.SubstTarget = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
-                            "symlinkDefinitionFile",
-                            opt => layoutConfiguration.SymlinkDefinitionFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
                             "telemetryTagPrefix",
                             opt => schedulingConfiguration.TelemetryTagPrefix = CommandLineUtilities.ParseStringOption(opt)),
                         OptionHandlerFactory.CreateOption(
@@ -931,6 +999,9 @@ namespace BuildXL
                             "trackBuildsInUserFolder",
                             opt => engineConfiguration.TrackBuildsInUserFolder = opt),
                         OptionHandlerFactory.CreateBoolOption(
+                            "trackGvfsProjections",
+                            opt => engineConfiguration.TrackGvfsProjections = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "trackMethodInvocations",
                             opt => frontEndConfiguration.TrackMethodInvocations = opt),
                         OptionHandlerFactory.CreateOption(
@@ -943,10 +1014,6 @@ namespace BuildXL
                             "typeCheck",
                             sign => { /* Do nothing Office still passes this flag even though it is deprecated. */ }),
 
-                        OptionHandlerFactory.CreateOption(
-                            "unexpectedSymlinkAccessReportingMode",
-                            opt => schedulingConfiguration.UnexpectedSymlinkAccessReportingMode = CommandLineUtilities.ParseEnumOption<UnexpectedSymlinkAccessReportingMode>(opt)),
-
                         // <Begin unsafe arguments>
                         // Unsafe options should follow the pattern that enabling them (i.e. "/unsafe_option" or "/unsafe_option+") should lead to an unsafe configuration
                         // Unsafe options must pass the optional parameter isUnsafe as true
@@ -955,6 +1022,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_AllowCopySymlink",
                             sign => schedulingConfiguration.AllowCopySymlink = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_AllowDuplicateTemporaryDirectory",
+                            sign => engineConfiguration.AllowDuplicateTemporaryDirectory = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_DisableCycleDetection",
@@ -986,6 +1057,13 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "unsafe_GlobalUntrackedScopes",
                             opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreCreateProcessReport",
+                            sign =>
+                            {
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = sign;
+                            },
+                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreGetFinalPathNameByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = sign,
@@ -1033,19 +1111,34 @@ namespace BuildXL
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreFullSymlinkResolving",
+                            sign =>
+                            {
+                                if (sign && OperatingSystemHelper.IsUnixOS)
+                                {
+                                    throw CommandLineUtilities.Error("/unsafe_IgnoreFullSymlinkResolving not allowed on non-Windows OS");
+                                }
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = sign;
+                            },
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnorePreloadedDlls",
                             sign =>
                             {
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = sign;
                             },
                             isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
+                        OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
-                            sign =>
+                            (opt, sign) =>
                             {
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = sign;
+                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign, 
+                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll, 
+                                    falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = value;
                             },
-                            isUnsafe: true),
+                            isUnsafe: true,
+                            isEnabled: () => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes != DynamicWriteOnAbsentProbePolicy.IgnoreNothing),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreSetFileInformationByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreSetFileInformationByHandle = sign,
@@ -1071,10 +1164,6 @@ namespace BuildXL
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreZwRenameFileInformation = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_LazySymlinkCreation",
-                            sign => schedulingConfiguration.UnsafeLazySymlinkCreation = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_MonitorFileAccesses",
                             sign =>
                             sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = sign,
@@ -1095,6 +1184,13 @@ namespace BuildXL
                             "unsafe_PreserveOutputsTrustLevel",
                             (opt) => sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel =
                             CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_ProbeDirectorySymlinkAsDirectory",
+                            sign =>
+                            {
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProbeDirectorySymlinkAsDirectory = sign;
+                            },
                             isUnsafe: true),
                         // TODO: Remove this!
                         OptionHandlerFactory.CreateBoolOption(
@@ -1141,8 +1237,14 @@ namespace BuildXL
                             "useLargeNtClosePreallocatedList",
                             sign => sandboxConfiguration.UseLargeNtClosePreallocatedList = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "usePackagesFromFileSystem",
+                            sign => frontEndConfiguration.UsePackagesFromFileSystem = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "usePartialEvaluation",
                             sign => frontEndConfiguration.UsePartialEvaluation = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "validateCgManifestForNugets",
+                            opt => frontEndConfiguration.ValidateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "validateDistribution",
                             sign => distributionConfiguration.ValidateDistribution = sign),
@@ -1154,10 +1256,17 @@ namespace BuildXL
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateOption(
                             "vfsCasRoot",
-                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                            opt =>
+                            {
+                                cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable);
+                            }),
+                        /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
                         OptionHandlerFactory.CreateOption(
                             "viewer",
-                            opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),
+                            opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),*/
+                        OptionHandlerFactory.CreateOption(
+                            "vmConcurrencyLimit",
+                            opt => sandboxConfiguration.VmConcurrencyLimit = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),
@@ -1167,6 +1276,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
+                        OptionHandlerFactory.CreateOption2(
+                            "vsTF",
+                            "vsTargetFramework",
+                            opt => ParseStringOption(opt, ideConfiguration.TargetFrameworks)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "warnAsError",
                             (opt, sign) =>
@@ -1216,33 +1329,7 @@ namespace BuildXL
                 // Iterate through each argument, looking each argument up in the table.
                 IterateArgs(cl, configuration, specialCaseUnsafeOptions);
 
-                int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
-                if (numABTestingOptions > 0)
-                {
-                    // If RelatedActivityId is populated, use it as a seed for random number generation
-                    // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
-                    Random randomGen = string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId) ?
-                        new Random() :
-                        new Random(loggingConfiguration.RelatedActivityId.GetHashCode());
-
-                    int randomNum = randomGen.Next(numABTestingOptions);
-                    var randomOption = startupConfiguration.ABTestingArgs.ToList()[randomNum];
-                    string abTestingKey = randomOption.Key;
-                    string abTestingArgs = randomOption.Value;
-
-                    // Add key and the hash code of the arguments to traceInfo for telemetry purposes.
-                    // As the ID for the AB testing arguments is specified by the user, there is a chance to
-                    // give the same ID to the different set of arguments. That's why, we also add the hash code of
-                    // the arguments to traceInfo.
-                    loggingConfiguration.TraceInfo.Add(
-                        TraceInfoExtensions.ABTesting,
-                        $"{abTestingKey};{abTestingArgs.GetHashCode().ToString()}");
-
-                    string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
-                    var cl2 = new CommandLineUtilities(splittedABTestingArgs);
-                    IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
-                    startupConfiguration.ChosenABTestingKey = abTestingKey;
-                }
+                AddABTestingArgs(pathTable, configuration, specialCaseUnsafeOptions);
 
                 foreach (string arg in cl.Arguments)
                 {
@@ -1259,6 +1346,17 @@ namespace BuildXL
                 if (failPipOnFileAccessErrorSet && unsafeUnexpectedFileAccessesAreErrorsSet)
                 {
                     throw CommandLineUtilities.Error(Strings.Args_FileAccessAsErrors_FailPipFlags);
+                }
+
+                if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue ^ schedulingConfiguration.DelayedCacheLookupMaxMultiplier.HasValue)
+                {
+                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin and /delayCacheLookupMax must be specified.");
+                }
+
+                if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue
+                    && schedulingConfiguration.DelayedCacheLookupMinMultiplier.Value > schedulingConfiguration.DelayedCacheLookupMaxMultiplier.Value)
+                {
+                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin cannot be bigger than /delayCacheLookupMax.");
                 }
 
                 // Validate logging configuration.
@@ -1368,6 +1466,99 @@ namespace BuildXL
             }
         }
 
+        private void AddABTestingArgs(PathTable pathTable, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)
+        {
+            var startupConfiguration = configuration.Startup;
+            var loggingConfiguration = configuration.Logging;
+
+            if (loggingConfiguration.TraceInfo.TryGetValue(TraceInfoExtensions.ABTesting, out var key))
+            {
+                startupConfiguration.ABTestingArgs.Add(key, string.Empty);
+                // AB testing argument might be chosen before BuildXL is started; for instance, GenericBuildRunner in CloudBuild.
+                // In those cases, we do not choose one among /abTesting args, instead use the one provided. 
+                // That argument is already applied, so we just need to set ChosenABTestingKey. 
+                startupConfiguration.ChosenABTestingKey = key;
+                return;
+            }
+
+            int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
+
+            if (numABTestingOptions == 0)
+            {
+                return;
+            }
+
+            // If RelatedActivityId is populated, use it as a seed for random number generation
+            // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
+            Random randomGen = null;
+            if (string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
+            {
+                randomGen = new Random();
+            }
+            else
+            {
+                using (var helper = new HashingHelper(pathTable, false))
+                {
+                    helper.Add(loggingConfiguration.RelatedActivityId);
+                    // NetCORE string.GetHashCode() is not deterministic across program executions unlike net472.
+                    // Each execution can give a different number with netcore implementation of GetHashCode. 
+                    // That's why, we use HashingHelper to get fingerprint and then get hashcode with our own implementation.
+                    randomGen = new Random(helper.GenerateHash().GetHashCode());
+                }
+            }
+
+            int randomNum = randomGen.Next(numABTestingOptions);
+            // Sort ABTesting args.
+            var randomOption = startupConfiguration.ABTestingArgs.OrderBy(a => a.Key).ToList()[randomNum];
+            string abTestingKey = randomOption.Key;
+            // If an A/B testing argument is coming from a response file, the option's value might be wrapped in quotes.
+            // Need to remove them so the parser can properly split the string into individual arguments.
+            string abTestingArgs = randomOption.Value.Trim('"');
+
+            using (var helper = new HashingHelper(pathTable, false))
+            {
+                helper.Add(abTestingArgs);
+
+                // Add key and the hash code of the arguments to traceInfo for telemetry purposes.
+                // As the ID for the AB testing arguments is specified by the user, there is a chance to
+                // give the same ID to the different set of arguments. That's why, we also add the hash code of
+                // the arguments to traceInfo.
+                loggingConfiguration.TraceInfo.Add(
+                    TraceInfoExtensions.ABTesting,
+                    $"{abTestingKey};{helper.GenerateHash().GetHashCode().ToString()}");
+            }
+
+            startupConfiguration.ChosenABTestingKey = abTestingKey;
+
+            // Apply the arguments to configuration.
+            string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
+            var cl2 = new CommandLineUtilities(splittedABTestingArgs);
+            IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
+        }
+
+        private void SetEngineConfigurationVersionIfSpecified(CommandLineUtilities cl)
+        {
+            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (CommandLineUtilities.Option opt in cl.Options)
+            {
+                if (string.Equals(opt.Name, "p", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(opt.Name, "parameter", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineUtilities.ParsePropertyOption(opt, properties);
+                }
+            }
+
+            // We don't check for every option name in the cl.Options because we want to use the same rules of last-one-win as we did for processing arguments.
+            if (properties.TryGetValue(EngineVersion.PropertyName, out string valueString))
+            {
+                if (int.TryParse(valueString, out var result))
+                {
+                    EngineVersion.Version = result;
+                }
+            }
+        }
+
         private void IterateArgs(CommandLineUtilities cl, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)
         {
             foreach (CommandLineUtilities.Option opt in cl.Options)
@@ -1423,7 +1614,7 @@ namespace BuildXL
         /// </remarks>
         private static void ValidateLoggingConfiguration(ILoggingConfiguration loggingConfiguration)
         {
-            Contract.Requires(loggingConfiguration != null);
+            Contract.RequiresNotNull(loggingConfiguration);
 
             if (!string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
             {
@@ -1557,7 +1748,7 @@ namespace BuildXL
             PathTable pathTable,
             Dictionary<string, AbsolutePath> map)
         {
-            Contract.Requires(map != null);
+            Contract.RequiresNotNull(map);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
             map[keyValuePair.Key] = CommandLineUtilities.GetFullPath(keyValuePair.Value, opt, pathTable);
@@ -1568,7 +1759,7 @@ namespace BuildXL
             PathTable pathTable,
             Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> map)
         {
-            Contract.Requires(map != null);
+            Contract.RequiresNotNull(map);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
 
@@ -1787,8 +1978,7 @@ namespace BuildXL
                     // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "GRAPHAGNOSTICINCREMENTALSCHEDULING":
-                    // Incremental scheduling is by default graph agnostic. One can use this option to make it graph inagnostic.
-                    scheduleConfiguration.GraphAgnosticIncrementalScheduling = experimentalOptionAndValue.Item2;
+                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "CREATEHANDLEWITHSEQUENTIALSCANONHASHINGOUTPUTFILES":
                     scheduleConfiguration.CreateHandleWithSequentialScanOnHashingOutputFiles = experimentalOptionAndValue.Item2;
@@ -1797,6 +1987,12 @@ namespace BuildXL
                     sandboxConfiguration.ContainerConfiguration.RunInContainer = experimentalOptionAndValue.Item2;
                     sandboxConfiguration.ContainerConfiguration.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
                     sandboxConfiguration.UnsafeSandboxConfigurationMutable.DoubleWritePolicy = DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+                    break;
+                case "LAZYSODELETION":
+                    scheduleConfiguration.UnsafeLazySODeletion = experimentalOptionAndValue.Item2;
+                    break;
+                case "PROCESSSYMLINKEDACCESSES":
+                    sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = experimentalOptionAndValue.Item2;
                     break;
                 default:
                     throw CommandLineUtilities.Error(Strings.Args_Experimental_UnsupportedValue, experimentalOptionAndValue.Item1);
@@ -1900,19 +2096,14 @@ namespace BuildXL
                    };
         }
 
-        internal static KeyValuePair<HelpLevel, int> ParseHelpOption(CommandLineUtilities.Option opt)
+        internal static HelpLevel ParseHelpOption(CommandLineUtilities.Option opt)
         {
             if (string.IsNullOrWhiteSpace(opt.Value))
             {
-                return new KeyValuePair<HelpLevel, int>(HelpLevel.Standard, 0);
+                return HelpLevel.Standard;
             }
 
-            string trimmed = opt.Value.TrimStart('d');
-            trimmed = trimmed.TrimStart('x');
-
-            return int.TryParse(trimmed, out int dxCode)
-                ? new KeyValuePair<HelpLevel, int>(HelpLevel.DxCode, dxCode)
-                : new KeyValuePair<HelpLevel, int>(CommandLineUtilities.ParseEnumOption<HelpLevel>(opt), 0);
+            return CommandLineUtilities.ParseEnumOption<HelpLevel>(opt);
         }
 
         public void Dispose()

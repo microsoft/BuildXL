@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Streams;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Native.IO
@@ -51,7 +50,7 @@ namespace BuildXL.Native.IO
     /// <summary>
     /// Utilities and helpers for manipulating files (I/O) leveraging IFileSystem facilities
     /// </summary>
-    public interface IFileUtilities
+    internal interface IFileUtilities
     {
         #region Directory specific utilities
 
@@ -129,7 +128,6 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// Does not support paths longer than MAX_PATH
         /// </remarks>
-        /// <returns>If true is returned, the move proceeded and completed. </returns>
         /// <exception cref="BuildXLException">
         /// Thrown if the file move fails in a recoverable manner, including if the destination
         /// already exists and <paramref name="replaceExisting" /> is set to false or if the source doesn't exist
@@ -137,7 +135,7 @@ namespace BuildXL.Native.IO
         /// <param name="source">Full path of the source</param>
         /// <param name="destination">Full path of the destination</param>
         /// <param name="replaceExisting">whether to replace an existing file at the destination</param>
-        Task<bool> MoveFileAsync(string source, string destination, bool replaceExisting);
+        Task MoveFileAsync(string source, string destination, bool replaceExisting);
 
         /// <summary>
         /// Creates a copy on write clone of files if supported by the underlying OS.
@@ -194,7 +192,7 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Variant of <see cref="DeleteFile"/> returning a <see cref="Possible{TResult,TOtherwise}"/> rather than throwing.
         /// </summary>
-        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
+        Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Attempts to move file to a temporary directory that will be garbage collected in the future.

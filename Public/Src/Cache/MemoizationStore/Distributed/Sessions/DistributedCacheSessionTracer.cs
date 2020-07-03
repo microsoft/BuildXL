@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         /// Initializes a new instance of the <see cref="DistributedCacheSessionTracer" /> class.
         /// </summary>
         public DistributedCacheSessionTracer(ILogger logger, string name)
-            : base(logger, name)
+            : base(name)
         {
             CallCounters.Add(_getSelectorsCallCounter = new CallCounter(GetSelectorsCallName));
             CallCounters.Add(_addSelectorsCallCounter = new CallCounter(AddSelectorsCallName));

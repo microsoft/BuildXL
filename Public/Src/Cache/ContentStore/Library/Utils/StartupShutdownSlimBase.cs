@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -19,10 +19,26 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     public abstract class StartupShutdownSlimBase : IStartupShutdownSlim
     {
+        // Tracking instance id to simplify debugging of double shutdown issues.
+        private static int CurrentInstanceId;
+        private static int GetCurrentInstanceId() => Interlocked.Increment(ref CurrentInstanceId);
+        private readonly int _instanceId = GetCurrentInstanceId();
+
         private readonly CancellationTokenSource _shutdownStartedCancellationTokenSource = new CancellationTokenSource();
 
         /// <nodoc />
         protected abstract Tracer Tracer { get; }
+
+        /// <summary>
+        /// Indicates whether the component supports multiple startup and shutdown calls. If true,
+        /// component is ref counted (incremented on startup and decremented on shutdown). When the ref count reaches 0,
+        /// the component will actually shutdown. NOTE: Multiple or concurrent startup calls are elided into a single execution
+        /// of startup where no startup calls will return until the operation is complete.
+        /// </summary>
+        public virtual bool AllowMultipleStartupAndShutdowns => false;
+
+        private int _refCount = 0;
+        private Lazy<Task<BoolResult>> _lazyStartupTask;
 
         /// <inheritdoc />
         public virtual bool StartupCompleted { get; private set; }
@@ -32,6 +48,9 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <inheritdoc />
         public virtual bool ShutdownCompleted { get; private set; }
+
+        /// <nodoc />
+        protected virtual Func<BoolResult, string> ExtraStartupMessageFactory => null;
 
         /// <inheritdoc />
         public bool ShutdownStarted => _shutdownStartedCancellationTokenSource.Token.IsCancellationRequested;
@@ -56,29 +75,45 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <inheritdoc />
         public virtual async Task<BoolResult> StartupAsync(Context context)
         {
-            if (StartupStarted)
+            if (AllowMultipleStartupAndShutdowns)
             {
-                Contract.Assert(false, $"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
+                Interlocked.Increment(ref _refCount);
             }
-
+            else 
+            {
+                Contract.Check(!StartupStarted)?.Assert($"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
+            }
             StartupStarted = true;
-            var operationContext = OperationContext(context);
-            var result = await operationContext.PerformInitializationAsync(
-                Tracer,
-                () => StartupCoreAsync(operationContext));
-            StartupCompleted = true;
 
-            return result;
+            LazyInitializer.EnsureInitialized(ref _lazyStartupTask, () =>
+                new Lazy<Task<BoolResult>>(async () =>
+                {
+                    var operationContext = OperationContext(context);
+                    var result = await operationContext.PerformInitializationAsync(
+                        Tracer,
+                        () => StartupCoreAsync(operationContext),
+                        endMessageFactory: r => $"Id={_instanceId}." + ExtraStartupMessageFactory?.Invoke(r));
+                    StartupCompleted = true;
+
+                    return result;
+                }));
+
+            return await _lazyStartupTask.Value;
         }
 
         /// <inheritdoc />
         public async Task<BoolResult> ShutdownAsync(Context context)
         {
-            if (ShutdownStarted)
+            if (AllowMultipleStartupAndShutdowns)
             {
-                Contract.Assert(false, $"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on this instance.");
+                var refCount = Interlocked.Decrement(ref _refCount);
+                if (refCount > 0)
+                {
+                    return BoolResult.Success;
+                }
             }
 
+            Contract.Check(!ShutdownStarted)?.Assert($"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on the instance with Id={_instanceId}.");
             TriggerShutdownStarted();
 
             if (ShutdownCompleted)
@@ -89,7 +124,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             var operationContext = new OperationContext(context);
             var result = await operationContext.PerformOperationAsync(
                 Tracer,
-                () => ShutdownCoreAsync(operationContext));
+                () => ShutdownCoreAsync(operationContext),
+                extraEndMessage: r => $"Id={_instanceId}.");
             ShutdownCompleted = true;
 
             return result;

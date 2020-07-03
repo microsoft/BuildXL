@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
@@ -346,7 +347,7 @@ namespace M {
 
             result.ExpectNoError();
             result.ExpectValues(6);
-            Assert.All(result.Values, e => Assert.Equal(true, e));
+            XAssert.All(result.Values, e => Assert.Equal(true, e));
         }
 
         private static void CheckMap(DsMap map, IEnumerable<KeyValuePair<object, object>> keyValuePairs, bool exactMatch = true, IEnumerable<object> notExistKeys = null)

@@ -23,6 +23,7 @@ public:
     static CheckFunc CheckEnumerateDir;
     static CheckFunc CheckCreateSymlink;
     static CheckFunc CheckCreateDirectory;
+    static CheckFunc CheckCreateDirectoryNoEnforcement;
 };
 
 #endif /* Checkers_hpp */

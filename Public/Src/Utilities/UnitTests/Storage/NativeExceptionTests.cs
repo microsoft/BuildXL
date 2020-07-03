@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Test.BuildXL.Storage
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class NativeExceptionTests
     {
         [Fact]

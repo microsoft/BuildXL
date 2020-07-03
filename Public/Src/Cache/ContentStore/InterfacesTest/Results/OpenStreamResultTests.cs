@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
 
@@ -10,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public class OpenStreamResultTests : ResultTests<OpenStreamResult>
     {
-        private static readonly Stream NullStream = null;
+        private static readonly StreamWithLength? NullStream = null;
 
         protected override OpenStreamResult CreateFrom(Exception exception)
         {

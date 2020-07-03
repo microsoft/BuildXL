@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     for a value type to participate in generic collections without boxing.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Equals<T>(T left, object right)
+        public static bool Equals<T>(T left, object? right)
             where T : struct, IEquatable<T>
         {
             if (!(right is T))

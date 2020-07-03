@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -33,7 +33,7 @@ namespace BuildXL.Utilities.Tracing
 
         public TextEventWriter(TextWriter textWriter)
         {
-            Contract.Requires(textWriter != null);
+            Contract.RequiresNotNull(textWriter);
             m_textWriter = textWriter;
         }
 

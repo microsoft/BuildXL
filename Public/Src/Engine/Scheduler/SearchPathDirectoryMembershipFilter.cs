@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using BuildXL.Utilities;
@@ -18,15 +18,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates a search path membership filter based on the given accessed file names without extensions
         /// </summary>
-        public SearchPathDirectoryMembershipFilter(PathTable pathTable, IEnumerable<StringId> accessedFileNamesWithoutExtension)
+        /// <remarks>
+        /// <paramref name="accessedFileNamesWithoutExtension"/> must use case-insensitive StringId comparer.
+        /// </remarks>
+        public SearchPathDirectoryMembershipFilter(PathTable pathTable, HashSet<StringId> accessedFileNamesWithoutExtension)
         {
             m_pathTable = pathTable;
-            AccessedFileNamesWithoutExtension = new HashSet<StringId>(pathTable.StringTable.CaseInsensitiveEqualityComparer);
-
-            foreach (var fileNameWithoutExtension in accessedFileNamesWithoutExtension)
-            {
-                AccessedFileNamesWithoutExtension.Add(fileNameWithoutExtension);
-            }
+            AccessedFileNamesWithoutExtension = accessedFileNamesWithoutExtension;
         }
 
         /// <summary>

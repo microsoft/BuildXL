@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -132,8 +132,7 @@ namespace BuildXL.Utilities
         /// <param name="pathTable">The path table used when creating the AbsolutePath in the Path field.</param>
         public string ToString(PathTable pathTable)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(pathTable);
 
             return string.Format(CultureInfo.InvariantCulture, "{0}({1}, {2})", Path.ToString(pathTable), Line, Position);
         }

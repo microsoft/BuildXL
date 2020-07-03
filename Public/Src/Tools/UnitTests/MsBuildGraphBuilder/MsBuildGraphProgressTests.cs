@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -101,7 +101,7 @@ namespace Test.ProjectGraphBuilder
                             PipeOptions.Asynchronous))
                         using (var reader = new StreamReader(pipeClient, Encoding.UTF8))
                         {
-                            pipeClient.Connect(10000);
+                            pipeClient.Connect(50000);
                             while (!reader.EndOfStream)
                             {
                                 var line = reader.ReadLine();

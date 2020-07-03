@@ -10,8 +10,11 @@ namespace Script {
         rootNamespace: "BuildXL.FrontEnd.Script",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
-        generateLogsLite: false,
-        // After switching to C# 7 features, the style cop fails on the legit cases.
+        generateLogBinaryRefs: [
+            importFrom("BuildXL.Utilities").Script.Constants.dll.compile,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
+        ],
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Xml.dll,
@@ -53,6 +56,8 @@ namespace Script {
             "Test.BuildXL.FrontEnd.Script.ErrorHandling",
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Core",
+            "BuildXL.FrontEnd.Rush",
+            "BuildXL.FrontEnd.JavaScript",
         ],
     });
 }

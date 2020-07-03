@@ -1,25 +1,24 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Native.IO;
-using IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     [Feature(Features.DirectoryTranslation)]
     public class DirectoryTranslationJunctionSubstTests : SchedulerIntegrationTestBase
     {
@@ -510,9 +509,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // No directory translation will cause an error
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
     }

@@ -78,7 +78,8 @@ const char *CheckValidUnixManifestTreeRoot(PCManifestRecord node)
         return "Root manifest node is expected to have exactly one child (corresponding to the unix root sentinel: '/')";
     }
 
-    if (node->GetChildRecord(0)->Hash != UNIX_ROOT_SENTINEL_HASH)
+    unsigned int expectedHash = HashPath(UNIX_ROOT_SENTINEL, 0);
+    if (node->GetChildRecord(0)->Hash != expectedHash)
     {
         return "Wrong hash code for the unix root sentinel node";
     }
@@ -100,10 +101,20 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         injectionTimeoutFlag_ = ParseAndAdvancePointer<PCManifestInjectionTimeout>(payloadCursor);
         if (HasErrors()) continue;
 
+        // For now we just skip the list of processes to breakaway. TODO: a future implementation may consider these
+        // to determine whether to skip reporting accesses for them
+        manifestChildProcessesToBreakAwayFromJob_ = ParseAndAdvancePointer<PManifestChildProcessesToBreakAwayFromJob>(payloadCursor);
+        if (HasErrors()) continue;
+
+        for (uint32_t i = 0; i < manifestChildProcessesToBreakAwayFromJob_->Count ; i++)
+        {
+            SkipOverCharArray(payloadCursor); // process name
+        }
+
         manifestTranslatePathsStrings_ = ParseAndAdvancePointer<PManifestTranslatePathsStrings>(payloadCursor);
         if (HasErrors()) continue;
-        uint32_t manifestTranslatePathsSize = ParseUint32(payloadCursor);
-        for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
+
+        for (uint32_t i = 0; i < manifestTranslatePathsStrings_->Count; i++)
         {
             SkipOverCharArray(payloadCursor); // 'from' path
             SkipOverCharArray(payloadCursor); // 'to' path
@@ -134,6 +145,8 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         uint32_t shimPathLength = SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionShimPath
         if (shimPathLength > 0)
         {
+            SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionPluginDll32Path
+            SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionPluginDll64Path
             uint32_t numProcessMatches = ParseUint32(payloadCursor);
             for (uint32_t i = 0; i < numProcessMatches; i++)
             {
@@ -148,7 +161,7 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         error_ = CheckValidUnixManifestTreeRoot(root_);
     } while(false);
-    
+
     return !HasErrors();
 }
 
@@ -161,11 +174,11 @@ void FileAccessManifestParseResult::PrintManifestTree(PCManifestRecord node,
     indentStr[indent] = L'\0';
     for (int i = 0; i < indent; i++) indentStr[i] = L' ';
 
-    printf("| %s [%d] '%s' (cone policy = %#x, node policy = %#x)\n", 
-           indentStr, 
-           index, 
-           node->GetPartialPath(), 
-           node->GetConePolicy() & FileAccessPolicy_ReportAccess, 
+    printf("| %s [%d] '%s' (cone policy = %#x, node policy = %#x)\n",
+           indentStr,
+           index,
+           node->GetPartialPath(),
+           node->GetConePolicy() & FileAccessPolicy_ReportAccess,
            node->GetNodePolicy() & FileAccessPolicy_ReportAccess);
 
     for (int i = 0; i < node->BucketCount; i++)

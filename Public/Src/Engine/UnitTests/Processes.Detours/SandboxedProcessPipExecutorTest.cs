@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,19 +8,21 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using BuildXL.Native.IO;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -119,8 +121,8 @@ namespace Test.BuildXL.Processes.Detours
                         sandboxConfiguration,
                         pip);
 
-                    AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                 }
             }
         }
@@ -190,14 +192,20 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
+                var processIdListenerInvocations = new List<int>();
+
                 await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
-                    pip);
+                    pip,
+                    processIdListener: pid => processIdListenerInvocations.Add(pid));
+
                 string actual = File.ReadAllText(destination).Trim();
-                XAssert.AreEqual(
-                    "Success",
-                    actual);
+                XAssert.AreEqual("Success", actual);
+                XAssert.AreEqual(2, processIdListenerInvocations.Count);
+                XAssert.IsTrue(processIdListenerInvocations[0] > 0);
+                XAssert.IsTrue(processIdListenerInvocations[1] < 0);
+                XAssert.AreEqual(processIdListenerInvocations[0], -processIdListenerInvocations[1]);
             }
         }
 
@@ -478,9 +486,9 @@ namespace Test.BuildXL.Processes.Detours
                     pip);
             }
 
-            AssertVerboseEventLogged(EventId.PipProcessFinishedFailed);
-            AssertErrorEventLogged(EventId.PipProcessError);
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessFinishedFailed);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertLogContains(caseSensitive: true, requiredLogMessages: "exit code 42");
         }
 
@@ -539,7 +547,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             SetExpectedFailures(1, 0, "DX0064");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedTempFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess);
         }
 
         [Fact]
@@ -675,13 +683,14 @@ namespace Test.BuildXL.Processes.Detours
 
             // 4 warnings with 2 probes collapsed into one, because they reported the same kind
             // of access. Events ignore the function used for the access.
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedTempFileAccess, count: 3);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess, count: 3);
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByValue()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByValue()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -732,27 +741,27 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                FullSymbol whitelistedValue;
+                FullSymbol allowlistedValue;
                 int characterWithError;
-                if (FullSymbol.TryCreate(symbolTable, "WhitelistedValue", out whitelistedValue, out characterWithError) !=
+                if (FullSymbol.TryCreate(symbolTable, "AllowlistedValue", out allowlistedValue, out characterWithError) !=
                     FullSymbol.ParseResult.Success)
                 {
                     XAssert.Fail("Could not construct a FullSymbol from a string.");
                 }
 
-                fileAccessWhitelist.Add(
-                    new ValuePathFileAccessWhitelistEntry(
-                        whitelistedValue,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                fileAccessAllowlist.Add(
+                    new ValuePathFileAccessAllowlistEntry(
+                        allowlistedValue,
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
                         allowsCaching: false,
                         name: "name"));
 
@@ -760,16 +769,17 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByValueWithRegex()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByValueWithRegex()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -821,27 +831,27 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                FullSymbol whitelistedValue;
+                FullSymbol allowlistedValue;
                 int characterWithError;
-                if (FullSymbol.TryCreate(symbolTable, "WhitelistedValue", out whitelistedValue, out characterWithError) !=
+                if (FullSymbol.TryCreate(symbolTable, "AllowlistedValue", out allowlistedValue, out characterWithError) !=
                     FullSymbol.ParseResult.Success)
                 {
                     XAssert.Fail("Could not construct a FullSymbol from a string.");
                 }
 
-                fileAccessWhitelist.Add(
-                    new ValuePathFileAccessWhitelistEntry(
-                        whitelistedValue,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(PathSuffix) + '$'),
+                fileAccessAllowlist.Add(
+                    new ValuePathFileAccessAllowlistEntry(
+                        allowlistedValue,
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(PathSuffix) + '$'),
                         allowsCaching: false,
                         name: "name"));
 
@@ -849,16 +859,17 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByExecutable()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByExecutable()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -909,19 +920,19 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                fileAccessWhitelist.Add(
-                    new ExecutablePathWhitelistEntry(
+                fileAccessAllowlist.Add(
+                    new ExecutablePathAllowlistEntry(
                         executableFileArtifact.Path,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
                         allowsCaching: false,
                         name: "name"));
 
@@ -929,10 +940,10 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
@@ -1015,12 +1026,12 @@ namespace Test.BuildXL.Processes.Detours
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
-                    context, 
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false }, 
-                    pip, 
-                    fileAccessWhitelist: null, 
-                    new Dictionary<string, string>(), 
-                    SemanticPathExpander.Default, 
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
+                    pip,
+                    fileAccessAllowlist: null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
                             SealDirectoryKind.SharedOpaque,
                             new FileArtifact[] { FileArtifact.CreateOutputFile(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot)) }));
@@ -1028,7 +1039,7 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
                 // There should be a single reported file access that is not related to creating directories: The attempt to read 'input/in.txt'. The accesses related to writing the file should not be reported here.
-                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.Operation == ReportedFileOperation.CreateDirectory));
+                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.IsDirectoryCreationOrRemoval()));
                 XAssert.AreEqual(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot), access.Path);
             }
         }
@@ -1100,7 +1111,7 @@ namespace Test.BuildXL.Processes.Detours
                     null,
                     ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
                     ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                    ReadOnlyArray<DirectoryArtifact>.Empty, 
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
                     ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaque }),
                     ReadOnlyArray<PipId>.Empty,
                     ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
@@ -1129,7 +1140,7 @@ namespace Test.BuildXL.Processes.Detours
                         UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { IgnoreUndeclaredAccessesUnderSharedOpaques = false },
                         LogObservedFileAccesses = true},
                     pip,
-                    fileAccessWhitelist: null,
+                    fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
@@ -1147,7 +1158,7 @@ namespace Test.BuildXL.Processes.Detours
                 else
                 {
                     // No violations when the pip is the one creating the file
-                    XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted);
+                    XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
                 }
             }
         }
@@ -1633,7 +1644,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 expectedDumpPath = Path.Combine(TestOutputDirectory, pip.FormattedSemiStableHash);
 
-                // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH 
+                // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH
                 // Check for the masked version of this in the native error code of the process dump message and ignore when it is hit
                 if (EventListener.GetEventCount((int)ProcessesLogEventId.PipFailedToCreateDumpFile) == 1 &&
                     (EventListener.GetLog().Contains("-2147024597")) // -2147024597 && 0x0FFF == 0x12B (ERROR_PARTIAL_COPY)
@@ -1710,10 +1721,10 @@ namespace Test.BuildXL.Processes.Detours
 
             // conhost.exe may or may not be started within the pip depending on
             // the current machine state. And each cmd might have its own conhost.
-            int numChildrenSurvivedErrors = EventListener.GetEventCount(EventId.PipProcessChildrenSurvivedError);
+            int numChildrenSurvivedErrors = EventListener.GetEventCount((int)ProcessesLogEventId.PipProcessChildrenSurvivedError);
             SetExpectedFailures(1 + numChildrenSurvivedErrors, 0,
-                "DX0041",  // EventId.PipProcessChildrenSurvivedError
-                "DX0064");  // EventId.PipProcessChildrenSurvivedKilled
+                "DX0041",  // ProcessesLogEventId.PipProcessChildrenSurvivedError
+                "DX0064");  // ProcessesLogEventId.PipProcessChildrenSurvivedKilled
             XAssert.IsTrue(numChildrenSurvivedErrors >= 1 && numChildrenSurvivedErrors <= 3, $"Child processes: {numChildrenSurvivedErrors}");
         }
 
@@ -1842,17 +1853,17 @@ namespace Test.BuildXL.Processes.Detours
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default);
 
-                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.PreparationFailed, result.Status);
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Canceled, result.Status);
+                XAssert.AreEqual(CancellationReason.ProcessStartFailure, result.CancellationReason);
                 XAssert.AreEqual(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, result.NumberOfProcessLaunchRetries);
-                AssertVerboseEventLogged(EventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
+                AssertVerboseEventLogged(ProcessesLogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
+                AssertWarningEventLogged(LogEventId.PipProcessStartFailed, 1);
             }
-
-            SetExpectedFailures(1, 0, "DX0011");
         }
 
         [Fact]
         public async Task CreateDirectoryAllowed()
-        {   
+        {
             var context = BuildXLContext.CreateInstanceForTesting();
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -1995,6 +2006,212 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task UpdatePipProperties()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, workingDirectory);
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                arguments.Add("echo PipProperty_Foo_EndProperty");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    arguments.Add("exit");
+                    arguments.Add("1");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.FromWithoutCopy(1),
+                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    provenance: PipProvenance.CreateDummy(context),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
+                    pip,
+                    null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
+                    null);
+
+                XAssert.AreEqual(1, result.PipProperties["Foo"]);
+                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                SetExpectedFailures(1, 0, "DX0064");
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
+        public async Task DirSymlinksAreProperlyResolvedAsync()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var symbolTable = context.SymbolTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = tempFiles.GetUniqueDirectory();
+                string symlinkDir = Path.Combine(workingDirectory, "symlinkDir");
+                string targetDirectory = Path.Combine(workingDirectory, "targetDir");
+                FileUtilities.CreateDirectory(targetDirectory);
+
+                var success = FileUtilities.TryCreateSymbolicLink(symlinkDir, targetDirectory, isTargetFile: false);
+                XAssert.IsTrue(success.Succeeded);
+
+                var sharedOpaqueRoot = Path.Combine(symlinkDir, "sharedOpaque");
+
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, sharedOpaqueRoot);
+
+                // Create two shared opaques with the same root. One will act as an input to the pip, the other one as an
+                // output directory
+                var sharedOpaqueInput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 1, isSharedOpaque: true);
+                var sharedOpaqueOutput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 2, isSharedOpaque: true);
+
+                // The shared opaque input contains input/in.txt
+                var inputUndersharedOpaqueRoot = Path.Combine(sharedOpaqueRoot, "input", "in.txt");
+                Directory.CreateDirectory(sharedOpaqueRoot);
+                Directory.CreateDirectory(Path.Combine(sharedOpaqueRoot, "input"));
+                File.WriteAllText(inputUndersharedOpaqueRoot, "Foo");
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    // Reads 'input/in.txt' (under the shared opaque input) and creates 'nested/out.txt' (under the shared opaque output)
+                    arguments.Add("type");
+                    arguments.Add(@"input\in.txt");
+                    arguments.Add("&&");
+                    arguments.Add("mkdir");
+                    arguments.Add("nested");
+                    arguments.Add("&&");
+                    arguments.Add("echo");
+                    arguments.Add("foo");
+                    arguments.Add(">");
+                    arguments.Add(@"nested\out.txt");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueInput }),
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueOutput }),
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.Empty,
+                    ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    new PipProvenance(
+                        0,
+                        ModuleId.Invalid,
+                        StringId.Invalid,
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
+                        LocationData.Invalid,
+                        QualifierId.Unqualified,
+                        PipData.Invalid),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var inputUnderSharedOpaqueAbsolutePath = AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot);
+
+                DirectoryTranslator translator = null;
+                if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+                {
+                    translator = new DirectoryTranslator();
+                    translator.AddTranslation(substSource, substTarget);
+                    translator.Seal();
+                }
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration 
+                    { 
+                        FileAccessIgnoreCodeCoverage = true, 
+                        FailUnexpectedFileAccesses = false, 
+                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { ProcessSymlinkedAccesses = true } 
+                    },
+                    pip,
+                    fileAccessAllowlist: null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
+                    new TestDirectoryArtifactContext(
+                            SealDirectoryKind.SharedOpaque,
+                            new FileArtifact[] { FileArtifact.CreateOutputFile(inputUnderSharedOpaqueAbsolutePath) }),
+                    symlinkedAccessResolver: new SymlinkedAccessResolver(context, translator));
+
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
+
+                var targetDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, targetDirectory);
+                var symlinkDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, symlinkDir);
+                var sharedOpaqueRootViaRealPath = targetDirectoryAbsolutePath.Combine(
+                    context.PathTable, "sharedOpaque");
+                var inputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
+                    context.PathTable, RelativePath.Create(context.StringTable, "input/in.txt"));
+                var outputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
+                    context.PathTable, RelativePath.Create(context.StringTable, "nested/out.txt"));
+
+                // There shouldn't be any file access that points to in.txt via the symlink
+                XAssert.ContainsNot(result.ObservedFileAccesses.Select(fa => fa.Path), inputUnderSharedOpaqueAbsolutePath);
+                // There should be an access that points to in.txt via the resolved path
+                var inputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == inputViaRealPath);
+                // The manifest path also has to be resolved (this is a declared input, so the manifest matches the path)
+                XAssert.Equals(inputViaRealPath, inputAccessViaRealPath.Accesses.First().ManifestPath);
+                // There should be an access that points to out.txt via the resolved path
+                var outputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == outputViaRealPath);
+                // The manifest path also has to be resolved (this is an output under a shared opaque, so 
+                // the manifest is the root of the opaque)
+                XAssert.Equals(sharedOpaqueRootViaRealPath, outputAccessViaRealPath.Accesses.Single().ManifestPath);
+                // There should be a read access on the symlink itself
+                var symlinkRead = result.ObservedFileAccesses.Single(oa => oa.Path == symlinkDirectoryAbsolutePath);
+                XAssert.Equals(FileDesiredAccess.GenericRead, symlinkRead.Accesses.Single().DesiredAccess);
+            }
+        }
+
         private class TestSemanticPathExpander : SemanticPathExpander
         {
             private readonly IEnumerable<AbsolutePath> m_writableRoots;
@@ -2024,29 +2241,33 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessAllowlist, resultWrapper);
         }
 
         private Task AssertProcessFailsPreparation(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null)
+            FileAccessAllowlist fileAccessAllowlist = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessAllowlist);
         }
 
         private Task AssertProcessSucceedsAsync(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            FileAccessAllowlist fileAccessAllowlist = null,
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
+            return AssertProcessCompletesWithStatusAsync(
+                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessAllowlist,
+                directoryArtifactContext: directoryArtifactContext,
+                processIdListener: processIdListener);
         }
 
         private async Task AssertProcessCompletesWithStatusAsync(
@@ -2054,11 +2275,12 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null)
         {
-            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext);
+            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessAllowlist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext, processIdListener: processIdListener);
 
             if (resultWrapper != null)
             {
@@ -2091,10 +2313,12 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             IReadOnlyDictionary<string, string> rootMap,
             SemanticPathExpander expander,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null,
+            SymlinkedAccessResolver symlinkedAccessResolver = null)
         {
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
@@ -2108,15 +2332,18 @@ namespace Test.BuildXL.Processes.Detours
                 null, // Not full instantiation of the engine. For such cases this is null.
                 rootMap,
                 new ProcessInContainerManager(loggingContext, context.PathTable),
-                fileAccessWhitelist,
+                fileAccessAllowlist,
                 null,
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,
                 expander,
                 false,
-                new PipEnvironment(),
+                new PipEnvironment(loggingContext),
+                isLazySharedOpaqueOutputDeletionEnabled: false,
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
-                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
+                tempDirectoryCleaner: MoveDeleteCleaner,
+                processIdListener: processIdListener,
+                symlinkedAccessResolver: symlinkedAccessResolver).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

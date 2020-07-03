@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -132,7 +132,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -226,7 +226,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -296,8 +296,8 @@ namespace BuildXL.Utilities
         public override int GetHashCode()
         {
             // Adapted from System.Tuple.
-            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1);
-            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2);
+            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1!);
+            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2!);
             return StructTuple.CombineHashCodes(h1, h2);
         }
 
@@ -309,7 +309,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -365,9 +365,9 @@ namespace BuildXL.Utilities
         public override int GetHashCode()
         {
             // Adapted from System.Tuple.
-            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1);
-            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2);
-            int h3 = EqualityComparer<TItem3>.Default.GetHashCode(Item3);
+            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1!);
+            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2!);
+            int h3 = EqualityComparer<TItem3>.Default.GetHashCode(Item3!);
             return StructTuple.CombineHashCodes(h1, h2, h3);
         }
 
@@ -380,7 +380,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -442,10 +442,12 @@ namespace BuildXL.Utilities
         public override int GetHashCode()
         {
             // Adapted from System.Tuple.
-            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1);
-            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2);
-            int h3 = EqualityComparer<TItem3>.Default.GetHashCode(Item3);
-            int h4 = EqualityComparer<TItem4>.Default.GetHashCode(Item4);
+            // Using '!' to avoid 'CS8607: A possible null value may not be used for a type marked with [NotNull].
+            // But it is actually fine to pass null to GetHashCode.
+            int h1 = EqualityComparer<TItem1>.Default.GetHashCode(Item1!);
+            int h2 = EqualityComparer<TItem2>.Default.GetHashCode(Item2!);
+            int h3 = EqualityComparer<TItem3>.Default.GetHashCode(Item3!);
+            int h4 = EqualityComparer<TItem4>.Default.GetHashCode(Item4!);
             return StructTuple.CombineHashCodes(h1, h2, h3, h4);
         }
 
@@ -459,7 +461,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

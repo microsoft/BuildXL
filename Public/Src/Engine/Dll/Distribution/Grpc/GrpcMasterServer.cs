@@ -1,10 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
@@ -62,12 +64,21 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-        public override Task<RpcResponse> Notify(WorkerNotificationArgs message, ServerCallContext context)
+        public override async Task<RpcResponse> Notify(WorkerNotificationArgs message, ServerCallContext context)
         {
             var bondMessage = message.ToOpenBond();
 
-            m_masterService.ReceivedWorkerNotificationAsync(bondMessage);
-            return Task.FromResult(new RpcResponse());
+            var notifyTask = m_masterService.ReceivedWorkerNotificationAsync(bondMessage);
+            if (EngineEnvironmentSettings.InlineWorkerXLGHandling)
+            {
+                await notifyTask;
+            }
+            else
+            {
+                notifyTask.Forget();
+            }
+
+            return new RpcResponse();
         }
 
         #endregion Service Methods

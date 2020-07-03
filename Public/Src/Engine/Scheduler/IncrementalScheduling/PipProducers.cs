@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -18,6 +18,16 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly ConcurrentBigMap<AbsolutePath, PipStableId> m_pipProducers;
 
         private readonly ConcurrentBigMap<PipStableId, HashSet<AbsolutePath>> m_producedPaths;
+
+        /// <summary>
+        /// Number of producers.
+        /// </summary>
+        public int ProducerCount => m_producedPaths.Count;
+
+        /// <summary>
+        /// Number of produced paths.
+        /// </summary>
+        public int ProducedPathCount => m_pipProducers.Count;
 
         /// <summary>
         /// Creates a new instance of <see cref="PipProducers"/>.

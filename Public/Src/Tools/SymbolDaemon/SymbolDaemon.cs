@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -205,7 +205,7 @@ namespace Tool.SymbolDaemon
             serverAction: async (conf, daemon) =>
             {
                 var symbolDaemon = daemon as SymbolDaemon;
-                symbolDaemon.Logger.Info("[FINALIZE] Started at" + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
+                symbolDaemon.Logger.Info("[FINALIZE] Started at " + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
                 IIpcResult result = await symbolDaemon.FinalizeAsync();
                 daemon.Logger.Info("[FINALIZE] " + result);
                 return result;

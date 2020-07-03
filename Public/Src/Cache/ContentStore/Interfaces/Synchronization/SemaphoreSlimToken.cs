@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading;
@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
 {
     /// <summary>
-    ///     Disposable token for guarenteed release via a using() statement
+    ///     Disposable token for guaranteed release via a using() statement
     /// </summary>
     public struct SemaphoreSlimToken : IDisposable
     {
-        private SemaphoreSlim _semaphore;
+        private SemaphoreSlim? _semaphore;
 
-        private SemaphoreSlimToken(SemaphoreSlim semaphore)
+        private SemaphoreSlimToken(SemaphoreSlim? semaphore)
             : this()
         {
             _semaphore = semaphore;
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         // ReSharper restore UnusedParameter.Global
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             throw new InvalidOperationException();
         }

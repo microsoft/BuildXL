@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -58,7 +58,7 @@ namespace BuildXL
         /// <summary>
         /// Creates an instance of <see cref="BuildXLAppServerData"/>.
         /// </summary>
-        public BuildXLAppServerData(
+        private BuildXLAppServerData(
             IReadOnlyList<string> rawArgs,
             IReadOnlyList<KeyValuePair<string, string>> environmentVariables,
             ServerModeStatusAndPerf serverModeStatusAndPerf,
@@ -66,10 +66,10 @@ namespace BuildXL
             string clientPath,
             DateTime clientStartTime)
         {
-            Contract.Requires(rawArgs != null);
-            Contract.Requires(environmentVariables != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(currentDirectory));
-            Contract.Requires(!string.IsNullOrWhiteSpace(clientPath));
+            Contract.RequiresNotNull(rawArgs);
+            Contract.RequiresNotNull(environmentVariables);
+            Contract.RequiresNotNullOrWhiteSpace(currentDirectory);
+            Contract.RequiresNotNullOrWhiteSpace(clientPath);
 
             RawArgs = rawArgs;
             EnvironmentVariables = environmentVariables;
@@ -87,8 +87,8 @@ namespace BuildXL
              IReadOnlyList<KeyValuePair<string, string>> environmentVariables,
              ServerModeStatusAndPerf serverModeStatusAndPerf)
         {
-            Contract.Requires(rawArgs != null);
-            Contract.Requires(environmentVariables != null);
+            Contract.RequiresNotNull(rawArgs);
+            Contract.RequiresNotNull(environmentVariables);
 
             return new BuildXLAppServerData(
                 rawArgs,

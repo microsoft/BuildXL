@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -74,9 +74,9 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Creates a file change tracking filter which allows all paths to be tracked
         /// </summary>
-        public static FileChangeTrackingSelector CreateAllowAllFilter(PathTable pathTable, IFileChangeTrackingSubscriptionSource tracker)
+        public static FileChangeTrackingSelector CreateAllowAllFilter(LoggingContext loggingContext, PathTable pathTable, IFileChangeTrackingSubscriptionSource tracker)
         {
-            return new FileChangeTrackingSelector(pathTable, Events.StaticContext, tracker, Enumerable.Empty<AbsolutePath>(), Enumerable.Empty<AbsolutePath>());
+            return new FileChangeTrackingSelector(pathTable, loggingContext, tracker, Enumerable.Empty<AbsolutePath>(), Enumerable.Empty<AbsolutePath>());
         }
 
         /// <summary>

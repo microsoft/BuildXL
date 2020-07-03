@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using Xunit;
 using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [Trait("Category", "PreserveOutputsTests")]
+    [Trait("Category", "PreserveOutputsReuseOutputsTests")]
     public class PreserveOutputsReuseOutputsTests : PreserveOutputsTests
     {
         public PreserveOutputsReuseOutputsTests(ITestOutputHelper output) : base(output)

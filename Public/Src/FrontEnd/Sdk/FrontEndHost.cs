@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -93,7 +93,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// PipGraph to construct.
         /// </summary>
-        public IPipGraph PipGraph { get; protected set; }
+        public IMutablePipGraph PipGraph { get; protected set; }
 
         /// <summary>
         /// Handles adding pip fragments to the build.
@@ -127,6 +127,14 @@ namespace BuildXL.FrontEnd.Sdk
         /// The path to the primary config file
         /// </summary>
         public AbsolutePath PrimaryConfigFile { get; protected set; }
+
+        /// <summary>
+        /// The qualifier id's that are requested to be initially evaluated.
+        /// </summary>
+        /// <remarks>
+        /// This is mostly to satisfy the msbuild resolver
+        /// </remarks>
+        public QualifierId[] QualifiersToEvaluate { get; protected set; }
 
         /// <summary>
         /// Computed workspace

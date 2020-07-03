@@ -16,20 +16,22 @@
 // TYPE DEFINITIONS
 // ----------------------------------------------------------------------------
 
-#if MAC_OS_LIBRARY || MAC_OS_SANDBOX
-
-#include "utf8proc.h"
-
-typedef char PathChar;
-#define pathlen strlen
-#define BUILD_EXE_TRACE_FILE "_buildc_dep_out.pass"
-
-#else // MAC_OS_LIBRARY || MAC_OS_SANDBOX
+#if _WIN32
 
 typedef WCHAR PathChar;
 #define pathlen wcslen
 #define BUILD_EXE_TRACE_FILE L"_buildc_dep_out.pass"
 
+#else
+
+typedef char PathChar;
+#define pathlen strlen
+#define BUILD_EXE_TRACE_FILE "_buildc_dep_out.pass"
+
+#endif
+
+#if MAC_OS_LIBRARY || MAC_OS_SANDBOX
+#include "utf8proc.h"
 #endif // MAC_OS_LIBRARY || MAC_OS_SANDBOX
 
 typedef PathChar* PPathChar;
@@ -39,7 +41,7 @@ typedef const PathChar* PCPathChar;
 // INLINE FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
 
-#if !defined(MAC_OS_LIBRARY)
+#if _WIN32
 extern _locale_t g_invariantLocale;
 #elif MAC_OS_LIBRARY
 #include <ctype.h>
@@ -69,12 +71,18 @@ extern _locale_t g_invariantLocale;
 
 inline PathChar NormalizePathChar(PathChar c)
 {
+#if _WIN32
+    return (PathChar)towupper(c);
+#elif __linux__
+    return c;
+#elif __APPLE__
+
 #if !defined(MAC_OS_LIBRARY)
     return (PathChar)_towupper_l(c, g_invariantLocale);
 #elif  MAC_OS_LIBRARY || MAC_OS_SANDBOX
     return utf8proc_toupper(c);
-#else
-    return (PathChar)towupper(c);
+#endif
+    
 #endif
 }
 

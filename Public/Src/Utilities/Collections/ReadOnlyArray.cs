@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="array">the wrapped array</param>
         private ReadOnlyArray(T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             m_array = array;
         }
@@ -106,7 +106,7 @@ namespace BuildXL.Utilities.Collections
         int IReadOnlyCollection<T>.Count => Length;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -189,7 +189,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> FromWithoutCopy(params T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             return new ReadOnlyArray<T>(array);
         }
@@ -200,7 +200,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> From(T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             T[] clone;
             if (array.Length == 0)
@@ -223,7 +223,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> From(T[] array, int start, int count)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
             Contract.Requires(start >= 0);
             Contract.Requires(count >= 0);
             Contract.Requires((uint)start + (uint)count <= (uint)array.Length);
@@ -248,7 +248,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> From(IEnumerable<T> enumerable)
         {
-            Contract.Requires(enumerable != null);
+            Contract.RequiresNotNull(enumerable);
 
             T[] a;
             if (enumerable is ICollection<T> c)
@@ -286,7 +286,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> From(HashSet<T> set)
         {
-            Contract.Requires(set != null);
+            Contract.RequiresNotNull(set);
 
             if (set.Count == 0)
             {
@@ -308,7 +308,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ReadOnlyArray<T> From(List<T> list)
         {
-            Contract.Requires(list != null);
+            Contract.RequiresNotNull(list);
 
             T[] a = list.Count == 0 ? CollectionUtilities.EmptyArray<T>() : list.ToArray();
 
@@ -367,7 +367,7 @@ namespace BuildXL.Utilities.Collections
             }
 
             /// <inheritdoc/>
-            object System.Collections.IEnumerator.Current => Current;
+            object? System.Collections.IEnumerator.Current => Current;
 
             /// <inheritdoc/>
             public bool MoveNext()

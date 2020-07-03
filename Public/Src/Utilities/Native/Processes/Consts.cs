@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -145,6 +145,11 @@ namespace BuildXL.Native.Processes
         /// Required to duplicate a handle using DuplicateHandle.
         /// </summary>
         PROCESS_DUP_HANDLE = 0x0040,
+
+        /// <summary>
+        /// Required to empty the working set.
+        /// </summary>
+        PROCESS_SET_QUOTA = 0x0100,
     }
 
     /// <summary>

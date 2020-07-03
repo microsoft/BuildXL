@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -56,9 +56,9 @@ namespace BuildXL.Utilities
         /// </summary>
         public static Token Create(BuildXLContext context, AbsolutePath path, string text = "", int line = 0, int column = 0)
         {
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
             Contract.Requires(path.IsValid);
-            Contract.Requires(text != null);
+            Contract.RequiresNotNull(text);
 
             return new Token(path, line, column, TokenText.Create(context.TokenTextTable, text));
         }
@@ -68,9 +68,9 @@ namespace BuildXL.Utilities
         /// </summary>
         public static Token Create(BuildXLContext context, Type type, string text = "", int line = 0, int column = 0)
         {
-            Contract.Requires(context != null);
-            Contract.Requires(type != null);
-            Contract.Requires(text != null);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(type);
+            Contract.RequiresNotNull(text);
             return new Token(
                 AbsolutePath.Create(context.PathTable, AssemblyHelper.GetAssemblyLocation(type.GetTypeInfo().Assembly)),
                 line,
@@ -83,8 +83,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public static Token Create(BuildXLContext context, XmlReader reader, AbsolutePath path)
         {
-            Contract.Requires(context != null);
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(reader);
 
             var xmlInfo = (IXmlLineInfo)reader;
             return new Token(path, xmlInfo.LineNumber, xmlInfo.LinePosition, TokenText.Create(context.TokenTextTable, reader.Value));
@@ -92,7 +92,7 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.WriteCompact(Line);
             writer.Write(Path);
             writer.Write(Text);
@@ -101,8 +101,7 @@ namespace BuildXL.Utilities
 
         internal static Token Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
-            Contract.Ensures(Contract.Result<Token>() != null);
+            Contract.RequiresNotNull(reader);
             var line = reader.ReadInt32Compact();
             var path = reader.ReadAbsolutePath();
             var text = reader.ReadTokenText();
@@ -123,7 +122,7 @@ namespace BuildXL.Utilities
         /// <returns>An updated token with recomputed line information</returns>
         public Token UpdateLineInformationForPosition(TokenTextTable table, int positionInToken)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(positionInToken >= 0);
             Contract.Requires(positionInToken <= Text.GetLength(table));
 
@@ -168,8 +167,7 @@ namespace BuildXL.Utilities
         /// <param name="pathTable">The path table used when creating the AbsolutePath in the Path field.</param>
         public string ToString(PathTable pathTable)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(pathTable);
 
             return I($"{Path.ToString(pathTable)}({Line}, {Position})");
         }

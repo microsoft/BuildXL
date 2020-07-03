@@ -6,7 +6,7 @@ import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
 
 namespace UtilitiesCore {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -17,11 +17,6 @@ namespace UtilitiesCore {
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,
             ]),
-            ...(qualifier.targetFramework !== "netstandard2.0" ? [] :
-            [
-                importFrom("System.Threading.Tasks.Dataflow").pkg,
-            ]),
-            importFrom("System.Interactive.Async").pkg,
         ],
         allowUnsafeBlocks: true,
     });

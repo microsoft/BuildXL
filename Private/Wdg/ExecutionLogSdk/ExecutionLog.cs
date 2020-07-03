@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,16 +9,16 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -745,7 +745,7 @@ namespace Tool.ExecutionLogSdk
 
                 // Now we can load the pip data
                 swLoadPipData.Start();
-                LoadPipData(m_buildGraph.PipTable, m_buildGraph.DataflowGraph).Wait();
+                LoadPipData(m_buildGraph.PipTable, m_buildGraph.DirectedGraph).Wait();
                 swLoadPipData.Stop();
 
                 // Wait for the directory membership tasks that we launched when we replayed the execution log events to finish.
@@ -836,7 +836,7 @@ namespace Tool.ExecutionLogSdk
             Contract.Requires(executionLogFilename != null, "executionLogFilename is null");
 
             // Load build graph
-            m_buildGraph = new CachedGraph(pipGraph, pipGraph.DataflowGraph, context, new MountPathExpander(context.PathTable));
+            m_buildGraph = new CachedGraph(pipGraph, pipGraph.DirectedGraph, context, new MountPathExpander(context.PathTable));
             m_buildExecutionContext = m_buildGraph.Context;
             m_fileDescriptorDictionary = new AbsolutePathConcurrentDictionary<FileDescriptor>(m_buildGraph.Context.PathTable);
             m_directoryDescriptorDictionary = new AbsolutePathConcurrentDictionary<DirectoryDescriptor>(m_buildGraph.Context.PathTable);
@@ -936,9 +936,9 @@ namespace Tool.ExecutionLogSdk
         /// Enumerates all process pips and instantiates a pip descriptor for each of them
         /// </summary>
         /// <param name="pipTable">The pip table containing all the pips</param>
-        /// <param name="dataflowGraph">Build graph that describes the dependencies between the pips</param>
+        /// <param name="directedGraph">Build graph that describes the dependencies between the pips</param>
         /// <returns>Returns a Task that nnumerates all process pips and instantiates a pip descriptor for each of them</returns>
-        private Task LoadPipData(PipTable pipTable, DirectedGraph dataflowGraph)
+        private Task LoadPipData(PipTable pipTable, IReadonlyDirectedGraph directedGraph)
         {
             // we verify the input arguments inside LoadPip
             return Task.Run(() =>
@@ -947,7 +947,7 @@ namespace Tool.ExecutionLogSdk
                 Parallel.ForEach(Partitioner.Create(pipTable.Keys.Where(p => pipTable.GetPipType(p) == PipType.Process)), m_parallelOptions, pipId =>
                 {
                     // Create a PipDescriptor and populate it with data from the current pip
-                    LoadPip(pipTable, dataflowGraph, pipId);
+                    LoadPip(pipTable, directedGraph, pipId);
                 });
 
                 // When LoadBuildGraph is set, connect the pip to neighboring pips within the build graph
@@ -968,7 +968,7 @@ namespace Tool.ExecutionLogSdk
                         // Create a PipDescriptor and populate it with data from the current pip
                         PipDescriptor pip = m_pips[pipId.Value];
 
-                        ConnectNeighbourPips(pipTable, dataflowGraph, pip);
+                        ConnectNeighbourPips(pipTable, directedGraph, pip);
                     });
                 }
             });
@@ -1003,15 +1003,15 @@ namespace Tool.ExecutionLogSdk
         /// Instantiates a new PipDescriptor and populates the object with data from the pip that is identified by a pip Id
         /// </summary>
         /// <param name="pipTable">Pip table containing all BuildXL pips</param>
-        /// <param name="dataflowGraph">Build graph that links various pips</param>
+        /// <param name="directedGraph">Build graph that links various pips</param>
         /// <param name="pipId">The pip Id of the pip that the method will load</param>
         /// <returns>PipDescriptor object containing the loaded pip data</returns>
-        private PipDescriptor LoadPip(PipTable pipTable, DirectedGraph dataflowGraph, PipId pipId)
+        private PipDescriptor LoadPip(PipTable pipTable, IReadonlyDirectedGraph directedGraph, PipId pipId)
         {
             // TODO: This method is a little bit "spaghetti" like, consider breaking it up.
             Contract.Requires(pipTable != null);
-            Contract.Requires(dataflowGraph != null);
-            Contract.Requires((pipId != null) && pipId.IsValid);
+            Contract.Requires(directedGraph != null);
+            Contract.Requires(pipId.IsValid);
 
             // Check if this pip should be loaded or not. Return null if the pip will not be loaded.
             if (!ShouldPipBeLoaded(pipId.Value))
@@ -1204,7 +1204,7 @@ namespace Tool.ExecutionLogSdk
         /// <param name="tool">true, when the file is a tool that is executed when the pip is running</param>
         private void LinkPipToFileDescriptor(FileArtifact fileObject, PipDescriptor pipDescriptor, bool output, bool dependency, bool tool)
         {
-            Contract.Requires((fileObject != null) && fileObject.IsValid);
+            Contract.Requires(fileObject.IsValid);
             Contract.Requires(pipDescriptor != null);
             Contract.Requires(output || dependency || tool);
 
@@ -1284,20 +1284,20 @@ namespace Tool.ExecutionLogSdk
         /// Connects pip descriptors to neighboring pip descriptors based on their position in the build graph
         /// </summary>
         /// <param name="pipTable">Pip table containing all the pips in the pip graph</param>
-        /// <param name="dataflowGraph">Dataflow graph that contains the links between the pips</param>
+        /// <param name="directedGraph">ReadOnly Directed graph that contains the links between the pips</param>
         /// <param name="sourcePip">The pip descriptor that represents the pip that we want to connect to its neighbors</param>
         /// <remarks>The PipTable contains all the pips in the build graph, no only the process pips. This library only loads process pips and therefore
         /// the non process pips have to be filtered out. When a neighboring pip is not a process pip, the code will step over it and will locate its closest Process pip neighbors.</remarks>
-        private void ConnectNeighbourPips(PipTable pipTable, DirectedGraph dataflowGraph, PipDescriptor sourcePip)
+        private void ConnectNeighbourPips(PipTable pipTable, IReadonlyDirectedGraph directedGraph, PipDescriptor sourcePip)
         {
             Contract.Requires(pipTable != null);
-            Contract.Requires(dataflowGraph != null);
+            Contract.Requires(directedGraph != null);
             Contract.Requires(sourcePip != null);
 
             // Enumerate all neighboring pips and link them to the source pip descriptor.
-            Parallel.ForEach(Partitioner.Create(dataflowGraph.GetOutgoingEdges(sourcePip.NodeId)), m_parallelOptions, edge =>
+            Parallel.ForEach(Partitioner.Create(directedGraph.GetOutgoingEdges(sourcePip.NodeId)), m_parallelOptions, edge =>
             {
-                LinkPipToSubgraph(pipTable, dataflowGraph, sourcePip, edge.OtherNode);
+                LinkPipToSubgraph(pipTable, directedGraph, sourcePip, edge.OtherNode);
             });
         }
 
@@ -1305,12 +1305,12 @@ namespace Tool.ExecutionLogSdk
         /// Finds all neighboring Process pips for a pip. When a neighbor is not a Process pip, will skip over it until it finds a Process pip.
         /// </summary>
         /// <param name="pipTable">Pip table containing all the pips in the pip graph</param>
-        /// <param name="dataflowGraph">Dataflow graph that contains the links between the pips</param>
+        /// <param name="directedGraph">ReadOnly Directed graph that contains the links between the pips</param>
         /// <param name="nodeToFind">The pip to check identified by a node Id</param>
-        private ConcurrentHashSet<NodeId> FindNonProcessPipChildren(PipTable pipTable, DirectedGraph dataflowGraph, NodeId nodeToFind)
+        private ConcurrentHashSet<NodeId> FindNonProcessPipChildren(PipTable pipTable, IReadonlyDirectedGraph directedGraph, NodeId nodeToFind)
         {
             Contract.Requires(pipTable != null);
-            Contract.Requires(dataflowGraph != null);
+            Contract.Requires(directedGraph != null);
             Contract.Requires(nodeToFind.IsValid);
 
             ConcurrentHashSet<NodeId> result;
@@ -1320,7 +1320,7 @@ namespace Tool.ExecutionLogSdk
             {
                 // No hits in the memoization dictionary, we have to find all the neighboring Process pips and return them as a collection
                 result = new ConcurrentHashSet<NodeId>();
-                FillChildrenList(pipTable, dataflowGraph, result, nodeToFind);
+                FillChildrenList(pipTable, directedGraph, result, nodeToFind);
 
                 // Add results to the memoization dictionary so we do not have to do this again
                 result = m_memoizationChildrensOfNonProcessPips.GetOrAdd(nodeToFind.Value, result);
@@ -1333,18 +1333,18 @@ namespace Tool.ExecutionLogSdk
         /// Finds all neighboring Process pips for a pip. When a neighbor is not a Process pip, will skip over it until it finds a Process pip.
         /// </summary>
         /// <param name="pipTable">Pip table containing all the pips in the pip graph</param>
-        /// <param name="dataflowGraph">Dataflow graph that contains the links between the pips</param>
+        /// <param name="directedGraph">ReadOnly Directed graph that contains the links between the pips</param>
         /// <param name="result">Collection that will store the node Ids of the neighboring pips</param>
         /// <param name="nodeToFind">The pip to check identified by a node Id</param>
-        private void FillChildrenList(PipTable pipTable, DirectedGraph dataflowGraph, ConcurrentHashSet<NodeId> result, NodeId nodeToFind)
+        private void FillChildrenList(PipTable pipTable, IReadonlyDirectedGraph directedGraph, ConcurrentHashSet<NodeId> result, NodeId nodeToFind)
         {
             Contract.Requires(pipTable != null);
-            Contract.Requires(dataflowGraph != null);
+            Contract.Requires(directedGraph != null);
             Contract.Requires(result != null);
             Contract.Requires(nodeToFind.IsValid);
 
             // we will process all neighboring pips in parallel
-            Parallel.ForEach(Partitioner.Create(dataflowGraph.GetOutgoingEdges(nodeToFind)), m_parallelOptions, edge =>
+            Parallel.ForEach(Partitioner.Create(directedGraph.GetOutgoingEdges(nodeToFind)), m_parallelOptions, edge =>
             {
                 // Get pip Id
                 PipId targetPipId = NodeIdExtensions.ToPipId(edge.OtherNode);
@@ -1356,7 +1356,7 @@ namespace Tool.ExecutionLogSdk
                 if (!targetPipId.IsValid || !(targetPipType == PipType.Process))
                 {
                     // It is not a process pip. We have to repeat the process recursively until we find a Process pip.
-                    ConcurrentHashSet<NodeId> childrenToAdd = FindNonProcessPipChildren(pipTable, dataflowGraph, edge.OtherNode);
+                    ConcurrentHashSet<NodeId> childrenToAdd = FindNonProcessPipChildren(pipTable, directedGraph, edge.OtherNode);
 
                     // add node Ids to the result
                     result.AddRange(childrenToAdd);
@@ -1373,13 +1373,13 @@ namespace Tool.ExecutionLogSdk
         /// Connects the source pip to a neighboring pip identified by a node Id
         /// </summary>
         /// <param name="pipTable">Pip table containing all the pips in the pip graph</param>
-        /// <param name="dataflowGraph">Dataflow graph that contains the links between the pips</param>
+        /// <param name="directedGraph">ReadOnly Directed graph that contains the links between the pips</param>
         /// <param name="sourcePip">The pip descriptor that represents the pip that we want to connect to its neighbor</param>
         /// <param name="targetNode">The pip to link to identified by a node Id</param>
-        private void LinkPipToSubgraph(PipTable pipTable, DirectedGraph dataflowGraph, PipDescriptor sourcePip, NodeId targetNode)
+        private void LinkPipToSubgraph(PipTable pipTable, IReadonlyDirectedGraph directedGraph, PipDescriptor sourcePip, NodeId targetNode)
         {
             Contract.Requires(pipTable != null);
-            Contract.Requires(dataflowGraph != null);
+            Contract.Requires(directedGraph != null);
             Contract.Requires(sourcePip != null);
             Contract.Requires(targetNode.IsValid);
 
@@ -1397,7 +1397,7 @@ namespace Tool.ExecutionLogSdk
             if (!targetPipId.IsValid || !(targetPipType == PipType.Process) || !ShouldPipBeLoaded(targetPipId.Value))
             {
                 // targetNode is NOT a process pip,or it has been filtered out ->  we have to look at its neighbors
-                children = FindNonProcessPipChildren(pipTable, dataflowGraph, targetNode);
+                children = FindNonProcessPipChildren(pipTable, directedGraph, targetNode);
             }
             else
             {
@@ -1410,7 +1410,7 @@ namespace Tool.ExecutionLogSdk
             Parallel.ForEach(Partitioner.Create(children), m_parallelOptions, childNode =>
             {
                 // Get pip descriptor for the target pip. Load pip either returns an existing pip descriptor (or creates a new one).
-                PipDescriptor targetPip = LoadPip(pipTable, dataflowGraph, NodeIdExtensions.ToPipId(childNode));
+                PipDescriptor targetPip = LoadPip(pipTable, directedGraph, NodeIdExtensions.ToPipId(childNode));
                 if (targetPip != null)
                 {
                     // Hook up adjacent out node for the source pip
@@ -1475,7 +1475,7 @@ namespace Tool.ExecutionLogSdk
             if (data.PipId.IsValid && (m_buildGraph.PipTable.GetPipType(data.PipId) == PipType.Process))
             {
                 // Retrieve pip descriptor
-                PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DataflowGraph, data.PipId);
+                PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DirectedGraph, data.PipId);
 
                 if (pip != null)
                 {
@@ -1580,7 +1580,7 @@ namespace Tool.ExecutionLogSdk
                                         // Retrieve pip descriptor so we can link the file to it as a dependency
                                         PipDescriptor pip = LoadPip(
                                             m_buildGraph.PipTable,
-                                            m_buildGraph.DataflowGraph,
+                                            m_buildGraph.DirectedGraph,
                                             data.PipId);
                                         if (pip != null)
                                         {
@@ -1601,7 +1601,7 @@ namespace Tool.ExecutionLogSdk
                                     // Retrieve pip descriptor so we can link the directory to it as a dependency
                                     PipDescriptor pip = LoadPip(
                                         m_buildGraph.PipTable,
-                                        m_buildGraph.DataflowGraph,
+                                        m_buildGraph.DirectedGraph,
                                         data.PipId);
                                     if (pip != null)
                                     {
@@ -1642,7 +1642,7 @@ namespace Tool.ExecutionLogSdk
                                         // Retrieve pip descriptor so we can link the file to it as a dependency
                                         PipDescriptor pip = LoadPip(
                                             m_buildGraph.PipTable,
-                                            m_buildGraph.DataflowGraph,
+                                            m_buildGraph.DirectedGraph,
                                             data.PipId);
                                         if (pip != null)
                                         {
@@ -1673,7 +1673,7 @@ namespace Tool.ExecutionLogSdk
                     if (data.PipId.IsValid)
                     {
                         // Retrieve pip descriptor to link the process instance to
-                        PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DataflowGraph, data.PipId);
+                        PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DirectedGraph, data.PipId);
                         if (pip != null)
                         {
                             ICollection<ReportedProcess> reportedProcesses = (ICollection<ReportedProcess>)data.ReportedProcesses;
@@ -1769,7 +1769,7 @@ namespace Tool.ExecutionLogSdk
                     if (data.PipId.IsValid)
                     {
                         // Retrieve pip descriptor to link the process instance to
-                        PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DataflowGraph, data.PipId);
+                        PipDescriptor pip = LoadPip(m_buildGraph.PipTable, m_buildGraph.DirectedGraph, data.PipId);
                         if (pip != null)
                         {
                             pip.Fingerprint = new ContentHash(SHA1HashInfo.Instance.HashType, data.WeakFingerprint.ToGenericFingerprint().Hash.ToByteArray());

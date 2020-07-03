@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -42,6 +42,27 @@ namespace ContentStoreTest.Stores
         protected override TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory)
         {
             return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config);
+        }
+
+        [Fact]
+        public async Task OpenEmptyStreamShouldWorkIfCalledMultipleTimes()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+
+                var store = CreateStore(testDirectory);
+                var emptyHash = VsoHashInfo.Instance.EmptyHash;
+
+                var openStreamResult = await store.OpenStreamAsync(context, emptyHash, pinRequest: null).ShouldBeSuccess();
+                // Normal use case, "using" the stream.
+                using (openStreamResult.Stream)
+                {
+                }
+
+                // Even though the stream was closed, we should be able to get an empty stream again
+                await store.OpenStreamAsync(context, emptyHash, pinRequest: null).ShouldBeSuccess();
+            }
         }
 
         [Fact]
@@ -93,7 +114,7 @@ namespace ContentStoreTest.Stores
             {
                 var context = new Context(Logger);
 
-                var store = CreateStore(testDirectory, Settings, WithMockDistributedLocationStore(mockDistributedLocationStore));
+                var store = CreateStore(testDirectory, Settings, mockDistributedLocationStore);
 
                 await store.StartupAsync(context).ShouldBeSuccess();
 
@@ -253,29 +274,14 @@ namespace ContentStoreTest.Stores
         private static ContentStoreSettings Settings =>
             new ContentStoreSettings() {SelfCheckSettings = new SelfCheckSettings() {StartSelfCheckInStartup = false}};
         
-        private static DistributedEvictionSettings WithMockDistributedLocationStore(MockDistributedLocationStore mock)
+        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings, IDistributedLocationStore distributedStore)
         {
-            return new DistributedEvictionSettings(
-                (context, contentHashesWithInfo, cts, urgencyHint) => null,
-                locationStoreBatchSize: 42,
-                replicaCreditInMinutes: null,
-                distributedStore: mock);
-        }
-
-        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings, DistributedEvictionSettings distributedEvictionSettings)
-        {
-            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, distributedEvictionSettings: distributedEvictionSettings, nagleQueue: EmptyNagleQueue(), settings: settings);
+            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, distributedStore: distributedStore, settings: settings);
         }
 
         private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings)
         {
             return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, settings: settings);
-        }
-
-        private NagleQueue<ContentHash> EmptyNagleQueue()
-        {
-            return NagleQueue<ContentHash>.CreateUnstarted(1, TimeSpan.MaxValue, 42);
-
         }
     }
 }

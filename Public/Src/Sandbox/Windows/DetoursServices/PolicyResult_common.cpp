@@ -4,7 +4,7 @@
 #include "PolicyResult.h"
 
 PathValidity ProbePathForValidity(CanonicalizedPathType canonicalizedPath) {
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
     LPCWSTR path = canonicalizedPath.GetPathString();
     // Note that this unfortunately touches the disk, whereas we really just need to validate
     // that the path is parse-able on the target FS (e.g. ReFS doesn't allow stream syntax like .\A:X but NTFS does).
@@ -31,7 +31,7 @@ PathValidity ProbePathForValidity(CanonicalizedPathType canonicalizedPath) {
     if (error == ERROR_INVALID_NAME) {
         return PathValidity::Invalid;
     }
-#endif // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif // _WIN32
 
     return PathValidity::Valid; // Optimism!
 }
@@ -57,7 +57,7 @@ AccessCheckResult PolicyResult::CheckReadAccess(RequestedReadAccess readAccessRe
     RequestedAccess accessRequested = static_cast<RequestedAccess>(readAccessRequested); // RequestedReadAccess is a subset of RequestedAccess.
 
     bool exists;
-    switch (context.FileExistence)
+    switch (context.Existence)
     {
         case FileExistence::InvalidPath:
             // We silently ignore invalid paths, regardless of policy. The read operation itself has already happen (we have a context)

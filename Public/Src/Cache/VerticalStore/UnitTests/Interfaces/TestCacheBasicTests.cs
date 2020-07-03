@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Storage;
+using BuildXL.Native.IO;
+using BuildXL.Storage.Fingerprints;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -202,7 +203,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                stream.AsString();
             }
@@ -248,7 +249,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(inputList)).Success())
+            using (Stream stream = (await session.GetStreamAsync(inputList)).Success())
             {
                 stream.AsString();
             }
@@ -260,7 +261,7 @@ namespace BuildXL.Cache.Tests
 
                 // Verify that we can read the content after it was added in
                 // this session since it was pinned
-                using (var stream = (await session.GetStreamAsync(items[i])).Success())
+                using (Stream stream = (await session.GetStreamAsync(items[i])).Success())
                 {
                     stream.AsString();
                 }
@@ -645,7 +646,7 @@ namespace BuildXL.Cache.Tests
             string origionalFileContents = "foo";
             CasHash hash;
 
-            string filePath = Path.GetTempFileName();
+            string filePath = FileUtilities.GetTempFileName();
             try
             {
                 using (StreamWriter sw = new StreamWriter(filePath))
@@ -714,7 +715,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                 XAssert.AreEqual(TestName, stream.AsString(), "Failed to read back matching content from cache");
             }
@@ -737,7 +738,7 @@ namespace BuildXL.Cache.Tests
                 {
                     await CorruptCasEntry(cache, item);
 
-                    using (var stream = (await session.GetStreamAsync(item)).Success())
+                    using (Stream stream = (await session.GetStreamAsync(item)).Success())
                     {
                         XAssert.AreNotEqual(TestName, stream.AsString(), "Failed to corrupt CAS entry!");
                     }

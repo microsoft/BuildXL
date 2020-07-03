@@ -7,12 +7,10 @@ import * as Deployment from "Sdk.Deployment";
 namespace Ide {
     export declare const qualifier : { configuration: "debug" | "release"};
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
                 file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({
-                    configuration: qualifier.configuration,
                     targetFramework: "net472",
                     targetRuntime: "win-x64"}
                     ).BuildXLVsPackage.vsix,
@@ -20,16 +18,14 @@ namespace Ide {
             },
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    configuration: qualifier.configuration,
-                    targetFramework:"netcoreapp3.0",
+                    targetFramework:"netcoreapp3.1",
                     targetRuntime: "win-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.win.vsix`,
             }]),
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    configuration: qualifier.configuration,
-                    targetFramework:"netcoreapp3.0",
+                    targetFramework:"netcoreapp3.1",
                     targetRuntime: "osx-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.osx.vsix`,

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,14 +9,11 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security.AccessControl;
-using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -33,25 +30,16 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using ContractUtilities = BuildXL.Cache.ContentStore.Utils.ContractUtilities;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Stores
 {
-
-    /// <summary>
-    ///     Callback to update last access time based on external access times.
-    /// </summary>
-    public delegate Task UpdateContentWithLastAccessTimeAsync(ContentHash contentHash, DateTime dateTime);
-
-    /// <summary>
-    ///    Checks if content is pinned locally and returns its content size.
-    /// </summary>
-    public delegate long PinnedSizeChecker(Context context, ContentHash contentHash);
-
     /// <summary>
     ///     Content addressable store where content is stored on disk
     /// </summary>
@@ -63,59 +51,18 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </remarks>
     public class FileSystemContentStoreInternal : StartupShutdownBase, IContentStoreInternal, IContentDirectoryHost
     {
-        /// <nodoc />
-        public const bool DefaultApplyDenyWriteAttributesOnContent = false;
-
         /// <summary>
         ///     Public name for monitoring use.
         /// </summary>
         public const string Component = "FileSystemContentStore";
 
-        /// <summary>
-        ///     Name of counter for current size.
-        /// </summary>
-        public const string CurrentByteCountName = Component + ".CurrentByteCount";
-
-        /// <summary>
-        ///     Name of counter for current number of blobs.
-        /// </summary>
-        public const string CurrentFileCountName = Component + ".CurrentFileCount";
-
-        /// <summary>
-        ///     A history of the schema versions with comments describing the changes
-        /// </summary>
-        protected enum VersionHistory
-        {
-            /// <summary>
-            ///     Content in CAS was marked read-only
-            /// </summary>
-            Version0 = 0,
-
-            /// <summary>
-            ///     Content in C:\blah\Cache\SHA1
-            /// </summary>
-            Version1 = 1,
-
-            /// <summary>
-            ///     Content in C:\blah\Cache\Shared\SHA1
-            /// </summary>
-            Version2 = 2,
-
-            /// <summary>
-            ///     Content with attribute normalization and Deny WriteAttributes set
-            /// </summary>
-            CurrentVersion = 3
-        }
+        private const string CurrentByteCountName = Component + ".CurrentByteCount";
+        private const string CurrentFileCountName = Component + ".CurrentFileCount";
 
         // TODO: Adjust defaults (bug 1365340)
         private const int ParallelPlaceFilesLimit = 8;
 
-        /// <summary>
-        ///     Format string for blob files
-        /// </summary>
         private const string BlobNameExtension = "blob";
-
-        private static readonly int BlobNameExtensionLength = BlobNameExtension.Length;
 
         /// <summary>
         ///     Directory to write temp files in.
@@ -126,12 +73,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Length of subdirectory names used for storing files. For example with length 3,
         ///     content with hash "abcdefg" will be stored in $root\abc\abcdefg.blob.
         /// </summary>
-        private const int HashDirectoryNameLength = 3;
-
-        /// <summary>
-        ///     Name of the file in the cache directory that keeps track of the local CAS version.
-        /// </summary>
-        private const string VersionFileName = "LocalCAS.version";
+        internal const int HashDirectoryNameLength = 3;
 
         /// <nodoc />
         protected IAbsFileSystem FileSystem { get; }
@@ -145,13 +87,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
-        /// <nodoc />
-        public ContentStoreConfiguration Configuration { get; private set; }
-
-        /// <summary>
-        ///     Gets helper to read/write version numbers
-        /// </summary>
-        protected SerializedDataValue SerializedDataVersion { get; }
+        private readonly IDistributedLocationStore? _distributedStore;
 
         private readonly ContentStoreInternalTracer _tracer;
 
@@ -166,24 +102,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         private readonly LockSet<ContentHash> _lockSet = new LockSet<ContentHash>();
 
-        private readonly NagleQueue<ContentHash> _nagleQueue;
-
         private bool _applyDenyWriteAttributesOnContent;
 
-        private IContentChangeAnnouncer _announcer;
-
-        /// <summary>
-        ///     Path to the file in the cache directory that keeps track of the local CAS version.
-        /// </summary>
-        protected readonly AbsolutePath VersionFilePath;
+        private IContentChangeAnnouncer? _announcer;
 
         /// <summary>
         ///     List of cached files and their metadata.
         /// </summary>
-        protected readonly IContentDirectory ContentDirectory;
-
-        /// <nodoc />
-        protected QuotaKeeper QuotaKeeper;
+        protected internal readonly IContentDirectory ContentDirectory;
 
         /// <summary>
         ///     Tracker for the number of times each content has been pinned.
@@ -196,31 +122,30 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly ConcurrentDictionary<ContentHash, int> _replicaCursors = new ConcurrentDictionary<ContentHash, int>();
 
         /// <summary>
-        ///     Hook for performing some action immediately prior to evicting a file from the cache.
-        /// </summary>
-        /// <remarks>
-        ///     For example, used in some tests to artificially slow the purger in order to simulate slower I/O for some scenarios.
-        /// </remarks>
-        private readonly Action _preEvictFileAction = null;
-
-        /// <summary>
-        ///     Configuration for Distributed Eviction.
-        /// </summary>
-        private readonly DistributedEvictionSettings _distributedEvictionSettings;
-
-        /// <summary>
         /// Stream containing the empty file.
         /// </summary>
-        private readonly Stream _emptyFileStream = new MemoryStream(CollectionUtilities.EmptyArray<byte>(), false);
+        private readonly StreamWithLength _emptyFileStream = new NonClosingEmptyMemoryStream();
 
         /// <summary>
         ///     Cumulative count of instances of the content directory being discovered as out of sync with the disk.
         /// </summary>
         private long _contentDirectoryMismatchCount;
 
-        private BackgroundTaskTracker _taskTracker;
+        // Fields and properties that initialized in StartupCoreAsync
+        /// <nodoc />
+        public ContentStoreConfiguration? Configuration { get; private set; }
 
-        private PinSizeHistory _pinSizeHistory;
+        /// <summary>
+        /// Controls concurrency of shutting down quota keeper in a thread-safe manner
+        /// </summary>
+        private readonly SemaphoreSlim _stopEvictionGate = TaskUtilities.CreateMutex();
+
+        /// <nodoc />
+        protected QuotaKeeper? QuotaKeeper;
+
+        private BackgroundTaskTracker? _taskTracker;
+
+        private PinSizeHistory? _pinSizeHistory;
 
         private int _pinContextCount;
 
@@ -230,22 +155,21 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly FileSystemContentStoreInternalChecker _checker;
 
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="FileSystemContentStoreInternal" /> class.
-        /// </summary>
+        /// <nodoc />
         public FileSystemContentStoreInternal(
             IAbsFileSystem fileSystem,
             IClock clock,
             AbsolutePath rootPath,
-            ConfigurationModel configurationModel = null,
-            NagleQueue<ContentHash> nagleQueue = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            ContentStoreSettings settings = null)
+            ConfigurationModel? configurationModel = null,
+            ContentStoreSettings? settings = null,
+            IDistributedLocationStore? distributedStore = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
 
-            _tracer = new ContentStoreInternalTracer(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? false);
+            _distributedStore = distributedStore;
+
+            _tracer = new ContentStoreInternalTracer(settings);
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
 
             RootPath = rootPath;
@@ -254,7 +178,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                 throw new CacheException("Root path does not provide enough room for cache paths to fit MAX_PATH");
             }
 
-            _nagleQueue = nagleQueue;
             Clock = clock;
             FileSystem = fileSystem;
             _configurationModel = configurationModel ?? new ConfigurationModel();
@@ -262,97 +185,16 @@ namespace BuildXL.Cache.ContentStore.Stores
             _contentRootDirectory = RootPath / Constants.SharedDirectoryName;
             _tempFolder = _contentRootDirectory / TempFileSubdirectory;
 
-            VersionFilePath = RootPath / VersionFileName;
-
-            SerializedDataVersion = new SerializedDataValue(FileSystem, VersionFilePath, (int)VersionHistory.CurrentVersion);
-
+            // MemoryContentDirectory requires for the root path to exist. Making sure this is the case.
+            FileSystem.CreateDirectory(RootPath);
             ContentDirectory = new MemoryContentDirectory(FileSystem, RootPath, this);
 
             _pinContextCount = 0;
             _maxPinSize = -1;
 
-            _distributedEvictionSettings = distributedEvictionSettings;
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
 
             _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
-        }
-
-        private async Task PerformUpgradeToNextVersionAsync(Context context, VersionHistory currentVersion)
-        {
-            Contract.Requires(currentVersion < VersionHistory.CurrentVersion);
-
-            foreach (var hashName in HashInfoLookup.All().Select(hashInfo => hashInfo.Name))
-            {
-                AbsolutePath v0ContentFolder = RootPath / hashName;
-                Func<IEnumerable<AbsolutePath>> enumerateVersion0Blobs = () => FileSystem
-                    .EnumerateFiles(v0ContentFolder, EnumerateOptions.Recurse)
-                    .Where(fileInfo => fileInfo.FullPath.Path.EndsWith(BlobNameExtension, StringComparison.OrdinalIgnoreCase))
-                    .Select(fileInfo => fileInfo.FullPath);
-
-                switch (currentVersion)
-                {
-                    case VersionHistory.Version0:
-                        Upgrade0To1(enumerateVersion0Blobs, v0ContentFolder);
-                        break;
-                    case VersionHistory.Version1:
-                        Upgrade1To2(enumerateVersion0Blobs, v0ContentFolder);
-                        break;
-                    case VersionHistory.Version2:
-                        await Upgrade2To3(context);
-                        break;
-
-                    default:
-                        throw ContractUtilities.AssertFailure("Version migration code must be added.");
-                }
-            }
-
-            SerializedDataVersion.WriteValueFile((int)currentVersion + 1);
-            _tracer.Debug(context, $"version is now {(int)currentVersion + 1}");
-        }
-
-        private void Upgrade0To1(Func<IEnumerable<AbsolutePath>> enumerateVersion0Blobs, AbsolutePath v0ContentFolder)
-        {
-            if (FileSystem.DirectoryExists(v0ContentFolder))
-            {
-                Parallel.ForEach(
-                    enumerateVersion0Blobs(),
-                    path =>
-                    {
-                        FileAttributes attributes = FileSystem.GetFileAttributes(path);
-                        if ((attributes & FileAttributes.ReadOnly) != 0)
-                        {
-                            FileSystem.SetFileAttributes(path, attributes & ~FileAttributes.ReadOnly);
-                        }
-                    });
-            }
-        }
-
-        private void Upgrade1To2(Func<IEnumerable<AbsolutePath>> enumerateVersion0Blobs, AbsolutePath v0ContentFolder)
-        {
-            if (FileSystem.DirectoryExists(v0ContentFolder))
-            {
-                Parallel.ForEach(
-                    enumerateVersion0Blobs(),
-                    oldPath =>
-                    {
-                        if (TryGetHashFromPath(oldPath, out var hash))
-                        {
-                            AbsolutePath newPath = GetPrimaryPathFor(hash);
-                            FileSystem.CreateDirectory(newPath.Parent);
-                            FileSystem.MoveFile(oldPath, newPath, true);
-                        }
-                    });
-                FileSystem.DeleteDirectory(v0ContentFolder, DeleteOptions.All);
-            }
-        }
-
-        private Task Upgrade2To3(Context context)
-        {
-            var upgradeCacheBlobAction = new ActionBlock<FileInfo>(
-                blobPath => ApplyPermissions(context, blobPath.FullPath, FileAccessMode.ReadOnly),
-                new ExecutionDataflowBlockOptions {MaxDegreeOfParallelism = Environment.ProcessorCount});
-
-            return upgradeCacheBlobAction.PostAllAndComplete(EnumerateBlobPathsFromDisk());
         }
 
         /// <summary>
@@ -372,6 +214,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         internal async Task RemoveInvalidContentAsync(OperationContext context, ContentHash contentHash)
         {
+            Contract.Assert(QuotaKeeper != null);
             // In order to remove the content we have to do the following things:
             // Remove file from disk
             // Update memory content directory
@@ -379,21 +222,23 @@ namespace BuildXL.Cache.ContentStore.Stores
             // Notify distributed store that the content is gone from this machine
             // The first 3 things are happening in the first call.
             await EvictCoreAsync(
-                context,
-                new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
-                force: true, // Need to evict an invalid content even if it is pinned.
-                onlyUnlinked: false,
-                size => { QuotaKeeper.OnContentEvicted(size); })
+                    context,
+                    new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
+                    force: true, // Need to evict an invalid content even if it is pinned.
+                    onlyUnlinked: false,
+                    size => { QuotaKeeper.OnContentEvicted(size); })
                 .TraceIfFailure(context);
 
-            if (_distributedEvictionSettings?.DistributedStore != null)
+
+            if (_distributedStore != null)
             {
-                await _distributedEvictionSettings.DistributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
+                await _distributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
                     .TraceIfFailure(context);
+
             }
         }
 
-        internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
+        internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream>? wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
             using var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
@@ -402,190 +247,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return null;
             }
 
+            long length = stream.Value.Length;
+
             using var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream);
+            Contract.Assert(wrappedStream.CanSeek);
+            Contract.Assert(wrappedStream.Length == length);
+
             // Hash the file in  place
-            return await HashContentAsync(context, wrappedStream, hashType, path);
-        }
-
-        /// <summary>
-        /// Unit testing hook.
-        /// </summary>
-        protected virtual void UpgradeLegacyVsoContentRenameFile(AbsolutePath sourcePath, AbsolutePath destinationPath)
-        {
-            FileSystem.MoveFile(sourcePath, destinationPath, replaceExisting: false);
-        }
-
-        /// <summary>
-        /// Unit testing hook.
-        /// </summary>
-        protected virtual void UpgradeLegacyVsoContentRenameDirectory(AbsolutePath sourcePath, AbsolutePath destinationPath)
-        {
-            FileSystem.MoveDirectory(sourcePath, destinationPath);
-        }
-
-        /// <summary>
-        /// Unit testing hook.
-        /// </summary>
-        protected virtual void UpgradeLegacyVsoContentDeleteDirectory(AbsolutePath directory)
-        {
-            FileSystem.DeleteDirectory(directory, DeleteOptions.All);
-        }
-
-        private async Task UpgradeLegacyVsoContentAsync(Context context)
-        {
-            var legacyVsoContentRootPath = _contentRootDirectory / ((int)HashType.DeprecatedVso0).ToString();
-
-            if (FileSystem.DirectoryExists(legacyVsoContentRootPath))
-            {
-                var vsoContentRootPath = _contentRootDirectory / HashType.Vso0.ToString();
-
-                try
-                {
-                    UpgradeLegacyVsoContentRenameDirectory(legacyVsoContentRootPath, vsoContentRootPath);
-                }
-                catch (Exception renameDirException)
-                {
-                    context.Warning(
-                        $"Could not rename [{legacyVsoContentRootPath}] to [{vsoContentRootPath}]. Falling back to hard-linking individual files. {renameDirException}");
-
-                    if (!FileSystem.DirectoryExists(vsoContentRootPath))
-                    {
-                        FileSystem.CreateDirectory(vsoContentRootPath);
-                    }
-
-                    foreach (FileInfo fileInCache in FileSystem.EnumerateFiles(legacyVsoContentRootPath, EnumerateOptions.Recurse))
-                    {
-                        AbsolutePath destinationPath = fileInCache.FullPath.SwapRoot(legacyVsoContentRootPath, vsoContentRootPath);
-                        AbsolutePath destinationFolder = destinationPath.Parent;
-
-                        if (!FileSystem.DirectoryExists(destinationFolder))
-                        {
-                            FileSystem.CreateDirectory(destinationFolder);
-                        }
-                        else if (FileSystem.FileExists(destinationPath))
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            UpgradeLegacyVsoContentRenameFile(fileInCache.FullPath, destinationPath);
-                        }
-                        catch (Exception fileMoveException)
-                        {
-                            context.Debug(
-                                $"Could not rename [{fileInCache.FullPath}] to [{destinationPath}]. Falling back to hard-linking. {fileMoveException}");
-
-                            CreateHardLinkResult result = FileSystem.CreateHardLink(fileInCache.FullPath, destinationPath, replaceExisting: false);
-                            if (result != CreateHardLinkResult.Success)
-                            {
-                                throw new CacheException(
-                                    $"Failed to create hard link from [{fileInCache.FullPath}] to [{destinationPath}]: {result}");
-                            }
-                        }
-                    }
-
-                    try
-                    {
-                        UpgradeLegacyVsoContentDeleteDirectory(legacyVsoContentRootPath);
-                    }
-                    catch (Exception deleteDirException)
-                    {
-                        context.Debug(
-                            $"After moving or copying all content to [{vsoContentRootPath}], could not delete [{legacyVsoContentRootPath}]. Will try again next time. {deleteDirException}");
-                    }
-                }
-
-                await MemoryContentDirectory.TransformFile(
-                    context,
-                    FileSystem,
-                    RootPath,
-                    pair =>
-                    {
-                        ContentHash contentHash = pair.Key;
-                        ContentFileInfo fileInfo = pair.Value;
-
-                        if (contentHash.HashType == HashType.DeprecatedVso0)
-                        {
-                            var hashBytes = contentHash.ToHashByteArray();
-                            var newContentHash = new ContentHash(HashType.Vso0, hashBytes);
-                            return new KeyValuePair<ContentHash, ContentFileInfo>(newContentHash, fileInfo);
-                        }
-
-                        return pair;
-                    });
-            }
-        }
-
-        /// <summary>
-        ///     Migrates (or just deletes) the schema on disk
-        /// </summary>
-        private async Task UpgradeAsNecessaryAsync(Context context)
-        {
-            int currentVersionNumber;
-            try
-            {
-                currentVersionNumber = ReadVersionNumber(context);
-            }
-            catch (Exception ex)
-            {
-                throw new CacheException(
-                    ex,
-                    "Failed to read the cache version file. Delete {0}, {1}, and {2} and try again. Exception message: {3}",
-                    VersionFilePath,
-                    _contentRootDirectory,
-                    ContentDirectory.FilePath,
-                    ex.ToString());
-            }
-
-            try
-            {
-                while (true)
-                {
-                    if (currentVersionNumber > (int)VersionHistory.CurrentVersion || currentVersionNumber < (int)VersionHistory.Version0)
-                    {
-                        throw new CacheException(
-                            "CAS runtime version is {0}, but disk has version {1}. Delete {2} and {3} or use the latest version of the cache.",
-                            (int)VersionHistory.CurrentVersion,
-                            currentVersionNumber,
-                            _contentRootDirectory,
-                            ContentDirectory.FilePath);
-                    }
-
-                    var currentVersion = (VersionHistory)currentVersionNumber;
-
-                    if (currentVersion == VersionHistory.CurrentVersion)
-                    {
-                        break;
-                    }
-
-                    await PerformUpgradeToNextVersionAsync(context, currentVersion);
-                    Contract.Assert((currentVersionNumber + 1) == SerializedDataVersion.ReadValueFile());
-
-                    currentVersionNumber = ReadVersionNumber(context);
-                }
-
-                // Upgrade any legacy VSO hashed content without a painful CAS upgrade.
-                await UpgradeLegacyVsoContentAsync(context);
-
-                Contract.Assert(SerializedDataVersion.ReadValueFile() == (int)VersionHistory.CurrentVersion);
-            }
-            catch (Exception ex)
-            {
-                throw new CacheException(
-                    ex,
-                    "Failed to upgrade local CAS. Delete {0} and {1} and try again. Exception message: {2}",
-                    _contentRootDirectory,
-                    ContentDirectory.FilePath,
-                    ex.ToString());
-            }
-        }
-
-        private int ReadVersionNumber(Context context)
-        {
-            int currentVersionNumber = SerializedDataVersion.ReadValueFile();
-            _tracer.Debug(context, $"version is {currentVersionNumber}");
-            return currentVersionNumber;
+            return await HashContentAsync(context, wrappedStream.AssertHasLength(), hashType, path);
         }
 
         private void DeleteTempFolder()
@@ -602,43 +271,34 @@ namespace BuildXL.Cache.ContentStore.Stores
             // NOTE: DO NOT call ContentDirectory from this method as this is called during the initialization of ContentDirectory and calls
             // into ContentDirectory would cause a deadlock.
 
-            var stopwatch = Stopwatch.StartNew();
-            long contentCount = 0;
-            long contentSize = 0;
-
-            try
-            {
-                var contentHashes = ReadSnapshotFromDisk(context);
-                _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries in {stopwatch.ElapsedMilliseconds}ms.");
-
-                // We are using a list of classes instead of structs due to the maximum object size restriction
-                // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
-                var hashInfoPairs = new ContentDirectorySnapshot<ContentFileInfo>();
-                foreach (var grouping in contentHashes.GroupByHash())
+            return _tracer.Reconstruct(
+                context,
+                (stopwatch) =>
                 {
-                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
-                    contentCount++;
-                    contentSize += contentFileInfo.TotalSize;
+                    long contentCount = 0;
+                    long contentSize = 0;
 
-                    hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
-                }
+                    var contentHashes = ReadSnapshotFromDisk(context);
+                    _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries in {stopwatch.ElapsedMilliseconds}ms.");
 
-                return hashInfoPairs;
-            }
-            catch (Exception exception)
-            {
-                _tracer.ReconstructDirectoryException(context, exception);
-                throw;
-            }
-            finally
-            {
-                stopwatch.Stop();
-                _tracer.ReconstructDirectory(context, stopwatch.Elapsed, contentCount, contentSize);
-            }
+                    // We are using a list of classes instead of structs due to the maximum object size restriction
+                    // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
+                    var hashInfoPairs = new ContentDirectorySnapshot<ContentFileInfo>();
+                    foreach (var grouping in contentHashes.GroupByHash())
+                    {
+                        var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
+                        contentCount++;
+                        contentSize += contentFileInfo.TotalSize;
+
+                        hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
+                    }
+
+                    return (hashInfoPairs, contentCount, contentSize);
+                }).contentInfo;
         }
 
         /// <inheritdoc />
-        public IContentChangeAnnouncer Announcer
+        public IContentChangeAnnouncer? Announcer
         {
             get { return _announcer; }
 
@@ -649,11 +309,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        private async Task<(ContentStoreConfiguration configuration, bool configFileExists)> CreateConfigurationAsync()
         {
-            var configFileExists = false;
-
             if (_configurationModel.Selection == ConfigurationSelection.RequireAndUseInProcessConfiguration)
             {
                 if (_configurationModel.InProcessConfiguration == null)
@@ -661,30 +318,35 @@ namespace BuildXL.Cache.ContentStore.Stores
                     throw new CacheException("In-process configuration selected but it is null");
                 }
 
-                Configuration = _configurationModel.InProcessConfiguration;
+                return (configuration: _configurationModel.InProcessConfiguration, configFileExists: false);
             }
-            else if (_configurationModel.Selection == ConfigurationSelection.UseFileAllowingInProcessFallback)
+
+            if (_configurationModel.Selection == ConfigurationSelection.UseFileAllowingInProcessFallback)
             {
                 var readConfigResult = await FileSystem.ReadContentStoreConfigurationAsync(RootPath);
 
                 if (readConfigResult.Succeeded)
                 {
-                    Configuration = readConfigResult.Data;
-                    configFileExists = true;
+                    return (readConfigResult.Data!, configFileExists: true);
                 }
                 else if (_configurationModel.InProcessConfiguration != null)
                 {
-                    Configuration = _configurationModel.InProcessConfiguration;
+                    return (_configurationModel.InProcessConfiguration, configFileExists: false);
                 }
                 else
                 {
                     throw new CacheException($"{nameof(ContentStoreConfiguration)} is missing");
                 }
             }
-            else
-            {
-                throw new CacheException($"Invalid {nameof(ConfigurationSelection)}={_configurationModel.Selection}");
-            }
+
+            throw new CacheException($"Invalid {nameof(ConfigurationSelection)}={_configurationModel.Selection}");
+        }
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            bool configFileExists;
+            (Configuration, configFileExists) = await CreateConfigurationAsync();
 
             if (!configFileExists && _configurationModel.MissingFileOption == MissingConfigurationFileOption.WriteOnlyIfNotExists)
             {
@@ -694,8 +356,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             _tracer.Debug(context, $"{nameof(ContentStoreConfiguration)}: {Configuration}");
 
             _applyDenyWriteAttributesOnContent = Configuration.DenyWriteAttributesOnContent == DenyWriteAttributesOnContentSetting.Enable;
-
-            await UpgradeAsNecessaryAsync(context);
 
             DeleteTempFolder();
             FileSystem.CreateDirectory(_tempFolder);
@@ -719,23 +379,18 @@ namespace BuildXL.Cache.ContentStore.Stores
                         RootPath,
                         Configuration.HistoryBufferSize);
 
-            _distributedEvictionSettings?.InitializeDistributedEviction(
-                UpdateContentWithLastAccessTimeAsync,
-                _tracer,
-                GetPinnedSize,
-                _nagleQueue);
-
-            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, _distributedEvictionSettings, size);
+            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, size);
             QuotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,
                 ShutdownStartedCancellationToken,
                 this,
+                _distributedStore,
                 quotaKeeperConfiguration);
 
             var result = await QuotaKeeper.StartupAsync(context);
 
-            _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested());
+            _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(nameof(FileSystemContentStoreInternal)));
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 
@@ -745,7 +400,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // Self check procedure is a long running operation that can take longer then an average process lifetime.
                 // So instead of relying on timers to recheck content directory, we rely on
                 // periodic service restarts.
-                SelfCheckContentDirectoryAsync(context, context.Token).FireAndForget(context);
+                SelfCheckContentDirectoryAsync(context.CreateNested(nameof(FileSystemContentStoreInternal)), context.Token).FireAndForget(context);
             }
 
             return result;
@@ -758,14 +413,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var statsResult = await GetStatsAsync(context);
 
-            if (QuotaKeeper != null)
-            {
-                _tracer.EndStats(context, QuotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
-
-                // NOTE: QuotaKeeper must be shut down before the content directory because it owns
-                // background operations which may be calling EvictAsync or GetLruOrderedContentListAsync
-                result &= await QuotaKeeper.ShutdownAsync(context);
-            }
+            result &= await ShutdownEvictionAsync(context);
 
             if (_pinSizeHistory != null)
             {
@@ -778,10 +426,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _taskTracker.ShutdownAsync(context);
             }
 
-            if (ContentDirectory != null)
-            {
-                result &= await ContentDirectory.ShutdownAsync(context);
-            }
+            result &= await ContentDirectory.ShutdownAsync(context);
 
             if (_contentDirectoryMismatchCount > 0)
             {
@@ -790,6 +435,18 @@ namespace BuildXL.Cache.ContentStore.Stores
                     $"Corrected {_contentDirectoryMismatchCount} mismatches between cache blobs and content directory metadata.");
             }
 
+            CleanupTempFolderAtShutdown(context);
+
+            if (statsResult)
+            {
+                _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "FileSystemContentStoreStats");
+            }
+
+            return result;
+        }
+
+        private void CleanupTempFolderAtShutdown(Context context)
+        {
             if (FileSystem.DirectoryExists(_tempFolder))
             {
                 foreach (FileInfo fileInfo in FileSystem.EnumerateFiles(_tempFolder, EnumerateOptions.Recurse))
@@ -805,13 +462,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
             }
-
-            if (statsResult)
-            {
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
-            }
-
-            return result;
         }
 
         private static bool ShouldAttemptHardLink(AbsolutePath contentPath, FileAccessMode accessMode, FileRealizationMode realizationMode)
@@ -877,7 +527,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return PutFileImplAsync(context, path, realizationMode, contentHash, pinRequest);
         }
 
-        private async Task<PutResult> TryPutFileFastAsync(
+        private async Task<PutResult?> TryPutFileFastAsync(
             Context context, 
             AbsolutePath path, 
             FileRealizationMode realizationMode, 
@@ -908,7 +558,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        return new PutResult(contentHash, fileInfo.FileSize)
+                        return new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true)
                         {
                             Diagnostics = "FastPath"
                         };
@@ -920,12 +570,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         private Task<PutResult> PutFileImplAsync(
-            Context context, AbsolutePath path, FileRealizationMode realizationMode, ContentHash contentHash, PinRequest? pinRequest, Func<Stream, Stream> wrapStream = null)
+            Context context, AbsolutePath path, FileRealizationMode realizationMode, ContentHash contentHash, PinRequest? pinRequest, Func<Stream, Stream>? wrapStream = null)
         {
-            return PutFileCall<ContentStoreInternalTracer>.RunAsync(
-                _tracer, OperationContext(context), path, realizationMode, contentHash, trustedHash: false, async () =>
+            return _tracer.PutFileAsync(OperationContext(context), path, realizationMode, contentHash, trustedHash: false, async () =>
             {
-                PinContext pinContext = pinRequest?.PinContext;
                 bool shouldAttemptHardLink = ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode);
 
                 var putResult = await TryPutFileFastAsync(context, path, realizationMode, contentHash, pinRequest, shouldAttemptHardLink);
@@ -937,18 +585,19 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     CheckPinned(contentHash, pinRequest);
-                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinContext);
+                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given file.
                         bool putInternalSucceeded;
+                        bool contentExistsInCache;
                         if (shouldAttemptHardLink)
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
-                                pinContext,
+                                pinRequest?.PinContext,
                                 onContentAlreadyInCache: async (hashHandle, primaryPath, info) =>
                                 {
                                     var r = await PlaceLinkFromCacheAsync(
@@ -965,18 +614,18 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
-                                pinContext,
+                                pinRequest?.PinContext,
                                 onContentAlreadyInCache: (hashHandle, primaryPath, info) => Task.FromResult(true),
                                 onContentNotInCache: primaryPath => Task.FromResult(false));
                         }
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1002,15 +651,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         private Task<PutResult> PutFileImplAsync(
-            Context context, AbsolutePath path, FileRealizationMode realizationMode, HashType hashType, PinRequest? pinRequest, ContentHashWithSize? trustedHashWithSize, Func<Stream, Stream> wrapStream = null)
+            Context context, AbsolutePath path, FileRealizationMode realizationMode, HashType hashType, PinRequest? pinRequest, ContentHashWithSize? trustedHashWithSize, Func<Stream, Stream>? wrapStream = null)
         {
-            return PutFileCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), path, realizationMode, hashType, trustedHash:
-                trustedHashWithSize != null, () => PutFileImplNoTraceAsync(context, path, realizationMode, hashType, pinRequest, trustedHashWithSize, wrapStream));
-
+            return _tracer.PutFileAsync(OperationContext(context), path, realizationMode, hashType, trustedHash: trustedHashWithSize != null,
+                () => PutFileImplNoTraceAsync(context, path, realizationMode, hashType, pinRequest, trustedHashWithSize, wrapStream));
         }
 
         private async Task<PutResult> PutFileImplNoTraceAsync(
-            Context context, AbsolutePath path, FileRealizationMode realizationMode, HashType hashType, PinRequest? pinRequest, ContentHashWithSize? trustedHashWithSize, Func<Stream, Stream> wrapStream = null)
+            Context context, AbsolutePath path, FileRealizationMode realizationMode, HashType hashType, PinRequest? pinRequest, ContentHashWithSize? trustedHashWithSize, Func<Stream, Stream>? wrapStream = null)
         {
             Contract.Requires(trustedHashWithSize == null || trustedHashWithSize.Value.Size >= 0);
 
@@ -1030,9 +678,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             // If we are given the empty file, the put is a no-op.
             // We have dedicated logic for pinning and returning without having
             // the empty file in the cache directory.
-            if (_settings.UseEmptyFileHashShortcut && content.Hash.IsEmptyHash())
+            if (content.Hash.IsEmptyHash())
             {
-                return new PutResult(content.Hash, 0L);
+                return new PutResult(content.Hash, 0L, contentAlreadyExistsInCache: true);
             }
 
             bool shouldAttemptHardLink = ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode);
@@ -1045,130 +693,102 @@ namespace BuildXL.Cache.ContentStore.Stores
             using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(content.Hash))
             {
                 CheckPinned(content.Hash, pinRequest);
-                PinContext pinContext = pinRequest?.PinContext;
                 var stopwatch = new Stopwatch();
 
                 if (shouldAttemptHardLink)
                 {
-                    bool putInternalSucceeded = await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentExistsInCache) = await PutContentInternalAsync(
                         context,
                         content.Hash,
                         content.Size,
-                        pinContext,
+                        pinRequest?.PinContext,
                         onContentAlreadyInCache: async (hashHandle, primaryPath, info) =>
                                                  {
                                                      // The content exists in the cache. Try to replace the file that is being put in
                                                      // with a link to the file that is already in the cache. Release the handle to
                                                      // allow for the hardlink to succeed.
-                                                     try
-                                                     {
-                                                         _tracer.PutFileExistingHardLinkStart();
-                                                         stopwatch.Start();
-
-                                                         // ReSharper disable once AccessToDisposedClosure
-                                                         var result = await PlaceLinkFromCacheAsync(
-                                                             context,
-                                                             path,
-                                                             FileReplacementMode.ReplaceExisting,
-                                                             realizationMode,
-                                                             content.Hash,
-                                                             info);
-                                                         return result == CreateHardLinkResult.Success;
-                                                     }
-                                                     finally
-                                                     {
-                                                         stopwatch.Stop();
-                                                         _tracer.PutFileExistingHardLinkStop(stopwatch.Elapsed);
-                                                     }
+                                                     using var trace = _tracer.PutFileExistingHardLink();
+                                                     // ReSharper disable once AccessToDisposedClosure
+                                                     var result = await PlaceLinkFromCacheAsync(
+                                                         context,
+                                                         path,
+                                                         FileReplacementMode.ReplaceExisting,
+                                                         realizationMode,
+                                                         content.Hash,
+                                                         info);
+                                                     return result == CreateHardLinkResult.Success;
                                                  },
                         onContentNotInCache: primaryPath =>
                                              {
-                                                 try
+                                                 using var trace = _tracer.PutFileNewHardLink();
+                                                 ApplyPermissions(context, path, FileAccessMode.ReadOnly);
+
+                                                 var hardLinkResult = CreateHardLinkResult.Unknown;
+                                                 Func<bool> tryCreateHardlinkFunc = () => TryCreateHardlink(
+                                                                                        context,
+                                                                                        path,
+                                                                                        primaryPath,
+                                                                                        realizationMode,
+                                                                                        false,
+                                                                                        out hardLinkResult);
+
+                                                 bool result = tryCreateHardlinkFunc();
+                                                 if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
                                                  {
-                                                     _tracer.PutFileNewHardLinkStart();
-                                                     stopwatch.Start();
-
-                                                     ApplyPermissions(context, path, FileAccessMode.ReadOnly);
-
-                                                     var hardLinkResult = CreateHardLinkResult.Unknown;
-                                                     Func<bool> tryCreateHardlinkFunc = () => TryCreateHardlink(
-                                                                                            context,
-                                                                                            path,
-                                                                                            primaryPath,
-                                                                                            realizationMode,
-                                                                                            false,
-                                                                                            out hardLinkResult);
-
-                                                     bool result = tryCreateHardlinkFunc();
-                                                     if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
-                                                     {
-                                                         // Extraneous blobs on disk. Delete them and retry.
-                                                         RemoveAllReplicasFromDiskFor(context, content.Hash);
-                                                         result = tryCreateHardlinkFunc();
-                                                     }
-
-                                                     return Task.FromResult(result);
+                                                     // Extraneous blobs on disk. Delete them and retry.
+                                                     RemoveAllReplicasFromDiskFor(context, content.Hash);
+                                                     result = tryCreateHardlinkFunc();
                                                  }
-                                                 finally
-                                                 {
-                                                     stopwatch.Stop();
-                                                     _tracer.PutFileNewHardLinkStop(stopwatch.Elapsed);
-                                                 }
+
+                                                 return Task.FromResult(result);
                                              },
                         announceAddOnSuccess: false);
 
                     if (putInternalSucceeded)
                     {
-                        return new PutResult(content.Hash, content.Size)
+                        return new PutResult(content.Hash, content.Size, contentExistsInCache)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
                 }
 
+                bool alreadyInCache = true;
                 // If hard linking failed or wasn't attempted, fall back to copy.
                 stopwatch = new Stopwatch();
                 await PutContentInternalAsync(
                     context,
                     content.Hash,
                     content.Size,
-                    pinContext,
+                    pinRequest?.PinContext,
                     onContentAlreadyInCache: (hashHandle, primaryPath, info) => Task.FromResult(true),
                     onContentNotInCache: async primaryPath =>
                                          {
-                                             try
-                                             {
-                                                 _tracer.PutFileNewCopyStart();
-                                                 stopwatch.Start();
+                                             using var trace = _tracer.PutFileNewCopy();
+                                             alreadyInCache = false;
 
-                                                 await RetryOnUnexpectedReplicaAsync(
-                                                     context,
-                                                     () =>
+                                             await RetryOnUnexpectedReplicaAsync(
+                                                 context,
+                                                 () =>
+                                                 {
+                                                     if (realizationMode == FileRealizationMode.Move)
                                                      {
-                                                         if (realizationMode == FileRealizationMode.Move)
-                                                         {
-                                                             return Task.Run(() => FileSystem.MoveFile(path, primaryPath, replaceExisting: false));
-                                                         }
-                                                         else
-                                                         {
-                                                             return SafeCopyFileAsync(
-                                                                 context,
-                                                                 content.Hash,
-                                                                 path,
-                                                                 primaryPath,
-                                                                 FileReplacementMode.FailIfExists);
-                                                         }
-                                                     },
-                                                     content.Hash,
-                                                     expectedReplicaCount: 0);
-                                                 return true;
-                                             }
-                                             finally
-                                             {
-                                                 stopwatch.Stop();
-                                                 _tracer.PutFileNewCopyStop(stopwatch.Elapsed);
-                                             }
+                                                         return Task.Run(() => FileSystem.MoveFile(path, primaryPath, replaceExisting: false));
+                                                     }
+                                                     else
+                                                     {
+                                                         return SafeCopyFileAsync(
+                                                             context,
+                                                             content.Hash,
+                                                             path,
+                                                             primaryPath,
+                                                             FileReplacementMode.FailIfExists);
+                                                     }
+                                                 },
+                                                 content.Hash,
+                                                 expectedReplicaCount: 0);
+                                             return true;
                                          });
 
-                return new PutResult(content.Hash, content.Size)
+                return new PutResult(content.Hash, content.Size, contentAlreadyExistsInCache: alreadyInCache)
                     .WithLockAcquisitionDuration(contentHashHandle);
             }
         }
@@ -1182,39 +802,57 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            return GetStatsCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), async () =>
-            {
-                var counters = new CounterSet();
-                counters.Merge(_tracer.GetCounters(), $"{Component}.");
-                counters.Merge(_counters.ToCounterSet(), $"{Component}.");
-                counters.Add($"{Component}.LockWaitMs", (long)_lockSet.TotalLockWaitTime.TotalMilliseconds);
-
-                if (StartupCompleted)
+            return _tracer.GetStatsAsync(
+                OperationContext(context),
+                async () =>
                 {
-                    counters.Add($"{CurrentByteCountName}", QuotaKeeper.CurrentSize);
-                    counters.Add($"{CurrentFileCountName}", await ContentDirectory.GetCountAsync());
-                    counters.Merge(ContentDirectory.GetCounters(), "ContentDirectory.");
+                    var counters = new CounterSet();
+                    counters.Merge(_tracer.GetCounters(), $"{Component}.");
+                    counters.Merge(_counters.ToCounterSet(), $"{Component}.");
+                    counters.Add($"{Component}.LockWaitMs", (long)_lockSet.TotalLockWaitTime.TotalMilliseconds);
 
-                    var quotaKeeperCounter = QuotaKeeper.Counters;
-                    if (quotaKeeperCounter != null)
+                    if (StartupCompleted)
                     {
-                        counters.Merge(quotaKeeperCounter.ToCounterSet());
+                        if (QuotaKeeper != null)
+                        {
+                            counters.Add($"{CurrentByteCountName}", QuotaKeeper.CurrentSize);
+
+                            counters.Merge(QuotaKeeper.Counters.ToCounterSet());
+                        }
+
+                        counters.Add($"{CurrentFileCountName}", await ContentDirectory.GetCountAsync());
+                        counters.Merge(ContentDirectory.GetCounters(), "ContentDirectory.");
                     }
-                }
-                return new GetStatsResult(counters);
-            });
+                    return new GetStatsResult(counters);
+                });
         }
 
         /// <inheritdoc />
-        public async Task<bool> Validate(Context context)
+        public Task<bool> Validate(Context context)
         {
-            bool foundIssue = false;
+            return new FileSystemContentStoreValidator(Tracer, FileSystem, _applyDenyWriteAttributesOnContent, ContentDirectory, Clock, EnumerateBlobPathsFromDisk)
+                .ValidateAsync(context);
+        }
 
-            foundIssue |= !await ValidateNameHashesMatchContentHashesAsync(context);
-            foundIssue |= !ValidateAcls(context);
-            foundIssue |= !await ValidateContentDirectoryAsync(context);
+        /// <summary>
+        /// Shutdown of quota keeper to prevent further eviction of content.
+        /// Method is thread safe.
+        /// </summary>
+        public async Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            using (await _stopEvictionGate.AcquireAsync())
+            {
+                if (QuotaKeeper != null && !QuotaKeeper.ShutdownCompleted)
+                {
+                    _tracer.EndStats(context, QuotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
 
-            return !foundIssue;
+                    // NOTE: QuotaKeeper must be shut down before the content directory because it owns
+                    // background operations which may be calling EvictAsync or GetLruOrderedContentListAsync
+                    return await QuotaKeeper.ShutdownAsync(context);
+                }
+
+                return BoolResult.Success;
+            }
         }
 
         /// <inheritdoc />
@@ -1234,6 +872,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public async Task SyncAsync(Context context, bool purge = true)
         {
+            Contract.Assert(QuotaKeeper != null);
             await QuotaKeeper.SyncAsync(context, purge);
 
             // Ensure there are no pending LRU updates.
@@ -1243,165 +882,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public PinSizeHistory.ReadHistoryResult ReadPinSizeHistory(int windowSize)
         {
+            Contract.Assert(_pinSizeHistory != null);
             return _pinSizeHistory.ReadHistory(windowSize);
-        }
-
-        private async Task<bool> ValidateNameHashesMatchContentHashesAsync(Context context)
-        {
-            int mismatchedParentDirectoryCount = 0;
-            int mismatchedContentHashCount = 0;
-            _tracer.Always(context, "Validating local CAS content hashes...");
-            await TaskSafetyHelpers.WhenAll(EnumerateBlobPathsFromDisk().Select(
-                async blobPath =>
-                {
-                    var contentFile = blobPath.FullPath;
-                    if (!contentFile.FileName.StartsWith(contentFile.Parent.FileName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        mismatchedParentDirectoryCount++;
-
-                        _tracer.Debug(
-                            context,
-                            $"The first {HashDirectoryNameLength} characters of the name of content file at {contentFile}" +
-                            $" do not match the name of its parent directory {contentFile.Parent.FileName}.");
-                    }
-
-                    if (!TryGetHashFromPath(contentFile, out var hashFromPath))
-                    {
-                        _tracer.Debug(
-                            context,
-                            $"The path '{contentFile}' does not contain a well-known hash name.");
-                        return;
-                    }
-
-                    var hasher = ContentHashers.Get(hashFromPath.HashType);
-                    ContentHash hashFromContents;
-                    using (Stream contentStream = await FileSystem.OpenSafeAsync(
-                        contentFile, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashingExtensions.HashStreamBufferSize))
-                    {
-                        hashFromContents = await hasher.GetContentHashAsync(contentStream);
-                    }
-
-                    if (hashFromContents != hashFromPath)
-                    {
-                        mismatchedContentHashCount++;
-
-                        _tracer.Debug(
-                            context,
-                            $"Content at {contentFile} content hash {hashFromContents.ToShortString()} did not match expected value of {hashFromPath.ToShortString()}.");
-                    }
-                }));
-
-            _tracer.Always(context, $"{mismatchedParentDirectoryCount} mismatches between content file name and parent directory.");
-            _tracer.Always(context, $"{mismatchedContentHashCount} mismatches between content file name and file contents.");
-
-            return mismatchedContentHashCount == 0 && mismatchedParentDirectoryCount == 0;
-        }
-
-        private bool ValidateAcls(Context context)
-        {
-            // Getting ACLs currently requires using File.GetAccessControl.  We should extend IAbsFileSystem to enable this query.
-            if (!(FileSystem is PassThroughFileSystem))
-            {
-                _tracer.Always(context, "Skipping validation of ACLs because the CAS is not using a PassThroughFileSystem.");
-                return true;
-            }
-
-            _tracer.Always(context, "Validating local CAS content file ACLs...");
-
-            int missingDenyAclCount = 0;
-
-            foreach (var blobPath in EnumerateBlobPathsFromDisk())
-            {
-                var contentFile = blobPath.FullPath;
-
-                // FileSystem has no GetAccessControl API, so we must bypass it here.  We can relax the restriction to PassThroughFileSystem once we implement GetAccessControl in IAbsFileSystem.
-                bool denyAclExists = true;
-#if NET_FRAMEWORK
-                const string worldSidValue = "Everyone";
-                var security = File.GetAccessControl(contentFile.Path);
-                var fileSystemAccessRules =
-                    security.GetAccessRules(true, false, typeof(NTAccount)).Cast<FileSystemAccessRule>();
-                denyAclExists = fileSystemAccessRules.Any(rule =>
-                                    rule.IdentityReference.Value.Equals(worldSidValue, StringComparison.OrdinalIgnoreCase) &&
-                                    rule.AccessControlType == AccessControlType.Deny &&
-                                    rule.FileSystemRights == (_applyDenyWriteAttributesOnContent
-                                        ? (FileSystemRights.WriteData | FileSystemRights.AppendData)
-                                        : FileSystemRights.Write) && // Should this be exact (as it is now), or at least, deny ACLs?
-                                    rule.InheritanceFlags == InheritanceFlags.None &&
-                                    rule.IsInherited == false &&
-                                    rule.PropagationFlags == PropagationFlags.None
-                                    );
-#endif
-
-                if (!denyAclExists)
-                {
-                    missingDenyAclCount++;
-                    _tracer.Always(context, $"Content at {contentFile} is missing proper deny ACLs.");
-                }
-            }
-
-            _tracer.Always(context, $"{missingDenyAclCount} projects are missing proper deny ACLs.");
-
-            return missingDenyAclCount == 0;
-        }
-
-        private async Task<bool> ValidateContentDirectoryAsync(Context context)
-        {
-            _tracer.Always(context, "Validating local CAS content directory");
-            int contentDirectoryMismatchCount = 0;
-
-            var fileSystemContentDirectory = EnumerateBlobPathsFromDisk()
-                .Select(blobPath => TryGetHashFromPath(blobPath.FullPath, out var hash) ? (ContentHash?)hash : null)
-                .Where(hash => hash != null)
-                .GroupBy(hash => hash.Value)
-                .ToDictionary(replicaGroup => replicaGroup.Key, replicaGroup => replicaGroup.Count());
-
-            foreach (var x in fileSystemContentDirectory.Keys)
-            {
-                var fileSystemHash = x;
-                int fileSystemHashReplicaCount = fileSystemContentDirectory[fileSystemHash];
-
-                await ContentDirectory.UpdateAsync(fileSystemHash, false, Clock, fileInfo =>
-                {
-                    if (fileInfo == null)
-                    {
-                        contentDirectoryMismatchCount++;
-                        _tracer.Always(context, $"Cache content directory for hash {fileSystemHash.ToShortString()} from disk does not exist.");
-                    }
-                    else if (fileInfo.ReplicaCount != fileSystemHashReplicaCount)
-                    {
-                        contentDirectoryMismatchCount++;
-                        _tracer.Always(
-                            context,
-                            $"Directory for hash {fileSystemHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but {fileSystemHashReplicaCount} replicas exist on disk.");
-                    }
-
-                    return null;
-                });
-            }
-
-            foreach (var x in (await ContentDirectory.EnumerateContentHashesAsync())
-                .Where(hash => !fileSystemContentDirectory.ContainsKey(hash)))
-            {
-                var missingHash = x;
-                contentDirectoryMismatchCount++;
-                await ContentDirectory.UpdateAsync(missingHash, false, Clock, fileInfo =>
-                {
-                    if (fileInfo != null)
-                    {
-                        _tracer.Always(
-                            context,
-                            $"Directory for hash {missingHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but no replicas exist on disk.");
-                    }
-
-                    return null;
-                });
-            }
-
-            _tracer.Always(
-                context, $"{contentDirectoryMismatchCount} mismatches between cache content directory and content files on disk.");
-
-            return contentDirectoryMismatchCount == 0;
         }
 
         /// <summary>
@@ -1420,30 +902,32 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Called by PutContentInternalAsync when the content already exists in the cache.
         /// </summary>
         /// <returns>True if the callback is successful.</returns>
-        private delegate Task<bool> OnContentAlreadyExistsInCacheAsync(
+        private delegate Task<bool> OnContentAlreadyExistsInCache(
             ContentHash contentHash, AbsolutePath primaryPath, ContentFileInfo info);
 
         /// <summary>
         ///     Called by PutContentInternalAsync when the content already exists in the cache.
         /// </summary>
         /// <returns>True if the callback is successful.</returns>
-        private delegate Task<bool> OnContentNotInCacheAsync(AbsolutePath primaryPath);
+        private delegate Task<bool> OnContentNotInCache(AbsolutePath primaryPath);
 
-        private async Task<bool> PutContentInternalAsync(
+        private async Task<(bool Success, bool ContentAlreadyExistsInCache)> PutContentInternalAsync(
             Context context,
             ContentHash contentHash,
             long contentSize,
-            PinContext pinContext,
-            OnContentAlreadyExistsInCacheAsync onContentAlreadyInCache,
-            OnContentNotInCacheAsync onContentNotInCache,
+            PinContext? pinContext,
+            OnContentAlreadyExistsInCache onContentAlreadyInCache,
+            OnContentNotInCache onContentNotInCache,
             bool announceAddOnSuccess = true)
         {
+            Contract.Assert(QuotaKeeper != null);
+
             AbsolutePath primaryPath = GetPrimaryPathFor(contentHash);
             bool failed = false;
+            bool contentExistsInCache = false;
             long addedContentSize = 0;
 
-            _tracer.PutContentInternalStart();
-            var stopwatch = Stopwatch.StartNew();
+            using var trace = _tracer.PutContentInternal();
 
             await ContentDirectory.UpdateAsync(contentHash, touch: true, Clock, async fileInfo =>
             {
@@ -1451,7 +935,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     using (var txn = await QuotaKeeper.ReserveAsync(contentSize))
                     {
-                        FileSystem.CreateDirectory(primaryPath.Parent);
+                        FileSystem.CreateDirectory(primaryPath.GetParent());
 
                         if (!await onContentNotInCache(primaryPath))
                         {
@@ -1466,7 +950,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
-                if (!await onContentAlreadyInCache(contentHash, primaryPath, fileInfo))
+                contentExistsInCache = await onContentAlreadyInCache(contentHash, primaryPath, fileInfo);
+
+                if (!contentExistsInCache)
                 {
                     failed = true;
                     return null;
@@ -1478,11 +964,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return fileInfo;
             });
 
-            _tracer.PutContentInternalStop(stopwatch.Elapsed);
-
             if (failed)
             {
-                return false;
+                return (Success: false, ContentAlreadyExistsInCache: contentExistsInCache);
             }
 
             if (addedContentSize > 0)
@@ -1495,34 +979,32 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
             }
 
-            return true;
+            return (Success: true, ContentAlreadyExistsInCache: contentExistsInCache);
         }
 
         /// <inheritdoc />
         public Task<PutResult> PutStreamAsync(Context context, Stream stream, ContentHash contentHash, PinRequest? pinRequest)
         {
-            return PutStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
+            return _tracer.PutStreamAsync(OperationContext(context), contentHash, async () =>
             {
-                PinContext pinContext = pinRequest?.PinContext;
-
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     CheckPinned(contentHash, pinRequest);
-                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinContext);
+                    long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given stream.
-                        bool putInternalSucceeded = await PutContentInternalAsync(
+                        (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                             context,
                             contentHash,
                             contentSize,
-                            pinContext,
+                            pinRequest?.PinContext,
                             onContentAlreadyInCache: (hashHandle, primaryPath, info) => Task.FromResult(true),
                             onContentNotInCache: primaryPath => Task.FromResult(false));
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1539,15 +1021,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public Task<PutResult> PutStreamAsync(Context context, Stream stream, HashType hashType, PinRequest? pinRequest)
         {
-            return PutStreamCall<ContentStoreInternalTracer>.RunAsync(
-                _tracer, OperationContext(context), hashType, () => PutStreamImplAsync(context, stream, hashType, pinRequest));
+            return _tracer.PutStreamAsync(
+                OperationContext(context),
+                hashType,
+                () => PutStreamImplAsync(context, stream, hashType, pinRequest));
         }
 
         private async Task<PutResult> PutStreamImplAsync(Context context, Stream stream, HashType hashType, PinRequest? pinRequest)
         {
-            PinContext pinContext = pinRequest?.PinContext;
             ContentHash contentHash = new ContentHash(hashType);
-            AbsolutePath pathToTempContent = null;
+            AbsolutePath? pathToTempContent = null;
 
             bool shouldDelete = false;
             try
@@ -1555,7 +1038,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 long contentSize;
 
                 var hasher = ContentHashers.Get(hashType);
-                using (var hashingStream = hasher.CreateReadHashingStream(stream))
+                long length = stream.CanSeek ? stream.Length : -1;
+                using (var hashingStream = hasher.CreateReadHashingStream(length, stream))
                 {
                     pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream);
                     contentSize = FileSystem.GetFileSize(pathToTempContent);
@@ -1569,11 +1053,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     CheckPinned(contentHash, pinRequest);
 
-                    if (!await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                         context,
                         contentHash,
                         contentSize,
-                        pinContext,
+                        pinRequest?.PinContext,
                         onContentAlreadyInCache: (hashHandle, primaryPath, info) => Task.FromResult(true),
                         onContentNotInCache: async primaryPath =>
                         {
@@ -1590,12 +1074,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                             pathToTempContent = null;
                             return true;
-                        }))
+                        });
+                    if (!putInternalSucceeded)
                     {
                         return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash.ToShortString()} with an unknown error");
                     }
 
-                    return new PutResult(contentHash, contentSize)
+                    return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                         .WithLockAcquisitionDuration(contentHashHandle);
                 }
             }
@@ -1611,11 +1096,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Deletes a file that is marked read-only
         /// </summary>
-        /// <param name="path">Path to the file</param>
-        protected virtual void DeleteReadOnlyFile(AbsolutePath path)
+        protected void DeleteReadOnlyFile(AbsolutePath path)
         {
-            Contract.Requires(path != null);
-
             FileSystem.DeleteFile(path);
         }
 
@@ -1641,14 +1123,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private void DeleteTempFile(Context context, ContentHash contentHash, AbsolutePath path)
+        private void DeleteTempFile(Context context, ContentHash contentHash, AbsolutePath? path)
         {
             if (path == null)
             {
                 return;
             }
 
-            if (!path.Parent.Equals(_tempFolder))
+            if (!path.GetParent().Equals(_tempFolder))
             {
                 _tracer.Error(context, $"Will not delete temp file in unexpected location, path=[{path}]");
                 return;
@@ -1687,14 +1169,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Writes the content stream to local disk in a temp directory under the store's root.
         ///     Marks the file as Read Only and sets ACL to deny file writes.
         /// </summary>
-        /// <param name="context">Tracing context.</param>
-        /// <param name="inputStream">Content stream to write</param>
-        /// <returns>Absolute path that points to the file</returns>
         private async Task<AbsolutePath> WriteToTemporaryFileAsync(Context context, Stream inputStream)
         {
             AbsolutePath pathToTempContent = GetTemporaryFileName();
-            AbsolutePath pathToTempContentDirectory = pathToTempContent.Parent;
-            FileSystem.CreateDirectory(pathToTempContentDirectory);
+            FileSystem.CreateDirectory(pathToTempContent.GetParent());
 
             // We want to set an ACL which denies writes before closing the destination stream. This way, there
             // are no instants in which we have neither an exclusive lock on writing the file nor a protective
@@ -1710,10 +1188,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             return pathToTempContent;
         }
 
-        private async Task<ContentHashWithSize> HashContentAsync(Context context, Stream stream, HashType hashType, AbsolutePath path)
+        private async Task<ContentHashWithSize> HashContentAsync(Context context, StreamWithLength stream, HashType hashType, AbsolutePath path)
         {
-            Contract.Requires(stream != null);
-
             try
             {
                 ContentHash contentHash = await ContentHashers.Get(hashType).GetContentHashAsync(stream);
@@ -1728,59 +1204,47 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private void ApplyPermissions(Context context, AbsolutePath path, FileAccessMode accessMode)
         {
-            var stopwatch = new Stopwatch();
-
-            try
+            using var trace = _tracer.ApplyPerms();
+            if (accessMode == FileAccessMode.ReadOnly)
             {
-                _tracer.ApplyPermsStart();
-                stopwatch.Start();
+                FileSystem.DenyFileWrites(path);
 
-                if (accessMode == FileAccessMode.ReadOnly)
+                if (_applyDenyWriteAttributesOnContent)
                 {
-                    FileSystem.DenyFileWrites(path);
-
-                    if (_applyDenyWriteAttributesOnContent)
+                    if (_applyDenyWriteAttributesOnContent && !IsNormalEnough(path))
                     {
-                        if (_applyDenyWriteAttributesOnContent && !IsNormalEnough(path))
-                        {
-                            // Only normalize attributes if DenyWriteAttributesOnContent is set
-                            Normalize(path);
-                        }
-
-                        FileSystem.DenyAttributeWrites(path);
-
-                        if (!IsNormalEnough(path))
-                        {
-                            throw new CacheException("The attributes of file {0} were modified during ingress. Found flags: {1}", path, File.GetAttributes(path.Path).ToString());
-                        }
+                        // Only normalize attributes if DenyWriteAttributesOnContent is set
+                        Normalize(path);
                     }
-                }
-                else if (_applyDenyWriteAttributesOnContent && !IsNormalEnough(path))
-                {
-                    // Only normalize attributes if DenyWriteAttributesOnContent is set
-                    Normalize(path);
-                }
 
-                // When DenyWriteAttributesOnContent is set to false, we shouldn't give an error
-                // even if clearing potential Deny-WriteAttributes fails.  This is especially true
-                // because in most cases where we're unable to clear those ACLs, we were probably
-                // unable to set them in the first place.
-                if (!_applyDenyWriteAttributesOnContent)
-                {
-                    try
+                    FileSystem.DenyAttributeWrites(path);
+
+                    if (!IsNormalEnough(path))
                     {
-                        FileSystem.AllowAttributeWrites(path);
-                    }
-                    catch (IOException ex)
-                    {
-                        context.Warning(ex.ToString());
+                        throw new CacheException("The attributes of file {0} were modified during ingress. Found flags: {1}", path, File.GetAttributes(path.Path).ToString());
                     }
                 }
             }
-            finally
+            else if (_applyDenyWriteAttributesOnContent && !IsNormalEnough(path))
             {
-                stopwatch.Stop();
-                _tracer.ApplyPermsStop(stopwatch.Elapsed);
+                // Only normalize attributes if DenyWriteAttributesOnContent is set
+                Normalize(path);
+            }
+
+            // When DenyWriteAttributesOnContent is set to false, we shouldn't give an error
+            // even if clearing potential Deny-WriteAttributes fails.  This is especially true
+            // because in most cases where we're unable to clear those ACLs, we were probably
+            // unable to set them in the first place.
+            if (!_applyDenyWriteAttributesOnContent)
+            {
+                try
+                {
+                    FileSystem.AllowAttributeWrites(path);
+                }
+                catch (IOException ex)
+                {
+                    context.Warning("AllowAttributeWrites failed: " + ex);
+                }
             }
         }
 
@@ -1804,17 +1268,17 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         // Since setting ACLs seems to flip on the Archive bit,
         // we have to be content with allowing the archive bit to be set for cache blobs
-        // We're whitelisting even more here because other values (that we don't care about)
+        // We're allowlisting even more here because other values (that we don't care about)
         // sometimes survive being set to "Normal," and we don't want to throw in those cases.
         private bool IsNormalEnough(AbsolutePath path)
         {
-            const FileAttributes ignoredFileAttributes =
+            const FileAttributes IgnoredFileAttributes =
                 FileAttributes.Normal | FileAttributes.Archive | FileAttributes.Compressed |
                 FileAttributes.SparseFile | FileAttributes.Encrypted | FileAttributes.Offline |
                 FileAttributes.IntegrityStream | FileAttributes.NoScrubData | FileAttributes.System |
                 FileAttributes.Temporary | FileAttributes.Device | FileAttributes.Directory |
                 FileAttributes.NotContentIndexed | FileAttributes.ReparsePoint | FileAttributes.Hidden;
-            return FileSystem.FileAttributesAreSubset(path, ignoredFileAttributes);
+            return FileSystem.FileAttributesAreSubset(path, IgnoredFileAttributes);
         }
 
         private enum Counter
@@ -1885,9 +1349,17 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="contentHash">Content hash to get path for</param>
         /// <returns>Path for the hash</returns>
         /// <remarks>Does not guarantee anything is at the returned path</remarks>
-        protected internal AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
+        public AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
         {
             return GetReplicaPathFor(contentHash, 0);
+        }
+
+        /// <summary>
+        /// Gets the relative path to the primary replica from the CAS root
+        /// </summary>
+        public static RelativePath GetPrimaryRelativePath(ContentHash contentHash)
+        {
+            return new RelativePath(Path.Combine(Constants.SharedDirectoryName, contentHash.HashType.Serialize(), GetRelativePathFor(contentHash, 0).Path));
         }
 
         private static RelativePath GetRelativePathFor(ContentHash contentHash, int replicaIndex)
@@ -1993,7 +1465,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal static bool TryGetHashFromPath(AbsolutePath path, out ContentHash contentHash)
         {
-            var hashName = path.Parent.Parent.FileName;
+            var hashName = path.GetParent().GetParent().FileName;
             if (Enum.TryParse<HashType>(hashName, ignoreCase: true, out var hashType))
             {
                 string hashHexString = GetFileNameWithoutExtension(path);
@@ -2060,33 +1532,21 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <summary>
-        ///     Snapshots the cached content in LRU order (i.e. the order, according to last-access time, in which they should be
-        ///     purged to make space).
+        /// Snapshots the cached content in LRU order (i.e. the order, according to last-access time, in which they should be
+        /// purged to make space).
         /// </summary>
-        /// <returns>LRU-ordered hashes.</returns>
         public virtual Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync()
         {
             return ContentDirectory.GetLruOrderedCacheContentAsync();
         }
 
         /// <summary>
-        ///     Snapshots the cached content in LRU order (i.e. the order, according to last-access time, in which they should be
-        ///     purged to make space). Coupled with its last-access time.
+        /// Snapshots the cached content in LRU order (i.e. the order, according to last-access time, in which they should be
+        /// purged to make space). Coupled with its last-access time.
         /// </summary>
         public virtual Task<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruOrderedContentListWithTimeAsync()
         {
             return ContentDirectory.GetLruOrderedCacheContentWithTimeAsync();
-        }
-
-        /// <summary>
-        ///       Update content with provided last access time.
-        /// </summary>
-        public async Task UpdateContentWithLastAccessTimeAsync(ContentHash contentHash, DateTime lru)
-        {
-            using (await _lockSet.AcquireAsync(contentHash))
-            {
-                ContentDirectory.UpdateContentWithLastAccessTime(contentHash, lru);
-            }
         }
 
         private bool TryGetContentTotalSize(ContentHash contentHash, out long size)
@@ -2104,20 +1564,20 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Remove specified content.
         /// </summary>
-        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
+        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long>? evicted)
         {
             // This operation respects pinned content and won't evict it if it's pinned.
             return EvictCoreAsync(context, contentHashInfo, force: false, onlyUnlinked, evicted);
         }
 
         /// <inheritdoc />
-        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         {
             var evictResult = await EvictCoreAsync(context, new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, DateTime.MinValue, safeToEvict: true), force: true, onlyUnlinked: false, (l) => { }, acquireLock: true);
             return evictResult.ToDeleteResult(contentHash);
         }
 
-        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long> evicted, bool acquireLock = false)
+        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long>? evicted, bool acquireLock = false)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
@@ -2143,8 +1603,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Intentionally tracking only (potentially) successful eviction.
-                return await EvictCall.RunAsync(
-                    _tracer,
+                return await _tracer.EvictAsync(
                     OperationContext(context),
                     contentHash,
                     async () =>
@@ -2172,9 +1631,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                                     // Nothing was modified, so no need to save anything.
                                     return null;
                                 }
-
-                                // Used by tests to inject an arbitrary delay
-                                _preEvictFileAction?.Invoke();
 
                                 await ContentDirectory.RemoveAsync(contentHash);
 
@@ -2251,12 +1707,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 }
                                 else
                                 {
-                                    // Notify Redis of eviction when Distributed Eviction is turned off
-                                    if (_distributedEvictionSettings == null)
-                                    {
-                                        _nagleQueue?.Enqueue(contentHash);
-                                    }
-
                                     successfullyEvictedHash = true;
                                 }
 
@@ -2280,8 +1730,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileRealizationMode realizationMode,
             PinRequest? pinRequest)
         {
-            return PlaceFileCall<ContentStoreInternalTracer>.RunAsync(
-                _tracer,
+            return _tracer.PlaceFileAsync(
                 OperationContext(context),
                 contentHash,
                 destinationPath,
@@ -2341,7 +1790,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // If this is the empty hash, then directly create an empty file.
                 // This avoids hash-level lock, all I/O in the cache directory, and even
                 // operations in the in-memory representation of the cache.
-                if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash())
+                if (contentHashWithPath.Hash.IsEmptyHash())
                 {
                     await FileSystem.CreateEmptyFileAsync(contentHashWithPath.Path);
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
@@ -2451,7 +1900,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileReplacementMode replacementMode)
         {
             var code = PlaceFileResult.ResultCode.PlacedWithCopy;
-            AbsolutePath contentPath = await PinContentAndGetFullPathAsync(contentHash, null);
+            AbsolutePath? contentPath = await PinContentAndGetFullPathAsync(contentHash, null);
             try
             {
                 if (contentPath == null)
@@ -2504,8 +1953,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentHash computedHash = new ContentHash(contentHash.HashType);
             var hasher = ContentHashers.Get(contentHash.HashType);
 
-            using (Stream contentStream =
-                await OpenStreamInternalWithLockAsync(context, contentHash, null, FileShare.Read | FileShare.Delete))
+            using (StreamWithLength? contentStream =
+                await OpenStreamInternalWithLockAsync(context, contentHash, pinRequest: null, FileShare.Read | FileShare.Delete))
             {
                 if (contentStream == null)
                 {
@@ -2513,11 +1962,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 else
                 {
-                    using (var hashingStream = hasher.CreateReadHashingStream(contentStream))
+                    using (var hashingStream = hasher.CreateReadHashingStream(contentStream.Value))
                     {
                         try
                         {
-                            FileSystem.CreateDirectory(destinationPath.Parent);
+                            FileSystem.CreateDirectory(destinationPath.GetParent());
                             var fileMode = replacementMode == FileReplacementMode.ReplaceExisting ? FileMode.Create : FileMode.CreateNew;
 
                             using (Stream targetFileStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, fileMode, FileShare.Delete))
@@ -2568,7 +2017,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentFileInfo info,
             bool fastPath = false)
         {
-            FileSystem.CreateDirectory(destinationPath.Parent);
+            FileSystem.CreateDirectory(destinationPath.GetParent());
 
             int defaultStartIndex = info.ReplicaCount - 1;
 
@@ -2658,7 +2107,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 info,
                 newReplicaIndex,
                 ReplicaExistence.DoesNotExist,
-                fastPath);
+                fastPath: false);
         }
 
         private async Task<CreateHardLinkResult> PlaceLinkFromReplicaAsync(
@@ -2672,6 +2121,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ReplicaExistence replicaExistence,
             bool fastPath)
         {
+            Contract.Assert(QuotaKeeper != null);
             Contract.Assert(!(replicaExistence != ReplicaExistence.Exists && fastPath), "PlaceLinkFromReplicaAsync should only be called for with fastPath=true for existing replicas");
 
             var primaryPath = GetPrimaryPathFor(contentHash);
@@ -2865,7 +2315,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 using (await _lockSet.AcquireAsync(pinCount.Key))
                 {
-                    if (PinMap.TryGetValue(pinCount.Key, out Pin pin))
+                    if (PinMap.TryGetValue(pinCount.Key, out Pin? pin))
                     {
                         pin.Add(-1 * pinCount.Value);
                         if (pin.Count == 0)
@@ -2881,8 +2331,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
+            Contract.Assert(QuotaKeeper != null);
             QuotaKeeper.Calibrate();
 
+            Contract.Assert(_pinSizeHistory != null);
             lock (_pinSizeHistory)
             {
                 _maxPinSize = Math.Max(pinnedSize, _maxPinSize);
@@ -2898,9 +2350,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Increment the info's pin count and add the hash to the given context.
         /// </summary>
-        /// <param name="hash">Hash to pin.</param>
-        /// <param name="pinContext">Context to pin the hash to.</param>
-        private void PinContentIfContext(ContentHash hash, PinContext pinContext)
+        private void PinContentIfContext(ContentHash hash, PinContext? pinContext)
         {
             if (pinContext != null)
             {
@@ -2916,11 +2366,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <summary>
-        ///     Provides a PinContext for this cache which can be used in conjunction with other APIs to pin relevant content in
-        ///     the cache.
-        ///     The content may be unpinned by disposing of the PinContext.
+        /// Provides a PinContext for this cache which can be used in conjunction with other APIs to pin relevant content in
+        /// the cache.
+        /// The content may be unpinned by disposing of the PinContext.
         /// </summary>
-        /// <returns>The created PinContext.</returns>
         public PinContext CreatePinContext()
         {
             Interlocked.Increment(ref _pinContextCount);
@@ -2932,33 +2381,41 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Pin existing content.
         /// </summary>
-        public Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext pinContext)
+        public Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext? pinContext)
         {
-            return PinCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
+            return _tracer.PinAsync(OperationContext(context), contentHash, async () =>
             {
-                var bulkResults = await PinAsync(context, new[] { contentHash }, pinContext);
+                var bulkResults = await PinAsync(context, new[] { contentHash }, pinContext, PinBulkOptions.Default);
                 return bulkResults.Single().Item;
             });
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+        public async Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext? pinContext, PinBulkOptions? options)
         {
             var stopwatch = Stopwatch.StartNew();
 
-            var (results, error) = await PinCoreAsync(context, contentHashes, pinContext);
-            _tracer.PinBulkStop(context, stopwatch.Elapsed, contentHashes: contentHashes, results: results, error);
+            options ??= PinBulkOptions.Default;
+            _tracer.PinBulkStart(context, contentHashes);
+
+            var (results, error) = await PinCoreAsync(context, contentHashes, pinContext, options);
+
+            _tracer.PinBulkStop(context, stopwatch.Elapsed, contentHashes: contentHashes, results: results, error, options);
 
             return results;
         }
 
-        private async Task<(IEnumerable<Indexed<PinResult>> results, Exception error)> PinCoreAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+        private async Task<(IEnumerable<Indexed<PinResult>> results, Exception? error)> PinCoreAsync(
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
+            PinContext? pinContext,
+            PinBulkOptions options)
         {
+            bool skipLockAndTouch = _settings.SkipTouchAndLockAcquisitionWhenPinningFromHibernation && options.RePinFromHibernation;
+
             var results = new List<PinResult>(contentHashes.Count);
             try
             {
-                _tracer.PinBulkStart(context, contentHashes);
-
                 var pinRequest = new PinRequest(pinContext);
 
                 // TODO: This is still relatively inefficient. We're taking a lock per hash and pinning each individually. (bug 1365340)
@@ -2967,13 +2424,29 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     // Pinning the empty file always succeeds; no I/O or other operations required,
                     // because we have dedicated logic to place it when required.
-                    if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                    if (contentHash.IsEmptyHash())
                     {
                         results.Add(new PinResult(contentSize: 0, lastAccessTime: Clock.UtcNow, code: PinResult.ResultCode.Success));
                     }
                     else
                     {
-                        ContentFileInfo contentInfo = await GetContentSizeAndLastAccessTimeAsync(context, contentHash, pinRequest);
+                        // Hot path optimization: instead of acquiring locks and touching the file system,
+                        // we re-pin the content if it exits in memory content directory that was reconstructed (or reloaded) at startup
+                        ContentFileInfo? contentInfo = null;
+                        if (skipLockAndTouch)
+                        {
+                            // The following logic is not 100% thread safe, but during re-pinning process no other operations should be happening
+                            // against the file system (like puts, places or eviction).
+                            if (ContentDirectory.TryGetFileInfo(contentHash, out contentInfo))
+                            {
+                                PinContentIfContext(contentHash, pinContext);
+                            }
+                        }
+                        else
+                        {
+                            contentInfo = await GetContentSizeAndLastAccessTimeAsync(context, contentHash, pinRequest);
+                        }
+
                         results.Add(contentInfo != null ? new PinResult(contentInfo.FileSize, DateTime.FromFileTimeUtc(contentInfo.LastAccessedFileTimeUtc)) : PinResult.ContentNotFound);
                     }
                 }
@@ -2989,7 +2462,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public async Task<bool> ContainsAsync(Context context, ContentHash contentHash, PinRequest? pinRequest)
         {
-            PinContext pinContext = pinRequest?.PinContext;
+            PinContext? pinContext = pinRequest?.PinContext;
 
             using (await _lockSet.AcquireAsync(contentHash))
             {
@@ -3025,7 +2498,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool IsPinned(ContentHash contentHash, PinRequest? pinRequest = null)
         {
             var verifyAlreadyPinned = false;
-            PinContext verifyPinContext = null;
+            PinContext? verifyPinContext = null;
 
             if (pinRequest.HasValue)
             {
@@ -3057,44 +2530,28 @@ namespace BuildXL.Cache.ContentStore.Stores
             using (await _lockSet.AcquireAsync(contentHash))
             {
                 var contentWasPinned = IsPinned(contentHash, pinRequest);
-                PinContext pinContext = pinRequest?.PinContext;
-                long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinContext);
+                long contentSize = await GetContentSizeInternalAsync(context, contentHash, pinRequest?.PinContext);
                 return new GetContentSizeResult(contentSize, contentWasPinned);
             }
         }
 
-        private async Task<ContentFileInfo> GetContentSizeAndLastAccessTimeAsync(Context context, ContentHash contentHash, PinRequest? pinRequest)
+        private async Task<ContentFileInfo?> GetContentSizeAndLastAccessTimeAsync(Context context, ContentHash contentHash, PinRequest? pinRequest)
         {
             using (await _lockSet.AcquireAsync(contentHash))
             {
-                PinContext pinContext = pinRequest?.PinContext;
-                return await GetContentSizeAndLastAccessTimeInternalAsync(context, contentHash, pinContext);
+                return await GetContentSizeAndLastAccessTimeInternalAsync(context, contentHash, pinRequest?.PinContext);
             }
         }
-
-        /// <summary>
-        /// Gets total pinned size. Returns -1 if unpinned.
-        /// </summary>
-        private long GetPinnedSize(Context context, ContentHash contentHash)
-        {
-            long pinnedSize = -1;
-            if (IsPinned(contentHash))
-            {
-                TryGetContentTotalSize(contentHash, out pinnedSize);
-            }
-
-            return pinnedSize;
-        }
-
-        private async Task<long> GetContentSizeInternalAsync(Context context, ContentHash contentHash, PinContext pinContext = null)
+        
+        private async Task<long> GetContentSizeInternalAsync(Context context, ContentHash contentHash, PinContext? pinContext = null)
         {
             var info = await GetContentSizeAndLastAccessTimeInternalAsync(context, contentHash, pinContext);
             return info?.FileSize ?? -1;
         }
 
-        private async Task<ContentFileInfo> GetContentSizeAndLastAccessTimeInternalAsync(Context context, ContentHash contentHash, PinContext pinContext = null)
+        private async Task<ContentFileInfo?> GetContentSizeAndLastAccessTimeInternalAsync(Context context, ContentHash contentHash, PinContext? pinContext = null)
         {
-            ContentFileInfo info = null;
+            ContentFileInfo? info = null;
 
             await ContentDirectory.UpdateAsync(contentHash, touch: true, clock: Clock, updateFileInfo: async contentFileInfo =>
             {
@@ -3113,11 +2570,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, PinRequest? pinRequest)
         {
-            return OpenStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
+            return _tracer.OpenStreamAsync(OperationContext(context), contentHash, async () =>
             {
-                // Short-circut requests for the empty stream
+                // Short-circuit requests for the empty stream
                 // No lock is required since no file is involved.
-                if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                if (contentHash.IsEmptyHash())
                 {
                     return new OpenStreamResult(_emptyFileStream);
                 }
@@ -3131,9 +2588,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             });
         }
 
-        private async Task<Stream> OpenStreamInternalWithLockAsync(Context context, ContentHash contentHash, PinRequest? pinRequest, FileShare share)
+        private async Task<StreamWithLength?> OpenStreamInternalWithLockAsync(Context context, ContentHash contentHash, PinRequest? pinRequest, FileShare share)
         {
-            AbsolutePath contentPath = await PinContentAndGetFullPathAsync(contentHash, pinRequest);
+            AbsolutePath? contentPath = await PinContentAndGetFullPathAsync(contentHash, pinRequest);
 
             if (contentPath == null)
             {
@@ -3151,10 +2608,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return contentStream;
         }
 
-        /// <summary>
-        ///     OpenStream helper method.
-        /// </summary>
-        private async Task<AbsolutePath> PinContentAndGetFullPathAsync(ContentHash contentHash, PinRequest? pinRequest)
+        private async Task<AbsolutePath?> PinContentAndGetFullPathAsync(ContentHash contentHash, PinRequest? pinRequest)
         {
             CheckPinned(contentHash, pinRequest);
 
@@ -3189,7 +2643,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gives the maximum path to files stored under the cache root.
         /// </summary>
-        /// <returns>Max length</returns>
         public static int GetMaxContentPathLengthRelativeToCacheRoot()
         {
             var maxHashNameLength = HashInfoLookup.All().Max(v => v.Name.Length);
@@ -3204,7 +2657,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 1 + // path separator
                 maxHashStringLength + // filename base, 2 characters per byte in hex string
                 1 + // dot preceding filename extension
-                BlobNameExtensionLength; // filename extension
+                BlobNameExtension.Length; // filename extension
 
             return maxContentPathLengthRelativeToCacheRoot;
         }
@@ -3219,6 +2672,19 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest)
         {
             return PutFileImplAsync(context, path, realizationMode, contentHash, pinRequest, wrapStream);
+        }
+
+        private class NonClosingEmptyMemoryStream : MemoryStream
+        {
+            public NonClosingEmptyMemoryStream()
+                : base(CollectionUtilities.EmptyArray<byte>(), writable: false)
+            {
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                // Intentionally doing nothing to avoid closing the stream.
+            }
         }
     }
 }

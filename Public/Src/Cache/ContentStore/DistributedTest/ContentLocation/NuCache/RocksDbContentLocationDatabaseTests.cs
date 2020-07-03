@@ -1,30 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
 using ContentStoreTest.Test;
-using FluentAssertions;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
-    public class RocksDbContentLocationDatabaseTests : TestWithOutput
+    public class RocksDbContentLocationDatabaseTests : TestBase
     {
         protected readonly MemoryClock Clock = new MemoryClock();
 
@@ -32,8 +18,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         protected ContentLocationDatabaseConfiguration DefaultConfiguration { get; } = null;
 
-        public RocksDbContentLocationDatabaseTests(ITestOutputHelper output)
-            : base(output)
+        public RocksDbContentLocationDatabaseTests(ITestOutputHelper output = null)
+            : base(TestGlobal.Logger, output)
         {
             // Need to use unique folder for each test instance, because more then one test may be executed simultaneously.
             var uniqueOutputFolder = Guid.NewGuid().ToString();

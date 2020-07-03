@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
@@ -10,6 +10,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// </summary>
     public class MsBuildResolverSettings : ResolverSettings, IMsBuildResolverSettings
     {
+        private AbsolutePath m_rootTraversal;
+
         /// <nodoc/>
         public MsBuildResolverSettings()
         {
@@ -25,7 +27,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             : base(resolverSettings, pathRemapper)
         {
             Root = pathRemapper.Remap(resolverSettings.Root);
-            RootTraversal = resolverSettings.RootTraversal.IsValid? pathRemapper.Remap(resolverSettings.RootTraversal) : Root;
+            RootTraversal = pathRemapper.Remap(resolverSettings.RootTraversal);
             ModuleName = resolverSettings.ModuleName;
             AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories;
             UntrackedDirectoryScopes = resolverSettings.UntrackedDirectoryScopes;
@@ -47,13 +49,19 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowProjectsToNotSpecifyTargetProtocol = resolverSettings.AllowProjectsToNotSpecifyTargetProtocol;
             MsBuildRuntime = resolverSettings.MsBuildRuntime;
             DotNetSearchLocations = resolverSettings.DotNetSearchLocations;
+            UseManagedSharedCompilation = resolverSettings.UseManagedSharedCompilation;
         }
 
         /// <inheritdoc/>
         public AbsolutePath Root { get; set; }
 
         /// <inheritdoc/>
-        public AbsolutePath RootTraversal { get; set; }
+        public AbsolutePath RootTraversal
+        {
+            // If RootTraversal is not set, we use the value of Root
+            get => m_rootTraversal != AbsolutePath.Invalid ? m_rootTraversal : Root;
+            set { m_rootTraversal = value; }
+        }
 
         /// <inheritdoc/>
         public string ModuleName { get; set; }
@@ -117,5 +125,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DirectoryArtifact> DotNetSearchLocations { get; set; }
+
+        /// <inheritdoc/>
+        public bool? UseManagedSharedCompilation { get; set; }
     }
 }

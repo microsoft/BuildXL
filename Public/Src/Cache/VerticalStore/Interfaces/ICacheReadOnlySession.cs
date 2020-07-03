@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Interfaces
         /// Returns the CacheId of the cache this session is connected to
         /// </summary>
         [NotNull]
-        string CacheId { get; }
+        CacheId CacheId { get; }
 
         /// <summary>
         /// The name unique name of this session or null if anonymous
@@ -177,7 +177,7 @@ namespace BuildXL.Cache.Interfaces
         /// <returns>
         /// A read-only stream of the contents in the CAS Hash entry
         /// </returns>
-        Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
 
         /// <summary>
         /// Get a dictionary of name/value pairs of cache session activity statistics

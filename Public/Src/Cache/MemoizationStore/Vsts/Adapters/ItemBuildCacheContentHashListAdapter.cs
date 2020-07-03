@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -133,16 +133,22 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         cacheNamespace,
                         strongFingerprint,
                         valueToAdd), CancellationToken.None).ConfigureAwait(false);
-                DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                
+                // The return value is null if the server fails adding content hash list to the backing store.
+                // See BuildCacheService.AddContentHashListAsync for more details about the implementation invariants/guarantees.
+                if (addResult != null)
+                {
+                    DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                }
 
                 // add succeeded but returned an empty contenthashlistwith cache metadata. correct this.
-                if (addResult.ContentHashListWithCacheMetadata == null)
+                if (addResult?.ContentHashListWithCacheMetadata == null)
                 {
                     return
                         new ObjectResult<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                 new ContentHashListWithDeterminism(null, valueToAdd.ContentHashListWithDeterminism.Determinism),
-                                valueToAdd.GetEffectiveExpirationTimeUtc(),
+                                valueToAdd.GetRawExpirationTimeUtc(),
                                 valueToAdd.ContentGuarantee,
                                 valueToAdd.HashOfExistingContentHashList));
                 }
@@ -152,7 +158,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     return new ObjectResult<ContentHashListWithCacheMetadata>(
                         new ContentHashListWithCacheMetadata(
                             addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism,
-                            addResult.ContentHashListWithCacheMetadata.GetEffectiveExpirationTimeUtc(),
+                            addResult.ContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
                             addResult.ContentHashListWithCacheMetadata.ContentGuarantee,
                             addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism.ContentHashList.GetHashOfHashes()));
                 }

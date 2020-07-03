@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="StructResult{T}"/> class.
         /// </summary>
-        public StructResult(string errorMessage, string diagnostics = null)
+        public StructResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
         }
@@ -52,19 +52,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="StructResult{T}"/> class.
         /// </summary>
-        public StructResult(Exception exception, string message = null)
+        public StructResult(Exception exception, string? message = null)
             : base(exception, message)
         {
-            Contract.Requires(exception != null);
+            Contract.RequiresNotNull(exception);
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="StructResult{T}"/> class.
         /// </summary>
-        public StructResult(ResultBase other, string message = null)
+        public StructResult(ResultBase other, string? message = null)
             : base(other, message)
         {
-            Contract.Requires(other != null);
+            Contract.RequiresNotNull(other);
         }
 
         /// <summary>

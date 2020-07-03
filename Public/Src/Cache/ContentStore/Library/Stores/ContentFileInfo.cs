@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -20,6 +20,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Gets last time it was accessed.
         /// </summary>
         public long LastAccessedFileTimeUtc { get; private set; }
+
+        /// <summary>
+        ///     Gets last time it was accessed.
+        /// </summary>
+        public DateTime LastAccessedTimeUtc => DateTime.FromFileTimeUtc(LastAccessedFileTimeUtc);
 
         /// <summary>
         ///     Gets or sets number of known replicas.
@@ -69,7 +74,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="clock">Clock to use for the current time.</param>
         public void UpdateLastAccessed(IClock clock)
         {
-            LastAccessedFileTimeUtc = clock.UtcNow.ToFileTimeUtc();
+            lock (this)
+            {
+                LastAccessedFileTimeUtc = clock.UtcNow.ToFileTimeUtc();
+            }
         }
 
         /// <summary>
@@ -77,12 +85,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public void UpdateLastAccessed(DateTime dateTime)
         {
-            var updatedFileTimeUtc = dateTime.ToFileTimeUtc();
-
-            // Don't update LastAccessFileTimeUtc if dateTime is outdated
-            if (updatedFileTimeUtc > LastAccessedFileTimeUtc)
+            lock (this)
             {
-                LastAccessedFileTimeUtc = updatedFileTimeUtc;
+                var updatedFileTimeUtc = dateTime.ToFileTimeUtc();
+
+                // Don't update LastAccessFileTimeUtc if dateTime is outdated
+                if (updatedFileTimeUtc > LastAccessedFileTimeUtc)
+                {
+                    LastAccessedFileTimeUtc = updatedFileTimeUtc;
+                }
             }
         }
     }

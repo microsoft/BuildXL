@@ -2,24 +2,31 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
-const DetoursTest64 = DetoursTest.withQualifier({platform: "x64", configuration: qualifier.configuration});
-const DetoursTest86 = DetoursTest.withQualifier({platform: "x86", configuration: qualifier.configuration});
 import * as Managed from "Sdk.Managed";
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
+
+const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
+const DetoursTest86 = DetoursTest.withQualifier({platform: "x86"});
+const SubstitutePlugin64 = Processes.TestPrograms.SubstituteProcessExecutionPlugin.withQualifier({platform: "x64"});
+const SubstitutePlugin86 = Processes.TestPrograms.SubstituteProcessExecutionPlugin.withQualifier({platform: "x86"});
 
 namespace Processes.Detours {
     function test(platform: string) {
-
         const detours = platform === "x64" ? DetoursTest64 : DetoursTest86;
         const assemblyName = "Test.BuildXL.Processes.Detours";
 
         return BuildXLSdk.test({
-            // These tests require Detours to run itself, so we can't detour xunit itself
-            // TODO: QTest
-            testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
+            runTestArgs: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                unsafeTestRunArguments: {
+                    runWithUntrackedDependencies: true
+                },
+            },
+            // Use XUnit because the unit tests create junction and directory symlinks. 
+            // QTest runs Robocopy on the temporary directory where the tests create those junctions and directory symlinks.
+            // Unfortunately, Robocopy does not know how to copy directory symlinks or junctions.
+            testFramework: XUnit.framework,
             assemblyName: assemblyName,
-            standaloneTestFolder: a`${assemblyName}.${platform}`,
-
             sources: [
                 f`PipExecutorDetoursTest.cs`,
                 f`SandboxedProcessPipExecutorTest.cs`,
@@ -28,6 +35,7 @@ namespace Processes.Detours {
                 f`FileAccessManifestTreeTest.cs`,
                 f`SandboxedProcessInfoTest.cs`,
                 f`SubstituteProcessExecutionTests.cs`,
+                f`OutputFilterTest.cs`,
             ],
             references: [
                 EngineTestUtilities.dll,
@@ -50,8 +58,16 @@ namespace Processes.Detours {
                             detours.inputFile,
                             detours.exe.binaryFile
                         ]
+                    },
+                    {
+                        subfolder: r`SubstitutePlugin/x64`,
+                        contents: [ SubstitutePlugin64.dll.binaryFile ]
+                    },
+                    {
+                        subfolder: r`SubstitutePlugin/x86`,
+                        contents: [ SubstitutePlugin86.dll.binaryFile ]
                     }
-                ])
+                ]),
             ],
             defineConstants: platform === "x64"
                 ? ["TEST_PLATFORM_X64"]

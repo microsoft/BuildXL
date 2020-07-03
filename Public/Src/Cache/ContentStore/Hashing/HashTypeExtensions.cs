@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -23,6 +23,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {"DEDUPCHUNK", HashType.DedupChunk},
                 {"DEDUPNODE", HashType.DedupNode},
                 {"DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk},
+                {"MURMUR", HashType.Murmur },
             };
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);

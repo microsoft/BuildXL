@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -18,10 +18,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <param name="context">Content.</param>
         /// <param name="maxClientCount">Maximum number of clients to cache.</param>
         /// <param name="maxClientAgeMinutes">Maximum age of cached clients.</param>
-        /// <param name="waitBetweenCleanupMinutes">Minutes to wait between cache purges.</param>
         /// <param name="bufferSize">Buffer size used to read files from disk.</param>
-        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17, int? bufferSize = null)
-            : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key, bufferSize))
+        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int? bufferSize = null)
+            : base(context, maxClientCount, maxClientAgeMinutes, (key) => new GrpcCopyClient(key, bufferSize))
         {
         }
 

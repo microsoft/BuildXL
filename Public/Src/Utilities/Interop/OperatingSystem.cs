@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Interop
 {
@@ -22,5 +22,21 @@ namespace BuildXL.Interop
         /// Unix variants
         /// </summary>
         Unix
+    }
+
+    /// <nodoc />
+    public static class OperatingSystemExtensions
+    {
+        /// <summary>
+        /// DScript string constant that corresponds to <paramref name="this"/>
+        /// </summary>
+        public static string GetDScriptValue(this OperatingSystem @this)
+        {
+            return
+                @this == OperatingSystem.Win ? "win" :
+                @this == OperatingSystem.MacOS ? "macOS" :
+                @this == OperatingSystem.Unix ? "unix" :
+                null;
+        }
     }
 }

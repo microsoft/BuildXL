@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -52,6 +52,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// All defined access levels requested.
         /// </summary>
-        All = Read | Write | Probe | Enumerate | EnumerationProbe,
+        All = Read | Write | Probe | Enumerate | EnumerationProbe
     }
 }

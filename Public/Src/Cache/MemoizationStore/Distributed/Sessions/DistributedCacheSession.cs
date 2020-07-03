@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
                 var cacheResult = await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint);
                 if (!cacheResult.Succeeded)
                 {
-                    Logger.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
+                    context.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
                 }
 
                 return await _innerCacheSession.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashListWithDeterminism, cts, urgencyHint);

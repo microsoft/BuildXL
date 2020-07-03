@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -39,7 +39,7 @@ namespace Test.BuildXL.Utilities
             int c3 = pt.Count;
             XAssert.IsTrue(c3 > c2);
 
-            int size = pt.SizeInBytes;
+            long size = pt.SizeInBytes;
             XAssert.IsTrue(size > 0);
 
             pt.Freeze();

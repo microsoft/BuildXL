@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 namespace Test.BuildXL.EngineTests
 {
     // NOTE: don't add more tests here, use SchedulerIntegrationTestBase instead
-    [Trait("Category", "WindowsOSOnly")] // relies heavily on csc.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // relies heavily on csc.exe
     [Trait("Category", "MiniBuildTester")] // relies on csc deployment.
     public sealed class MiniBuildTester : BaseEngineTest
     {
@@ -65,7 +65,7 @@ namespace Test.BuildXL.EngineTests
 
             RunEngine(expectSuccess: false);
 
-            AssertErrorEventLogged(EventId.NoPipsMatchedFilter);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter);
         }
 
         [Fact]
@@ -78,7 +78,11 @@ namespace Test.BuildXL.EngineTests
             RunEngine();
 
             var outputDirectoryPath = Configuration.Layout.OutputDirectory.ToString(Context.PathTable);
-            XAssert.IsTrue(File.Exists(Path.Combine(outputDirectoryPath, "vs", "src", "src.sln")));
+            XAssert.IsTrue(File.Exists(Path.Combine(
+                outputDirectoryPath, 
+                "vs",
+                Configuration.Ide.IsNewEnabled ? "srcNew" : "src",
+                Configuration.Ide.IsNewEnabled ? "srcNew.sln" : "src.sln")));
         }
 
         [Fact]
@@ -488,61 +492,6 @@ namespace Test.BuildXL.EngineTests
             AssertInformationalEventLogged(LogEventId.FetchedSerializedGraphFromCache, count: 0);
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void MiniBuildCopySymlink(bool lazySymlinkCreation)
-        {
-            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
-            {
-                const string SymlinkSource1 = "symlink1.lnk";
-                const string SymlinkSource2 = "symlink2.lnk";
-
-                const string CopiedSymlink1 = "copied-" + SymlinkSource1;
-                const string CopiedSymlink2 = "copied-" + SymlinkSource2;
-
-                const string SymlinkTarget1 = "target1.txt";
-                const string SymlinkTarget2 = "target2.txt";
-
-                SetupCopySymlink(SymlinkSource1, CopiedSymlink1, SymlinkSource2, CopiedSymlink2);
-
-                Configuration.Schedule.UnsafeLazySymlinkCreation = lazySymlinkCreation;
-                Configuration.Cache.CacheGraph = true;
-
-                var sourceDirectory = Configuration.Layout.SourceDirectory.ToString(Context.PathTable);
-
-                // Write symlink targets.
-                File.WriteAllText(Path.Combine(sourceDirectory, SymlinkTarget1), "1");
-                File.WriteAllText(Path.Combine(sourceDirectory, SymlinkTarget2), "2");
-
-                // Write symlink definition file.
-                var symlinkDefinitionFile = Path.Combine(sourceDirectory, "SymlinkDefinition");
-                var pathMapSerializer = new PathMapSerializer(symlinkDefinitionFile);
-                pathMapSerializer.OnNext(
-                    new KeyValuePair<string, string>(Path.Combine(sourceDirectory, SymlinkSource1), Path.Combine(sourceDirectory, SymlinkTarget1)));
-                pathMapSerializer.OnNext(
-                    new KeyValuePair<string, string>(Path.Combine(sourceDirectory, SymlinkSource2), Path.Combine(sourceDirectory, SymlinkTarget2)));
-                ((IObserver<KeyValuePair<string, string>>)pathMapSerializer).OnCompleted();
-
-                // Allow copying symlink for testing, and set the symlink definition file.
-                Configuration.Schedule.AllowCopySymlink = true;
-                Configuration.Layout.SymlinkDefinitionFile = AbsolutePath.Create(Context.PathTable, symlinkDefinitionFile);
-                IgnoreWarnings();
-                RunEngine();
-
-                var objectDirectoryPath = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
-
-                XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, CopiedSymlink1)));
-                XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, CopiedSymlink2)));
-
-                string content1 = File.ReadAllText(Path.Combine(objectDirectoryPath, CopiedSymlink1));
-                string content2 = File.ReadAllText(Path.Combine(objectDirectoryPath, CopiedSymlink2));
-
-                XAssert.AreEqual("1", content1);
-                XAssert.AreEqual("2", content2);
-            }
-        }
-
         [Fact]
         public void MiniBuildCachedGraphWithAndWithoutEnvironmentAccess()
         {
@@ -589,7 +538,7 @@ namespace Test.BuildXL.EngineTests
             // Although, the environment variable is no longer access, it is still used on
             // following the chain of cache look-ups. Thus, we will expect graph cache miss. 
             // This limitation is expected in graph caching algorithm, and is considered rare.
-            Configuration.Startup.Properties[EnvVarName] = "MyEnvValue-Modfified";
+            Configuration.Startup.Properties[EnvVarName] = "MyEnvValue-Modified";
 
             RunEngine("Forth build -- with modified value of unused environment variable");
 
@@ -597,6 +546,54 @@ namespace Test.BuildXL.EngineTests
             AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
 
             DeleteEngineCache();
+        }
+
+        [Fact]
+        public void MiniBuildPathologicalGraphCacheWithEnvironmentVariable()
+        {
+            const string MountName = "MyMountTest";
+            const string EnvVarName = "MyEnvTest";
+            const string ModuleName = nameof(MiniBuildPathologicalGraphCacheWithEnvironmentVariable);
+            const string EnvVarValuePrefix = "MyEnvValue-Time-";
+
+            var mountPath = Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "Src");
+
+            // Setup cache
+            ConfigureInMemoryCache(new TestCache());
+
+            SetConfigForPipsWithMountAndEnvironmentAccess(MountName, mountPath, ModuleName);
+
+            // Spec accesses environment variable.
+            SetupPipsWithOrWithoutEnvironmentAccess(ModuleName, EnvVarName, accessEnvironmentVariable: true);
+
+            var envVarValue = EnvVarValuePrefix + "1";
+            Configuration.Cache.CacheGraph = true;
+            Configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            Configuration.Cache.Incremental = true;
+            Configuration.Startup.Properties.Add(EnvVarName, envVarValue);
+
+            RunEngine($"First build accessing '{EnvVarName}' with '{EnvVarName}'='{envVarValue}'");
+
+            AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+
+            DeleteEngineCache();
+
+            // Spec no longer accesses environment variable.
+            SetupPipsWithOrWithoutEnvironmentAccess(ModuleName, EnvVarName, accessEnvironmentVariable: false);
+
+            for (int i = 2; i <= 4; ++i)
+            {
+                envVarValue = EnvVarValuePrefix + i.ToString(); // simulate environment variable that keeps changing, like log folder.
+                Configuration.Startup.Properties[EnvVarName] = envVarValue;
+
+                RunEngine($"Build {i} not accessing '{EnvVarName}' with '{EnvVarName}'='{envVarValue}'");
+
+                AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+                AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+
+                DeleteEngineCache();
+            }
         }
 
         [Fact]
@@ -876,7 +873,7 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsNotNull(engineAbstraction.GetChangedFiles());
             XAssert.IsNotNull(engineAbstraction.GetUnchangedFiles());
             XAssert.SetEqual(changedFiles, engineAbstraction.GetChangedFiles());
-            Assert.All(
+            XAssert.All(
                 containsUnchangedFiles,
                 unchangedFile => { XAssert.IsTrue(engineAbstraction.GetUnchangedFiles().Contains(unchangedFile)); });
         }
@@ -1002,6 +999,7 @@ const helloWorldResult = Transformer.execute({
 
 const deployedFiles = Deployment.deployToDisk({
     targetDirectory: resultFolder,
+    sealPartialWithoutScrubbing: true,
     definition: {
         contents: [
             {

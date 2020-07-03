@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Native.Processes.Windows
 {
@@ -17,7 +17,11 @@ namespace BuildXL.Native.Processes.Windows
         public const string Ntdll = "ntdll.dll";
         public const string Container = "container.dll";
         public const string Wcifs = "wci.dll";
-        public const string Bindflt = "bindflt.dll";
+        public const string Bindflt = "bindfltapi.dll";
+        /// <summary>
+        /// Older versions of the OS come with this DLL instead of <see cref="Bindflt"/>
+        /// </summary>
+        public const string BindfltLegacy = "bindflt.dll";
         public const string Fltlib = "FltLib.dll";
         public const string Advapi32 = "advapi32.dll";
 #pragma warning restore CS1591 // Missing XML comment

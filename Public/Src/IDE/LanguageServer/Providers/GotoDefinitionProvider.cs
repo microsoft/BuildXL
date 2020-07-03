@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using JetBrains.Annotations;
 using LanguageServer;
 using LanguageServer.Json;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
@@ -15,9 +14,7 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
-using ISymbol = TypeScript.Net.Types.ISymbol;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -201,7 +198,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                         new Location()
                         {
                             Range = PositionExtensions.EmptyRange(),
-                            Uri = UriExtensions.GetUriFromPath(fullPath).ToString(),
+                            Uri = UriExtensions.GetUriFromPath(fullPath),
                         },
                     });
                 }
@@ -240,7 +237,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return GetDefinitionFromSymbol(typeDeclaration.Symbol, typeDeclaration);
         }
 
-        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([NotNull]ISymbol symbol, INode node)
+        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([JetBrains.Annotations.NotNull]ISymbol symbol, INode node)
         {
             var result = new List<Location>();
             var declarations = symbol.GetDeclarations();
@@ -379,7 +376,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return new Location()
             {
                 Range = node.ToRange(),
-                Uri = node.GetSourceFile().ToUri().ToString(),
+                Uri = node.GetSourceFile().ToUri(),
             };
         }
     }

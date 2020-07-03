@@ -1,17 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Utilities.Serialization;
-using System.IO;
-using System;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using BuildXL.Utilities.Collections;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Test.BuildXL.Utilities
 {

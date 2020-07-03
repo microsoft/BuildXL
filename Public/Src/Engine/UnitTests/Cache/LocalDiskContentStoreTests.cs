@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -130,6 +130,7 @@ namespace Test.BuildXL.Engine.Cache
             harness.AssertContentIsInLocalCache(info.Hash);
         }
 
+        [Trait("Category", "SkipLinux")] // paths are case sensitive on Linux
         [Fact]
         public async Task StoreWorksWithReadOnlyAccess()
         {
@@ -314,6 +315,7 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Fact]
+        [Trait("Category", "SkipLinux")] // TODO: file replacement doesn't always create a file with a new FileId (i.e., inode)
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task MaterializingTransientWritableCopyReplacesFileIfUpToDate()
         {
@@ -612,7 +614,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;
@@ -671,7 +672,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;
@@ -727,7 +727,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;
@@ -836,12 +835,12 @@ namespace Test.BuildXL.Engine.Cache
                 // Dummy FCT should always prevent tracking from succeeding.
                 FilesShouldBeTracked = !useDummyFileContentTable;
 
-                FileContentTable = useDummyFileContentTable ? FileContentTable.CreateStub() : FileContentTable.CreateNew();
+                LoggingContext = new LoggingContext(nameof(Harness));
+                FileContentTable = useDummyFileContentTable ? FileContentTable.CreateStub(LoggingContext) : FileContentTable.CreateNew(LoggingContext);
                 Tracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
                 DisabledTracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
                 ContentCache = contentCacheForTest ?? new InMemoryArtifactContentCache();
                 m_outputRoot = AbsolutePath.Create(Context.PathTable, outputRoot);
-                LoggingContext = new LoggingContext(nameof(Harness));
             }
 
             public AbsolutePath GetFullPath(params string[] relativePathSegments)
@@ -982,7 +981,7 @@ namespace Test.BuildXL.Engine.Cache
                 return ContentCache.TryLoadAvailableContentAsync(hashes);
             }
 
-            public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+            public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
             {
                 return ContentCache.TryOpenContentStreamAsync(contentHash);
             }

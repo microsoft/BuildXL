@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// </summary>
         /// <param name="count">Number of logging entries to return.</param>
         /// <returns>The N most recent logging entries.</returns>
-        private IEnumerable<string> RecentEntries(int count)
+        public IEnumerable<string> RecentEntries(int count)
         {
             Contract.Requires(count >= 0);
             return Enumerable.Range(0, count).Zip(

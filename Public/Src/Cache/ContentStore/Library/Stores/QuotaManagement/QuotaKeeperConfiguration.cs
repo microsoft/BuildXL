@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -36,11 +36,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public int? HistoryWindowSize { get; private set; }
 
         /// <summary>
-        /// <see cref="DistributedEvictionSettings"/>.
-        /// </summary>
-        public DistributedEvictionSettings DistributedEvictionSettings { get; private set; }
-
-        /// <summary>
         /// Initial size of the content directory.
         /// </summary>
         public long ContentDirectorySize { get; private set; }
@@ -53,7 +48,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <nodoc />
         public static QuotaKeeperConfiguration Create(
             ContentStoreConfiguration configuration,
-            DistributedEvictionSettings evictionSettings,
             long contentDirectorySize)
         {
             Contract.Requires(configuration != null);
@@ -65,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                        DiskFreePercentQuota = configuration.DiskFreePercentQuota,
                        InitialElasticSize = configuration.InitialElasticSize,
                        HistoryWindowSize = configuration.HistoryWindowSize,
-                       DistributedEvictionSettings = evictionSettings,
                        ContentDirectorySize = contentDirectorySize,
                    };
         }

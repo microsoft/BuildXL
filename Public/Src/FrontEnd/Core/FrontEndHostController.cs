@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -19,9 +19,9 @@ using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -112,14 +112,13 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly PerformanceCollector m_collector;
 
-        private static readonly TimeSpan EvaluationProgressReportingPeriod = TimeSpan.FromMilliseconds(500);
+        private TimeSpan EvaluationProgressReportingPeriod => TimeSpan.FromMilliseconds(Configuration.Logging.GetTimerUpdatePeriodInMs());
 
         /// <summary>
         /// Constructor.
         /// </summary>
         public FrontEndHostController(
             FrontEndFactory frontEndFactory,
-            DScriptWorkspaceResolverFactory workspaceResolverFactory,
             EvaluationScheduler evaluationScheduler,
             IModuleRegistry moduleRegistry,
             IFrontEndStatistics frontEndStatistics,
@@ -137,7 +136,6 @@ namespace BuildXL.FrontEnd.Core
 
             // Temporary initialization
             m_frontEndFactory = frontEndFactory;
-            m_workspaceResolverFactory = workspaceResolverFactory;
             m_evaluationScheduler = evaluationScheduler;
             ModuleRegistry = moduleRegistry;
             m_frontEndStatistics = frontEndStatistics;
@@ -153,11 +151,14 @@ namespace BuildXL.FrontEnd.Core
             DefaultEvaluationScheduler = EvaluationScheduler.Default;
         }
 
+        /// <inheritdoc/>
+        public IEnumerable<IFrontEnd> RegisteredFrontEnds => m_frontEndFactory.RegisteredFrontEnds;
+
         /// <summary>
         /// Ideally, Engine should be set in the constructor but parsing the config file prevents this ideal scenario.
         /// Until we create an engine before parsing the config, the engine can't be set in the constructor above.
         /// </summary>
-        internal void SetState(FrontEndEngineAbstraction engine, IPipGraph pipGraph, IConfiguration configuration)
+        internal void SetState(FrontEndEngineAbstraction engine, IMutablePipGraph pipGraph, IConfiguration configuration)
         {
             Contract.Requires(engine != null);
             Contract.Requires(configuration != null);
@@ -316,7 +317,7 @@ namespace BuildXL.FrontEnd.Core
         /// <inheritdoc />
         bool IFrontEndController.PopulateGraph(
             Task<Possible<EngineCache>> cacheTask,
-            IPipGraph graph,
+            IMutablePipGraph graph,
             FrontEndEngineAbstraction engineAbstraction,
             EvaluationFilter evaluationFilter,
             IConfiguration configuration,
@@ -361,6 +362,8 @@ namespace BuildXL.FrontEnd.Core
                 return false;
             }
 
+            QualifiersToEvaluate = qualifiersToEvaluate;
+
             // Frontend and resolver initialization happens before any other phase. Frontend initialization should happen before any 
             // access to the workspace resolver factory: a frontend may trigger a workspace resolver creation with a particular setting.
             // TODO: during workspace construction the workspace resolver factory is accessed directly, which is wrong from an architecture
@@ -373,9 +376,17 @@ namespace BuildXL.FrontEnd.Core
                 delegate(LoggingContext nestedLoggingContext, ref InitializeResolversStatistics statistics)
                 {
                     // TODO: Use nestedLoggingContext for resolver errors
-                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate);
+                    var success = TryInitializeFrontEndsAndResolvers(configuration).GetAwaiter().GetResult();
 
                     statistics.ResolverCount = success ? m_resolvers.Length : 0;
+                    
+                    // Get a stable list of the different kind of resolvers used in this build
+                    IEnumerable<string> kinds = (configuration.Resolvers ?? CollectionUtilities.EmptyArray<IResolverSettings>())
+                        .Select(resolver => resolver.Kind)
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(kind => kind, StringComparer.Ordinal);
+                    
+                    statistics.ResolverKinds = string.Join(";", kinds);
 
                     return success;
                 }))
@@ -391,7 +402,7 @@ namespace BuildXL.FrontEnd.Core
                 m_logger.FrontEndBuildWorkspacePhaseComplete,
                 delegate(LoggingContext nestedLoggingContext, ref WorkspaceStatistics statistics)
                 {
-                    Workspace = DoPhaseBuildWorkspace(configuration, engineAbstraction, evaluationFilter, qualifiersToEvaluate);
+                    Workspace = DoPhaseBuildWorkspace(configuration, engineAbstraction, evaluationFilter);
 
                     statistics.ProjectCount = Workspace.SpecCount;
                     statistics.ModuleCount = Workspace.ModuleCount;
@@ -556,7 +567,7 @@ namespace BuildXL.FrontEnd.Core
             return paths.Select(p => AbsolutePath.Create(FrontEndContext.PathTable, p)).ToList();
         }
 
-        private void ReloadUnchangedPartsOfTheGraph(IPipGraph graph, IReadOnlyList<AbsolutePath> changedPaths, IReadOnlyList<AbsolutePath> unchangedPaths)
+        private void ReloadUnchangedPartsOfTheGraph(IMutablePipGraph graph, IReadOnlyList<AbsolutePath> changedPaths, IReadOnlyList<AbsolutePath> unchangedPaths)
         {
             WorkspaceBasedSpecDependencyProvider provider = new WorkspaceBasedSpecDependencyProvider(Workspace, FrontEndContext.PathTable);
 
@@ -696,6 +707,7 @@ namespace BuildXL.FrontEnd.Core
                 { "NuGet.PackagesFromDisk", m_frontEndStatistics.NugetStatistics.PackagesFromDisk.Count },
                 { "NuGet.PackagesFromCache", m_frontEndStatistics.NugetStatistics.PackagesFromCache.Count },
                 { "NuGet.PackagesFromNuget", m_frontEndStatistics.NugetStatistics.PackagesFromNuget.Count },
+                { "NuGet.PackageGenStubs", m_frontEndStatistics.NugetStatistics.PackageGenStubs.Count },
 
                 { "DScript.TotalNumberOfSpecsParsed", (long)m_frontEndStatistics.SpecParsing.Count },
                 { "DScript.ParseDurationMs", (long)m_frontEndStatistics.EndToEndParsing.AggregateDuration.TotalMilliseconds },
@@ -1077,7 +1089,6 @@ namespace BuildXL.FrontEnd.Core
 
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
-                new DScriptWorkspaceResolverFactory(),
                 new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
@@ -1108,7 +1119,7 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Initializes front-ends.
         /// </summary>
-        public bool TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
+        public async Task<bool> TryInitializeFrontEndsAndResolvers(IConfiguration configuration)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(HostState == State.ConfigInterpreted);
@@ -1120,48 +1131,39 @@ namespace BuildXL.FrontEnd.Core
                 return false;
             }
 
-            // Most resolvers will ensure the workspaceresolverfactory is initialized, so do that here.
-            // The factory context may be not set if the controller is not using the workspace, so we set that here
-            if (!m_workspaceResolverFactory.IsInitialized)
-            {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration, requestedQualifiers);
-            }
-
-            foreach (IFrontEnd frontEnd in m_frontEndFactory.RegisteredFrontEnds)
-            {
-                frontEnd.InitializeFrontEnd(this, FrontEndContext, configuration);
-            }
+            m_frontEndFactory.InitializeFrontEnds(this, FrontEndContext, configuration);
 
             // For each resolver settings, tries to find a front end for it.
-            var resolvers = new List<IResolver>();
-            foreach (var resolverConfiguration in resolverConfigurations)
+            var resolvers = new List<IResolver>(resolverConfigurations.Count);
+            var initResolverTasks = new Task<bool>[resolverConfigurations.Count];
+            for (int i = 0; i < resolverConfigurations.Count; i++)
             {
-                IFrontEnd frontEndInstance;
+                var resolverConfiguration = resolverConfigurations[i];
 
-                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out frontEndInstance))
+                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out var frontEndInstance))
                 {
                     m_logger.UnregisteredResolverKind(FrontEndContext.LoggingContext, resolverConfiguration.Kind, string.Join(", ", m_frontEndFactory.RegisteredFrontEndKinds));
                     return false;
                 }
 
-                // We ask the front end we found to create a resolver to handle the settings
                 var resolver = frontEndInstance.CreateResolver(resolverConfiguration.Kind);
 
-                var maybeWorkspaceResolver = m_workspaceResolverFactory.TryGetResolver(resolverConfiguration);
-                if (!maybeWorkspaceResolver.Succeeded)
+                // We ask the frontend we found to create a workspace resolver and a resolver to handle the settings
+                if (!frontEndInstance.TryCreateWorkspaceResolver(resolverConfiguration, out var workspaceResolver))
                 {
                     // Error should have been reported.
                     return false;
                 }
 
-                // TODO: Make initialization async.
-                if (!resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result).GetAwaiter().GetResult())
-                {
-                    // Error has been reported by the corresponding front-end.
-                    return false;
-                }
-
                 resolvers.Add(resolver);
+                initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, workspaceResolver);
+            }
+
+            var results = await TaskUtilities.SafeWhenAll(initResolverTasks);
+            if (results.Any(r => !r))
+            {
+                // Error should have been reported.
+                return false;
             }
 
             m_resolvers = resolvers.ToArray();
@@ -1170,7 +1172,7 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// An alternative to <see cref="TryInitializeFrontEndsAndResolvers(IConfiguration, QualifierId[])"/> used for testing.  Instead
+        /// An alternative to <see cref="TryInitializeFrontEndsAndResolvers(IConfiguration)"/> used for testing.  Instead
         /// of taking and parsing a config object, this method directly takes a list of resolvers.
         /// </summary>
         internal void InitializeResolvers(IEnumerable<IResolver> resolvers)
@@ -1182,28 +1184,25 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Returns a <see cref="IWorkspaceProvider"/> responsible for <see cref="Workspace"/> computation.
         /// </summary>
-        internal bool TryGetWorkspaceProvider(IConfiguration configuration, QualifierId[] requestedQualifiers, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
+        internal bool TryGetWorkspaceProvider(IConfiguration configuration, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
         {
             var workspaceConfiguration = GetWorkspaceConfiguration(configuration);
-
-            // This is the point where we have all the objects we need to complete setting up the workspace factory
-            if (!m_workspaceResolverFactory.IsInitialized)
-            {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration, requestedQualifiers);
-            }
 
             return TryGetWorkspaceProvider(workspaceConfiguration, out workspaceProvider, out failures);
         }
 
-        private bool TryGetWorkspaceProvider(WorkspaceConfiguration workspaceConfiguration, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
+        private bool TryGetWorkspaceProvider(
+            WorkspaceConfiguration workspaceConfiguration, 
+            out IWorkspaceProvider workspaceProvider, 
+            out IEnumerable<Failure> failures)
         {
             return WorkspaceProvider.TryCreate(
                 GetMainConfigWorkspace(),
                 m_frontEndStatistics,
-                m_workspaceResolverFactory,
-                workspaceConfiguration,
+                m_frontEndFactory,
                 FrontEndContext.PathTable,
                 FrontEndContext.SymbolTable,
+                workspaceConfiguration,
                 useDecorator: true,
                 addBuiltInPreludeResolver: true,
                 workspaceProvider: out workspaceProvider,
@@ -1377,7 +1376,8 @@ namespace BuildXL.FrontEnd.Core
                 items,
                 taskSelector: item => item.Task,
                 action: (elapsed, all, remaining) => LogModuleEvaluationProgress(numSpecs, elapsed, all, remaining),
-                period: EvaluationProgressReportingPeriod);
+                period: EvaluationProgressReportingPeriod,
+                reportImmediately: false);
             bool success = results.All(b => b);
             if (!success)
             {
@@ -1392,7 +1392,8 @@ namespace BuildXL.FrontEnd.Core
                     tasks,
                     taskSelector: item => item.Item2,
                     action: (elapsed, all, remaining) => LogFragmentEvaluationProgress(numSpecs, elapsed, all, remaining),
-                    period: EvaluationProgressReportingPeriod);
+                    period: EvaluationProgressReportingPeriod,
+                    reportImmediately: false);
                 return results.All(b => b);
             }
 

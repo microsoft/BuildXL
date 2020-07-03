@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -119,6 +119,15 @@ namespace BuildXL.FrontEnd.Script
                 return Empty();
             }
 
+            return Create(frameSize, lambda.Params, lambda.Captures, capturedValues);
+        }
+
+        /// <summary>
+        /// Allocates a stack frame for DScript evaluation.  
+        /// <seealso cref="Create(FunctionLikeExpression, EvaluationResult[])"/>.
+        /// </summary>
+        public static EvaluationStackFrame Create(int frameSize, int paramsCount, int paramsOffset, EvaluationResult[] capturedValues = null)
+        {
             var wrapper = default(PooledObjectWrapper<EvaluationStackFrame>);
             EvaluationStackFrame frame;
             if (frameSize < s_framePools.Length)
@@ -131,7 +140,7 @@ namespace BuildXL.FrontEnd.Script
                 frame = new EvaluationStackFrame(frameSize, fromPool: false);
             }
 
-            frame.Initialize(wrapper, lambda.Params, lambda.Captures, capturedValues);
+            frame.Initialize(wrapper, paramsCount, paramsOffset, capturedValues);
             frame.ReturnStatementWasEvaluated = false;
             return frame;
         }
@@ -300,6 +309,17 @@ namespace BuildXL.FrontEnd.Script
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Tears down the internal object pool to save memory
+        /// </summary>
+        public static void TearDownPool()
+        {
+            for (int i = 0; i < s_framePools.Length; i++)
+            {
+                s_framePools[i].Clear();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

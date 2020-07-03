@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Artifacts
 {
@@ -18,6 +18,8 @@ namespace BuildXL.Pips.Artifacts
         /// </summary>
         public static bool IsOutputMustRemainWritablePip(Pip pip)
         {
+            Contract.Requires(pip != null);
+
             switch (pip.PipType)
             {
                 case PipType.Process:
@@ -52,7 +54,7 @@ namespace BuildXL.Pips.Artifacts
         /// </summary>
         /// <remarks>
         /// If the given output path represents a dynamic file output, 
-        /// then we check whether the given path is within any whitelistedpath.
+        /// then we check whether the given path is within any allowlistedpath.
         /// </remarks>
         public static bool IsPreservedOutputByPip(Pip pip, AbsolutePath outputPath, PathTable pathTable, int sandBoxPreserveOuputTrstLevel, bool isDynamicFileOutput = false)
         {
@@ -62,9 +64,9 @@ namespace BuildXL.Pips.Artifacts
                 return false;
             }
 
-            if (process.PreserveOutputWhitelist.Length == 0)
+            if (process.PreserveOutputAllowlist.Length == 0)
             {
-                // If whitelist is not given, we preserve all outputs of the given pip.
+                // If allowlist is not given, we preserve all outputs of the given pip.
                 return true;
             }
 
@@ -72,10 +74,10 @@ namespace BuildXL.Pips.Artifacts
             if (isDynamicFileOutput)
             {
                 // If the given path represents the dynamic file output, we cannot compare
-                // that path with the paths in the whitelist as only declared outputs are specified
-                // in the whitelist. Declared outputs are static file outputs and directory outputs.
+                // that path with the paths in the allowlist as only declared outputs are specified
+                // in the allowlist. Declared outputs are static file outputs and directory outputs.
                 // That's why, we need to check whether the given file path is under one of the 
-                // directory paths in the whitelist.
+                // directory paths in the allowlist.
                 checkFunc = (p) => outputPath.IsWithin(pathTable, p);
             }
             else
@@ -83,7 +85,7 @@ namespace BuildXL.Pips.Artifacts
                 checkFunc = (p) => outputPath == p;
             }
 
-            foreach (var path in process.PreserveOutputWhitelist)
+            foreach (var path in process.PreserveOutputAllowlist)
             {
                 if (checkFunc(path))
                 {

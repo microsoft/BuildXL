@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -43,6 +43,15 @@ namespace BuildXL.Utilities
             ExpandedPath = path.ToString(pathTable, nameExpander: nameExpander);
         }
 
+        /// <summary>
+        /// Constructs an expanded absolute path under the assumption that the expanded path is the result
+        /// of expanding the given absolute path.
+        /// </summary>
+        public static ExpandedAbsolutePath CreateUnsafe(AbsolutePath path, string expandedPath)
+        {
+            Contract.Requires(path.IsValid);
+            return new ExpandedAbsolutePath(path, expandedPath);
+        }
         /// <summary>
         /// Constructs an expanded absolute path with the given file name
         /// </summary>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using BuildXL;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities;
@@ -22,6 +23,7 @@ using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using BuildXL.Processes;
 
 namespace Test.DScript.Ast
 {
@@ -103,7 +105,8 @@ namespace Test.DScript.Ast
             bool rememberAllChangedTrackedInputs,
             out BuildXLEngine engine,
             Action<EngineTestHooksData> verifyEngineTestHooksData = null,
-            TestCache testCache = null)
+            TestCache testCache = null,
+            IDetoursEventListener detoursListener = null)
         {
             testCache = testCache ?? TestCache;
 
@@ -112,13 +115,19 @@ namespace Test.DScript.Ast
                                                        AppDeployment = appDeployment,
                                                        CacheFactory = () => new EngineCache(
                                                             testCache.GetArtifacts(),
-                                                            testCache.Fingerprints)
+                                                            testCache.Fingerprints),
+                                                       DetoursListener = detoursListener,
                                                     })
             {
                 engine = CreateEngine(config, appDeployment, testRootDirectory, rememberAllChangedTrackedInputs, verifyEngineTestHooksData);
 
                 // Ignore DX222 for csc.exe being outside of src directory
                 IgnoreWarnings();
+
+                if (engine == null)
+                {
+                    return null;
+                }
 
                 engine.TestHooks = testHooks;
 

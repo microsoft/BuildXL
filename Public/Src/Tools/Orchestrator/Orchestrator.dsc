@@ -6,7 +6,6 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Orchestrator {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -19,7 +18,7 @@ namespace Orchestrator {
         ],
         references: [
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("Microsoft.AspNet.WebApi.Client.NetCore").pkg,
+            importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.WebApi").pkg,

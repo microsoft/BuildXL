@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -47,6 +45,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly BuildCacheCacheTracer _tracer;
         private ContentHashListAdapterFactory _contentHashListAdapterFactory;
         private readonly bool _overrideUnixFileAccessMode;
+        private readonly bool _enableEagerFingerprintIncorporation;
+        private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
+        private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
+        private readonly int _eagerFingerprintIncorporationNagleBatchSize;
 
         private bool _disposed;
 
@@ -73,6 +75,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
+        /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
+        /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
+        /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         public BuildCacheCache(
             IAbsFileSystem fileSystem,
             string cacheNamespace,
@@ -93,7 +99,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool useBlobContentHashLists = false,
             bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false,
-            bool overrideUnixFileAccessMode = false)
+            bool overrideUnixFileAccessMode = false,
+            bool enableEagerFingerprintIncorporation = false,
+            TimeSpan inlineFingerprintIncorporationExpiry = default,
+            TimeSpan eagerFingerprintIncorporationNagleInterval = default,
+            int eagerFingerprintIncorporationNagleBatchSize = 100)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(buildCacheHttpClientFactory != null);
@@ -135,6 +145,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _maxDegreeOfParallelismForIncorporateRequests = maxDegreeOfParallelismForIncorporateRequests;
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
+            _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
+            _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
+            _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
+            _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
         }
 
         /// <inheritdoc />
@@ -169,8 +183,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 var statsResult = await GetStatsInternalAsync(context).ConfigureAwait(false);
                 if (statsResult.Succeeded)
                 {
-                    context.Debug("BuildCacheCache Stats:");
-                    statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
+                    _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "BuildCacheCacheStats");
                 }
                 else
                 {
@@ -327,7 +340,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
                         _overrideUnixFileAccessMode,
-                        _tracer));
+                        _tracer,
+                        _enableEagerFingerprintIncorporation,
+                        _inlineFingerprintIncorporationExpiry,
+                        _eagerFingerprintIncorporationNagleInterval,
+                        _eagerFingerprintIncorporationNagleBatchSize));
             });
         }
 
@@ -373,7 +390,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
                         _overrideUnixFileAccessMode,
-                        _tracer));
+                        _tracer,
+                        _enableEagerFingerprintIncorporation,
+                        _inlineFingerprintIncorporationExpiry,
+                        _eagerFingerprintIncorporationNagleInterval,
+                        _eagerFingerprintIncorporationNagleBatchSize));
             });
         }
 
@@ -421,7 +442,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Guid Id { get; private set; }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
         }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Processes
 {
@@ -20,5 +20,14 @@ namespace BuildXL.Processes
         /// Only used when <see cref="FileAccessPolicy.OverrideAllowWriteForExistingFiles"/> is on
         /// </remarks>
         FileExistenceBased = 1,
+
+        /// <summary>
+        /// File access was reported by a trusted tool
+        /// </summary>
+        /// <remarks>
+        /// Trusted tools are allowed to report an augmented set of file accesses when they have processes
+        /// that are allowed to breakaway from the sandbox, and therefore need to compensate for missing accesses.
+        /// </remarks>
+        TrustedTool = 2,
     }
 }

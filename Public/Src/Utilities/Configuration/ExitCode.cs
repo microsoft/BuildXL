@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -48,7 +48,7 @@ namespace BuildXL.Utilities.Configuration
                 case ExitKind.InternalError:
                     return -1;
                 default:
-                    Contract.Assert(false, "Unknown ExitKind" + exitKind.ToString());
+                    Contract.Check(false)?.Assert("Unknown ExitKind" + exitKind.ToString());
                     throw new ArgumentException("Unknown ExitKind" + exitKind.ToString());
             }
         }

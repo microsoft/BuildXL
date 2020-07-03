@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>
-    /// Container for a individual memmber of BulkPlace call
+    /// Container for a individual member of BulkPlace call
     /// </summary>
     public readonly struct ContentHashWithPath : IEquatable<ContentHashWithPath>
     {
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

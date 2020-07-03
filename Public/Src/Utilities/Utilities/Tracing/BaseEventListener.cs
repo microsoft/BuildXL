@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -103,7 +103,7 @@ namespace BuildXL.Utilities.Tracing
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
             bool listenDiagnosticMessages = false)
         {
-            Contract.Requires(eventSource != null);
+            Contract.RequiresNotNull(eventSource);
 
             m_eventSource = eventSource;
             m_level = level;
@@ -180,7 +180,7 @@ namespace BuildXL.Utilities.Tracing
         {
             // Ensure this event which routes text log messages to ETW is not handled by
             // event listeners
-            if (eventData.EventId == (int)EventId.TextLogEtwOnly)
+            if (eventData.EventId == (int)SharedLogEventId.TextLogEtwOnly)
             {
                 return;
             }
@@ -217,7 +217,13 @@ namespace BuildXL.Utilities.Tracing
             {
                 if (m_warningMapper != null)
                 {
-                    switch (m_warningMapper(eventData.EventId))
+                    int actualEventId = eventData.EventId;
+                    if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
+                    {
+                        actualEventId = (int)eventData.Payload[1];
+                    }
+                    
+                    switch (m_warningMapper(actualEventId))
                     {
                         case WarningState.AsError:
                             {
@@ -340,7 +346,7 @@ namespace BuildXL.Utilities.Tracing
 
         private void OnDisabledDueToDiskWriteFailure()
         {
-            Contract.Requires(m_disabledDueToDiskWriteFailureEventHandler != null);
+            Contract.RequiresNotNull(m_disabledDueToDiskWriteFailureEventHandler);
 
             ThreadPool.QueueUserWorkItem(
                 state => m_disabledDueToDiskWriteFailureEventHandler(this));

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -32,7 +32,16 @@ namespace BuildXL.Pips
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
 
         /// <nodoc />
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
+
+        /// <nodoc />
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations;
+
+        /// <nodoc />
+        public bool HasDynamicObservations =>
+            DynamicallyObservedFiles.Length > 0
+            || DynamicallyProbedFiles.Length > 0
+            || DynamicallyObservedEnumerations.Length > 0;
 
         /// <nodoc />
         public PipResult(
@@ -40,16 +49,19 @@ namespace BuildXL.Pips
             PipExecutionPerformance performanceInfo,
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations)
         {
             Contract.Requires(!status.IndicatesExecution() == (performanceInfo == null));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
 
             Status = status;
             PerformanceInfo = performanceInfo;
             MustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty;
             DynamicallyObservedFiles = dynamicallyObservedFiles;
+            DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
         }
 
@@ -64,6 +76,7 @@ namespace BuildXL.Pips
                 status,
                 PipExecutionPerformance.CreatePoint(status),
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }
@@ -81,6 +94,7 @@ namespace BuildXL.Pips
                 PipExecutionPerformance.Create(status, executionStart),
                 mustBeConsideredPerpetuallyDirty,
                 ReadOnlyArray<AbsolutePath>.Empty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }
 
@@ -94,6 +108,7 @@ namespace BuildXL.Pips
                 status,
                 null,
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }
@@ -157,8 +172,20 @@ namespace BuildXL.Pips
         [Pure]
         public static bool IndicatesFailure(this PipResultStatus result)
         {
-            return result == PipResultStatus.Failed || result == PipResultStatus.Skipped || result == PipResultStatus.Canceled;
+            // Note: Skipped pips are not considered failures because they do not by themselves cause a build to fail.
+            // If a pip is skipped due to an upstream failure, that upstream pip is the one that causes the session to fail.
+            return result == PipResultStatus.Failed || result == PipResultStatus.Canceled;
         }
+
+        /// <summary>
+        /// Indicates that a pip has no outputs.
+        /// </summary>
+        /// <remarks>
+        /// The <see cref="PipResultStatus.NotMaterialized"/> status is not included because it indicates that the pip has some output, only that
+        /// the outputs are not materialized. The <see cref="PipResultStatus.NotCachedNotExecuted"/> is not included because it doesn't seem to be
+        /// used anywhere.
+        /// </remarks>
+        public static bool IndicatesNoOutput(this PipResultStatus result) => result.IndicatesFailure() || result == PipResultStatus.Skipped;
 
         /// <summary>
         /// Indicates if a pip's result indications some level of execution, though possibly just an up-to-date check (i.e., not skipped entirely).

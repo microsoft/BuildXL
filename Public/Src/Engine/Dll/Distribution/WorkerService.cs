@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -44,7 +44,7 @@ namespace BuildXL.Engine.Distribution
     /// </remarks>
     public sealed partial class WorkerService : IDistributionService
     {
-#region Writer Pool
+        #region Writer Pool
 
         private readonly ObjectPool<BuildXLWriter> m_writerPool = new ObjectPool<BuildXLWriter>(CreateWriter, (Action<BuildXLWriter>)CleanupWriter);
 
@@ -63,7 +63,7 @@ namespace BuildXL.Engine.Distribution
                 logStats: false);
         }
 
-#endregion Writer Pool
+        #endregion Writer Pool
 
         private readonly List<ExtendedPipCompletionData> m_executionResultList = new List<ExtendedPipCompletionData>();
 
@@ -104,7 +104,7 @@ namespace BuildXL.Engine.Distribution
         public uint WorkerId { get; private set; }
 
         private volatile bool m_hasFailures = false;
-        private volatile string m_masterFailureMessage; 
+        private volatile string m_masterFailureMessage;
 
         /// <summary>
         /// Whether master is done with the worker by sending a message to worker.
@@ -119,14 +119,14 @@ namespace BuildXL.Engine.Distribution
         private IPipExecutionEnvironment m_environment;
         private ForwardingEventListener m_forwardingEventListener;
         private WorkerServicePipStateManager m_workerPipStateManager;
+        private readonly IConfiguration m_config;
         private readonly ushort m_port;
-        private readonly int m_maxProcesses;
         private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
         private readonly DistributionServices m_services;
         private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
 
         private readonly Thread m_sendThread;
-        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
+        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData>();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
         private IMasterClient m_masterClient;
@@ -136,14 +136,13 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         /// <param name="appLoggingContext">Application-level logging context</param>
-        /// <param name="maxProcesses">the maximum number of concurrent pips on the worker</param>
-        /// <param name="config">Distribution config</param>\
+        /// <param name="config">Build config</param>\
         /// <param name="buildId">the build id</param>
-        public WorkerService(LoggingContext appLoggingContext, int maxProcesses, IDistributionConfiguration config, string buildId)
+        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, string buildId)
         {
             m_appLoggingContext = appLoggingContext;
-            m_maxProcesses = maxProcesses;
-            m_port = config.BuildServicePort;
+            m_config = config;
+            m_port = config.Distribution.BuildServicePort;
             m_services = new DistributionServices(buildId);
             m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
 
@@ -178,9 +177,23 @@ namespace BuildXL.Engine.Distribution
                     m_executionResultList.Add(item);
                 }
 
+                // Ensure all execution log events are flushed before reporting pip results to master
+                // to ensure dependency ordering constraints between pips are maintained inside combined
+                // execution log on master.
+                // NOTE: Actual wait for result is below to allow other serialization of execution results
+                // to run in parallel with flush.
+                var flushExecutionLogTask = EngineEnvironmentSettings.InlineWorkerXLGHandling
+                    ? m_notifyMasterExecutionLogTarget.FlushAsync()
+                    : Task.CompletedTask;
+
                 using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
                 {
                     Parallel.ForEach(m_executionResultList, a => SerializeExecutionResult(a));
+                }
+
+                using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
+                {
+                    flushExecutionLogTask.GetAwaiter().GetResult();
                 }
 
                 using (m_services.Counters.StartStopwatch(DistributionCounter.ReportPipsCompletedDuration))
@@ -222,7 +235,7 @@ namespace BuildXL.Engine.Distribution
                 var writer = pooledWriter.Instance;
                 PipId pipId = completionData.PipId;
 
-                m_resultSerializer.Serialize(writer, completionData.ExecutionResult);
+                m_resultSerializer.Serialize(writer, completionData.ExecutionResult, completionData.PreservePathSetCasing);
 
                 // TODO: ToArray is expensive here. Think about alternatives.
                 var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
@@ -232,12 +245,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        /// <summary>
-        /// Connects to the master and enables this node to receive build requests
-        /// </summary>
-        /// <param name="schedule">the engine schedule</param>
-        /// <returns>true if the operation was successful</returns>
-        internal async Task<bool> ConnectToMasterAsync(EngineSchedule schedule)
+        internal void Start(EngineSchedule schedule)
         {
             Contract.Requires(schedule != null);
             Contract.Requires(schedule.Scheduler != null);
@@ -254,6 +262,14 @@ namespace BuildXL.Engine.Distribution
             m_environment.State.PipEnvironment.MasterEnvironmentVariables = BuildStartData.EnvironmentVariables;
             m_resultSerializer = new ExecutionResultSerializer(maxSerializableAbsolutePathIndex: schedule.MaxSerializedAbsolutePath, executionContext: m_scheduler.Context);
             m_forwardingEventListener = new ForwardingEventListener(this);
+        }
+
+        /// <summary>
+        /// Connects to the master and enables this node to receive build requests
+        /// </summary>
+        internal async Task<bool> WhenDoneAsync()
+        {
+            Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
 
             bool success = await SendAttachCompletedAfterProcessBuildRequestStartedAsync();
 
@@ -302,12 +318,6 @@ namespace BuildXL.Engine.Distribution
         {
             m_isMasterExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
-
-            // Dispose the notify master execution log target to ensure all message are sent to master.
-            m_notifyMasterExecutionLogTarget?.Dispose();
-
-            // Dispose the event listener to ensure all events are sent to master.
-            m_forwardingEventListener?.Dispose();
         }
 
 
@@ -332,11 +342,15 @@ namespace BuildXL.Engine.Distribution
             // The execution log target can be null if the worker failed to attach to master
             if (m_notifyMasterExecutionLogTarget != null)
             {
-                // Remove the notify master target to ensure no further events are sent to it
+                // Remove the notify master target to ensure no further events are sent to it.
+                // Otherwise, the events that are sent to a disposed target would cause crashes.
                 m_scheduler.RemoveExecutionLogTarget(m_notifyMasterExecutionLogTarget);
                 // Dispose the execution log target to ensure all events are flushed and sent to master
                 m_notifyMasterExecutionLogTarget.Dispose();
             }
+
+            // Dispose the event listener to ensure all events are sent to master.
+            m_forwardingEventListener?.Dispose();
 
             m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 
@@ -388,7 +402,7 @@ namespace BuildXL.Engine.Distribution
                 m_appLoggingContext);
 
             m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
-            
+
             WorkerId = BuildStartData.WorkerId;
 
             m_attachCompletionSource.TrySetResult(true);
@@ -418,8 +432,10 @@ namespace BuildXL.Engine.Distribution
             var attachCompletionInfo = new AttachCompletionInfo
             {
                 WorkerId = WorkerId,
-                MaxConcurrency = m_maxProcesses,
-                AvailableRamMb = m_scheduler.LocalWorker.TotalMemoryMb,
+                MaxProcesses = m_config.Schedule.MaxProcesses,
+                MaxMaterialize = m_config.Schedule.MaxMaterialize,
+                AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb,
+                AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb,
                 WorkerCacheValidationContentHash = cacheValidationContentHash.ToBondContentHash(),
             };
 
@@ -466,32 +482,50 @@ namespace BuildXL.Engine.Distribution
                 // Start the pip. Handle the case of a retry - the pip may be already started by a previous call.
                 if (m_handledBuildRequests.Add(pipBuildRequest.SequenceNumber))
                 {
-                    HandlePipStepAsync(pipBuildRequest, reportInputsResult).Forget();
+
+                    var pipId = new PipId(pipBuildRequest.PipIdValue);
+                    var pip = m_pipTable.HydratePip(pipId, PipQueryContext.HandlePipStepOnWorker);
+                    m_pendingBuildRequests[pipId] = pipBuildRequest;
+                    var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step })
+                    {
+                        SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId)
+                    };
+
+                    m_pendingPipCompletions[pipId] = pipCompletionData;
+
+                    HandlePipStepAsync(pip, pipCompletionData, pipBuildRequest, reportInputsResult).Forget((ex)=>
+                    {
+                        Scheduler.Tracing.Logger.Log.HandlePipStepOnWorkerFailed(
+                            m_appLoggingContext,
+                            pip.GetDescription(m_environment.Context),
+                            ex.ToString());
+
+                        // HandlePipStep might throw an exception after we remove pipCompletionData from m_pendingPipCompletions.
+                        // That's why, we check whether the pipCompletionData still exists there.
+                        if (m_pendingPipCompletions.ContainsKey(pip.PipId))
+                        {
+                            ReportResult(
+                                pip,
+                                ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
+                                (PipExecutionStep)pipBuildRequest.Step);
+                        }
+                    });
                 }
             }
         }
 
-        private async Task HandlePipStepAsync(SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
+        private async Task HandlePipStepAsync(Pip pip, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
         {
             // Do not block the caller.
             await Task.Yield();
 
-            var pipId = new PipId(pipBuildRequest.PipIdValue);
-            var pip = m_pipTable.HydratePip(pipId, PipQueryContext.LoggingPipFailedOnWorker);
+            var pipId = pip.PipId;
             var pipType = pip.PipType;
             var step = (PipExecutionStep)pipBuildRequest.Step;
             if (!(pipType == PipType.Process || pipType == PipType.Ipc || step == PipExecutionStep.MaterializeOutputs))
             {
                 throw Contract.AssertFailure(I($"Workers can only execute process or IPC pips for steps other than MaterializeOutputs: Step={step}, PipId={pipId}, Pip={pip.GetDescription(m_environment.Context)}"));
             }
-
-            m_pendingBuildRequests[pipId] = pipBuildRequest;
-            var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = (int)step })
-            {
-                SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId)
-            };
-
-            m_pendingPipCompletions[pipId] = pipCompletionData;
 
             using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, m_appLoggingContext))
             using (operationContext.StartOperation(step))
@@ -501,14 +535,12 @@ namespace BuildXL.Engine.Distribution
                 if (!reportInputsResult.Succeeded)
                 {
                     // Could not report inputs due to input mismatch. Fail the pip
-                    BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureUnrelatedToCache(
+                    Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
                         m_appLoggingContext,
                         pipInfo.Description,
-                        ArtifactMaterializationResult.VerifySourceFilesFailed.ToString(),
                         reportInputsResult.Failure.DescribeIncludingInnerFailures());
 
                     ReportResult(
-                        operationContext,
                         pip,
                         ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
                         step);
@@ -543,7 +575,6 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 ReportResult(
-                    operationContext,
                     pip,
                     executionResult,
                     step);
@@ -583,7 +614,11 @@ namespace BuildXL.Engine.Distribution
                         var fingerprint = pipBuildRequest.Fingerprint.ToFingerprint();
                         processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint)));
 
-                        processRunnable.ExpectedRamUsageMb = pipBuildRequest.ExpectedRamUsageMb;
+                        processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
+                            peakWorkingSetMb: pipBuildRequest.ExpectedPeakWorkingSetMb,
+                            averageWorkingSetMb: pipBuildRequest.ExpectedAverageWorkingSetMb,
+                            peakCommitSizeMb: pipBuildRequest.ExpectedPeakCommitSizeMb,
+                            averageCommitSizeMb: pipBuildRequest.ExpectedAverageCommitSizeMb);
                     }
 
                     break;
@@ -642,25 +677,7 @@ namespace BuildXL.Engine.Distribution
 
                     if (cacheResult != null)
                     {
-                        executionResult.WeakFingerprint = cacheResult.WeakFingerprint;
-
-                        if (cacheResult.CanRunFromCache)
-                        {
-                            var cacheHitData = cacheResult.GetCacheHitData();
-                            if (m_environment.State.Cache.IsNewlyAdded(cacheHitData.PathSetHash))
-                            {
-                                executionResult.PathSet = cacheHitData.PathSet;
-                            }
-
-                            executionResult.PipCacheDescriptorV2Metadata = cacheHitData.Metadata;
-                            executionResult.TwoPhaseCachingInfo = new TwoPhaseCachingInfo(
-                                weakFingerprint: cacheResult.WeakFingerprint,
-                                pathSetHash: cacheHitData.PathSetHash,
-                                strongFingerprint: cacheHitData.StrongFingerprint,
-
-                                // NOTE: This should not be used so we set it to default values except the metadata hash (it is used for HistoricMetadataCache).
-                                cacheEntry: new CacheEntry(cacheHitData.MetadataHash, "unused", ArrayView<ContentHash>.Empty));
-                        }
+                        executionResult.PopulateCacheInfoFromCacheResult(cacheResult);
                     }
 
                     executionResult.CacheLookupPerfInfo = runnableProcess.CacheLookupPerfInfo;
@@ -686,7 +703,6 @@ namespace BuildXL.Engine.Distribution
         }
 
         private void ReportResult(
-           OperationContext operationContext,
            Pip pip,
            ExecutionResult executionResult,
            PipExecutionStep step)
@@ -703,7 +719,25 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(found, "Could not find corresponding build completion data for executed pip on worker");
 
             pipCompletion.ExecutionResult = executionResult;
-            m_buildResults.Add(pipCompletion);
+            // To preserve the path set casing is an option only available for process pips
+            pipCompletion.PreservePathSetCasing = pip.PipType == PipType.Process ? ((Process)pip).PreservePathSetCasing : false;
+
+            if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput)
+            {
+                // We do not report 'MaterializeOutput' step results back to master.
+                Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
+                return;
+            }
+
+            try
+            {
+                m_buildResults.Add(pipCompletion);
+            }
+            catch (InvalidOperationException)
+            {
+                // m_buildResults is already marked as completed due to previously infrastructure errors reported (e.g., materialization errors).
+                // No need to report the other failed results as the build already failed
+            }
         }
 
         private Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes)
@@ -732,7 +766,7 @@ namespace BuildXL.Engine.Distribution
                             new AbsolutePath(bondDirectoryArtifact.DirectoryPathValue),
                             bondDirectoryArtifact.DirectorySealId,
                             bondDirectoryArtifact.IsDirectorySharedOpaque);
-                        
+
                         if (!dynamicDirectoryMap.TryGetValue(directory, out var files))
                         {
                             files = new List<FileArtifact>();
@@ -749,7 +783,7 @@ namespace BuildXL.Engine.Distribution
 
                 if (fileArtifactKeyedHash.IsSourceAffected)
                 {
-                    fileContentManager.SourceChangeAffectedContents.ReportSourceChangedAffectedFile(file.Path);
+                    fileContentManager.SourceChangeAffectedInputs.ReportSourceChangedAffectedFile(file.Path);
                 }
 
                 var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);
@@ -879,7 +913,7 @@ namespace BuildXL.Engine.Distribution
                 private Snapshot m_pipStateSnapshot;
 
                 public StatusReporter(LoggingContext loggingContext, WorkerServicePipStateManager stateManager)
-                    : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)EventId.PipStatus }, disabledEvents: null))
+                    : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)SharedLogEventId.PipStatus }, disabledEvents: null))
                 {
                     m_loggingContext = loggingContext;
                     m_pipStateSnapshot = stateManager.GetSnapshot();
@@ -905,7 +939,7 @@ namespace BuildXL.Engine.Distribution
 
                 protected override void OnEventWritten(EventWrittenEventArgs eventData)
                 {
-                    if (eventData.EventId == (int)EventId.PipStatus)
+                    if (eventData.EventId == (int)SharedLogEventId.PipStatus)
                     {
                         ReportStatus();
                     }
@@ -936,14 +970,14 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-#region IDisposable Members
+            #region IDisposable Members
 
             public void Dispose()
             {
                 m_statusReporter.Dispose();
             }
 
-#endregion
+            #endregion
         }
     }
 }

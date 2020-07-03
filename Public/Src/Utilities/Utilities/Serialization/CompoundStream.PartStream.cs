@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -177,7 +177,7 @@ namespace BuildXL.Utilities.Serialization
             /// <inheritdoc />
             public override int Read(byte[] buffer, int offset, int count)
             {
-                Contract.Assert(BaseGlobalReadStream != null, "Stream is not initialized");
+                Contract.AssertNotNull(BaseGlobalReadStream, "Stream is not initialized");
                 Contract.Assert(CanRead, "Stream is not readable");
                 Contract.Assert(!m_isClosed, "Cannot read stream. Stream is not closed.");
                 int totalReadBytes = 0;

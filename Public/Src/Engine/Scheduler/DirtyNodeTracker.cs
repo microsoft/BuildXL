@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler
@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The node dataflow graph
         /// </summary>
-        protected readonly DirectedGraph Graph;
+        protected readonly IReadonlyDirectedGraph Graph;
 
         /// <summary>
         /// Indicates whether the set of dirty nodes has changed
@@ -249,7 +249,7 @@ namespace BuildXL.Scheduler
         /// <param name="perpetualDirtyNodes">the set of nodes that stay dirty even after execution or running from cache.</param>
         /// <param name="dirtyNodesChanged">flag indicating whether dirty nodes have changed</param>
         /// <param name="materializedNodes">the set of nodes that have materialized their outputs</param>
-        public DirtyNodeTracker(DirectedGraph graph, RangedNodeSet dirtyNodes, RangedNodeSet perpetualDirtyNodes, bool dirtyNodesChanged, RangedNodeSet materializedNodes)
+        public DirtyNodeTracker(IReadonlyDirectedGraph graph, RangedNodeSet dirtyNodes, RangedNodeSet perpetualDirtyNodes, bool dirtyNodesChanged, RangedNodeSet materializedNodes)
         {
             Contract.Requires(graph != null);
             Contract.Requires(dirtyNodes != null);
@@ -266,7 +266,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates an instence of <see cref="DirtyNodeTracker"/>.
         /// </summary>
-        public DirtyNodeTracker(DirectedGraph graph, DirtyNodeTrackerSerializedState dirtyNodeTrackerSerializedState)
+        public DirtyNodeTracker(IReadonlyDirectedGraph graph, DirtyNodeTrackerSerializedState dirtyNodeTrackerSerializedState)
             : this(graph, dirtyNodeTrackerSerializedState.DirtyNodes, dirtyNodeTrackerSerializedState.PerpetualDirtyNodes, false, dirtyNodeTrackerSerializedState.MaterializedNodes)
         {
             Contract.Requires(graph != null);

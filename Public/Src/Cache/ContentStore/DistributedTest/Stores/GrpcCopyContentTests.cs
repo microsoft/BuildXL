@@ -1,8 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -19,117 +21,33 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Stores
 {
-    [Trait("Category", "WindowsOSOnly")]
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
         private readonly Context _context;
-        private GrpcCopyClientCache _clientCache;
+        private readonly GrpcCopyClientCache _clientCache;
 
-        public GrpcCopyContentTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public GrpcCopyContentTests(ITestOutputHelper output)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
             _context = new Context(Logger);
             _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
         }
 
         [Fact]
-        public async Task DuplicateClientsAreTheSameObject()
-        {
-            using (var client1 = await _clientCache.CreateAsync(LocalHost, 10, true))
-            using (var client2 = await _clientCache.CreateAsync(LocalHost, 10, true))
-            {
-                Assert.Same(client1.Value, client2.Value);
-            }
-        }
-
-        [Fact]
-        public async Task ValidateBackgroundCleanup()
-        {
-            List<GrpcCopyClient> clientList = new List<GrpcCopyClient>();
-            var key = new GrpcCopyClientKey(LocalHost, 11, true);
-            ResourceWrapper<GrpcCopyClient> clientWrapper;
-            using (clientWrapper = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression))
-            {
-                clientList.Add(clientWrapper.Value);
-                clientWrapper._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(2);
-            }
-
-            // Start cleanup now; don't wait for another loop
-            await _clientCache.CleanupAsync();
-
-            var newClient = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression);
-            clientList.Add(newClient.Value);
-
-            // If we found a different client, then cleanup successfully removed the original client
-            Assert.NotSame(newClient.Value, clientWrapper.Value);
-            Assert.Equal(1, newClient.Uses);
-        }
-
-        [Fact]
-        public async Task IssueSameClientManyTimes()
-        {
-            using (ResourceWrapper<GrpcCopyClient> originalClientWrapper = await _clientCache.CreateAsync(LocalHost, 42, false))
-            {
-                var originalClient = originalClientWrapper.Value;
-
-                for (int i = 0; i < 1000; i++)
-                {
-                    using (var newClient = await _clientCache.CreateAsync(LocalHost, 42, false))
-                    {
-                        Assert.Same(newClient.Value, originalClient);
-                    }
-                }
-            }
-        }
-
-        [Fact]
-        public async Task FillCacheWithoutRemovingClients()
-        {
-            int maxClientCount = 10;
-            var clientWrapperList = new List<(ResourceWrapper<GrpcCopyClient> Wrapper, GrpcCopyClient Client)>();
-            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30, bufferSize: 65536);
-
-            for (int i = 0; i < maxClientCount; i++)
-            {
-                var clientWrapper = await _clientCache.CreateAsync(LocalHost, i, true);
-                clientWrapperList.Add((clientWrapper, clientWrapper.Value));
-            }
-
-            // Create new clients for every port
-            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Created));
-
-            // Zero clients were cleaned
-            Assert.Equal(0, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));
-
-            // Zero clients were reused
-            Assert.Equal(0, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Reused));
-
-            foreach (var c in clientWrapperList)
-            {
-                c.Wrapper._lastUseTime -= TimeSpan.FromDays(1);
-                c.Wrapper.Dispose();
-            }
-
-            await _clientCache.CleanupAsync();
-
-            // All clients were cleaned
-            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));
-        }
-
-        [Fact]
         public async Task CopyExistingFile()
         {
-            await RunTestCase(nameof(CopyExistingFile), async (rootPath, session, client) =>
+            await RunTestCase(async (rootPath, session, client) =>
             {
                 // Write a random file
                 var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
@@ -154,9 +72,47 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
+        public async Task CopyToShouldNotCloseGivenStream()
+        {
+            await RunTestCase(async (rootPath, session, client) =>
+            {
+                // Write a random file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                var content = ThreadSafeRandom.GetBytes(FileSize);
+                FileSystem.WriteAllBytes(sourcePath, content);
+
+                // Put the random file
+                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                putResult.ShouldBeSuccess();
+
+                // Copy the file out via GRPC
+                var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                using (var destinationStream = await FileSystem.OpenSafeAsync(
+                    destinationPath,
+                    FileAccess.ReadWrite,
+                    FileMode.CreateNew,
+                    FileShare.None,
+                    FileOptions.None,
+                    1024))
+                {
+                    (await client.CopyToAsync(_context, putResult.ContentHash, destinationStream, CancellationToken.None)).ShouldBeSuccess();
+                    // If the stream is not disposed, the following operation should not fail.
+                    destinationStream.Stream.Position.Should().BeGreaterThan(0);
+                }
+                
+                var copied = FileSystem.ReadAllBytes(destinationPath);
+
+                // Compare original and copied files
+                var originalHash = content.CalculateHash(DefaultHashType);
+                var copiedHash = copied.CalculateHash(DefaultHashType);
+                Assert.Equal(originalHash, copiedHash);
+            });
+        }
+
+        [Fact]
         public async Task CheckExistingFile()
         {
-            await RunTestCase(nameof(CheckExistingFile), async (rootPath, session, client) =>
+            await RunTestCase(async (rootPath, session, client) =>
             {
                 // Write a random file
                 var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
@@ -175,7 +131,7 @@ namespace ContentStoreTest.Distributed.Stores
         [Fact]
         public async Task CopyNonExistingFile()
         {
-            await RunTestCase(nameof(CopyNonExistingFile), async (rootPath, session, client) =>
+            await RunTestCase(async (rootPath, session, client) =>
             {
                 // Copy the file out via GRPC
                 var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
@@ -188,7 +144,7 @@ namespace ContentStoreTest.Distributed.Stores
         [Fact]
         public async Task CheckNonExistingFile()
         {
-            await RunTestCase(nameof(CheckNonExistingFile), async (rootPath, session, client) =>
+            await RunTestCase(async (rootPath, session, client) =>
             {
                 // Check if random non-existent file exists
                 (await client.CheckFileExistsAsync(_context, ContentHash.Random())).ShouldBeError();
@@ -198,7 +154,7 @@ namespace ContentStoreTest.Distributed.Stores
         [Fact]
         public async Task WrongPort()
         {
-            await RunTestCase(nameof(WrongPort), async (rootPath, session, client) =>
+            await RunTestCase(async (rootPath, session, client) =>
             {
                 // Copy fake file out via GRPC
                 var bogusPort = PortExtensions.GetNextAvailablePort();
@@ -213,7 +169,7 @@ namespace ContentStoreTest.Distributed.Stores
             });
         }
 
-        private async Task RunTestCase(string testName, Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct)
+        private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName]string testName = null)
         {
             var cacheName = testName + "_cache";
 

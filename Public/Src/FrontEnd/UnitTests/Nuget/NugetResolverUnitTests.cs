@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -298,7 +298,7 @@ $@"module({{
             var host = CreateFrontEndHostControllerForTesting();
 
             var nugetResolver = new WorkspaceNugetModuleResolver(m_testContext.StringTable, new FrontEndStatistics());
-            nugetResolver.TryInitialize(host, m_testContext, new ConfigurationImpl(), new NugetResolverSettings(), new QualifierId[] { m_testContext.QualifierTable.EmptyQualifierId });
+            nugetResolver.TryInitialize(host, m_testContext, new ConfigurationImpl(), new NugetResolverSettings());
 
             return nugetResolver;
         }

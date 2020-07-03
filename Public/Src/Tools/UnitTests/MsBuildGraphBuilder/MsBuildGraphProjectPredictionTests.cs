@@ -1,14 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using Microsoft.Build.Prediction;
 using BuildXL.FrontEnd.MsBuild.Serialization;
+using Microsoft.Build.Prediction;
 using MsBuildGraphBuilderTool;
-using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Test.Tool.ProjectGraphBuilder.Mocks;
 using Xunit;

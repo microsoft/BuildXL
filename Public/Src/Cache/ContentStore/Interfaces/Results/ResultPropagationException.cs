@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public ResultPropagationException(ResultBase result)
             : base(result.ErrorMessage, result.Exception)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
             Contract.Requires(!result.Succeeded);
 
             Result = result;

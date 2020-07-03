@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Runtime.CompilerServices;
@@ -45,15 +45,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationContext CreateNested([CallerMemberName]string? caller = null)
+        public OperationContext CreateNested(string componentName, [CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext, caller), Token);
+            return new OperationContext(new Context(TracingContext, componentName, caller), Token);
         }
 
         /// <nodoc />
-        public OperationContext CreateNested(Guid id, [CallerMemberName]string? caller = null)
+        public OperationContext CreateNested(Guid id, string componentName, [CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext, id, caller), Token);
+            return new OperationContext(new Context(TracingContext, id, componentName, caller), Token);
         }
 
         /// <summary>
@@ -93,11 +93,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, [CallerMemberName]string? caller = null)
+        public Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, Func<T, string>? endMessageFactory = null, [CallerMemberName]string? caller = null)
             where T : ResultBase
         {
             return this.CreateInitializationOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: true, extraStartMessage: null, endMessageFactory: null)
+                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: true, extraStartMessage: null, endMessageFactory: endMessageFactory)
                 .RunAsync(caller);
         }
 
@@ -111,10 +111,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             Func<T, string>? messageFactory = null,
             string? extraStartMessage = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory, isCritical: isCritical)
                 .Run(caller);
         }
 
@@ -128,10 +129,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
                 .RunAsync(caller);
         }
 
@@ -146,11 +148,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
             Func<T, ResultBase>? resultBaseFactory = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null)
         {
 
             return this.CreateNonResultOperation(operationTracer, operation, resultBaseFactory)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
                 .RunAsync(caller);
         }
     }

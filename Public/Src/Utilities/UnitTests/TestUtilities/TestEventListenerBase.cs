@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,7 +9,9 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -47,8 +49,13 @@ namespace Test.BuildXL.TestUtilities
         private readonly ConcurrentDictionary<int, int> m_eventCounter = new ConcurrentDictionary<int, int>();
 
         /// <summary>
+        /// All the event logs grouped per event id
+        /// </summary>
+        private readonly MultiValueDictionary<int, string> m_logMessagesPerEventId = new MultiValueDictionary<int, string>();
+
+        /// <summary>
         /// Counts how many instances of different events have occurred, with event counters aggregated by path key.
-        /// This is used for events like <see cref="EventId.PipProcessDisallowedFileAccess"/> by which the particular counts
+        /// This is used for events like <see cref="ProcessesLogEventId.PipProcessDisallowedFileAccess"/> by which the particular counts
         /// are not easily predictable, but the paths themselves are.
         /// </summary>
         private readonly ConcurrentDictionary<int, Dictionary<string, int>> m_eventsByPathCounter = new ConcurrentDictionary<int, Dictionary<string, int>>();
@@ -90,8 +97,9 @@ namespace Test.BuildXL.TestUtilities
         /// Action to perform when logging a string. This allows test frameworks to hook into their own logging.
         /// Writes to the console if unspecified
         /// </param> 
-        protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
-            : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
+        /// <param name="eventMask">event mask for controlling which events are enabled/disabled</param>
+        protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null, EventMask eventMask = null)
+            : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true, eventMask: eventMask)
         {
             Contract.Requires(eventSource != null);
             Contract.Requires(!string.IsNullOrEmpty(fullyQualifiedTestName));
@@ -147,6 +155,27 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Returns all the logs received for a given event id
+        /// </summary>
+        /// <remarks>
+        /// Returns an empty array if no logs were received for a given event id
+        /// </remarks>
+        public ReadOnlyArray<string> GetLogMessagesForEventId(int eventId)
+        {
+            lock (m_logMessagesLock)
+            {
+                if (m_logMessagesPerEventId.TryGetValue(eventId, out var values))
+                {
+                    return values.ToReadOnlyArray();
+                }
+                else
+                {
+                    return ReadOnlyArray<string>.Empty;
+                }
+            }
+        }
+
+        /// <summary>
         /// Nested handler to be invoked first.
         /// </summary>
         public event Action<EventWrittenEventArgs> NestedLoggerHandler;
@@ -159,6 +188,7 @@ namespace Test.BuildXL.TestUtilities
             lock (m_logMessagesLock)
             {
                 m_logMessages.Add(s);
+                m_logMessagesPerEventId.Add(eventData.EventId, s);
             }
 
             if (m_logAction != null)
@@ -174,7 +204,7 @@ namespace Test.BuildXL.TestUtilities
             m_eventCounter.AddOrUpdate(eventData.EventId, 1, (k, v) => v + 1);
 
             // Increase per-path counters if applicable.
-            string pathKey = TryGetPathKey((EventId)eventData.EventId, eventData.Payload);
+            string pathKey = TryGetPathKey(eventData.EventId, eventData.Payload);
             if (pathKey != null)
             {
                 Dictionary<string, int> pathCounters = m_eventsByPathCounter.GetOrAdd(
@@ -246,27 +276,11 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Gets the number of times a given event has been logged.
         /// </summary>
-        public int GetEventCount(EventId eventId)
-        {
-            return GetEventCount((int)eventId);
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged.
-        /// </summary>
         public int GetEventCount(int eventId)
         {
             int count;
             m_eventCounter.TryGetValue(eventId, out count);
             return count;
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged after the given snapshot.
-        /// </summary>
-        public int GetEventCountSinceSnapshot(EventId eventId, EventCountsSnapshot snapshot)
-        {
-            return GetEventCountSinceSnapshot((int)eventId, snapshot);
         }
 
         /// <summary>
@@ -287,9 +301,9 @@ namespace Test.BuildXL.TestUtilities
         /// This is only applicable for some events - in particular file monitoring events for which the
         /// particular number of occurrences is highly implementation dependent and hard to predict.
         /// </remarks>
-        public int GetAndResetEventCountForPath(EventId eventId, string path)
+        public int GetAndResetEventCountForPath(int eventId, string path)
         {
-            Contract.Requires(eventId == EventId.PipProcessDisallowedFileAccess, "Path-keyed event assertions are not supported for this event type.");
+            Contract.Requires(eventId == (int)ProcessesLogEventId.PipProcessDisallowedFileAccess, "Path-keyed event assertions are not supported for this event type.");
 
             Dictionary<string, int> pathCounts;
             if (!m_eventsByPathCounter.TryGetValue((int)eventId, out pathCounts))
@@ -309,9 +323,9 @@ namespace Test.BuildXL.TestUtilities
             }
         }
 
-        private string TryGetPathKey(EventId eventId, IReadOnlyCollection<object> payload)
+        private string TryGetPathKey(int eventId, IReadOnlyCollection<object> payload)
         {
-            if (eventId == EventId.PipProcessDisallowedFileAccess)
+            if (eventId == (int)ProcessesLogEventId.PipProcessDisallowedFileAccess)
             {
                 AssertTrue(payload.Count == 6, "Payload for PipProcessDisallowedFileAccess has changed. Does the ElementAt below need to be updated?");
                 return (string)payload.ElementAt(5);
@@ -332,14 +346,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(counts != null);
             m_counts = counts;
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged as of this snapshot.
-        /// </summary>
-        public int GetEventCount(EventId eventId)
-        {
-            return GetEventCount((int)eventId);
         }
 
         /// <summary>

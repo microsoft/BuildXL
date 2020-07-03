@@ -6,9 +6,10 @@ if "%_BUILDXL_INIT_DONE%" NEQ "1" (
 )
 
 if NOT DEFINED BUILDXL_BIN_DIRECTORY (
-    set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\debug\net472
-    set BUILDXL_TEST_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\tests\debug
-) else (
+    set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\debug\win-x64
+) 
+
+if NOT DEFINED BUILDXL_TEST_BIN_DIRECTORY (
     set BUILDXL_TEST_BIN_DIRECTORY=%BUILDXL_BIN_DIRECTORY%\..\..\tests\debug
 )
 
@@ -17,22 +18,17 @@ if NOT DEFINED DBD_TESTGEN_COUNT (
 )
 
 if NOT DEFINED TEST_COMMITID (
-	set TEST_COMMITID=08d1d146db384cc29442d0000e28d1cf3684395c
+	set TEST_COMMITID=b5d175f12a695fbcf5bd74a5d76663a23c4833bd
 )
 
 set TEST_SOLUTION_ROOT=%ENLISTMENTROOT%\Out\Tests\SMDB
 
 if DEFINED CLEAN_DBD_TESTGEN_OUTPUTONLY (
+    REM Clean the output directory
+    rmdir /S /Q %TEST_SOLUTION_ROOT%\Out
 
-REM Clean the output directory
-
-rmdir /S /Q %TEST_SOLUTION_ROOT%\Out
-
-
-REM Ensure source is not cleaned
-
-set DISABLE_DBD_TESTGEN=1
-
+    REM Ensure source is not cleaned
+    set DISABLE_DBD_TESTGEN=1
 )
 
 if NOT DEFINED DISABLE_DBD_TESTGEN (
@@ -45,7 +41,12 @@ if EXIST %TEST_SOLUTION_ROOT% (
 
 REM Generate test solution
 
-call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+if DEFINED MSENG_GIT_PAT (
+    call "%ProgramFiles%\Git\cmd\git" clone https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+) else (
+    call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+)
+
 if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )

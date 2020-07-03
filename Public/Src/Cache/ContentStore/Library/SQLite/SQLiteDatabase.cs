@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -552,9 +552,9 @@ namespace BuildXL.Cache.ContentStore.SQLite
 
                 if (useTransaction)
                 {
-#pragma warning disable AsyncFixer02 // CommitAsync should be used instead of transaction.Commit
+#pragma warning disable AsyncFixer02 // DisposeAsync should be used instead of targetStream.Dispose.
                     transaction.Commit();
-#pragma warning restore AsyncFixer02
+#pragma warning restore AsyncFixer02 // DisposeAsync should be used instead of targetStream.Dispose.
                 }
             }
 
@@ -584,7 +584,7 @@ namespace BuildXL.Cache.ContentStore.SQLite
         /// </summary>
         protected async Task<T> RunExclusiveAsync<T>(Func<Task<T>> func)
         {
-             using (await _writerLock.WaitToken())
+             using (await _writerLock.WaitTokenAsync())
             {
                 return await RunInBlockAsync(func, true);
             }
@@ -595,7 +595,7 @@ namespace BuildXL.Cache.ContentStore.SQLite
         /// </summary>
         protected async Task RunExclusiveAsync(Func<Task> action)
         {
-             using (await _writerLock.WaitToken())
+             using (await _writerLock.WaitTokenAsync())
             {
                 Func<Task<bool>> func = async () =>
                 {
@@ -608,7 +608,7 @@ namespace BuildXL.Cache.ContentStore.SQLite
 
         private async Task<T> RunExclusiveAsyncNoTransactionAsync<T>(Func<Task<T>> func)
         {
-             using (await _writerLock.WaitToken())
+             using (await _writerLock.WaitTokenAsync())
             {
                 return await RunInBlockAsync(func, false);
             }

@@ -4,7 +4,7 @@
 #ifndef Monitor_hpp
 #define Monitor_hpp
 
-#include <IOKit/IOLib.h>
+#include "BXLLocks.hpp"
 
 enum LockKind
 {
@@ -21,7 +21,7 @@ class Monitor
 {
 private:
     
-    IORecursiveLock *lock_;
+    BXLRecursiveLock *lock_;
     IORWLock *rwLock_;
     
 public:
@@ -30,14 +30,14 @@ public:
      * Constructor: aquires a given recursive lock
      * @param rwLock Lock to acquire
      */
-    Monitor(IORecursiveLock *lock)
+    Monitor(BXLRecursiveLock *lock)
     {
         lock_   = lock;
         rwLock_ = nullptr;
 
         if (lock_)
         {
-            IORecursiveLockLock(lock_);
+            BXLRecursiveLockLock(lock_);
         }
     }
     
@@ -71,7 +71,7 @@ public:
     {
         if (lock_)
         {
-            IORecursiveLockUnlock(lock_);
+            BXLRecursiveLockUnlock(lock_);
         }
         
         if (rwLock_)

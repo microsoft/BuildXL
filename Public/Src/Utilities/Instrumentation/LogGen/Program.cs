@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -28,11 +28,10 @@ namespace BuildXL.LogGen
                 Configuration config = new Configuration(args);
                 Parser parser = new Parser(config, errorReport);
 
-                List<LoggingSite> loggingSites;
-                if (parser.DiscoverLoggingSites(out loggingSites))
+                if (parser.DiscoverLoggingSites(out var loggingClasses))
                 {
                     LogWriter writer = new LogWriter(config, errorReport);
-                    int itemsWritten = writer.WriteLog(loggingSites);
+                    int itemsWritten = writer.WriteLog(loggingClasses);
                     if (itemsWritten == 0)
                     {
                         Console.Error.WriteLine("No log helpers to be written. Turn off log generation.");

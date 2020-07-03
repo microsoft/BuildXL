@@ -1,8 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -15,13 +14,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// </summary>
     public interface IDistributedContentCopier
     {
+        /// <nodoc />
+        IAbsFileSystem FileSystem { get; }
+
         /// <summary>
         /// Attempts to copy a content locally from a given set of remote locations and put into a local CAS
         /// </summary>
         Task<PutResult> TryCopyAndPutAsync(
             OperationContext operationContext,
+            IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
-            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync,
-            Action<IReadOnlyList<MachineLocation>> handleBadLocations = null);
+            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync);
     }
 }

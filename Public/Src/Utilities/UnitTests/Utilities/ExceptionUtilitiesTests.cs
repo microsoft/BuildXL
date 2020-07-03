@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -17,6 +17,12 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(ExceptionRootCause.MissingRuntimeDependency, ExceptionUtilities.AnalyzeExceptionRootCause(new FileNotFoundException("Could not load file or assembly")));
             Assert.Equal(ExceptionRootCause.MissingRuntimeDependency, ExceptionUtilities.AnalyzeExceptionRootCause(new DllNotFoundException()));
             Assert.Equal(ExceptionRootCause.MissingRuntimeDependency, ExceptionUtilities.AnalyzeExceptionRootCause(new TypeLoadException()));
+        }
+
+        [Fact]
+        public void ClassifyOutOfDiskSpace()
+        {
+            Assert.Equal(ExceptionRootCause.OutOfDiskSpace, ExceptionUtilities.AnalyzeExceptionRootCause(new IOException("No space left on device")));
         }
     }
 }

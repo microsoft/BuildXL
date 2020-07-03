@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -10,6 +10,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -17,6 +18,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Native.IO;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -49,11 +51,12 @@ namespace Test.BuildXL.Scheduler
                     default(IOCounters),
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
-                    12324,
+                    ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326, 12326),
                     33,
-                    7),
+                    7,
+                    0),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
-                fileAccessViolationsNotWhitelisted: new[]
+                fileAccessViolationsNotAllowlisted: new[]
                 {
                     reportedAccess,
                     CreateRandomReportedFileAccess(),
@@ -61,9 +64,14 @@ namespace Test.BuildXL.Scheduler
                     // Create reported file access that uses the same process to test deduplication during deserialization
                     CreateRandomReportedFileAccess(reportedAccess.Process),
                 },
-                whitelistedFileAccessViolations: new ReportedFileAccess[0],
+                allowlistedFileAccessViolations: new ReportedFileAccess[0],
                 mustBeConsideredPerpetuallyDirty: true,
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
+                    CreateSourceFile().Path
+                ),
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
                     CreateSourceFile().Path,
                     CreateSourceFile().Path
                 ),
@@ -86,7 +94,10 @@ namespace Test.BuildXL.Scheduler
                 pipCacheDescriptorV2Metadata: null,
                 converged: true,
                 pathSet: null,
-                cacheLookupStepDurations: null);
+                cacheLookupStepDurations: null,
+                pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
+                hasUserRetries: true,
+                CancellationReason.None);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -96,7 +107,7 @@ namespace Test.BuildXL.Scheduler
             using (var writer = new BuildXLWriter(false, stream, true, false))
             using (var reader = new BuildXLReader(false, stream, true))
             {
-                serializer.Serialize(writer, processExecutionResult);
+                serializer.Serialize(writer, processExecutionResult, preservePathCasing: false);
 
                 stream.Position = 0;
 
@@ -118,17 +129,22 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.ExecutionStop,
                 r => r.PerformanceInformation.ExecutionStart,
                 r => r.PerformanceInformation.ProcessExecutionTime,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessViolationsNotWhitelisted,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedAndCacheable,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
-                r => r.PerformanceInformation.PeakMemoryUsage,
+                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
+                r => r.PerformanceInformation.MemoryCounters.AverageWorkingSetMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakCommitSizeMb,
+                r => r.PerformanceInformation.MemoryCounters.AverageCommitSizeMb,
+
                 r => r.PerformanceInformation.NumberOfProcesses,
 
-                r => r.FileAccessViolationsNotWhitelisted.Count,
+                r => r.FileAccessViolationsNotAllowlisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicallyObservedFiles.Length,
+                r => r.DynamicallyProbedFiles.Length,
                 r => r.DynamicallyObservedEnumerations.Length,
                 r => r.AllowedUndeclaredReads.Count,
 
@@ -137,7 +153,11 @@ namespace Test.BuildXL.Scheduler
                 r => r.TwoPhaseCachingInfo.PathSetHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.MetadataHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.OriginatingCache,
-                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length
+                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length,
+
+                r => r.PipProperties.Count,
+                r => r.HasUserRetries,
+                r => r.CancellationReason
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)
@@ -165,20 +185,25 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            for (int i = 0; i < processExecutionResult.FileAccessViolationsNotWhitelisted.Count; i++)
+            for (int i = 0; i < processExecutionResult.FileAccessViolationsNotAllowlisted.Count; i++)
             {
                 // Compare individual fields for ReportedFileAccess since it uses reference
                 // equality for reported process which would not work for serialization/deserialization
-                AssertEqual(processExecutionResult.FileAccessViolationsNotWhitelisted[i], deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[i]);
+                AssertEqual(processExecutionResult.FileAccessViolationsNotAllowlisted[i], deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[i]);
             }
 
             // Ensure that reported process instances are deduplicated.
-            XAssert.AreSame(deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[0].Process,
-                deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[2].Process);
+            XAssert.AreSame(deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[0].Process,
+                deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[2].Process);
 
             for (int i = 0; i < processExecutionResult.DynamicallyObservedFiles.Length; i++)
             {
                 AssertEqual(processExecutionResult.DynamicallyObservedFiles[i], deserializedProcessExecutionResult.DynamicallyObservedFiles[i]);
+            }
+
+            for (int i = 0; i < processExecutionResult.DynamicallyProbedFiles.Length; i++)
+            {
+                AssertEqual(processExecutionResult.DynamicallyProbedFiles[i], deserializedProcessExecutionResult.DynamicallyProbedFiles[i]);
             }
 
             for (int i = 0; i < processExecutionResult.DynamicallyObservedEnumerations.Length; i++)
@@ -195,6 +220,8 @@ namespace Test.BuildXL.Scheduler
                     processExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i],
                     deserializedProcessExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i]);
             }
+
+            XAssert.AreEqual(9, deserializedProcessExecutionResult.PipProperties["Bar"]);
         }
 
         private (FileArtifact, FileMaterializationInfo, PipOutputOrigin) CreateRandomOutputContent()

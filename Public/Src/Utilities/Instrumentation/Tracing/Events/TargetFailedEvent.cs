@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Reflection;
 using System.Diagnostics.Tracing;
+using System.Reflection;
 
 namespace BuildXL.Tracing.CloudBuild
 {
@@ -41,11 +41,11 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// File path that contains the output of standard error stream
         /// </summary>
-        public string StdErrorPath { get; set; }
+        public string? StdErrorPath { get; set; }
 
         /// <summary>
         /// Pip description
         /// </summary>
-        public string PipDescription { get; set; }
+        public string? PipDescription { get; set; }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -32,6 +32,9 @@ namespace BuildXL.Cache.ContentStore.Service
         /// Gets the session's expiration time, in ticks.
         /// </summary>
         public long SessionExpirationUtcTicks { get; private set; }
+
+        /// <nodoc />
+        public DateTime SessionExpirationDateTime => new DateTime(SessionExpirationUtcTicks).ToLocalTime();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SessionHandle{T}"/> class.
@@ -67,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public string ToString(int sessionId)
         {
-            return $"id=[{sessionId}] name=[{SessionName}] expiration=[{SessionExpirationUtcTicks}] capabilities=[{SessionCapabilities}]";
+            return $"id=[{sessionId}] name=[{SessionName}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionCapabilities}]";
         }
     }
 }

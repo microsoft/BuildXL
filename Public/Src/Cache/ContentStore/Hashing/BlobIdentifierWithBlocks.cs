@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -96,23 +96,23 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Equality is based on the BlobId and the type.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             var other = obj as BlobIdentifierWithBlocks;
-            return other != null && Equals(other);
+            return other is object && Equals(other);
         }
 
         /// <summary>
         /// Equality is based on the BlobId and the type.
         /// </summary>
-        public bool Equals(BlobIdentifierWithBlocks other)
+        public bool Equals(BlobIdentifierWithBlocks? other)
         {
             if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
-            return (other != null) && BlobId.Equals(other.BlobId);
+            return (other is object) && BlobId.Equals(other.BlobId);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return $"BlobWithBlocks:{Serialize()}";
         }
 
-        public static bool operator ==(BlobIdentifierWithBlocks left, BlobIdentifierWithBlocks right)
+        public static bool operator ==(BlobIdentifierWithBlocks? left, BlobIdentifierWithBlocks? right)
         {
             if (left is null)
             {
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return left.Equals(right);
         }
 
-        public static bool operator !=(BlobIdentifierWithBlocks left, BlobIdentifierWithBlocks right)
+        public static bool operator !=(BlobIdentifierWithBlocks? left, BlobIdentifierWithBlocks? right)
         {
             return !(left == right);
         }

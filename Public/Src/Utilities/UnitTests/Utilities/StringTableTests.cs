@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -93,10 +93,14 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [Fact]
-        public async Task SizeMixParallel()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task SizeMixParallel(bool asciiOnly)
         {
-            var st = new StringTable(0);
+            var harness = new StringTableTestHarness();
+            var st = harness.StringTable;
+
             ConcurrentDictionary<StringId, string> map = new ConcurrentDictionary<StringId, string>();
             var sb = new StringBuilder(3000000);
 
@@ -109,7 +113,7 @@ namespace Test.BuildXL.Utilities
                     for (int i = 0; i < 3000; i++)
                     {
                         sb.Length = 0;
-                        sb.Append('x', i);
+                        sb.Append(asciiOnly ? 'x' : '建', i);
                         string str = sb.ToString();
                         strings.Add(str);
                     }
@@ -185,10 +189,12 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void CharMix()
+        public async Task CharMix()
         {
+            var harness = new StringTableTestHarness();
+            var st = harness.StringTable;
+
             // make sure all characters are handled properly
-            var st = new StringTable(0);
             var map = new Dictionary<StringId, string>();
             var sb = new StringBuilder(3000000);
 
@@ -198,9 +204,11 @@ namespace Test.BuildXL.Utilities
                 sb.Length = 0;
                 sb.Append((char)i, (i % 255) + 1);
                 string str = sb.ToString();
-                StringId sd = st.AddString(str);
+                StringId sd = harness.AddString(str);
                 map.Add(sd, str);
             }
+
+            await harness.RunCommonTestsAsync();
 
             for (int i = 0; i < 2; i++)
             {
@@ -231,16 +239,17 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void Match()
+        public Task Match()
         {
-            var st = new StringTable(0);
+            var harness = new StringTableTestHarness();
+            var st = harness.StringTable;
 
-            StringId id1 = st.AddString("Hello");
-            StringId id2 = st.AddString("Goodbye");
-            StringId id3 = st.AddString("hello");
-            StringId id4 = st.AddString("goodBYE");
-            StringId id5 = st.AddString("HELLOX");
-            StringId id6 = st.AddString("HEL");
+            StringId id1 = harness.AddString("Hello");
+            StringId id2 = harness.AddString("Goodbye");
+            StringId id3 = harness.AddString("hello");
+            StringId id4 = harness.AddString("goodBYE");
+            StringId id5 = harness.AddString("HELLOX");
+            StringId id6 = harness.AddString("HEL");
 
             XAssert.AreNotEqual(id1, id3);
             XAssert.AreNotEqual(id1, id5);
@@ -275,6 +284,8 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(st.CaseInsensitiveEquals(utf16, st.AddString("\u1234\u1234")));
             XAssert.IsFalse(st.Equals("ab", utf16));
             XAssert.IsTrue(st.Equals("\u1234\u1234", utf16));
+
+            return harness.RunCommonTestsAsync();
         }
 
         [Fact]
@@ -291,17 +302,19 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void BigStrings()
+        public Task BigStrings()
         {
-            var st = new StringTable(0);
+            var harness = new StringTableTestHarness();
+            var st = harness.StringTable;
 
             var s1 = new string('x', StringTable.BytesPerBuffer - 1);
             var s2 = new string('y', StringTable.BytesPerBuffer);
             var s3 = new string('z', StringTable.BytesPerBuffer + 1);
 
-            StringId id1 = st.AddString(s1);
-            StringId id2 = st.AddString(s2);
-            StringId id3 = st.AddString(s3);
+            StringId id1 = harness.AddString(s1);
+            StringId id2 = harness.AddString(s2);
+            StringId id3 = harness.AddString(s3);
+            harness.AddString(s3 + "繙");
 
             XAssert.AreEqual(s1.Length, st.GetLength(id1));
             XAssert.AreEqual(s2.Length, st.GetLength(id2));
@@ -348,6 +361,8 @@ namespace Test.BuildXL.Utilities
             XAssert.IsFalse(st.Equals(s3, id2));
             XAssert.IsFalse(st.Equals(s1, id3));
             XAssert.IsFalse(st.Equals(s2, id3));
+
+            return harness.RunCommonTestsAsync();
         }
 
         [Fact]
@@ -455,36 +470,78 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task Serialization()
+        public Task Serialization()
         {
-            var st = new StringTable();
+            var st = new StringTableTestHarness();
             var string1 = "asdf";
             var string2 = "jkl";
             var stringId1 = st.AddString(string1);
             var stringId2 = st.AddString(string2);
 
-            using (MemoryStream ms = new MemoryStream())
+            return st.RunCommonTestsAsync();
+        }
+
+        private class StringTableTestHarness
+        {
+            public StringTable StringTable { get; } = new StringTable();
+
+            public Dictionary<StringId, string> AddedStrings = new Dictionary<StringId, string>();
+
+            public long MaxSize = 0;
+
+            public StringId AddString(string value)
             {
-                using (BuildXLWriter writer = new BuildXLWriter(true, ms, true, logStats: true))
-                {
-                    st.Serialize(writer);
-                }
+                var stringId = StringTable.AddString(value);
+                XAssert.AreEqual(value.Length, StringTable.GetLength(stringId));
+                AddedStrings[stringId] = value;
 
-                XAssert.IsTrue(ms.Position < StringTable.BytesPerBuffer,
-                    "Small StringTable should not serialize a full empty byte buffer.");
-                ms.Position = 0;
+                MaxSize += value.Length * 2 + 10 /* overestimate of per string overhead */;
 
-                using (BuildXLReader reader = new BuildXLReader(true, ms, true))
-                {
-                    st = await StringTable.DeserializeAsync(reader);
-                }
+                return stringId;
             }
 
-            XAssert.AreEqual(string1, st.GetString(stringId1));
-            XAssert.AreEqual(string2, st.GetString(stringId2));
+            public async Task RunCommonTestsAsync()
+            {
+                XAssert.AreNotEqual(StringTable.Count, AddedStrings.Count, "Ensure strings are added through harness");
 
-            XAssert.AreEqual(stringId1, st.AddString(string1));
-            XAssert.AreEqual(stringId2, st.AddString(string2));
+                StringTable deserializedStringTable = null;
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (BuildXLWriter writer = new BuildXLWriter(true, ms, true, logStats: true))
+                    {
+                        StringTable.Serialize(writer);
+                    }
+
+                    if (MaxSize < StringTable.BytesPerBuffer)
+                    {
+                        XAssert.IsTrue(ms.Position < StringTable.BytesPerBuffer,
+                            "Small StringTable should not serialize a full empty byte buffer.");
+                    }
+
+                    ms.Position = 0;
+
+                    using (BuildXLReader reader = new BuildXLReader(true, ms, true))
+                    {
+                        deserializedStringTable = await StringTable.DeserializeAsync(reader);
+                    }
+                }
+
+                foreach (var entry in AddedStrings)
+                {
+
+                    // Test deserialization behaviors
+                    XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetLength(entry.Key));
+                    XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetBinaryString(entry.Key).Length);
+                    XAssert.AreEqual(entry.Value, deserializedStringTable.GetString(entry.Key));
+                    XAssert.AreEqual(entry.Key, deserializedStringTable.AddString(entry.Value));
+
+                    // Test original string table behaviors
+                    XAssert.AreEqual(entry.Key, StringTable.AddString(entry.Value));
+                    XAssert.AreEqual(entry.Value.Length, StringTable.GetLength(entry.Key));
+                    XAssert.AreEqual(entry.Value.Length, StringTable.GetBinaryString(entry.Key).Length);
+                    XAssert.AreEqual(entry.Value, StringTable.GetString(entry.Key));
+                }
+            }
         }
     }
 }

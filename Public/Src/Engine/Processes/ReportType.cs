@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Processes
 {
@@ -41,8 +41,16 @@ namespace BuildXL.Processes
         ProcessDetouringStatus = 5,
 
         /// <summary>
+        /// Report file access coming from a trusted tool that populates the detour manifest directly
+        /// </summary>
+        /// <remarks>
+        /// Pips with configured breakaway processes may decide to compensate for missing accesses via this report type
+        /// </remarks>
+        AugmentedFileAccess = 6,
+
+        /// <summary>
         /// This is a non-value, but places an upper-bound on the range of the enum
         /// </summary>
-        Max = 6,
+        Max = 7,
     }
 }

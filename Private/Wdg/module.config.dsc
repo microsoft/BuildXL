@@ -1,7 +1,6 @@
 module({
     name: "Private.Wdg",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [
+	projects: [
         f`deployment.dsc`,
     ],
 });

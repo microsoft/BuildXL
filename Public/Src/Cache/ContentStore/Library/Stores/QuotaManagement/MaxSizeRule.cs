@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -25,11 +25,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="MaxSizeRule"/> class.
         /// </summary>
-        public MaxSizeRule(MaxSizeQuota quota, EvictAsync evictAsync, Func<long> getCurrentSizeFunc, DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(evictAsync, OnlyUnlinkedValue, distributedEvictionSettings)
+        public MaxSizeRule(MaxSizeQuota quota, Func<long> getCurrentSizeFunc)
+            : base(OnlyUnlinkedValue)
         {
             Contract.Requires(quota != null);
-            Contract.Requires(evictAsync != null);
             Contract.Requires(getCurrentSizeFunc != null);
 
             _quota = quota;

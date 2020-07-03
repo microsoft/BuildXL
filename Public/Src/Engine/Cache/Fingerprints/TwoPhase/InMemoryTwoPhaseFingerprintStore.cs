@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,7 +15,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
     /// </summary>
     public sealed class InMemoryTwoPhaseFingerprintStore : ITwoPhaseFingerprintStore
     {
-        private readonly ConcurrentBigMap<WeakContentFingerprint, Node> m_entries =
+        private ConcurrentBigMap<WeakContentFingerprint, Node> m_entries =
             new ConcurrentBigMap<WeakContentFingerprint, Node>();
 
         private readonly string m_cacheId;
@@ -133,6 +133,14 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
             }
 
             return Task.FromResult(new Possible<CacheEntryPublishResult, Failure>(CacheEntryPublishResult.CreatePublishedResult()));
+        }
+
+        /// <summary>
+        /// Removes cache entries. This method is not thread safe and for testing only.
+        /// </summary>
+        public void Forget()
+        {
+            m_entries = new ConcurrentBigMap<WeakContentFingerprint, Node>();
         }
     }
 }

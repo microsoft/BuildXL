@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,15 +18,13 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
-        private readonly Func<CancellationToken, Task<IDisposable>> m_attachAcquireAsync;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync, Func<CancellationToken, Task<IDisposable>> attachAcquireAsync)
+        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
             m_connectionManager.OnConnectionTimeOutAsync += onConnectionTimeOutAsync;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
-            m_attachAcquireAsync = attachAcquireAsync;
         }
 
         public Task CloseAsync()
@@ -37,19 +35,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         public void Dispose()
         { }
 
-        public Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message)
+        public Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message, CancellationToken cancellationToken)
         {
             var grpcMessage = message.ToGrpc();
 
             return m_connectionManager.CallAsync(
-                async (callOptions) =>
-                {
-                    using (await m_attachAcquireAsync(callOptions.CancellationToken))
-                    {
-                        return await m_client.AttachAsync(grpcMessage, options: callOptions);
-                    }
-                },
+                async (callOptions) => await m_client.AttachAsync(grpcMessage, options: callOptions),
                 "Attach",
+                cancellationToken,
                 waitForConnection: true);
         }
 
@@ -70,6 +63,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 grpcBuildEndData.Failure = message.Failure;
             }
+
+            m_connectionManager.ReadyForExit();
 
             return m_connectionManager.CallAsync(
                 async (callOptions) => await m_client.ExitAsync(grpcBuildEndData, options: callOptions),

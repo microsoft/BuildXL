@@ -1,8 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
+#if NET_COREAPP
+using System;
+#endif
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Utils
 {
@@ -19,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// <summary>
         ///     Compare two byte arrays.
         /// </summary>
-        public int Compare(byte[] x, byte[] y)
+        public int Compare(byte[]? x, byte[]? y)
         {
             return CompareArrays(x, y);
         }
@@ -27,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// <summary>
         /// IEqualityComparer.Equal.
         /// </summary>
-        public bool Equals(byte[] x, byte[] y)
+        public bool Equals(byte[]? x, byte[]? y)
         {
             return ArraysEqual(x, y);
         }
@@ -37,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     Must return the same hash codes for equal byte arrays.
         ///     From the web - Bob Jenkins' Hash algorithm
         /// </summary>
-        public int GetHashCode(byte[] obj)
+        public int GetHashCode(byte[]? obj)
         {
             if (obj == null)
             {
@@ -166,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     Static comparison method for when the caller does not want to create an instance
         ///     of this class.
         /// </summary>
-        private static int CompareArrays(byte[] x, byte[] y)
+        private static int CompareArrays(byte[]? x, byte[]? y)
         {
             // Non-null is greater than null; both null is equal.
             if (x == null)
@@ -205,12 +207,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     of this class.
         /// </summary>
 #if NET_COREAPP
-        public static bool ArraysEqual(byte[] x, byte[] y)
+        public static bool ArraysEqual(byte[]? x, byte[]? y)
         {
             return x.AsSpan().SequenceEqual(y.AsSpan());
         }
 #else
-        public static unsafe bool ArraysEqual(byte[] x, byte[] y)
+        public static unsafe bool ArraysEqual(byte[]? x, byte[]? y)
         {
             // Adapted from: https://gist.github.com/airbreather/90c5fd3ba9d77fcd7c106db3beeb569b
             // (https://stackoverflow.com/questions/43289/comparing-two-byte-arrays-in-net, Joe Amenta's answer).

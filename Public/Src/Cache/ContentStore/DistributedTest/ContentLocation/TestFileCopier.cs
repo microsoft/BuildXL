@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -11,14 +11,18 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, ICopyRequester
+    public class TestFileCopier : IAbsolutePathFileCopier, IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IContentCommunicationManager
     {
+        public AbsolutePath WorkingDirectory { get; set; }
+
         public ConcurrentDictionary<AbsolutePath, AbsolutePath> FilesCopied { get; } = new ConcurrentDictionary<AbsolutePath, AbsolutePath>();
 
         public ConcurrentDictionary<AbsolutePath, bool> FilesToCorrupt { get; } = new ConcurrentDictionary<AbsolutePath, bool>();
@@ -28,6 +32,10 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>> FileExistenceTimespans { get; } = new ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>>();
 
         public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
+
+        public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new Dictionary<MachineLocation, IPushFileHandler>();
+
+        public Dictionary<MachineLocation, IDeleteFileHandler> DeleteHandlersByLocation { get; } = new Dictionary<MachineLocation, IDeleteFileHandler>();
 
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
@@ -42,18 +50,27 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {sourcePath} doesn't exist.");
             }
 
+            using Stream s = GetStream(sourcePath, expectedContentSize);
+
+            await s.CopyToAsync(destinationStream);
+
+            return CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition);
+        }
+
+        private Stream GetStream(AbsolutePath sourcePath, long expectedContentSize)
+        {
             Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
             {
                 TestGlobal.Logger.Debug($"Corrupting file {sourcePath}");
-                s = new MemoryStream(ThreadSafeRandom.GetBytes((int)expectedContentSize));
+                s = new MemoryStream(ThreadSafeRandom.GetBytes((int) expectedContentSize));
             }
             else
             {
                 s = File.OpenRead(sourcePath.Path);
             }
 
-            return await s.CopyToAsync(destinationStream).ContinueWith((_) => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
+            return s;
         }
 
         public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
@@ -102,7 +119,29 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
+            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);
+        }
+
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        {
+            var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
+            using (var file = File.OpenWrite(tempFile.Path))
+            {
+                await stream.CopyToAsync(file);
+            }
+
+            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, tempFile, CancellationToken.None);
+
+            File.Delete(tempFile.Path);
+
+            return result ? PushFileResult.PushSucceeded() : new PushFileResult(result);
+        }
+
+        public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        {
+            var result = await DeleteHandlersByLocation[targetMachine]
+                .HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true});
+            return result;
         }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading;
@@ -28,50 +28,6 @@ namespace ContentStoreTest.Stores
         protected QuotaRuleTests()
             : base(TestGlobal.Logger)
         {
-        }
-
-        [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, true)]
-        [InlineData(false, false)]
-        public async Task NoPurgingIf(bool withinTargetQuota, bool canceled)
-        {
-            var evictResult = new EvictResult(10, 20, 30, lastAccessTime: DateTime.Now, effectiveLastAccessTime: null, successfullyEvictedHash: true, replicaCount: 1);
-            var rule = CreateRule(withinTargetQuota ? SizeWithinTargetQuota : SizeBeyondTargetQuota, evictResult);
-
-            using (var cts = new CancellationTokenSource())
-            {
-                if (canceled)
-                {
-                    cts.Cancel();
-                }
-
-                var result = await rule.PurgeAsync(new Context(Logger), 1, new[] { new ContentHashWithLastAccessTimeAndReplicaCount(ContentHash.Random(), DateTime.UtcNow) }, cts.Token);
-
-                // No purging if within quota, there's an active sensitive session, or cancellation has been requested.
-                if (withinTargetQuota || canceled)
-                {
-                    AssertNoPurging(result);
-                }
-                else
-                {
-                    AssertPurged(result, evictResult);
-                }
-            }
-        }
-
-        [Fact]
-        public async Task ErrorPropagated()
-        {
-            var evictResult = new EvictResult($"{nameof(ErrorPropagated)} test error.");
-            var rule = CreateRule(SizeBeyondTargetQuota, evictResult);
-
-            using (var cts = new CancellationTokenSource())
-            {
-                var result = await rule.PurgeAsync(new Context(Logger), 10, new[] { new ContentHashWithLastAccessTimeAndReplicaCount(ContentHash.Random(), DateTime.UtcNow) }, cts.Token);
-                result.ShouldBeError(evictResult.ErrorMessage);
-            }
         }
 
         private static void AssertNoPurging(PurgeResult result)

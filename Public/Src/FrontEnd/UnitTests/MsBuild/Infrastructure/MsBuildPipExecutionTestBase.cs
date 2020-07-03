@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -11,16 +11,21 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
+using System;
+using System.Diagnostics;
+using BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
     /// <summary>
     /// Provides facilities to run the engine adding MSBuild specific artifacts.
     /// </summary>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class MsBuildPipExecutionTestBase : DsTestWithCacheBase
     {
         /// <summary>
@@ -46,11 +51,22 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <nodoc/>
         protected string RelativePathToDotnetExe => "dotnet";
 
+        protected override bool DisableDefaultSourceResolver => true;
+
+        /// <summary>
+        /// Path to Microsoft.Build.Tasks.CodeAnalysis.dll, where csc task is located
+        /// </summary>
+        /// <remarks>
+        /// Keep in sync with the deployment
+        /// </remarks>
+        protected string PathToCscTaskDll(bool shouldRunDotNetCoreMSBuild) => Path.Combine(TestDeploymentDir, "Compilers", shouldRunDotNetCoreMSBuild ? "dotnetcore" : "net472", "tools", "Microsoft.Build.Tasks.CodeAnalysis.dll").Replace("\\", "/");
+
         protected MsBuildPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Download.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
@@ -75,14 +91,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Dictionary<string, string> globalProperties = null, 
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
-            string dotnetSearchLocations = null)
+            string dotnetSearchLocations = null,
+            bool useSharedCompilation = false)
         {
             return Build(runInContainer, 
                 environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null, 
                 globalProperties,
                 filenameEntryPoint,
                 msBuildRuntime,
-                dotnetSearchLocations);
+                dotnetSearchLocations,
+                useSharedCompilation);
         }
 
         /// <inheritdoc/>
@@ -92,7 +110,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Dictionary<string, string> globalProperties, 
             string filenameEntryPoint, 
             string msBuildRuntime,
-            string dotnetSearchLocations)
+            string dotnetSearchLocations,
+            bool useSharedCompilation = false)
         {
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
@@ -102,7 +121,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     globalProperties, 
                     filenameEntryPoint: filenameEntryPoint, 
                     msBuildRuntime: msBuildRuntime,
-                    dotnetSearchLocations: dotnetSearchLocations));
+                    dotnetSearchLocations: dotnetSearchLocations,
+                    useSharedCompilation: useSharedCompilation));
         }
 
         /// <inheritdoc/>
@@ -121,7 +141,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             FileUtilities.DeleteDirectoryContents(engineCacheDirectoryPath);
         }
 
-        protected BuildXLEngineResult RunEngineWithConfig(ICommandLineConfiguration config, TestCache testCache = null)
+        protected BuildXLEngineResult RunEngineWithConfig(ICommandLineConfiguration config, TestCache testCache = null, IDetoursEventListener detoursListener = null)
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
             {
@@ -136,7 +156,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     testRootDirectory: null,
                     rememberAllChangedTrackedInputs: true,
                     engine: out var engine,
-                    testCache: testCache);
+                    testCache: testCache,
+                    detoursListener: detoursListener);
 
                 return engineResult;
             }
@@ -274,9 +295,9 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             bool allowProjectsToNotSpecifyTargetProtocol = true,
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
-            string dotnetSearchLocations = null) => $@"
+            string dotnetSearchLocations = null,
+            bool useSharedCompilation = false) => $@"
 config({{
-    disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'MsBuild',
@@ -293,6 +314,7 @@ config({{
             {(filenameEntryPoint != null ? $"fileNameEntryPoints: [r`{filenameEntryPoint}`]," : string.Empty)}
             {(msBuildRuntime != null ? $"msBuildRuntime: \"{msBuildRuntime}\"," : string.Empty)}
             {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : string.Empty)}
+            useManagedSharedCompilation: {(useSharedCompilation ? "true" : "false")},
         }},
     ],
 }});";
@@ -309,6 +331,7 @@ config({{
             msBuildSearchLocations: [d`{TestDeploymentDir}/{RelativePathToFullframeworkMSBuild}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: true,
+            useManagedSharedCompilation: false,
             {(environment != null? $"environment: {environment}," : DictionaryToExpression("environment", new Dictionary<string, string>()))}
             {extraArguments ?? string.Empty}
         }},

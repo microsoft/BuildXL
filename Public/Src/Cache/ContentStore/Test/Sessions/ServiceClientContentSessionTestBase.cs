@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading;
@@ -39,7 +39,7 @@ namespace ContentStoreTest.Sessions
         protected const HashType ContentHashType = HashType.Vso0;
         private const long DefaultMaxSize = 1 * 1024 * 1024;
         protected static readonly CancellationToken Token = CancellationToken.None;
-        protected readonly string Scenario;
+        protected string Scenario;
 
         protected ServiceClientContentSessionTestBase(string scenario, ITestOutputHelper output = null)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)

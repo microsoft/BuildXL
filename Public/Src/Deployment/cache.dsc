@@ -6,11 +6,10 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace Cache {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     /** We copy the sdk's for now. In the future the sdks can contain compiled helpers */
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             {
                 subfolder: r`ContentStore`,
@@ -24,6 +23,12 @@ namespace Cache {
                     importFrom("BuildXL.Cache.MemoizationStore").Default.deployment,
                 ]
             },
+            {
+                subfolder: r`Monitor`,
+                contents: [
+                    importFrom("BuildXL.Cache.Monitor").Default.deployment,
+                ]
+            },
         ],
     };
 
@@ -31,10 +36,5 @@ namespace Cache {
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
         targetLocation: r`${qualifier.configuration}/cache/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
-        deploymentOptions: {
-            excludedDeployableItems: [
-                importFrom("Newtonsoft.Json.v10").pkg,
-            ]
-        }
     });
 }

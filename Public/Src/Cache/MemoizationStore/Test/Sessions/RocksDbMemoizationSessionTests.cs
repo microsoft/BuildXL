@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
                 _clock.Increment();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(CancellationToken.None);
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(CancellationToken.None);
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
                 _clock.Increment();
                 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList();
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -138,7 +138,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     // Notice we don't increment the clock here
                     await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
 
-                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.RocksDbDatabase;
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);
@@ -195,7 +195,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
                     _clock.Increment();
 
-                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.RocksDbDatabase;
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);

@@ -275,7 +275,10 @@ function evaluateOne(args: Arguments, source: File, includes: File[], includeSea
             ...(args.resources || []),
             ...includes
         ],
-        tags: args.tags,
+        tags: [
+            "codegen", 
+            ...(args.tags || [])
+        ],
     });
 
     return <RcOutput>{

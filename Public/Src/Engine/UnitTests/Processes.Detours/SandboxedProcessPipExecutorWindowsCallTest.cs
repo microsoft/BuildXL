@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -60,7 +60,7 @@ namespace Test.BuildXL.Processes.Detours
 
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             // have to force the config for truncation
             config.OutputReportingMode = OutputReportingMode.FullOutputOnWarningOrError;

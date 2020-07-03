@@ -1,7 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -28,7 +26,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
-        private readonly MemoizationDatabase _database;
+        /// <summary>
+        /// The database backing the store
+        /// </summary>
+        public virtual MemoizationDatabase Database { get; }
 
         /// <summary>
         ///     Store tracer.
@@ -46,13 +47,22 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
         /// </summary>
-        public DatabaseMemoizationStore(ILogger logger, MemoizationDatabase database)
+        public DatabaseMemoizationStore(MemoizationDatabase database)
         {
-            Contract.Requires(logger != null);
-            Contract.Requires(database != null);
+            Contract.RequiresNotNull(database);
 
-            _tracer = new MemoizationStoreTracer(logger, database.Name);
-            _database = database;
+            _tracer = new MemoizationStoreTracer(database.Name);
+            Database = database;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
+        /// </summary>
+        protected DatabaseMemoizationStore(ILogger logger, string name)
+        {
+            Contract.RequiresNotNull(logger);
+
+            _tracer = new MemoizationStoreTracer(name);
         }
 
         /// <inheritdoc />
@@ -90,117 +100,125 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return  _database.StartupAsync(context);
+            return Database.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return _database.ShutdownAsync(context);
+            return Database.ShutdownAsync(context);
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
-            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => _database.EnumerateStrongFingerprintsAsync(ctx));
+            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => Database.EnumerateStrongFingerprintsAsync(ctx));
         }
 
-        internal async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
+        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            var result = await _database.GetContentHashListAsync(ctx, strongFingerprint);
-            return result.Succeeded
-                ? new GetContentHashListResult(result.Value.contentHashListInfo)
-                : new GetContentHashListResult(result);
+            return ctx.PerformOperationAsync(_tracer, async () =>
+            {
+                var result = await Database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: false);
+                return result.Succeeded
+                    ? new GetContentHashListResult(result.Value.contentHashListInfo)
+                    : new GetContentHashListResult(result);
+            },
+            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}]",
+            traceOperationStarted: false);
         }
 
         internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            return ctx.PerformOperationAsync(
-               _tracer,
-               async () =>
-               {
-                   // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
-                   // of this implementation, and this may fail if the database is heavily contended.
-                   // Unfortunately, there is not much we can do at the time of writing to avoid this
-                   // requirement.
-                   var maxAttempts = 5;
-                   while (maxAttempts-- >= 0)
-                   {
-                       var contentHashList = contentHashListWithDeterminism.ContentHashList;
-                       var determinism = contentHashListWithDeterminism.Determinism;
 
-                       // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                       var oldContentHashListWithDeterminism = await _database.GetContentHashListAsync(ctx, strongFingerprint);
+            return ctx.PerformOperationAsync(_tracer, async () =>
+            {
+                // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
+                // of this implementation, and this may fail if the database is heavily contended.
+                // Unfortunately, there is not much we can do at the time of writing to avoid this
+                // requirement.
+                var maxAttempts = 5;
+                while (maxAttempts-- >= 0)
+                {
+                    var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                    var determinism = contentHashListWithDeterminism.Determinism;
 
-                       var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
-                        ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
-                        : (default(ContentHashListWithDeterminism), string.Empty);
+                    // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
+                    var oldContentHashListWithDeterminism = await Database.GetContentHashListAsync(
+                        ctx,
+                        strongFingerprint,
+                        // Prefer shared result because conflicts are resolved at shared level
+                        preferShared: true);
 
-                       var oldContentHashList = oldContentHashListInfo.ContentHashList;
-                       var oldDeterminism = oldContentHashListInfo.Determinism;
+                    var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
+                     ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
+                     : (default(ContentHashListWithDeterminism), string.Empty);
 
-                       // Make sure we're not mixing SinglePhaseNonDeterminism records
-                       if (!(oldContentHashList is null) && oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
-                       {
-                           return AddOrGetContentHashListResult.SinglePhaseMixingError;
-                       }
+                    var oldContentHashList = oldContentHashListInfo.ContentHashList;
+                    var oldDeterminism = oldContentHashListInfo.Determinism;
 
-                       if (oldContentHashList is null ||
-                           oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                           !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
-                       {
-                           // Replace if incoming has better determinism or some content for the existing
-                           // entry is missing. The entry could have changed since we fetched the old value
-                           // earlier, hence, we need to check it hasn't.
-                           var exchanged = await _database.CompareExchange(
-                              ctx,
-                              strongFingerprint,
-                              replacementToken,
-                              oldContentHashListInfo,
-                              contentHashListWithDeterminism).ThrowIfFailureAsync();
-                           if (!exchanged)
-                           {
-                               // Our update lost, need to retry
-                               continue;
-                           }
+                    // Make sure we're not mixing SinglePhaseNonDeterminism records
+                    if (!(oldContentHashList is null) && oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                    {
+                        return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                    }
 
-                           return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
-                       }
+                    if (oldContentHashList is null ||
+                        oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
+                    {
+                        // Replace if incoming has better determinism or some content for the existing
+                        // entry is missing. The entry could have changed since we fetched the old value
+                        // earlier, hence, we need to check it hasn't.
+                        var exchanged = await Database.CompareExchange(
+                           ctx,
+                           strongFingerprint,
+                           replacementToken,
+                           oldContentHashListInfo,
+                           contentHashListWithDeterminism).ThrowIfFailureAsync();
+                        if (!exchanged)
+                        {
+                            // Our update lost, need to retry
+                            continue;
+                        }
 
-                       // If we didn't accept the new value because it is the same as before, just with a not
-                       // necessarily better determinism, then let the user know.
-                       if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
-                       {
-                           return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
-                       }
+                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
+                    }
 
-                       // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
-                       if (determinism.IsDeterministicTool)
-                       {
-                           return new AddOrGetContentHashListResult(
-                               AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                               oldContentHashListWithDeterminism.Value.contentHashListInfo);
-                       }
+                    // If we didn't accept the new value because it is the same as before, just with a not
+                    // necessarily better determinism, then let the user know.
+                    if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
+                    {
+                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
+                    }
 
-                       // If we did not accept the given value, return the value in the cache
-                       return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
-                   }
+                    // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
+                    if (determinism.IsDeterministicTool)
+                    {
+                        return new AddOrGetContentHashListResult(
+                            AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
+                            oldContentHashListWithDeterminism.Value.contentHashListInfo);
+                    }
 
-                   return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
-               });
+                    // If we did not accept the given value, return the value in the cache
+                    return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism.Value.contentHashListInfo);
+                }
+
+                return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
+            },
+            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}], Determinism=[{contentHashListWithDeterminism.Determinism}]",
+            traceOperationStarted: false);
         }
 
         internal Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
             var ctx = new OperationContext(context);
 
-            return ctx.PerformOperationAsync(
-                _tracer,
-                () => _database.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
-                extraEndMessage: r => $"WeakFingerprint=[{weakFingerprint}], Level={level}",
+            return ctx.PerformOperationAsync(_tracer, () => Database.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
+                extraEndMessage: _ => $"WeakFingerprint=[{weakFingerprint}], Level=[{level}]",
                 traceOperationStarted: false);
         }
     }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -776,7 +776,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[count]);
-                using (var stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareDelete))
+                using (Stream stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareDelete))
                 {
                     FileSystem.DeleteFile(source);
                     var buffer = new byte[count];
@@ -1022,7 +1022,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             {
                 var source = testDirectory.Path / @"file1";
                 FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (var stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                using (Stream stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Assert.False(stream.CanWrite);
 
@@ -1055,7 +1055,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                     source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
                 {
 #pragma warning disable AsyncFixer02
-                    stream.Dispose();
+                    stream?.Dispose();
 #pragma warning restore AsyncFixer02
                 }
             }

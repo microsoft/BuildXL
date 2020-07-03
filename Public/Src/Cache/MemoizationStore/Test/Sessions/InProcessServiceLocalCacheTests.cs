@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var namedCacheRoots = new Dictionary<string, AbsolutePath> {[CacheName] = backendCacheDirectory / "Root"};
 
             var grpcPort = PortExtensions.GetNextAvailablePort();
-            var serverConfiguration = new LocalServerConfiguration(backendCacheDirectory, namedCacheRoots, grpcPort)
+            var serverConfiguration = new LocalServerConfiguration(backendCacheDirectory, namedCacheRoots, grpcPort, FileSystem)
             {
                 GrpcPortFileName = null, // Port is well known at configuration time, no need to expose it.
             };

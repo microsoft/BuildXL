@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -37,18 +37,32 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath DirectoryRoot { get; }
 
         /// <summary>
-        /// Upon completion, <see cref="Directory"/> contains these contents. If the seal is not Partial, then
-        /// the directory contains exactly these contents.
+        /// Upon completion, <see cref="Directory"/> contains these file contents. If the seal is Full, then
+        /// the directory contains exactly these contents plus <see cref="OutputDirectoryContents"/>.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> Contents { get; }
+
+        /// <summary>
+        /// Upon completion, a fully sealed <see cref="Directory"/> contains these opaque contents plus the file contents in <see cref="Contents"/>
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> OutputDirectoryContents { get; }
 
         /// <inheritdoc />
         public override ReadOnlyArray<StringId> Tags { get; }
 
         /// <inheritdoc />
         public override PipProvenance Provenance { get; }
+
+        /// <summary>
+        /// An optional filter that restricts the content of a dynamic directory.        
+        /// Always null for a regular seal directory, <see cref="CompositeSharedOpaqueSealDirectory"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public virtual SealDirectoryContentFilter? ContentFilter => null;
 
         /// <summary>
         /// A seal directory can be composed of other seal directories. This is not the case for a regular seal directory,
@@ -75,6 +89,7 @@ namespace BuildXL.Pips.Operations
         public SealDirectory(
             AbsolutePath directoryRoot,
             SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> contents,
+            SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> outputDirectoryContents,
             SealDirectoryKind kind,
             PipProvenance provenance,
             ReadOnlyArray<StringId> tags,
@@ -83,14 +98,17 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents.IsValid);
+            Contract.Requires(outputDirectoryContents.IsValid);
             Contract.Requires(tags.IsValid);
             Contract.Requires(provenance != null);
             Contract.Requires(!(patterns.IsValid && patterns.Length != 0) || kind.IsSourceSeal(), "If patterns are provided, it must be a source seal directory");
             Contract.Requires(!scrub || kind.IsFull(), "Only scrub fully seal directory");
+            Contract.Requires(outputDirectoryContents.Length == 0 || kind.IsFull(), "Output directory content is only available for fully sealed directories");
 
             Provenance = provenance;
             DirectoryRoot = directoryRoot;
             Contents = contents;
+            OutputDirectoryContents = outputDirectoryContents;
             Kind = kind;
             Tags = tags;
             Scrub = scrub;
@@ -152,7 +170,7 @@ namespace BuildXL.Pips.Operations
         #region Serialization
         internal static SealDirectory InternalDeserialize(PipReader reader)
         {
-            var sealDirectoryType = (SealDirectoryType) reader.ReadByte();
+            var sealDirectoryType = (SealDirectoryType)reader.ReadByte();
 
             switch (sealDirectoryType)
             {
@@ -171,6 +189,7 @@ namespace BuildXL.Pips.Operations
             var directory = new SealDirectory(
                 artifact.Path,
                 reader.ReadSortedReadOnlyArray(reader1 => reader1.ReadFileArtifact(), OrdinalFileArtifactComparer.Instance),
+                reader.ReadSortedReadOnlyArray(reader1 => reader1.ReadDirectoryArtifact(), OrdinalDirectoryArtifactComparer.Instance),
                 (SealDirectoryKind)reader.ReadByte(),
                 reader.ReadPipProvenance(),
                 reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
@@ -190,6 +209,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)SealDirectoryType.SealDirectory);
             writer.Write(Directory);
             writer.Write(Contents, (w, v) => w.Write(v));
+            writer.Write(OutputDirectoryContents, (w, v) => w.Write(v));
             writer.Write((byte)Kind);
             writer.Write(Provenance);
             writer.Write(Tags, (w, v) => w.Write(v));

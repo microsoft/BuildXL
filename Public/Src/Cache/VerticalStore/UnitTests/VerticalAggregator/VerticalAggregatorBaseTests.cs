@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.VerticalAggregator;
@@ -206,7 +207,7 @@ namespace BuildXL.Cache.Tests
             var remoteDeterminism = localDeterminism;
             await session.CloseAsync().SuccessAsync();
 
-            int expectedRemoteSenintels = session.CacheId.Split('_').Length - 2;
+            int expectedRemoteSenintels = session.CacheId.Depth - 2;
 
             var expectedStats = new Dictionary<string, double>();
 
@@ -252,7 +253,7 @@ namespace BuildXL.Cache.Tests
 
             foreach (CacheSessionStatistics stats in statistics)
             {
-                if (stats.CacheId == session.CacheId)
+                if (stats.CacheId.Equals(session.CacheId))
                 {
                     cacheStats = stats;
                     break;
@@ -437,7 +438,7 @@ namespace BuildXL.Cache.Tests
             FullCacheRecord localCacheRecord = await FakeBuild.DoNonDeterministicPipAsync(localSession, PipName);
             Console.WriteLine("Local: {0}, Remote: {1}", localCacheTestClass, remoteCacheTestClass);
 
-            int cacheDepth = testCache.CacheId.Split('_').Length;
+            int cacheDepth = testCache.CacheId.Depth;
 
             Dictionary<string, double> statsToCheck = new Dictionary<string, double>();
             statsToCheck.Add("GetCacheEntry_DeterminismRecovered_Count", 1);
@@ -453,7 +454,7 @@ namespace BuildXL.Cache.Tests
             // Make sure the content is in each cache. (Placing the aggregator cache first will cause backfill of the local cache)
             foreach (var currentCache in new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>[]
             {
-                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, determinismSource, vertCache.LocalCache.CacheId, vertCache.CacheId.Split('_').Length, statsToCheck),
+                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, determinismSource, vertCache.LocalCache.CacheId, vertCache.CacheId.Depth, statsToCheck),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache.LocalCache, determinismSource, vertCache.LocalCache.CacheId, 1, null),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(remoteCache, remoteDeterminism, remoteCache.CacheId, 1, null)
             })
@@ -548,7 +549,7 @@ namespace BuildXL.Cache.Tests
             // Make sure the content is in each cache. (Placing the aggregator cache first will cause backfill of the local cache)
             foreach (var currentCache in new Tuple<ICache, CacheDeterminism, string, int>[]
             {
-                new Tuple<ICache, CacheDeterminism, string, int>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, vertCache.CacheId.Split('_').Length),
+                new Tuple<ICache, CacheDeterminism, string, int>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, vertCache.CacheId.Depth),
                 new Tuple<ICache, CacheDeterminism, string, int>(vertCache.LocalCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, 1),
                 new Tuple<ICache, CacheDeterminism, string, int>(remoteCache, finalDeterminismLocal, vertCache.RemoteCache.CacheId, 1)
             })
@@ -617,7 +618,7 @@ namespace BuildXL.Cache.Tests
             // Nothing should be returned for this as the add should have worked.
             FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(localSession, PipName, determinism: initialDeterminismLocal);
 
-            int expectedHitsInAggregator = initialDeterminismLocal.IsDeterministicTool ? 1 : testCache.CacheId.Split('_').Length;
+            int expectedHitsInAggregator = initialDeterminismLocal.IsDeterministicTool ? 1 : testCache.CacheId.Depth;
 
             // Tool deterministic content is not promoted on get.
             Dictionary<string, double> statsToCheck = new Dictionary<string, double>();
@@ -704,7 +705,7 @@ namespace BuildXL.Cache.Tests
             foreach (var currentCache in new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>[]
             {
                 // If it's tool deterministic, a get will not push it upstream, so it will be in the local and the remote. Anything else will result in a enumerate / get loop wich will populate any middle layers.
-                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, initialDeterminismLocal.IsDeterministicTool ? 2 : vertCache.CacheId.Split('_').Length, statsToCheck),
+                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, initialDeterminismLocal.IsDeterministicTool ? 2 : vertCache.CacheId.Depth, statsToCheck),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache.LocalCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, 1, null),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(remoteCache, remoteDeterminism, vertCache.RemoteCache.CacheId, 1, null)
             })
@@ -868,7 +869,7 @@ namespace BuildXL.Cache.Tests
             // So this pip should exist twice in the cache, once for the local cache, and once for the remote cache.
             int enumeration = 0;
             int sentinelCount = 0;
-            string[] caches = testCache.CacheId.Split('_');
+            string[] caches = testCache.CacheId.HierarchicalIds.ToArray();
             HashSet<string> seenCaches = new HashSet<string>();
 
             foreach (var sfpTask in session.EnumerateStrongFingerprints(pipRecord.StrongFingerprint.WeakFingerprint))
@@ -1234,7 +1235,7 @@ namespace BuildXL.Cache.Tests
             // Make sure the content is in each cache. (Placing the aggregator cache first will cause backfill of the local cache)
             foreach (var currentCache in new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>[]
             {
-                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, vertCache.CacheId.Split('_').Length, statsToCheck),
+                new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, vertCache.CacheId.Depth, statsToCheck),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(vertCache.LocalCache, finalDeterminismLocal, vertCache.LocalCache.CacheId, 1, null),
                 new Tuple<ICache, CacheDeterminism, string, int, Dictionary<string, double>>(remoteCache, remoteDeterminism, remoteCache.CacheId, 1, null)
             })

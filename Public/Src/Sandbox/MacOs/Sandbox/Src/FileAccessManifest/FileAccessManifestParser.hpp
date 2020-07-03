@@ -13,6 +13,7 @@ private:
 
     PCManifestDebugFlag debugFlag_;
     PCManifestInjectionTimeout injectionTimeoutFlag_;
+    PManifestChildProcessesToBreakAwayFromJob manifestChildProcessesToBreakAwayFromJob_;
     PManifestTranslatePathsStrings manifestTranslatePathsStrings_;
     PCManifestFlags flags_;
     PCManifestExtraFlags extraFlags_;
@@ -50,11 +51,13 @@ public:
     inline PCManifestRecord GetUnixRootNode() const     { return root_->BucketCount > 0 ? root_->GetChildRecord(0) : root_; }
     inline PCManifestPipId GetPipId() const             { return pipId_; }
     inline FileAccessManifestFlag GetFamFlags() const   { return static_cast<FileAccessManifestFlag>(flags_->Flags); }
-    inline const char* GetProcessPath(int *length) const
+    inline bool AllowChildProcessesToBreakAway() const  { return manifestChildProcessesToBreakAwayFromJob_->Count > 0; }
+    inline const char* GetReportsPath(int *length) const
     {
         *length = report_->Size;
         return report_->Report.ReportPath;
     }
+    inline const char* GetProcessPath(int *length) const { return GetReportsPath(length); }
 
     // Debugging helper
     static void PrintManifestTree(PCManifestRecord node, const int indent = 0, const int index = 0);

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -18,9 +19,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
+using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
-using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {
@@ -56,6 +57,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 logger?.Debug($"{nameof(PassThroughFileSystem)}.{SequentialScanOnOpenStreamThreshold}={_sequentialScanOnOpenThreshold}");
             }
+        }
+
+        /// <summary>
+        /// Enables POSIX delete semantics as first-level deletion for delete operations
+        /// </summary>
+        public static void EnablePosixDelete()
+        {
+            FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
         }
 
         /// <summary>
@@ -341,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public async Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        public async Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
             path.ThrowIfPathTooLong();
 
@@ -350,14 +359,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 throw new NotImplementedException($"The mode '{fileMode}' is not supported by the {nameof(PassThroughFileSystem)}.");
             }
 
-            using (await ConcurrentAccess.WaitToken())
+            using (await ConcurrentAccess.WaitTokenAsync())
             {
                 return TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize);
             }
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
+        public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {
             return this.OpenAsync(path, FileAccess.Read, FileMode.Open, share);
         }
@@ -420,7 +429,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
-            using (var readStream = TryOpenFile(
+            using (Stream readStream = TryOpenFile(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
@@ -431,9 +440,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 CreateDirectory(destinationPath.Parent);
 
-                var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
+                // If asked to replace the file Create mode must be use to truncate the content of the file
+                // if the target file larger than the source.
+                var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
 
-                using (var writeStream = TryOpenFile(
+                using (Stream writeStream = TryOpenFile(
                     destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     if (writeStream == null)
@@ -447,19 +458,28 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-        private Stream TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+#nullable enable annotations
+        private StreamWithLength? TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            try
             {
-                return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
+                }
+                else
+                {
+                    return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+                }
             }
-            else
+            catch (FileNotFoundException)
             {
-                return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+                // Even though we checked file existence before opening the file, it is possible that the file was deleted already.
+                return null;
             }
         }
 
-        private Stream TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private FileStream? TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             if (DirectoryExists(path))
             {
@@ -483,7 +503,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <remarks>
         /// The method throws similar exception that <see cref="FileStream"/> constructor.
         /// </remarks>
-        private Stream TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private FileStream? TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             options = GetOptions(path, options);
 
@@ -511,7 +531,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 {
                     case ERROR_FILE_NOT_FOUND:
                     case ERROR_PATH_NOT_FOUND:
-                        return (Stream)null;
+                        return (FileStream)null;
                     default:
                         throw ThrowLastWin32Error(
                             path.Path,
@@ -539,13 +559,18 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 }
             }
         }
+#nullable restore annotations
 
         private FileOptions GetOptions(AbsolutePath path, FileOptions options)
         {
             options |= FileOptions.Asynchronous;
 
+            // Getting the file info instead of checking file existence and the size to avoid a race condition,
+            // when the file is deleted in between these two checks.
+            var fileInfo = GetFileInfo(path);
+
             // Avoid churning filesystem cache with large existing files.
-            if (FileExists(path) && GetFileSize(path) > _sequentialScanOnOpenThreshold)
+            if (fileInfo.Exists && fileInfo.Length > _sequentialScanOnOpenThreshold)
             {
                 options |= FileOptions.SequentialScan;
             }
@@ -566,7 +591,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             sourcePath.ThrowIfPathTooLong();
             destinationPath.ThrowIfPathTooLong();
 
-            using (await ConcurrentAccess.WaitToken())
+            using (await ConcurrentAccess.WaitTokenAsync())
             {
                 if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
                 {
@@ -647,15 +672,19 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public long GetFileSize(AbsolutePath path)
         {
+            return GetFileInfo(path).Length;
+        }
+
+        private System.IO.FileInfo GetFileInfo(AbsolutePath path)
+        {
             path.ThrowIfPathTooLong();
-            return new System.IO.FileInfo(path.Path).Length;
+            return new System.IO.FileInfo(path.Path);
         }
 
         /// <inheritdoc />
         public DateTime GetLastAccessTimeUtc(AbsolutePath path)
         {
-            path.ThrowIfPathTooLong();
-            return new System.IO.FileInfo(path.Path).LastAccessTimeUtc;
+            return GetFileInfo(path).LastAccessTimeUtc;
         }
 
         /// <inheritdoc />
@@ -854,11 +883,26 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     // Access denied status can be returned by two reasons:
                     // 1. Something went wrong with the source path
                     // 2. Something went wrong with the destination path.
-                    // The second case is potentially recoverable: so, we'll check the destination's file attribute
+
+                    var retry = false;
+
+                    // For case 1: we'll make sure that the source file allows attribute writes.
+                    if (!FileUtilities.HasWritableAttributeAccessControl(sourceFileName.Path))
+                    {
+                        AllowAttributeWrites(sourceFileName);
+                        retry = true;
+                    }
+
+                    // For case 2: we'll check the destination's file attribute
                     // and if the file has readonly attributes, then we'll remove them and will try to create hardlink one more time.
                     if (this.TryGetFileAttributes(destinationFileName, out var attributes) && (attributes & FileAttributes.ReadOnly) != 0)
                     {
                         SetFileAttributes(destinationFileName, FileAttributes.Normal);
+                        retry = true;
+                    }
+
+                    if (retry)
+                    {
                         status = setLink(sourceFileHandle, linkInfo);
                     }
                 }
@@ -1084,6 +1128,13 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         throw new IOException(message, ExceptionUtilities.HResultFromWin32(lastError));
                 }
             }
+        }
+
+        /// <inheritdoc />
+        public DateTime GetDirectoryCreationTimeUtc(AbsolutePath path)
+        {
+            path.ThrowIfPathTooLong();
+            return new DirectoryInfo(path.Path).CreationTimeUtc;
         }
     }
 }

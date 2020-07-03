@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -19,9 +19,9 @@ namespace BuildXL.Tracing
         /// </summary>
         public static void LogPerformanceCollector(PerformanceCollector.Aggregator aggregator, LoggingContext loggingContext, string description, long? duration = null)
         {
-            Contract.Requires(aggregator != null);
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(description));
+            Contract.RequiresNotNull(aggregator);
+            Contract.RequiresNotNull(loggingContext);
+            Contract.RequiresNotNullOrWhiteSpace(description);
 
             // Only log if there was more than one sample taken
             if (aggregator.ProcessThreadCount.Count > 0)
@@ -29,6 +29,7 @@ namespace BuildXL.Tracing
                 int processAverageThreadCount = ConvertToInt(aggregator.ProcessThreadCount.Average);
                 int processMaximumPrivateMegaBytes = ConvertToInt(aggregator.ProcessPrivateMB.Maximum);
                 int processMaximumWorkingSetMegaBytes = ConvertToInt(aggregator.ProcessWorkingSetMB.Maximum);
+                int processAverageWorkingSetMegaBytes = ConvertToInt(aggregator.ProcessWorkingSetMB.Average);
                 int processMaximumHeldMegaBytess = ConvertToInt(aggregator.ProcessHeldMB.Maximum);
                 int processAverageCPUTime = ConvertToInt(aggregator.ProcessCpu.Average);
                 int machineAverageCPUTime = ConvertToInt(aggregator.MachineCpu.Average);
@@ -38,6 +39,7 @@ namespace BuildXL.Tracing
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageThreadCount), processAverageThreadCount);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumPrivateMB), processMaximumPrivateMegaBytes);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumWorkingSetPrivateMB), processMaximumWorkingSetMegaBytes);
+                dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageWorkingSetPrivateMB), processAverageWorkingSetMegaBytes);
                 if (processMaximumHeldMegaBytess > 0)
                 {
                     dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumHeldMB), processMaximumHeldMegaBytess);
@@ -67,9 +69,9 @@ namespace BuildXL.Tracing
         /// </summary>
         public static void LogCategorizedStatistic(LoggingContext loggingContext, string categorization, string itemName, int value)
         {
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(categorization));
-            Contract.Requires(!string.IsNullOrWhiteSpace(itemName));
+            Contract.RequiresNotNull(loggingContext);
+            Contract.RequiresNotNullOrWhiteSpace(categorization);
+            Contract.RequiresNotNullOrWhiteSpace(itemName);
 
             Logger.Log.Statistic(
                 loggingContext,

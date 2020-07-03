@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -586,8 +585,8 @@ namespace BuildXL.Cache.ContentStore.App
 
         private void Trace(ResultBase result, Context context, string message)
         {
-            _tracer.Error(context, $"{message}, result=[{result}]");
-            _tracer.Debug(context, $"{result.Diagnostics}");
+            context.Error($"{message}, result=[{result}]");
+            context.Debug($"{result.Diagnostics}");
         }
 
         private void VerifyCachePathOrNameProvided(string name, string path)
@@ -602,7 +601,7 @@ namespace BuildXL.Cache.ContentStore.App
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
-            ICopyRequester copyRequester,
+            IContentCommunicationManager copyRequester,
             DistributedContentSettings dcs,
             HostInfo host,
             string cacheName,
@@ -612,7 +611,9 @@ namespace BuildXL.Cache.ContentStore.App
             string dataRootPath,
             CancellationToken ct,
             int? bufferSizeForGrpcCopies,
-            int? gzipBarrierSizeForGrpcCopies)
+            int? gzipBarrierSizeForGrpcCopies,
+            LoggingSettings loggingSettings,
+            ITelemetryFieldsProvider telemetryFieldsProvider)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -626,9 +627,11 @@ namespace BuildXL.Cache.ContentStore.App
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
                 grpcThreadPoolSize: null);
 
-            var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
+            var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
+            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null) {
+                TelemetryFieldsProvider = telemetryFieldsProvider,
+            };
         }
     }
 }

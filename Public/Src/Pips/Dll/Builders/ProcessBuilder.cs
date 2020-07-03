@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -67,6 +67,7 @@ namespace BuildXL.Pips.Builders
         private readonly PooledObjectWrapper<HashSet<FileArtifactWithAttributes>> m_outputFiles;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_outputDirectories;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_projectedSharedOutputDirectories;
+        private readonly PooledObjectWrapper<HashSet<AbsolutePath>> m_outputDirectoryExclusions;
 
         // Input/Output streams
 
@@ -130,7 +131,7 @@ namespace BuildXL.Pips.Builders
         public int PreserveOutputsTrustLevel { get; set; } = (int)PreserveOutputsTrustValue.Lowest;
 
         /// <nodoc />
-        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+        public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
         // Container related
 
@@ -176,6 +177,9 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; set; } = ReadOnlyArray<PathAtom>.Empty;
 
+        /// <nodoc />
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; } = ReadOnlyArray<PathAtom>.Empty;
+
         private readonly AbsolutePath m_realUserProfilePath;
         private readonly AbsolutePath m_redirectedUserProfilePath;
 
@@ -195,6 +199,7 @@ namespace BuildXL.Pips.Builders
             m_outputFiles = Pools.GetFileArtifactWithAttributesSet();
             m_outputDirectories = Pools.GetDirectoryArtifactSet();
             m_projectedSharedOutputDirectories = Pools.GetDirectoryArtifactSet();
+            m_outputDirectoryExclusions = Pools.GetAbsolutePathSet();
 
             m_untrackedFilesAndDirectories = Pools.GetAbsolutePathSet();
             m_untrackedDirectoryScopes = Pools.GetDirectoryArtifactSet();
@@ -311,6 +316,18 @@ namespace BuildXL.Pips.Builders
                 default:
                     throw Contract.AssertFailure("Unsupported output directory kind");
             }
+        }
+
+        /// <summary>
+        /// Adds an output directory exclusion
+        /// </summary>
+        /// <remarks>
+        /// Any output directory artifact produced under the specified root will not be considered part of any opaque directory
+        /// </remarks>
+        public void AddOutputDirectoryExclusion(AbsolutePath exclusionRoot)
+        {
+            Contract.Requires(exclusionRoot.IsValid);
+            m_outputDirectoryExclusions.Instance.Add(exclusionRoot);
         }
 
         /// <nodoc />
@@ -583,6 +600,10 @@ namespace BuildXL.Pips.Builders
                 ? ReadOnlyArray<DirectoryArtifact>.Empty
                 : ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(directoryOutputArray);
 
+            var outputDirectoryExclusions = m_outputDirectoryExclusions.Instance.Count == 0 
+                ? CollectionUtilities.EmptySet<AbsolutePath>()
+                : new ReadOnlyHashSet<AbsolutePath>(m_outputDirectoryExclusions.Instance);
+
             // Handle temp directories
             foreach (var additionalTempDirectory in AdditionalTempDirectories)
             {
@@ -619,6 +640,19 @@ namespace BuildXL.Pips.Builders
                 outputFileMap,
                 directoryOutputMap
                 );
+
+            
+            // Trusting statically declared accesses is not compatible with declaring opaque or source sealed directories
+            if ((Options & Options.TrustStaticallyDeclaredAccesses) != Options.None && 
+                    (directoryOutputs.Length > 0 || 
+                    m_inputDirectories.Instance.Any(directory => pipConstructionHelper.PipGraph.TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal()))
+            )
+            {
+                processOutputs = null;
+                process = null;
+
+                return false;
+            }
 
             process = new Process(
                 executable: Executable,
@@ -669,9 +703,11 @@ namespace BuildXL.Pips.Builders
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
                 priority: Priority,
-                preserveOutputWhitelist: PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile,
-                preserveOutputsTrustLevel: PreserveOutputsTrustLevel);
+                preserveOutputAllowlist: PreserveOutputAllowlist,
+                changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
+                preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
+                childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions));
 
             return true;
         }
@@ -689,6 +725,7 @@ namespace BuildXL.Pips.Builders
             m_outputFiles.Dispose();
             m_outputDirectories.Dispose();
             m_projectedSharedOutputDirectories.Dispose();
+            m_outputDirectoryExclusions.Dispose();
 
             m_untrackedFilesAndDirectories.Dispose();
             m_untrackedDirectoryScopes.Dispose();

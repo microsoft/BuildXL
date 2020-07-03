@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics;
 using System.Text;
@@ -28,7 +28,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="fileName">Application file name with which to start the process.</param>
         /// <param name="args">Arguments passed to the process.</param>
         /// <param name="createNoWindow">Whether the process shoudl not open a window.</param>
-        public ProcessUtility(string fileName, string args, bool createNoWindow)
+        /// <param name="workingDirectory">Working directory for the process</param>
+        public ProcessUtility(string fileName, string args, bool createNoWindow, string workingDirectory = null)
         {
             _createNoWindow = createNoWindow;
             _process = new Process();
@@ -42,6 +43,11 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 // ReSharper restore ConditionIsAlwaysTrueOrFalse
             };
+
+            if (workingDirectory != null)
+            {
+                _process.StartInfo.WorkingDirectory = workingDirectory;
+            }
 
             if (_createNoWindow)
             {

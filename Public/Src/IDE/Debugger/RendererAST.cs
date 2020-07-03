@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using VSCode.DebugProtocol;
@@ -65,20 +65,110 @@ namespace BuildXL.FrontEnd.Script.Debugger
     }
 
     /// <summary>
+    /// Builder for <see cref="ObjectInfo"/>.
+    /// </summary>
+    public sealed class ObjectInfoBuilder
+    {
+        private readonly Dictionary<string, Property> m_properties;
+
+        private string m_preview;
+
+        /// <nodoc />
+        public ObjectInfoBuilder() 
+        {
+            m_properties = new Dictionary<string, Property>();
+        }
+
+        /// <nodoc />
+        public ObjectInfoBuilder Preview(string preview)
+        {
+            m_preview = preview;
+            return this;
+        }
+
+        /// <nodoc />
+        public ObjectInfoBuilder Prop(string key, Lazy<object> lazyValue)
+        {
+            m_properties[key] = new Property(name: key, lazyValue: lazyValue);
+            return this;
+        }
+
+        /// <nodoc />
+        public ObjectInfoBuilder Prop(string key, Func<object> func) => Prop(key, Lazy.Create(func));
+
+        /// <nodoc />
+        public ObjectInfoBuilder Prop(string name, object value) => Prop(name, Lazy.Create(() => value));
+
+        /// <nodoc />
+        public ObjectInfoBuilder Filter(Predicate<Property> filter)
+        {
+            foreach (var propToRemove in m_properties.Values.Where(p => !filter(p)).ToArray())
+            {
+                m_properties.Remove(propToRemove.Name);
+            }
+
+            return this;
+        }
+
+        /// <nodoc />
+        public ObjectInfoBuilder Remove(string propertyName)
+        {
+            m_properties.Remove(propertyName);
+            return this;
+        }
+
+        /// <nodoc />
+        public ObjectInfo Build()
+        {
+            return new ObjectInfo(preview: m_preview, properties: m_properties);
+        }
+    }
+
+
+    /// <summary>
     ///     Contains some basic object meta-information suitable for lazy rendering in a tree viewer.
     /// </summary>
     public sealed class ObjectInfo
     {
-        private readonly Lazy<IReadOnlyList<Property>> m_lazyProperties;
-
+        private readonly Lazy<IDictionary<string, Property>> m_lazyProperties;
+        
         /// <summary>Short preview as a plain string.</summary>
         public string Preview { get; }
 
         /// <summary>Original object (used when converting to ObjectLiteral)</summary>
         public object Original { get; }
 
+        /// <summary>A predicate that can be used to check validity of property values.</summary>
+        public Predicate<object> IsValid { get; private set; }
+
         /// <summary>List of properties (as name-value pairs, <see cref="Property"/>)</summary>
-        public IEnumerable<Property> Properties => m_lazyProperties.Value;
+        public IEnumerable<Property> Properties => m_lazyProperties.Value.Values;
+
+        /// <summary>Sets <see cref="IsValid"/></summary>
+        public ObjectInfo SetValidator(Predicate<object> isValid)
+        {
+            IsValid = isValid;
+            return this;
+        }
+
+        /// <summary>
+        /// Returns the value of a property with a given name or <c>null</c> if no such property is 
+        /// found or the property value is not valid according to <see cref="IsValid"/>.
+        /// </summary>
+        public object GetValidatedPropertyValue(string propertyName)
+        {
+            if (!m_lazyProperties.Value.TryGetValue(propertyName, out var prop))
+            {
+                return null;
+            }
+
+            if (IsValid?.Invoke(prop.Value) == false)
+            {
+                return null;
+            }
+
+            return prop.Value;
+        }
 
         /// <summary>Whether this object has any properties</summary>
         public bool HasAnyProperties { get; }
@@ -93,35 +183,23 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
         /// <nodoc />
         public ObjectInfo([CanBeNull] IEnumerable<Property> properties)
-            : this("", properties) { }
+            : this(preview: "", properties: properties) { }
 
         /// <nodoc />
         public ObjectInfo(string preview, [CanBeNull] IEnumerable<Property> properties)
-            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.ToList())) { }
+            : this(preview, properties?.ToDictionary(p => p.Name, p => p)) { }
 
         /// <nodoc />
-        public ObjectInfo(string preview, [CanBeNull] Lazy<Property[]> properties)
-            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.Value)) { }
+        public ObjectInfo(string preview, [CanBeNull] IDictionary<string, Property> properties)
+            : this(preview, null, Lazy.Create(() => properties ?? new Dictionary<string, Property>(0))) { }
 
         /// <nodoc />
-        public ObjectInfo(Lazy<Property[]> properties)
-            : this("", properties) { }
-
-        /// <nodoc />
-        public ObjectInfo([CanBeNull] Lazy<IEnumerable<Property>> properties)
-            : this("", properties) { }
-
-        /// <nodoc />
-        public ObjectInfo(string preview, [CanBeNull] Lazy<IEnumerable<Property>> properties)
-            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.Value.ToList())) { }
-
-        /// <nodoc />
-        public ObjectInfo(string preview, object original, [CanBeNull] Lazy<IReadOnlyList<Property>> properties)
+        public ObjectInfo(string preview, object original, Lazy<IDictionary<string, Property>> lazyProperties)
         {
             Preview = string.IsNullOrWhiteSpace(preview) ? "{object}" : preview;
             Original = original;
-            HasAnyProperties = properties != null;
-            m_lazyProperties = properties ?? Lazy.Create<IReadOnlyList<Property>>(() => Property.Empty);
+            HasAnyProperties = lazyProperties != null;
+            m_lazyProperties = lazyProperties ?? Lazy.Create<IDictionary<string, Property>>(() => new Dictionary<string, Property>(0));
         }
 
         /// <nodoc />
@@ -192,10 +270,10 @@ namespace BuildXL.FrontEnd.Script.Debugger
     public sealed class ScopePipGraph
     {
         /// <nodoc />
-        public IPipGraph Graph { get; }
+        public IPipScheduleTraversal Graph { get; }
 
         /// <nodoc />
-        public ScopePipGraph(IPipGraph graph)
+        public ScopePipGraph(IPipScheduleTraversal graph)
         {
             Graph = graph;
         }

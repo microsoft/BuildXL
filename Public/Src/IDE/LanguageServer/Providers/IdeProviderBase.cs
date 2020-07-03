@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Tracing;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
@@ -22,6 +22,9 @@ namespace BuildXL.Ide.LanguageServer.Providers
     /// </remarks>
     public abstract class IdeProviderBase
     {
+        /// <nodoc/>
+        public const string DScriptLanguage = "DScript";
+
         /// <nodoc/>
         protected PathTable PathTable { get; }
 
@@ -79,18 +82,16 @@ namespace BuildXL.Ide.LanguageServer.Providers
         }
 
         /// <summary>
-        /// Returns a source file with the given <paramref name="uriString"/>.
+        /// Returns a source file with the given <paramref name="uri"/>.
         /// </summary>
         /// <remarks>
         /// The function emits a log entry if the given source file is missing from the <see cref="Workspace"/>.
         /// </remarks>
-        protected bool TryFindSourceFile(string uriString, out ISourceFile sourceFile)
+        protected bool TryFindSourceFile(Uri uri, out ISourceFile sourceFile)
         {
-            var uri = new Uri(uriString);
-
             if (!uri.TryGetSourceFile(Workspace, PathTable, out sourceFile))
             {
-                Logger.LanguageServerCanNotFindSourceFile(LoggingContext, uriString);
+                Logger.LanguageServerCanNotFindSourceFile(LoggingContext, uri.ToString());
                 return false;
             }
 

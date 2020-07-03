@@ -174,7 +174,7 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
 }
 
 // Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-// These files now can be whitelisted, but there are already users deployed without the whitelisting feature
+// These files now can be allowlisted, but there are already users deployed without the allowlisting feature
 // that rely on these file accesses not blocked.
 // These are some tools that use internal files or do some implicit directory creation, etc.
 // In this list the tools are the CCI based set of products, csc compiler, resource compiler, build.exe trace log, etc.
@@ -270,7 +270,7 @@ bool GetSpecialCaseRulesForSpecialTools(
 //     1. Code coverage runs
 //     2. Te drive devices
 //     3. Dos devices and special system devices/names (pipes, null dev etc).
-// These accesses now should be white listed, but many users have deployed products that have specs not declaring such accesses.
+// These accesses now should be allowlisted, but many users have deployed products that have specs not declaring such accesses.
 bool GetSpecialCaseRulesForCoverageAndSpecialDevices(
     __in  PCWSTR absolutePath,
     __in  size_t absolutePathLength,
@@ -542,6 +542,99 @@ wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, ui
     return pStr;
 }
 
+void AppendStringFromWriteChars(const byte* payloadBytes, size_t& offset, _Out_ std::wstring& result)
+{
+    uint32_t len = ParseUint32(payloadBytes, offset);
+    if (len == 0)
+    {
+        return;
+    }
+
+    result.append((wchar_t*)(&payloadBytes[offset]), len);
+    offset += sizeof(wchar_t) * len;
+}
+
+static inline void SkipWriteCharsString(const byte* payloadBytes, size_t& offset)
+{
+    uint32_t len = ParseUint32(payloadBytes, offset);
+    offset += sizeof(wchar_t) * len;
+}
+
+static SubstituteProcessExecutionPluginFunc GetSubstituteProcessExecutionPluginFunc()
+{
+    assert(g_SubstituteProcessExecutionPluginDllHandle != nullptr);
+
+    // Different compiler or different compiler settings can result in different function name variants.
+    //
+    // X64 version typically has:
+    //     ordinal hint RVA      name
+    //
+    //     1    0 00011069 CommandMatches = @ILT + 100(CommandMatches)
+    //
+    // X86 version can have:
+    //     ordinal hint RVA      name
+    //
+    //     1    0 00011276 _CommandMatches@24 = @ILT + 625(_CommandMatches@24)
+
+
+    // (1) Check for CommandMatches.
+    std::string winApiProcName("CommandMatches");
+    SubstituteProcessExecutionPluginFunc substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    // (2) Check for CommandMatches@<param_size> based on platform.
+#if defined(_WIN64)
+    winApiProcName.append("@48"); // 6 64-bit parameters
+#elif defined(_WIN32)
+    winApiProcName.append("@24"); // 6 32-bit parameters
+#endif
+    substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    // (3) Check for _CommandMatches@<param_size>.
+    winApiProcName.insert(0, 1, '_');
+    substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    Dbg(L"Unable to find 'CommandMatches', 'CommandMatches@<param_size>', or '_CommandMatches@<param_size>' functions in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
+    return nullptr;
+}
+
+static void LoadSubstituteProcessExecutionPluginDll()
+{
+    assert(g_SubstituteProcessExecutionPluginDllPath != nullptr);
+
+    Dbg(L"Loading substitute process plugin DLL at '%s'", g_SubstituteProcessExecutionPluginDllPath);
+    
+    g_SubstituteProcessExecutionPluginDllHandle = LoadLibraryW(g_SubstituteProcessExecutionPluginDllPath);
+
+    if (g_SubstituteProcessExecutionPluginDllHandle != nullptr)
+    {
+        g_SubstituteProcessExecutionPluginFunc = GetSubstituteProcessExecutionPluginFunc();
+
+        if (g_SubstituteProcessExecutionPluginFunc == nullptr) 
+        {
+            FreeLibrary(g_SubstituteProcessExecutionPluginDllHandle);
+        }
+    }
+    else
+    {
+        Dbg(L"Failed LoadLibrary for LoadSubstituteProcessExecutionPluginDll %s, lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
+    }
+}
+
 bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
@@ -670,38 +763,39 @@ bool ParseFileAccessManifest(
 
     offset += injectionTimeoutFlag->GetSize();
 
+    g_manifestChildProcessesToBreakAwayFromJob = reinterpret_cast<const PManifestChildProcessesToBreakAwayFromJob>(&payloadBytes[offset]);
+    g_manifestChildProcessesToBreakAwayFromJob->AssertValid();
+    offset += g_manifestChildProcessesToBreakAwayFromJob->GetSize();
+
+    for (uint32_t i = 0; i < g_manifestChildProcessesToBreakAwayFromJob->Count; i++)
+    {
+        std::wstring processNameToBrakeAway(L"");
+        AppendStringFromWriteChars(payloadBytes, offset, processNameToBrakeAway);
+        if (!processNameToBrakeAway.empty())
+        {
+            g_processNamesToBreakAwayFromJob->insert(processNameToBrakeAway);
+        }
+    }
+
     g_manifestTranslatePathsStrings = reinterpret_cast<const PManifestTranslatePathsStrings>(&payloadBytes[offset]);
     g_manifestTranslatePathsStrings->AssertValid();
-#ifdef _DEBUG
-    offset += sizeof(uint32_t);
-#endif
-    uint32_t manifestTranslatePathsSize = ParseUint32(payloadBytes, offset);
-    for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
-    {
-        uint32_t manifestTranslatePathsFromSize = ParseUint32(payloadBytes, offset);
-        std::wstring translateFrom;
-        translateFrom.assign(L"");
-        if (manifestTranslatePathsFromSize > 0)
-        {
-            translateFrom.append((wchar_t*)(&payloadBytes[offset]), manifestTranslatePathsFromSize);
+    offset += g_manifestTranslatePathsStrings->GetSize();
 
-            for (basic_string<wchar_t>::iterator p = translateFrom.begin();
-                p != translateFrom.end(); ++p) 
+    for (uint32_t i = 0; i < g_manifestTranslatePathsStrings->Count; i++)
+    {
+        std::wstring translateFrom(L"");
+        AppendStringFromWriteChars(payloadBytes, offset, translateFrom);
+
+        if (!translateFrom.empty())
+        {
+            for (basic_string<wchar_t>::iterator p = translateFrom.begin(); p != translateFrom.end(); ++p)
             {
                 *p = towlower(*p);
             }
-
-            offset += sizeof(WCHAR) * manifestTranslatePathsFromSize;
         }
-
-        uint32_t manifestTranslatePathsToSize = ParseUint32(payloadBytes, offset);
-        std::wstring translateTo;
-        translateTo.assign(L"");
-        if (manifestTranslatePathsToSize > 0)
-        {
-            translateTo.append((wchar_t*)(&payloadBytes[offset]), manifestTranslatePathsToSize);
-            offset += sizeof(WCHAR) * manifestTranslatePathsToSize;
-        }
+        
+        std::wstring translateTo(L"");
+        AppendStringFromWriteChars(payloadBytes, offset, translateTo);
 
         if (!translateFrom.empty() && !translateTo.empty())
         {
@@ -771,7 +865,6 @@ bool ParseFileAccessManifest(
     if (report->IsReportPresent()) {
         if (report->IsReportHandle()) {
             g_reportFileHandle = g_pDetouredProcessInjector->ReportPipe();
-            //g_reportFileHandle = (HANDLE)(intptr_t)(report->Report.ReportHandle32Bit);
 #ifdef _DEBUG
 #pragma warning( push )
 #pragma warning( disable: 4302 4310 4311 4826 )
@@ -827,10 +920,20 @@ bool ParseFileAccessManifest(
     PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
     pShimInfo->AssertValid();
     offset += pShimInfo->GetSize();
-    g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
-    if (g_substituteProcessExecutionShimPath != nullptr)
+    g_SubstituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
+    if (g_SubstituteProcessExecutionShimPath != nullptr)
     {
         g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
+
+        // Both _WIN32 and _WIN64 are defined when targeting 32-bit windows from 64-bit windows.
+        // See: https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?redirectedfrom=MSDN&view=vs-2019
+#if defined(_WIN64) // Defined as 1 when the compilation target is 64-bit ARM or x64. Otherwise, undefined.
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 32-bit path.
+        g_SubstituteProcessExecutionPluginDllPath = CreateStringFromWriteChars(payloadBytes, offset);
+#elif defined(_WIN32) // Defined as 1 when the compilation target is 32-bit ARM, 64-bit ARM, x86, or x64
+        g_SubstituteProcessExecutionPluginDllPath = CreateStringFromWriteChars(payloadBytes, offset);
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 64-bit path.
+#endif
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
         g_pShimProcessMatches = new vector<ShimProcessMatch*>();
         for (uint32_t i = 0; i < numProcessMatches; i++)
@@ -839,6 +942,11 @@ bool ParseFileAccessManifest(
             wchar_t *argumentMatch = CreateStringFromWriteChars(payloadBytes, offset);
             g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
         }
+    }
+
+    if (g_SubstituteProcessExecutionPluginDllPath != nullptr)
+    {
+        LoadSubstituteProcessExecutionPluginDll();
     }
 
     g_manifestTreeRoot = reinterpret_cast<PCManifestRecord>(&payloadBytes[offset]);
@@ -878,7 +986,7 @@ bool ParseFileAccessManifest(
     }
 
     FileReadContext fileReadContext;
-    fileReadContext.FileExistence = FileExistence::Existent; // Clearly this process started somehow.
+    fileReadContext.Existence = FileExistence::Existent; // Clearly this process started somehow.
     fileReadContext.OpenedDirectory = false;
     
     AccessCheckResult readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, fileReadContext);
@@ -1030,6 +1138,194 @@ bool ExistsAsFile(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
-    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
-        !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+static DWORD SearchFullPath(
+    _In_ LPCWSTR lpPath,
+    _In_ LPCWSTR lpFileName,
+    _In_ LPCWSTR lpExtension,
+    _Inout_ std::wstring& fullPath)
+{
+    // First, we try with a fixed-sized buffer, which should be good enough for all practical cases.
+
+    wchar_t wszBuffer[MAX_PATH];
+    DWORD nBufferLength = std::extent<decltype(wszBuffer)>::value;
+    LPWSTR filePart;
+
+    DWORD result = SearchPathW(lpPath, lpFileName, lpExtension, nBufferLength, wszBuffer, &filePart);
+
+    if (result == 0)
+    {
+        DWORD ret = GetLastError();
+        return ret;
+    }
+
+    if (result < nBufferLength)
+    {
+        fullPath.assign(wszBuffer, static_cast<size_t>(result));
+    }
+    else
+    {
+        // Second, if that buffer wasn't big enough, we try again with a dynamically allocated buffer with sufficient size.
+
+        // Note that in this case, the return value indicates the required buffer length, INCLUDING the terminating null character.
+        // https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-searchpathw
+        unique_ptr<wchar_t[]> buffer(new wchar_t[result]);
+        assert(buffer.get());
+
+        DWORD result2 = SearchPathW(lpPath, lpFileName, lpExtension, result, buffer.get(), &filePart);
+
+        if (result2 == 0)
+        {
+            DWORD ret = GetLastError();
+            return ret;
+        }
+
+        if (result2 < result)
+        {
+            fullPath.assign(buffer.get(), result2);
+        }
+        else
+        {
+            return ERROR_NOT_ENOUGH_MEMORY;
+        }
+    }
+
+    return ERROR_SUCCESS;
+}
+
+static bool ExistsImageFile(_In_ CanonicalizedPath& candidatePath)
+{
+    if (candidatePath.IsNull())
+    {
+        return false;
+    }
+
+    return ExistsAsFile(candidatePath.GetPathString());
+}
+
+static bool TryFindImagePath(_In_ std::wstring& candidatePath, _Out_opt_ CanonicalizedPath& imagePath)
+{
+    imagePath = CanonicalizedPath::Canonicalize(candidatePath.c_str());
+    if (ExistsImageFile(imagePath))
+    {
+        return true;
+    }
+
+    if (HasSuffix(candidatePath.c_str(), candidatePath.length(), L".exe"))
+    {
+        // Candidate path has .exe already, and it does not exist.
+        return false;
+    }
+
+    std::wstring candidatePathExe(candidatePath);
+    candidatePathExe.append(L".exe");
+    imagePath = CanonicalizedPath::Canonicalize(candidatePathExe.c_str());
+
+    return ExistsImageFile(imagePath);
+}
+
+static CanonicalizedPath GetCanonicalizedApplicationPath(_In_ LPCWSTR lpApplicationName)
+{
+    if (GetRootLength(lpApplicationName) > 0)
+    {
+        // Path is rooted.
+        return CanonicalizedPath::Canonicalize(lpApplicationName);
+    }
+
+    // Path is not rooted.
+    // For example, lpApplicationName can be just "cmd.exe". In this case, we rely on SearchPathW
+    // to find the full path. We cannot rely on GetFullPathNameW (as in CanonicalizedPath) because
+    // GetFullPathNameW will simply prepend the file name with the current directory, which result in
+    // a non-existent path for executables like "cmd.exe".
+    std::wstring applicationPath;
+    return SearchFullPath(nullptr, lpApplicationName, L".exe", applicationPath) != ERROR_SUCCESS
+        ? CanonicalizedPath()
+        : CanonicalizedPath::Canonicalize(applicationPath.c_str());;
+}
+
+CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine)
+{
+    if (lpApplicationName != nullptr)
+    {
+        return GetCanonicalizedApplicationPath(lpApplicationName);
+    }
+
+    if (lpCommandLine == nullptr)
+    {
+        return CanonicalizedPath();
+    }
+
+    LPWSTR cursor = lpCommandLine;
+    LPWSTR start = lpCommandLine;
+    size_t length = 0;
+    std::wstring applicationNamePath(L"");
+
+    if (*cursor == L'\"')
+    {
+        start = ++cursor;
+ 
+        while (*cursor && *cursor != L'\"')
+        {
+            ++cursor;
+            ++length;
+        }
+
+        // Unlike the implementation of CreateProcessW that runs the expanded path logic (as in the else branch below),
+        // we simply search for the ending quote and use the found path as the application path.
+        // We do this because we don't want to slow down 99% cases by going to the file system to check file existence.
+        applicationNamePath.assign(start, length);
+        return GetCanonicalizedApplicationPath(applicationNamePath.c_str());
+    }
+    else 
+    {
+        // Skip past space and tab.
+        while (*cursor && (*cursor == L' ' || *cursor == L'\t'))
+        {
+            ++cursor;
+        }
+
+        do 
+        {
+            start = cursor;
+            length = 0;
+
+            // Skip past space and tab.
+            while (*cursor && (*cursor == L' ' || *cursor == L'\t'))
+            {
+                ++cursor;
+                ++length;
+            }
+            
+            // Look for the first whitespace/tab.
+            while (*cursor && *cursor != L' ' && *cursor != L'\t')
+            {
+                ++cursor;
+                ++length;
+            }
+
+            CanonicalizedPath imagePath;
+            applicationNamePath.append(start, length);
+
+            if (GetRootLength(applicationNamePath.c_str()) > 0) 
+            {
+                if (TryFindImagePath(applicationNamePath, imagePath))
+                {
+                    return imagePath;
+                }
+            }
+            else 
+            {
+                // For non-rooted path, check path existence using SearchFullPath.
+                imagePath = GetCanonicalizedApplicationPath(applicationNamePath.c_str());
+                if (!imagePath.IsNull())
+                {
+                    return imagePath;
+                }
+            }
+        } while (*cursor);
+
+        return CanonicalizedPath();
+    }    
 }

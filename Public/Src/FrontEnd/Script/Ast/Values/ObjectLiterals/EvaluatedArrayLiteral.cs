@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,7 +18,8 @@ namespace BuildXL.FrontEnd.Script.Values
     {
         private readonly EvaluationResult[] m_data;
 
-        internal EvaluatedArrayLiteral(EvaluationResult[] data, LineInfo location, AbsolutePath path)
+        /// <nodoc/>
+        public EvaluatedArrayLiteral(EvaluationResult[] data, LineInfo location, AbsolutePath path)
             : base(location, path)
         {
             m_data = data;

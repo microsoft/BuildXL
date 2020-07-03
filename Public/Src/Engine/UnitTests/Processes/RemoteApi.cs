@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Processes
@@ -30,6 +31,7 @@ namespace Test.BuildXL.Processes
         /// Runs a sequence of RemoteApi commands in a <see cref="SandboxedProcess" />.
         /// </summary>
         public static async Task<SandboxedProcessResult> RunInSandboxAsync(
+            LoggingContext loggingContext,
             PathTable pathTable,
             string workingDirectory,
             ISandboxedProcessFileStorage sandboxStorage,
@@ -45,7 +47,7 @@ namespace Test.BuildXL.Processes
             }
 
             var info =
-                new SandboxedProcessInfo(pathTable, sandboxStorage, ExecutablePath, disableConHostSharing: false)
+                new SandboxedProcessInfo(pathTable, sandboxStorage, ExecutablePath, disableConHostSharing: false, loggingContext: loggingContext)
                 {
                     PipSemiStableHash = 0,
                     PipDescription = "RemoteApi Test",

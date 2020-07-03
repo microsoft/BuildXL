@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Timers;
@@ -33,6 +32,13 @@ using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
+    /// <nodoc />
+    public interface ILocalContentServer<TStore> : IStartupShutdown
+    {
+        /// <nodoc />
+        IReadOnlyDictionary<string, TStore> StoresByName { get; }
+    }
+
     /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
@@ -43,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <typeparam name="TSession">
     ///     Type of sessions that will be created. Must match the store.
     /// </typeparam>
-    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>
+    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>, ILocalContentServer<TStore>
         where TSession : IContentSession
         where TStore : IStartupShutdown
     {
@@ -61,6 +67,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private readonly ConcurrentDictionary<int, SessionHandle<TSession>> _sessionHandles;
         private IntervalTimer _sessionExpirationCheckTimer;
         private IntervalTimer _logIncrementalStatsTimer;
+        private IntervalTimer _logMachineStatsTimer;
+
         private Dictionary<string, long> _previousStatistics;
 
         private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
@@ -86,10 +94,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        /// <remarks>
-        /// This is only supposed to be used by this class and inheritors, do not make internal or public.
-        /// </remarks>
-        protected readonly IReadOnlyDictionary<string, TStore> StoresByName;
+        public IReadOnlyDictionary<string, TStore> StoresByName { get; }
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -178,8 +183,6 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var counterSet = new CounterSet();
 
-            counterSet.Merge(_performanceCollector.GetPerformanceStats(), "MachinePerf.");
-
             foreach (var (name, store) in StoresByName)
             {
                 var stats = await GetStatsAsync(store, context);
@@ -246,6 +249,11 @@ namespace BuildXL.Cache.ContentStore.Service
             // This is a workaround to make sure hibernated sessions are fully restored
             // before FileSystemContentStore can evict the content.
             var result = await tryStartupCoreAsync();
+            if (!result)
+            {
+                // We should not be running post initialization operation if the startup operation failed.
+                return result;
+            }
 
             foreach (var store in StoresByName.Values)
             {
@@ -282,6 +290,10 @@ namespace BuildXL.Cache.ContentStore.Service
                     _logIncrementalStatsTimer = new IntervalTimer(
                         () => LogIncrementalStatsAsync(context),
                         Config.LogIncrementalStatsInterval);
+
+                    _logMachineStatsTimer = new IntervalTimer(
+                        () => LogMachinePerformanceStatistics(context),
+                        Config.LogMachineStatsInterval);
 
                     return BoolResult.Success;
                 }
@@ -323,6 +335,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
             try
             {
+                TraceLeakedFilePath(context);
+
                 var statistics = new Dictionary<string, long>();
                 var previousStatistics = _previousStatistics;
 
@@ -343,8 +357,8 @@ namespace BuildXL.Cache.ContentStore.Service
                             incrementalValue -= oldValue;
                         }
 
-                        Tracer.Info(context, $"IncrementalStatistic: {key}=[{incrementalValue}]");
-                        Tracer.Info(context, $"PeriodicStatistic: {key}=[{value}]");
+                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{incrementalValue}]", component: Name, operation: "IncrementalStatistics");
+                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
                     }
                 }
 
@@ -354,6 +368,22 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 Volatile.Write(ref _loggingIncrementalStats, 0);
             }
+        }
+
+        private void TraceLeakedFilePath(OperationContext context)
+        {
+            // Tracing the last leaked file name to understand what files are not closed properly.
+            var leakedPath = TrackingFileStream.LastLeakedFilePath;
+            if (!string.IsNullOrEmpty(leakedPath))
+            {
+                Tracer.Warning(context, $"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.LastLeakedFilePath)}: {leakedPath}");
+            }
+        }
+
+        private void LogMachinePerformanceStatistics(OperationContext context)
+        {
+            var machineStatistics = _performanceCollector.GetMachinePerformanceStatistics();
+            Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics);
         }
 
         private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)
@@ -503,7 +533,13 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             _logIncrementalStatsTimer?.Dispose();
-            await LogIncrementalStatsAsync(context);
+            _logMachineStatsTimer?.Dispose();
+
+            // Don't trace statistics if configured and only if startup was successful.
+            if (Tracer.EnableTraceStatisticsAtShutdown && StartupCompleted)
+            {
+                await LogIncrementalStatsAsync(context);
+            }
 
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();
@@ -532,6 +568,12 @@ namespace BuildXL.Cache.ContentStore.Service
 
                         if (session is IHibernateContentSession hibernateSession)
                         {
+                            if (Config.ShutdownEvictionBeforeHibernation)
+                            {
+                                // Calling shutdown of eviction before hibernating sessions to prevent possible race condition of evicting pinned content
+                                await hibernateSession.ShutdownEvictionAsync(context).ThrowIfFailure();
+                            }
+
                             var pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().Select(x => x.Serialize()).ToList();
                             Tracer.Debug(context, $"Hibernating session {DescribeSession(sessionId, handle)}.");
                             sessionInfoList.Add(new HibernatedSessionInfo(
@@ -583,7 +625,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private async Task<BoolResult> ShutdownStoresAsync(Context context)
         {
             var tasks = new List<Task<BoolResult>>(StoresByName.Count);
-            tasks.AddRange(StoresByName.Select(kvp => kvp.Value.ShutdownAsync(context)));
+            tasks.AddRange(StoresByName.Select(kvp => kvp.Value.ShutdownIfStartedAsync(context)));
             await TaskSafetyHelpers.WhenAll(tasks);
 
             var result = BoolResult.Success;
@@ -615,6 +657,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _sessionExpirationCheckTimer?.Dispose();
             _logIncrementalStatsTimer?.Dispose();
+            _logMachineStatsTimer?.Dispose();
 
             _serviceReadinessChecker.Dispose();
 
@@ -670,13 +713,7 @@ namespace BuildXL.Cache.ContentStore.Service
                         GetTimeoutForCapabilities(capabilities));
 
                     bool added = _sessionHandles.TryAdd(id, handle);
-                    if (!added)
-                    {
-                        // CreateSession should not be called for an id that is already presented in the internal map.
-                        // The class members fully control the creation process, and the fact that the session is created is indication of a bug.
-                        Contract.Assert(false, $"The session with id '{id}' is already created.");
-                    }
-
+                    Contract.Check(added)?.Assert($"The session with id '{id}' is already created.");
                     Tracer.Debug(context, $"{nameof(CreateSessionAsync)} created session {handle.ToString(id)}.");
                     return Result.Success(session);
                 });
@@ -685,18 +722,18 @@ namespace BuildXL.Cache.ContentStore.Service
         private void TrySetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
+            if (Logger is IOperationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
             {
-                operationLogger.RegisterBuildId(buildId);
+                Logger.RegisterBuildId(buildId);
             }
         }
 
         private void TryUnsetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out _))
+            if (Logger is IOperationLogger && Constants.TryExtractBuildId(sessionName, out _))
             {
-                operationLogger.UnregisterBuildId();
+                Logger.UnregisterBuildId();
             }
         }
 
@@ -826,7 +863,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private string DescribeHibernatedSessionInfo(HibernatedSessionInfo info)
         {
-            return $"id=[{info.Id}] name=[{info.Session}] expiration=[{info.ExpirationUtcTicks}] capabilities=[{info.Capabilities}] pins=[{info.Pins.Count}]";
+            var expirationDateTime = new DateTime(info.ExpirationUtcTicks).ToLocalTime();
+            return $"id=[{info.Id}] name=[{info.Session}] expiration=[{expirationDateTime}] capabilities=[{info.Capabilities}] pins=[{info.Pins.Count}]";
         }
     }
 }

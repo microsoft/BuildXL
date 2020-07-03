@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -62,6 +62,11 @@ namespace ContentStoreTest.Grpc
         {
             BoolResult result = await UnresponsiveUntilCancelledAsync(context, nameof(PinAsync), cts);
             return new PinResult(result);
+        }
+
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
@@ -139,6 +144,8 @@ namespace ContentStoreTest.Grpc
         {
             return Task.FromResult(0);
         }
+
+        public Task<BoolResult> ShutdownEvictionAsync(Context context) => BoolResult.SuccessTask;
 
         private async Task<BoolResult> UnresponsiveUntilCancelledAsync(Context context, string operationName, CancellationToken cts)
         {

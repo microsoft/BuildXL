@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -239,7 +239,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 
             return RunReadOnlySessionTestAsync(context, async session =>
             {
-                IEnumerable<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(Token);
+                IEnumerable<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(Token);
                 Assert.Equal(0, getSelectorResults.Count());
             });
         }
@@ -268,7 +268,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 var selector1 = strongFingerprint1.Selector;
                 var selector2 = strongFingerprint2.Selector;
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(Token);
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(Token);
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult getResult1 = getSelectorResults[0];
@@ -1064,10 +1064,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var context = new Context(Logger);
             return RunTestAsync(context, async cache =>
             {
-                using (var strongFingerprintEnumerator = cache.EnumerateStrongFingerprints(context).GetEnumerator())
-                {
-                    Assert.Equal(false, await strongFingerprintEnumerator.MoveNext());
-                }
+                var list = await cache.EnumerateStrongFingerprints(context).ToListAsync();
+                Assert.Equal(0, list.Count);
             });
         }
 
@@ -1089,7 +1087,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             {
                 var expected = await AddRandomContentHashListsAsync(context, strongFingerprintCount, session);
                 var enumerated =
-                    (await cache.EnumerateStrongFingerprints(context).ToList())
+                    (await cache.EnumerateStrongFingerprints(context).ToListAsync())
                     .Where(result => result.Succeeded)
                     .Select(result => result.Data)
                     .ToHashSet();

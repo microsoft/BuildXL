@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using TypeScript.Net.Parsing;
@@ -106,18 +106,6 @@ namespace A {
 
 export const x = A.withQualifier({}).doesNotExist;"
             .TypeCheckAndAssertSingleError("Property 'doesNotExist' does not exist on type 'typeof A'");
-        }
-
-        [Fact]
-        public void WithQualifierParameterTypeIsTypeChecked()
-        {
-            @"
-export declare const qualifier : {requiredField: string};
-namespace A {
-}
-
-export const x = A.withQualifier({});"
-                .TypeCheckAndAssertSingleError("Argument of type '{}' is not assignable to parameter of type '{ requiredField: string; }'");
         }
 
         [Fact]

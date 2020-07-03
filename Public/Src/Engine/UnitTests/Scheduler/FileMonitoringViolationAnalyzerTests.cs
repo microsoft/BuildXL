@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
@@ -27,7 +28,7 @@ namespace Test.BuildXL.Scheduler
     /// <summary>
     /// Tests for <see cref="FileMonitoringViolationAnalyzer"/> and <see cref="DependencyViolationEventSink"/> on a stubbed <see cref="IQueryablePipDependencyGraph"/>.
     /// </summary>
-    public class FileMonitoringViolationAnalyzerTests : BuildXL.TestUtilities.Xunit.XunitBuildXLTest
+    public class FileMonitoringViolationAnalyzerTests : XunitBuildXLTest
     {
         private readonly string ReportedExecutablePath = X("/X/bin/tool.exe");
         private readonly string JunkPath = X("/X/out/junk");
@@ -38,6 +39,7 @@ namespace Test.BuildXL.Scheduler
             : base(output) 
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]
@@ -74,7 +76,7 @@ namespace Test.BuildXL.Scheduler
                 "The violator has an undeclared output but it wasn't reported.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -110,7 +112,7 @@ namespace Test.BuildXL.Scheduler
                     producer),
                 "The violator is after the producer, so this should be a double-write on the produced path.");
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -118,7 +120,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, DoubleWritePath);
@@ -138,7 +140,7 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -154,7 +156,7 @@ namespace Test.BuildXL.Scheduler
                 new QueryableEmptyFileContentManager(), 
                 validateDistribution: validateDistribution, 
                 unexpectedFileAccessesAsErrors: unexpectedFileAccessesAsErrors,
-                ignoreDynamicWritesOnAbsentProbes: false);
+                ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, DoubleWritePath);
@@ -177,11 +179,11 @@ namespace Test.BuildXL.Scheduler
 
             if (unexpectedFileAccessesAsErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             }
         }
 
@@ -218,7 +220,7 @@ namespace Test.BuildXL.Scheduler
                 "A MissingSourceDependency should have been reported with no suggested value");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -255,7 +257,7 @@ namespace Test.BuildXL.Scheduler
                 "An UndeclaredReadCycle should have been reported since an earlier pip has an undeclared read of a later pip's output.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -292,7 +294,7 @@ namespace Test.BuildXL.Scheduler
                     producer),
                 "The violator is concurrent with the producer, so this should be a read-race on the produced path.");
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -300,7 +302,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, ProducedPath);
@@ -320,7 +322,7 @@ namespace Test.BuildXL.Scheduler
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
                 out _);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -328,7 +330,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: true, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: true, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, ProducedPath);
@@ -341,7 +343,7 @@ namespace Test.BuildXL.Scheduler
                 analyzer.AnalyzePipViolations(
                     violator,
                     new[] { CreateViolation(RequestedAccess.Read, producerOutput) },
-                    null, // whitelisted accesses
+                    null, // allowlisted accesses
                     exclusiveOpaqueDirectoryContent: null,
                     sharedOpaqueDirectoryWriteAccesses: null,
                     allowedUndeclaredReads: null,
@@ -350,7 +352,7 @@ namespace Test.BuildXL.Scheduler
                     out _); 
 
             AssertTrue(!analyzePipViolationsResult.IsViolationClean);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
         }
 
@@ -379,7 +381,7 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOrderedRead);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -444,7 +446,7 @@ namespace Test.BuildXL.Scheduler
                 "The violator is after the producer, so this should be a double-write on the produced path.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -480,7 +482,7 @@ namespace Test.BuildXL.Scheduler
                     producer,
                     null),
                 "The violator has an undeclared output but it wasn't reported.");
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -589,7 +591,7 @@ namespace Test.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadUndeclaredOutput, 2);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, 2);
-            AssertErrorEventLogged(EventId.FileMonitoringError, 3);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 3);
         }
 
         [Fact]
@@ -623,7 +625,7 @@ namespace Test.BuildXL.Scheduler
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
                 out _);
 
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // The ending of the expected log message.
             // The order of files here is based on the sorting in FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths()
@@ -778,11 +780,11 @@ namespace Test.BuildXL.Scheduler
             // Based on the double write policy, the violation is an error or a warning
             if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             }
         }
 
@@ -803,14 +805,16 @@ namespace Test.BuildXL.Scheduler
 
             // Create the path where the double write will occur, and a random file content that will be used for both producers
             AbsolutePath doubleWriteOutput = CreateAbsolutePath(context, JunkPath);
+            var doubleWriteOutputArtifact = FileArtifact.CreateOutputFile(doubleWriteOutput);
             ContentHash contentHash = ContentHashingUtilities.CreateRandom();
             var fileContentInfo = new FileContentInfo(contentHash, contentHash.Length);
             var outputsContent = new (FileArtifact, FileMaterializationInfo, PipOutputOrigin)[]
                 {
-                    (FileArtifact.CreateOutputFile(doubleWriteOutput), new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
+                    (doubleWriteOutputArtifact, new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
                 }.ToReadOnlyArray();
             var sharedOpaqueRoot = doubleWriteOutput.GetParent(context.PathTable);
-            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> { [sharedOpaqueRoot] = new AbsolutePath[] { doubleWriteOutput } };
+            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> { [sharedOpaqueRoot] = 
+                new FileArtifactWithAttributes[] { FileArtifactWithAttributes.Create(doubleWriteOutputArtifact, FileExistence.Required) } };
 
             // Create two processes that claim to produce some arbitrary static output files. We are not really use those outputs but tell
             // the analyzer that these processes wrote into shared opaques
@@ -843,7 +847,7 @@ namespace Test.BuildXL.Scheduler
             // Based on the double write policy, the violation is an error or it is not raised
             if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
             }
             else
@@ -883,6 +887,77 @@ namespace Test.BuildXL.Scheduler
                 out _);
             
             XAssert.IsTrue(result.IsViolationClean);
+        }
+
+        [Theory]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        //
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        //
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        public void WriteOnAbsentPathProbeTests(string writeRelPath, string probeRelPath, DynamicWriteOnAbsentProbePolicy policy, bool isViolation)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph, policy: policy);
+
+            var sod = X("/x/out/sod");
+            var sodPath = CreateAbsolutePath(context, sod);
+            var probePath = CreateAbsolutePath(context, X($"{sod}/{probeRelPath}"));
+            var writePath = CreateAbsolutePath(context, X($"{sod}/{writeRelPath}"));
+            var prober = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/prober-out.txt")));
+
+            analyzer.AnalyzePipViolations(
+                prober,
+                violations: null,
+                allowlistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: null,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: new ReadOnlyHashSet<AbsolutePath>(new[] { probePath }),
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out _);
+
+            var producer = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/producer-out.txt")));
+            var sodWrites = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>
+            {
+                [sodPath] = new[] { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writePath), FileExistence.Required) }
+            };
+
+            analyzer.AnalyzePipViolations(
+                producer,
+                violations: null,
+                allowlistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sodWrites,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: null,
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out _);
+
+            if (isViolation)
+            {
+                analyzer.AssertContainsViolation(
+                    new DependencyViolation(
+                        DependencyViolationType.WriteOnAbsentPathProbe,
+                        AccessLevel.Write,
+                        probePath,
+                        violator: producer,
+                        related: prober),
+                    "The violator created a file/directory after absent path probe but it wasn't reported.");
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            }
+
+            analyzer.AssertNoExtraViolationsCollected();
         }
 
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
@@ -937,8 +1012,8 @@ namespace Test.BuildXL.Scheduler
         private bool m_doLogging;
         private bool m_collectNonErrorViolations;
 
-        public TestFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, IQueryablePipDependencyGraph graph, bool doLogging = false, bool collectNonErrorViolations = true)
-            : base(loggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true)
+        public TestFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, IQueryablePipDependencyGraph graph, bool doLogging = false, bool collectNonErrorViolations = true, DynamicWriteOnAbsentProbePolicy policy = DynamicWriteOnAbsentProbePolicy.IgnoreNothing)
+            : base(loggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: policy, unexpectedFileAccessesAsErrors: true)
         {
             m_doLogging = doLogging;
             m_collectNonErrorViolations = collectNonErrorViolations;
@@ -949,14 +1024,14 @@ namespace Test.BuildXL.Scheduler
             AccessLevel accessLevel,
             AbsolutePath path,
             Process violator,
-            bool isWhitelistedViolation,
+            bool isAllowlistedViolation,
             Pip related,
             AbsolutePath processPath)
         {
             ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId, processPath);
             if (m_doLogging)
             {
-                reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isWhitelistedViolation, related, processPath);
+                reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isAllowlistedViolation, related, processPath);
             }
 
             // Always collect error violations, and also collect other non-errors if asked to.

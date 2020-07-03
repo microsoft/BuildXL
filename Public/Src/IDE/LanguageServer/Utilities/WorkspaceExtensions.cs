@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Types;
 
@@ -38,7 +37,7 @@ namespace BuildXL.Ide.LanguageServer.Server.Utilities
             PathTable pathTable,
             out ISourceFile sourceFile)
         {
-            var uri = new Uri(position.TextDocument.Uri);
+            var uri = position.TextDocument.Uri;
             var pathToFile = uri.ToAbsolutePath(pathTable);
 
             return workspace.TryGetSourceFile(pathToFile, out sourceFile);

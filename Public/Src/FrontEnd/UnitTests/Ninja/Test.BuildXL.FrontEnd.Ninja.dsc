@@ -5,15 +5,16 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Test.Ninja {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.test({
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.BuildXL.FrontEnd.Ninja",
         sources: globR(d`.`, "*.cs"),
-        // These tests are launching detours, so they cannot be run inside detours themselves
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,

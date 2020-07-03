@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -33,9 +34,14 @@ namespace BuildXL.Scheduler
         public readonly WeakContentFingerprint WeakFingerprint;
 
         /// <summary>
-        /// The list of dynamically observed files. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
+        /// The list of dynamically observed read files.
         /// </summary>
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
+
+        /// <summary>
+        /// The list of dynamically observed probed files.
+        /// </summary>
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
 
         /// <summary>
         /// The list of dynamically observed enumerations. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
@@ -149,6 +155,7 @@ namespace BuildXL.Scheduler
         private RunnableFromCacheResult(
             WeakContentFingerprint weakFingerprint,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories,
@@ -156,6 +163,7 @@ namespace BuildXL.Scheduler
         {
             WeakFingerprint = weakFingerprint;
             DynamicallyObservedFiles = dynamicallyObservedFiles;
+            DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
             AllowedUndeclaredReads = allowedUndeclaredSourceReads;
             AbsentPathProbesUnderNonDependenceOutputDirectories = absentPathProbesUnderNonDependenceOutputDirectories;
@@ -170,6 +178,7 @@ namespace BuildXL.Scheduler
             return new RunnableFromCacheResult(
                 weakFingerprint,
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.Empty,
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.Empty,
                 dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.Empty,
                 allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(),
                 absentPathProbesUnderNonDependenceOutputDirectories: CollectionUtilities.EmptySet<AbsolutePath>(),
@@ -182,6 +191,7 @@ namespace BuildXL.Scheduler
         public static RunnableFromCacheResult CreateForHit(
             WeakContentFingerprint weakFingerprint,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories,
@@ -191,6 +201,7 @@ namespace BuildXL.Scheduler
             return new RunnableFromCacheResult(
                 weakFingerprint,
                 dynamicallyObservedFiles,
+                dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads,
                 absentPathProbesUnderNonDependenceOutputDirectories,

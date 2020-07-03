@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+#nullable disable // Disabling nullability for generic type
 
 namespace BuildXL.Utilities.Collections
 {
@@ -72,7 +73,7 @@ namespace BuildXL.Utilities.Collections
             Func<TItem, ItemResources> itemResourceGetter = null,
             SemaphoreSet semaphores = null)
         {
-            Contract.Requires(taskCreator != null);
+            Contract.RequiresNotNull(taskCreator);
             Contract.Requires(maxDegreeOfParallelism >= -1);
             Contract.Requires((itemResourceGetter == null) == (semaphores == null), "itemResourceGetter and semaphores must be both be non-null or both be null");
 
@@ -279,11 +280,7 @@ namespace BuildXL.Utilities.Collections
                 Contract.Assert(t.Equals(u));
                 m_semaphoreQueued--;
 
-                var eh = ItemSemaphoreDequeued;
-                if (eh != null)
-                {
-                    eh(this, new ItemSemaphoreQueuedEventArgs<TItem>(false, item, itemResources));
-                }
+                ItemSemaphoreDequeued?.Invoke(this, new ItemSemaphoreQueuedEventArgs<TItem>(false, item, itemResources));
 
                 return true;
             }
@@ -314,11 +311,7 @@ namespace BuildXL.Utilities.Collections
                             (item, itemResources));
                         m_semaphoreQueued++;
 
-                        var eh = ItemSemaphoreQueued;
-                        if (eh != null)
-                        {
-                            eh(this, new ItemSemaphoreQueuedEventArgs<TItem>(true, item, itemResources));
-                        }
+                        ItemSemaphoreQueued?.Invoke(this, new ItemSemaphoreQueuedEventArgs<TItem>(true, item, itemResources));
 
                         // ... and try another regular item.
                         continue;
@@ -381,7 +374,7 @@ namespace BuildXL.Utilities.Collections
                     m_running = nextRunning;
                     m_maxRunning = Math.Max(m_maxRunning, nextRunning);
                     taskCreator = m_taskCreator;
-                    Contract.Assert(taskCreator != null);
+                    Contract.AssertNotNull(taskCreator);
                 }
 
                 if (Interlocked.Decrement(ref m_priorityQueued) == 0)
@@ -415,7 +408,7 @@ namespace BuildXL.Utilities.Collections
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         private async void ThreadPooledDrainQueueHelper(TTask task, TItem item, ItemResources itemResources)
         {
-            Contract.Assume(task != null);
+            Contract.AssertNotNull(task);
 
             // TODO: The following is problematic, as the TPL may choose to run the continuation on the thread that causes the task to transition into its final state --- if that thread then blocks, we might get into a deadlock!
             // .NET 4.6 comes with a new flag: TaskContinuationOptions.RunContinuationsAsynchronously; that might fix the issue.
@@ -504,8 +497,6 @@ namespace BuildXL.Utilities.Collections
         /// <remarks>The long value is a version number; if it remains the same, then no tasks were run in the meantime</remarks>
         public Task<long> WhenAllTasksCompleted()
         {
-            Contract.Ensures(Contract.Result<Task<long>>() != null);
-
             // we don't need to lock on m_syncRoot, as just reading m_allTasksCompletedSource should always be conceptually safe
             TaskCompletionSource<long> source = Volatile.Read(ref m_allTasksCompletedSource);
             if (source != null)

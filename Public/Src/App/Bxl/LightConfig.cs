@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -33,6 +33,7 @@ namespace BuildXL
         public string SubstSource;
         public bool DisablePathTranslation;
         public bool EnableDedup;
+        public string HashType;
 
         // Strangely, this is not configurable via Args.cs
         public bool AnimateTaskbar = true;
@@ -69,9 +70,7 @@ namespace BuildXL
                         lightConfig.DisablePathTranslation = true;
                         break;
                     case "HELP":
-                        var help = Args.ParseHelpOption(option);
-                        lightConfig.Help = help.Key;
-                        lightConfig.HelpCode = help.Value;
+                        lightConfig.Help = Args.ParseHelpOption(option);
                         break;
                     case "NOLOGO":
                     case "NOLOGO+":
@@ -90,6 +89,9 @@ namespace BuildXL
                     case "ENABLEDEDUP+":
                     case "ENABLEDEDUP-":
                         lightConfig.EnableDedup = CommandLineUtilities.ParseBooleanOption(option);
+                        break;
+                    case "HASHTYPE":
+                        lightConfig.HashType = CommandLineUtilities.ParseStringOption(option);
                         break;
                     case "SERVER":
                         lightConfig.Server = CommandLineUtilities.ParseBoolEnumOption(option, true, ServerMode.Enabled, ServerMode.Disabled);

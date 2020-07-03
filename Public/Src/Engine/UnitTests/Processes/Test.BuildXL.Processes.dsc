@@ -4,19 +4,23 @@
 import * as Managed from "Sdk.Managed";
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
-const DetoursTest64 = DetoursTest.withQualifier({platform: "x64", configuration: qualifier.configuration});
+const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
 namespace Processes {
+    
+    // BuildXL.Processes is still used as Net472 by Cloudbuild. So maintain the tests for net472
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+
     @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
         assemblyName: "Test.BuildXL.Processes",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
             parallelGroups: ["FileAccessExplicitReportingTest", "DetoursCrossBitnessTest"]
         },
         references: [
@@ -47,13 +51,14 @@ namespace Processes {
                             contents: [
                                 DetoursTest64.inputFile,
                                 DetoursTest64.exe.binaryFile,
-                                Processes.TestPrograms.RemoteApi.withQualifier({configuration: qualifier.configuration, platform: "x64"}).exe.binaryFile,
+                                Processes.TestPrograms.RemoteApi.withQualifier({platform: "x64"}).exe.binaryFile,
                             ],
                         }
                     ]
                 },
-                importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
             ]),
-        ],
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
+            importFrom("BuildXL.Utilities.UnitTests").InfiniteWaiter.exe
+        ]
     });
 }

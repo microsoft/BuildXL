@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Ide.LanguageServer.Providers;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
@@ -13,12 +14,12 @@ using Range = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 namespace BuildXL.Ide.LanguageServer
 {
     /// <summary>
-    /// Extensions to use for <see cref="Range"/> class.
+    /// Extensions to use for <see cref="Microsoft.VisualStudio.LanguageServer.Protocol.Range"/> class.
     /// </summary>
     public static class DiagnosticsExtensions
     {
         /// <nodoc />
-        public static Diagnostic ToProtocolDiagnostic(this TypeScript.Net.Diagnostics.Diagnostic semanticDiagnostic, string source = "DScript")
+        public static Diagnostic ToProtocolDiagnostic(this TypeScript.Net.Diagnostics.Diagnostic semanticDiagnostic, string source = IdeProviderBase.DScriptLanguage)
         {
             return new Microsoft.VisualStudio.LanguageServer.Protocol.Diagnostic
             {

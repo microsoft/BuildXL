@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "Alloc.hpp"
 #include "Buffer.hpp"
 #include "BuildXLSandboxShared.hpp"
 
@@ -32,7 +33,7 @@ bool Buffer::init(size_t size)
     }
 
     size_   = size;
-    buffer_ = IONew(char, size);
+    buffer_ = Alloc::New<char>(size);
 
     return buffer_ != nullptr;
 }
@@ -41,7 +42,7 @@ void Buffer::free()
 {
     if (buffer_ != nullptr)
     {
-        IODelete(buffer_, char, size_);
+        Alloc::Delete<char>(buffer_, size_);
     }
 
     size_   = 0;

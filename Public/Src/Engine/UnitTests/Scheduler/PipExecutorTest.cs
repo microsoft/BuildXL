@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -12,11 +11,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
@@ -27,11 +26,12 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -39,6 +39,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
 using Process = BuildXL.Pips.Operations.Process;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -55,6 +56,7 @@ namespace Test.BuildXL.Scheduler
         public PipExecutorTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.Cache.ETWLogger.Log);
         }
@@ -474,18 +476,18 @@ namespace Test.BuildXL.Scheduler
                     if (expectedToSucceed)
                     {
                         var testRunChecker = new TestRunChecker(expectedOutputFile);
-                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
+                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpetuallyDirty: true);
                         await testRunChecker.VerifyUpToDate(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
                         File.Delete(expectedOutputFile);
-                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
+                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpetuallyDirty: true);
                     }
                     else
                     {
                         var testRunChecker = new TestRunChecker();
                         await testRunChecker.VerifyFailed(env, ipcPip, expectMarkedPerpertuallyDirty: true);
-                        AssertErrorEventLogged(EventId.PipIpcFailed, count: 1);
+                        AssertErrorEventLogged(LogEventId.PipIpcFailed, count: 1);
                         await testRunChecker.VerifyFailed(env, ipcPip, expectMarkedPerpertuallyDirty: true);
-                        AssertErrorEventLogged(EventId.PipIpcFailed, count: 1);
+                        AssertErrorEventLogged(LogEventId.PipIpcFailed, count: 1);
                     }
                 },
                 cache: InMemoryCacheFactory.Create);
@@ -865,7 +867,7 @@ namespace Test.BuildXL.Scheduler
 
         [Fact]
         public async Task ProcessWarningWithCacheAndWarnAsError()
-        {
+        { 
             const string BadContents = "Anti-Matches!";
             string Expected = "WARNING" + Environment.NewLine;
 
@@ -885,12 +887,12 @@ namespace Test.BuildXL.Scheduler
                     var testRunChecker = new TestRunChecker(destination);
 
                     testRunChecker.ExpectWarning();
-                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpetuallyDirty: true);
 
                     // This warning should not come from the cache since /warnaserror is enabled
                     testRunChecker.ExpectWarning();
 
-                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpetuallyDirty: true);
                 },
                 null,
                 (pathTable) =>
@@ -900,7 +902,7 @@ namespace Test.BuildXL.Scheduler
                     return config2;
                 });
 
-            AssertWarningEventLogged(EventId.PipProcessWarning, 2);
+            AssertWarningEventLogged(ProcessesLogEventId.PipProcessWarning, 2);
             AssertInformationalEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ScheduleProcessNotStoredToWarningsUnderWarnAsError, 2);
         }
 
@@ -947,10 +949,10 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifyFailed(env, pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
                     string log = EventListener.GetLog();
-                    XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessError));
+                    XAssert.IsTrue(log.Contains("DX00" + (int)ProcessesLogEventId.PipProcessError));
                     XAssert.IsTrue(log.Contains("ERROR"), "text 'ERROR' should not be filtered out by error regex.");
 
                     if (outputReportingMode == OutputReportingMode.TruncatedOutputOnError)
@@ -967,7 +969,7 @@ namespace Test.BuildXL.Scheduler
                         // setting. So we expect to see it repeated on the PipProcessOutput message
                         if (regexMatchesSomething)
                         {
-                            XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessOutput));
+                            XAssert.IsTrue(log.Contains("DX00" + (int)ProcessesLogEventId.PipProcessOutput));
                         }
                     }
 
@@ -976,7 +978,7 @@ namespace Test.BuildXL.Scheduler
                     {
                         // "Z" is a marker at the end of the error message. We should see this in the DX64 message as long as
                         // we aren't truncating the error
-                        XAssert.IsTrue(Regex.IsMatch(log, $@"(?<Prefix>dx00{(int)EventId.PipProcessError})(?<AnythingButZ>[^z]*)(?<ZForEndOfError>z)", RegexOptions.IgnoreCase), 
+                        XAssert.IsTrue(Regex.IsMatch(log, $@"(?<Prefix>dx00{(int)ProcessesLogEventId.PipProcessError})(?<AnythingButZ>[^z]*)(?<ZForEndOfError>z)", RegexOptions.IgnoreCase), 
                             "Non-truncated error message was not found in error event. Full output:" + log);
                     }
 
@@ -1027,11 +1029,105 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifyFailed(env, pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessError, count: 1);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.FullOutputOnError));
         }
+
+        [Theory]
+        // For all cases except the commented one, if the regex matches every thing, the user gets all the information from the log message,
+        // the path to original stdout/err log file shouldn't be presented.
+        // Otherwise, it should be presented.
+        [InlineData(true, ProcessesLogEventId.PipProcessError, false)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        // When the error length exceed limit and outputReportingMode is set to TruncatedOutputOnError,
+        // even though the regex matches every thing the error message still get truncated, so present the path to original stdout/err log file
+        [InlineData(true, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
+        [InlineData(true, ProcessesLogEventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
+        [InlineData(true, ProcessesLogEventId.PipProcessWarning, false)]
+        [InlineData(false, ProcessesLogEventId.PipProcessWarning, true)]
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, ProcessesLogEventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
+        {
+            await WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                async env =>
+                { 
+                    string workingDirectory = GetFullPath("work");
+                    AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
+
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+
+                    if ((int)eventId == (int)ProcessesLogEventId.PipProcessError)
+                    {
+                        Process pip = CreateErrorProcess(
+                            env.Context,
+                            workingDirectoryAbsolutePath,
+                            destinationAbsolutePath,
+                            errorPattern: regexMatchesEverything ? ".*" : "ERROR",
+                            errorMessageLength: errorMessageLength);
+                        var testRunChecker = new TestRunChecker();
+                        await testRunChecker.VerifyFailed(env, pip);
+                        AssertErrorEventLogged(eventId, errorMessageLength > 0 && outputReportingMode == OutputReportingMode.FullOutputAlways ? 3 : 1);
+                    }
+                    else
+                    {
+                        Process pip = CreateWarningProcess(
+                            env.Context, 
+                            workingDirectoryAbsolutePath, 
+                            destinationAbsolutePath,
+                            regexMatchesEverything ? false : true);
+                        var testRunChecker = new TestRunChecker();
+                        testRunChecker.ExpectWarning();
+                        await testRunChecker.VerifySucceeded(env, pip); 
+                        AssertWarningEventLogged(eventId);
+                    }
+
+                    string log = EventListener.GetLog();
+                    string relatedLog = GetRelatedLog(log, eventId);
+
+                    if (shouldContainLogPath)
+                    {
+                        XAssert.IsTrue(relatedLog.Contains(destination));
+                    }
+                    else
+                    {
+                        XAssert.IsFalse(relatedLog.Contains(destination));
+                    }
+                },
+                null,
+                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
+        }
+
+        private string GetRelatedLog (string log, ProcessesLogEventId eventId)
+        {
+            string start = "DX00"+ ((int)eventId).ToString();
+            string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
+            string upperCaseLog = log.ToUpper();
+
+            int startIndex = upperCaseLog.LastIndexOf(start);
+            if (startIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            int endIndex = log.Length;
+
+            foreach (string end in ends)
+            {
+                int theEndIndex = upperCaseLog.IndexOf(end, startIndex);
+                if (theEndIndex > 0 && theEndIndex < endIndex)
+                {
+                    endIndex = theEndIndex;
+                }
+            }
+
+            return log.Substring(startIndex, endIndex - startIndex);
+        }
+
 
         [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -1055,21 +1151,21 @@ namespace Test.BuildXL.Scheduler
                     var testRunChecker = new TestRunChecker(destination);
 
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
 
@@ -1094,23 +1190,23 @@ namespace Test.BuildXL.Scheduler
 
                     CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     // Pip with file monitoring errors succeeds in PipExecutor but fails in the post-process step.
-                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
                     
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                     // Uncacheable pip due to the file monitoring errors
-                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 });
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public async Task ProcessCachedWithWhitelistedFileMonitoringViolations()
+        public async Task ProcessCachedWithAllowlistedFileMonitoringViolations()
         {
             const string Contents = "Matches!";
             const string BadContents = "Anti-Matches!";
@@ -1120,24 +1216,24 @@ namespace Test.BuildXL.Scheduler
 
                 // We set monitoring violations to warnings so the pip completes.
                 config: pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false),
-                whitelistCreator: (context) =>
+                allowlistCreator: (context) =>
                 {
-                    var whitelist = new FileAccessWhitelist(context);
+                    var allowlist = new FileAccessAllowlist(context);
 
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
                             allowsCaching: true,
-                            name: "whitelist1"));
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                            name: "allowlist1"));
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("dest"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("dest"))),
                             allowsCaching: true,
-                            name: "whitelist2"));
+                            name: "allowlist2"));
 
-                    return whitelist;
+                    return allowlist;
                 },
                 act: async env =>
                 {
@@ -1156,10 +1252,10 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 2);
 
                     await testRunChecker.VerifyUpToDate(env, pip, Contents);
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 0);
                 });
         }
 
@@ -1274,7 +1370,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public async Task ProcessNotCachedWithWhitelistedFileMonitoringViolations()
+        public async Task ProcessNotCachedWithAllowlistedFileMonitoringViolations()
         {
             const string Contents = "Matches!";
             const string BadContents = "Anti-Matches!";
@@ -1284,24 +1380,24 @@ namespace Test.BuildXL.Scheduler
 
                 // We set monitoring violations to warnings so the pip completes.
                 config: pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false),
-                whitelistCreator: (context) =>
+                allowlistCreator: (context) =>
                 {
-                    var whitelist = new FileAccessWhitelist(context);
+                    var allowlist = new FileAccessAllowlist(context);
 
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
                             allowsCaching: false,
-                            name: "whitelist1"));
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                            name: "allowlist1"));
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("dest"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("dest"))),
                             allowsCaching: true,
-                            name: "whitelist2"));
+                            name: "allowlist2"));
 
-                    return whitelist;
+                    return allowlist;
                 },
                 act: async env =>
                 {
@@ -1318,19 +1414,19 @@ namespace Test.BuildXL.Scheduler
 
                     for (int i = 1; i <= 2; i++)
                     {
-                        var perf = (ProcessPipExecutionPerformance)await VerifyPipResult(PipResultStatus.Succeeded, env, pip, expectMarkedPerpertuallyDirty: true);
+                        var perf = (ProcessPipExecutionPerformance)await VerifyPipResult(PipResultStatus.Succeeded, env, pip, expectMarkedPerpetuallyDirty: true);
                         XAssert.AreEqual(i, env.OutputFilesProduced, "produced count");
                         XAssert.AreEqual(0, env.OutputFilesUpToDate, "up to date count");
                         XAssert.AreEqual(0, env.OutputFilesDeployedFromCache, "deployed from cache count");
 
                         // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                         // Events ignore the function used for the access.
-                        AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
-                        AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                        AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2);
+                        AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                         // Expecting 3 violations, of which 2 are collapsed into one due to similar file access type.
                         // Events ignore the function used for the access.
-                        XAssert.AreEqual(2, perf.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable);
+                        XAssert.AreEqual(2, perf.FileMonitoringViolations.NumFileAccessesAllowlistedButNotCacheable);
 
                         string actual = File.ReadAllText(destination);
                         XAssert.AreEqual(Contents, actual);
@@ -1339,25 +1435,25 @@ namespace Test.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public async Task ProcessNotCachedWithWhitelistedFileMonitoringViolationsInSealedDirectory()
+        public async Task ProcessNotCachedWithAllowlistedFileMonitoringViolationsInSealedDirectory()
         {
             await WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
 
                 // We set monitoring violations to warnings so the pip completes.
                 config: pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false),
-                whitelistCreator: (context) =>
+                allowlistCreator: (context) =>
                 {
-                    var whitelist = new FileAccessWhitelist(context);
+                    var allowlist = new FileAccessAllowlist(context);
 
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("a"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("a"))),
                             allowsCaching: false,
-                            name: "whitelist"));
+                            name: "allowlist"));
 
-                    return whitelist;
+                    return allowlist;
                 },
                 act: async env =>
                 {
@@ -1367,53 +1463,53 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("dest");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    // We omit a and b from the seal; instead they should be handled by the whitelist.
+                    // We omit a and b from the seal; instead they should be handled by the allowlist.
                     DirectoryArtifact directoryArtifact = SealDirectoryWithProbeTargets(env, sourceAbsolutePath, omitContents: true);
                     Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath);
 
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     var testRunChecker = new TestRunChecker(destination);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2);
 
-                    // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    // The sealed-directory specific event is only emitted when there are non-allowlisted violations.
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public async Task ProcessCachedWithWhitelistedFileMonitoringViolationsInSealedDirectory()
+        public async Task ProcessCachedWithAllowlistedFileMonitoringViolationsInSealedDirectory()
         {
             await WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
 
                 // We set monitoring violations to warnings so the pip completes.
                 config: pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false),
-                whitelistCreator: (context) =>
+                allowlistCreator: (context) =>
                 {
-                    var whitelist = new FileAccessWhitelist(context);
+                    var allowlist = new FileAccessAllowlist(context);
 
-                    whitelist.Add(
-                        new ExecutablePathWhitelistEntry(
+                    allowlist.Add(
+                        new ExecutablePathAllowlistEntry(
                             AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName("a"))),
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("a"))),
                             allowsCaching: true,
-                            name: "whitelist"));
+                            name: "allowlist"));
 
-                    return whitelist;
+                    return allowlist;
                 },
                 act: async env =>
                 {
@@ -1423,7 +1519,7 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("dest");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    // We omit a and b from the seal; instead 'a' should be handled by the whitelist and so 'b' should not be accessed.
+                    // We omit a and b from the seal; instead 'a' should be handled by the allowlist and so 'b' should not be accessed.
                     // (logic is 'if a is absent, poke b')
                     DirectoryArtifact directoryArtifact = SealDirectoryWithProbeTargets(env, sourceAbsolutePath, omitContents: true);
                     Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath);
@@ -1434,16 +1530,16 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 2);
 
-                    // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
+                    // The sealed-directory specific event is only emitted when there are non-allowlisted violations.
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
 
                     await testRunChecker.VerifyUpToDate(env, pip, expected);
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 0);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
                 });
         }
 
@@ -1859,6 +1955,33 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public async Task ProcessWithSharedOpaqueDirectoryOutputs()
+        {
+            await WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                async env =>
+                {
+                    var pathTable = env.Context.PathTable;
+
+                    string dir = GetFullPath("out");
+                    AbsolutePath dirAbsolutePath = AbsolutePath.Create(pathTable, dir);
+                    string destination = Path.Combine(dir, "c");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(pathTable, destination);
+
+                    DirectoryArtifact directoryArtifact = SealDirectoryWithProbeTargets(env, dirAbsolutePath);
+                    AbsolutePath sodOutputPath = AbsolutePath.Create(pathTable, Path.Combine(dir, "sod"));
+                    DirectoryArtifact sodOutput = new DirectoryArtifact(sodOutputPath, partialSealId: 1, isSharedOpaque: true);
+                    Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath, directoryOutput: sodOutput);
+                    XAssert.IsTrue(pip.HasSharedOpaqueDirectoryOutputs);
+
+                    var testRunChecker = new TestRunChecker(destination);
+                    string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, dirAbsolutePath, fileAContents: "A", fileBContents: "B");
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
+                    await testRunChecker.VerifyUpToDate(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                });
+        }
+
+        [Fact]
         public async Task ProcessWithMultipleDirectoryInputs()
         {
             await WithCachingExecutionEnvironment(
@@ -2058,7 +2181,7 @@ EXIT /b 3
                                       additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty));
 
                           await VerifyPipResult(PipResultStatus.Failed, env, p);
-                          AssertVerboseEventLogged(EventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
+                          AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
                           AssertLogContains(false, "Standard error:");
                           AssertLogContains(false, "Standard output:");
                       });
@@ -2225,7 +2348,7 @@ EXIT /b 3
             Pip pip,
             bool verifyFingerprint = true,
             bool checkNoProcessExecutionOnCacheHit = true,
-            bool expectMarkedPerpertuallyDirty = false,
+            bool expectMarkedPerpetuallyDirty = false,
             PipExecutionLevel? expectedExecutionLevel = null,
             Action<PipResult> customVerify = null)
         {
@@ -2247,7 +2370,7 @@ EXIT /b 3
 
             XAssert.AreEqual(expected, result.Status, "PipResult's status didn't match");
             XAssert.AreEqual(
-                expectMarkedPerpertuallyDirty,
+                expectMarkedPerpetuallyDirty,
                 result.MustBeConsideredPerpetuallyDirty,
                 "PipResult's MustBeConsideredPerpetuallyDirty didn't match");
 
@@ -2293,53 +2416,53 @@ EXIT /b 3
             return string.Format(DefaultInMemoryJsonConfigString, cacheId);
         }
 
-        private static Task WithCachingExecutionEnvironmentForCacheConvergence(
+        private Task WithCachingExecutionEnvironmentForCacheConvergence(
             string cacheDir,
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            Func<PathTable, StringTable, FileAccessWhitelist> whitelistCreator = null)
+            Func<PathTable, StringTable, FileAccessAllowlist> allowlistCreator = null)
         {
-            return WithExecutionEnvironmentForCacheConvergence(act, createMountExpander, config: config, whitelistCreator: whitelistCreator);
+            return WithExecutionEnvironmentForCacheConvergence(act, createMountExpander, config: config, allowlistCreator: allowlistCreator);
         }
 
-        private static Task WithCachingExecutionEnvironment(
+        private Task WithCachingExecutionEnvironment(
             string cacheDir,
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
+            Func<PipExecutionContext, FileAccessAllowlist> allowlistCreator = null,
             bool useInMemoryCache = true)
         {
-            return WithExecutionEnvironment(act, InMemoryCacheFactory.Create, createMountExpander, config: config, whitelistCreator: whitelistCreator);
+            return WithExecutionEnvironment(act, InMemoryCacheFactory.Create, createMountExpander, config: config, allowlistCreator: allowlistCreator);
         }
 
-        private static Task WithExecutionEnvironmentForCacheConvergence(
+        private Task WithExecutionEnvironmentForCacheConvergence(
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            Func<PathTable, StringTable, FileAccessWhitelist> whitelistCreator = null)
+            Func<PathTable, StringTable, FileAccessAllowlist> allowlistCreator = null)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
 
-            FileAccessWhitelist fileAccessWhitelist = whitelistCreator?.Invoke(context.PathTable, context.StringTable);
+            FileAccessAllowlist fileAccessAllowlist = allowlistCreator?.Invoke(context.PathTable, context.StringTable);
 
             return act(
                     CreateExecutionEnvironmentForCacheConvergence(
                         context,
                         mountExpander: createMountExpander == null ? SemanticPathExpander.Default : createMountExpander(context.PathTable),
                         config: config,
-                        fileAccessWhitelist: fileAccessWhitelist));
+                        fileAccessAllowlist: fileAccessAllowlist));
         }
 
-        private static Task WithExecutionEnvironmentAndIpcServer(
+        private Task WithExecutionEnvironmentAndIpcServer(
             IIpcProvider ipcProvider,
             IIpcOperationExecutor ipcExecutor,
             Func<DummyPipExecutionEnvironment, IIpcMoniker, IServer, Task> act,
             Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
+            Func<PipExecutionContext, FileAccessAllowlist> allowlistCreator = null,
             bool useInMemoryCache = true)
         {
             return WithExecutionEnvironment(
@@ -2354,21 +2477,21 @@ EXIT /b 3
                 cache,
                 createMountExpander,
                 config: config,
-                whitelistCreator: whitelistCreator,
+                allowlistCreator: allowlistCreator,
                 ipcProvider: ipcProvider);
         }
 
-        private static Task WithExecutionEnvironment(
+        private Task WithExecutionEnvironment(
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
+            Func<PipExecutionContext, FileAccessAllowlist> allowlistCreator = null,
             IIpcProvider ipcProvider = null)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
 
-            FileAccessWhitelist fileAccessWhitelist = whitelistCreator?.Invoke(context);
+            FileAccessAllowlist fileAccessAllowlist = allowlistCreator?.Invoke(context);
 
             return act(
                     CreateExecutionEnvironment(
@@ -2376,7 +2499,7 @@ EXIT /b 3
                         cache,
                         createMountExpander == null ? SemanticPathExpander.Default : createMountExpander(context.PathTable),
                         config: config,
-                        fileAccessWhitelist: fileAccessWhitelist,
+                        fileAccessAllowlist: fileAccessAllowlist,
                         ipcProvider: ipcProvider));
         }
 
@@ -2429,11 +2552,11 @@ EXIT /b 3
             return config;
         }
 
-        private static DummyPipExecutionEnvironment CreateExecutionEnvironmentForCacheConvergence(
+        private DummyPipExecutionEnvironment CreateExecutionEnvironmentForCacheConvergence(
             BuildXLContext context,
             SemanticPathExpander mountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            FileAccessWhitelist fileAccessWhitelist = null)
+            FileAccessAllowlist fileAccessAllowlist = null)
         {
             // TestPipExecutorArtifactContentCache0
             IConfiguration configInstance = config == null ? GetConfigurationForCacheConvergence(context.PathTable) : config(context.PathTable);
@@ -2448,19 +2571,22 @@ EXIT /b 3
                 configInstance,
                 pipCache: cacheLayer,
                 semanticPathExpander: mountExpander,
-                fileAccessWhitelist: fileAccessWhitelist,
+                fileAccessAllowlist: fileAccessAllowlist,
                 allowUnspecifiedSealedDirectories: false,
+                subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget)
+                    ? (substSource, substTarget)
+                    : default((string, string)?),
                 sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
             return env;
         }
 
-        private static DummyPipExecutionEnvironment CreateExecutionEnvironment(
+        private DummyPipExecutionEnvironment CreateExecutionEnvironment(
             BuildXLContext context,
             Func<EngineCache> cache = null,
             SemanticPathExpander mountExpander = null,
             Func<PathTable, IConfiguration> config = null,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             IIpcProvider ipcProvider = null)
         {
             IConfiguration configInstance = config == null ? GetConfiguration(context.PathTable) : config(context.PathTable);
@@ -2479,14 +2605,15 @@ EXIT /b 3
                 configInstance,
                 pipCache: cacheLayer,
                 semanticPathExpander: mountExpander,
-                fileAccessWhitelist: fileAccessWhitelist,
+                fileAccessAllowlist: fileAccessAllowlist,
                 allowUnspecifiedSealedDirectories: false,
                 ipcProvider: ipcProvider,
+                subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
+                    ? (substSource, substTarget) 
+                    : default((string, string)?),
                 sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
 
-            // A bit of a hack for tests that validate things that get logged to the Static context
-            Events.StaticContext = env.LoggingContext;
             return env;
         }
 
@@ -2737,7 +2864,7 @@ EXIT /b 3
         /// <summary>
         /// The returned process will probe for 'a' in the given directory, and if not found will then probe for 'b'.
         /// </summary>
-        private static Process CreateDirectoryProbingProcess(PipExecutionContext context, DirectoryArtifact directory, AbsolutePath output, string script = null)
+        private static Process CreateDirectoryProbingProcess(PipExecutionContext context, DirectoryArtifact directory, AbsolutePath output, string script = null, DirectoryArtifact? directoryOutput = null)
         {
             if (script == null)
             {
@@ -2769,7 +2896,7 @@ EXIT /b 3
                 dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdout.WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(directory),
-                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                directoryOutputs: directoryOutput.HasValue ? ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new[] { directoryOutput.Value }) : ReadOnlyArray<DirectoryArtifact>.Empty,
                 orderDependencies: ReadOnlyArray<PipId>.Empty,
                 untrackedPaths: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(pathTable)),
                 untrackedScopes: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(pathTable)),
@@ -2996,10 +3123,30 @@ EXIT /b 3
         /// <summary>
         /// The returned process will produce a warning.
         /// </summary>
-        private static Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output)
+        private Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output, bool extraWarningMessage = false)
         {
             var pathTable = context.PathTable;
+            var command = new StringBuilder();
 
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                command.AppendLine("@echo off");
+            }
+
+            command.AppendLine("echo WARNING");
+            if (extraWarningMessage)
+            {
+                command.AppendLine("echo EXTRA");
+            }
+
+            string cmdScript = OperatingSystemHelper.IsUnixOS ? GetFullPath("script.sh") : GetFullPath("script.cmd");
+            File.WriteAllText(cmdScript, command.ToString());
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                chmod(cmdScript, 0x1ff);
+            }
+
+            FileArtifact cmdScriptFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, cmdScript));
             FileArtifact stdout = FileArtifact.CreateSourceFile(output).CreateNextWrittenVersion();
             FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, CmdHelper.OsShellExe));
             return AssignFakePipId(new Process(
@@ -3009,10 +3156,7 @@ EXIT /b 3
                     pathTable.StringTable,
                     " ",
                     PipDataFragmentEscaping.NoEscaping,
-                    OperatingSystemHelper.IsUnixOS
-                        ? "-c 'echo WARNING'"
-                        : "/d /c echo WARNING"
-                    ),
+                    OperatingSystemHelper.IsUnixOS ? I($"-c \"{cmdScript}\"") : I($"/d /c {cmdScript}")),
                 responseFile: FileArtifact.Invalid,
                 responseFileData: PipData.Invalid,
                 environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
@@ -3022,7 +3166,7 @@ EXIT /b 3
                 standardDirectory: output.GetParent(pathTable),
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe),
+                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe, cmdScriptFile),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdout.WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -3095,7 +3239,11 @@ EXIT /b 3
                 string[] errorMessages = GenerateTestErrorMessages(errorMessageLength);
                 StringBuilder command = new StringBuilder();
 
-                command.AppendLine("@echo off");
+                if (!OperatingSystemHelper.IsUnixOS)
+                {
+                    command.AppendLine("@echo off");
+                }
+
                 command.AppendLine(I($"echo ERROR "));
                 foreach (var errorMessage in errorMessages)
                 {
@@ -3236,12 +3384,12 @@ EXIT /b 3
                 m_expectedWarningFromCacheCount += nrOfWarnigns;
             }
 
-            public Task VerifySucceeded(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpertuallyDirty = false)
+            public Task VerifySucceeded(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpetuallyDirty = false)
             {
                 Contract.Assert((m_destination == null) == (expectedContents == null), "must specify expected contents if you set a destination file to check");
 
                 m_expectedRunCount++;
-                return Verify(PipResultStatus.Succeeded, env, pip, expectedContents, expectMarkedPerpertuallyDirty);
+                return Verify(PipResultStatus.Succeeded, env, pip, expectedContents, expectMarkedPerpetuallyDirty);
             }
 
             public Task VerifyUpToDate(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpertuallyDirty = false)
@@ -3267,7 +3415,7 @@ EXIT /b 3
             {
                 Contract.Assert((m_destination == null) == (expectedContents == null), "must specify expected contents if you set a destination file to check");
 
-                await VerifyPipResult(expectedStatus, env, pip, expectMarkedPerpertuallyDirty: expectMarkedPerpertuallyDirty);
+                await VerifyPipResult(expectedStatus, env, pip, expectMarkedPerpetuallyDirty: expectMarkedPerpertuallyDirty);
                 XAssert.AreEqual(m_expectedRunCount, env.OutputFilesProduced, "produced count");
                 XAssert.AreEqual(m_expectedUpToDateCount, env.OutputFilesUpToDate, "up to date count");
                 XAssert.AreEqual(m_expectedDeployedFromCache, env.OutputFilesDeployedFromCache, "deployed from cache count");

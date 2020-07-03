@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -41,7 +41,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Possible(TFailure failure)
         {
-            Contract.Requires(failure != null);
+            Contract.RequiresNotNull(failure);
             m_failure = failure;
             m_result = default(TResult);
         }
@@ -57,7 +57,7 @@ namespace BuildXL.Utilities
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         public static implicit operator Possible<TResult, TFailure>(TFailure failure)
         {
-            Contract.Requires(failure != null);
+            Contract.RequiresNotNull(failure);
             return new Possible<TResult, TFailure>(failure);
         }
 
@@ -112,7 +112,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2, TFailure> Then<TResult2>(Func<TResult, Possible<TResult2, TFailure>> binder)
         {
-            Contract.Requires(binder != null);
+            Contract.RequiresNotNull(binder);
             return Succeeded ? binder(m_result) : new Possible<TResult2, TFailure>(m_failure);
         }
 
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Task<Possible<TResult2, TFailure>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2, TFailure>>> binder)
         {
-            Contract.Requires(binder != null);
+            Contract.RequiresNotNull(binder);
             return Succeeded ? binder(m_result) : Task.FromResult(new Possible<TResult2, TFailure>(m_failure));
         }
 
@@ -143,8 +143,8 @@ namespace BuildXL.Utilities
             Func<TFailure, Possible<TResult2, TFailure2>> failureBinder)
             where TFailure2 : Failure
         {
-            Contract.Requires(resultBinder != null);
-            Contract.Requires(failureBinder != null);
+            Contract.RequiresNotNull(resultBinder);
+            Contract.RequiresNotNull(failureBinder);
             return Succeeded ? resultBinder(m_result) : failureBinder(m_failure);
         }
 
@@ -161,7 +161,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2, TFailure> Then<TResult2>(Func<TResult, TResult2> thenFunc)
         {
-            Contract.Requires(thenFunc != null);
+            Contract.RequiresNotNull(thenFunc);
             return Succeeded ? new Possible<TResult2, TFailure>(thenFunc(m_result)) : new Possible<TResult2, TFailure>(m_failure);
         }
     }
@@ -327,14 +327,14 @@ namespace BuildXL.Utilities
     /// }
     /// ]]>
     /// </remarks>
-    public sealed class RecoverableExceptionFailure : Failure
+    public class RecoverableExceptionFailure : Failure
     {
         private readonly ExceptionDispatchInfo m_exceptionDispatchInfo;
 
         /// <nodoc />
         public RecoverableExceptionFailure(BuildXLException exception)
         {
-            Contract.Requires(exception != null);
+            Contract.RequiresNotNull(exception);
             m_exceptionDispatchInfo = ExceptionDispatchInfo.Capture(exception);
         }
 

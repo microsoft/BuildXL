@@ -10,7 +10,6 @@ import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -39,7 +38,10 @@ namespace MsBuildGraphBuilder {
         ],
         internalsVisibleTo: [
             "Test.Tool.ProjectGraphBuilder",
-        ]
+        ],
+        // We cannot crossgen this because we'd need the MSBuild runtime assemblies the builder is going to run with (which
+        // we only have at runtime)
+        runCrossgenIfSupported: false,
     });
 
     @@public
@@ -49,14 +51,14 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`net472`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"}))
+                        $.withQualifier({ targetFramework: "net472" })
                         .MsBuildGraphBuilder.exe
                     ]
             },
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"}))
+                        $.withQualifier({ targetFramework: "netcoreapp3.1" })
                         .MsBuildGraphBuilder.exe
                     ]
             }

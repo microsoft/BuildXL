@@ -20,3 +20,6 @@ This analyzer dumps details of a specific pip. It is helpful for getting the com
 
 ## Cache Miss Analysis
 [Cache Miss Analysis](./Cache-Miss-Analysis.md)
+
+## JavaScript dependency fixer
+[JavaScript Dependency Fixer](./Javascript-dependency-fixer.md)

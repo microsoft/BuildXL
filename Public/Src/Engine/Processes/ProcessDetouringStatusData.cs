@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities;
 
@@ -41,6 +41,26 @@ namespace BuildXL.Processes
         public bool NeedsInjection { get; private set; }
 
         /// <summary>
+        /// Whether the current process is 64 bit process.
+        /// </summary>
+        public bool IsCurrent64BitProcess { get; private set; }
+
+        /// <summary>
+        /// Whether the current process is Wow64.
+        /// </summary>
+        public bool IsCurrentWow64Process { get; private set; }
+
+        /// <summary>
+        /// Whether the injected process is Wow64.
+        /// </summary>
+        public bool IsProcessWow64 { get; private set; }
+
+        /// <summary>
+        /// Whether detours needs remote injection. The value is only relevant if <see cref="NeedsInjection"/> is true.
+        /// </summary>
+        public bool NeedsRemoteInjection { get; private set; }
+
+        /// <summary>
         /// Job Id
         /// </summary>
         public ulong Job { get; private set; }
@@ -79,6 +99,10 @@ namespace BuildXL.Processes
         /// <param name="startApplicationName">The application being started..</param>
         /// <param name="startCommandLine">The command line for the application being started.</param>
         /// <param name="needsInjection">Whether the application needs injection.</param>
+        /// <param name="isCurrent64BitProcess">Whether the current process is 64-bit process.</param>
+        /// <param name="isCurrentWow64Process">Whether the current process is WoW64 process.</param>
+        /// <param name="isProcessWow64">Whether the injected process is WoW64.</param>
+        /// <param name="needsRemoteInjection">Whether a remote injection is needed.</param>
         /// <param name="job">The job id that this process is associated with.</param>
         /// <param name="disableDetours">Whether detours is disabled.</param>
         /// <param name="creationFlags">The process creation flags.</param>
@@ -92,6 +116,10 @@ namespace BuildXL.Processes
             string startApplicationName,
             string startCommandLine,
             bool needsInjection,
+            bool isCurrent64BitProcess,
+            bool isCurrentWow64Process,
+            bool isProcessWow64,
+            bool needsRemoteInjection,
             ulong job,
             bool disableDetours,
             uint creationFlags,
@@ -105,6 +133,10 @@ namespace BuildXL.Processes
             StartApplicationName = startApplicationName;
             StartCommandLine = startCommandLine;
             NeedsInjection = needsInjection;
+            IsCurrent64BitProcess = isCurrent64BitProcess;
+            IsCurrentWow64Process = isCurrentWow64Process;
+            IsProcessWow64 = isProcessWow64;
+            NeedsRemoteInjection = needsRemoteInjection;
             Job = job;
             DisableDetours = disableDetours;
             CreationFlags = creationFlags;
@@ -123,6 +155,10 @@ namespace BuildXL.Processes
                 startApplicationName: reader.ReadString(),
                 startCommandLine: reader.ReadString(),
                 needsInjection: reader.ReadBoolean(),
+                isCurrent64BitProcess: reader.ReadBoolean(),
+                isCurrentWow64Process: reader.ReadBoolean(),
+                isProcessWow64: reader.ReadBoolean(),
+                needsRemoteInjection: reader.ReadBoolean(),
                 job: reader.ReadUInt64(),
                 disableDetours: reader.ReadBoolean(),
                 creationFlags: reader.ReadUInt32(),
@@ -140,6 +176,10 @@ namespace BuildXL.Processes
             writer.Write(StartApplicationName);
             writer.Write(StartCommandLine);
             writer.Write(NeedsInjection);
+            writer.Write(IsCurrent64BitProcess);
+            writer.Write(IsCurrentWow64Process);
+            writer.Write(IsProcessWow64);
+            writer.Write(NeedsRemoteInjection);
             writer.Write(Job);
             writer.Write(DisableDetours);
             writer.Write(CreationFlags);

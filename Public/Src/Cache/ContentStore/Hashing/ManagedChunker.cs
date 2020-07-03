@@ -1,8 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Security.Cryptography;
 using BuildXL.Cache.ContentStore.Hashing.Chunking;
@@ -18,31 +19,54 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </remarks>
     public sealed class ManagedChunker : IChunker
     {
+        private readonly DeterministicChunker _inner;
+
+        /// <inheritdoc/>
+        public ChunkerConfiguration Configuration => _inner.Configuration;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public ManagedChunker(ChunkerConfiguration configuration)
+        {
+            _inner = new DeterministicChunker(configuration, new ManagedChunkerNonDeterministic(configuration));
+        }
+
+        /// <inheritdoc/>
+        public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
+        {
+            return _inner.BeginChunking(chunkCallback);
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            _inner.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public Pool<byte[]>.PoolHandle GetBufferFromPool()
+        {
+            return _inner.GetBufferFromPool();
+        }
+    }
+
+    internal sealed class ManagedChunkerNonDeterministic : INonDeterministicChunker
+    {
+        public ChunkerConfiguration Configuration { get; }
         private readonly SHA512Managed _shaHasher = new SHA512Managed();
 
-        /// <summary>
-        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
-        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
-        /// </summary>
-        public const uint MinPushBufferSize = 1024 * 1024;
-
-        /// <summary>
-        /// Gets total number of bytes chunked.
-        /// </summary>
-        public long TotalBytes { get; private set; }
+        public ManagedChunkerNonDeterministic(ChunkerConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
 
         /// <summary>
         /// Creates a session for chunking a stream from a series of buffers.
         /// </summary>
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
-            TotalBytes = 0;
-
-            return new Session(this, chunkInfo =>
-            {
-                chunkCallback(chunkInfo);
-                TotalBytes += chunkInfo.Size;
-            });
+            return new Session(this, chunkCallback);
         }
 
         /// <inheritdoc />
@@ -56,24 +80,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private sealed class Session : IChunkerSession
         {
-            private static readonly ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
-            private readonly ManagedChunker _parent;
+            private readonly ManagedChunkerNonDeterministic _parent;
             private readonly RegressionChunking _regressionChunker;
             private readonly Action<ChunkInfo> _chunkCallback;
-            private Pool<byte[]>.PoolHandle? _lastPushBuffer = null;
-            private Pool<byte[]>.PoolHandle _pushBuffer = pool.Get();
-            private int _bytesInPushBuffer = 0;
-            private ulong _lastBufferFileOffset = 0;
-            private ulong _bufferFileOffset = 0;
-            private bool anyChunksFound = false;
+            private ArraySegment<byte>? _currentBuffer = null;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="Session"/> class.
             /// </summary>
-            public Session(ManagedChunker chunker, Action<ChunkInfo> chunkCallback)
+            public Session(ManagedChunkerNonDeterministic chunker, Action<ChunkInfo> chunkCallback)
             {
                 _parent = chunker;
-                _regressionChunker = new RegressionChunking(ChunkTranslate);
+                _regressionChunker = new RegressionChunking(_parent.Configuration, ChunkTranslate);
                 _chunkCallback = chunkCallback;
             }
 
@@ -84,48 +102,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     return;
                 }
 
-                byte[] hash;
-                if (chunk.m_nStartChunk < _bufferFileOffset)
-                {
-                    ulong chunkEnd = chunk.m_nStartChunk + chunk.m_nChunkLength;
+                Contract.Assert(_currentBuffer != null);
 
-                    if (chunkEnd < _bufferFileOffset)
-                    {
-                        hash = _parent._shaHasher.ComputeHash(
-                            _lastPushBuffer.Value.Value,
-                            (int)(chunk.m_nStartChunk - _lastBufferFileOffset),
-                            (int)chunk.m_nChunkLength);
-                    }
-                    else
-                    {
-                        _parent._shaHasher.TransformBlock(
-                            _lastPushBuffer.Value.Value,
-                            (int)(chunk.m_nStartChunk - _lastBufferFileOffset),
-                            (int)(_bufferFileOffset - chunk.m_nStartChunk),
-                            null,
-                            0);
+                byte[] hash = _parent._shaHasher.ComputeHash(
+                    _currentBuffer.Value.Array,
+                    _currentBuffer.Value.Offset + (int)chunk.m_nStartChunk,
+                    (int)chunk.m_nChunkLength);
 
-                        int remainingChunkBytes = (int)(chunkEnd - _bufferFileOffset);
-                        _parent._shaHasher.TransformFinalBlock(
-                            _pushBuffer.Value,
-                            0,
-                            remainingChunkBytes);
-                        hash = _parent._shaHasher.Hash;
-                        _parent._shaHasher.Initialize();
-                    }
-                }
-                else
-                {
-                    int startOffset = (int)(chunk.m_nStartChunk - _bufferFileOffset);
-                    hash = _parent._shaHasher.ComputeHash(_pushBuffer.Value, startOffset, (int)chunk.m_nChunkLength);
-                }
-
-                if (anyChunksFound && chunk.m_nChunkLength == 0)
-                {
-                    return;
-                }
-
-                anyChunksFound = true;
                 _chunkCallback(new ChunkInfo(chunk.m_nStartChunk, (uint)chunk.m_nChunkLength, hash.Take(32).ToArray()));
             }
 
@@ -134,51 +117,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// </summary>
             public void PushBuffer(byte[] buffer, int startOffset, int count)
             {
-                checked
-                {
-                    while (count > 0)
-                    {
-                        while (count > 0 && _bytesInPushBuffer < MinPushBufferSize)
-                        {
-                            _pushBuffer.Value[_bytesInPushBuffer] = buffer[startOffset];
-                            startOffset++;
-                            _bytesInPushBuffer++;
-                            count--;
-                        }
-
-                        if (_bytesInPushBuffer == MinPushBufferSize)
-                        {
-                            _regressionChunker.PushBuffer(new ArraySegment<byte>(_pushBuffer.Value));
-
-                            _lastBufferFileOffset = _bufferFileOffset;
-                            _lastPushBuffer?.Dispose();
-                            _lastPushBuffer = _pushBuffer;
-
-                            _bufferFileOffset += MinPushBufferSize;
-                            _pushBuffer = pool.Get();
-                            _bytesInPushBuffer = 0;
-                        }
-                    }
-                }
+                _currentBuffer = new ArraySegment<byte>(buffer, startOffset, count);
+                _regressionChunker.PushBuffer(_currentBuffer.Value);
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
-                if (_bytesInPushBuffer > 0)
-                {
-                    _regressionChunker.PushBuffer(new ArraySegment<byte>(_pushBuffer.Value, 0, _bytesInPushBuffer));
-                }
-
-
                 _regressionChunker.Complete();
-
-                _lastPushBuffer?.Dispose();
-                _pushBuffer.Dispose();
             }
 
             /// <inheritdoc/>
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 throw new InvalidOperationException();
             }

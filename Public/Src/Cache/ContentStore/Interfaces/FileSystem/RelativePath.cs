@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -50,16 +50,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Gets get the parent path.
         /// </summary>
-        public RelativePath Parent
+        public RelativePath? Parent
         {
             get
             {
+                // Path can't be null, but it can be empty.
                 if (string.IsNullOrEmpty(Path))
                 {
                     return null;
                 }
 
-                string parent = System.IO.Path.GetDirectoryName(Path);
+                string? parent = System.IO.Path.GetDirectoryName(Path);
                 if (string.IsNullOrEmpty(parent))
                 {
                     return RootPath;
@@ -80,8 +81,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static RelativePath operator /(RelativePath left, RelativePath right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
+            Contract.RequiresNotNull(right.Path);
             return left / right.Path;
         }
 
@@ -90,8 +92,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static RelativePath operator /(RelativePath left, string right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
 
             try
             {
@@ -104,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <inheritdoc />
-        protected override PathBase GetParentPathBase()
+        protected override PathBase? GetParentPathBase()
         {
             return Parent;
         }

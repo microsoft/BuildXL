@@ -1,12 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
@@ -37,16 +38,12 @@ namespace BuildXL.Native.Processes.Unix
         }
 
         /// <inheritdoc />
-        public unsafe int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes)
+        public int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes)
         {
             // in the native Unix world strings are represented as UTF8-encoded null-terminated chars (1 char == 1 byte)
             byte[] pathBytes = Encoding.UTF8.GetBytes((path + '\0').ToCharArray());
             normalizedPathBytes = new byte[pathBytes.Length];
-
-            fixed (byte* outBuffer = &normalizedPathBytes[0])
-            {
-                return Sandbox.NormalizePathAndReturnHash(pathBytes, outBuffer, normalizedPathBytes.Length);
-            }
+            return Sandbox.NormalizePathAndReturnHash(pathBytes, normalizedPathBytes);
         }
 
         /// <inheritdoc />

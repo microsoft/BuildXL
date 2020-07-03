@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Scheduler.Artifacts
 {
@@ -30,7 +30,7 @@ namespace BuildXL.Scheduler.Artifacts
         VerifySourceFilesFailed = 3,
 
         /// <summary>
-        /// Deleting files with hashes of <see cref="WellKnownContentHashes.AbsentFile"/> failed.
+        /// Deleting files with hashes of <see cref="BuildXL.Storage.Fingerprints.WellKnownContentHashes.AbsentFile"/> failed.
         /// </summary>
         DeleteFilesRequiredAbsentFailed = 4,
 
@@ -38,5 +38,10 @@ namespace BuildXL.Scheduler.Artifacts
         /// Placing the file from cache failed (cache target miss in setup).
         /// </summary>
         PlaceFileFailed = 5,
+
+        /// <summary>
+        /// Placing the file from cache failed due to exisiting file deletion failure.
+        /// </summary>
+        PlaceFileFailedDueToDeletionFailure = 6,
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -25,10 +25,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <inheritdoc />
         public CriticalErrorEventArgs(ResultBase result)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
+            Contract.RequiresNotNull(result.Exception);
             Contract.Requires(result.IsCriticalFailure);
 
-            CriticalException = result.Exception;
+            CriticalException = result.Exception!;
             Result = result;
         }
     }
@@ -51,11 +52,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <inheritdoc />
         public RecoverableErrorEventArgs(ResultBase result)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
             Contract.Requires(!result.IsCriticalFailure);
-            Contract.Requires(result.HasException);
+            Contract.RequiresNotNull(result.Exception);
 
-            Exception = result.Exception;
+            Exception = result.Exception!;
             Result = result;
         }
     }

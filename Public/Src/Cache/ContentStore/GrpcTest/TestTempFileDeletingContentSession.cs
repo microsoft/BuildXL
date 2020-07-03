@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -56,6 +56,11 @@ namespace ContentStoreTest.Grpc
         }
 
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
         {
             throw new NotImplementedException();
         }
@@ -137,5 +142,7 @@ namespace ContentStoreTest.Grpc
         {
             return Task.FromResult(0);
         }
+
+        public Task<BoolResult> ShutdownEvictionAsync(Context context) => BoolResult.SuccessTask;
     }
 }

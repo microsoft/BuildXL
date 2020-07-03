@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -25,8 +25,13 @@ namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessTest : SandboxedProcessTestBase
     {
+        private ITestOutputHelper TestOutput { get; }
+
         public SandboxedProcessTest(ITestOutputHelper output)
-            : base(output) { }
+            : base(output)
+        { 
+            TestOutput = output;
+        }
 
         private sealed class MyListener : IDetoursEventListener
         {
@@ -44,7 +49,7 @@ namespace Test.BuildXL.Processes
                 DebugMessageCount++;
             }
 
-            public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs)
+            public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs, bool isAnAugmentedFileAccess)
             {
                 if (operation == ReportedFileOperation.Process)
                 {
@@ -59,7 +64,7 @@ namespace Test.BuildXL.Processes
                 ProcessDataMessageCount++;
             }
 
-            public override void HandleProcessDetouringStatus(ulong processId, uint reportStatus, string processName, string startApplicationName, string startCommandLine, bool needsInjection, ulong hJob, bool disableDetours, uint creationFlags, bool detoured, uint error, uint createProcessStatusReturn)
+            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data)
             {
                 ProcessDetouringStatusMessageCount++;
             }
@@ -81,8 +86,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(echoMessage, stdout.Trim());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // reported files are not consistent on Mac
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // reported files are not consistent on Mac
         public async Task CheckDetoursNotifications()
         {
             async Task<SandboxedProcessResult> RunEchoProcess(IDetoursEventListener detoursListener = null)
@@ -171,9 +175,8 @@ namespace Test.BuildXL.Processes
             yield return new object[] { CmdHelper.CmdX86 };
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(CmdExeLocationsData))]
-        [Trait("Category", "WindowsOSOnly")]
         public async Task Start(string cmdExeLocation)
         {
             var echoMessage = "Success";
@@ -181,7 +184,7 @@ namespace Test.BuildXL.Processes
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -240,7 +243,7 @@ namespace Test.BuildXL.Processes
 
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX86, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX86, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -266,7 +269,10 @@ namespace Test.BuildXL.Processes
                         "Expected a non-zero user+kernel time.");
                 }
 
-                XAssert.AreNotEqual<ulong>(0, accounting.PeakMemoryUsage, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakWorkingSetMb, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.AverageCommitSizeMb, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakCommitSizeMb, "Expecting non-zero pagefile usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.AverageCommitSizeMb, "Expecting non-zero pagefile usage");
 
                 // Prior to Win10, cmd.exe launched within a job but its associated conhost.exe was exempt from the job.
                 // That changed with Bug #633552
@@ -292,7 +298,7 @@ namespace Test.BuildXL.Processes
                 return;
             }
 
-            var testProcessName = TestProcessExecutable.Path.GetName(Context.PathTable);
+            var testProcessName = TestProcessExecutable.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
 
             var info = ToProcessInfo(ToProcess(
                 Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.Echo("hi")),
@@ -306,7 +312,7 @@ namespace Test.BuildXL.Processes
             {
                 info.AllowedSurvivingChildProcessNames = new[]
                 {
-                    testProcessName.ToString(Context.PathTable.StringTable),
+                    testProcessName,
                     Path.GetFileName(CmdHelper.Conhost)
                 };
             }
@@ -326,29 +332,24 @@ namespace Test.BuildXL.Processes
 
             if (includeAllowedSurvivingChildren)
             {
-                var allowedSurvivingChildProcessNames = new HashSet<PathAtom>(info.AllowedSurvivingChildProcessNames.Select(n => PathAtom.Create(Context.StringTable, n)));
-
                 // Note that one of the spawned process is blocked indefinitely.
                 // However, when surviving children are included, then that process should be killed right-away without waiting.
                 if (sw.ElapsedMilliseconds >= info.NestedProcessTerminationTimeout.TotalMilliseconds)
                 {
                     // If process is not killed, then there are surviving children that are not allowed.
                     XAssert.IsTrue(
-                        survivorProcessNames.IsProperSupersetOf(allowedSurvivingChildProcessNames),
+                        survivorProcessNames.IsProperSupersetOf(info.AllowedSurvivingChildProcessNames),
                         "Survivors: {0}, Allowed survivors: {1}",
                         survivorNamesJoined,
-                        string.Join(" ; ", allowedSurvivingChildProcessNames.Select(n => n.ToString(Context.StringTable))));
+                        string.Join(" ; ", info.AllowedSurvivingChildProcessNames));
                 }
             }
 
             // TestProcess must have survived
-            XAssert.IsTrue(
-                survivorProcessNames.Contains(testProcessName),
-                "expected to find '{0}' in '{1}'",
-                testProcessName.ToString(Context.StringTable), survivorNamesJoined);
+            XAssert.Contains(survivorProcessNames, testProcessName);
 
             // conhost.exe may also have been alive. Win10 changed conhost to longer be excluded from job objects.
-            var conhostName = PathAtom.Create(Context.StringTable, Path.GetFileName(CmdHelper.Conhost));
+            var conhostName = Path.GetFileName(CmdHelper.Conhost);
             if (survivorProcessNames.Contains(conhostName))
             {
                 // With new Win10, there can be multiple surviving conhost.
@@ -363,39 +364,24 @@ namespace Test.BuildXL.Processes
                     1,
                     result.SurvivingChildProcesses.Count(),
                     "Unexpected survivors: {0}",
-                    string.Join(", ", survivorProcessNames.Except(new[] { testProcessName }).Select(PathAtomToString)));
+                    string.Join(", ", survivorProcessNames.Except(new[] { testProcessName })));
             }
 
             // We ignore the Conhost process when checking if all survivors got reported, as Conhost seems very special
             foreach (var survivor in survivorProcessNames.Except(new[] { conhostName }))
             {
-                XAssert.IsTrue(
-                    reportedProcessNames.Contains(survivor),
-                    "Survivor was not reported: {0}, reported: {1}",
-                    survivor.ToString(Context.StringTable),
-                    reportedNamesJoined);
+                XAssert.Contains(reportedProcessNames, survivor);
             }
 
-            void ToFileNames(IEnumerable<ReportedProcess> processes, out HashSet<PathAtom> set, out string joined)
+            void ToFileNames(IEnumerable<ReportedProcess> processes, out HashSet<string> set, out string joined)
             {
-                set = new HashSet<PathAtom>(processes
-                    .Select(p => p.Path)
-                    .Select(Path.GetFileName)
-                    .Select(a => PathAtom.Create(Context.StringTable, a)));
-                joined = string.Join(" ; ", processes
-                    .Select(p => p.Path)
-                    .Select(Path.GetFileName));
-            }
-
-            string PathAtomToString(PathAtom a)
-            {
-                return a.ToString(Context.StringTable);
+                set = new HashSet<string>(processes.Select(p => p.Path).Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
+                joined = string.Join(" ; ", set);
             }
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // same as Survivors, but using cmd.exe
         [MemberData(nameof(CmdExeLocationsData))]
-        [Trait("Category", "WindowsOSOnly")] // same as Survivors, but using cmd.exe
         public async Task SurvivorsHaveCommandLines(string cmdExeLocation)
         {
             if (!JobObject.OSSupportsNestedJobs)
@@ -407,7 +393,7 @@ namespace Test.BuildXL.Processes
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -417,7 +403,7 @@ namespace Test.BuildXL.Processes
                         // we'll wait for at most 1 seconds for nested processes to terminate, as we know we'll have to wait by design of the test
                         NestedProcessTerminationTimeout = TimeSpan.FromSeconds(1)
                     };
-
+                info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 var result = await RunProcess(info);
 
                 // after we detect surviving child processes, we kill them, so this test won't leave around zombie cmd.exe processes
@@ -598,19 +584,21 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(workingDir, stdout.Trim());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ProcessId()
         {
+            var wmic = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wbem", "wmic.exe");
+            var find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "find.exe");
+
             using (var tempFiles = new TempFileStorage(canGetFileNames: false))
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c wmic process get parentprocessid,name|find \"WMIC\"",
+                        Arguments = $"/d /c {wmic} process get parentprocessid,name|{find} \"WMIC\"",
                     };
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 using (ISandboxedProcess process = await StartProcessAsync(info))
@@ -641,21 +629,14 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoBuildExeTraceLog()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
             {
                 string matchingFileName = "_buildc_dep_out.pass1";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(matchingFileName)
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, matchingFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -663,21 +644,14 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
             {
                 string nulFileName = "NUL";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -685,21 +659,14 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoNulColon()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
             {
                 string nulFileName = "NUL:";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -707,8 +674,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoFolderNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -717,13 +683,7 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = Path.Combine(windowsDirectory, "nul");
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -731,8 +691,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoDriveNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -741,18 +700,30 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = windowsDirectory[0] + ":nul";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.AreEqual(0, result.AllUnexpectedFileAccesses.Count);
             }
+        }
+
+        private SandboxedProcessInfo CreateCmdSandboxedProcessInfo(PathTable pt, TempFileStorage tempFiles, string fileName)
+        {
+            // Use unsafe probe by default because this test probes parent directories that can be directory symlinks or junctions.
+            // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
+            return new SandboxedProcessInfo(
+                pt,
+                tempFiles,
+                CmdHelper.CmdX64,
+                loggingContext: LoggingContext,
+                disableConHostSharing: false,
+                fileAccessManifest: new FileAccessManifest(pt) { ProbeDirectorySymlinkAsDirectory = true })
+            {
+                PipSemiStableHash = 0,
+                PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(fileName),
+            };
         }
 
         private static void AddCmdDependencies(PathTable pt, SandboxedProcessInfo info)
@@ -768,12 +739,11 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true, true)]
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
-        [Trait("Category", "WindowsOSOnly")]
         public async Task ReportSingleAccess(bool expectUsn, bool reportUsn)
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -791,7 +761,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempFilePath = AbsolutePath.Create(pt, tempFileName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -890,8 +860,7 @@ namespace Test.BuildXL.Processes
                     explicitlyReported: true));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportSingleUnexpectedUsnAccess()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -909,7 +878,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempFilePath = AbsolutePath.Create(pt, tempFileName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -999,8 +968,7 @@ namespace Test.BuildXL.Processes
             AssertReportedAccessesContains(Context.PathTable, result.AllUnexpectedFileAccesses, rfa);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task IgnoreInvalidPathRead()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -1010,7 +978,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempDirPath = AbsolutePath.Create(pt, tempDirName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         // Adding \|Bad bit| to the end should result in ERROR_INVALID_NAME. The ^ hats are for cmd escaping. Note that type eats quotes, so we can't try those.
                         PipSemiStableHash = 0,
@@ -1046,12 +1014,24 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task StartFileDoesNotExist()
         {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // On Linux we don't require that the process exists ahead of time.  Instead,
+                // we run a shell (e.g., /bin/sh) and then exec that process from the shell.
+                // The actual process executable may be a path relative to a virtual filesystem
+                // root in which the process will be executing, so the executable need not exist
+                // now and it can still be fetched dynamically (by the virtual file system) once
+                // the shell starts executing.
+                return;
+            }
+
             var pt = new PathTable();
-            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
+            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
             };
+            info.FileAccessManifest.PipId = 1;
 
             try
             {
@@ -1102,13 +1082,14 @@ namespace Test.BuildXL.Processes
             await CheckEchoProcessResult(result, echoMessage);
 
             // validate the results: we are expecting 1 process with command line args
-            XAssert.AreEqual(1, result.Processes.Count, "The number of processes launched is not correct");
+            var launchedProcesses = ExcludeInjectedOnes(result.Processes).ToList();
+            XAssert.AreEqual(1, launchedProcesses.Count, "The number of processes launched is not correct");
             var expectedReportedArgs = reportProcessArgs
                 ? TestProcessExecutable.Path.ToString(Context.PathTable) + " " + echoOp.ToCommandLine(Context.PathTable)
                 : string.Empty;
             XAssert.AreEqual(
                 expectedReportedArgs,
-                result.Processes[0].ProcessArgs,
+                launchedProcesses[0].ProcessArgs,
                 "The captured processes arguments are incorrect");
         }
 
@@ -1121,11 +1102,11 @@ namespace Test.BuildXL.Processes
                 var pt = new PathTable();
                 var info =
                     // 'time' uses vfork on macOS
-                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = $"touch '{tempFileName}'",
+                        Arguments = $"/usr/bin/touch '{tempFileName}'",
                     };
                 info.FileAccessManifest.PipId = GetNextPipId();
                 info.FileAccessManifest.ReportFileAccesses = true;
@@ -1231,8 +1212,7 @@ namespace Test.BuildXL.Processes
             XAssert.Fail(message.ToString());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task CheckPreloadedDll()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -1241,21 +1221,44 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = Path.Combine(windowsDirectory, "nul");
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-
-                    };
-
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 info.FileAccessManifest.IgnorePreloadedDlls = false;
 
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.AreEqual(0, result.AllUnexpectedFileAccesses.Count); // In our tests we use the shared conhost, so for this test nothing extra was loaded in the reused test.
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 3, MemberType = typeof(TruthTable))]
+        public async Task HandleHardNativeCrash(bool shouldParentCrash, bool shouldChildCrash, bool waitForChildToFinish)
+        {
+            var outFile = CreateOutputFileArtifact();
+            var info = ToProcessInfo(ToProcess(
+                Operation.WriteFile(outFile),
+                Operation.Spawn(Context.PathTable, waitToFinish: waitForChildToFinish, 
+                    shouldChildCrash ? Operation.CrashHardNative() : Operation.Echo("Child :: not crashing")),
+                shouldParentCrash
+                    ? Operation.CrashHardNative()
+                    : Operation.Echo("Parent :: not crashing")));
+
+            var result = await RunProcess(info);
+            var msg = 
+                $"Code: {result.ExitCode}, Killed: {result.Killed}, Num Survivors: {result.SurvivingChildProcesses?.Count()}, Stdout:{Environment.NewLine}" +
+                await result.StandardOutput.ReadValueAsync();
+            TestOutput.WriteLine(msg);
+
+            XAssert.IsFalse(result.Killed);
+            XAssert.IsNull(result.SurvivingChildProcesses);
+            if (shouldParentCrash)
+            {
+                XAssert.AreNotEqual(0, result.ExitCode);
+            }
+            else
+            {
+                XAssert.AreEqual(0, result.ExitCode);
             }
         }
 
@@ -1316,9 +1319,6 @@ namespace Test.BuildXL.Processes
 
         public override bool Equals(ReportedFileAccess x, ReportedFileAccess y)
         {
-            if (x == null || y == null)
-                return x == y;
-
             return RelevantFieldsToString(x).Equals(RelevantFieldsToString(y));
         }
 

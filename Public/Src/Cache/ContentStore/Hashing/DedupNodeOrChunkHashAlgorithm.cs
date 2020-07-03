@@ -1,7 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -10,12 +12,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     /// VSTS chunk-level deduplication file node
     /// </summary>
-    public class DedupNodeOrChunkHashAlgorithm : HashAlgorithm
+    public class DedupNodeOrChunkHashAlgorithm : HashAlgorithm, IHashAlgorithmInputLength, IHashAlgorithmBufferPool
     {
         private readonly List<ChunkInfo> _chunks = new List<ChunkInfo>();
         private readonly DedupNodeTree.Algorithm _treeAlgorithm;
         private readonly IChunker _chunker;
-        private IChunkerSession _session;
+        private readonly DedupChunkHashAlgorithm _chunkHasher = new DedupChunkHashAlgorithm();
+        private IChunkerSession? _session;
+        private long _sizeHint;
+        private bool _chunkingStarted;
+        private long _bytesChunked;
         private DedupNode? _lastNode;
 
         /// <inheritdoc />
@@ -25,43 +31,78 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Initializes a new instance of the <see cref="DedupNodeOrChunkHashAlgorithm"/> class.
         /// </summary>
         public DedupNodeOrChunkHashAlgorithm()
-            : this(DedupNodeTree.Algorithm.MaximallyPacked)
+            : this(DedupNodeTree.Algorithm.MaximallyPacked, Chunker.Create(ChunkerConfiguration.Default))
         {
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DedupNodeOrChunkHashAlgorithm"/> class.
         /// </summary>
-        public DedupNodeOrChunkHashAlgorithm(DedupNodeTree.Algorithm treeAlgorithm)
+        public DedupNodeOrChunkHashAlgorithm(DedupNodeTree.Algorithm treeAlgorithm, IChunker chunker)
         {
             _treeAlgorithm = treeAlgorithm;
-            _chunker = DedupNodeHashAlgorithm.CreateChunker();
+            _chunker = chunker;
             Initialize();
+        }
+
+        /// <inheritdoc/>
+        public void SetInputLength(long expectedSize)
+        {
+            Contract.Assert(!_chunkingStarted);
+            Contract.Assert(expectedSize >= 0);
+            _sizeHint = expectedSize;
+        }
+
+        /// <inheritdoc/>
+        public Pool<byte[]>.PoolHandle GetBufferFromPool()
+        {
+            return _chunker.GetBufferFromPool();
         }
 
         /// <summary>
         /// Creates a copy of the chunk list.
         /// </summary>
         // ReSharper disable once PossibleInvalidOperationException
-        public DedupNode GetNode() => _lastNode.Value;
+        public DedupNode GetNode()
+        {
+            Contract.Assert(_lastNode != null, "Can't get a DedupNode because _lastNode is null.");
+            return _lastNode.Value;
+        }
 
         /// <inheritdoc />
         public override void Initialize()
         {
+            _chunkHasher.Initialize();
             _chunks.Clear();
-            _session = _chunker.BeginChunking(SaveChunks);
+            _session?.Dispose();
+            _session = null;
+            _sizeHint = -1;
+            _chunkingStarted = false;
+            _bytesChunked = 0;
         }
 
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
         {
-            if (_chunker.TotalBytes == 0)
+            _chunkingStarted = true;
+
+            if (SingleChunkHotPath)
             {
-                _lastNode = null;
+                _chunkHasher.HashCoreInternal(array, ibStart, cbSize);
+            }
+            else
+            {
+                if (_session == null)
+                {
+                    _session = _chunker.BeginChunking(SaveChunks);
+                }
+                _session.PushBuffer(array, ibStart, cbSize);
             }
 
-            _session.PushBuffer(array, ibStart, cbSize);
+            _bytesChunked += cbSize;
         }
+
+        private bool SingleChunkHotPath => _sizeHint >= 0 && _sizeHint <= _chunker.Configuration.MinChunkSize;
 
         /// <inheritdoc />
         /// <remarks>
@@ -69,22 +110,45 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </remarks>
         protected override byte[] HashFinal()
         {
-            _session.Dispose();
-
-            if (_chunker.TotalBytes == 0)
-            {
-                _chunks.Add(new ChunkInfo(0, 0, DedupChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
-            }
-
-            _lastNode = DedupNodeTree.Create(_chunks, _treeAlgorithm);
-
-            if (_lastNode.Value.ChildNodes.Count == 1)
-            {
-                // Content is small enough to track as a chunk.
-                _lastNode = _lastNode.Value.ChildNodes.Single();
-            }
-
+            _lastNode = CreateNode();
+            
             return SerializeHashAndId();
+        }
+
+        /// <summary>
+        /// Create a node out of the list of chunks.
+        /// </summary> 
+        protected internal virtual DedupNode CreateNode()
+        {
+            if (SingleChunkHotPath)
+            {
+                Contract.Assert(_chunks.Count == 0);
+                Contract.Assert(_bytesChunked == _sizeHint);
+                Contract.Assert(_session == null);
+                byte[] chunkHash = _chunkHasher.HashFinalInternal();
+                return new DedupNode(DedupNode.NodeType.ChunkLeaf, (ulong)_sizeHint, chunkHash, 0);
+            }
+            else
+            {
+                _session?.Dispose();
+                _session = null;
+
+                if (_chunks.Count == 0)
+                {
+                    return new DedupNode(new ChunkInfo(0, 0, DedupChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
+                }
+                else if (_chunks.Count == 1)
+                {
+                    // Content is small enough to track as a chunk.
+                    var node = new DedupNode(_chunks.Single());
+                    Contract.Assert(node.Type == DedupNode.NodeType.ChunkLeaf);
+                    return node;
+                }
+                else
+                {
+                    return DedupNodeTree.Create(_chunks, _treeAlgorithm);
+                }
+            }
         }
 
         /// <inheritdoc />
@@ -108,6 +172,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private byte[] SerializeHashAndId()
         {
+            Contract.Assert(_lastNode != null);
+
             var bytes = _lastNode.Value.Hash.ToArray();
             byte[] result = new byte[bytes.Length + 1];
             bytes.CopyTo(result, 0);

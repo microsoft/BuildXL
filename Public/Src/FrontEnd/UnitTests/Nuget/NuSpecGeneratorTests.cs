@@ -1,18 +1,23 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
 using Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.TestUtilities.Xunit;
+using System;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
+        private const int CurrentSpecGenVersion = 7;
+
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
         private readonly PackageGenerator m_packageGenerator;
@@ -42,8 +47,6 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void GenerateNuSpec()
         {
-            var expectedpackageRoot = "../../../pkgs/TestPkg.1.999";
-
             var pkg = m_packageGenerator.AnalyzePackage(
                 @"<?xml version='1.0' encoding='utf-8'?>
 <package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
@@ -71,11 +74,12 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var text = spec.ToDisplayStringV2();
             m_output.WriteLine(text);
 
-            string expectedSpec = string.Format(@"import {{Transformer}} from ""Sdk.Transformers"";
+            string expectedSpec = $@"import {{Transformer}} from ""Sdk.Transformers"";
 import * as Managed from ""Sdk.Managed"";
 
 export declare const qualifier: {{
-    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netstandard2.1"",
+    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
+    targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64"",
 }};
 
 const packageRoot = Contents.packageRoot;
@@ -127,6 +131,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
         case ""netcoreapp2.1"":
         case ""netcoreapp2.2"":
         case ""netcoreapp3.0"":
+        case ""netcoreapp3.1"":
         case ""netstandard2.1"":
             return Managed.Factory.createNugetPackage(
                 ""TestPkg"",
@@ -142,8 +147,95 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
             Contract.fail(""Unsupported target framework"");
     }};
 }}
-)();", expectedpackageRoot);
-            Assert.Equal(expectedSpec, text);
+)();";
+            XAssert.AreEqual(expectedSpec, text);
+
+            const string CurrentSpecHash = "54628A3B7DB3041473955EE2FC145009CFD298A2";
+            ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
+        }
+
+        [Fact]
+        public void GenerateNuSpecForStub()
+        {
+            var pkg = m_packageGenerator.AnalyzePackageStub(s_packagesOnConfig);
+            var spec = new NugetSpecGenerator(m_context.PathTable, pkg).CreateScriptSourceFile(pkg);
+            var text = spec.ToDisplayStringV2();
+            m_output.WriteLine(text);
+
+            string expectedSpec = @"import {Transformer} from ""Sdk.Transformers"";
+
+export declare const qualifier: {
+    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
+    targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64"",
+};
+
+const packageRoot = Contents.packageRoot;
+
+namespace Contents {
+    export declare const qualifier: {
+    };
+    export const packageRoot = d`../../../pkgs/TestPkgStub.1.999`;
+    @@public
+    export const all: StaticDirectory = Transformer.sealDirectory(packageRoot, []);
+}
+
+@@public
+export const pkg: NugetPackage = {
+    contents: Contents.all,
+    dependencies: [],
+    version: ""1.999"",
+};";
+            XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
+
+            const string CurrentSpecHash = "493D2A187F257D17CEB6471B74AECB9D26E2C622";
+            ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
+        }
+
+        private void ValidateCurrentSpecGenVersion(string expectedSpec, string currentSpecHash)
+        {
+            var hashingHelper = new global::BuildXL.Storage.Fingerprints.HashingHelper(m_context.PathTable, recordFingerprintString: false);
+            hashingHelper.Add(expectedSpec);
+            var hash = BitConverter.ToString(hashingHelper.GenerateHashBytes()).Replace("-", string.Empty);
+
+            if (currentSpecHash != hash)
+            {
+                var hasFormatVersionIncreased = NugetSpecGenerator.SpecGenerationFormatVersion > CurrentSpecGenVersion;
+                if (!hasFormatVersionIncreased)
+                {
+                    XAssert.Fail(
+$@"
+**********************************************************************************
+** It looks like NuGet spec generation has changed but the version of 
+** '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}' didn't increase.
+**
+** Please bump up the spec generation format version from {CurrentSpecGenVersion} to {CurrentSpecGenVersion + 1} and then
+** update the '{nameof(currentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}' values in this
+** test to '{hash}' and '{CurrentSpecGenVersion + 1}' respectively.
+**********************************************************************************");
+                }
+                else
+                {
+                    var lines = new[]
+                    {
+                        $"Congratulations on remembering to increment '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}'",
+                        $"after updating NuGet spec generator!",
+                        $"",
+                        $"To keep this reminder working, please update the '{nameof(currentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}'",
+                        $"values in this unit test to '{hash}' and '{NugetSpecGenerator.SpecGenerationFormatVersion}' respectively.",
+                    };
+                    const int width = 94;
+                    var fst = " " + String.Concat(Enumerable.Repeat("_", width + 2)) + " ";
+                    var snd = $"/ {' ',-width} \\";
+                    var aligned = lines.Select(l => $"| {l,-width} |");
+                    var last = "\\" + String.Concat(Enumerable.Repeat("_", width + 2)) + "/";
+                    XAssert.Fail(string.Join(Environment.NewLine, new[] { fst, snd }.Concat(aligned).Concat(new[] { last })));
+                }
+            }
+        }
+
+        private string[] SplitToLines(string text)
+        {
+            return text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         }
     }
 }

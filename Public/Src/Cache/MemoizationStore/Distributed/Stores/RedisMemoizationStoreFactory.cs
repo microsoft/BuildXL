@@ -1,12 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -14,20 +12,16 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <nodoc />
-    public class RedisMemoizationStoreFactory : RedisContentLocationStoreFactory
+    public class RedisMemoizationStoreFactory : ContentLocationStoreFactory
     {
         private readonly TimeSpan _memoizationExpiryTime;
 
         /// <nodoc />
         public RedisMemoizationStoreFactory(
-            IConnectionStringProvider contentConnectionStringProvider,
-            IConnectionStringProvider machineLocationConnectionStringProvider,
             IClock clock,
-            TimeSpan contentHashBumpTime,
-            string keySpace,
-            IAbsFileSystem fileSystem = null,
-            RedisMemoizationStoreConfiguration configuration = null)
-            : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, fileSystem, configuration)
+            RedisMemoizationStoreConfiguration configuration,
+            IDistributedContentCopier copier)
+            : base(clock, configuration, copier)
         {
             _memoizationExpiryTime = configuration.MemoizationExpiryTime;
         }
@@ -35,9 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <nodoc />
         public IMemoizationStore CreateMemoizationStore(ILogger logger)
         {
-            var redisDatabaseFactory = Configuration.HasReadMode(ContentLocationMode.LocalLocationStore)
-                ? RedisDatabaseFactoryForRedisGlobalStore
-                : RedisDatabaseFactoryForContent;
+            var redisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStore;
 
             Contract.Assert(redisDatabaseFactory != null);
 

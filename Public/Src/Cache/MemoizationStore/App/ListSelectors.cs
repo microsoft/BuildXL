@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.App
             RunSQLiteStoreSession(new AbsolutePath(root), lruEnabled: true, funcAsync: async (context, store, session) =>
             {
                 IEnumerable<GetSelectorResult> results =
-                    await session.GetSelectors(context, new Fingerprint(weakFingerprint), CancellationToken.None, UrgencyHint.Nominal).ToList(CancellationToken.None);
+                    await session.GetSelectors(context, new Fingerprint(weakFingerprint), CancellationToken.None, UrgencyHint.Nominal).ToListAsync();
 
                 foreach (GetSelectorResult result in results)
                 {

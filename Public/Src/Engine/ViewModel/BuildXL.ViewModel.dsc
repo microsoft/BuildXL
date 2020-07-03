@@ -11,6 +11,7 @@ namespace ViewModel {
         references: [
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
     });
 }

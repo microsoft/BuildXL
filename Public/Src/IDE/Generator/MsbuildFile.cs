@@ -1,19 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Qualifier;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator
 {
@@ -74,6 +72,11 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         public List<MsbuildFile> ProjectReferences { get; private set; }
 
+        /// <summary>
+        /// The Sdk to emit
+        /// </summary>
+        public string Sdk { get; protected set;}
+
         internal MsbuildFile(
             Context context,
             AbsolutePath specFilePath,
@@ -90,7 +93,7 @@ namespace BuildXL.Ide.Generator
             // Add '.g' suffix only if the projects files will be in the spec root
             if (Context.CanWriteToSrc)
             {
-                projectExtension = ".2.g" + projectExtension;
+                projectExtension = ".g" + projectExtension;
             }
 
             // Relative to enlistment root
@@ -116,7 +119,7 @@ namespace BuildXL.Ide.Generator
         internal Project CreateProject(Process process)
         {
             var project = new Project(process.Provenance.QualifierId);
-
+            
             // All projects in a msbuild file must use the same BuildXL value.
             // TODO: Check whether this is the same BuildXL value as the other projects in this msbuild file
             var value = process.Provenance.OutputValueSymbol.ToString(Context.SymbolTable);
@@ -167,7 +170,7 @@ namespace BuildXL.Ide.Generator
 
         internal abstract void VisitProcess(Process process, ProcessType pipCategory);
 
-        internal void AddSourceItem(AbsolutePath path, Project project, string tag)
+        internal void AddSourceItem(AbsolutePath path, Project project, string tag, bool linkToGeneratedFolder = false)
         {
             var item = project.AddItem(tag, path);
             if (!Context.CanWriteToSrc)
@@ -180,6 +183,17 @@ namespace BuildXL.Ide.Generator
                     item.SetMetadata("Link", relativePath.ToString(Context.StringTable));
                 }
             }
+            else if (linkToGeneratedFolder)
+            {
+                item.SetMetadata("Link", System.IO.Path.Combine(".generated", path.GetName(Context.PathTable).ToString(Context.StringTable)));
+            }
+        }
+
+        internal Item AddPackageReference(Project project, string package, string version)
+        {
+            var item = project.AddItem("PackageReference", package);
+            item.SetMetadata("version", version);
+            return item;
         }
 
         internal object GetObjectValue(PipFragment arg)
@@ -258,7 +272,17 @@ namespace BuildXL.Ide.Generator
         internal bool QualifierPropertyEquals(Qualifier qualifier, string propertyName, string propertyValue)
         {
             return qualifier.TryGetValue(Context.StringTable, propertyName, out var value)
-                && value.Equals(propertyValue, StringComparison.InvariantCultureIgnoreCase);
+                && AreEqual(value, propertyValue);
+        }
+
+        internal bool AreEqual(string lhs, string rhs)
+        {
+            return StringComparer.InvariantCultureIgnoreCase.Equals(lhs, rhs);
+        }
+
+        internal bool AreNotEqual(string lhs, string rhs)
+        {
+            return !AreEqual(lhs, rhs);
         }
     }
 

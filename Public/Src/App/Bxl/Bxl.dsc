@@ -10,19 +10,9 @@ namespace Main {
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxl",
         generateLogs: true,
-        generateLogsLite: false,
         assemblyInfo: {
             fileVersion: Branding.Managed.fileVersion,
         },
-        assemblyBindingRedirects: qualifier.targetFramework === 'net472' ? [
-            {
-                name: "System.Threading.Tasks.Dataflow",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-4.6.3.0",
-                newVersion: "4.6.3.0",
-            },
-        ] : [],
         appConfig: f`App.Config`,
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [{resX: f`Strings.resx`}],
@@ -45,6 +35,7 @@ namespace Main {
                 importFrom("BuildXL.Cache.VerticalStore").BuildCacheAdapter.dll
             ),
 
+            ConsoleLogger.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
@@ -67,13 +58,7 @@ namespace Main {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
-            importFrom("BuildXL.FrontEnd").Core.dll,
-            importFrom("BuildXL.FrontEnd").Download.dll,
-            importFrom("BuildXL.FrontEnd").Script.dll,
-            importFrom("BuildXL.FrontEnd").Nuget.dll,
-            importFrom("BuildXL.FrontEnd").MsBuild.dll,
-            importFrom("BuildXL.FrontEnd").Ninja.dll,
-            importFrom("BuildXL.FrontEnd").CMake.dll,
+            importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],

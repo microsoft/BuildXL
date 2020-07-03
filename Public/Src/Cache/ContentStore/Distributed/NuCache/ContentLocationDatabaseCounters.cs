@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities.Tracing;
 
@@ -72,36 +72,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         TotalNumberOfCacheMiss,
 
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        CacheFlush,
+        /// <summary>
+        /// Number of times database has been cleaned and loaded empty
+        /// </summary>
+        DatabaseCleans,
 
-        /// <nodoc />
-        TotalNumberOfCacheFlushes,
+        /// <summary>
+        /// Number of times database epoch has not matched prior loaded instance
+        /// </summary>
+        EpochMismatches,
 
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByUpdates,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByTimer,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByReconciliation,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByCheckpoint,
-
-        /// <nodoc />
-        NumberOfPersistedEntries,
+        /// <summary>
+        /// Number of times database epoch has matched prior loaded instance
+        /// </summary>
+        EpochMatches,
 
         /// <nodoc />
         NumberOfGetOperations,
 
         /// <nodoc />
         NumberOfStoreOperations,
-
-        /// <nodoc />
-        TotalNumberOfCompletedCacheFlushes,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -116,5 +106,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         GarbageCollectContent,
+
+        /// <summary>
+        /// Amount of unique content added in bytes
+        /// </summary>
+        UniqueContentAddedSize,
+
+        /// <summary>
+        /// Amount of content added in bytes
+        /// </summary>
+        TotalContentAddedSize,
+
+        /// <summary>
+        /// Count of content added
+        /// </summary>
+        TotalContentAddedCount,
+
+        /// <summary>
+        /// Amount of unique content removed in bytes
+        /// </summary>
+        UniqueContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed in bytes
+        /// </summary>
+        TotalContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed
+        /// </summary>
+        TotalContentRemovedCount,
     }
 }

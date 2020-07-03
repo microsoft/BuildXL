@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,6 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public static readonly ReadOnlyArray<int> DistributionWarnings = ReadOnlyArray<int>.FromWithoutCopy(
                 (int)LogEventId.DistributionFailedToCallMaster,
-                (int)LogEventId.DistributionFailedToCallWorker,
                 (int)LogEventId.DistributionCallWorkerCodeException,
                 (int)LogEventId.DistributionCallMasterCodeException,
                 (int)LogEventId.DistributionSuccessfulRetryCallToWorker,
@@ -48,7 +47,6 @@ namespace BuildXL.Engine.Distribution
         /// Set of event ids for distribution informational messages
         /// </summary>
         public static readonly ReadOnlyArray<int> DistributionInfoMessages = ReadOnlyArray<int>.FromWithoutCopy(
-                (int)LogEventId.DistributionBondCall,
                 (int)LogEventId.DistributionDisableServiceProxyInactive,
                 (int)LogEventId.DistributionWaitingForMasterAttached,
                 (int)LogEventId.DistributionHostLog,
@@ -123,7 +121,7 @@ namespace BuildXL.Engine.Distribution
                     AppendSemiStableHashes(sb, semiStableHashes);
                 }
 
-                if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+                if (notificationArgs.ExecutionLogData.Count > 0)
                 {
                     sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }

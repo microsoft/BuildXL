@@ -13,8 +13,7 @@ export const pkgs = [
     { id: "Microsoft.VisualStudio.ImageCatalog", version: "15.8.28010" },
     { id: "Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime", version: "14.3.26930" },
     { id: "Microsoft.VisualStudio.Imaging", version: "15.8.28010", dependentPackageIdsToSkip: ["Microsoft.VisualStudio.Utilities"] }, // Have to cut this dependency because it is 46 only and this package is 45 compatible
-    { id: "Microsoft.VisualStudio.LanguageServer.Client", version: "1.0.62-pre" },
-    { id: "Microsoft.VisualStudio.LanguageServer.Protocol", version: "1.0.62-pre" },
+    { id: "Microsoft.VisualStudio.LanguageServer.Protocol", version: "16.3.57" },
     { id: "Microsoft.VisualStudio.OLE.Interop", version: "7.10.6071" },
     { id: "Microsoft.VisualStudio.ProjectAggregator", version: "8.0.50728" },
     { id: "Microsoft.VisualStudio.ProjectSystem", version: "14.1.127-pre" },

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
@@ -10,9 +10,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public static class ResultTestExtensions
     {
-        public static BoolResult ShouldBeError(this BoolResult result, string expectedMessageFragment = null)
+        public static TResult ShouldBeError<TResult>(this TResult result, string expectedMessageFragment = null) where TResult : ResultBase
         {
             Assert.NotNull(result);
+            Assert.False(result.Succeeded, "The operation should failed, but is successful.");
             Assert.NotNull(result.ErrorMessage);
             if (expectedMessageFragment != null)
             {
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             return result;
         }
         
-        public static async Task<T> ShouldBeError<T>(this Task<T> result, string expectedMessageFragment = null) where T: BoolResult
+        public static async Task<T> ShouldBeError<T>(this Task<T> result, string expectedMessageFragment = null) where T: ResultBase
         {
             var r = await result;
             r.ShouldBeError(expectedMessageFragment);
@@ -57,8 +58,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public static PlaceFileResult ShouldBeSuccess(this PlaceFileResult result)
         {
             Assert.NotNull(result);
-            Assert.Null(result.ErrorMessage);
             Assert.True(result.Succeeded, $"Place file operation should succeed, but it failed. Error: {result.ErrorMessage}. Diagnostics: {result.Diagnostics}");
+            Assert.Null(result.ErrorMessage);
 
             return result;
         }
@@ -103,6 +104,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public static TResult ShouldBeSuccess<TResult>(this TResult result)
             where TResult : ResultBase
         {
+            Assert.NotNull(result);
+            Assert.True(result.Succeeded, $"{typeof(TResult).Name} operation should succeed, but it failed. Error: {result.ErrorMessage}. Diagnostics: {result.Diagnostics}");
+            return result;
+        }
+
+        public static async Task<TResult> ShouldBeSuccessAsync<TResult>(this Task<TResult> task)
+            where TResult : ResultBase
+        {
+            var result = await task;
             Assert.NotNull(result);
             Assert.True(result.Succeeded, $"{typeof(TResult).Name} operation should succeed, but it failed. Error: {result.ErrorMessage}. Diagnostics: {result.Diagnostics}");
             return result;

@@ -4,22 +4,10 @@
 import * as Sdk from "Sdk.Managed";
 
 namespace MemoizationStoreAdapter {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.MemoizationStoreAdapter",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [
-            {
-                namespace: "MemoizationStoreAdapter",
-                factoryClass: "CloudStoreLocalCacheServiceFactory",
-            },
-            {
-                namespace: "MemoizationStoreAdapter",
-                factoryClass: "MemoizationStoreCacheFactory",
-            },
-        ],
         references: [
             Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
@@ -27,11 +15,12 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
+            importFrom("BuildXL.Cache.ContentStore").VfsLibrary.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,

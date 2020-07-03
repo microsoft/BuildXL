@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Native.IO
 {
@@ -12,12 +12,18 @@ namespace BuildXL.Native.IO
         None = 0,
 
         /// <nodoc />
-        SymLink = 1,
+        FileSymlink = 1,
 
         /// <nodoc />
-        MountPoint = 2,
+        DirectorySymlink = 2,
+        
+        /// <nodoc />
+        UnixSymlink = 3,
 
         /// <nodoc />
-        NonActionable = 3,
+        MountPoint = 4,
+
+        /// <nodoc />
+        NonActionable = 5
     }
 }

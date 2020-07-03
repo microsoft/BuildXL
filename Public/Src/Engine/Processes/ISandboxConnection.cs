@@ -1,16 +1,24 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Configuration;
+using System.Collections.Generic;
 
 namespace BuildXL.Processes
 {
     /// <summary>
     /// Interface for sandbox connections, used to establish a connection
-    /// and manage communication between BuildXL and the macOS sandbox implementation.
+    /// and manage communication between BuildXL and a sandbox implementation.
     /// </summary>
     public interface ISandboxConnection : IDisposable
     {
+        /// <summary>
+        /// The sandbox kind used by the backing SandboxConnection, e.g. MacOsKext
+        /// </summary>
+        SandboxKind Kind { get; }
+
         /// <summary>
         /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: false.
         /// </summary>
@@ -50,7 +58,18 @@ namespace BuildXL.Processes
         /// sandbox is notified about it being started, the process should be started in some kind of suspended mode, and
         /// resumed only after the sandbox has been notified.
         /// </summary>
-        bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process);
+        bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process);
+
+        /// <summary>
+        /// A concrete sandbox connection can override this method to specify additional environment variables
+        /// that should be set before executing the process.
+        /// </summary>
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId);
+
+        /// <summary>
+        /// SandboxedProcess uses this method to notify the connection that the root process of the pip exited.
+        /// </summary>
+        void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process);
 
         /// <summary>
         /// Notifies the sandbox that <paramref name="process"/> is done processing access reports
@@ -58,7 +77,7 @@ namespace BuildXL.Processes
         /// Returns whether the sandbox was successfully notified and cleaned up all resources
         /// for the pip with <paramref name="pipId"/>d.
         /// </summary>
-        bool NotifyProcessFinished(long pipId, SandboxedProcessMac process);
+        bool NotifyPipFinished(long pipId, SandboxedProcessUnix process);
 
         /// <summary>
         /// Notification that a pip process was forcefully terminated.

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
@@ -51,12 +51,6 @@ namespace BuildXL.Utilities.Configuration
         /// is on a drive that is detected to have a seek penalty. May be forced on or off using the flag.
         /// </summary>
         SpecCachingOption CacheSpecs { get; }
-
-        /// <summary>
-        /// How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks.
-        /// The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.
-        /// </summary>
-        MemoryUsageOption CacheMemoryUsage { get; }
 
         /// <summary>
         /// The user defined cache session name to use for this build - optional and defaults to nothing
@@ -152,5 +146,11 @@ namespace BuildXL.Utilities.Configuration
         /// this path.
         /// </remarks>
         AbsolutePath VfsCasRoot { get; }
+
+        /// <summary>
+        /// Controls the max number of logged suspicious paths (i.e., paths used in an augmented pathset, but not observed during pip execution) for each pip. 
+        /// The value of 0 means that the monitoring is disabled.
+        /// </summary>
+        int MonitorAugmentedPathSets { get; }
     }
 }

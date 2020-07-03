@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,6 +7,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -27,7 +29,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         Touch,
 
         /// <nodoc />
-        Reconcile,
+        Blob,
+
+        /// <nodoc />
+        AddLocationWithoutTouching,
+
+        /// <nodoc />
+        UpdateMetadataEntry,
     }
 
     /// <summary>
@@ -47,6 +55,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         public EventKind Kind { get; }
 
+        /// <nodoc />
+        protected internal virtual EventKind SerializationKind => Kind;
+
         /// <summary>
         /// A current machine id.
         /// </summary>
@@ -64,7 +75,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected ContentLocationEventData(EventKind kind, MachineId sender, IReadOnlyList<ShortHash> contentHashes)
         {
             Contract.Requires(contentHashes != null);
-            Contract.RequiresDebug(contentHashes.Count != 0); // We want to detect this precondition in tests/debug mode, but don't want to break in prod because of this.
 
             Kind = kind;
             Sender = sender;
@@ -83,22 +93,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (kind)
             {
                 case EventKind.AddLocation:
-                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()));
+                case EventKind.AddLocationWithoutTouching:
+                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()), touch: kind == EventKind.AddLocation);
                 case EventKind.RemoveLocation:
                     return new RemoveContentLocationEventData(sender, hashes);
                 case EventKind.Touch:
                     return new TouchContentLocationEventData(sender, hashes, eventTimeUtc);
-                case EventKind.Reconcile:
-                    return new ReconcileContentLocationEventData(sender, reader.ReadString());
+                case EventKind.Blob:
+                    return new BlobContentLocationEventData(sender, reader.ReadString());
+                case EventKind.UpdateMetadataEntry:
+                    return new UpdateMetadataEntryEventData(sender, reader);
                 default:
                     throw new ArgumentOutOfRangeException($"Unknown event kind '{kind}'.");
             }
         }
 
         /// <nodoc />
-        public void Serialize(BuildXLWriter writer)
+        public virtual void Serialize(BuildXLWriter writer)
         {
-            writer.Write((byte)Kind);
+            writer.Write((byte)SerializationKind);
             Sender.Serialize(writer);
             writer.WriteReadOnlyList(ContentHashes, (w, hash) => w.Write(hash));
 
@@ -110,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case TouchContentLocationEventData touchContentLocationEventData:
                     // Do nothing. No extra data. Touch timestamp is taken from event enqueue time
                     break;
-                case ReconcileContentLocationEventData reconcileContentLocationEventData:
+                case BlobContentLocationEventData reconcileContentLocationEventData:
                     writer.Write(reconcileContentLocationEventData.BlobId);
                     break;
             }
@@ -133,10 +146,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Splits the current instance into a smaller instances
         /// </summary>
-        public IReadOnlyList<ContentLocationEventData> Split(long maxEstimatedSize)
+        public IReadOnlyList<ContentLocationEventData> Split(OperationContext context, long maxEstimatedSize)
         {
             // First, need to compute the number of hashes that will fit into maxEstimatedSize.
-            var maxHashCount = MaxContentHashesCount(maxEstimatedSize);
+            var maxHashCount = maxContentHashesCount(maxEstimatedSize);
 
             // Then we need to split the instance into a sequence of instances.
             var hashes = ContentHashes.Split(maxHashCount).ToList();
@@ -150,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var contentSizes = addContentLocationEventData.ContentSizes.Split(maxHashCount).ToList();
                     Contract.Assert(hashes.Count == contentSizes.Count);
 
-                    result.AddRange(hashes.Select((t, index) => new AddContentLocationEventData(Sender, t, contentSizes[index])));
+                    result.AddRange(hashes.Select((t, index) => new AddContentLocationEventData(Sender, t, contentSizes[index], addContentLocationEventData.Touch)));
                     break;
                 case RemoveContentLocationEventData _:
                     result.AddRange(hashes.Select(t => new RemoveContentLocationEventData(Sender, t)));
@@ -160,11 +173,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     break;
             }
 
-            Contract.AssertDebug(result.TrueForAll(v => v.EstimateSerializedInstanceSize() < maxEstimatedSize));
+            foreach (var r in result)
+            {
+                var estimatedSize = r.EstimateSerializedInstanceSize();
+                if (estimatedSize > maxEstimatedSize)
+                {
+                    context.TraceDebug($"An estimated size is '{estimatedSize}' is greater then the max size '{maxEstimatedSize}' for event '{r.Kind}'.");
+                }
+            }
 
             return result;
 
-            int MaxContentHashesCount(long estimatedSize)
+            int maxContentHashesCount(long estimatedSize)
             {
                 switch (this)
                 {
@@ -203,45 +223,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// </summary>
         public IReadOnlyList<long> ContentSizes { get; }
 
+        /// <summary>
+        /// Whether or not to extend the lifetime of the content.
+        /// </summary>
+        public bool Touch { get; }
+
+        /// <inheritdoc />
+        protected internal override EventKind SerializationKind => Touch ? EventKind.AddLocation : EventKind.AddLocationWithoutTouching;
+
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent)
-            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size))
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent, bool touch = true)
+            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size), touch)
         {
         }
 
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes)
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes, bool touch = true)
             : base(EventKind.AddLocation, sender, contentHashes)
         {
             Contract.Requires(contentSizes != null);
             Contract.Requires(contentSizes.Count == contentHashes.Count);
 
             ContentSizes = contentSizes;
+            Touch = touch;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             var sb = new StringBuilder();
-            for(int i = 0; i < ContentHashes.Count; i++)
+            for (int i = 0; i < ContentHashes.Count; i++)
             {
                 sb.Append($"Hash={ContentHashes[i]}, Size={ContentSizes[i]}");
             }
 
-            return $"Event: {Kind}, Sender: {Sender}, {sb}";
+            return $"Event: {Kind}, Sender: {Sender}, Touch: {Touch}, {sb}";
         }
 
         /// <inheritdoc />
         public override bool Equals(ContentLocationEventData other)
         {
             var rhs = (AddContentLocationEventData)other;
-            return base.Equals(other) && ContentSizes.SequenceEqual(rhs.ContentSizes);
+            return base.Equals(other) && (Touch == rhs.Touch) && ContentSizes.SequenceEqual(rhs.ContentSizes);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (base.GetHashCode(), ContentSizes.GetHashCode()).GetHashCode();
+            return (base.GetHashCode(), ContentSizes.GetHashCode(), Touch).GetHashCode();
         }
     }
 
@@ -262,7 +291,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     }
 
     /// <nodoc />
-    public sealed class ReconcileContentLocationEventData : ContentLocationEventData
+    public sealed class BlobContentLocationEventData : ContentLocationEventData
     {
         /// <summary>
         /// The blob identifier of the reconciliation blob
@@ -270,10 +299,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public string BlobId { get; }
 
         /// <nodoc />
-        public ReconcileContentLocationEventData(MachineId sender, string blobId)
-            : base(EventKind.Reconcile, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        public BlobContentLocationEventData(MachineId sender, string blobId)
+            : base(EventKind.Blob, sender, CollectionUtilities.EmptyArray<ShortHash>())
         {
             BlobId = blobId;
+        }
+    }
+
+    /// <nodoc />
+    public sealed class UpdateMetadataEntryEventData : ContentLocationEventData
+    {
+        /// <summary>
+        /// The strong fingerprint key of the content hash list entry
+        /// </summary>
+        public StrongFingerprint StrongFingerprint { get; }
+
+        /// <summary>
+        /// The metadata entry
+        /// </summary>
+        public MetadataEntry Entry { get; }
+
+        /// <nodoc />
+        public UpdateMetadataEntryEventData(MachineId sender, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            : base(EventKind.UpdateMetadataEntry, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        {
+            StrongFingerprint = strongFingerprint;
+            Entry = entry;
+        }
+
+        /// <nodoc />
+        public UpdateMetadataEntryEventData(MachineId sender, BuildXLReader reader)
+            : base(EventKind.UpdateMetadataEntry, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        {
+            StrongFingerprint = StrongFingerprint.Deserialize(reader);
+            Entry = MetadataEntry.Deserialize(reader);
+        }
+
+        /// <inheritdoc />
+        public override void Serialize(BuildXLWriter writer)
+        {
+            base.Serialize(writer);
+            StrongFingerprint.Serialize(writer);
+            Entry.Serialize(writer);
         }
     }
 
@@ -310,6 +377,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             return (base.GetHashCode(), AccessTime.GetHashCode()).GetHashCode();
         }
-
     }
 }

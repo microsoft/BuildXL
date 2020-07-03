@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -63,7 +63,7 @@ namespace Tool.ServicePipDaemon
         protected readonly IParser m_parser;
 
         /// <nodoc />
-        protected readonly ILogger m_logger;
+        protected readonly IIpcLogger m_logger;
 
         /// <nodoc />
         protected readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
@@ -84,7 +84,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <nodoc />
-        public ILogger Logger => m_logger;
+        public IIpcLogger Logger => m_logger;
 
         #region Options and commands 
 
@@ -165,6 +165,13 @@ namespace Tool.ServicePipDaemon
         {
             ShortName = "log",
             HelpText = "Log directory",
+            IsRequired = false
+        });
+
+        /// <nodoc />
+        public static readonly StrOption ArtifactLogName = RegisterDaemonConfigOption(new StrOption("artifactLogName")
+        {
+            HelpText = "Name for artifact-side log file",
             IsRequired = false
         });
 
@@ -298,7 +305,7 @@ namespace Tool.ServicePipDaemon
             clientAction: AsyncRPCSend,
             serverAction: (conf, daemon) =>
             {
-                conf.Logger.Info("[STOP] requested");
+                daemon.Logger.Info("[STOP] requested");
                 daemon.RequestStop();
                 return Task.FromResult(IpcResult.Success());
             });
@@ -343,7 +350,7 @@ namespace Tool.ServicePipDaemon
         #endregion
 
         /// <nodoc />
-        public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, ILogger logger, IIpcProvider rpcProvider = null, Client client = null)
+        public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, IIpcLogger logger, IIpcProvider rpcProvider = null, Client client = null)
         {
             Contract.Requires(daemonConfig != null);
 
@@ -361,7 +368,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Starts to listen for client connections.  As soon as a connection is received,
         /// it is placed in an action block from which it is picked up and handled asynchronously
-        /// (in the <see cref="ParseAndExecuteCommand"/> method).
+        /// (in the <see cref="ParseAndExecuteCommandAsync"/> method).
         /// </summary>
         public void Start()
         {
@@ -394,10 +401,10 @@ namespace Tool.ServicePipDaemon
             m_logger.Dispose();
         }
 
-        private async Task<IIpcResult> ParseAndExecuteCommand(IIpcOperation operation)
+        private async Task<IIpcResult> ParseAndExecuteCommandAsync(int id, IIpcOperation operation)
         {
             string cmdLine = operation.Payload;
-            m_logger.Verbose("Command received: {0}", cmdLine);
+            m_logger.Verbose($"Command received. Request #{id}, CommandLine: {cmdLine}");
             ConfiguredCommand conf;
             using (m_counters.StartStopwatch(DaemonCounter.ParseArgsDuration))
             {
@@ -417,17 +424,17 @@ namespace Tool.ServicePipDaemon
             return result;
         }
 
-        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation operation)
+        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation operation)
         {
             Contract.Requires(operation != null);
 
-            return ParseAndExecuteCommand(operation);
+            return ParseAndExecuteCommandAsync(id, operation);
         }
 
         /// <summary>
         /// Parses a string and returns a ConfiguredCommand.
         /// </summary>        
-        public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
         {
             return ParseArgs(parser.SplitArgs(allArgs), parser, logger, ignoreInvalidOptions);
         }
@@ -435,7 +442,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Parses a list of arguments and returns a ConfiguredCommand.
         /// </summary>  
-        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
         {
             var usageMessage = Lazy.Create(() => "Usage:" + Environment.NewLine + Usage());
 

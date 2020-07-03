@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -17,12 +17,12 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         ///     Each thread gets its own Random
         /// </summary>
         private static readonly ThreadLocal<Random> TlsRand =
-            new ThreadLocal<Random>(() => new Random(Interlocked.Increment(ref _rndSeed)));
+            new ThreadLocal<Random>(() => new Random(Interlocked.Increment(ref RndSeed)));
 
         /// <summary>
         ///     Seed that all threads increment so that many threads starting in parallel still get different different results
         /// </summary>
-        private static int _rndSeed = Environment.TickCount;
+        private static int RndSeed = Environment.TickCount;
 
         /// <summary>
         ///     Gets thread-safe randomness generator

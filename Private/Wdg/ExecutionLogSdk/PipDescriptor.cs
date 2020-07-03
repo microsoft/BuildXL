@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,8 +10,9 @@ using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 
@@ -244,7 +245,7 @@ namespace Tool.ExecutionLogSdk
         /// The length of the pip's dependency chain based on the number of dependent pips when considering the whole build graph,
         /// not just the build graph containing Process pips only.
         /// </summary>
-        public int NodeHeight => m_buildGraph.DataflowGraph.GetNodeHeight(NodeId);
+        public int NodeHeight => m_buildGraph.DirectedGraph.GetNodeHeight(NodeId);
 
         /// <summary>
         /// The amount of time (in milliseconds) it takes to execute the pips on the critical path starting from the current pip.

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -91,16 +91,23 @@ namespace BuildXL.Storage
         /// If the file must be hashed (cache miss), the computed hash is stored in the file content table.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
-        public static async Task<VersionedFileIdentityAndContentInfoWithOrigin> GetAndRecordContentHashAsync(
+        public static async
+#if NET_COREAPP
+                            ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
+#else
+                            Task<VersionedFileIdentityAndContentInfoWithOrigin>
+#endif
+                                                                                     GetAndRecordContentHashAsync(
             this FileContentTable fileContentTable,
             string path,
             bool? strict = default,
-            Action<SafeFileHandle, VersionedFileIdentityAndContentInfoWithOrigin> beforeClose = null)
+            Action<SafeFileHandle, VersionedFileIdentityAndContentInfoWithOrigin> beforeClose = null,
+            bool ignoreKnownContentHash = false)
         {
             Contract.Requires(fileContentTable != null);
             Contract.Requires(path != null);
 
-            if (beforeClose == null)
+            if (beforeClose == null && !ignoreKnownContentHash)
             {
                 // Due to path mapping in FileContentTable, querying with path will be much faster than opening a handle for a stream.
                 VersionedFileIdentityAndContentInfo? existingInfo = fileContentTable.TryGetKnownContentHash(path);
@@ -123,7 +130,7 @@ namespace BuildXL.Storage
                 VersionedFileIdentityAndContentInfoWithOrigin newInfo = await fileContentTable.GetAndRecordContentHashAsync(
                     contentStream,
                     strict: strict,
-                    ignoreKnownContentHash: beforeClose == null);
+                    ignoreKnownContentHash: beforeClose == null || ignoreKnownContentHash);
 
                 beforeClose?.Invoke(contentStream.SafeFileHandle, newInfo);
 
@@ -136,7 +143,13 @@ namespace BuildXL.Storage
         /// If the file must be hashed (cache miss), the computed hash is stored in the file content table.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
-        public static async Task<VersionedFileIdentityAndContentInfoWithOrigin> GetAndRecordContentHashAsync(
+        public static async
+#if NET_COREAPP
+                            ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
+#else
+                            Task<VersionedFileIdentityAndContentInfoWithOrigin>
+#endif
+                                                                                     GetAndRecordContentHashAsync(
             this FileContentTable fileContentTable,
             FileStream contentStream,
             bool? strict = default, 
@@ -189,36 +202,36 @@ namespace BuildXL.Storage
                 sourcePath,
                 destinationPath,
                 predicate: (source, dest) =>
-                                 {
-                                     // Nonexistent destination?
-                                     if (dest == null)
-                                     {
-                                         return true;
-                                     }
+                {
+                    // Nonexistent destination?
+                    if (dest == null)
+                    {
+                        return true;
+                    }
 
-                                     VersionedFileIdentityAndContentInfo? knownDestinationInfo = fileContentTable.TryGetKnownContentHash(destinationPath, dest);
-                                     if (!knownDestinationInfo.HasValue || knownDestinationInfo.Value.FileContentInfo.Hash != sourceContentInfo.Hash)
-                                     {
-                                         return true;
-                                     }
+                    VersionedFileIdentityAndContentInfo? knownDestinationInfo = fileContentTable.TryGetKnownContentHash(destinationPath, dest);
+                    if (!knownDestinationInfo.HasValue || knownDestinationInfo.Value.FileContentInfo.Hash != sourceContentInfo.Hash)
+                    {
+                        return true;
+                    }
 
-                                     destinationInfo = knownDestinationInfo.Value;
-                                     return false;
-                                 },
+                    destinationInfo = knownDestinationInfo.Value;
+                    return false;
+                },
                 onCompletion: (source, dest) =>
-                              {
-                                  Contract.Assume(
-                                      destinationInfo == null,
-                                      "onCompletion should only happen when we committed to a copy (and then, we shouldn't have a destination version yet).");
-                                  VersionedFileIdentity identity =
-                                      fileContentTable.RecordContentHash(
-                                        destinationPath,
-                                        dest,
-                                        sourceContentInfo.Hash,
-                                        sourceContentInfo.Length,
-                                        strict: true);
-                                  destinationInfo = new VersionedFileIdentityAndContentInfo(identity, sourceContentInfo);
-                              });
+                {
+                    Contract.Assume(
+                        destinationInfo == null,
+                        "onCompletion should only happen when we committed to a copy (and then, we shouldn't have a destination version yet).");
+                    VersionedFileIdentity identity =
+                        fileContentTable.RecordContentHash(
+                        destinationPath,
+                        dest,
+                        sourceContentInfo.Hash,
+                        sourceContentInfo.Length,
+                        strict: true);
+                    destinationInfo = new VersionedFileIdentityAndContentInfo(identity, sourceContentInfo);
+                });
 
             Contract.Assume(destinationInfo != null);
             return new ConditionalUpdateResult(!copied, destinationInfo.Value);
@@ -270,19 +283,18 @@ namespace BuildXL.Storage
                     return false;
                 },
                 onCompletion: handle =>
-                              {
-                                  Contract.Assume(destinationInfo == null);
-                                  VersionedFileIdentity identity =
-                                    fileContentTable.RecordContentHash(
-                                        destinationPath,
-                                        handle,
-                                        contentsHash,
-                                        contents.Length,
-                                        strict: true);
-                                  destinationInfo = new VersionedFileIdentityAndContentInfo(
-                                      identity,
-                                      new FileContentInfo(contentsHash, contents.Length));
-                              });
+                {
+                    Contract.Assume(destinationInfo == null);
+                    VersionedFileIdentity identity = fileContentTable.RecordContentHash(
+                        destinationPath,
+                        handle,
+                        contentsHash,
+                        contents.Length,
+                        strict: true);
+                    destinationInfo = new VersionedFileIdentityAndContentInfo(
+                        identity,
+                        new FileContentInfo(contentsHash, contents.Length));
+                });
 
             Contract.Assume(destinationInfo != null);
             return new ConditionalUpdateResult(!written, destinationInfo.Value);

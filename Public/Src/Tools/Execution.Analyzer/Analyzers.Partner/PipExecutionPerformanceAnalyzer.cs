@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -119,7 +119,7 @@ namespace BuildXL.Execution.Analyzer
                 WriteColumn(Math.Round(performance.IO.WriteCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
                 WriteColumn(Math.Round(performance.IO.OtherCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
                 WriteColumn(performance.NumberOfProcesses.ToString());
-                m_writer.Write(performance.PeakMemoryUsage.ToString());
+                m_writer.Write(performance.MemoryCounters.PeakWorkingSetMb.ToString());
 
                 m_writer.WriteLine();
             }
@@ -158,7 +158,7 @@ namespace BuildXL.Execution.Analyzer
                 WriteLineIndented(I($"\"executionTimeInMs\" : {performance.ProcessExecutionTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"userExecutionTimeInMs\" : {performance.UserTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"kernelExecutionTimeInMs\" : {performance.KernelTime.TotalMilliseconds},"));
-                WriteLineIndented(I($"\"peakMemoryUsageInMb\" : {performance.PeakMemoryUsage},"));
+                WriteLineIndented(I($"\"peakMemoryUsageInMb\" : {performance.MemoryCounters.PeakWorkingSetMb},"));
 
                 WriteLineIndented("\"io\" : {");
                 IncrementIndent();
@@ -202,6 +202,7 @@ namespace BuildXL.Execution.Analyzer
 
                 DecrementIndent();
                 WriteLineIndented("}" + (i < m_processPerformance.Count - 1 ? "," : string.Empty));
+                i++;
             }
 
             DecrementIndent();

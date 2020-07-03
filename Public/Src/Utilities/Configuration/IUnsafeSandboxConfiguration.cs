@@ -1,13 +1,40 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Policy for handling dynamic writes on absent path probe
+    /// </summary>
+    [Flags]
+    public enum DynamicWriteOnAbsentProbePolicy : int
+    {
+        /// <summary>
+        /// Do not ignore any dynamic writes on absent path probe
+        /// </summary>
+        IgnoreNothing = 0,
+
+        /// <summary>
+        /// Ignore when the path in question is a directory
+        /// </summary>
+        IgnoreDirectoryProbes = 1,
+
+        /// <summary>
+        /// Ignore when the path in question is a file
+        /// </summary>
+        IgnoreFileProbes = 1 << 1,
+
+        /// <summary>
+        /// Ignore always
+        /// </summary>
+        IgnoreAll = IgnoreDirectoryProbes | IgnoreFileProbes
+    }
+
+    /// <summary>
+    /// Unsafe Sandbox Configuration
     /// </summary>
     public interface IUnsafeSandboxConfiguration
     {
@@ -52,6 +79,11 @@ namespace BuildXL.Utilities.Configuration
         /// Whether BuildXL is to ignore reparse points. Ignoring reparse points is an unsafe configuration. Defaults to off (i.e., not ignoring reparse points).
         /// </summary>
         bool IgnoreReparsePoints { get; }
+        
+        /// <summary>
+        /// Whether BuildXL is to ignore fully resolving symbolic links. Ignoring symlink resolving is an unsafe configuration. Defaults to on (i.e., skipping full resolving, due to backwards compatibility).
+        /// </summary>
+        bool IgnoreFullSymlinkResolving { get; }
 
         /// <summary>
         /// Whether BuildXL is to ignore Dlls loaded before Detours was started. Ignoring the preloaded (statically loaded) dlls is an unsafe configuration. Defaults to on (i.e., ignoring preloaded Dlls).
@@ -97,7 +129,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether BuildXL flags writes under opaque directories (exclusive or shared) that make existing absent probes to become present probes.
         /// </summary>
-        bool IgnoreDynamicWritesOnAbsentProbes { get; }
+        DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; }
 
         /// <summary>
         /// Policy to be applied when a process incurs in a double write
@@ -114,6 +146,31 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary flag due to a bug in the sandboxed process pip executor to allow customers to snap to the fixed behavior
         /// </remarks>
         bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; }
+
+        /// <summary>
+        /// Ignores CreateProcess report.
+        /// </summary>
+        bool IgnoreCreateProcessReport { get; }
+
+        /// <summary>
+        /// Treats directory symlink probes as directory probes instead of file probes.
+        /// </summary>
+        /// <remarks>
+        /// This configuration is unsafe because the target directory path may not be tracked.
+        /// </remarks>
+        bool ProbeDirectorySymlinkAsDirectory { get; }
+
+
+        /// <summary>
+        /// Makes sure any access that contains a directory symlink gets properly processed
+        /// </summary>
+        /// <remarks>
+        /// This is an experimental flag, and hopefully will eventually become the norm.
+        /// This option is not actually unsafe, it is here to stress its experimental nature.
+        /// Only has an effect on Windows-based OS. Mac sandbox already process symlinks correctly.
+        /// </remarks>
+        bool? ProcessSymlinkedAccesses { get; }
+
 
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
@@ -156,13 +213,21 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.PreserveOutputsTrustLevel);
             writer.Write(@this.UnexpectedFileAccessesAreErrors);
             writer.Write(@this.IgnorePreloadedDlls);
-            writer.Write(@this.IgnoreDynamicWritesOnAbsentProbes);
+            writer.WriteCompact((int)@this.IgnoreDynamicWritesOnAbsentProbes);
             writer.Write(@this.DoubleWritePolicy.HasValue);
             if (@this.DoubleWritePolicy.HasValue)
             {
                 writer.Write((byte)@this.DoubleWritePolicy.Value);
             }
             writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
+            writer.Write(@this.IgnoreCreateProcessReport);
+            writer.Write(@this.ProbeDirectorySymlinkAsDirectory);
+            writer.Write(@this.ProcessSymlinkedAccesses.HasValue);
+            if (@this.ProcessSymlinkedAccesses.HasValue)
+            {
+                writer.Write(@this.ProcessSymlinkedAccesses.Value);
+            }
+            writer.Write(@this.IgnoreFullSymlinkResolving);
         }
 
         /// <nodoc/>
@@ -185,9 +250,13 @@ namespace BuildXL.Utilities.Configuration
                 PreserveOutputsTrustLevel = reader.ReadInt32(),
                 UnexpectedFileAccessesAreErrors = reader.ReadBoolean(),
                 IgnorePreloadedDlls = reader.ReadBoolean(),
-                IgnoreDynamicWritesOnAbsentProbes = reader.ReadBoolean(),
+                IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)reader.ReadInt32Compact(),
                 DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
+                IgnoreCreateProcessReport = reader.ReadBoolean(),
+                ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
+                ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
+                IgnoreFullSymlinkResolving = reader.ReadBoolean(),
             };
         }
 
@@ -201,6 +270,7 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreGetFinalPathNameByHandle, rhs.IgnoreGetFinalPathNameByHandle, SafeDefaults.IgnoreGetFinalPathNameByHandle)
                 && IsAsSafeOrSafer(lhs.IgnoreNonCreateFileReparsePoints, rhs.IgnoreNonCreateFileReparsePoints, SafeDefaults.IgnoreNonCreateFileReparsePoints)
                 && IsAsSafeOrSafer(lhs.IgnoreReparsePoints, rhs.IgnoreReparsePoints, SafeDefaults.IgnoreReparsePoints)
+                && IsAsSafeOrSafer(lhs.IgnoreFullSymlinkResolving, rhs.IgnoreFullSymlinkResolving, SafeDefaults.IgnoreFullSymlinkResolving)
                 && IsAsSafeOrSafer(lhs.IgnoreSetFileInformationByHandle, rhs.IgnoreSetFileInformationByHandle, SafeDefaults.IgnoreSetFileInformationByHandle)
                 && IsAsSafeOrSafer(lhs.IgnoreZwOtherFileInformation, rhs.IgnoreZwOtherFileInformation, SafeDefaults.IgnoreZwOtherFileInformation)
                 && IsAsSafeOrSafer(lhs.IgnoreZwRenameFileInformation, rhs.IgnoreZwRenameFileInformation, SafeDefaults.IgnoreZwRenameFileInformation)
@@ -214,41 +284,27 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
-                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques);
+                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
+                && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
+                && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
+                && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses());
+
         }
 
-        private static bool IsAllowMissingOutputFileNamesSafer(IReadOnlyList<string> lhsValue, IReadOnlyList<string> rhsValue)
+        /// <nodoc />
+        public static bool IsAsSafeOrSafer(DynamicWriteOnAbsentProbePolicy lhsValue, DynamicWriteOnAbsentProbePolicy rhsValue)
         {
-            return lhsValue == null || lhsValue.Count == 0 || lhsValue.All(e => rhsValue.Contains(e));
+            return (lhsValue & rhsValue) == lhsValue;
         }
+
+        private static bool IsAsSafeOrSafer(DynamicWriteOnAbsentProbePolicy lhsValue, DynamicWriteOnAbsentProbePolicy rhsValue, DynamicWriteOnAbsentProbePolicy _)
+            => IsAsSafeOrSafer(lhsValue, rhsValue);
 
         private static bool IsAsSafeOrSafer<T>(T lhsValue, T rhsValue, T safeValue) where T: struct
         {
             return
                 EqualityComparer<T>.Default.Equals(lhsValue, safeValue) ||
                 EqualityComparer<T>.Default.Equals(lhsValue, rhsValue);
-        }
-
-        private static void WriteReadOnlyList(BuildXLWriter writer, IReadOnlyList<string> list)
-        {
-            var count = list != null ? list.Count : 0;
-            writer.WriteCompact(count);
-            for (int i = 0; i < count; i++)
-            {
-                writer.Write(list[i]);
-            }
-        }
-
-        private static List<string> ReadReadOnlyList(BuildXLReader reader)
-        {
-            var count = reader.ReadInt32Compact();
-            var result = new List<string>(count);
-            for (int i = 0; i < count; i++)
-            {
-                result.Add(reader.ReadString());
-            }
-
-            return result;
         }
     }
 }

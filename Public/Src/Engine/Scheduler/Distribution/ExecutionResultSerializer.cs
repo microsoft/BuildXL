@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -116,14 +116,15 @@ namespace BuildXL.Scheduler.Distribution
             var directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(ReadDirectoryOutputs(reader));
             var mustBeConsideredPerpetuallyDirty = reader.ReadBoolean();
             var dynamicallyObservedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
+            var dynamicallyProbedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
             var dynamicallyObservedEnumerations = reader.ReadReadOnlyArray(ReadAbsolutePath);
             var allowedUndeclaredSourceReads = reader.ReadReadOnlySet(ReadAbsolutePath);
             var absentPathProbesUnderOutputDirectories = reader.ReadReadOnlySet(ReadAbsolutePath);
 
-            ReportedFileAccess[] fileAccessViolationsNotWhitelisted;
-            ReportedFileAccess[] whitelistedFileAccessViolations;
+            ReportedFileAccess[] fileAccessViolationsNotAllowlisted;
+            ReportedFileAccess[] allowlistedFileAccessViolations;
             ReportedProcess[] reportedProcesses;
-            ReadReportedProcessesAndFileAccesses(reader, out fileAccessViolationsNotWhitelisted, out whitelistedFileAccessViolations, out reportedProcesses, readPath: m_readPath);
+            ReadReportedProcessesAndFileAccesses(reader, out fileAccessViolationsNotAllowlisted, out allowlistedFileAccessViolations, out reportedProcesses, readPath: m_readPath);
 
             var twoPhaseCachingInfo = ReadTwoPhaseCachingInfo(reader);
             var cacheDescriptor = ReadPipCacheDescriptor(reader);
@@ -147,12 +148,16 @@ namespace BuildXL.Scheduler.Distribution
                 cacheLookupCounters = CacheLookupPerfInfo.Deserialize(reader);
             }
 
-            if (!result.IndicatesFailure())
+            if (!result.IndicatesNoOutput())
             {
                 // Successful result needs to be changed to not materialized because
                 // the process outputs are not materialized on the local machine.
                 result = PipResultStatus.NotMaterialized;
             }
+
+            var pipProperties = ReadPipProperties(reader);
+            var hasUserRetries = reader.ReadBoolean();
+            int pipCancellationStatus = reader.ReadInt32();
 
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
@@ -161,10 +166,11 @@ namespace BuildXL.Scheduler.Distribution
                 directoryOutputs,
                 performanceInformation,
                 weakFingerprint,
-                fileAccessViolationsNotWhitelisted,
-                whitelistedFileAccessViolations,
+                fileAccessViolationsNotAllowlisted,
+                allowlistedFileAccessViolations,
                 mustBeConsideredPerpetuallyDirty,
                 dynamicallyObservedFiles,
+                dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads,
                 absentPathProbesUnderOutputDirectories,
@@ -172,7 +178,10 @@ namespace BuildXL.Scheduler.Distribution
                 cacheDescriptor,
                 converged,
                 pathSet,
-                cacheLookupCounters);
+                cacheLookupCounters,
+                pipProperties,
+                hasUserRetries,
+                (CancellationReason)pipCancellationStatus);
 
             return processExecutionResult;
         }
@@ -180,7 +189,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Serialize result to writer
         /// </summary>
-        public void Serialize(BuildXLWriter writer, ExecutionResult result)
+        public void Serialize(BuildXLWriter writer, ExecutionResult result, bool preservePathCasing)
         {
             writer.Write(m_maxSerializableAbsolutePathIndex);
 
@@ -205,13 +214,14 @@ namespace BuildXL.Scheduler.Distribution
             WriteDirectoryOutputs(writer, result.DirectoryOutputs);
             writer.Write(result.MustBeConsideredPerpetuallyDirty);
             writer.Write(result.DynamicallyObservedFiles, WriteAbsolutePath);
+            writer.Write(result.DynamicallyProbedFiles, WriteAbsolutePath);
             writer.Write(result.DynamicallyObservedEnumerations, WriteAbsolutePath);
             writer.Write(result.AllowedUndeclaredReads, WriteAbsolutePath);
             writer.Write(result.AbsentPathProbesUnderOutputDirectories, WriteAbsolutePath);
             WriteReportedProcessesAndFileAccesses(
                 writer,
-                result.FileAccessViolationsNotWhitelisted,
-                result.WhitelistedFileAccessViolations,
+                result.FileAccessViolationsNotAllowlisted,
+                result.AllowlistedFileAccessViolations,
                 writePath: m_writePath);
 
             WriteTwoPhaseCachingInfo(writer, result.TwoPhaseCachingInfo);
@@ -222,7 +232,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             writer.Write(result.PathSet.HasValue);
-            result.PathSet?.Serialize(m_executionContext.PathTable, writer, pathWriter: WriteAbsolutePath);
+            result.PathSet?.Serialize(m_executionContext.PathTable, writer, preservePathCasing, pathWriter: WriteAbsolutePath);
 
             bool sendCacheLookupCounters = result.CacheLookupPerfInfo != null;
             writer.Write(sendCacheLookupCounters);
@@ -231,6 +241,10 @@ namespace BuildXL.Scheduler.Distribution
             {
                 result.CacheLookupPerfInfo.Serialize(writer);
             }
+
+            WritePipProperties(writer, result.PipProperties);
+            writer.Write(result.HasUserRetries);
+            writer.Write((int)result.CancellationReason);
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)
@@ -299,7 +313,7 @@ namespace BuildXL.Scheduler.Distribution
         public static void ReadReportedProcessesAndFileAccesses(
             BuildXLReader reader,
             out ReportedFileAccess[] reportedFileAccesses,
-            out ReportedFileAccess[] whitelistedReportedFileAccesses,
+            out ReportedFileAccess[] allowlistedReportedFileAccesses,
             out ReportedProcess[] reportedProcesses,
             Func<BuildXLReader, AbsolutePath> readPath = null)
         {
@@ -311,7 +325,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 reportedProcesses = CollectionUtilities.EmptyArray<ReportedProcess>();
                 reportedFileAccesses = CollectionUtilities.EmptyArray<ReportedFileAccess>();
-                whitelistedReportedFileAccesses = CollectionUtilities.EmptyArray<ReportedFileAccess>();
+                allowlistedReportedFileAccesses = CollectionUtilities.EmptyArray<ReportedFileAccess>();
             }
             else
             {
@@ -324,11 +338,11 @@ namespace BuildXL.Scheduler.Distribution
                     reportedFileAccesses[i] = ReadReportedFileAccess(reader, reportedProcesses, readPath);
                 }
 
-                int whitelistedReportedFileAccessCount = reader.ReadInt32Compact();
-                whitelistedReportedFileAccesses = new ReportedFileAccess[whitelistedReportedFileAccessCount];
-                for (int i = 0; i < whitelistedReportedFileAccessCount; i++)
+                int allowlistedReportedFileAccessCount = reader.ReadInt32Compact();
+                allowlistedReportedFileAccesses = new ReportedFileAccess[allowlistedReportedFileAccessCount];
+                for (int i = 0; i < allowlistedReportedFileAccessCount; i++)
                 {
-                    whitelistedReportedFileAccesses[i] = ReadReportedFileAccess(reader, reportedProcesses, readPath);
+                    allowlistedReportedFileAccesses[i] = ReadReportedFileAccess(reader, reportedProcesses, readPath);
                 }
             }
         }
@@ -339,7 +353,7 @@ namespace BuildXL.Scheduler.Distribution
         public static void WriteReportedProcessesAndFileAccesses(
             BuildXLWriter writer,
             IReadOnlyCollection<ReportedFileAccess> reportedFileAccesses,
-            IReadOnlyCollection<ReportedFileAccess> whitelistedReportedFileAccesses,
+            IReadOnlyCollection<ReportedFileAccess> allowlistedReportedFileAccesses,
             IReadOnlyCollection<ReportedProcess> reportedProcesses = null,
             Action<BuildXLWriter, AbsolutePath> writePath = null)
         {
@@ -347,7 +361,7 @@ namespace BuildXL.Scheduler.Distribution
 
             bool hasReportedFileAccessesOrProcesses = (reportedFileAccesses != null && reportedFileAccesses.Count != 0)
                 || (reportedProcesses != null && reportedProcesses.Count != 0)
-                || (whitelistedReportedFileAccesses != null && whitelistedReportedFileAccesses.Count != 0);
+                || (allowlistedReportedFileAccesses != null && allowlistedReportedFileAccesses.Count != 0);
 
             if (!hasReportedFileAccessesOrProcesses)
             {
@@ -358,13 +372,13 @@ namespace BuildXL.Scheduler.Distribution
                 writer.Write(true);
 
                 reportedFileAccesses = reportedFileAccesses ?? CollectionUtilities.EmptyArray<ReportedFileAccess>();
-                whitelistedReportedFileAccesses = whitelistedReportedFileAccesses ?? CollectionUtilities.EmptyArray<ReportedFileAccess>();
+                allowlistedReportedFileAccesses = allowlistedReportedFileAccesses ?? CollectionUtilities.EmptyArray<ReportedFileAccess>();
                 reportedProcesses = reportedProcesses ?? CollectionUtilities.EmptyArray<ReportedProcess>();
 
                 using (var pooledProcessMap = s_reportedProcessMapPool.GetInstance())
                 {
                     Dictionary<ReportedProcess, int> processMap = pooledProcessMap.Instance;
-                    var allReportedProcesses = reportedProcesses.Concat(reportedFileAccesses.Select(rfa => rfa.Process)).Concat(whitelistedReportedFileAccesses.Select(rfa => rfa.Process));
+                    var allReportedProcesses = reportedProcesses.Concat(reportedFileAccesses.Select(rfa => rfa.Process)).Concat(allowlistedReportedFileAccesses.Select(rfa => rfa.Process));
 
                     foreach (var reportedProcess in allReportedProcesses)
                     {
@@ -383,10 +397,10 @@ namespace BuildXL.Scheduler.Distribution
                         WriteReportedFileAccess(writer, reportedFileAccess, processMap, writePath);
                     }
 
-                    writer.WriteCompact(whitelistedReportedFileAccesses.Count);
-                    foreach (var whitelistedReportedFileAccess in whitelistedReportedFileAccesses)
+                    writer.WriteCompact(allowlistedReportedFileAccesses.Count);
+                    foreach (var allowlistedReportedFileAccess in allowlistedReportedFileAccesses)
                     {
-                        WriteReportedFileAccess(writer, whitelistedReportedFileAccess, processMap, writePath);
+                        WriteReportedFileAccess(writer, allowlistedReportedFileAccess, processMap, writePath);
                     }
                 }
             }
@@ -612,6 +626,52 @@ namespace BuildXL.Scheduler.Distribution
         {
             WriteAbsolutePath(writer, file.Path);
             writer.WriteCompact(file.RewriteCount);
+        }
+
+        private static IReadOnlyDictionary<string, int> ReadPipProperties(BuildXLReader reader)
+        {
+            bool hasPipProperties = reader.ReadBoolean();
+
+            if (!hasPipProperties)
+            {
+                return null;
+            }
+            else
+            {
+                int count = reader.ReadInt32Compact();
+
+                var pipProperties = new Dictionary<string, int>();
+
+                for (int i = 0; i < count; i++)
+                {
+                    string key = reader.ReadString();
+                    pipProperties[key] = reader.ReadInt32Compact();
+                }
+
+                return pipProperties;
+            }
+        }
+
+        private static void WritePipProperties(BuildXLWriter writer, IReadOnlyDictionary<string, int> pipProperties)
+        {
+            bool hasPipProperties = pipProperties != null && pipProperties.Count != 0;
+
+            if (!hasPipProperties)
+            {
+                writer.Write(false);
+            }
+            else
+            {
+                writer.Write(true);
+
+                writer.WriteCompact(pipProperties.Count);
+
+                foreach (string key in pipProperties.Keys)
+                {
+                    writer.Write(key);
+                    writer.WriteCompact(pipProperties[key]);
+                }
+            }
         }
     }
 }

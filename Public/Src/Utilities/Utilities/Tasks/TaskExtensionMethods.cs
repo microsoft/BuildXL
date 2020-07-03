@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -22,8 +22,8 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static async Task<T[]> WhenStable<T>(this Func<Task<T>>[] taskProducers, IEqualityComparer<T> comparer)
         {
-            Contract.Requires(comparer != null);
-            Contract.Requires(taskProducers != null);
+            Contract.RequiresNotNull(comparer);
+            Contract.RequiresNotNull(taskProducers);
             Contract.RequiresForAll(taskProducers, producer => producer != null);
 
             T[] lastValues;
@@ -49,7 +49,7 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static Task<T[]> WhenStable<T>(this Func<Task<T>>[] taskProducers)
         {
-            Contract.Requires(taskProducers != null);
+            Contract.RequiresNotNull(taskProducers);
 
             return WhenStable(taskProducers, EqualityComparer<T>.Default);
         }

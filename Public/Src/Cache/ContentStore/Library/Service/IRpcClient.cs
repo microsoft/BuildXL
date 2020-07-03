@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -58,12 +58,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream);
+        Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream, bool createDirectory);
 
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream);
+        Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream, bool createDirectory);
 
         /// <summary>
         /// Add content from a file.
@@ -82,6 +82,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Remove given content from all sessions.
         /// </summary>
-        Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash);
+        Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash, bool deleteLocalOnly);
     }
 }

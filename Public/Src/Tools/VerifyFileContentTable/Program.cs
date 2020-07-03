@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Diagnostics;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace Tool.VerifyFileContentTable
@@ -118,7 +119,7 @@ namespace Tool.VerifyFileContentTable
         {
             try
             {
-                return await FileContentTable.LoadAsync(path.ToString(pt));
+                return await FileContentTable.LoadAsync(new LoggingContext("VerifyContentTable"), path.ToString(pt));
             }
             catch (BuildXLException ex)
             {

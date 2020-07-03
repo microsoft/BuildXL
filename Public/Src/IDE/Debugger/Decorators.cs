@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +57,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public void NotifyDiagnostics(Context context, Diagnostic diagnostic)
         {
             Contract.Requires(context != null);
-            Contract.Requires(diagnostic != null);
 
             if (diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Error ||
                 diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Critical)

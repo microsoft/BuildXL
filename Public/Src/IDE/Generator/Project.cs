@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -53,12 +53,8 @@ namespace BuildXL.Ide.Generator
             {
                 m_outputDirectoryType = outputDirectoryType;
                 SetProperty("DominoBuildFilter", buildFilter);
-                
-                // Intentionally not setting either "OutputPath" or "OutDir" because 'outputDirectory' 
-                // is a BuildXL folder and so if VS tries to write to it access will be denied.
-                //
-                // Instead, output folders are set in Directory.Build.props, which is automatically
-                // generated and placed in the root of the enlistment.
+                SetProperty("OutputPath", outputDirectory);
+                SetProperty("OutDir", outputDirectory);
             }
         }
 

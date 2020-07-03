@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,26 +17,35 @@ using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
+using BuildXL.Engine.Recovery;
+using BuildXL.FrontEnd.Factory;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using Logger = BuildXL.App.Tracing.Logger;
-using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
-using Strings = bxl.Strings;
-using BuildXL.Engine.Recovery;
-using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.ViewModel;
+using Logger = BuildXL.App.Tracing.Logger;
+using AppLogEventId = BuildXL.App.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
+using TracingLogEventId = BuildXL.Tracing.LogEventId;
+using PipsLogEventId = BuildXL.Pips.Tracing.LogEventId;
+using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
+
+using Strings = bxl.Strings;
 #pragma warning disable SA1649 // File name must match first type name
 using BuildXL.Utilities.CrashReporting;
-using System.Diagnostics.Tracing;
 
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -126,6 +136,8 @@ namespace BuildXL
         private const int LogFileBufferSize = 24 * 1024;
         private static Encoding s_utf8NoBom;
 
+        private LoggingContext m_loggingContextForCrashHandler;
+
         private readonly IAppHost m_appHost;
         private readonly IConsole m_console;
 
@@ -166,9 +178,9 @@ namespace BuildXL
             DateTime? startTimeUtc = null,
             ServerModeStatusAndPerf? serverModeStatusAndPerf = null)
         {
-            Contract.Requires(initialConfig != null, "initialConfig can't be null");
-            Contract.Requires(pathTable != null, "pathTable can't be null");
-            Contract.Requires(host != null, "host can't be null");
+            Contract.RequiresNotNull(initialConfig, "initialConfig can't be null");
+            Contract.RequiresNotNull(pathTable, "pathTable can't be null");
+            Contract.RequiresNotNull(host, "host can't be null");
 
             var mutableConfig = new BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration(initialConfig);
 
@@ -233,7 +245,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS
+            m_crashCollector = OperatingSystemHelper.IsMacOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
 
@@ -246,11 +258,12 @@ namespace BuildXL
                 mutableConfig.Logging.CacheMissLog,
                 (new[]
                 {
-                    (int)EventId.CacheMissAnalysis,
-                    (int)EventId.MissingKeyWhenSavingFingerprintStore,
-                    (int)EventId.FingerprintStoreSavingFailed,
-                    (int)EventId.FingerprintStoreToCompareTrace,
-                    (int)EventId.SuccessLoadFingerprintStoreToCompare
+                    (int)SharedLogEventId.CacheMissAnalysis,
+                    (int)SharedLogEventId.CacheMissAnalysisBatchResults,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.MissingKeyWhenSavingFingerprintStore,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreSavingFailed,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreToCompareTrace,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.SuccessLoadFingerprintStoreToCompare
                 },
                 null));
         }
@@ -274,72 +287,71 @@ namespace BuildXL
                     mutableConfig.Logging.EnableAsyncLogging = true;
                 }
 
+                if (!mutableConfig.Logging.SaveFingerprintStoreToLogs.HasValue)
+                {
+                    mutableConfig.Logging.SaveFingerprintStoreToLogs = true;
+                }
+
                 var logPath = mutableConfig.Logging.Log;
 
                 // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.PipOutputLog, (new[] { (int)EventId.PipProcessOutput }, null));
+                    mutableConfig.Logging.PipOutputLog, (new[] { (int)ProcessesLogEventId.PipProcessOutput }, null));
 
                 mutableConfig.Logging.CustomLog.Add(
                     mutableConfig.Logging.DevLog,
-                    (new[]
+                    (new List<int>(FrontEndControllerFactory.DevLogEvents)
                     {
                         // Add useful low volume-messages for dev diagnostics here
-                        (int)EventId.DominoInvocation,
-                        (int)EventId.StartupTimestamp,
-                        (int)EventId.StartupCurrentDirectory,
-                        (int)EventId.DominoCompletion,
-                        (int)EventId.DominoPerformanceSummary,
-                        (int)EventId.DominoCatastrophicFailure,
-                        (int)EventId.UnexpectedCondition,
-                        (int)SchedulerEventId.CriticalPathPipRecord,
-                        (int)SchedulerEventId.CriticalPathChain,
-                        (int)EventId.HistoricMetadataCacheLoaded,
-                        (int)EventId.HistoricMetadataCacheSaved,
-                        (int)EventId.RunningTimesLoaded,
-                        (int)EventId.RunningTimesSaved,
-                        (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
-                        (int)SchedulerEventId.SymlinkFileTraceMessage,
-                        (int)EventId.StartEngineRun,
-                        (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
-                        (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
-                        (int)Engine.Tracing.LogEventId.GraphNotReusedDueToChangedInput,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndEndEvaluateValues,
-                        (int)EventId.StartLoadingRunningTimes,
-                        (int)EventId.EndLoadingRunningTimes,
-                        (int)Engine.Tracing.LogEventId.StartSerializingPipGraph,
-                        (int)Engine.Tracing.LogEventId.EndSerializingPipGraph,
-                        (int)EventId.ScrubbingStarted,
-                        (int)EventId.ScrubbingFinished,
-                        (int)EventId.StartSchedulingPipsWithFilter,
-                        (int)EventId.EndSchedulingPipsWithFilter,
-                        (int)EventId.StartScanningJournal,
-                        (int)EventId.EndScanningJournal,
-                        (int)Engine.Tracing.LogEventId.StartExecute,
-                        (int)Engine.Tracing.LogEventId.EndExecute,
-                        (int)EventId.PipDetailedStats,
-                        (int)EventId.ProcessesCacheHitStats,
-                        (int)EventId.ProcessesCacheMissStats,
-                        (int)EventId.ProcessesSemaphoreQueuedStats,
-                        (int)EventId.CacheTransferStats,
-                        (int)EventId.OutputFileStats,
-                        (int)EventId.SourceFileHashingStats,
-                        (int)EventId.OutputFileHashingStats,
-                        (int)EventId.BuildSetCalculatorStats,
-                        (int)EventId.EndFilterApplyTraversal,
-                        (int)EventId.EndAssigningPriorities,
-                        (int)Engine.Tracing.LogEventId.DeserializedFile,
-                        (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings
+                        (int)SharedLogEventId.DominoInvocation,
+                        (int)AppLogEventId.StartupTimestamp,
+                        (int)AppLogEventId.StartupCurrentDirectory,
+                        (int)AppLogEventId.DominoCompletion,
+                        (int)AppLogEventId.DominoPerformanceSummary,
+                        (int)AppLogEventId.DominoCatastrophicFailure,
+                        (int)TracingLogEventId.UnexpectedConditionLocal,
+                        (int)TracingLogEventId.UnexpectedConditionTelemetry,
+                        (int)SchedulerLogEventId.CriticalPathPipRecord,
+                        (int)SchedulerLogEventId.CriticalPathChain,
+                        (int)EngineLogEventId.HistoricMetadataCacheLoaded,
+                        (int)EngineLogEventId.HistoricMetadataCacheSaved,
+                        (int)EngineLogEventId.HistoricPerfDataLoaded,
+                        (int)EngineLogEventId.HistoricPerfDataSaved,
+                        (int)SharedLogEventId.StartEngineRun,
+                        (int)EngineLogEventId.StartCheckingForPipGraphReuse,
+                        (int)EngineLogEventId.EndCheckingForPipGraphReuse,
+                        (int)EngineLogEventId.GraphNotReusedDueToChangedInput,
+
+                        (int)EngineLogEventId.StartLoadingHistoricPerfData,
+                        (int)EngineLogEventId.EndLoadingHistoricPerfData,
+                        (int)EngineLogEventId.StartSerializingPipGraph,
+                        (int)EngineLogEventId.EndSerializingPipGraph,
+                        (int)EngineLogEventId.ScrubbingStarted,
+                        (int)EngineLogEventId.ScrubbingFinished,
+                        (int)SchedulerLogEventId.StartSchedulingPipsWithFilter,
+                        (int)SchedulerLogEventId.EndSchedulingPipsWithFilter,
+                        (int)StorageLogEventId.StartScanningJournal,
+                        (int)StorageLogEventId.EndScanningJournal,
+                        (int)EngineLogEventId.StartExecute,
+                        (int)EngineLogEventId.EndExecute,
+                        (int)SchedulerLogEventId.PipDetailedStats,
+                        (int)SchedulerLogEventId.ProcessesCacheHitStats,
+                        (int)SchedulerLogEventId.ProcessesCacheMissStats,
+                        (int)SchedulerLogEventId.ProcessesSemaphoreQueuedStats,
+                        (int)SchedulerLogEventId.CacheTransferStats,
+                        (int)SchedulerLogEventId.OutputFileStats,
+                        (int)SchedulerLogEventId.SourceFileHashingStats,
+                        (int)SchedulerLogEventId.OutputFileHashingStats,
+                        (int)SchedulerLogEventId.BuildSetCalculatorStats,
+                        (int)PipsLogEventId.EndFilterApplyTraversal,
+                        (int)SchedulerLogEventId.EndAssigningPriorities,
+                        (int)EngineLogEventId.DeserializedFile,
+                        (int)SchedulerLogEventId.PipQueueConcurrency,
+                        (int)EngineLogEventId.GrpcSettings,
+                        (int)EngineLogEventId.ChosenABTesting,
+                        (int)EngineLogEventId.SynchronouslyWaitedForCache,
+                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                        (int)EngineLogEventId.DistributionWorkerChangedState,
                     },
                     // all errors should be included in a dev log
                     EventLevel.Error));
@@ -437,7 +449,7 @@ namespace BuildXL
                     sendFinalStatistics: () => appLoggers.SendFinalStatistics(),
                     run: (pm) =>
                     {
-                        if (!ProcessUtilities.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory))
+                        if (!ProcessNativeMethods.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory))
                         {
                             Logger.Log.DisplayCoreDumpDirectoryNoPermissionsWarning(pm.LoggingContext, coreDumpDirectory);
                         }
@@ -486,7 +498,7 @@ namespace BuildXL
                             logCleanupThread.Join();
                         }
 
-                        ProcessUtilities.TeardownProcessDumps();
+                        ProcessNativeMethods.TeardownProcessDumps();
 
                         return result;
                     });
@@ -668,7 +680,7 @@ namespace BuildXL
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
-                        
+
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
 
                         LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
@@ -754,39 +766,46 @@ namespace BuildXL
             CancellationToken cancellationToken,
             AppLoggers appLoggers,
             EngineState engineState,
-            PerformanceCollector collector)
+            PerformanceCollector performanceCollector)
         {
             var fileSystem = new PassThroughFileSystem(m_pathTable);
             var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem);
+            var frontEndControllerFactory = FrontEndControllerFactory.Create(
+                    m_configuration.FrontEnd.FrontEndMode(),
+                    loggingContext,
+                    m_initialConfiguration,
+                    performanceCollector);
 
             return RunEngine(
-                    engineContext,
-                    FrontEndControllerFactory.Create(
-                        m_configuration.FrontEnd.FrontEndMode(),
-                        loggingContext,
-                        m_initialConfiguration,
-                        collector),
-                    appLoggers.TrackingEventListener,
-                    engineState);
+                loggingContext,
+                engineContext,
+                m_initialConfiguration,
+                performanceCollector,
+                frontEndControllerFactory,
+                appLoggers.TrackingEventListener,
+                engineState);
         }
 
         internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
         {
             // The loss of connectivity to other machines during a distributed build is generally the true cause of the
             // failure even though it may manifest itself as a different failure first (like failure to materialize)
-            if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
+            if (listener.CountsPerEventId((int)EngineLogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EngineLogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
             }
-            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
+            else if (listener.CountsPerEventId((int)SchedulerLogEventId.ProblematicWorkerExit) >= 1 &&
                 (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
             {
                 string errorMessage = listener.InternalErrorDetails.Count > 0 ?
                     listener.InternalErrorDetails.FirstErrorMessage :
                     listener.InfrastructureErrorDetails.FirstErrorMessage;
 
-                Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
+                string errorName = listener.InternalErrorDetails.Count > 0 ?
+                    listener.InternalErrorDetails.FirstErrorName :
+                    listener.InfrastructureErrorDetails.FirstErrorName;
+
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: $"{SchedulerLogEventId.ProblematicWorkerExit.ToString()}.{errorName}", BucketMessage: errorMessage);
             }
             else if (listener.InternalErrorDetails.Count > 0)
             {
@@ -815,18 +834,18 @@ namespace BuildXL
                     // Pick the best bucket by the type of events that were logged. First wins.
                     switch (item.Key)
                     {
-                        case (int)EventId.FileMonitoringError:
+                        case (int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError:
                             return ExitKind.BuildFailedWithFileMonErrors;
                         case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
-                        case (int)EventId.InvalidOutputDueToSimpleDoubleWrite:
+                        case (int)BuildXL.Pips.Tracing.LogEventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;
-                        case (int)EventId.PipProcessError:
-                        case (int)EventId.DistributionWorkerForwardedError:
+                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError:
+                        case (int)SharedLogEventId.DistributionWorkerForwardedError:
                             return ExitKind.BuildFailedWithPipErrors;
-                        case (int)EventId.CancellationRequested:
+                        case (int)AppLogEventId.CancellationRequested:
                             return ExitKind.BuildCancelled;
-                        case (int)EventId.NoPipsMatchedFilter:
+                        case (int)BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter:
                             return ExitKind.NoPipsMatchFilter;
                     }
                 }
@@ -883,11 +902,6 @@ namespace BuildXL
 
                 logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
             }
-
-            if (trackingListener.HasFailuresOrWarnings)
-            {
-                Logger.Log.DisplayHelpLink(loggingContext, Strings.DX_Help_Link_Prefix, Strings.DX_Help_Link);
-            }
         }
 
         private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext> configureLogging = null)
@@ -911,15 +925,20 @@ namespace BuildXL
                 Branding.ProductExecutableName,
                 new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
-            // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
-            FileUtilities.CreateCounters();
-
             using (PerformanceMeasurement pm = PerformanceMeasurement.StartWithoutStatistic(
                 topLevelContext,
                 (loggingContext) =>
                 {
                     m_appLoggingContext = loggingContext;
+                    // Note the m_appLoggingContext is cleaned up. In the initial implementation this was a static, but after pr comment it is now an instance.
+                    m_loggingContextForCrashHandler = loggingContext;
                     Events.StaticContext = loggingContext;
+                    FileUtilitiesStaticLoggingContext.LoggingContext = loggingContext;
+
+                    // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
+                    // We should do so after we have set the proper logging context.
+                    FileUtilities.CreateCounters();
+
                     var utcNow = DateTime.UtcNow;
                     var localNow = utcNow.ToLocalTime();
 
@@ -936,7 +955,7 @@ namespace BuildXL
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
 
-                    Logger.LogDominoInvocation(
+                    LogDominoInvocation(
                         loggingContext,
                         GetExpandedCmdLine(m_commandLineArguments),
                         s_buildInfo,
@@ -961,7 +980,7 @@ namespace BuildXL
                 {
                     var exitKind = result.ExitKind;
                     var utcNow = DateTime.UtcNow;
-                    Logger.LogDominoCompletion(
+                    LogDominoCompletion(
                         loggingContext,
                         ExitCode.FromExitKind(exitKind),
                         exitKind,
@@ -981,7 +1000,7 @@ namespace BuildXL
                     {
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
-                        
+
                         var shutdownResult = AriaV2StaticState.TryShutDown(TelemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
@@ -1006,9 +1025,94 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// Computes session identifier which allows easier searching in Kusto for 
+        /// Logging DominoCompletion with an extra CloudBuild event
+        /// </summary>
+        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
+        {
+            Logger.Log.DominoCompletion(context,
+                exitCode,
+                exitKind.ToString(),
+                errorBucket,
+                // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
+                ScrubCommandLine(bucketMessage, 1000, 1000),
+                processRunningTime);
+
+            // Sending a different event to CloudBuild ETW listener.
+            if (inCloudBuild)
+            {
+                BuildXL.Tracing.CloudBuildEventSource.Log.DominoCompletedEvent(new  BuildXL.Tracing.CloudBuild.DominoCompletedEvent
+                {
+                    ExitCode = exitCode,
+                    UtcTicks = utcTicks,
+                    ExitKind = cloudBuildExitKind,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Logging DominoInvocation with an extra CloudBuild event
+        /// </summary>
+        public static void LogDominoInvocation(
+            LoggingContext context,
+            string commandLine,
+            BuildInfo buildInfo,
+            MachineInfo machineInfo,
+            string sessionIdentifier,
+            string relatedSessionIdentifier,
+            ExecutionEnvironment environment,
+            long utcTicks,
+            string logDirectory,
+            bool inCloudBuild,
+            string startupDirectory,
+            string mainConfigurationFile)
+        {
+            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+
+            if (inCloudBuild)
+            {
+                // Sending a different event to CloudBuild ETW listener.
+                BuildXL.Tracing.CloudBuildEventSource.Log.DominoInvocationEvent(new BuildXL.Tracing.CloudBuild.DominoInvocationEvent
+                {
+                    UtcTicks = utcTicks,
+
+                    // Truncate the command line that gets to the CB event to avoid exceeding the max event payload of 64kb
+                    CommandLineArgs = commandLine?.Substring(0, Math.Min(commandLine.Length, 4 * 1024)),
+                    DominoVersion = buildInfo.CommitId,
+                    Environment = environment,
+                    LogDirectory = logDirectory,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Scrubs the command line to make it amenable (short enough) to be sent to telemetry
+        /// </summary>
+        internal static string ScrubCommandLine(string rawCommandLine, int leadingChars, int trailingChars)
+        {
+            Contract.RequiresNotNull(rawCommandLine);
+            Contract.Requires(leadingChars >= 0);
+            Contract.Requires(trailingChars >= 0);
+
+            if (rawCommandLine.Length < leadingChars + trailingChars)
+            {
+                return rawCommandLine;
+            }
+
+            int indexOfBreakWithinPrefix = rawCommandLine.LastIndexOf(' ', leadingChars);
+            string prefix = indexOfBreakWithinPrefix == -1 ? rawCommandLine.Substring(0, leadingChars) : rawCommandLine.Substring(0, indexOfBreakWithinPrefix);
+            string breakMarker = indexOfBreakWithinPrefix == -1 ? "[...]" : " [...]";
+
+            int indexOfBreakWithinSuffix = rawCommandLine.IndexOf(' ', rawCommandLine.Length - trailingChars);
+            string suffix = indexOfBreakWithinSuffix == -1 ? rawCommandLine.Substring(rawCommandLine.Length - trailingChars) : rawCommandLine.Substring(indexOfBreakWithinSuffix, rawCommandLine.Length - indexOfBreakWithinSuffix);
+
+            return prefix + breakMarker + suffix;
+        }
+
+        /// <summary>
+        /// Computes session identifier which allows easier searching in Kusto for
         /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
-        /// 
+        ///
         /// Search for masters: '| where sessionId has "0001-FFFF"'
         /// Search for workers: '| where sessionId has "0002-FFFF"'
         /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
@@ -1063,7 +1167,7 @@ namespace BuildXL
         /// </summary>
         private static string GetExpandedCmdLine(IReadOnlyCollection<string> rawArgs)
         {
-            Contract.Requires(rawArgs != null, "rawArgs must not be null.");
+            Contract.RequiresNotNull(rawArgs, "rawArgs must not be null.");
             Contract.Ensures(Contract.Result<string>() != null, "Result of the method can't be null.");
 
             var cl = new CommandLineUtilities(rawArgs);
@@ -1165,19 +1269,13 @@ namespace BuildXL
                     global::BuildXL.Engine.ETWLogger.Log,
                     global::BuildXL.Scheduler.ETWLogger.Log,
                     global::BuildXL.Tracing.ETWLogger.Log,
+                    global::BuildXL.Pips.ETWLogger.Log,
                     global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Core.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Download.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Script.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Script.Debugger.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
-               };
+               }.Concat(
+                FrontEndControllerFactory.GeneratedEventSources
+            );
 
         internal static PathTranslator GetPathTranslator(ILoggingConfiguration conf, PathTable pathTable)
         {
@@ -1250,8 +1348,8 @@ namespace BuildXL
                 BuildViewModel buildViewModel,
                 bool displayWarningErrorTime)
             {
-                Contract.Requires(console != null);
-                Contract.Requires(configuration != null);
+                Contract.RequiresNotNull(console);
+                Contract.RequiresNotNull(configuration);
 
                 m_console = console;
                 m_baseTime = startTime;
@@ -1276,9 +1374,9 @@ namespace BuildXL
                     ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
 
-                if (notWorker 
-                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps 
-                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps 
+                if (notWorker
+                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps
+                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps
                     || m_configuration.OptimizeProgressUpdatingForAzureDevOps))
                 {
                     ConfigureAzureDevOpsLogging(buildViewModel);
@@ -1440,7 +1538,8 @@ namespace BuildXL
                     m_console,
                     m_baseTime,
                     buildViewModel,
-                    m_configuration.UseCustomPipDescriptionOnConsole
+                    m_configuration.UseCustomPipDescriptionOnConsole,
+                    m_warningManager.GetState
                 );
 
                 AddListener(listener);
@@ -1700,7 +1799,7 @@ namespace BuildXL
         {
             if (m_appLoggingContext != null)
             {
-                BuildXL.Tracing.Logger.Log.UnexpectedCondition(m_appLoggingContext, condition);
+                BuildXL.Tracing.UnexpectedCondition.Log(m_appLoggingContext, condition);
             }
         }
 
@@ -1886,7 +1985,7 @@ namespace BuildXL
                     {
                         string[] filesToAttach = new[] { loggers.LogPath };
 
-                        WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, Events.StaticContext?.Session?.Id);
+                        WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, m_loggingContextForCrashHandler?.Session?.Id);
                     }
                 }
 
@@ -1930,14 +2029,14 @@ namespace BuildXL
         }
 
         private EngineState RunEngine(
+            LoggingContext loggingContext,
             EngineContext engineContext,
-            FrontEndControllerFactory factory,
+            ICommandLineConfiguration configuration,
+            PerformanceCollector performanceCollector,
+            IFrontEndControllerFactory factory,
             TrackingEventListener trackingEventListener,
             EngineState engineState)
         {
-            var configuration = factory.Configuration;
-            var loggingContext = factory.LoggingContext;
-
             var appInitializationDurationMs = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;
 
             BuildXL.Tracing.Logger.Log.Statistic(
@@ -1954,7 +2053,7 @@ namespace BuildXL
                 configuration,
                 factory,
                 m_buildViewModel,
-                factory.Collector,
+                performanceCollector,
                 m_startTimeUtc,
                 trackingEventListener,
                 rememberAllChangedTrackedInputs: true,
@@ -1990,7 +2089,7 @@ namespace BuildXL
                 result = engine.Run(asyncLoggingContext, engineState);
             }
 
-            Contract.Assert(result != null, "Running the engine should return a valid engine result.");
+            Contract.AssertNotNull(result, "Running the engine should return a valid engine result.");
 
             // Graph caching complicates some things. we'll have to reload state which invalidates the pathtable and everything that holds
             // a pathtable like configuration.
@@ -2042,11 +2141,236 @@ namespace BuildXL
                         Value = engineRunDuration,
                     });
 
-                Logger.Log.AnalyzeAndLogPerformanceSummary(loggingContext, configuration, appPerfInfo);
+                AnalyzeAndLogPerformanceSummary(loggingContext, configuration, appPerfInfo);
             }
 
             return result.EngineState;
         }
+
+        /// <summary>
+        /// Analyzes and logs a performance summary. All of the data logged in this message is available in various places in
+        /// the standard and stats log. This just consolidates it together in a human consumable format
+        /// </summary>
+        public void AnalyzeAndLogPerformanceSummary(LoggingContext context, ICommandLineConfiguration config, AppPerformanceInfo perfInfo)
+        {
+            // Don't bother logging this stuff if we don't actually have the data
+            if (perfInfo == null || perfInfo.EnginePerformanceInfo == null || perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo == null)
+            {
+                return;
+            }
+
+            // Various heuristics for what caused the build to be slow.
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                SchedulerPerformanceInfo schedulerInfo = perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo;
+                Contract.RequiresNotNull(schedulerInfo);
+
+                long loadOrConstructGraph = perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs +
+                    perfInfo.EnginePerformanceInfo.GraphReloadDurationMs +
+                    perfInfo.EnginePerformanceInfo.GraphConstructionDurationMs;
+
+                // Log the summary
+
+                // High level
+                var graphConstruction = ComputeTimePercentage(loadOrConstructGraph, perfInfo.EngineRunDurationMs);
+                var appInitialization = ComputeTimePercentage(perfInfo.AppInitializationDurationMs, perfInfo.EngineRunDurationMs);
+                var scrubbing = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ScrubbingDurationMs, perfInfo.EngineRunDurationMs);
+                var schedulerInit = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.SchedulerInitDurationMs, perfInfo.EngineRunDurationMs);
+                var executePhase = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ExecutePhaseDurationMs, perfInfo.EngineRunDurationMs);
+                var highLevelOther = Math.Max(0, 100 - appInitialization.Item1 - graphConstruction.Item1 - scrubbing.Item1 - schedulerInit .Item1 - executePhase.Item1);
+
+                // Graph construction
+                var checkingForPipGraphReuse = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs, loadOrConstructGraph);
+                var reloadingPipGraph = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphReloadDurationMs, loadOrConstructGraph);
+                var createGraph = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphConstructionDurationMs, loadOrConstructGraph);
+                var graphConstructionOtherPercent = Math.Max(0, 100 - checkingForPipGraphReuse.Item1 - reloadingPipGraph.Item1 - createGraph.Item1);
+
+                // Process Overhead
+                long allStepsDuration = 0;
+                foreach (var enumValue in Enum.GetValues(typeof(PipExecutionStep)))
+                {
+                    if (enumValue is PipExecutionStep step)
+                    {
+                        allStepsDuration += (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(step).TotalMilliseconds;
+                    }
+                }
+
+                // ExecuteProcessDuration comes from the PipExecutionCounters and is a bit tighter around the actual external
+                // process invocation than the corresponding counter in PipExecutionStepCounters;
+                long allStepsMinusPipExecution = allStepsDuration - schedulerInfo.ExecuteProcessDurationMs;
+
+                var hashingInputs = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.Start).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var checkingForCacheHit = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.CacheLookup).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.CheckIncrementalSkip).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var processOutputs = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.PostProcess).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var replayFromCache = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.RunFromCache).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.MaterializeOutputs).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.MaterializeInputs).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var prepareSandbox = ComputeTimePercentage(
+                    schedulerInfo.SandboxedProcessPrepDurationMs,
+                    allStepsMinusPipExecution);
+                var nonProcessPips = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ExecuteNonProcessPip).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var processOverheadOther = Math.Max(0, 100 - hashingInputs.Item1 - checkingForCacheHit.Item1 - processOutputs.Item1 - replayFromCache.Item1 - prepareSandbox.Item1 - nonProcessPips.Item1);
+
+                StringBuilder sb = new StringBuilder();
+                if (schedulerInfo.DiskStatistics != null)
+                {
+                    foreach (var item in schedulerInfo.DiskStatistics)
+                    {
+                        sb.AppendFormat("{0}:{1}% ", item.Drive, item.CalculateActiveTime(lastOnly: false));
+                    }
+                }
+
+                // The performance summary looks at counters that don't get aggregated and sent back to the master from
+                // all workers. So it only applies to single machine builds.
+                if (config.Distribution.BuildWorkers == null || config.Distribution.BuildWorkers.Count == 0)
+                {
+                    Logger.Log.DominoPerformanceSummary(
+                        context,
+                        processPipsCacheHit: (int)schedulerInfo.ProcessPipCacheHits,
+                        cacheHitRate: ComputeTimePercentage(schedulerInfo.ProcessPipCacheHits, schedulerInfo.TotalProcessPips).Item1,
+                        incrementalSchedulingPrunedPips: (int)schedulerInfo.ProcessPipIncrementalSchedulingPruned,
+                        incrementalSchedulingPruneRate: ComputeTimePercentage(schedulerInfo.ProcessPipIncrementalSchedulingPruned, schedulerInfo.TotalProcessPips).Item1,
+                        totalProcessPips: (int)schedulerInfo.TotalProcessPips,
+                        serverUsed: perfInfo.ServerModeUsed,
+                        graphConstructionPercent: graphConstruction.Item3,
+                        appInitializationPercent: appInitialization.Item3,
+                        scrubbingPercent: scrubbing.Item3,
+                        schedulerInitPercent: schedulerInit.Item3,
+                        executePhasePercent: executePhase.Item3,
+                        highLevelOtherPercent: highLevelOther,
+                        checkingForPipGraphReusePercent: checkingForPipGraphReuse.Item3,
+                        reloadingPipGraphPercent: reloadingPipGraph.Item3,
+                        createGraphPercent: createGraph.Item3,
+                        graphConstructionOtherPercent: graphConstructionOtherPercent,
+                        processExecutePercent: ComputeTimePercentage(schedulerInfo.ExecuteProcessDurationMs, allStepsDuration).Item1,
+                        telemetryTagsPercent: ComputeTelemetryTagsPerformanceSummary(schedulerInfo),
+                        processRunningPercent: ComputeTimePercentage(allStepsMinusPipExecution, allStepsDuration).Item1,
+                        hashingInputs: hashingInputs.Item1,
+                        checkingForCacheHit: checkingForCacheHit.Item1,
+                        processOutputs: processOutputs.Item1,
+                        replayFromCache: replayFromCache.Item1,
+                        prepareSandbox: prepareSandbox.Item1,
+                        processOverheadOther: processOverheadOther,
+                        nonProcessPips: nonProcessPips.Item1,
+                        averageCpu: schedulerInfo.AverageMachineCPU,
+                        minAvailableMemoryMb: (int)schedulerInfo.MachineMinimumAvailablePhysicalMB,
+                        diskUsage: sb.ToString(),
+                        limitingResourcePercentages: perfInfo.EnginePerformanceInfo.LimitingResourcePercentages ?? new LimitingResourcePercentages());
+                }
+
+                if (schedulerInfo.ProcessPipsUncacheable > 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.ProcessPipsUncacheable(context, schedulerInfo.ProcessPipsUncacheable));
+                }
+
+                // Make sure there were some misses since a complete noop with incremental scheduling shouldn't cause this to trigger
+                if (schedulerInfo.CriticalPathTableHits == 0 && schedulerInfo.CriticalPathTableMisses != 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.NoCriticalPathTableHits(context));
+                }
+
+                // Make sure some source files were hashed since a complete noop build with incremental scheduling shouldn't cause this to trigger
+                if (schedulerInfo.FileContentStats.SourceFilesUnchanged == 0 && schedulerInfo.FileContentStats.SourceFilesHashed != 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.NoSourceFilesUnchanged(context));
+                }
+
+                if (!perfInfo.ServerModeEnabled)
+                {
+                    LogPerfSmell(context, () => Logger.Log.ServerModeDisabled(context));
+                }
+
+                if (!perfInfo.EnginePerformanceInfo.GraphCacheCheckJournalEnabled)
+                {
+                    LogPerfSmell(context, () => Logger.Log.GraphCacheCheckJournalDisabled(context));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.CacheInitializationDurationMs > 5000)
+                {
+                    LogPerfSmell(context, () => Logger.Log.SlowCacheInitialization(context, perfInfo.EnginePerformanceInfo.CacheInitializationDurationMs));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.HitLowMemorySmell)
+                {
+                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.HitLowMemorySmell(context));
+                }
+
+                if (config.Sandbox.LogProcesses)
+                {
+                    LogPerfSmell(context, () => Logger.Log.LogProcessesEnabled(context));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.FrontEndIOWeight > 5)
+                {
+                    LogPerfSmell(context, () => Logger.Log.FrontendIOSlow(context, perfInfo.EnginePerformanceInfo.FrontEndIOWeight));
+                }
+            }
+        }
+
+        private static string ComputeTelemetryTagsPerformanceSummary(SchedulerPerformanceInfo schedulerInfo)
+        {
+            string telemetryTagPerformanceSummary = string.Empty;
+            if (schedulerInfo != null && schedulerInfo.ProcessPipCountersByTelemetryTag != null && schedulerInfo.ExecuteProcessDurationMs > 0)
+            {
+                var elapsedTimesByTelemetryTag = schedulerInfo.ProcessPipCountersByTelemetryTag.GetElapsedTimes(PipCountersByGroup.ExecuteProcessDuration);
+
+                // TelemetryTag counters get incremented when a pip is cancelled due to ctrl-c or resource exhaustion. Make sure to include the total
+                // cancelled time in the denomenator when calculating the time percentage
+                var executeAndCancelledExecuteDuration = schedulerInfo.ExecuteProcessDurationMs + schedulerInfo.CanceledProcessExecuteDurationMs;
+
+                int percentagesTotal = 0;
+                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.Select(
+                    elapedTime =>
+                    {
+                        var computedPercentages = ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, executeAndCancelledExecuteDuration);
+                        percentagesTotal += computedPercentages.Item1;
+                        return string.Format("{0,-12}{1,-39}{2}%", string.Empty, elapedTime.Key, computedPercentages.Item1);
+                    }));
+
+                // Humans are picky about percentages adding up neatly to 100%. Make sure other accounts for any rounding slop
+                telemetryTagPerformanceSummary += string.Format("{0}{1,-12}{2,-39}{3}%{0}", Environment.NewLine, string.Empty, "Other:", 100 - percentagesTotal);
+            }
+
+            return telemetryTagPerformanceSummary;
+        }
+
+        private void LogPerfSmell(LoggingContext context, Action action)
+        {
+            if (m_firstSmell)
+            {
+                Logger.Log.BuildHasPerfSmells(context);
+                m_firstSmell = false;
+            }
+
+            action();
+        }
+
+        private bool m_firstSmell = true;
+
+        private static Tuple<int, string, string> ComputeTimePercentage(long numerator, long denominator)
+        {
+            int percent = 0;
+            if (denominator > 0)
+            {
+                percent = (int)(100.0 * numerator / denominator);
+            }
+
+            string time = (int)TimeSpan.FromMilliseconds(numerator).TotalSeconds + "sec";
+            string combined = percent + "% (" + time + ")";
+            return new Tuple<int, string, string>(percent, time, combined);
+        }
+
 
         private void ReportStatsForBuildSummary(AppPerformanceInfo appInfo)
         {
@@ -2057,30 +2381,35 @@ namespace BuildXL
             }
 
             // Overall Duration information
-            var engineInfo = appInfo.EnginePerformanceInfo;
             var tree = new PerfTree("Build Duration", appInfo.EngineRunDurationMs)
                        {
-                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs),
-                           new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
+                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs)
+                       };
+
+            var engineInfo = appInfo.EnginePerformanceInfo;
+
+            if (engineInfo != null)
+            {
+                tree.Add(new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
                            {
                                new PerfTree("Checking for pip graph reuse", engineInfo.GraphCacheCheckDurationMs),
                                new PerfTree("Reloading pip graph", engineInfo.GraphReloadDurationMs),
                                new PerfTree("Create graph", engineInfo.GraphConstructionDurationMs)
-                           },
-                           new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs),
-                           new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs),
-                           new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs),
-                       };
-            summary.DurationTree = tree;
+                           });
+                tree.Add(new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs));
+                tree.Add(new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs));
+                tree.Add(new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs));
 
-
-            // Cache stats
-            var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
-            if (schedulerInfo != null)
-            {
-                summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
-                summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                // Cache stats
+                var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
+                if (schedulerInfo != null)
+                {
+                    summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                    summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                }
             }
+
+            summary.DurationTree = tree;
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]

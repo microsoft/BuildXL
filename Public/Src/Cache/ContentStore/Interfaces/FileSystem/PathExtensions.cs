@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -16,9 +16,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath SwapRoot(this AbsolutePath path, AbsolutePath sourceRoot, AbsolutePath destinationRoot)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(sourceRoot != null);
-            Contract.Requires(destinationRoot != null);
+            Contract.RequiresNotNull(path);
+            Contract.RequiresNotNull(sourceRoot);
+            Contract.RequiresNotNull(destinationRoot);
 
             var x = path.Path.IndexOf(sourceRoot.Path, StringComparison.OrdinalIgnoreCase);
             if (x < 0)

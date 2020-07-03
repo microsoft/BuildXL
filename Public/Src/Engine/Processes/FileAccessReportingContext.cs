@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -24,18 +24,18 @@ namespace BuildXL.Processes
         private readonly PipExecutionContext m_context;
         private readonly ISandboxConfiguration m_config;
         private readonly Process m_pip;
-        private readonly bool m_reportWhitelistedAccesses;
-        private readonly FileAccessWhitelist m_fileAccessWhitelist;
+        private readonly bool m_reportAllowlistedAccesses;
+        private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         private List<ReportedFileAccess> m_violations;
-        private List<ReportedFileAccess> m_whitelistedAccesses;
-        private int m_numWhitelistedButNotCacheableFileAccessViolations;
-        private int m_numWhitelistedAndCacheableFileAccessViolations;
+        private List<ReportedFileAccess> m_allowlistedAccesses;
+        private int m_numAllowlistedButNotCacheableFileAccessViolations;
+        private int m_numAllowlistedAndCacheableFileAccessViolations;
 
         /// <summary>
         /// Creates a context. All <see cref="Counters"/> are initially zero and will increase as accesses are reported.
         /// </summary>
-        public FileAccessReportingContext(LoggingContext loggingContext, PipExecutionContext context, ISandboxConfiguration config, Process pip, bool reportWhitelistedAccesses, FileAccessWhitelist whitelist = null)
+        public FileAccessReportingContext(LoggingContext loggingContext, PipExecutionContext context, ISandboxConfiguration config, Process pip, bool reportAllowlistedAccesses, FileAccessAllowlist allowlist = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(context != null);
@@ -46,28 +46,28 @@ namespace BuildXL.Processes
             m_context = context;
             m_config = config;
             m_pip = pip;
-            m_reportWhitelistedAccesses = reportWhitelistedAccesses;
-            m_fileAccessWhitelist = whitelist;
+            m_reportAllowlistedAccesses = reportAllowlistedAccesses;
+            m_fileAccessAllowlist = allowlist;
         }
 
         /// <summary>
-        /// Count of unexpected file accesses reported, by primary classification (e.g. whitelisted, cacheable, or a violation).
+        /// Count of unexpected file accesses reported, by primary classification (e.g. allowlisted, cacheable, or a violation).
         /// </summary>
         public UnexpectedFileAccessCounters Counters => new UnexpectedFileAccessCounters(
-            numFileAccessesWhitelistedButNotCacheable: m_numWhitelistedButNotCacheableFileAccessViolations,
-            numFileAccessViolationsNotWhitelisted: m_violations == null ? 0 : m_violations.Count,
-            numFileAccessesWhitelistedAndCacheable: m_numWhitelistedAndCacheableFileAccessViolations);
+            numFileAccessesAllowlistedButNotCacheable: m_numAllowlistedButNotCacheableFileAccessViolations,
+            numFileAccessViolationsNotAllowlisted: m_violations == null ? 0 : m_violations.Count,
+            numFileAccessesAllowlistedAndCacheable: m_numAllowlistedAndCacheableFileAccessViolations);
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were not whitelisted. These are 'violations'.
+        /// Gets the collection of unexpected file accesses reported so far that were not allowlisted. These are 'violations'.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotWhitelisted => m_violations;
+        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotAllowlisted => m_violations;
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were whitelisted. These may be violations
+        /// Gets the collection of unexpected file accesses reported so far that were allowlisted. These may be violations
         /// in distributed builds.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> WhitelistedFileAccessViolations => m_whitelistedAccesses;
+        public IReadOnlyList<ReportedFileAccess> AllowlistedFileAccessViolations => m_allowlistedAccesses;
 
         /// <summary>
         /// Reports an access with <see cref="FileAccessStatus.Denied"/>.
@@ -80,30 +80,30 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// For an unexpected <see cref="ObservedFileAccess"/> (which is actually an aggregation of <see cref="ReportedFileAccess"/>es to
-        /// a single path), reports each constituent access and computes an aggregate whitelist match type (the least permissive of any
+        /// a single path), reports each constituent access and computes an aggregate allowlist match type (the least permissive of any
         /// individual access).
         /// </summary>
-        public FileAccessWhitelist.MatchType MatchAndReportUnexpectedObservedFileAccess(ObservedFileAccess unexpectedObservedFileAccess)
+        public FileAccessAllowlist.MatchType MatchAndReportUnexpectedObservedFileAccess(ObservedFileAccess unexpectedObservedFileAccess)
         {
-            var aggregateMatch = FileAccessWhitelist.MatchType.MatchesAndCacheable;
+            var aggregateMatch = FileAccessAllowlist.MatchType.MatchesAndCacheable;
             foreach (ReportedFileAccess reportedAccess in unexpectedObservedFileAccess.Accesses)
             {
-                FileAccessWhitelist.MatchType thisMatch = MatchAndReportUnexpectedFileAccess(reportedAccess);
+                FileAccessAllowlist.MatchType thisMatch = MatchAndReportUnexpectedFileAccess(reportedAccess);
 
                 switch (thisMatch)
                 {
-                    case FileAccessWhitelist.MatchType.NoMatch:
-                        aggregateMatch = FileAccessWhitelist.MatchType.NoMatch;
+                    case FileAccessAllowlist.MatchType.NoMatch:
+                        aggregateMatch = FileAccessAllowlist.MatchType.NoMatch;
                         break;
-                    case FileAccessWhitelist.MatchType.MatchesButNotCacheable:
-                        if (aggregateMatch == FileAccessWhitelist.MatchType.MatchesAndCacheable)
+                    case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
+                        if (aggregateMatch == FileAccessAllowlist.MatchType.MatchesAndCacheable)
                         {
-                            aggregateMatch = FileAccessWhitelist.MatchType.MatchesButNotCacheable;
+                            aggregateMatch = FileAccessAllowlist.MatchType.MatchesButNotCacheable;
                         }
 
                         break;
                     default:
-                        Contract.Assert(thisMatch == FileAccessWhitelist.MatchType.MatchesAndCacheable);
+                        Contract.Assert(thisMatch == FileAccessAllowlist.MatchType.MatchesAndCacheable);
                         break;
                 }
             }
@@ -112,48 +112,48 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Reports an access that - ignoring whitelisting - was unexpected. This can be due to a manifest-side or BuildXL-side denial decision.
+        /// Reports an access that - ignoring allowlisting - was unexpected. This can be due to a manifest-side or BuildXL-side denial decision.
         /// </summary>
-        private FileAccessWhitelist.MatchType MatchAndReportUnexpectedFileAccess(ReportedFileAccess unexpectedFileAccess)
+        private FileAccessAllowlist.MatchType MatchAndReportUnexpectedFileAccess(ReportedFileAccess unexpectedFileAccess)
         {
-            if (m_fileAccessWhitelist != null && m_fileAccessWhitelist.HasEntries)
+            if (m_fileAccessAllowlist != null && m_fileAccessAllowlist.HasEntries)
             {
                 Contract.Assert(
                     m_config.FailUnexpectedFileAccesses == false,
-                    "Having a file-access whitelist requires that Detours failure injection is off.");
+                    "Having a file-access allowlist requires that Detours failure injection is off.");
 
-                FileAccessWhitelist.MatchType matchType = m_fileAccessWhitelist.Matches(unexpectedFileAccess, m_pip);
+                FileAccessAllowlist.MatchType matchType = m_fileAccessAllowlist.Matches(m_loggingContext, unexpectedFileAccess, m_pip);
                 switch (matchType)
                 {
-                    case FileAccessWhitelist.MatchType.NoMatch:
-                        AddUnexpectedFileAccessNotWhitelisted(unexpectedFileAccess);
-                        ReportUnexpectedFileAccessNotWhitelisted(unexpectedFileAccess);
+                    case FileAccessAllowlist.MatchType.NoMatch:
+                        AddUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
+                        ReportUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
                         break;
-                    case FileAccessWhitelist.MatchType.MatchesButNotCacheable:
-                        AddUnexpectedFileAccessWhitelisted(unexpectedFileAccess);
-                        m_numWhitelistedButNotCacheableFileAccessViolations++;
-                        ReportWhitelistedFileAccessNonCacheable(unexpectedFileAccess);
+                    case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
+                        AddUnexpectedFileAccessAllowlisted(unexpectedFileAccess);
+                        m_numAllowlistedButNotCacheableFileAccessViolations++;
+                        ReportAllowlistedFileAccessNonCacheable(unexpectedFileAccess);
                         break;
-                    case FileAccessWhitelist.MatchType.MatchesAndCacheable:
-                        AddUnexpectedFileAccessWhitelisted(unexpectedFileAccess);
-                        m_numWhitelistedAndCacheableFileAccessViolations++;
-                        ReportWhitelistedFileAccessCacheable(unexpectedFileAccess);
+                    case FileAccessAllowlist.MatchType.MatchesAndCacheable:
+                        AddUnexpectedFileAccessAllowlisted(unexpectedFileAccess);
+                        m_numAllowlistedAndCacheableFileAccessViolations++;
+                        ReportAllowlistedFileAccessCacheable(unexpectedFileAccess);
                         break;
                     default:
-                        throw Contract.AssertFailure("Unknown whitelist-match type.");
+                        throw Contract.AssertFailure("Unknown allowlist-match type.");
                 }
 
                 return matchType;
             }
             else
             {
-                AddUnexpectedFileAccessNotWhitelisted(unexpectedFileAccess);
-                ReportUnexpectedFileAccessNotWhitelisted(unexpectedFileAccess);
-                return FileAccessWhitelist.MatchType.NoMatch;
+                AddUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
+                ReportUnexpectedFileAccessNotAllowlisted(unexpectedFileAccess);
+                return FileAccessAllowlist.MatchType.NoMatch;
             }
         }
 
-        private void AddUnexpectedFileAccessNotWhitelisted(ReportedFileAccess reportedFileAccess)
+        private void AddUnexpectedFileAccessNotAllowlisted(ReportedFileAccess reportedFileAccess)
         {
             if (m_violations == null)
             {
@@ -166,20 +166,20 @@ namespace BuildXL.Processes
             }
         }
 
-        private void AddUnexpectedFileAccessWhitelisted(ReportedFileAccess reportedFileAccess)
+        private void AddUnexpectedFileAccessAllowlisted(ReportedFileAccess reportedFileAccess)
         {
-            if (m_whitelistedAccesses == null)
+            if (m_allowlistedAccesses == null)
             {
-                m_whitelistedAccesses = new List<ReportedFileAccess>();
+                m_allowlistedAccesses = new List<ReportedFileAccess>();
             }
 
             if (reportedFileAccess.Operation != ReportedFileOperation.NtCreateFile || m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
             {
-                m_whitelistedAccesses.Add(reportedFileAccess);
+                m_allowlistedAccesses.Add(reportedFileAccess);
             }
         }
 
-        private void ReportUnexpectedFileAccessNotWhitelisted(ReportedFileAccess reportedFileAccess)
+        private void ReportUnexpectedFileAccessNotAllowlisted(ReportedFileAccess reportedFileAccess)
         {
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
@@ -223,25 +223,25 @@ namespace BuildXL.Processes
             }
         }
 
-        private void ReportWhitelistedFileAccessNonCacheable(ReportedFileAccess reportedFileAccess)
+        private void ReportAllowlistedFileAccessNonCacheable(ReportedFileAccess reportedFileAccess)
         {
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
 
-            if (m_reportWhitelistedAccesses)
+            if (m_reportAllowlistedAccesses)
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds(
+                BuildXL.Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
                     description,
                     path);
 
-                AddUnexpectedFileAccessNotWhitelisted(reportedFileAccess);
+                AddUnexpectedFileAccessNotAllowlisted(reportedFileAccess);
             }
             else
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessWhitelistedNonCacheable(
+                BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -250,12 +250,12 @@ namespace BuildXL.Processes
             }
         }
 
-        private void ReportWhitelistedFileAccessCacheable(ReportedFileAccess reportedFileAccess)
+        private void ReportAllowlistedFileAccessCacheable(ReportedFileAccess reportedFileAccess)
         {
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
 
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessWhitelistedCacheable(
+            BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -266,46 +266,46 @@ namespace BuildXL.Processes
 
     /// <summary>
     /// Counters accumulated in a <see cref="FileAccessReportingContext"/> per classification of 'unexpected' file access.
-    /// An unexpected access is either a violation or was whitelisted.
+    /// An unexpected access is either a violation or was allowlisted.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals")]
     public readonly struct UnexpectedFileAccessCounters
     {
         /// <summary>
-        /// Count of accesses such that the access was whitelisted, but was not in the cache-friendly part of the whitelist. The pip should not be cached.
+        /// Count of accesses such that the access was allowlisted, but was not in the cache-friendly part of the allowlist. The pip should not be cached.
         /// </summary>
-        public readonly int NumFileAccessesWhitelistedButNotCacheable;
+        public readonly int NumFileAccessesAllowlistedButNotCacheable;
 
         /// <summary>
-        /// Count of accesses such that the access was whitelisted, via the cache-friendly part of the whitelist. The pip may be cached.
+        /// Count of accesses such that the access was allowlisted, via the cache-friendly part of the allowlist. The pip may be cached.
         /// </summary>
-        public readonly int NumFileAccessesWhitelistedAndCacheable;
+        public readonly int NumFileAccessesAllowlistedAndCacheable;
 
         /// <summary>
-        /// Count of accesses such that the access was not whitelisted at all, and should be reported as a violation.
+        /// Count of accesses such that the access was not allowlisted at all, and should be reported as a violation.
         /// </summary>
-        public readonly int NumFileAccessViolationsNotWhitelisted;
+        public readonly int NumFileAccessViolationsNotAllowlisted;
 
         /// <nodoc />
         public UnexpectedFileAccessCounters(
-            int numFileAccessesWhitelistedButNotCacheable,
-            int numFileAccessesWhitelistedAndCacheable,
-            int numFileAccessViolationsNotWhitelisted)
+            int numFileAccessesAllowlistedButNotCacheable,
+            int numFileAccessesAllowlistedAndCacheable,
+            int numFileAccessViolationsNotAllowlisted)
         {
-            NumFileAccessViolationsNotWhitelisted = numFileAccessViolationsNotWhitelisted;
-            NumFileAccessesWhitelistedAndCacheable = numFileAccessesWhitelistedAndCacheable;
-            NumFileAccessesWhitelistedButNotCacheable = numFileAccessesWhitelistedButNotCacheable;
+            NumFileAccessViolationsNotAllowlisted = numFileAccessViolationsNotAllowlisted;
+            NumFileAccessesAllowlistedAndCacheable = numFileAccessesAllowlistedAndCacheable;
+            NumFileAccessesAllowlistedButNotCacheable = numFileAccessesAllowlistedButNotCacheable;
         }
 
         /// <summary>
-        /// Returns the sum of counters for those accesses that were violations or were whitelisted. This total excludes only those accesses
+        /// Returns the sum of counters for those accesses that were violations or were allowlisted. This total excludes only those accesses
         /// that were allowed on their own merit, i.e., not 'unexpected' and handled.
         /// </summary>
-        public int TotalUnexpectedFileAccesses => NumFileAccessesWhitelistedButNotCacheable + NumFileAccessesWhitelistedAndCacheable + NumFileAccessViolationsNotWhitelisted;
+        public int TotalUnexpectedFileAccesses => NumFileAccessesAllowlistedButNotCacheable + NumFileAccessesAllowlistedAndCacheable + NumFileAccessViolationsNotAllowlisted;
 
         /// <summary>
         /// Indicates if this context has reported accesses which should mark the owning process as cache-ineligible.
         /// </summary>
-        public bool HasUncacheableFileAccesses => (NumFileAccessViolationsNotWhitelisted + NumFileAccessesWhitelistedButNotCacheable) > 0;
+        public bool HasUncacheableFileAccesses => (NumFileAccessViolationsNotAllowlisted + NumFileAccessesAllowlistedButNotCacheable) > 0;
     }
 }

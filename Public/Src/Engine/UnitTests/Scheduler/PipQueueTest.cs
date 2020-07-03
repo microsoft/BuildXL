@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
@@ -16,40 +17,39 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.Containers;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
+using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.VmCommandProxy;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
+using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using System.Diagnostics.CodeAnalysis;
-using BuildXL.Scheduler.FileSystem;
-using Test.BuildXL.Scheduler.Utils;
-using SandboxConnectionKext = BuildXL.Processes.SandboxConnectionKext;
-using BuildXL.Processes.Containers;
-using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
-    public sealed class PipQueueTest : XunitBuildXLTest
+    public sealed class PipQueueTest : TemporaryStorageTestBase
     {
         public PipQueueTest(ITestOutputHelper output)
             : base(output)
@@ -68,7 +68,7 @@ namespace Test.BuildXL.Scheduler
                 maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                 debug: false))
             {
-                using (var pipQueue = new PipQueue(new ScheduleConfiguration()))
+                using (var pipQueue = new PipQueue(LoggingContext, new ScheduleConfiguration()))
                 {
                     pipQueue.SetAsFinalized();
                     pipQueue.DrainQueues();
@@ -97,7 +97,13 @@ namespace Test.BuildXL.Scheduler
                     maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                     debug: false))
                 {
-                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, Path.Combine(TestOutputDirectory, "temp"), GetSandboxConnection());
+                    var executionEnvironment = new PipQueueTestExecutionEnvironment(
+                        context,
+                        config,
+                        pipTable,
+                        Path.Combine(TestOutputDirectory, "temp"),
+                        TryGetSubstSourceAndTarget(out string substSource, out string substTarget) ? (substSource, substTarget) : default((string, string)?),
+                        GetSandboxConnection());
 
                     Func<RunnablePip, Task<PipResult>> taskFactory = async (runnablePip) =>
                         {
@@ -119,7 +125,7 @@ namespace Test.BuildXL.Scheduler
                     // This is the only file artifact we reference without a producer. Rather than scheduling a hashing pip, let's just invent one (so fingerprinting can succeed).
                     executionEnvironment.AddWellKnownFile(executableArtifact, WellKnownContentHashes.UntrackedFile);
 
-                    using (var phase1PipQueue = new PipQueue(executionEnvironment.Configuration.Schedule))
+                    using (var phase1PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration.Schedule))
                     {
                         // phase 1: create some files
                         var baseFileArtifacts = new List<FileArtifact>();
@@ -154,7 +160,7 @@ namespace Test.BuildXL.Scheduler
                             Enumerable.Range(0, 2).Select(
                                 async range =>
                                 {
-                                    using (var phase2PipQueue = new PipQueue(executionEnvironment.Configuration.Schedule))
+                                    using (var phase2PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration.Schedule))
                                     {
                                         // phase 2: do some more with those files
                                         var pips = new ConcurrentDictionary<PipId, Tuple<string, int>>();
@@ -282,17 +288,18 @@ namespace Test.BuildXL.Scheduler
         {
             // Some pip implementations may query for the hashes of their input files.
             private readonly ConcurrentDictionary<FileArtifact, ContentHash> m_expectedWrittenContent;
-            private readonly ConcurrentDictionary<FileArtifact, ContentHash> m_wellKnownFiles;
             private readonly ConcurrentDictionary<FileArtifact, Pip> m_producers;
             private readonly ConcurrentDictionary<Pip, Unit> m_executed = new ConcurrentDictionary<Pip, Unit>();
 
             private readonly TestPipGraphFilesystemView m_filesystemView;
-            private readonly ConcurrentBigMap<DirectoryArtifact, int[]> m_sealContentsById;
-            private readonly ISandboxConnection m_sandboxConnectionKext;
 
-            private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
-            
-            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, string tempDirectory, ISandboxConnection SandboxConnection = null)
+            public PipQueueTestExecutionEnvironment(
+                BuildXLContext context,
+                IConfiguration configuration,
+                PipTable pipTable,
+                string tempDirectory,
+                (string substSource, string substTarget)? subst = default,
+                ISandboxConnection sandboxConnection = null)
             {
                 Contract.Requires(context != null);
                 Contract.Requires(configuration != null);
@@ -300,7 +307,7 @@ namespace Test.BuildXL.Scheduler
                 Context = context;
                 LoggingContext = CreateLoggingContextForTest();
                 Configuration = configuration;
-                FileContentTable = FileContentTable.CreateNew();
+                FileContentTable = FileContentTable.CreateNew(LoggingContext);
                 ContentFingerprinter = new PipContentFingerprinter(
                     context.PathTable,
                     artifact => State.FileContentManager.GetInputContent(artifact).FileContentInfo,
@@ -313,9 +320,8 @@ namespace Test.BuildXL.Scheduler
                 Cache = InMemoryCacheFactory.Create();
                 LocalDiskContentStore = new LocalDiskContentStore(LoggingContext, context.PathTable, FileContentTable, tracker);
 
-                m_sandboxConnectionKext = SandboxConnection;
+                SandboxConnection = sandboxConnection;
                 m_expectedWrittenContent = new ConcurrentDictionary<FileArtifact, ContentHash>();
-                m_wellKnownFiles = new ConcurrentDictionary<FileArtifact, ContentHash>();
                 m_producers = new ConcurrentDictionary<FileArtifact, Pip>();
                 m_filesystemView = new TestPipGraphFilesystemView(Context.PathTable);
                 var fileSystemView = new FileSystemView(Context.PathTable, m_filesystemView, LocalDiskContentStore);
@@ -323,20 +329,33 @@ namespace Test.BuildXL.Scheduler
 
                 State = new PipExecutionState(
                     configuration,
+                    LoggingContext,
                     cache: new PipTwoPhaseCache(LoggingContext, Cache, context, PathExpander),
                     unsafeConfiguration: configuration.Sandbox.UnsafeSandboxConfiguration,
-                    preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
-                    fileAccessWhitelist: FileAccessWhitelist,
+                    preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
+                    fileAccessAllowlist: FileAccessAllowlist,
                     directoryMembershipFingerprinter: this,
                     pathExpander: PathExpander,
                     executionLog: null,
                     fileSystemView: fileSystemView,
                     fileContentManager: new FileContentManager(this, new NullOperationTracker()),
-                    directoryMembershipFinterprinterRuleSet: null);
-
-                m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
+                    directoryMembershipFinterprinterRuleSet: null,
+                    lazyDeletionOfSharedOpaqueOutputsEnabled: false);
 
                 ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
+
+                DirectoryTranslator = new DirectoryTranslator();
+                foreach (var directoryToTranslate in configuration.Engine.DirectoriesToTranslate)
+                {
+                    DirectoryTranslator.AddTranslation(directoryToTranslate.FromPath.ToString(context.PathTable), directoryToTranslate.ToPath.ToString(context.PathTable));
+                }
+
+                if (subst.HasValue)
+                {
+                    DirectoryTranslator.AddTranslation(subst.Value.substSource, subst.Value.substTarget);
+                }
+
+                DirectoryTranslator.Seal();
             }
 
             public void AddExpectedWrite(Pip producer, FileArtifact file, ContentHash expectedContent)
@@ -361,6 +380,20 @@ namespace Test.BuildXL.Scheduler
                 return m_expectedWrittenContent[file];
             }
 
+            public bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer)
+            {
+                producer = PipId.Invalid;
+                if (artifact.IsDirectory) return false;
+                var found = m_producers.TryGetValue(artifact.FileArtifact, out var pip);
+                if (found) producer = pip.PipId;
+                return found;
+            }
+
+            public bool IsReachableFrom(PipId from, PipId to)
+            {
+                throw new NotImplementedException();
+            }
+
             public PipExecutionState State { get; }
 
             public PipTable PipTable { get; }
@@ -369,7 +402,7 @@ namespace Test.BuildXL.Scheduler
 
             public FileContentTable FileContentTable { get; }
 
-            public FileAccessWhitelist FileAccessWhitelist => null;
+            public FileAccessAllowlist FileAccessAllowlist => null;
 
             /// <summary>
             /// In-memory cache (not the real one)
@@ -387,7 +420,13 @@ namespace Test.BuildXL.Scheduler
 
             public SemanticPathExpander PathExpander => SemanticPathExpander.Default;
 
-            public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer => m_disabledFileMonitoringViolationAnalyzer;
+            public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer { get; } = new DisabledFileMonitoringViolationAnalyzer();
+
+            /// <inheritdoc />
+            public bool MaterializeOutputsInBackground => false;
+
+            /// <inheritdoc />
+            public bool IsTerminating => false;
 
             public DirectoryFingerprint? TryComputeDirectoryFingerprint(
                 AbsolutePath directoryPath, 
@@ -511,7 +550,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             /// <inheritdoc/>
-            public DirectoryTranslator DirectoryTranslator => null;
+            public DirectoryTranslator DirectoryTranslator { get; }
 
             /// <inheritdoc/>
             public LoggingContext LoggingContext { get; }
@@ -601,13 +640,15 @@ namespace Test.BuildXL.Scheduler
 
             SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
-            public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
+            public ISandboxConnection SandboxConnection { get; }
 
             public ProcessInContainerManager ProcessInContainerManager { get; }
 
             public VmInitializer VmInitializer { get; }
 
             public ITempCleaner TempCleaner { get; }
+
+            public SymlinkedAccessResolver SymlinkedAccessResolver => null;
         }
     }
 
@@ -674,7 +715,7 @@ namespace Test.BuildXL.Scheduler
                                 out _);
 
                             executionResult = await PipExecutor.PostProcessExecutionAsync(operationContext, environment, pipScope, cacheableProcess, executionResult);
-                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);
+                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.UnderlyingPip.SemiStableHash, executionResult);
                         }
 
                         result = RunnablePip.CreatePipResultFromExecutionResult(start, executionResult, withPerformanceInfo: true);
@@ -685,7 +726,7 @@ namespace Test.BuildXL.Scheduler
                     PipExecutor.ReportExecutionResultOutputContent(
                         operationContext, 
                         environment, 
-                        pip.GetDescription(environment.Context), 
+                        pip.SemiStableHash,
                         ipcResult);
                     result = RunnablePip.CreatePipResultFromExecutionResult(start, ipcResult);
                     break;
@@ -708,6 +749,7 @@ namespace Test.BuildXL.Scheduler
                         result.PerformanceInfo,
                         result.MustBeConsideredPerpetuallyDirty,
                         result.DynamicallyObservedFiles,
+                        result.DynamicallyProbedFiles,
                         result.DynamicallyObservedEnumerations);
                 }
             }

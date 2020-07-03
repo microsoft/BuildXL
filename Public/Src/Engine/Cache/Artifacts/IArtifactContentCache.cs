@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -51,7 +51,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Attempts to open a read-only stream for content. The content should have previously been stored or loaded.
         /// The caller is responsible for closing the returned stream, if any.
         /// </summary>
-        Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash);
+        Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash);
 
         /// <summary>
         /// Attempts to place content at the specified path. The content should have previously been stored or loaded.

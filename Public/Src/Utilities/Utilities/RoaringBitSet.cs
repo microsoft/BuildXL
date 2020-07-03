@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -7,8 +7,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
+
 
 namespace BuildXL.Utilities
 {
@@ -54,14 +55,14 @@ namespace BuildXL.Utilities
         /// <nodoc />
         public static RoaringBitSet FromBitArray(ConcurrentBitArray bitArray)
         {
-            Contract.Requires(bitArray != null, "bitArray != null");
+            Contract.RequiresNotNull(bitArray, "bitArray != null");
             return new RoaringBitSet(bitArray);
         }
 
         /// <nodoc />
         public static RoaringBitSet FromSet(HashSet<int> set)
         {
-            Contract.Requires(set != null, "set != null");
+            Contract.RequiresNotNull(set, "set != null");
             return new RoaringBitSet(set);
         }
 
@@ -80,13 +81,13 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Assert(m_bitArray != null, "m_bitArray != null");
+                Contract.AssertNotNull(m_bitArray, "m_bitArray != null");
                 return m_bitArray[index];
             }
 
             set
             {
-                Contract.Assert(m_bitArray != null, "m_bitArray != null");
+                Contract.AssertNotNull(m_bitArray, "m_bitArray != null");
                 m_bitArray[index] = value;
             }
         }
@@ -97,7 +98,7 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Assert(m_set != null, "m_set is null. Did you forget to call MaterializeSetIfNeeded?");
+                Contract.AssertNotNull(m_set, "m_set is null. Did you forget to call MaterializeSetIfNeeded?");
                 return m_set;
             }
         }
@@ -108,7 +109,7 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Assert(m_pathSet != null, "m_pathSet is null. Did you forget to call MaterializeSetIfNeeded?");
+                Contract.AssertNotNull(m_pathSet, "m_pathSet is null. Did you forget to call MaterializeSetIfNeeded?");
                 return m_pathSet;
             }
         }

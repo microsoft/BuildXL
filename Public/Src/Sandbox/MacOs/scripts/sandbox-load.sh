@@ -12,6 +12,8 @@ declare arg_kextDeployDir=""
 declare arg_noReload=""
 declare arg_enableCounters=""
 declare arg_verboseLogging=""
+declare arg_enableCache=""
+declare arg_enableLightTrie=""
 
 # Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
 function getRunningBuildXLSandboxBundleId { # (bundleId)
@@ -110,12 +112,20 @@ function parseArgs {
                 arg_noReload=1
                 shift
                 ;;
-            --enable-counters)
-                arg_enableCounters="1"
+            --enable-counters|--disable-counters)
+                arg_enableCounters=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
                 shift
                 ;;
-            --verbose-logging)
-                arg_verboseLogging="1"
+            --verbose-logging|--no-verbose-logging)
+                arg_verboseLogging=$([[ $cmd == --no-* ]] && echo "0" || echo "1")
+                shift
+                ;;
+            --enable-cache|--disable-cache)
+                arg_enableCache=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
+                shift
+                ;;
+            --enable-light-trie|--disable-light-trie)
+                arg_enableLightTrie=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
                 shift
                 ;;
             *)
@@ -195,12 +205,8 @@ fi
 # load kext
 loadBuildXLSandbox "$finalKextFolder" "$bundleId"
 
-# enable counters if requested
-if [[ -n $arg_enableCounters ]]; then
-    sysctl kern.bxl_enable_counters=1
-fi
-
-# enable verbose logging if requested
-if [[ -n $arg_verboseLogging ]]; then
-    sysctl kern.bxl_verbose_logging=1
-fi
+# turn sysctl knobs
+if [[ -n $arg_enableCounters ]];  then sysctl kern.bxl_enable_counters=$arg_enableCounters; fi
+if [[ -n $arg_verboseLogging ]];  then sysctl kern.bxl_verbose_logging=$arg_verboseLogging; fi
+if [[ -n $arg_enableCache ]];     then sysctl kern.bxl_enable_cache=$arg_enableCache; fi
+if [[ -n $arg_enableLightTrie ]]; then sysctl kern.bxl_enable_light_trie=$arg_enableLightTrie; fi

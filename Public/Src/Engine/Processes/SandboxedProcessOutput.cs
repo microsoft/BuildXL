@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -35,7 +35,7 @@ namespace BuildXL.Processes
         private readonly BuildXLException m_exception;
 
         /// <summary>
-        /// Creates an instances of this class.
+        /// Creates an instance of this class.
         /// </summary>
         public SandboxedProcessOutput(
             long length,
@@ -48,9 +48,7 @@ namespace BuildXL.Processes
         {
             requires((fileName == null && length >= 0) || (fileName != null && length >= NoLength) || exception != null);
             requires(exception != null ^ (value != null ^ fileName != null));
-            requires(value == null || length == value.Length);
             requires(exception != null || encoding != null);
-            requires(exception != null || fileName != null || fileStorage != null);
             requires(encoding != null);
 
             m_length = length;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="length">the length of the segment</param>
         public static ArrayView<T> Create<T>(T[] array, int start, int length)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
             Contract.Requires(Range.IsValid(start, length, array.Length));
             return new ArrayView<T>(array, start, length);
         }
@@ -54,7 +54,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="length">the length of the segment</param>
         public ArrayView(T[] array, int start, int length)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
             Contract.Requires(Range.IsValid(start, length, array.Length));
 
             m_array = array;
@@ -98,7 +98,7 @@ namespace BuildXL.Utilities.Collections
         int IReadOnlyCollection<T>.Count => Length;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -178,7 +178,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static ArrayView<T> FromArray(T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             return new ArrayView<T>(array, 0, array.Length);
         }
@@ -188,7 +188,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static implicit operator ArrayView<T>(T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             return new ArrayView<T>(array, 0, array.Length);
         }
@@ -222,7 +222,7 @@ namespace BuildXL.Utilities.Collections
             /// <summary>
             /// Gets the element in the collection at the current position of the enumerator.
             /// </summary>
-            object System.Collections.IEnumerator.Current => Current;
+            object? System.Collections.IEnumerator.Current => Current;
 
             /// <summary>
             /// Advances the enumerator to the next element of the collection.

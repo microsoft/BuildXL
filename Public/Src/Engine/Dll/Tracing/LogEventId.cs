@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Engine.Tracing
 {
     // disable warning regarding 'missing XML comments on public API'. We don't need docs for these values
-    #pragma warning disable 1591
+#pragma warning disable 1591
 
     /// <summary>
     /// Defines event IDs corresponding to events in <see cref="Logger" />
@@ -14,8 +14,122 @@ namespace BuildXL.Engine.Tracing
         None = 0,
 
         FilterDetails = 25,
-        ErrorRelatedLocation = 110,
+        AssignProcessToJobObjectFailed = 29,
+        ObjectCacheStats = 33,
+        StartParseConfig = 35,
+        EndParseConfig = 36,
+        BusyOrUnavailableOutputDirectories = 40,
+        StatsBanner = 60,
+        GCStats = 61,
+        ObjectPoolStats = 62,
 
+        InterningStats = 63,
+        FrontEndStatsBanner = 73,
+        PipProcessResponseFileCreationFailed = 74,
+        PipTableStats = 75,
+        PipWriterStats = 76,
+        PipTableDeserializationContext = 84,
+        EnvironmentValueForTempDisallowed = 94,
+        CannotHonorLowPriority = 95,
+        ErrorRelatedLocation = 110,
+        BusyOrUnavailableOutputDirectoriesRetry = 214,
+        FileAccessAllowlistCouldNotCreateIdentifier = 270,
+        FileAccessAllowlistFailedToParsePath = 274,
+        AllowlistFileAccess = 278,
+        FileAccessManifestSummary = 279,
+        FileAccessAllowlistEntryHasInvalidRegex = 287,
+        EnvFreezing = 402,
+
+        StorageCacheStartupError = 712,
+        // Scrubbing/Cleaning
+        ScrubbingExternalFileOrDirectoryFailed = 850,
+        ScrubbingFailedToEnumerateDirectory = 851,
+        ScrubbingStarted = 852,
+        ScrubbingFinished = 853,
+        ScrubbableMountsMayOnlyContainScrubbableMounts = 854,
+        ScrubbingFailedBecauseDirectoryIsNotScrubbable = 855,
+        ScrubbingDirectory = 856,
+        ScrubbingDeleteDirectoryContents = 857,
+        ScrubbingFile = 858,
+        ScrubbingStatus = 859,
+
+        CleaningStarted = 860,
+        CleaningFinished = 861,
+        CleaningFileFailed = 862,
+        CleaningOutputFile = 863,
+        CleaningDirectoryFailed = 864,
+
+        ScrubbingFailedToEnumerateMissingDirectory = 865,
+        ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
+
+        DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
+        DeletingSharedOpaqueSidebandFilesStarted = 868,
+        ScrubbingProgress = 869,
+        SidebandFileIntegrityCheckThrewException = 870,
+        SidebandIntegrityCheckForProcessFailed = 871,
+        PostponingDeletionOfSharedOpaqueOutputs = 872,
+        DeletingOutputsFromExtraneousSidebandFilesStarted = 873,
+
+        ScrubbingCancelled = 880,
+
+        ConfigUnsafeDisabledFileAccessMonitoring = 900,
+        ConfigUnsafeIgnoringChangeJournal = 901,
+        ConfigUnsafeUnexpectedFileAccessesAsWarnings = 902,
+        ConfigUnsafeMonitorNtCreateFileOff = 903,
+        ConfigIgnoreReparsePoints = 905,
+        JournalRequiredOnVolumeError = 906,
+        ConfigFailedParsingCommandLinePipFilter = 907,
+        ConfigFailedParsingDefaultPipFilter = 908,
+        ConfigUsingExperimentalOptions = 909,
+        ConfigIgnoreZwRenameFileInformation = 910,
+        ConfigArtificialCacheMissOptions = 911,
+        ConfigExportGraphRequiresScheduling = 912,
+        ConfigUsingPipFilter = 913,
+        ConfigFilterAndPathImplicitNotSupported = 914,
+        ConfigIgnoreDynamicWritesOnAbsentProbes = 916,
+        ConfigIgnoreSetFileInformationByHandle = 917,
+        ConfigPreserveOutputs = 918,
+        // was ConfigUnsafeLazySymlinkCreation = 919,
+        ConfigDisableDetours = 920,
+        ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously = 921,
+        ConfigIgnoreGetFinalPathNameByHandle = 922,
+        ConfigIgnoreZwOtherFileInformation = 923,
+        ConfigUnsafeMonitorZwCreateOpenQueryFileOff = 924,
+        ConfigIgnoreNonCreateFileReparsePoints = 925,
+        ConfigUnsafeDisableCycleDetection = 926,
+        ConfigUnsafeExistingDirectoryProbesAsEnumerations = 927,
+        ConfigUnsafeAllowMissingOutput = 928,
+        ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
+        ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
+        ConfigUnsafeOptimizedAstConversion = 931,
+        ConfigIncompatibleIncrementalSchedulingDisabled = 933,
+        ConfigIncompatibleOptionWithDistributedBuildError = 934,
+        ConfigIgnorePreloadedDlls = 935,
+        ConfigIncompatibleOptionWithDistributedBuildWarn = 936,
+
+        WarnToNotUsePackagesButModules = 937,
+        WarnToNotUseProjectsField = 938,
+
+        ConfigIgnoreCreateProcessReport = 939,
+        ConfigProbeDirectorySymlinkAsDirectory = 940,
+        ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
+        ConfigIgnoreFullSymlinkResolving = 942,
+
+
+        StartInitializingCache = 1502,
+        EndInitializingCache = 1503,
+        SynchronouslyWaitedForCache = 1504,
+
+
+        // Scheduler Pip Validation
+        /// Elsewhere = 2000,
+        // Elsewhere = 2001,
+        CannotAddCreatePipsDuringConfigOrModuleEvaluation = 2002,
+        SpecCacheDisabledForNoSeekPenalty = 2105,
+        ErrorSavingSnapshot = 2501,
+        EngineErrorSavingFileContentTable = 2503,
+        GenericSnapshotError = 2507,
+        ErrorCaseSensitiveFileSystemDetected = 2508,
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // Graph caching
@@ -103,7 +217,7 @@ namespace BuildXL.Engine.Tracing
         // was PreserveOutputsRequiresTwoPhaseFingerprinting = 2875,
 
         FailedToDeserializeDueToFileNotFound = 2876,
-        FailedToInitalizeFileAccessWhitelist = 2877,
+        FailedToInitalizeFileAccessAllowlist = 2877,
         FailedToAcquireDirectoryDeletionLock = 2878,
 
         FetchedSerializedGraphFromCache = 2879,
@@ -120,8 +234,8 @@ namespace BuildXL.Engine.Tracing
 
         JournalProcessingStatisticsForGraphReuseCheckTelemetry = 2888,
         GraphInputArtifactChangesTokensMismatch = 2889,
-
-        // Reserved  = 2890,
+        JournalDetectedGvfsProjectionChanges = 2890,
+        
         // Reserved = 2891,
 
         WrittenBuildInvocationToUserFolder = 2892,
@@ -131,14 +245,64 @@ namespace BuildXL.Engine.Tracing
         FailureLaunchingBuildExplorerFileNotFound = 2895,
         FailureLaunchingBuildExplorerException = 2896,
 
+        FailedToResolveHistoricMetadataCacheFileName = 2940,
+        LoadingHistoricMetadataCacheFailed = 2941,
+        SavingHistoricMetadataCacheFailed = 2942,
+        HistoricMetadataCacheLoaded = 2943,
+        HistoricMetadataCacheSaved = 2944,
+
+        FailedReloadPipGraph = 2986,
         InputTrackerDetectedMountChanged = 2987,
+
+
+        // Critical Path Suggestions
+        StartLoadingHistoricPerfData = 3100,
+        EndLoadingHistoricPerfData = 3101,
+        StartSavingHistoricPerfData = 3102,
+        EndSavingHistoricPerfData = 3103,
+        FailedToResolveHistoricDataFileName = 3104,
+
+        // FREE 3105
+        LoadingHistoricPerfDataFailed = 3106,
+        SavingHistoricPerfDataFailed = 3107,
+        HistoricPerfDataLoaded = 3108,
+        HistoricPerfDataSaved = 3109,
+        StartRehydratingConfigurationWithNewPathTable = 3117,
+        EndRehydratingConfigurationWithNewPathTable = 3118,
+
+
+
+        ErrorUnableToCacheGraphDistributedBuild = 3200,
+
+        ErrorCacheDisabledDistributedBuild = 3201,
+        NonDeterministicPipOutput = 3204,
+        NonDeterministicPipResult = 3205,
+        EnvironmentVariablesImpactingBuild = 3207,
+        SchedulerExportFailedSchedulerNotInitialized = 3212,
+        MountsImpactingBuild = 3214,
+        DominoEngineEnd = 3599,
+
+
+
+
+
+        PerformanceSample = 6303,
+
+
+
+
+
+
+
+
+
 
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // Distribution [7000, 7050]
         DistributionConnectedToWorker = 7000,
         DistributionWorkerChangedState = 7001,
-        DistributionFailedToCallWorker = 7002,
+        // Deprecated = 7002,
         DistributionFailedToCallMaster = 7003,
         DistributionInactiveMaster = 7004,
         DistributionStatistics = 7005,
@@ -151,9 +315,7 @@ namespace BuildXL.Engine.Tracing
         DistributionExitReceived = 7012,
         DistributionTryMaterializeInputsFailedRetry = 7013,
         DistributionTryMaterializeInputsSuccessfulRetry = 7014,
-        // Double defined in EventId.cs
-        //DistributionWorkerForwardedError = 7015,
-        DistributionWorkerForwardedWarning = 7016,
+
         DistributionWorkerUnexpectedFailureAfterMasterExits = 7017,
         DistributionWorkerFinish = 7018,
         DistributionWorkerExecutePipRequest = 7019,
@@ -177,9 +339,12 @@ namespace BuildXL.Engine.Tracing
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
         DistributionWorkerTimeoutFailure = 7040,
 
-        DistributionBondCall = 7041,
+        // Deprecated = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
+        WorkerTotalRamMb = 7044,
+
+        RemoteWorkerProcessedExecutionBlob = 7045,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,
@@ -190,11 +355,11 @@ namespace BuildXL.Engine.Tracing
         EngineContextHeuristicOutcomeSkip = 7054,
         GetPipGraphDescriptorFromCache = 7055,
         StorePipGraphCacheDescriptorToCache = 7056,
-        MismatchPathInGraphInputDescriptor = 7057,
-        MismatchEnvironmentInGraphInputDescriptor = 7058,
+        MismatchInputInGraphInputDescriptor = 7057,
+        // was MismatchEnvironmentInGraphInputDescriptor = 7058,
         FailedHashingGraphFileInput = 7059,
         FailedComputingFingerprintGraphDirectoryInput = 7060,
-        MismatchMountInGraphInputDescriptor = 7061,
+        // was MismatchMountInGraphInputDescriptor = 7061,
 
         FallingBackOnGraphFileCopy = 7080,
         FailedLoadIncrementalSchedulingState = 7081,
@@ -228,6 +393,10 @@ namespace BuildXL.Engine.Tracing
 
         ChosenABTesting = 7126,
 
+        LogAndRemoveEngineStateOnBuildFailure = 10011,
+        CacheIsStillBeingInitialized = 13200,
+
+        //was: StringTableConfiguration = 7127,
         // max 7200
     }
 }

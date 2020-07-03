@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -39,7 +39,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         public IServerConfig Config { get; }
 
         /// <nodoc/>
-        public ILogger Logger { get; }
+        public IIpcLogger Logger { get; }
 
         /// <nodoc/>
         internal ConcurrentQueue<Exception> Diagnostics => m_diagnostics;

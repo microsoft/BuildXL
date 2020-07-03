@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -21,7 +21,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.DedupChunk, DedupChunkHashInfo.Instance},
                 {HashType.DedupNode, DedupNodeHashInfo.Instance},
                 {HashType.DedupNodeOrChunk, DedupNodeOrChunkHashInfo.Instance},
-                {HashType.DeprecatedVso0, VsoHashInfo.Instance}
+                {HashType.DeprecatedVso0, VsoHashInfo.Instance},
+                {HashType.Murmur, MurmurHashInfo.Instance }
             };
 
         /// <summary>
@@ -29,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static HashInfo Find(HashType hashType)
         {
-            Contract.Assert(HashInfoByType.ContainsKey(hashType));
+            Contract.Check(HashInfoByType.ContainsKey(hashType))?.Assert($"Invalid HashType passed for HashInfoLookup: [{hashType.ToString()}], hashCode: {hashType.GetHashCode()}");
             return HashInfoByType[hashType];
         }
 
@@ -48,5 +49,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return HashInfoByType.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.CreateContentHasher());
         }
+
+        /// <summary>
+        ///     The maximum number of unused idle ContentHashers to be kept in reserve for future use.
+        /// </summary>
+        /// <remarks>
+        ///     -1 (default) means the maximum number of idle hashers is unbounded.
+        ///     Note: This does not limit the maximum number of ContentHashers that can be pooled.
+        /// </remarks>
+        public static int ContentHasherIdlePoolSize = -1;
     }
 }

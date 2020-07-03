@@ -2,6 +2,25 @@
 
 BuildXL builds can be filtered by requesting a subset of the files produced in the build. Based on the files requested, BuildXL will run the minimal set of pips to produce those files.
 
+# Filtering shorthand
+Here are some filtering shorthands for the bxl.exe command line. Behind the scenes they dynamically generate a full filter expression as described in the Advanced Filtering section.
+
+## Output path
+ * `bxl.exe out\bin\debug\mytool.exe` Filters to a specific output file
+ * `bxl.exe out\bin\debug\*` Filters to all output files under a directory
+
+## Build specification
+* `bxl.exe src\public\Utilities\Utilities.dsc` Filters to all pips defined in the Utilities.dsc file
+* `bxl.exe src\public\Utilities\*` Filters to all pips defined in specs under src\public\utilities
+
+## Pip Identifier
+* `bxl.exe PipDE1E34813DC85BE8` Filters a pip based on its identifier
+
+=======
+## Pip Tags
+* `bxl compile` Filters for all pips that have a tag named 'compile'.
+
+# Advanced filtering
 ## Filter Tuples 
 Filters are defined as a tuple of filter type and filter argument. For example: <code>output='myApp.exe'</code>. The filter tuple is evaluated against all Pips in the build graph to produce a set of files. In this example, the filter type is `output` and the argument for that filter is <code>myApp.exe</code>. The filter argument must always be contained within single quotes.
 

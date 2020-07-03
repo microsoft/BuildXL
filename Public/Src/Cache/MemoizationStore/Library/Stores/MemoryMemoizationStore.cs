@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -47,7 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             Contract.Requires(logger != null);
 
-            _tracer = new MemoizationStoreTracer(logger, nameof(MemoryMemoizationStore));
+            _tracer = new MemoizationStoreTracer(nameof(MemoryMemoizationStore));
         }
 
         /// <inheritdoc />
@@ -93,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        internal Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
+        internal System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
         {
             var result = GetSelectorsCore(context, weakFingerprint, cts);
             if (result)
@@ -133,7 +131,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             finally
             {
                 stopwatch.Stop();
-                _tracer.GetSelectorsStop(context, stopwatch.Elapsed);
+                _tracer.GetSelectorsStop(context, stopwatch.Elapsed, weakFingerprint);
             }
         }
 
@@ -222,7 +220,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc/>
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return _records.Select(record => new StructResult<StrongFingerprint>(record.StrongFingerprint)).ToAsyncEnumerable();
         }

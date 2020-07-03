@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +15,7 @@ using Xunit;
 using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System;
 
 namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -106,10 +107,10 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             ContentHash availableHash = await AddContent("Very useful data");
             await LoadContentAndExpectAvailable(ContentCache, availableHash);
 
-            Possible<Stream> maybeStream = await ContentCache.TryOpenContentStreamAsync(availableHash);
+            Possible<StreamWithLength> maybeStream = await ContentCache.TryOpenContentStreamAsync(availableHash);
             XAssert.IsTrue(maybeStream.Succeeded);
 
-            using (Stream stream = maybeStream.Result)
+            using (StreamWithLength stream = maybeStream.Result)
             {
                 XAssert.AreEqual(availableHash, await ContentHashingUtilities.HashContentStreamAsync(stream));
             }
@@ -120,7 +121,7 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
         {
             ContentHash unavailableHash = HashContent("A stream made of wishes");
 
-            Possible<Stream> maybeStream = await ContentCache.TryOpenContentStreamAsync(unavailableHash);
+            Possible<StreamWithLength> maybeStream = await ContentCache.TryOpenContentStreamAsync(unavailableHash);
             XAssert.IsFalse(maybeStream.Succeeded);
         }
 
@@ -143,6 +144,23 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             XAssert.IsTrue(maybeMaterialized.Succeeded);
 
             XAssert.AreEqual(TargetContent, File.ReadAllText(targetPath));
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                // Test materialization failure due to open file handle
+                // Disabled on Mac because on unix file systems opening a file doesn't prevent it from being deleted by a different process
+                using (var fs = new FileStream(targetPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    maybeMaterialized = await ContentCache.TryMaterializeAsync(
+                        FileRealizationMode.Copy,
+                        AbsolutePath.Create(Context.PathTable, targetPath).Expand(Context.PathTable),
+                        availableHash);
+
+                    XAssert.IsFalse(maybeMaterialized.Succeeded, "Expected materialization failure due to open file handle, but it succeed");
+
+                    XAssert.Contains(maybeMaterialized.Failure.DescribeIncludingInnerFailures(), LocalDiskContentStore.ExistingFileDeletionFailure);
+                }
+            }
         }
 
         [Fact]

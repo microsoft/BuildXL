@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -37,11 +37,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Check if current size plus given reservation is under the target limit.
         /// </summary>
         BoolResult IsInsideTargetLimit(long reserveSize = 0);
-
-        /// <summary>
-        ///     Purge content in LRU-ed order according to limits.
-        /// </summary>
-        Task<PurgeResult> PurgeAsync(Context context, long reserveSize, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo, CancellationToken token);
 
         /// <summary>
         ///     Gets a value indicating whether quota can be calibrated.

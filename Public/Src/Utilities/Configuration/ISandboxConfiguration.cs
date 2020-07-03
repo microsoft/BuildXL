@@ -1,21 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Sandbox Configuration
     /// </summary>
     public interface ISandboxConfiguration
     {
-        /// <summary>
-        /// If set, pip execution synthetically produces outputs to disk (instantly) rather than doing real I/O. This elides all copies, WriteFile writes, and deployment of Process outputs;
-        /// cache queries, hashing, etc. are retained.
-        /// </summary>
-        bool DebugInstantPipOutputs { get; }
-
         /// <summary>
         /// Break into the debugger when BuildXL detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing new tools or
         /// SDKs using these tools. Defaults to off.
@@ -267,5 +261,10 @@ namespace BuildXL.Utilities.Configuration
         /// which means pips and graph will be cached ignoring environment variables specified in this configuration.
         /// </remarks>
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
+
+        /// <summary>
+        /// Concurrency limit for executing pips inside VM. 
+        /// </summary>
+        int VmConcurrencyLimit { get; }
     }
 }

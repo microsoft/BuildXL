@@ -2,8 +2,10 @@
 
 if [[ "$TERM" == "xterm-256color" ]]; then
     tputBold=`tput bold`
+    tputDim=$(tput dim || :)
     tputRed=`tput setaf 1`
     tputGreen=`tput setaf 2`
+    tputYellow=`tput setaf 3`
     tputBlue=`tput setaf 4`
     tputMagenta=`tput setaf 5`
     tputCyan=`tput setaf 6`
@@ -14,8 +16,10 @@ if [[ "$TERM" == "xterm-256color" ]]; then
     tputRestoreCursor=`tput rc`
 else
     tputBold=""
+    tputDim=""
     tputRed=""
     tputGreen=""
+    tputYellow=""
     tputBlue=""
     tputMagenta=""
     tputCyan=""

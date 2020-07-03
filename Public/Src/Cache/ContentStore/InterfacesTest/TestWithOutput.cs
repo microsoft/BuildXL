@@ -1,10 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using BuildXL.Cache.ContentStore.Tracing;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest
@@ -14,6 +16,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
     /// </summary>
     public class XUnitTestOutputTextWriter : TextWriter
     {
+        private readonly List<string> _outputLines = new List<string>();
+
         private readonly ITestOutputHelper _output;
         private readonly Stopwatch _durationStopwatch;
 
@@ -27,7 +31,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         {
             try
             {
-                _output.WriteLine($"{_durationStopwatch.Elapsed:g}: {data}");
+                var message = $"{_durationStopwatch.Elapsed:g}: {data}";
+
+                _outputLines.Add(message);
+
+                _output.WriteLine(message);
             }
             catch (InvalidOperationException)
             {
@@ -38,6 +46,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
 
         /// <inheritdoc />
         public override Encoding Encoding => Encoding.UTF8;
+
+        /// <summary>
+        /// Gets the full output "printed" to the console.
+        /// </summary>
+        public string GetFullOutput() => string.Join(Environment.NewLine, _outputLines);
     }
 
     /// <summary>
@@ -45,36 +58,64 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
     /// </summary>
     public abstract class TestWithOutput : IDisposable
     {
+        private readonly bool _oldEnableTraceAtShutdownValue;
         private readonly TextWriter _oldConsoleOutput;
+        private readonly TextWriter _oldConsoleErrorOutput;
+
+        private readonly XUnitTestOutputTextWriter _outputTextWriter;
 
         /// <summary>
         /// XUnit output helper for tracing test execution.
         /// </summary>
         protected ITestOutputHelper Output { get; }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets the full output "printed" to the console.
+        /// </summary>
+        protected string GetFullOutput() => _outputTextWriter?.GetFullOutput() ?? string.Empty;
+
+        /// <nodoc />
         protected TestWithOutput(ITestOutputHelper output)
         {
+            _oldEnableTraceAtShutdownValue = GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown;
+            GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown = false;
+
             Output = output;
             if (output != null)
             {
                 _oldConsoleOutput = Console.Out;
-                Console.SetOut(new XUnitTestOutputTextWriter(output));
+                _oldConsoleErrorOutput = Console.Error;
+                _outputTextWriter = new XUnitTestOutputTextWriter(output);
+                Console.SetOut(_outputTextWriter);
+                Console.SetError(_outputTextWriter);
             }
         }
 
         ~TestWithOutput()
         {
-            Debug.Assert(false, $"Instance of type {GetType()} was not disposed!");
+            var output = Output;
+            if (output != null)
+            {
+                try
+                {
+                    output.WriteLine($"Instance of type {GetType()} was not disposed!");
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine($"WriteLine failed: {e}");
+                }
+            }
         }
 
         /// <inheritodc />
         public virtual void Dispose()
         {
+            GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown = _oldEnableTraceAtShutdownValue;
             if (Output != null)
             {
                 // Need to restore an old console output to prevent invalid operation exceptions when tracing is happening after all the tests are finished.
                 Console.SetOut(_oldConsoleOutput);
+                Console.SetError(_oldConsoleErrorOutput);
             }
 
             GC.SuppressFinalize(this);

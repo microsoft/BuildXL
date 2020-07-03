@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
@@ -84,26 +84,26 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void TestParallelCacheAddGet()
         {
-            var cache = new ObjectCache<HashedKey, int>(17);
+            var cache = new ObjectCache<HashedKey, int>(16);
             var random = new Random(0);
 
             var expectedValues = new int[16 * 1024];
             for (int i = 0; i < expectedValues.Length; i++)
-                {
-                    // Use some arbitrarily chose sampling sets to
-                    // give a test of interspersed hits and misses
+            {
+                // Use some arbitrarily chose sampling sets to
+                // give a test of interspersed hits and misses
                 if ((i % 9) == 0)
-                    {
+                {
                     expectedValues[i] = random.Next(-5, 5);
-                    }
+                }
                 else if ((i % 7) == 0)
-                    {
+                {
                     expectedValues[i] = random.Next(16, 32);
-                    }
-                    else
-                    {
+                }
+                else
+                {
                     expectedValues[i] = random.Next(-64, 64);
-                    }
+                }
             }
 
             // Skip zero since table cache will find HashedKey with key = 0 and hash = 0.

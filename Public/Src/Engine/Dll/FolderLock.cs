@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -67,15 +67,22 @@ namespace BuildXL.Engine
             }
             catch (IOException ex)
             {
-                Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
+                BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
                 return new FolderLock();
             }
             catch (UnauthorizedAccessException ex)
             {
-                Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
+                BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
                 return new FolderLock();
             }
         }
+
+        private static void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception)
+        {
+            Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(context, objectDirectoryPath);
+            Tracing.Logger.Log.BusyOrUnavailableOutputDirectoriesException(context, objectDirectoryPath, exception);
+        }
+
 
         private static FileStream TakeInternal(
             LoggingContext loggingContext,

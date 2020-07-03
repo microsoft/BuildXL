@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -19,6 +19,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         private readonly PipQueue m_pipQueue;
 
         private int m_numRunning;
+        private int m_processesQueued;
         private readonly object m_startTasksLock = new object();
 
         /// <summary>
@@ -35,6 +36,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// Number of items waiting in the queue
         /// </summary>
         public int NumQueued => m_queue.Count;
+
+        /// <summary>
+        /// Number of process pips queued
+        /// </summary>
+        public int NumProcessesQueued => Volatile.Read(ref m_processesQueued);
 
         /// <summary>
         /// Maximum number of tasks run at the same since the queue has been started
@@ -54,6 +60,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
             m_pipQueue = pipQueue;
             MaxParallelDegree = maxParallelDegree;
             m_numRunning = 0;
+            m_processesQueued = 0;
         }
 
         /// <summary>
@@ -64,6 +71,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
             Contract.Requires(!IsDisposed);
 
             m_queue.Enqueue(runnablePip.Priority, runnablePip);
+            if (runnablePip.PipType == Pips.Operations.PipType.Process)
+            {
+                Interlocked.Increment(ref m_processesQueued);
+            }
         }
 
         /// <summary>
@@ -93,6 +104,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
             if (m_queue.Count != 0)
             {
                 runnablePip = m_queue.Dequeue();
+                if (runnablePip.PipType == Pips.Operations.PipType.Process)
+                {
+                    Interlocked.Decrement(ref m_processesQueued);
+                }
                 return true;
             }
 

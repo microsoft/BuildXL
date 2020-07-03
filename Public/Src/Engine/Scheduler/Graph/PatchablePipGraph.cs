@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -168,7 +170,7 @@ namespace BuildXL.Scheduler.Graph
                    {
                 ElapsedMilliseconds = (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds,
                 NumPipsReloaded = numReloadedPips,
-                NumPipsAutomaticallyAdded = m_builder.PipCount - numReloadedPips,
+                NumPipsAutomaticallyAdded = m_oldPipGraph.NodeCount - numReloadedPips,
                 NumPipsNotReloadable = numNotReloadablePips,
                 NumPipsSkipped = mustSkipDueToTransitivity.VisitedCount,
                 AffectedSpecs = affectedSpecs,
@@ -188,9 +190,6 @@ namespace BuildXL.Scheduler.Graph
         {
             return m_builder.ReserveSharedOpaqueDirectory(directoryArtifactRoot);
         }
-
-        /// <inheritdoc />
-        public int PipCount => m_builder.PipCount;
 
         /// <inheritdoc />
         public bool AddCopyFile(CopyFile copyFile, PipId valuePip)
@@ -276,24 +275,6 @@ namespace BuildXL.Scheduler.Graph
         public IIpcMoniker GetApiServerMoniker()
         {
             return m_builder.GetApiServerMoniker();
-        }
-
-        /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip)
-        {
-            return m_builder.RetrievePipImmediateDependencies(pip);
-        }
-
-        /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip)
-        {
-            return m_builder.RetrievePipImmediateDependents(pip);
-        }
-
-        /// <inheritdoc />
-        public IEnumerable<Pip> RetrieveScheduledPips()
-        {
-            return m_builder.RetrieveScheduledPips();
         }
 
         private string GetPipDescription(Pip pip)
@@ -464,6 +445,12 @@ namespace BuildXL.Scheduler.Graph
         public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
         {
             return m_builder.ApplyCurrentOsDefaults(processBuilder);
+        }
+
+        /// <inheritdoc />
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+        {
+            return m_builder.TryGetSealDirectoryKind(directoryArtifact, out kind);
         }
     }
 }

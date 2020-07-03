@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -167,7 +167,7 @@ namespace BuildXL.Cache.InMemory
 
         #region ICacheReadOnlySession methods
 
-        public string CacheId => Cache.CacheId;
+        public CacheId CacheId => Cache.CacheId;
 
         public string CacheSessionId => m_sessionId;
 
@@ -276,7 +276,7 @@ namespace BuildXL.Cache.InMemory
             UrgencyHint urgencyHint,
             Guid activityId)
         {
-            Possible<Stream, Failure> casStream = await GetStreamAsync(hash, urgencyHint, activityId);
+            Possible<StreamWithLength, Failure> casStream = await GetStreamAsync(hash, urgencyHint, activityId);
 
             if (!casStream.Succeeded)
             {
@@ -288,7 +288,7 @@ namespace BuildXL.Cache.InMemory
                 FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
                 using (FileStream fs = new FileStream(filename, FileMode.CreateNew, FileAccess.Write))
                 {
-                    await casStream.Result.CopyToAsync(fs);
+                    await casStream.Result.Stream.CopyToAsync(fs);
                 }
             }
             catch (Exception e)
@@ -300,7 +300,7 @@ namespace BuildXL.Cache.InMemory
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             return Task.Run(() =>
             {
@@ -316,7 +316,7 @@ namespace BuildXL.Cache.InMemory
                     return new NoCasEntryFailure(Cache.CacheId, hash);
                 }
 
-                return new Possible<Stream, Failure>(new MemoryStream(fileBytes));
+                return new Possible<StreamWithLength, Failure>(new MemoryStream(fileBytes));
             });
         }
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,9 +8,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -27,32 +26,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// <see cref="IContentLocationStore"/> implementation that supports old redis and new local location store.
     /// </summary>
-    internal class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore
+    internal class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore, IDistributedMachineInfo
     {
-        private readonly LocalLocationStore _localLocationStore;
-        private readonly RedisContentLocationStore _redisContentLocationStore;
+        /// <nodoc />
+        public ILocalContentStore LocalContentStore { get; }
+
+        /// <nodoc />
+        public MachineLocation LocalMachineLocation { get; }
+
+        /// <summary>
+        /// The local machine id. Settable for testing purposes.
+        /// </summary>
+        public MachineId LocalMachineId { get; internal set; }
+
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
         /// <nodoc />
         public TransitioningContentLocationStore(
             RedisContentLocationStoreConfiguration configuration,
-            RedisContentLocationStore redisContentLocationStore,
-            LocalLocationStore localLocationStore)
+            LocalLocationStore localLocationStore,
+            MachineLocation localMachineLocation,
+            ILocalContentStore localContentStore)
         {
             Contract.Requires(configuration != null);
+            Contract.Requires(localMachineLocation.IsValid);
+
+            LocalContentStore = localContentStore;
 
             _configuration = configuration;
-            _localLocationStore = localLocationStore;
-            _redisContentLocationStore = redisContentLocationStore;
-
-            Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.Redis) || _redisContentLocationStore != null);
-            Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore) || _localLocationStore != null);
+            LocalLocationStore = localLocationStore;
+            LocalMachineLocation = localMachineLocation;
         }
 
         /// <inheritdoc />
-        public bool AreBlobsSupported =>
-            (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis) && _redisContentLocationStore.AreBlobsSupported) ||
-            (_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore) && _localLocationStore.AreBlobsSupported);
+        public bool AreBlobsSupported => LocalLocationStore.AreBlobsSupported;
 
         /// <inheritdoc />
         public long MaxBlobSize => _configuration.MaxBlobSize;
@@ -64,177 +71,120 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningContentLocationStore));
 
         /// <inheritdoc />
-        public MachineReputationTracker MachineReputationTracker
-        {
-            get
-            {
-                if (_configuration.HasReadMode(ContentLocationMode.Redis))
-                {
-                    return _redisContentLocationStore.MachineReputationTracker;
-                }
-
-                return _localLocationStore.MachineReputationTracker;
-            }
-        }
-
-        /// <summary>
-        /// Exposes <see cref="RedisContentLocationStore"/>. Mostly for testing purposes.
-        /// </summary>
-        public RedisContentLocationStore RedisContentLocationStore
-        {
-            get
-            {
-                Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.Redis));
-                return _redisContentLocationStore;
-            }
-        }
-
-        /// <summary>
-        /// Indicates if LocalLocationStore is enabled
-        /// </summary>
-        public bool IsLocalLocationStoreEnabled => _configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore);
+        public MachineReputationTracker MachineReputationTracker => LocalLocationStore.MachineReputationTracker;
 
         /// <summary>
         /// Exposes <see cref="LocalLocationStore"/>. Mostly for testing purposes.
         /// </summary>
-        public LocalLocationStore LocalLocationStore
-        {
-            get
-            {
-                Contract.Assert(IsLocalLocationStoreEnabled);
-                return _localLocationStore;
-            }
-        }
+        public LocalLocationStore LocalLocationStore { get; }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.StartupAsync(context.TracingContext),
-                executeLocalLocationStore: () => _localLocationStore.StartupAsync(context.TracingContext));
+            var success = await LocalLocationStore.StartupAsync(context.TracingContext);
+            if (success)
+            {
+                if (LocalLocationStore.ClusterState.TryResolveMachineId(LocalMachineLocation, out var localMachineId))
+                {
+                    LocalMachineId = localMachineId;
+                    if (_configuration.EnableReconciliation)
+                    {
+                        await ReconcileAfterInitializationAsync(context)
+                            .FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization)
+                            .ThrowIfFailure();
+                    }
+                }
+                else
+                {
+                    return new BoolResult($"Unabled to resolve machine id for location {LocalMachineLocation} in cluster state.");
+                }
+            }
+
+            return success;
+        }
+
+        private async Task<BoolResult> ReconcileAfterInitializationAsync(OperationContext context)
+        {
+            context = context.CreateNested(nameof(TransitioningContentLocationStore));
+
+            await Task.Yield();
+
+            await LocalLocationStore.EnsureInitializedAsync().ThrowIfFailure();
+
+            return await ReconcileAsync(context);
+        }
+
+        /// <summary>
+        /// Triggers reconciliation process between local content store and LLS.
+        /// </summary>
+        public Task<ReconciliationResult> ReconcileAsync(OperationContext context, bool force = false)
+        {
+            if (force)
+            {
+                // Need to invalidate reconciliation state to prevent skipping when reconcile is true.
+                LocalLocationStore.MarkReconciled(LocalMachineId, reconciled: false);
+            }
+
+            return LocalLocationStore.ReconcileAsync(context, LocalMachineId, LocalContentStore);
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.ShutdownAsync(context.TracingContext),
-                executeLocalLocationStore: () => _localLocationStore.ShutdownAsync(context.TracingContext));
+            return LocalLocationStore.ShutdownAsync(context.TracingContext);
+        }
+
+        /// <nodoc />
+        public Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
+        {
+            return LocalLocationStore.GetBulkAsync(context, LocalMachineId, contentHashes, origin);
+        }
+
+        /// <nodoc />
+        public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
+        {
+            return LocalLocationStore.RegisterLocalLocationAsync(context, LocalMachineId, contentHashes, touch);
         }
 
         /// <inheritdoc />
         public Task<GetBulkLocationsResult> GetBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, GetBulkOrigin origin)
         {
             var operationContext = new OperationContext(context, cts);
-            if (!_configuration.HasReadMode(ContentLocationMode.Redis) || (origin == GetBulkOrigin.Local && _configuration.HasReadMode(ContentLocationMode.LocalLocationStore)))
-            {
-                return _localLocationStore.GetBulkAsync(operationContext, contentHashes, origin);
-            }
-
-            Contract.Assert(_redisContentLocationStore != null, "Read or Write mode should support ContentLocationMode.Redis.");
-            return _redisContentLocationStore.GetBulkAsync(context, contentHashes, cts, urgencyHint, origin);
+            return GetBulkAsync(operationContext, contentHashes, origin);
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
+        public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch)
         {
             var operationContext = new OperationContext(context, cts);
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.RegisterLocalLocationAsync(context, contentHashes, cts, urgencyHint),
-                executeLocalLocationStore: () => _localLocationStore.RegisterLocalLocationAsync(operationContext, contentHashes));
+            return RegisterLocalLocationAsync(operationContext, contentHashes, touch);
         }
 
         /// <inheritdoc />
         public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
         {
             var operationContext = new OperationContext(context, cts);
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.TrimBulkAsync(context, contentHashes, cts, urgencyHint),
-                executeLocalLocationStore: () => _localLocationStore.TrimBulkAsync(operationContext, contentHashes));
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint)
-        {
-            if (_redisContentLocationStore == null)
-            {
-                // If LLS is on, do nothing.
-                // When LLS is on, the system's consistency is achieved by reconciliation.
-                // When the content disappears from a machine it is machine's responsibility to "reconcile" and remove the locations from the system.
-                // Other machines cannot "notify" the master and remove the locations for other machines.
-                return BoolResult.SuccessTask;
-            }
-
-            return _redisContentLocationStore.TrimBulkAsync(context, contentHashToLocationMap, cts, urgencyHint);
+            return LocalLocationStore.TrimBulkAsync(operationContext, LocalMachineId, contentHashes);
         }
 
         /// <inheritdoc />
         public Task<BoolResult> TouchBulkAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
         {
             var operationContext = new OperationContext(context, cts);
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.TouchBulkAsync(context, contentHashes, cts, urgencyHint),
-                executeLocalLocationStore: () => _localLocationStore.TouchBulkAsync(operationContext, contentHashes.SelectList(c => c.Hash)));
-        }
-
-        private async Task<BoolResult> MultiExecuteAsync(Func<Task<BoolResult>> executeLocalLocationStore, Func<Task<BoolResult>> executeLegacyStore)
-        {
-            var legacyStoreResultTask = _configuration.HasWriteMode(ContentLocationMode.Redis) ? executeLegacyStore() : BoolResult.SuccessTask;
-            var localStoreResultTask = _configuration.HasWriteMode(ContentLocationMode.LocalLocationStore) ? executeLocalLocationStore() : BoolResult.SuccessTask;
-
-            // Wait for both tasks to avoid unobserved task error
-            await Task.WhenAll(localStoreResultTask, legacyStoreResultTask);
-
-            var legacyResult = await legacyStoreResultTask;
-            var localStoreResult = await localStoreResultTask;
-
-            return legacyResult & localStoreResult;
+            return LocalLocationStore.TouchBulkAsync(operationContext, LocalMachineId, contentHashes.SelectList(c => c.Hash));
         }
 
         /// <inheritdoc />
         public CounterSet GetCounters(Context context)
         {
-            var counters = new CounterSet();
-            if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
-            {
-                counters.Merge(_redisContentLocationStore.GetCounters(context));
-            }
-
-            if (_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore))
-            {
-                counters.Merge(_localLocationStore.GetCounters(context), "LLS.");
-            }
-
-            return counters;
+            return LocalLocationStore.GetCounters(context);
         }
 
         /// <inheritdoc />
-        public Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> TrimOrGetLastAccessTimeAsync(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint)
-        {
-            Contract.Assert(_redisContentLocationStore != null, "Read or Write mode should support ContentLocationMode.Redis.");
-            return _redisContentLocationStore.TrimOrGetLastAccessTimeAsync(context, contentHashesWithInfo, cts, urgencyHint);
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> UpdateBulkAsync(Context context, IReadOnlyList<ContentHashWithSizeAndLocations> contentHashesWithSizeAndLocations, CancellationToken cts, UrgencyHint urgencyHint, LocationStoreOption locationStoreOption)
-        {
-            Contract.Assert(_redisContentLocationStore != null, "Read or Write mode should support ContentLocationMode.Redis.");
-            return _redisContentLocationStore.UpdateBulkAsync(context, contentHashesWithSizeAndLocations, cts, urgencyHint, locationStoreOption);
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> InvalidateLocalMachineAsync(Context context, ILocalContentStore localStore, CancellationToken cts)
+        public Task<BoolResult> InvalidateLocalMachineAsync(Context context, CancellationToken cts)
         {
             var operationContext = new OperationContext(context, cts);
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.InvalidateLocalMachineAsync(context, localStore, cts),
-                executeLocalLocationStore: () => _localLocationStore.InvalidateLocalMachineAsync(operationContext));
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> GarbageCollectAsync(OperationContext context)
-        {
-            return _redisContentLocationStore.GarbageCollectAsync(context);
+            return LocalLocationStore.InvalidateLocalMachineAsync(operationContext, LocalMachineId);
         }
 
         /// <inheritdoc />
@@ -244,76 +194,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
         {
-            if (_configuration.HasReadMode(ContentLocationMode.Redis))
-            {
-                return _redisContentLocationStore.GetRandomMachineLocation(except);
-            }
+            return LocalLocationStore.ClusterState.GetRandomMachineLocation(except);
+        }
 
-            return _localLocationStore.ClusterState.GetRandomMachineLocation(except);
+        /// <inheritdoc />
+        public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+        {
+            return LocalLocationStore.ClusterState.GetDesignatedLocations(hash, includeExpired: false);
         }
 
         /// <inheritdoc />
         public bool IsMachineActive(MachineLocation machine)
         {
-            if (_configuration.HasReadMode(ContentLocationMode.Redis))
-            {
-                return _redisContentLocationStore.IsMachineActive(machine);
-            }
-
-            return _localLocationStore.ClusterState.TryResolveMachineId(machine, out var machineId)
-                ? !_localLocationStore.ClusterState.InactiveMachines.Contains(machineId)
+            return LocalLocationStore.ClusterState.TryResolveMachineId(machine, out var machineId)
+                ? !LocalLocationStore.ClusterState.InactiveMachines.Contains(machineId)
                 : false;
         }
 
-        #region IDistributedLocationStore Members
+        /// <inheritdoc />
+        public bool CanComputeLru => true;
 
         /// <inheritdoc />
-        public bool CanComputeLru => _configuration.HasReadMode(ContentLocationMode.LocalLocationStore);
-
-        /// <inheritdoc />
-        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token)
+        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token, TimeSpan? minEffectiveAge = null)
         {
             return TrimBulkAsync(context, contentHashes, token, UrgencyHint.Nominal);
         }
 
         /// <inheritdoc />
-        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
-            Context context,
-            IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
-            Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
+            return GetHashesInEvictionOrder(context, contentHashesWithInfo, reverse: false);
+        }
 
-            // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
-            // content until we are within quota. Here we return batches of content to be removed.
-
-            // contentHashesWithInfo is sorted by (local) LastAccessTime in descending order (Least Recently Used).
-            if (contentHashesWithInfo.Count != 0)
-            {
-                var first = contentHashesWithInfo[0];
-                var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
-
-                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
-            }
-
-            var operationContext = new OperationContext(context);
-
-            // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
-            // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
-
-            // Assume that EffectiveLastAccessTime will always have a value.
-            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
-
-            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
-                page => _localLocationStore.GetEffectiveLastAccessTimes(
-                            operationContext,
-                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
-
-            // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
-            // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
-            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
-
-            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer);
+        /// <summary>
+        /// Computes content hashes with effective last access time sorted in LRU manner.
+        /// </summary>
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo, bool reverse)
+        {
+            return LocalLocationStore.GetHashesInEvictionOrder(
+                context,
+                this,
+                contentHashesWithInfo,
+                reverse: reverse);
         }
 
         /// <inheritdoc />
@@ -321,34 +243,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.AreBlobsSupported ? _redisContentLocationStore.PutBlobAsync(context, hash, blob) : BoolResult.SuccessTask,
-                executeLocalLocationStore: () => _localLocationStore.AreBlobsSupported ? _localLocationStore.PutBlobAsync(context, hash, blob) : BoolResult.SuccessTask);
+            return LocalLocationStore.AreBlobsSupported ? LocalLocationStore.PutBlobAsync(context, hash, blob) : BoolResult.SuccessTask;
         }
 
         /// <inheritdoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
-            if (_configuration.HasReadMode(ContentLocationMode.LocalLocationStore))
+            if (LocalLocationStore.AreBlobsSupported)
             {
-                if (_localLocationStore.AreBlobsSupported)
-                {
-                    return _localLocationStore.GetBlobAsync(context, hash);
-                }
-
-                return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
+                return LocalLocationStore.GetBlobAsync(context, hash);
             }
 
-            if (_redisContentLocationStore.AreBlobsSupported)
-            {
-                return _redisContentLocationStore.GetBlobAsync(context, hash);
-            }
-
-            return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
+            return Task.FromResult(new GetBlobResult("Blobs are not supported."));
         }
-
-        #endregion IDistributedLocationStore Members
     }
 }

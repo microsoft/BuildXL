@@ -1,21 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using StackExchange.Redis;
+using StackExchange.Redis.Profiling;
 
 namespace ContentStoreTest.Distributed.Redis
 {
     public class TestConnectionMultiplexer : IConnectionMultiplexer
     {
         private readonly IDatabase _testDatabaseAsync;
+        private readonly Func<bool> _throwConnectionExceptionOnGet;
 
-        public TestConnectionMultiplexer(IDatabase testDatabaseAsync)
+        public TestConnectionMultiplexer(IDatabase testDatabaseAsync, Func<bool> throwConnectionExceptionOnGet = null)
         {
             _testDatabaseAsync = testDatabaseAsync;
+            _throwConnectionExceptionOnGet = throwConnectionExceptionOnGet;
         }
 
         public string ClientName => throw new NotImplementedException();
@@ -32,6 +38,8 @@ namespace ContentStoreTest.Distributed.Redis
 
         public bool IncludeDetailInExceptions { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public int StormLogThreshold { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public bool IsConnecting => throw new NotImplementedException();
 
         public event EventHandler<RedisErrorEventArgs> ErrorMessage { add { } remove { } }
         public event EventHandler<ConnectionFailedEventArgs> ConnectionFailed { add { } remove { } }
@@ -71,6 +79,11 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public void ExportConfiguration(Stream destination, StackExchange.Redis.ExportOptions options = (StackExchange.Redis.ExportOptions)(-1))
+        {
+            throw new NotImplementedException();
+        }
+
         public ProfiledCommandEnumerable FinishProfiling(object forContext, bool allowCleanupSweep = true)
         {
             throw new NotImplementedException();
@@ -83,10 +96,31 @@ namespace ContentStoreTest.Distributed.Redis
 
         public IDatabase GetDatabase(int db = -1, object asyncState = null)
         {
+            if (_throwConnectionExceptionOnGet != null && _throwConnectionExceptionOnGet())
+            {
+                // The required constructors are internal, using reflection to mock the connectivity issue.
+                Type exceptionType = typeof(RedisConnectionException);
+
+                var constructor = ((TypeInfo)exceptionType).DeclaredConstructors.First(
+                    c =>
+                    {
+                        var parameters = c.GetParameters();
+                        return parameters.Length == 2 && parameters[0].ParameterType == typeof(ConnectionFailureType) &&
+                               parameters[1].ParameterType == typeof(string);
+                    });
+                var result = (Exception)constructor.Invoke(new object[] {ConnectionFailureType.UnableToResolvePhysicalConnection, "UnableToResolvePhysicalConnection" });
+                throw result;
+            }
+
             return (IDatabase)_testDatabaseAsync;
         }
 
         public EndPoint[] GetEndPoints(bool configuredOnly = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int GetHashSlot(RedisKey key)
         {
             throw new NotImplementedException();
         }
@@ -146,7 +180,7 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
-        public void RegisterProfiler(IProfiler profiler)
+        public void RegisterProfiler(Func<ProfilingSession> profilingSessionProvider)
         {
             throw new NotImplementedException();
         }

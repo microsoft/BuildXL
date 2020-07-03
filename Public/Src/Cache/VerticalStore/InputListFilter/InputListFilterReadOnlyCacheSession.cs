@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 
@@ -21,7 +22,7 @@ namespace BuildXL.Cache.InputListFilter
             m_session = session;
         }
 
-        public string CacheId => m_session.CacheId;
+        public CacheId CacheId => m_session.CacheId;
 
         public string CacheSessionId => m_session.CacheSessionId;
 
@@ -54,7 +55,7 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.ValidateContentAsync(hash, urgencyHint, activityId);
         }
 
-        public Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             return m_session.GetStreamAsync(hash, urgencyHint, activityId);
         }

@@ -1,21 +1,22 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using System.Linq;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -363,6 +364,11 @@ namespace BuildXL.Scheduler.Tracing
         public bool IgnoreReparsePoints;
 
         /// <summary>
+        /// Whether the /unsafe_IgnoreFullSymlinkResolving flag is passed to BuildXL.
+        /// </summary>
+        public bool IgnoreFullSymlinkResolving;
+
+        /// <summary>
         /// Whether the /unsafe_IgnorePreloadedDlls flag is passed to BuildXL.
         /// </summary>
         public bool IgnorePreloadedDlls;
@@ -471,6 +477,7 @@ namespace BuildXL.Scheduler.Tracing
             ZwFileCreateOpenMonitored = salts.MonitorZwCreateOpenQueryFile;
             IgnoreNonCreateFileReparsePoints = salts.IgnoreNonCreateFileReparsePoints;
             IgnoreReparsePoints = salts.IgnoreReparsePoints;
+            IgnoreFullSymlinkResolving = salts.IgnoreFullSymlinkResolving;
             IgnorePreloadedDlls = salts.IgnorePreloadedDlls;
             IgnoreGetFinalPathNameByHandle = salts.IgnoreGetFinalPathNameByHandle;
             ExistingDirectoryProbesAsEnumerations = salts.ExistingDirectoryProbesAsEnumerations;
@@ -503,6 +510,7 @@ namespace BuildXL.Scheduler.Tracing
                        ignoreZwOtherFileInformation: IgnoreZwOtherFileInformation,
                        ignoreNonCreateFileReparsePoints: IgnoreNonCreateFileReparsePoints,
                        ignoreReparsePoints: IgnoreReparsePoints,
+                       ignoreFullSymlinkResolving: IgnoreFullSymlinkResolving,
                        ignorePreloadedDlls: IgnorePreloadedDlls,
                        ignoreGetFinalPathNameByHandle: IgnoreGetFinalPathNameByHandle,
                        existingDirectoryProbesAsEnumerations: ExistingDirectoryProbesAsEnumerations,
@@ -553,6 +561,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(NormalizeReadTimestamps);
             writer.Write(PipWarningsPromotedToErrors);
             writer.Write(RequiredKextVersionNumber);
+            writer.Write(IgnoreFullSymlinkResolving);
         }
 
         /// <inheritdoc />
@@ -580,6 +589,7 @@ namespace BuildXL.Scheduler.Tracing
             NormalizeReadTimestamps = reader.ReadBoolean();
             PipWarningsPromotedToErrors = reader.ReadBoolean();
             RequiredKextVersionNumber = reader.ReadString();
+            IgnoreFullSymlinkResolving = reader.ReadBoolean();
         }
     }
 
@@ -719,6 +729,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public PipCacheMissType CacheMissType;
 
+        /// <summary>
+        /// Missed outputs from cache
+        /// </summary>
+        public List<string> MissedOutputs;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<PipCacheMissEventData> Metadata => ExecutionLogMetadata.PipCacheMiss;
 
@@ -727,6 +742,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId.Serialize(writer);
             writer.Write((byte)CacheMissType);
+            writer.Write(MissedOutputs, (w, list) => w.WriteReadOnlyList(list, (w2, f) => w2.Write(f)));
         }
 
         /// <inheritdoc />
@@ -734,6 +750,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId = PipId.Deserialize(reader);
             CacheMissType = (PipCacheMissType)reader.ReadByte();
+            MissedOutputs = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToList();
         }
     }
 
@@ -913,7 +930,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The reported file accesses
         /// </summary>
-        public IReadOnlyCollection<ReportedFileAccess> WhitelistedReportedFileAccesses;
+        public IReadOnlyCollection<ReportedFileAccess> AllowlistedReportedFileAccesses;
 
         /// <summary>
         /// The reported Process Detouring Status messages
@@ -931,7 +948,7 @@ namespace BuildXL.Scheduler.Tracing
             ExecutionResultSerializer.WriteReportedProcessesAndFileAccesses(
                 writer,
                 ReportedFileAccesses,
-                WhitelistedReportedFileAccesses,
+                AllowlistedReportedFileAccesses,
                 ReportedProcesses);
             writer.Write(
                 ProcessDetouringStatuses, 
@@ -943,17 +960,17 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId = PipId.Deserialize(reader);
             ReportedFileAccess[] reportedFileAccesses;
-            ReportedFileAccess[] whitelistedReportedFileAccesses;
+            ReportedFileAccess[] allowlistedReportedFileAccesses;
             ReportedProcess[] reportedProcesses;
             ExecutionResultSerializer.ReadReportedProcessesAndFileAccesses(
                 reader,
                 out reportedFileAccesses,
-                out whitelistedReportedFileAccesses,
+                out allowlistedReportedFileAccesses,
                 out reportedProcesses);
             ProcessDetouringStatuses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ProcessDetouringStatusData.Deserialize(r2)));
             ReportedProcesses = reportedProcesses;
             ReportedFileAccesses = reportedFileAccesses;
-            WhitelistedReportedFileAccesses = whitelistedReportedFileAccesses;
+            AllowlistedReportedFileAccesses = allowlistedReportedFileAccesses;
         }
     }
 
@@ -1043,6 +1060,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public WorkDispatcher.DispatcherKind Dispatcher;
 
+        /// <summary>
+        /// Whether include the step duration in running time for the pip,
+        /// </summary>
+        public bool IncludeInRunningTime;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<PipExecutionStepPerformanceEventData> Metadata => ExecutionLogMetadata.PipExecutionStepPerformanceReported;
 
@@ -1054,6 +1076,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(Duration);
             writer.Write((byte)Step);
             writer.Write((byte)Dispatcher);
+            writer.Write(IncludeInRunningTime);
         }
 
         /// <inheritdoc />
@@ -1064,6 +1087,7 @@ namespace BuildXL.Scheduler.Tracing
             Duration = reader.ReadTimeSpan();
             Step = (PipExecutionStep)reader.ReadByte();
             Dispatcher = (WorkDispatcher.DispatcherKind)reader.ReadByte();
+            IncludeInRunningTime = reader.ReadBoolean();
         }
     }
 
@@ -1136,14 +1160,30 @@ namespace BuildXL.Scheduler.Tracing
         public int[] DiskQueueDepths;
 
         /// <summary>
+        /// Available Disk space in Gigabyte
+        /// </summary>
+        public int[] DiskAvailableSpaceGb;
+
+        /// <summary>
         /// Ram usage percent
         /// </summary>
         public int RamPercent;
 
+        /// <nodoc />
+        public int AfterRamPercent;
+
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
-        public int MachineRamUtilizationMB;
+        public int RamUsedMb;
+
+        /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int RamFreeMb;
+
+        /// <nodoc />
+        public int AfterRamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
@@ -1155,7 +1195,17 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The machine's total commit in MB
         /// </summary>
-        public int CommitTotalMB;
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
+
+        /// <summary>
+        /// Effective total process slots
+        /// </summary>
+        public int EffectiveTotalProcessSlots;
 
         /// <summary>
         /// CPU utilization of the current process
@@ -1203,9 +1253,14 @@ namespace BuildXL.Scheduler.Tracing
         public int LookupRunning;
 
         /// <summary>
-        /// Number of externally running processes
+        /// Number of processes running under PipExecutor
         /// </summary>
-        public int ExternalProcesses;
+        public int RunningPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
+        /// </summary>
+        public int RunningProcesses;
 
         /// <summary>
         /// Number of pips succeeded for each type
@@ -1243,17 +1298,9 @@ namespace BuildXL.Scheduler.Tracing
 
             writer.Write(CpuPercent);
 
-            writer.Write(DiskPercents.Length);
-            foreach (var diskPercent in DiskPercents)
-            {
-                writer.Write(diskPercent);
-            }
-
-            writer.Write(DiskQueueDepths.Length);
-            foreach (var diskQueueDepth in DiskQueueDepths)
-            {
-                writer.Write(diskQueueDepth);
-            }
+            writer.Write(DiskPercents, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskQueueDepths, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskAvailableSpaceGb, (w, e) => w.WriteCompact(e));
 
             writer.Write(RamPercent);
             writer.Write(ProcessCpuPercent);
@@ -1269,13 +1316,21 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(LookupWaiting);
             writer.Write(LookupRunning);
 
-            writer.Write(ExternalProcesses);
+            writer.Write(RunningPipExecutorProcesses);
+            writer.Write(RunningProcesses);
 
             writer.Write(PipsSucceededAllTypes.Length);
             foreach (var pipsSucceeded in PipsSucceededAllTypes)
             {
                 writer.Write(pipsSucceeded);
             }
+
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
+            writer.Write(CommitPercent);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
+            writer.Write(EffectiveTotalProcessSlots);
         }
 
         /// <inheritdoc />
@@ -1285,19 +1340,9 @@ namespace BuildXL.Scheduler.Tracing
 
             CpuPercent = reader.ReadInt32();
 
-            var diskCount = reader.ReadInt32();
-            DiskPercents = new int[diskCount];
-            for (int i = 0; i < DiskPercents.Length; i++)
-            {
-                DiskPercents[i] = reader.ReadInt32();
-            }
-
-            var diskQueueDepthCount = reader.ReadInt32();
-            DiskQueueDepths = new int[diskQueueDepthCount];
-            for (int i = 0; i < DiskQueueDepths.Length; i++)
-            {
-                DiskQueueDepths[i] = reader.ReadInt32();
-            }
+            DiskPercents = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskQueueDepths = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskAvailableSpaceGb = reader.ReadArray(r => r.ReadInt32Compact());
 
             RamPercent = reader.ReadInt32();
             ProcessCpuPercent = reader.ReadInt32();
@@ -1313,7 +1358,8 @@ namespace BuildXL.Scheduler.Tracing
             LookupWaiting = reader.ReadInt32();
             LookupRunning = reader.ReadInt32();
 
-            ExternalProcesses = reader.ReadInt32();
+            RunningPipExecutorProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
 
             var pipTypeLength = reader.ReadInt32();
             PipsSucceededAllTypes = new long[pipTypeLength];
@@ -1321,6 +1367,13 @@ namespace BuildXL.Scheduler.Tracing
             {
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
+
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
+            EffectiveTotalProcessSlots = reader.ReadInt32();
         }
     }
 
@@ -1348,12 +1401,16 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public SandboxConfigurationData Sandbox;
+
+            /// <nodoc />
             public IReadOnlyList<string> CommandLineArguments;
 
             /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                Sandbox = new SandboxConfigurationData(configuration.Sandbox);
                 CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
@@ -1361,6 +1418,7 @@ namespace BuildXL.Scheduler.Tracing
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                Sandbox.Serialize(writer);
                 writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
@@ -1368,6 +1426,7 @@ namespace BuildXL.Scheduler.Tracing
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                Sandbox.DeserializeAndUpdate(reader);
                 CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
@@ -1405,6 +1464,37 @@ namespace BuildXL.Scheduler.Tracing
             {
                 SubstSource = reader.ReadAbsolutePath();
                 SubstTarget = reader.ReadAbsolutePath();
+            }
+        }
+
+        /// <nodoc />
+        public struct SandboxConfigurationData
+        {
+            /// <nodoc />
+            public IReadOnlyList<AbsolutePath> GlobalUntrackedScopes;
+
+            /// <nodoc />
+            public IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables;
+
+            /// <nodoc />
+            public SandboxConfigurationData(ISandboxConfiguration configuration)
+            {
+                GlobalUntrackedScopes = configuration.GlobalUnsafeUntrackedScopes;
+                GlobalUnsafePassthroughEnvironmentVariables = configuration.GlobalUnsafePassthroughEnvironmentVariables;
+            }
+
+            /// <nodoc />
+            public void Serialize(BinaryLogger.EventWriter writer)
+            {
+                writer.WriteReadOnlyList(GlobalUntrackedScopes, (w, v) => w.Write(v));
+                writer.WriteReadOnlyList(GlobalUnsafePassthroughEnvironmentVariables, (w, v) => w.Write(v));
+            }
+
+            /// <nodoc />
+            public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+            {
+                GlobalUntrackedScopes = reader.ReadReadOnlyList((r) => r.ReadAbsolutePath());
+                GlobalUnsafePassthroughEnvironmentVariables = reader.ReadReadOnlyList((r) => r.ReadString());
             }
         }
 

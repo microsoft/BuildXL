@@ -2,6 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Sdk.Protocols.Grpc",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    name: "Sdk.Protocols.Grpc"
 });

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -71,8 +71,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                     case nameof(LogMessageCommand):
                         return LogMessageCommand.InternalDeserialize(reader);
                     default:
-                        Contract.Assert(false, "unrecognized command type name: " + typeName);
-                        return null;
+                        throw new ArgumentException("unrecognized command type name: " + typeName);
                 }
             }
         }

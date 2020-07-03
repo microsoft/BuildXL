@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.VmCommandProxy;
@@ -50,8 +51,9 @@ namespace BuildXL.Processes
         public ExternalVmSandboxedProcess(
             SandboxedProcessInfo sandboxedProcessInfo, 
             VmInitializer vmInitializer, 
-            ExternalToolSandboxedProcessExecutor tool)
-            : base(sandboxedProcessInfo)
+            ExternalToolSandboxedProcessExecutor tool,
+            string externalSandboxedProcessDirectory)
+            : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalVmSandboxedProcess)))
         {
             Contract.Requires(vmInitializer != null);
             Contract.Requires(tool != null);
@@ -67,7 +69,13 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
+        public override ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot() => m_processExecutor?.GetMemoryCountersSnapshot();
+
+        /// <inheritdoc />
+        public override EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend) => EmptyWorkingSetResult.None; // Only SandboxedProcess is supported.
+
+        /// <inheritdoc />
+        public override bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
         [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
@@ -97,19 +105,27 @@ namespace BuildXL.Processes
                 return CreateResultForVmCommandProxyFailure();
             }
 
-            // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
-            RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
-                () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
-                e => m_error.AppendLine(e.Message));
-
-            if (runVmResult == null)
+            try
             {
-                return CreateResultForVmCommandProxyFailure();
+                // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
+                RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
+                    () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
+                    e => m_error.AppendLine(e.Message));
+
+                if (runVmResult == null)
+                {
+                    return CreateResultForVmCommandProxyFailure();
+                }
+
+                if (runVmResult.ProcessStateInfo.ExitCode != 0)
+                {
+                    return CreateResultForSandboxExecutorFailure(runVmResult);
+                }
             }
-
-            if (runVmResult.ProcessStateInfo.ExitCode != 0)
+            catch (Exception e)
             {
-                return CreateResultForSandboxExecutorFailure(runVmResult);
+                m_error.AppendLine(e.ToString());
+                return CreateResultForVmCommandProxyFailure();
             }
 
             return DeserializeSandboxedProcessResultFromFile();
@@ -121,6 +137,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Start()
         {
+            base.Start();
             RunInVm();
         }
 
@@ -133,8 +150,8 @@ namespace BuildXL.Processes
             var runRequest = new RunRequest
             {
                 AbsolutePath = m_tool.ExecutablePath,
-                Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
-                WorkingDirectory = GetOutputDirectory()
+                Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
+                WorkingDirectory = WorkingDirectory
             };
 
             VmSerializer.SerializeToFile(RunRequestPath, runRequest);
@@ -156,11 +173,11 @@ namespace BuildXL.Processes
             m_processExecutor.Start();
         }
 
-        private string RunRequestPath => GetVmCommandProxyPath("VmRunInput");
+        private string RunRequestPath => GetVmCommandProxyPath(nameof(VmCommands.Run), "request.json");
 
-        private string RunOutputPath => GetVmCommandProxyPath("VmRunOutput");
+        private string RunOutputPath => GetVmCommandProxyPath(nameof(VmCommands.Run), "output.json");
 
-        private string GetVmCommandProxyPath(string command) => Path.Combine(GetOutputDirectory(), $"{command}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.json");
+        private string GetVmCommandProxyPath(string command, string fileName) => Path.Combine(WorkingDirectory, $"{command}_{fileName}");
 
         private Process CreateVmCommandProxyProcess(string arguments)
         {
@@ -170,7 +187,7 @@ namespace BuildXL.Processes
                 {
                     FileName = m_vmInitializer.VmCommandProxy,
                     Arguments = arguments,
-                    WorkingDirectory = GetOutputDirectory(),
+                    WorkingDirectory = WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,

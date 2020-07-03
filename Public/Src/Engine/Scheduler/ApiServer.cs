@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler.Artifacts;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -93,7 +94,7 @@ namespace BuildXL.Scheduler
             });
         }
 
-        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation op)
+        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
 
@@ -224,7 +225,10 @@ namespace BuildXL.Scheduler
 
             for (int i = 0; i < files.Length; ++i)
             {
-                if (!inputContents[i].HasValue || !inputContents[i].Value.HasKnownLength)
+                // If the content has no value or has unknown length, then we have some inconsistency wrt the sealed directory content
+                // Absent files are an exception since it is possible to have sealed directories with absent files (shared opaques is an example of this). 
+                // In those cases we leave the consumer to deal with them.
+                if (!inputContents[i].HasValue || (inputContents[i].Value.Hash != WellKnownContentHashes.AbsentFile && !inputContents[i].Value.HasKnownLength))
                 {
                     failedResults.Add(files[i].Path.ToString(m_context.PathTable));
                 }

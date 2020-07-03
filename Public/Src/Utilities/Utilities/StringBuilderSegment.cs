@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -32,7 +32,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public StringBuilderSegment(StringBuilder value, int index, int length)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
             Contract.Requires(Range.IsValid(index, length, value.Length));
 
             m_value = value;
@@ -45,7 +45,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public StringBuilderSegment(StringBuilder value)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
 
             m_value = value;
             m_index = 0;
@@ -97,7 +97,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals8Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -118,7 +118,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals16Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -193,7 +193,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs8Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -209,7 +209,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs16Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +23,8 @@ using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -33,6 +33,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using TypeScript.Net.DScript;
@@ -60,14 +61,12 @@ namespace BuildXL.FrontEnd.Nuget
         private const int MaxRetryCount = 2;
         private const int RetryDelayMs = 100;
 
-        private const int SpecGenerationFormatVersion = 1;
         private const string SpecGenerationVersionFileSuffix = ".version";
 
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
         // These are set during Initialize
         private INugetResolverSettings m_resolverSettings;
-        private QualifierId[] m_requestedQualifiers;
         private PackageRegistry m_packageRegistry;
         private IReadOnlyDictionary<string, string> m_repositories;
         private FrontEndContext m_context;
@@ -139,7 +138,7 @@ namespace BuildXL.FrontEnd.Nuget
                     pathToModuleConfig,
                     new[] { pathToSpec },
                     allowedModuleDependencies: null,
-                    cyclicalFriendModules: null); // A NuGet package does not have any module dependency restrictions nor whitelists cycles
+                    cyclicalFriendModules: null); // A NuGet package does not have any module dependency restrictions nor allowlists cycles
             });
         }
 
@@ -316,20 +315,18 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <inheritdoc/>
-        public bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
+        public bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var nugetResolverSettings = resolverSettings as INugetResolverSettings;
             Contract.Assert(nugetResolverSettings != null);
 
             m_context = context;
             m_resolverSettings = nugetResolverSettings;
-            m_requestedQualifiers = requestedQualifiers;
 
             m_repositories = ComputeRepositories(nugetResolverSettings.Repositories);
             var possibleRegistry = PackageRegistry.Create(context, m_resolverSettings.Packages);
@@ -357,7 +354,7 @@ namespace BuildXL.FrontEnd.Nuget
         public void SetDownloadedPackagesForTesting(IDictionary<string, NugetAnalyzedPackage> downloadedPackages)
         {
             var possiblePackages = GenerateSpecsForDownloadedPackages(downloadedPackages);
-            var result = m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(downloadedPackages.Values), m_requestedQualifiers);
+            var result = m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(downloadedPackages.Values));
             Contract.Assert(result);
 
             Analysis.IgnoreResult(
@@ -523,7 +520,7 @@ namespace BuildXL.FrontEnd.Nuget
                 var possiblePackages = GenerateSpecsForDownloadedPackages(restoredPackagesById);
 
                 // At this point we know which are all the packages that contain embedded specs, so we can initialize the embedded resolver properly
-                if (!m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(restoredPackagesById.Values), m_requestedQualifiers))
+                if (!m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(restoredPackagesById.Values)))
                 {
                     var failure = new WorkspaceModuleResolverGenericInitializationFailure(Kind);
                     Logger.Log.NugetFailedDownloadPackagesAndGenerateSpecs(m_context.LoggingContext, failure.DescribeIncludingInnerFailures());
@@ -632,6 +629,9 @@ namespace BuildXL.FrontEnd.Nuget
                     break;
                 case PackageSource.RemoteStore:
                     m_statistics.PackagesFromNuget.Increment();
+                    break;
+                case PackageSource.Stub:
+                    m_statistics.PackageGenStubs.Increment();
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(source), source, null);
@@ -934,15 +934,18 @@ namespace BuildXL.FrontEnd.Nuget
             // This file contains some state from the last time the spec file was generated. It includes
             // the fingerprint of the package (name, version, etc) and the version of the spec generator.
             // It is stored next to the primary generated spec file
-            var (fileFormat, fingerprint) = ReadGeneratedSpecStateFile(packageDsc + SpecGenerationVersionFileSuffix);
+            var (fileFormat, packageRestoreFingerprint, generateSpecFingerprint) = ReadGeneratedSpecStateFile(packageDsc + SpecGenerationVersionFileSuffix);
+
+            var expectedGenerateSpecFingerprint  = CreateSpecGenFingerPrint(analyzedPackage.PackageOnDisk.Package);
 
             // We can reuse the already generated spec file if all of the following are true:
             //  * The spec generator is of the same format as when the spec was generated
             //  * The package fingerprint is the same. This means the binaries are the same
             //  * Both the generated spec and package config file exist on disk
             // NOTE: This is not resilient to the specs being modified by other entities than the build engine.
-            if (fileFormat == SpecGenerationFormatVersion &&
-                fingerprint != null && fingerprint == analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash && 
+            if (fileFormat == NugetSpecGenerator.SpecGenerationFormatVersion &&
+                packageRestoreFingerprint != null && string.Equals(packageRestoreFingerprint, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, StringComparison.Ordinal) &&
+                generateSpecFingerprint != null && string.Equals(generateSpecFingerprint, expectedGenerateSpecFingerprint, StringComparison.OrdinalIgnoreCase) &&
                 File.Exists(packageDsc) &&
                 File.Exists(GetPackageConfigDscFile(analyzedPackage).ToString(PathTable)))
             {
@@ -952,27 +955,28 @@ namespace BuildXL.FrontEnd.Nuget
             return false;
         }
 
-        private static (int fileFormat, string fingerprint) ReadGeneratedSpecStateFile(string path)
+        private static (int fileFormat, string packageRestoreFingerprint, string generateSpecFingerprint) ReadGeneratedSpecStateFile(string path)
         {
             if(File.Exists(path))
             {
                 int fileFormat;
                 string[] lines = File.ReadAllLines(path);
-                if(lines.Length == 2)
+                if(lines.Length == 3)
                 {
                     if (int.TryParse(lines[0], out fileFormat))
                     {
-                        string fingerprint = lines[1];
-                        return (fileFormat, fingerprint);
+                        string packageRestoreFingerprint = lines[1];
+                        string generateSpecFingerprint = lines[2];
+                        return (fileFormat, packageRestoreFingerprint, generateSpecFingerprint);
                     }
                 }
             }
 
             // Error
-            return (-1, null);
+            return (-1, null, null);
         }
 
-        private void WriteGeneratedSpecStateFile(string path, (int fileFormat, string fingerprint) data)
+        private void WriteGeneratedSpecStateFile(string path, (int fileFormat, string packageRestoreFingerprint, string generateSpecFingerprint) data)
         {
             try
             {
@@ -983,7 +987,7 @@ namespace BuildXL.FrontEnd.Nuget
                     File.Delete(path);
                 }
 
-                File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.fingerprint });
+                File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.packageRestoreFingerprint, data.generateSpecFingerprint });
             }
             catch (IOException ex)
             {
@@ -1021,7 +1025,15 @@ namespace BuildXL.FrontEnd.Nuget
 
             if (writeResult.Succeeded && possibleProjectFile.Succeeded)
             {
-                WriteGeneratedSpecStateFile(possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, (SpecGenerationFormatVersion, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash));
+                var generateSpecFingerprint = CreateSpecGenFingerPrint(analyzedPackage.PackageOnDisk.Package);
+                WriteGeneratedSpecStateFile(
+                    possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, 
+                    (
+                        NugetSpecGenerator.SpecGenerationFormatVersion, 
+                        analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, 
+                        generateSpecFingerprint
+                    )
+                );
             }
 
             return writeResult;
@@ -1032,6 +1044,34 @@ namespace BuildXL.FrontEnd.Nuget
             bool doNotEnforceDependencyVersions)
         {
             Contract.Requires(packageOnDisk != null);
+
+            var package = packageOnDisk.Package;
+
+            var maybeNuspecXdoc = TryLoadNuSpec(packageOnDisk);
+            if (!maybeNuspecXdoc.Succeeded)
+            {
+                return maybeNuspecXdoc.Failure;
+            }
+
+            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, maybeNuspecXdoc.Result,
+                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions);
+
+            if (result == null)
+            {
+                // error already logged
+                return new NugetFailure(package, NugetFailure.FailureType.AnalyzeNuSpec);
+            }
+
+            return result;
+        }
+
+        private Possible<XDocument> TryLoadNuSpec(PackageOnDisk packageOnDisk)
+        {
+            // no nuspec file needed for stub packags
+            if (packageOnDisk.PackageDownloadResult.Source == PackageSource.Stub)
+            {
+                return (XDocument)null;
+            }
 
             var package = packageOnDisk.Package;
             var nuspecFile = packageOnDisk.NuSpecFile;
@@ -1045,11 +1085,9 @@ namespace BuildXL.FrontEnd.Nuget
 
             var nuspecPath = nuspecFile.ToString(m_context.PathTable);
 
-            XDocument xdoc = null;
-            Exception exception = null;
             try
             {
-                xdoc = ExceptionUtilities.HandleRecoverableIOException(
+                return ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     XDocument.Load(nuspecPath),
                     e =>
@@ -1059,14 +1097,14 @@ namespace BuildXL.FrontEnd.Nuget
             }
             catch (XmlException e)
             {
-                exception = e;
+                return logFailure(e);
             }
             catch (BuildXLException e)
             {
-                exception = e.InnerException;
+                return logFailure(e.InnerException);
             }
 
-            if (exception != null)
+            NugetFailure logFailure(Exception exception)
             {
                 Logger.Log.NugetFailedToReadNuSpecFile(
                     m_context.LoggingContext,
@@ -1076,17 +1114,36 @@ namespace BuildXL.FrontEnd.Nuget
                     exception.ToStringDemystified());
                 return new NugetFailure(package, NugetFailure.FailureType.ReadNuSpecFile, exception);
             }
+        }
 
-            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, xdoc,
-                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions);
 
-            if (result == null)
+        private string CreateRestoreFingerPrint(INugetPackage package, IEnumerable<AbsolutePath> credentialProviderPaths)
+        {
+            var fingerprintParams = new List<string>
+                                    {
+                                        "id=" + package.Id,
+                                        "version=" + package.Version,
+                                        "repos=" + UppercaseSortAndJoinStrings(m_repositories.Values),
+                                    };
+            if (credentialProviderPaths != null)
             {
-                // error already logged
-                return new NugetFailure(package, NugetFailure.FailureType.AnalyzeNuSpec);
+                fingerprintParams.Add("cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))));
             }
 
-            return result;
+            return  "nuget://" + string.Join("&", fingerprintParams);
+        }
+
+        private string CreateSpecGenFingerPrint(INugetPackage package)
+        {
+            var restoreFingerPrint = CreateRestoreFingerPrint(package, null);
+
+            var fingerprintParams = new List<string>
+                                    {
+                                        "pkgDepSkips=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToSkip),
+                                        "pkgDepsIgnore=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToIgnore),
+                                        "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0")
+                                    };
+            return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);
         }
 
         private async Task<Possible<PackageOnDisk>> TryRestorePackageWithCache(
@@ -1095,24 +1152,21 @@ namespace BuildXL.FrontEnd.Nuget
             NugetPackageOutputLayout layout,
             IEnumerable<AbsolutePath> credentialProviderPaths)
         {
-            var fingerprintParams = new List<string>
-            {
-                "id=" + package.Id,
-                "version=" + package.Version,
-                "repos=" + UppercaseSortAndJoinStrings(m_repositories.Values),
-                "cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))),
-            };
+            var packageRestoreFingerprint = CreateRestoreFingerPrint(package, credentialProviderPaths);
+            var identity = PackageIdentity.Nuget(package.Id, package.Version, package.Alias);
 
-            var weakFingerprint = "nuget://" + string.Join("&", fingerprintParams);
-            var maybePackage = await m_host.DownloadPackage(
-                weakFingerprint,
-                PackageIdentity.Nuget(package.Id, package.Version, package.Alias),
-                layout.PackageFolder,
-                () =>
-                {
-                    progress.StartDownloadFromNuget();
-                    return TryDownloadPackage(package, layout, credentialProviderPaths);
-                });
+            var currentOs = Host.Current.CurrentOS.GetDScriptValue();
+            var maybePackage = package.OsSkip?.Contains(currentOs) == true
+                ? PackageDownloadResult.EmptyStub(packageRestoreFingerprint, identity, layout.PackageFolder)
+                : await m_host.DownloadPackage(
+                    packageRestoreFingerprint,
+                    identity,
+                    layout.PackageFolder,
+                    () =>
+                    {
+                        progress.StartDownloadFromNuget();
+                        return TryDownloadPackage(package, layout, credentialProviderPaths);
+                    });
 
             return maybePackage.Then(downloadResult =>
             {
@@ -1333,38 +1387,44 @@ namespace BuildXL.FrontEnd.Nuget
                 .Select(
                     new[]
                     {
-                            "ComSpec",
-                            "PATH",
-                            "PATHEXT",
-                            "NUMBER_OF_PROCESSORS",
-                            "OS",
-                            "PROCESSOR_ARCHITECTURE",
-                            "PROCESSOR_IDENTIFIER",
-                            "PROCESSOR_LEVEL",
-                            "PROCESSOR_REVISION",
-                            "SystemDrive",
-                            "SystemRoot",
-                            "SYSTEMTYPE",
-                            "NUGET_CREDENTIALPROVIDERS_PATH",
-                            "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
-                            "__Q_DPAPI_Secrets_Dir",
+                        "ComSpec",
+                        "PATH",
+                        "PATHEXT",
+                        "NUMBER_OF_PROCESSORS",
+                        "OS",
+                        "PROCESSOR_ARCHITECTURE",
+                        "PROCESSOR_IDENTIFIER",
+                        "PROCESSOR_LEVEL",
+                        "PROCESSOR_REVISION",
+                        "SystemDrive",
+                        "SystemRoot",
+                        "SYSTEMTYPE",
+                        "NUGET_CREDENTIALPROVIDERS_PATH",
+                        "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
+                        "__Q_DPAPI_Secrets_Dir",
 
-                            // Auth material needed for low-privilege build.
-                            "QAUTHMATERIALROOT"
+                        // Nuget Credential Provider env variables
+                        "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
+                        "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
+
+                        // Auth material needed for low-privilege build.
+                        "QAUTHMATERIALROOT"
                     })
                 .Override(
                     new Dictionary<string, string>()
                     {
-                            {"TMP", layout.TempDirectoryAsString},
-                            {"TEMP", layout.TempDirectoryAsString},
-                            {"NUGET_PACKAGES", layout.TempDirectoryAsString},
-                            {"NUGET_ROOT", layout.TempDirectoryAsString},
+                        {"TMP", layout.TempDirectoryAsString},
+                        {"TEMP", layout.TempDirectoryAsString},
+                        {"NUGET_PACKAGES", layout.TempDirectoryAsString},
+                        {"NUGET_ROOT", layout.TempDirectoryAsString},
                     });
             }
         }
 
         private class SandboxConnectionFake : ISandboxConnection
         {
+            public SandboxKind Kind => SandboxKind.MacOsKext;
+
             public int NumberOfKextConnections => 1;
 
             public ulong MinReportQueueEnqueueTime { get; set; }
@@ -1387,11 +1447,18 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
+
+            public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+            {
+                return Enumerable.Empty<(string, string)>();
+            }
 
             public void NotifyPipProcessTerminated(long pipId, int processId) { }
 
-            public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process) { }
+
+            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) { return true; }
 
             public void ReleaseResources() { }
         }
@@ -1440,7 +1507,7 @@ namespace BuildXL.FrontEnd.Nuget
                 // TODO: If this is set to true, then NuGet will fail if TMG Forefront client is running.
                 //                 Filtering out in SandboxedProcessReport won't work because Detours already blocks the access to FwcWsp.dll.
                 //                 Almost all machines in Office run TMG Forefront client.
-                //                 So far for WDG, FailUnexpectedFileAccesses is false due to whitelists.
+                //                 So far for WDG, FailUnexpectedFileAccesses is false due to allowlists.
                 //                 As a consequence, the file access manifest below gets nullified.
                 FailUnexpectedFileAccesses = false,
                 ReportFileAccesses = true,

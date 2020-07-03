@@ -3,9 +3,8 @@
 
 module({
     name: "Sdk.Managed.Frameworks.Net451",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
         f`net451.dsc`,
-        f`netFx.dsc`,
+        f`netfx.dsc`,
     ]
 });

@@ -6,13 +6,12 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace Test.Tool.MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.ProjectGraphBuilder",
         sources: globR(d`.`, "*.cs"),
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         references:[
             importFrom("BuildXL.Tools").MsBuildGraphBuilder.exe,
             importFrom("Microsoft.Build.Prediction").pkg,

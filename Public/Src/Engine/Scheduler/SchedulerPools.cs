@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -17,14 +16,6 @@ namespace BuildXL.Scheduler
     /// </summary>
     public static class SchedulerPools
     {
-        /// <summary>
-        /// Global pool of <see cref="RangedNodeSet" /> instances.
-        /// </summary>
-        public static readonly ObjectPool<RangedNodeSet> RangedNodeSetPool =
-            new ObjectPool<RangedNodeSet>(
-                () => new RangedNodeSet(),
-                s => s.Clear());
-
         /// <summary>
         /// Pool for pathset fingerprint map.
         /// </summary>

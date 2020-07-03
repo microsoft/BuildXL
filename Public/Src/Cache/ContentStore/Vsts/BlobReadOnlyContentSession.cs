@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -55,8 +55,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             VstsDownloadUriFetchedInMemory
         }
 
-        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<Counters> _blobCounters { get; } = new CounterCollection<Counters>();
+        private readonly CounterCollection<BackingContentStore.SessionCounters> _counters;
+        private readonly CounterCollection<Counters> _blobCounters;
 
         /// <summary>
         ///     The only HashType recognizable by the server.
@@ -106,15 +106,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private const string EnvironmentVariablePrefix = "VSO_DROP_";
 
-        private const int DefaultMaxParallelSegmentDownloadsPerFile = 16;
-
-        private const int DefaultMaxSegmentDownloadRetries = 3;
-
-        private const int DefaultParallelDownloadSegmentSizeInBytes = 8 * 1024 * 1024;
-
         private const int DefaultReadSizeInBytes = 64 * 1024;
-
-        private const int DefaultSegmentDownloadTimeoutInMinutes = 10;
 
         private readonly ParallelHttpDownload.Configuration _parallelSegmentDownloadConfig;
 
@@ -146,24 +138,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             BlobStoreHttpClient = blobStoreHttpClient;
             TimeToKeepContent = timeToKeepContent;
             _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
-            _parallelSegmentDownloadConfig = new ParallelHttpDownload
-                .Configuration(
-                segmentDownloadTimeout: TimeSpan.FromMinutes(int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "SegmentDownloadTimeoutInMinutes") ??
-                    DefaultSegmentDownloadTimeoutInMinutes.ToString())),
-                segmentSizeInBytes: int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "ParallelDownloadSegmentSizeInBytes") ??
-                    DefaultParallelDownloadSegmentSizeInBytes.ToString()),
-                maxParallelSegmentDownloadsPerFile: int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "MaxParallelSegmentDownloadsPerFile") ??
-                    DefaultMaxParallelSegmentDownloadsPerFile.ToString()),
-                maxSegmentDownloadRetries:
-                    int.Parse(
-                        Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "MaxSegmentDownloadRetries") ??
-                        DefaultMaxSegmentDownloadRetries.ToString()));
+            _parallelSegmentDownloadConfig = ParallelHttpDownload.Configuration.GetParallelSegmentDownloadConfig(EnvironmentVariablePrefix);
 
             TempDirectory = new DisposableDirectory(fileSystem);
-            Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
 
             _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
             _blobCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);
@@ -434,7 +411,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                     var offsetStream = await GetStreamInternalAsync(
                                         context,
                                         contentHash,
-                                        _parallelSegmentDownloadConfig.SegmentSizeInBytes).ConfigureAwait(false);
+                                        (int?)_parallelSegmentDownloadConfig.SegmentSizeInBytes).ConfigureAwait(false);
                                     offsetStream.Position = offset;
                                     return offsetStream;
                                 },

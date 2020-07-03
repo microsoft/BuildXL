@@ -6,16 +6,15 @@ import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace TestProcess {
     @@public
-    export const exe = BuildXLSdk.nativeExecutable({
+    export const exe = BuildXLSdk.executable({
         assemblyName: "Test.BuildXL.Executables.TestProcess",
         sources: globR(d`.`, "*.cs"),
         defineConstants: [ "TestProcess" ],
         references: [
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+            importFrom("BuildXL.Engine").Processes.dll,
         ]
     });
 
@@ -27,18 +26,18 @@ namespace TestProcess {
                     subfolder: r`TestProcess/Win`,
                     contents: [
                         $.withQualifier({
-                            configuration: qualifier.configuration,
                             targetFramework: "net472",
                             targetRuntime: "win-x64"
                         }).testProcessExe
                     ]
                 }
-                : {
+                :
+            qualifier.targetRuntime === "osx-x64"
+                ? {
                     subfolder: r`TestProcess/MacOs`,
                     contents: [
                         $.withQualifier({
-                            configuration: qualifier.configuration,
-                            targetFramework: "netcoreapp3.0",
+                            targetFramework: "netcoreapp3.1",
                             targetRuntime: "osx-x64"
                         }).testProcessExe,
 
@@ -47,6 +46,18 @@ namespace TestProcess {
                         ]),
                     ]
                 }
+                :
+            qualifier.targetRuntime === "linux-x64"
+                ? {
+                    subfolder: r`TestProcess/Unix`,
+                    contents: [
+                        $.withQualifier({
+                            targetFramework: "netcoreapp3.1",
+                            targetRuntime: "linux-x64"
+                        }).testProcessExe,
+                    ]
+                }
+                : Contract.fail("Unknown target runtime: " + qualifier.targetRuntime)
         ]
     };
 }

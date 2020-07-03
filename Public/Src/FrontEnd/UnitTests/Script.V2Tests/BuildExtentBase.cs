@@ -1,9 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Scheduler.Graph;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
@@ -22,11 +25,10 @@ namespace Test.DScript.Ast.DScriptV2
             m_pipGraph = new TestEnv.TestPipGraph();
         }
 
-        protected override IPipGraph GetPipGraph() => m_pipGraph;
+        protected override TestEnv.TestPipGraph GetPipGraph() => m_pipGraph;
 
         private const string TemplateWithPackagesBody = @"
         modules: [ f`src/package.config.dsc` ],
-        disableDefaultSourceResolver: <<DDSR>>,
         resolvers: [{
             kind: 'SourceResolver',
             modules: [f`lib/package.config.dsc`, f`Sdk.Prelude/package.config.dsc`, f`Sdk.Transformers/package.config.dsc` ]
@@ -34,7 +36,6 @@ namespace Test.DScript.Ast.DScriptV2
 
         private const string TemplateWithProjectsBody = @"
         projects: [ f`src/package.dsc` ],
-        disableDefaultSourceResolver: <<DDSR>>,
         resolvers: [{
             kind: 'SourceResolver',
             modules: [ f`lib/package.config.dsc`, f`Sdk.Prelude/package.config.dsc`, f`Sdk.Transformers/package.config.dsc` ]
@@ -65,10 +66,10 @@ export const copy1 = Transformer.copyFile(importFrom('Lib').file1, Context.getNe
                 .ToArray();
         }
 
-        protected SpecEvaluationBuilder CreateBuilder(string configTemplate, bool disableDefaultSourceResolver)
+        protected SpecEvaluationBuilder CreateBuilder(string configTemplate)
         {
             return new SpecEvaluationBuilder(this)
-                .LegacyConfiguration(configTemplate.Replace("<<DDSR>>", disableDefaultSourceResolver.ToString().ToLowerInvariant()))
+                .LegacyConfiguration(configTemplate)
                 .AddFullPrelude()
                 .AddSpec(@"lib/package.config.dsc", V1Module("Lib"))
                 .AddSpec(@"lib/package.dsc", LibPackageContent)

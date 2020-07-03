@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -27,6 +27,10 @@ namespace Test.BuildXL.TestUtilities
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class BuildXLTestBase
     {
+        // CODESYNC: Public\Sdk\Public\Managed\testing.dsc
+        private const string TestRunDataXmlFileName = "testRunData.xml";
+        private const string TestRunDataElementName = "TestRunData";
+
         private Dictionary<string, string> m_testData;
 
         /// <nodoc/>
@@ -116,12 +120,21 @@ namespace Test.BuildXL.TestUtilities
             {
                 if (m_testOutputDirectory == null)
                 {
-                    m_testOutputDirectory = Environment.GetEnvironmentVariable("TEMP");
+                    m_testOutputDirectory = GetTempDir();
                     Directory.CreateDirectory(m_testOutputDirectory);
                 }
 
                 return m_testOutputDirectory;
             }
+        }
+
+        /// <summary>
+        /// Returns a path to a temporary directory.
+        /// The directory is not guaranteed to exist.
+        /// </summary>
+        public static string GetTempDir()
+        {
+            return Environment.GetEnvironmentVariable("TEMP") ?? Path.GetTempPath();
         }
 
         /// <summary>
@@ -230,6 +243,24 @@ namespace Test.BuildXL.TestUtilities
         /// the previous assertion (of the same event).
         /// This is useful when there is some expected non-deterministic error condition (due to a race, for example)
         /// </summary>
+        protected void AllowErrorEventLoggedAtLeastOnce(Enum eventId)
+        {
+            Contract.Requires(eventId != null, "Argument eventId cannot be null.");
+            Contract.Requires(EventListener != null);
+
+            AssertEventLogged(eventId, 1, allowMore: true);
+            var eventCount = EventListener.GetEventCount(Convert.ToInt32(eventId, CultureInfo.InvariantCulture));
+            if (eventCount > 0)
+            {
+                m_expectedErrorCount += eventCount;
+            }
+        }
+
+        /// <summary>
+        /// Allows the test's event listener to maybe record instances of the given error event ID since 
+        /// the previous assertion (of the same event).
+        /// This is useful when there is some expected non-deterministic error condition (due to a race, for example)
+        /// </summary>
         protected void AllowErrorEventMaybeLogged(Enum eventId)
         {
             Contract.Requires(eventId != null, "Argument eventId cannot be null.");
@@ -310,7 +341,7 @@ namespace Test.BuildXL.TestUtilities
         /// This is applicable only to some file monitoring events that identify a path, but for which the number
         /// of occurrences is not easily predictable. The number of occurrences is returned on success (ensured positive).
         /// </summary>
-        protected void AssertVerboseEventLogged(EventId eventId, string path)
+        protected void AssertVerboseEventLogged(Enum eventId, string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             AssertEventLoggedWithPath(eventId, path);
@@ -374,20 +405,22 @@ namespace Test.BuildXL.TestUtilities
         /// This is applicable only to some file monitoring events that identify a path, but for which the number
         /// of occurrences is not easily predictable. The number of occurrences is returned on success (ensured positive).
         /// </summary>
-        private int AssertEventLoggedWithPath(EventId eventId, string path)
+        private int AssertEventLoggedWithPath(Enum eventId, string path)
         {
-            int newOccurrencesForPath = EventListener.GetAndResetEventCountForPath(eventId, path);
+            var intEventId = Convert.ToInt32(eventId);
+            int newOccurrencesForPath = EventListener.GetAndResetEventCountForPath(intEventId, path);
+
             AssertTrue(
                 newOccurrencesForPath != 0,
                 "The event '{0:G}' (id: {1}) for path {2} should have been logged exactly one or more additional times since it was last checked.",
                 eventId,
-                (int)eventId,
+                intEventId,
                 path);
 
             int expectedEventCountLogged;
-            m_expectedPerEventCounts.TryGetValue((int)eventId, out expectedEventCountLogged);
+            m_expectedPerEventCounts.TryGetValue(intEventId, out expectedEventCountLogged);
             expectedEventCountLogged += newOccurrencesForPath;
-            m_expectedPerEventCounts[(int)eventId] = expectedEventCountLogged;
+            m_expectedPerEventCounts[intEventId] = expectedEventCountLogged;
 
             return newOccurrencesForPath;
         }
@@ -412,6 +445,14 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(requiredLogMessages != null);
             AssertLogWithContainmentExpectation(caseSensitive, false, requiredLogMessages);
+        }
+
+        /// <summary>
+        /// Returns if this process is running inside the VsTest's TestHost.exe process
+        /// </summary>
+        protected bool IsRunningInVsTestTestHost()
+        {
+            return System.Diagnostics.Process.GetCurrentProcess().ProcessName.ToUpperInvariant().Contains("TESTHOST");
         }
 
         private void AssertLogWithContainmentExpectation(bool caseSensitive, bool expectToContain, params string[] requiredLogMessages)
@@ -474,9 +515,9 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Creates a LoggingContext for use by tests
         /// </summary>
-        public static LoggingContext CreateLoggingContextForTest()
+        public static LoggingContext CreateLoggingContextForTest(ILogger logger = null)
         {
-            return new LoggingContext(loggerComponentInfo: "BuildXLTest", environment: "BuildXLTest");
+            return new LoggingContext(loggerComponentInfo: "BuildXLTest", environment: "BuildXLTest", logger: logger);
         }
 
         /// <summary>
@@ -516,6 +557,15 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Returns the directory where the running test assembly is deployed.
+        /// </summary>
+        protected static string GetTestAssemblyDirectory()
+        {
+            var asmLocation = AssemblyHelper.GetAssemblyLocation(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly());
+            return Path.GetDirectoryName(asmLocation);
+        }
+
+        /// <summary>
         /// Gets a testData value that is specified in the build specification
         /// </summary>
         /// <remarks>
@@ -547,8 +597,12 @@ namespace Test.BuildXL.TestUtilities
                 return m_testData;
             }
 
-            var testDataFile = Environment.GetEnvironmentVariable("TestRunData");
-            AssertTrue(!string.IsNullOrEmpty(testDataFile), "This test requires TestData, no testData environment variable was found");
+            var testDataFile = Path.Combine(GetTestAssemblyDirectory(), TestRunDataXmlFileName);
+            return ReadTestDataFromXml(testDataFile);
+        }
+
+        private Dictionary<string, string> ReadTestDataFromXml(string testDataFile)
+        { 
             AssertTrue(File.Exists(testDataFile), "This testData file at '{0}' does not exist", testDataFile);
             XDocument testDataXml = null;
             try
@@ -569,7 +623,7 @@ namespace Test.BuildXL.TestUtilities
             }
 
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var rootElement = testDataXml.Element("TestRunData");
+            var rootElement = testDataXml.Element(TestRunDataElementName);
             AssertTrue(rootElement != null, "Unexpected xml content");
 
             foreach (var entry in rootElement.Elements("Entry"))

@@ -343,6 +343,16 @@ interface Path extends PathQueries, PathCombineLike {
     toString: () => string;
 }
 
+namespace Path {
+    export declare function interpolate(root: Path | Directory | StaticDirectory, ...rest: PathFragment[]): Path;
+
+    /** 
+     * A helper for when you dynamically read paths from a file and you need to create absolute paths.withQualifier 
+     * For all other path construction cases. Please use the p`...` patterns to maintain good readability.
+     **/
+    export declare function createFromAbsolutePathString(absPath: string) : Path;
+}
+
 /**
  * Represents a source directory artifact.
  *

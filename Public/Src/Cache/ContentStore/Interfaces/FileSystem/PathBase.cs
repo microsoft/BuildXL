@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -16,18 +16,22 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     {
         private const string IllegalCharactersInPathErrorMessage = "Illegal characters in path";
         private static readonly char[] Separators = { '\\', '/' };
-        private string _path;
+        private string? _path;
 
         /// <summary>
         ///     Gets or sets the path as a simple string.
         /// </summary>
         public string Path
         {
-            get { return _path; }
+            get
+            {
+                Contract.AssertNotNull(_path);
+                return _path;
+            }
 
             protected set
             {
-                Contract.Requires(value != null);
+                Contract.RequiresNotNull(value);
                 _path = value;
             }
         }
@@ -43,9 +47,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public string FileName => System.IO.Path.GetFileName(Path);
 
         /// <inheritdoc />
-        public bool Equals(PathBase other)
+        public bool Equals(PathBase? other)
         {
-            if (other == null)
+            if (other is null)
             {
                 return false;
             }
@@ -84,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         protected static bool IsUncCalculated(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
             return path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -93,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         protected static IReadOnlyList<string> ParseSegments(string path, bool relative)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             var segmentsRaw = path.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
             var segments = new List<string>(segmentsRaw.Length);
@@ -126,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj as PathBase);
         }
@@ -150,10 +154,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     can work with absolute or relative paths. If you know the runtime type
         ///     of the path, just use the / operator on the derived type.
         /// </summary>
-        public T ConcatenateWith<T>(PathBase relativePath)
+        public T? ConcatenateWith<T>(PathBase relativePath)
             where T : PathBase
         {
-            Contract.Requires(relativePath != null);
+            Contract.RequiresNotNull(relativePath);
             return Create<T>(System.IO.Path.Combine(Path, relativePath.Path)) as T;
         }
 
@@ -164,10 +168,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     can work with absolute or relative paths. If you know the runtime type
         ///     of the path, just use the / operator on the derived type.
         /// </summary>
-        public T ConcatenateWith<T>(string relativePath)
+        public T? ConcatenateWith<T>(string relativePath)
             where T : PathBase
         {
-            Contract.Requires(relativePath != null);
+            Contract.RequiresNotNull(relativePath);
             return Create<T>(System.IO.Path.Combine(Path, relativePath)) as T;
         }
 
@@ -178,8 +182,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     can work with absolute or relative paths. If you know the runtime type
         ///     of the path, just use the Parent property on the derived type.
         /// </summary>
-        public T GetParentPath<T>()
-            where T : PathBase
+        public T? GetParentPath<T>() where T : PathBase
         {
             return GetParentPathBase() as T;
         }
@@ -187,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Get path to parent directory.
         /// </summary>
-        protected abstract PathBase GetParentPathBase();
+        protected abstract PathBase? GetParentPathBase();
 
         /// <summary>
         ///     Create from a simple string path.
@@ -197,7 +200,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Creates a new path with <paramref name="oldValue"/> replaced with <paramref name="newValue"/>
         /// </summary>
-        public T Replace<T>(string oldValue, string newValue)
+        public T? Replace<T>(string oldValue, string newValue)
             where T : PathBase
         {
             return Create<T>(Path.Replace(oldValue, newValue)) as T;
@@ -206,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Equality operator.
         /// </summary>
-        public static bool operator ==(PathBase left, PathBase right)
+        public static bool operator ==(PathBase? left, PathBase? right)
         {
             return Equals(left, right);
         }
@@ -214,7 +217,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Inequality operator.
         /// </summary>
-        public static bool operator !=(PathBase left, PathBase right)
+        public static bool operator !=(PathBase? left, PathBase? right)
         {
             return !(left == right);
         }

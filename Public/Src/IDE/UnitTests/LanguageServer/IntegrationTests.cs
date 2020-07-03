@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -197,7 +197,7 @@ namespace StaticLibrary {
             var addSourceFileParams = new AddSourceFileToProjectParams
             {
                 RelativeSourceFilePath = "bar.cpp",
-                ProjectSpecFileName = addSourcesCode.Uri
+                ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
             app.NotifyDocumentOpened(addSourcesCode).
@@ -224,7 +224,7 @@ export const x = StaticLibrary.build({
             var addSourceFileParams = new AddSourceFileToProjectParams
             {
                 RelativeSourceFilePath = "foo.cpp",
-                ProjectSpecFileName = addSourcesCode.Uri
+                ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
             app.NotifyDocumentOpened(addSourcesCode).

@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #if NET_FRAMEWORK
 
 using System;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using System.Diagnostics.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.MemoizationStore.Tracing
 {

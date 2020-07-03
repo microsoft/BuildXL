@@ -25,5 +25,6 @@ enum PipExecutionStep{
     HandleResult = 13;
     PipExecutionStep_ChooseWorkerCpu = 14;
     PipExecutionStep_ChooseWorkerCacheLookup = 15;
-    Done = 16;
+    DelayedCacheLookup = 16;
+    Done = 17;
 }

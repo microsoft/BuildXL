@@ -1522,7 +1522,7 @@ namespace BuildXL.Scheduler
 
                     // After the FingerprintStoreExecutionLogTarget is disposed and store files are no longer locked,
                     // create fingerprint store copy in logs.
-                    if ((m_configuration.Logging.FingerprintStoreAnalysisMode & FingerprintStoreAnalysisMode.Offline) != 0)
+                    if (m_configuration.Logging.SaveFingerprintStoreToLogs.GetValueOrDefault())
                     {
                         await FingerprintStore.CopyAsync(
                             m_loggingContext,

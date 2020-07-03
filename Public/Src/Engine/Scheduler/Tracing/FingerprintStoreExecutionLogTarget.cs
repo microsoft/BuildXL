@@ -845,7 +845,7 @@ namespace BuildXL.Scheduler.Tracing
                 ExecutionFingerprintStore.Dispose();
                 CacheLookupFingerprintStore?.Dispose();
 
-                if ((m_configuration.Logging.FingerprintStoreAnalysisMode & FingerprintStoreAnalysisMode.Offline) == 0)
+                if (!m_configuration.Logging.SaveFingerprintStoreToLogs.GetValueOrDefault())
                 {
                     FileUtilities.DeleteDirectoryContents(m_configuration.Logging.FingerprintsLogDirectory.ToString(m_context.PathTable), true);
                 }

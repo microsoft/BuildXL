@@ -43,7 +43,7 @@ namespace Test.BuildXL.FingerprintStore
             // Forces unique, time-stamped logs directory between different scheduler runs within the same test
             Configuration.Logging.LogsToRetain = int.MaxValue;
 
-            Configuration.Logging.FingerprintStoreAnalysisMode = FingerprintStoreAnalysisMode.Offline;
+            Configuration.Logging.SaveFingerprintStoreToLogs = true;
         }
 
         private readonly SchedulerTestHooks m_testHooks = new SchedulerTestHooks()

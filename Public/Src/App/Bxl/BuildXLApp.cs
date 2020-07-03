@@ -287,6 +287,11 @@ namespace BuildXL
                     mutableConfig.Logging.EnableAsyncLogging = true;
                 }
 
+                if (!mutableConfig.Logging.SaveFingerprintStoreToLogs.HasValue)
+                {
+                    mutableConfig.Logging.SaveFingerprintStoreToLogs = true;
+                }
+
                 var logPath = mutableConfig.Logging.Log;
 
                 // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.

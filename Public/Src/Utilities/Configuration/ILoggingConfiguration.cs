@@ -84,14 +84,14 @@ namespace BuildXL.Utilities.Configuration
         bool? StoreFingerprints { get; }
 
         /// <summary>
-        /// <see cref="FingerprintStoreMode"/>.
+        /// <see cref="FingerprintStoreMode"/>
         /// </summary>
         FingerprintStoreMode FingerprintStoreMode { get; }
 
         /// <summary>
-        /// <see cref="FingerprintStoreAnalysisMode"/>.
+        /// Whether to save fingerprint stores to Logs
         /// </summary>
-        FingerprintStoreAnalysisMode FingerprintStoreAnalysisMode { get;}
+        bool? SaveFingerprintStoreToLogs { get;}
 
         /// <summary>
         /// The maximum entry age in minutes of an entry in the fingerprint store. Any entry older than this will

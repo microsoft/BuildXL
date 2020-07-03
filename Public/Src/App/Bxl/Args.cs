@@ -507,9 +507,6 @@ namespace BuildXL
                             "filter",
                             "f",
                             opt => configuration.Filter = CommandLineUtilities.ParseStringOptionalOption(opt)),
-                        OptionHandlerFactory.CreateOption(
-                            "fingerprintStoreAnalysisMode",
-                            opt => loggingConfiguration.FingerprintStoreAnalysisMode = CommandLineUtilities.ParseEnumOption<FingerprintStoreAnalysisMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "fingerprintStoreBulkLoad",
                             sign => loggingConfiguration.FingerprintStoreBulkLoad = sign),
@@ -902,6 +899,9 @@ namespace BuildXL
                                     throw CommandLineUtilities.Error(Strings.Args_SandboxKind_WrongPlatform, parsedOption, osName);
                                 }
                             }),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "SaveFingerprintStoreToLogs",
+                            sign => loggingConfiguration.SaveFingerprintStoreToLogs = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "scanChangeJournal",
                             sign => engineConfiguration.ScanChangeJournal = sign),

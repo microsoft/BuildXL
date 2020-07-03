@@ -501,9 +501,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
-                eventHubName: "eventhub",
+                eventHubName: _distributedSettings.EventHubName,
                 eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).Secret,
-                consumerGroupName: "$Default",
+                consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
 
             dbConfig.Epoch = eventStoreConfiguration.Epoch;

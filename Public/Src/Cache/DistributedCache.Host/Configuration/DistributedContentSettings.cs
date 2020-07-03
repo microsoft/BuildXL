@@ -80,6 +80,18 @@ namespace BuildXL.Cache.Host.Configuration
         public string KeySpacePrefix { get; set; } = "CBPrefix";
 
         /// <summary>
+        /// Name of the EventHub instance to connect to.
+        /// </summary>
+        [DataMember]
+        public string EventHubName { get; set; } = "eventhub";
+
+        /// <summary>
+        /// Name of the EventHub instance's consumer group name.
+        /// </summary>
+        [DataMember]
+        public string EventHubConsumerGroupName { get; set; } = "$Default";
+
+        /// <summary>
         /// Adds suffix to resource names to allow instances in different ring to
         /// share the same resource without conflicts. In particular this will add the
         /// ring suffix to Azure blob container name and Redis keyspace (which is included

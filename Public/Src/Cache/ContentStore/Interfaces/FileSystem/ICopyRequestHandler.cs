@@ -1,9 +1,11 @@
-// Copyright(c) Microsoft.All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 // ReSharper disable All
@@ -19,6 +21,44 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         /// <param name="context">The context of the operation</param>
         /// <param name="hash">The hash of the file to be copied.</param>
-        Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash);
+        /// <param name="token">A cancellation token</param>
+        Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token);
+    }
+
+    /// <summary>
+    /// Handles requests to push content to this machine.
+    /// </summary>
+    public interface IPushFileHandler
+    {
+        /// <nodoc />
+        Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token);
+
+        /// <nodoc />
+        bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason);
+    }
+
+    /// <nodoc />
+    public enum RejectionReason
+    {
+        /// <nodoc />   
+        Accepted,
+
+        /// <nodoc />
+        ContentAvailableLocally,
+
+        /// <nodoc />
+        OlderThanLastEvictedContent,
+
+        /// <nodoc />
+        NotSupported
+    }
+
+    /// <summary>
+    /// Handles delete requests to this machine
+    /// </summary>
+    public interface IDeleteFileHandler
+    {
+        /// <nodoc />
+        Task<DeleteResult> HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions);
     }
 }

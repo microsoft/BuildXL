@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
-using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -59,7 +59,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Pip graph.
         /// </summary>
-        protected IPipGraph PipGraph { get; private set; }
+        protected IMutablePipGraph PipGraph { get; private set; }
 
         /// <summary>
         /// The logger
@@ -77,11 +77,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         protected bool Initializing { get; private set; }
 
         /// <summary>
-        /// If true, generate dependency graph for pips and serialize them into levels so they can be read back in in parallel.
-        /// </summary>
-        public bool SerializeUsingTopSort { get; protected set; }
-
-        /// <summary>
         /// Required engine phases.
         /// </summary>
         public virtual EnginePhases RequiredPhases { get; } = EnginePhases.AnalyzeWorkspace;
@@ -89,7 +84,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Helper that stores some shared state on the Analyzer
         /// </summary>
-        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IPipGraph pipGraph)
+        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IMutablePipGraph pipGraph)
         {
             m_arguments = arguments;
             Context = context;

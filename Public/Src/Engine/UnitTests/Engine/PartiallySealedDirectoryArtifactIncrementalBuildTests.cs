@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,6 +13,7 @@ using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Engine
 {
@@ -56,11 +57,11 @@ namespace Test.BuildXL.Engine
             var buildPaths = GetBuildPaths();
             File.WriteAllText(buildPaths.HeaderAUnsealedSiblingPath, "Oops!");
             FailedBuild("Build #1");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         /// <summary>
@@ -79,11 +80,11 @@ namespace Test.BuildXL.Engine
             // a.h remains - but now we re-run and should find that the now-used empty partial seal doesn't contain it anymore.
             SetupTestState(options: GetSpecOptions(useEmptyIncA: true));
             FailedBuild("Build #2");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAPath);
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAPath);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency();
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -94,11 +95,11 @@ namespace Test.BuildXL.Engine
             EagerCleanBuild("Build #1");
             File.WriteAllText(buildPaths.HeaderAUnsealedSiblingPath, "Oops!");
             FailedBuild("Build #2");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency();
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -111,12 +112,12 @@ namespace Test.BuildXL.Engine
             string yPath = Path.Combine(buildPaths.HeaderDirectoryBRootPath, "y");
             File.WriteAllText(yPath, "Oops!!");
             FailedBuild("Build #1");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, xPath);
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, yPath);
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 2);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, xPath);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, yPath);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 2);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         /// <summary>
@@ -134,12 +135,12 @@ namespace Test.BuildXL.Engine
             string yPath = Path.Combine(buildPaths.HeaderDirectoryBRootPath, "y");
             File.WriteAllText(yPath, "Oops!!");
             FailedBuild("Build #2");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, xPath);
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, yPath);
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 2);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, xPath);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, yPath);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 2);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         private void AssertDependencyViolationMissingSourceDependency(int count = 1)

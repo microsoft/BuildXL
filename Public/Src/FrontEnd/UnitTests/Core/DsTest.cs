@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,6 +12,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Incrementality;
@@ -33,6 +35,7 @@ using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities;
 using TypeScript.Net.Utilities;
@@ -95,7 +98,7 @@ namespace Test.BuildXL.FrontEnd.Core
         /// <summary>
         /// Logger that is used for capturing diagnostics for parsing and evaluation phases.
         /// </summary>
-        protected Logger ParseAndEvaluateLogger { get; } = Logger.CreateLogger(preserveLogEvents: true);
+        protected Logger ParseAndEvaluateLogger { get; } = Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
         /// <summary>
         /// Logger that is used for capturing diagnostics during initialization.
@@ -655,13 +658,12 @@ namespace Test.BuildXL.FrontEnd.Core
             frontEndConfiguration = config.FrontEnd;
             var sharedModuleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(ParseAndEvaluateLogger);
 
             specFullPath = string.IsNullOrEmpty(specRelativePath) ? AbsolutePath.Invalid : CreateAbsolutePathFor(testWriter, specRelativePath);
 
             // Prepare infrastructure.
-            frontEndHost = CreateFrontEndHost(config, frontEndFactory, workspaceFactory, sharedModuleRegistry, specFullPath, out finalConfig, out workspace);
+            frontEndHost = CreateFrontEndHost(config, frontEndFactory, sharedModuleRegistry, specFullPath, out finalConfig, out workspace);
             return sharedModuleRegistry;
         }
 
@@ -706,36 +708,37 @@ namespace Test.BuildXL.FrontEnd.Core
             var configFile = configFilePath ?? AbsolutePath.Create(FrontEndContext.PathTable, TestOutputDirectory)
                                  .Combine(FrontEndContext.PathTable, "config.dsc");
             var config = new CommandLineConfiguration
-                         {
-                             Startup =
-                             {
-                                 ConfigFile = configFile,
-                             },
-                             FrontEnd = GetFrontEndConfiguration(isDebugged),
-                             Engine =
-                             {
-                                 TrackBuildsInUserFolder = false,
-                             },
-                             Schedule =
-                             {
-                                 MaxProcesses = DegreeOfParallelism,
-                                 DisableProcessRetryOnResourceExhaustion = true,
-                             },
-                             // DS tests don't need the extra I/O this adds
-                             Logging =
-                             {
-                                LogExecution = false,
-                                StoreFingerprints = false,
-                             },
-                             Layout =
-                             {
-                                 SourceDirectory = configFile.GetParent(PathTable),
-                                 OutputDirectory = configFile.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out")
-                             },
-                             Cache = {
-                                         CacheSpecs = enableSpecCache ? SpecCachingOption.Enabled : SpecCachingOption.Disabled
-                                     },
-                         };
+            {
+                Startup =
+                {
+                    ConfigFile = configFile,
+                },
+                FrontEnd = GetFrontEndConfiguration(isDebugged),
+                Engine =
+                {
+                    TrackBuildsInUserFolder = false,
+                },
+                Schedule =
+                {
+                    MaxProcesses = DegreeOfParallelism,
+                    DisableProcessRetryOnResourceExhaustion = true,
+                },
+                // DS tests don't need the extra I/O this adds
+                Logging =
+                {
+                    LogExecution = false,
+                    StoreFingerprints = false,
+                },
+                Layout =
+                {
+                    SourceDirectory = configFile.GetParent(PathTable),
+                    OutputDirectory = configFile.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out")
+                },
+                Cache = {
+                    CacheSpecs = enableSpecCache ? SpecCachingOption.Enabled : SpecCachingOption.Disabled
+                },
+                DisableDefaultSourceResolver = DisableDefaultSourceResolver,
+            };
 
             if (enableSpecCache)
             {
@@ -745,6 +748,11 @@ namespace Test.BuildXL.FrontEnd.Core
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, FrontEndContext.PathTable, bxlExeLocation: null, inTestMode: true);
             return config;
         }
+
+        /// <summary>
+        /// The default is true, but many tests rely on automatic spec discovery
+        /// </summary>
+        protected virtual bool DisableDefaultSourceResolver => false;
 
         private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry)
         {
@@ -803,28 +811,25 @@ namespace Test.BuildXL.FrontEnd.Core
                 UseSpecPublicFacadeAndAstWhenAvailable = false,
                 CycleDetectorStartupDelay = 1,
                 EnableIncrementalFrontEnd = false,
-                AllowUnsafeAmbient = true
+                AllowUnsafeAmbient = true,
             };
         }
 
-        protected virtual FrontEndFactory CreateFrontEndFactoryForParsingConfig(
-            DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger)
+        protected virtual FrontEndFactory CreateFrontEndFactoryForParsingConfig(Logger logger)
         {
-            return CreateFrontEndFactory(workspaceResolverFactory, logger, DecoratorForParsingConfig);
+            return CreateFrontEndFactory(logger, DecoratorForParsingConfig);
         }
 
-        protected virtual FrontEndFactory CreateFrontEndFactoryForEvaluation(
-             DScriptWorkspaceResolverFactory workspaceResolverFactor, Logger logger)
+        protected virtual FrontEndFactory CreateFrontEndFactoryForEvaluation(Logger logger)
         {
-            return CreateFrontEndFactory(workspaceResolverFactor, logger, DecoratorForEvaluation);
+            return CreateFrontEndFactory(logger, DecoratorForEvaluation);
         }
 
         protected virtual IDecorator<EvaluationResult> DecoratorForParsingConfig => null;
 
         protected virtual IDecorator<EvaluationResult> DecoratorForEvaluation => null;
 
-        protected FrontEndFactory CreateFrontEndFactory(
-            DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger, IDecorator<EvaluationResult> decorator)
+        protected FrontEndFactory CreateFrontEndFactory(Logger logger, IDecorator<EvaluationResult> decorator)
         {
             return FrontEndFactory.CreateInstanceForTesting(
                 () => new ConfigurationProcessor(new FrontEndStatistics(), logger),
@@ -988,12 +993,11 @@ namespace Test.BuildXL.FrontEnd.Core
             Project
         }
 
-        protected virtual IPipGraph GetPipGraph() => null; // if this is DisallowedGraph(), then evaluations involving sealed directories will fail.
+        protected virtual TestEnv.TestPipGraph GetPipGraph() => null; // if this is DisallowedGraph(), then evaluations involving sealed directories will fail.
 
         protected FrontEndHostController CreateFrontEndHost(
             ICommandLineConfiguration config,
             FrontEndFactory frontEndFactory,
-            DScriptWorkspaceResolverFactory workspaceFactory,
             ModuleRegistry moduleRegistry,
             AbsolutePath fileToProcess,
             out IConfiguration finalConfig,
@@ -1009,13 +1013,13 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var controller = new FrontEndHostController(
                 frontEndFactory, 
-                workspaceFactory, 
                 EvaluationScheduler,
                 moduleRegistry,
                 new FrontEndStatistics(),
                 InitializationLogger, 
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
+
             var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller), new BuildViewModel());
 
             if (engine == null)
@@ -1023,16 +1027,16 @@ namespace Test.BuildXL.FrontEnd.Core
                 return null;
             }
 
+            frontEndFactory.InitializeFrontEnds(controller, FrontEndContext, engine.Configuration);
+
             var frontEndEngineAbstraction = new BasicFrontEndEngineAbstraction(FrontEndContext.PathTable, engineContext.FileSystem, engine.Configuration);
             controller.SetState(frontEndEngineAbstraction, GetPipGraph(), config);
 
             var evaluationFilter = fileToProcess.IsValid ? EvaluationFilter.FromSingleSpecPath(FrontEndContext.SymbolTable, FrontEndContext.PathTable, fileToProcess) : EvaluationFilter.Empty;
 
-            var requestedQualifiersOrDefault = requestedQualifiers ?? new QualifierId[] { engine.Context.QualifierTable.EmptyQualifierId };
+            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter);
 
-            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiersOrDefault);
-
-            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault);
+            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration).GetAwaiter().GetResult();
             if (!initFrontEnds)
             {
                 return null;
@@ -1044,10 +1048,10 @@ namespace Test.BuildXL.FrontEnd.Core
 
         protected virtual bool FilterWorkspaceForConversion => false;
 
-        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter, QualifierId[] requestedQualifiers)
+        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter)
         {
             BeforeBuildWorkspaceHook();
-            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiers: requestedQualifiers);
+            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter);
 
             if (workspace.Succeeded)
             {
@@ -1189,23 +1193,6 @@ namespace Test.BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// Creates a workspace factory for the DScript front end for testing.
-        /// Known DScript-related source resolvers are registered.
-        /// </summary>
-        public static DScriptWorkspaceResolverFactory CreateWorkspaceFactoryForTesting(FrontEndContext context, Logger logger = null)
-        {
-            var workspaceFactory = new DScriptWorkspaceResolverFactory();
-            workspaceFactory.RegisterResolver(KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
-            workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
-            workspaceFactory.RegisterResolver(KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
-
-            return workspaceFactory;
-        }
-
-        /// <summary>
         /// Creates a front-end for testing.
         /// </summary>
         internal DScriptFrontEnd CreateScriptFrontEndForTesting(
@@ -1216,8 +1203,6 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             Contract.Requires(frontEndHost != null);
             Contract.Requires(context != null);
-
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, logger);
 
             var frontEnd = new DScriptFrontEnd(new FrontEndStatistics(), logger, evaluationDecorator: null);
             frontEnd.InitializeFrontEnd(frontEndHost, context, new ConfigurationImpl());
@@ -1233,9 +1218,8 @@ namespace Test.BuildXL.FrontEnd.Core
                 resolverSettings = sourceResolverSettings;
             }
 
-            workspaceFactory.Initialize(context, frontEndHost, frontEndHost.Configuration, requestedQualifiers: new QualifierId[] { context.QualifierTable.EmptyQualifierId });
-            var workspaceResolver = workspaceFactory.TryGetResolver(resolverSettings).Result;
-
+            bool pass = frontEnd.TryCreateWorkspaceResolver(resolverSettings, out var workspaceResolver);
+            Contract.Assert(pass);
             var resolver = frontEnd.CreateResolver(resolverSettings.Kind);
             bool success = resolver.InitResolverAsync(resolverSettings, workspaceResolver).GetAwaiter().GetResult();
             Contract.Assert(success);

@@ -6,7 +6,7 @@
 #include "DataTypes.h"
 #include "DetouredFunctionTypes.h"
 #include "DetouredProcessInjector.h"
-
+#include "UtilityHelpers.h"
 #include <vector>
 
 using std::vector;
@@ -44,6 +44,8 @@ extern uint64_t g_FileAccessManifestPipId;
 
 extern PCManifestRecord g_manifestTreeRoot;
 
+extern PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
+extern std::unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob;
 extern PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 extern vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples;
 
@@ -61,15 +63,59 @@ extern bool g_BreakOnAccessDenied;
 extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
 
-extern wchar_t *g_substituteProcessExecutionShimPath;
-extern bool g_ProcessExecutionShimAllProcesses;
-extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
-
 extern DetouredProcessInjector* g_pDetouredProcessInjector;
 
+// ----------------------------------------------------------------------------
+// Substitute process execution shim.
+// ----------------------------------------------------------------------------
+
+// The filter callback function that must be implemented as an extern "C" __declspec(dllexport) BOOL WINAPI CommandMatches(...)
+// function exported from the substitute process execution plugin DLL. One 32-bit and one 64-bit DLL must be provided to
+// match the DetoursServices.dll flavor used for wrapping a process.
 //
+// If g_ProcessExecutionShimAllProcesses is TRUE, then CommandMatches returning TRUE means that the prospective process should not
+// have the shim process injected, i.e., the prospective process matches a condititon to be excluded. Otherwise, if CommandMatches returns FALSE,
+// then the shim process will be injected. The behavior is reversed if g_ProcessExecutionShimAllProcesses is FALSE.
+//
+// Note for implementors: Process creation is halted for this process until this callback returns.
+// WINAPI (__stdcall) is used for register call efficiency.
+//
+// command: The executable command. Can be a fully qualified path, relative path, or unqualified path
+// that needs a PATH search.
+//
+// arguments: The arguments to the command. May be an empty string.
+//
+// environmentBlock: The environment block for the process. The format is a sequence of "var=value"
+// null-terminated strings, with an empty string (i.e. double null character) terminator. Note that
+// values can have equals signs in them; only the first equals sign is the variable name separator.
+// See more formatting info in the lpEnvironment parameter description at
+// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
+//
+// workingDirectory: The working directory for the command.
+//
+// modifiedArguments: Pointer to null-terminated wide char array allocated using HeapAlloc on the default process' heap.
+// This value may be nullptr in which case the original arguments are used.
+//
+// logFunc: Function for logging messages from the plugin back to the Detours. This function is Detours' Dbg function.
+// Dbg function automatically appends a new line at the end of the string format.
+typedef BOOL(__stdcall* SubstituteProcessExecutionPluginFunc)(
+    const wchar_t* command,
+    const wchar_t* arguments,
+    LPVOID environmentBlock,
+    const wchar_t* workingDirectory,
+    wchar_t** modifiedArguments,
+    void (__stdcall* logFunc)(PCWSTR format, ...));
+
+extern wchar_t* g_SubstituteProcessExecutionShimPath;
+extern bool g_ProcessExecutionShimAllProcesses;
+extern wchar_t* g_SubstituteProcessExecutionPluginDllPath;
+extern HMODULE g_SubstituteProcessExecutionPluginDllHandle;
+extern SubstituteProcessExecutionPluginFunc g_SubstituteProcessExecutionPluginFunc;
+extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
+
+// ----------------------------------------------------------------------------
 // Real Windows API function pointers
-//
+// ----------------------------------------------------------------------------
 
 extern CreateProcessW_t Real_CreateProcessW;
 extern CreateProcessA_t Real_CreateProcessA;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, string message, string diagnostics = null)
+        public CopyFileResult(ResultCode code, string message, string? diagnostics = null)
             : base(message, diagnostics)
         {
             Code = code;
@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, Exception innerException, string message = null)
+        public CopyFileResult(ResultCode code, Exception innerException, string? message = null)
             : base(innerException, message)
         {
             Code = code;
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, ResultBase other, string message = null)
+        public CopyFileResult(ResultCode code, ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = code;
@@ -104,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultBase other, string message = null)
+        public CopyFileResult(ResultBase other, string? message = null)
             : this(ResultCode.Unknown, other, message)
         {
         }
@@ -136,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Optional byte array with the bytes that were copied during a trusted copy.
         /// </summary>
-        public byte[] BytesFromTrustedCopy { get; set; }
+        public byte[]? BytesFromTrustedCopy { get; set; }
 
         /// <summary>
         /// Implicit conversion operator from <see cref="CopyFileResult"/> to <see cref="bool"/>.
@@ -150,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is CopyFileResult other && Equals(other);
         }

@@ -1,8 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -10,6 +11,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -21,132 +24,66 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     {
         public enum RedisBlobAdapterCounters
         {
-            [CounterType(CounterType.Stopwatch)]
-            PutBlob,
-
-            [CounterType(CounterType.Stopwatch)]
-            GetBlob,
-
             SkippedBlobs,
             FailedReservations,
             DownloadedBytes,
             DownloadedBlobs
         }
 
-        private readonly CounterCollection<RedisBlobAdapterCounters> _counters = new CounterCollection<RedisBlobAdapterCounters>();
-
         private readonly RedisDatabaseAdapter _redis;
         private readonly TimeSpan _blobExpiryTime;
         private readonly TimeSpan _capacityExpiryTime;
-        private string _lastFailedReservationKey;
+        private string? _lastFailedReservationKey;
         private readonly long _maxCapacityPerTimeBox;
         private readonly IClock _clock;
-        private readonly Tracer _tracer;
+
+        internal CounterCollection<RedisBlobAdapterCounters> Counters { get; } = new CounterCollection<RedisBlobAdapterCounters>();
 
         internal static string GetBlobKey(ContentHash hash) => $"Blob-{hash}";
 
-        public RedisBlobAdapter(RedisDatabaseAdapter redis, TimeSpan blobExpiryTime, long maxCapacity, IClock clock, Tracer tracer)
+        public RedisBlobAdapter(RedisDatabaseAdapter redis, TimeSpan blobExpiryTime, long maxCapacity, IClock clock)
         {
             _redis = redis;
             _blobExpiryTime = blobExpiryTime;
             _capacityExpiryTime = blobExpiryTime.Add(TimeSpan.FromMinutes(5));
             _maxCapacityPerTimeBox = maxCapacity / 2;
             _clock = clock;
-            _tracer = tracer;
-        }
-
-        /// <nodoc />
-        public class PutBlobResult : BoolResult
-        {
-            /// <nodoc />
-            public ContentHash Hash { get; }
-
-            /// <nodoc />
-            public long BlobSize { get; }
-
-            /// <nodoc />
-            public bool AlreadyInRedis { get; }
-
-            /// <nodoc />
-            public long? NewCapacityInRedis { get; }
-
-            /// <nodoc />
-            public string RedisKey { get; }
-
-            /// <nodoc />
-            public PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newCapacity = null, string redisKey = null)
-            {
-                Hash = hash;
-                BlobSize = blobSize;
-                AlreadyInRedis = alreadyInRedis;
-                NewCapacityInRedis = newCapacity;
-                RedisKey = redisKey;
-            }
-
-            /// <nodoc />
-            public PutBlobResult(ContentHash hash, long blobSize, string errorMessage)
-                : base(errorMessage)
-            {
-                Hash = hash;
-                BlobSize = blobSize;
-            }
-
-            /// <nodoc />
-            public PutBlobResult(ResultBase other, string message)
-                : base(other, message)
-            {
-            }
-
-            /// <inheritdoc />
-            public override string ToString()
-            {
-                string baseResult = $"Hash=[{Hash.ToShortString()}], BlobSize=[{BlobSize}]";
-                if (Succeeded)
-                {
-                    if (AlreadyInRedis)
-                    {
-                        return $"{baseResult}, AlreadyInRedis=[{AlreadyInRedis}]";
-                    }
-
-                    return $"{baseResult}. AlreadyInRedis=[False], RedisKey=[{RedisKey}], NewCapacity=[{NewCapacityInRedis}].";
-                }
-
-                return $"{baseResult}. {ErrorMessage}";
-            }
         }
 
         /// <summary>
         ///     Puts a blob into Redis. Will fail only if capacity cannot be reserved or if Redis fails in some way.
         /// </summary>
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public async Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
-            return context.PerformOperationAsync(
-                _tracer,
-                async () =>
+            const string errorMessage = "Redis value could not be updated to upload blob.";
+            try
+            {
+                var key = GetBlobKey(hash);
+
+                if (await _redis.KeyExistsAsync(context, key, context.Token))
                 {
-                    var key = GetBlobKey(hash);
 
-                    if (await _redis.KeyExistsAsync(context, key, context.Token))
-                    {
+                    Counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
+                    return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
+                }
 
-                        _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
-                        return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
-                    }
+                var reservationResult = await TryReserveAsync(context, blob.Length, hash);
+                if (!reservationResult)
+                {
+                    Counters[RedisBlobAdapterCounters.FailedReservations].Increment();
+                    return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage!);
+                }
 
-                    var reservationResult = await TryReserveAsync(context, blob.Length, hash);
-                    if (!reservationResult)
-                    {
-                        _counters[RedisBlobAdapterCounters.FailedReservations].Increment();
-                        return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage);
-                    }
+                var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
 
-                    var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
-                    return success
-                        ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
-                        : new PutBlobResult(hash, blob.Length, "Redis value could not be updated to upload blob.");
-                },
-                traceOperationStarted: false,
-                counter: _counters[RedisBlobAdapterCounters.PutBlob]);
+                return success
+                    ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
+                    : new PutBlobResult(hash, blob.Length, errorMessage);
+            }
+            catch (Exception e)
+            {
+                return new PutBlobResult(new ErrorResult(e), errorMessage, hash, blob.Length);
+            }
         }
 
         /// <summary>
@@ -191,28 +128,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         ///     Tries to get a blob from Redis.
         /// </summary>
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public async Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
-            return context.PerformOperationAsync(
-                _tracer,
-                async () =>
+            try
+            {
+                byte[] result = await _redis.StringGetAsync(context, GetBlobKey(hash), context.Token);
+
+                if (result == null)
                 {
-                    byte[] result = await _redis.StringGetAsync(context, GetBlobKey(hash), context.Token);
+                    return new GetBlobResult(hash, blob: null);
+                }
 
-                    if (result == null)
-                    {
-                        return new Result<byte[]>($"Blob for hash=[{hash.ToShortString()}] was not found.");
-                    }
-
-                    _counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
-                    _counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
-                    return new Result<byte[]>(result);
-                },
-                traceOperationStarted: false,
-                extraEndMessage: result => result.Succeeded ? $"Hash=[{hash.ToShortString()}], Size=[{result.Value.Length}]" : $"Hash=[{hash.ToShortString()}]",
-                counter: _counters[RedisBlobAdapterCounters.GetBlob]);
+                Counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
+                Counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
+                return new GetBlobResult(hash, result);
+            }
+            catch (Exception e)
+            {
+                return new GetBlobResult(new ErrorResult(e), "Blob could not be fetched from redis.", hash);
+            }
         }
 
-        public CounterSet GetCounters() => _counters.ToCounterSet();
+        public CounterSet GetCounters() => Counters.ToCounterSet();
     }
 }

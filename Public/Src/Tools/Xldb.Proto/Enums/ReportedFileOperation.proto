@@ -73,4 +73,5 @@ enum ReportedFileOperation{
     MacVNodeWrite = 61;
     MacVNodeCloneSource = 62;
     MacVNodeCloneDest = 63;
+    CreateProcess = 64;
 }

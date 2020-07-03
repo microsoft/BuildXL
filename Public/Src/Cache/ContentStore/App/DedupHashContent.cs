@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -66,14 +66,14 @@ namespace BuildXL.Cache.ContentStore.App
 
             var buffer = new byte[bufferSize];
 
-            using (var hasher = new DedupNodeHashAlgorithm(rollingHash ? DedupNodeTree.Algorithm.RollingHash : DedupNodeTree.Algorithm.MaximallyPacked))
+            using (var hasher = new DedupNodeHashAlgorithm(ChunkerConfiguration.Default, rollingHash ? DedupNodeTree.Algorithm.RollingHash : DedupNodeTree.Algorithm.MaximallyPacked))
             {
                 foreach (var p in paths)
                 {
                     hasher.Initialize();
                     TaskSafetyHelpers.SyncResultOnThreadPool(async () =>
                     {
-                        using (var fs = await _fileSystem.OpenReadOnlySafeAsync(p, FileShare.Read | FileShare.Delete))
+                        using (Stream fs = await _fileSystem.OpenReadOnlySafeAsync(p, FileShare.Read | FileShare.Delete))
                         {
                             fs.Position = startOffset;
                             int bytesRead;

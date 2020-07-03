@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!--The XUnit test adapter for vstest uses this configuration to determine whether to run tests in parallel.-->
+  <RunConfiguration>
+    <DisableParallelization>True</DisableParallelization >
+  </RunConfiguration>
+  <!--Exclude some assemblies from code coverage reporting-->
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage" uri="datacollector://Microsoft/CodeCoverage/2.0" assemblyQualifiedName="Microsoft.VisualStudio.Coverage.DynamicCoverageDataCollector, Microsoft.VisualStudio.TraceCollector, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <Configuration>
+          <CodeCoverage>
+            <ModulePaths>
+              <Exclude>
+                <ModulePath>.*\\grpc.*</ModulePath>
+                <ModulePath>.*\\bond.*</ModulePath>
+                <ModulePath>.*\\google.protobuf.dll</ModulePath>
+                <ModulePath>.*\\icsharpcode.sharpziplib.dll</ModulePath>
+                <ModulePath>.*\\dummywaiter.exe</ModulePath>
+                <ModulePath>.*\\microsoft.build.dll</ModulePath>
+              </Exclude>
+            </ModulePaths>
+            <!--Lots of BuildXL tests launch child test processes. The coverage of those processes does not matter.-->
+            <CollectFromChildProcesses>False</CollectFromChildProcesses>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

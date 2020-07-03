@@ -1,9 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
+using System.Linq;
+using System.Text;
+using System.Threading;
 using BuildXL.Utilities;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -17,40 +20,58 @@ namespace BuildXL.Cache.ContentStore.Utils
             _perfStatsAggregator = _collector.CreateAggregator();
         }
 
-        /// <nodoc />
-        public CounterSet GetPerformanceStats()
+        /// <summary>
+        /// Get machine performance statistics as string for tracing.
+        /// </summary>
+        public string GetMachinePerformanceStatistics()
         {
-            var set = new CounterSet();
             var perfInfo = _perfStatsAggregator.ComputeMachinePerfInfo(ensureSample: true);
-
-            set.AddMetric("MachineAvailableRamMb", perfInfo.AvailableRamMb ?? -1);
-            set.AddMetric("CommitLimitMb", perfInfo.CommitLimitMb ?? -1);
-            set.AddMetric("CommitTotalMb", perfInfo.CommitTotalMb ?? -1);
-            set.AddMetric("CommitUsagePercentage", perfInfo.CommitUsagePercentage ?? -1);
+            var set = new StringBuilder();
+            set.AddMetric("CommitTotalMb", perfInfo.CommitUsedMb ?? -1, first: true);
             set.AddMetric("CpuUsagePercentage", perfInfo.CpuUsagePercentage);
-            set.AddMetric("MachineBandwidth", perfInfo.MachineBandwidth);
             set.AddMetric("MachineKbitsPerSecReceived", (long)perfInfo.MachineKbitsPerSecReceived);
             set.AddMetric("MachineKbitsPerSecSent", (long)perfInfo.MachineKbitsPerSecSent);
             set.AddMetric("ProcessCpuPercentage", perfInfo.ProcessCpuPercentage);
             set.AddMetric("ProcessWorkingSetMB", perfInfo.ProcessWorkingSetMB);
-            set.AddMetric("RamUsagePercentage", perfInfo.RamUsagePercentage ?? -1);
-            set.AddMetric("TotalRamMb", perfInfo.TotalRamMb ?? -1);
 
             set.AddMetric("ProcessThreadCount", (long)_perfStatsAggregator.ProcessThreadCount.Latest);
 
-            foreach (var diskStat in _perfStatsAggregator.DiskStats)
+            ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
+            set.AddMetric("ThreadPoolWorkerThreads", workerThreads);
+            set.AddMetric("ThreadPoolCompletionPortThreads", completionPortThreads);
+
+            // We're interested only in two drives: D and K, and K drive is optional.
+            var driveD = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "D");
+            var driveK = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "K");
+
+            addDriveStats(driveD);
+            addDriveStats(driveK);
+
+            return set.ToString();
+
+            void addDriveStats(PerformanceCollector.Aggregator.DiskStatistics? stats)
             {
-                var diskSet = new CounterSet();
-
-                diskSet.Add("IdleTime", (long)diskStat.IdleTime.Latest);
-                diskSet.Add("QueueDepth", (long)diskStat.QueueDepth.Latest);
-                diskSet.Add("ReadTime", (long)diskStat.ReadTime.Latest);
-                diskSet.Add("WriteTime", (long)diskStat.WriteTime.Latest);
-
-                set.Merge(diskSet, $"{diskStat.Drive}.");
+                if (stats != null)
+                {
+                    var prefix = stats.Drive + "_";
+                    set.AddMetric(prefix + "QueueDepth", (long)stats.QueueDepth.Latest);
+                    set.AddMetric(prefix + "AvailableSpaceGb", (long)stats.AvailableSpaceGb.Latest);
+                }
             }
-
-            return set;
         }
     }
+
+    /// <summary>
+    /// A set of extension methods to keep the implementation of <see cref="MachinePerformanceCollector"/> simpler.
+    /// </summary>
+    internal static class StringBuilderExtensions
+    {
+        /// <nodoc />
+        public static StringBuilder AddMetric(this StringBuilder sb, string metricName, long value, bool first = false)
+        {
+            sb.Append($"{(!first ? ", " : "")}{metricName}: {value}");
+            return sb;
+        }
+    }
+
 }

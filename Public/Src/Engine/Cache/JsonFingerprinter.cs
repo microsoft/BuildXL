@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
 
@@ -238,7 +239,12 @@ namespace BuildXL.Engine.Cache
         public void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement, IComparer<TValue> comparer)
             where TCollection : IEnumerable<TValue>
         {
-            AddCollection(name, elements.OrderBy(x => x, comparer), addElement);
+            // We don't sort the elements because sorting is a bottleneck when the number of elements is high.
+            // In one customer pip with ~140,000 static dependencies, sorting slows down JSON fingerprinter up to 5x.
+            // Moreover, it is very rare to see order changes.
+            // Currently, the result of JSON fingerprinter is only processed by cache diff algorithm. The algorithm
+            // should handle the fact that the collection is order independent.
+            AddCollection(name, elements, addElement);
         }
 
         /// <summary>

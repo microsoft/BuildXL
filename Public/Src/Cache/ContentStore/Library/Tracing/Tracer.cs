@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 // ReSharper disable UnusedMemberInSuper.Global
 
@@ -21,8 +22,21 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
+    /// <summary>
+    /// Global configuration that controls some aspects of tracing, like whether to trace statistics.
+    /// </summary>
+    public static class GlobalTracerConfiguration
+    {
+        /// <summary>
+        /// If true the statistics is traced at components shutdown.
+        /// </summary>
+        public static bool EnableTraceStatisticsAtShutdown { get; set; } = true;
+    }
+
     public class Tracer
     {
+        // If this flag is set, then the trace name will be used in all the tracing operations.
+        private readonly bool _useTracerName;
         private const int DefaultArgsPerLog = 500;
 
         private int _numberOfRecoverableErrors;
@@ -45,9 +59,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         public int NumberOfCriticalErrors => _numberOfCriticalErrors;
 
-        public Tracer(string name)
+        public Tracer(string name, bool useTracerName = false)
         {
             Contract.Requires(name != null);
+
+            _useTracerName = useTracerName;
 
             Name = name;
         }
@@ -188,14 +204,21 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        private static void Trace(Severity severity, Context context, string message)
+        private void Trace(Severity severity, Context context, string message, string operationName = null)
         {
             if (!context.IsSeverityEnabled(severity))
             {
                 return;
             }
 
-            context.TraceMessage(severity, message);
+            if (_useTracerName && !message.StartsWith(Name))
+            {
+                // Augmenting the message with the tracer name if specified and if this operation
+                // is not called from OperationStarted method.
+                message = string.Concat(Name, ": ", message);
+            }
+
+            context.TraceMessage(severity, message, component: Name, operation: operationName);
         }
 
         public void OperationStarted(Context context, string operationName, bool enabled = true, string additionalInfo = null)
@@ -207,7 +230,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 {
                     message = $"{message} {additionalInfo}";
                 }
-                Debug(context, message);
+
+                Severity severity = Severity.Debug;
+                context.OperationStarted(message, operationName, Name, severity, OperationKind.None);
             }
         }
 
@@ -259,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (result.IsCriticalFailure)
             {
-                message = $"Critical error occurred: {message}. Diagnostics: {result.Diagnostics}";
+                message = $"Critical error occurred: {message}.";
                 RaiseCriticalError(result);
             }
             else if (result.HasException)
@@ -299,6 +324,28 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 var messageText = CreateMessageText(result, duration, message, operationName);
 
                 OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName);
+            }
+        }
+
+        /// <inheritdoc cref="GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown"/>
+        public bool EnableTraceStatisticsAtShutdown => GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown;
+
+        /// <summary>
+        /// Trace stats during component's shutdown.
+        /// </summary>
+        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string prefix = null)
+        {
+            if (EnableTraceStatisticsAtShutdown)
+            {
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    // Trace(Severity.Debug, context, message);
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, s, operationName: nameof(TraceStatisticsAtShutdown)));
+                }
+                else
+                {
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"{prefix}.{s}", operationName: nameof(TraceStatisticsAtShutdown)));
+                }
             }
         }
     }

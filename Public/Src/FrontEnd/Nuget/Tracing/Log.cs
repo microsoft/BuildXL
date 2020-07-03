@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable SA1600 // Element must be documented
+#nullable enable
 
 namespace BuildXL.FrontEnd.Nuget.Tracing
 {
@@ -15,6 +15,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("NugetLogger")]
     public abstract partial class Logger
     {
         /// <summary>

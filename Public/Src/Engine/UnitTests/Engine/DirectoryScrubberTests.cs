@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,8 @@ using System.Threading;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
@@ -20,6 +22,9 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
+using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
+using BuildXL.Engine.Tracing;
 
 namespace Test.BuildXL.Engine
 {
@@ -29,15 +34,19 @@ namespace Test.BuildXL.Engine
 
         private DirectoryScrubber Scrubber { get; }
 
+        private CancellationTokenSource m_cancellationTokenSource { get; }
+
         public MountScrubberTests(ITestOutputHelper output)
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
+            m_cancellationTokenSource = new CancellationTokenSource();
             Scrubber = new DirectoryScrubber(
-               new CancellationToken(),
+               m_cancellationTokenSource.Token,
                LoggingContext,
                m_loggingConfiguration,
                maxDegreeParallelism: 2);
@@ -132,7 +141,7 @@ namespace Test.BuildXL.Engine
                 mountPathExpander: mountPathExpander);
 
             // NonScrubbable\D produces a warning.
-            AssertWarningEventLogged(EventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable);
+            AssertWarningEventLogged(global::BuildXL.Engine.Tracing.LogEventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable);
 
             // f is in NonScrubbable.
             XAssert.IsTrue(File.Exists(f));
@@ -284,7 +293,7 @@ namespace Test.BuildXL.Engine
         public void DeleteFilesCanDeleteFile()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
-            
+
             string fullFilePath = WriteFile(Path.Combine(rootDir, "out.txt"));
             XAssert.IsTrue(File.Exists(fullFilePath));
 
@@ -294,7 +303,52 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(1, numDeleted);
         }
 
-        [Theory]
+        [Fact]
+        public void DeleteFilesCancellationDoesNotCrash()
+        {
+            const int FileDeletionsAllowed = 2;
+            var testHook = new DirectoryScrubber.TestHooks
+            {
+                OnDeletion = new Action<string, int>((path, numDeletedSoFar) =>
+                {
+                    if (numDeletedSoFar > FileDeletionsAllowed) { m_cancellationTokenSource.Cancel(); }
+                })
+            };
+
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
+
+            List<string> files = new List<string>();
+
+            for (var i = 0; i < FileDeletionsAllowed * 3; i++)
+            {
+                string fullFilePath = WriteFile(Path.Combine(rootDir, $"out{i}.txt"));
+                XAssert.FileExists(fullFilePath);
+                files.Add(fullFilePath);
+            }
+
+            XAssert.IsFalse(m_cancellationTokenSource.IsCancellationRequested);
+
+            var numDeleted = Scrubber.DeleteFiles(files.ToArray(), testHook: testHook);
+            XAssert.IsTrue(m_cancellationTokenSource.IsCancellationRequested);
+            XAssert.Equals(FileDeletionsAllowed, numDeleted);
+        }
+
+        [Fact]
+        public void DeleteFilesWithPreExistingCancellationDoesNotCrash()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
+
+            string fullFilePath = WriteFile(Path.Combine(rootDir, "out.txt"));
+            XAssert.FileExists(fullFilePath);
+
+            m_cancellationTokenSource.Cancel();
+            var numDeleted = Scrubber.DeleteFiles(new[] { fullFilePath });
+
+            XAssert.FileExists(fullFilePath);
+            XAssert.AreEqual(0, numDeleted);
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void DeleteFilesDeletesSymlinkButNotTarget(bool useRelativeTargetForSymlink)
@@ -318,7 +372,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(File.Exists(fullFilePath));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DeleteFilesCanDeleteDirectorySymlink()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteDirectorySymlink));
@@ -336,7 +390,121 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(Directory.Exists(fullTargetDirPath));
         }
 
-        [Theory]
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void DirectorySymlinksAreTraversed()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksAreTraversed));
+            string fullTargetDirPath = Path.Combine(rootDir, "target-dir");
+            Directory.CreateDirectory(fullTargetDirPath);
+
+            var fileUnderTarget = Path.Combine(fullTargetDirPath, "file.txt");
+            File.WriteAllText(fileUnderTarget, "content");
+
+            string rootToScrub = Path.Combine(rootDir, "root-to-scrub");
+            Directory.CreateDirectory(rootToScrub);
+
+            string fullSymlinkPath = WriteSymlink(Path.Combine(rootToScrub, "directory symlink"), fullTargetDirPath, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
+
+            // Scrub starting on a root dir that contains a symlink directory. We should be able to find the file underneath and delete it
+            // We consider all artifacts to be not part of the build, so symlink directories are followed and all files are deleted
+            Scrubber.RemoveExtraneousFilesAndDirectories(
+                        isPathInBuild: path => false,
+                        pathsToScrub: new[] { rootDir },
+                        blockedPaths: CollectionUtilities.EmptyArray<string>(),
+                        nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+            XAssert.IsFalse(File.Exists(fileUnderTarget));
+            XAssert.Equals(OperatingSystemHelper.IsMacOS, !Directory.Exists(fullSymlinkPath));
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty));
+            string fullTargetDirPath = Path.Combine(rootDir, "target-dir");
+            Directory.CreateDirectory(fullTargetDirPath);
+            XAssert.IsTrue(Directory.Exists(fullTargetDirPath));
+
+            var fileUnderTarget = Path.Combine(fullTargetDirPath, "file.txt");
+            File.WriteAllText(fileUnderTarget, "content");
+
+            string fullSymlinkPath = WriteSymlink(Path.Combine(rootDir, "directory symlink"), fullTargetDirPath, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
+
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(fullSymlinkPath);
+                XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(fullSymlinkPath));
+            }
+
+            // This is somewhat subtle. On Windows, IsSharedOpaqueOutput will say yes for any directory, including symlink directories. This means they won't be
+            // considered part of the build and therefore should be traversed.
+            // So if the symlink is traversed, fileUnderTarget will be found, which is not a shared opaque output. So the file won't be deleted. And
+            // so nor the symlink directory. If the symlink directory wasn't traversed, then it would be deleted.
+            Scrubber.RemoveExtraneousFilesAndDirectories(
+                isPathInBuild: path => !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
+                pathsToScrub: new[] { rootDir }, 
+                blockedPaths: CollectionUtilities.EmptyArray<string>(), 
+                nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+            XAssert.FileExists(fileUnderTarget);
+
+            // On Mac:
+            //   - any symlink is a file, any file under shared opaque dir gets scrubber ==> fullSymlinkPath should be scrubbed
+            //
+            // On Windows:
+            //   - directories under shared opaques are always removed unless they have files underneath that shouldn't be 
+            //     removed. This test verifies this behavior also applies to symlink directories
+            XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(fullSymlinkPath));
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void SymlinkDirectoriesDoNotIntroduceDuplicateWork()
+        {
+            // We are creating this layout
+            //
+            // root
+            // -- real-dir
+            //    -- symlink-dir -> real-dir
+            //       --file.txt
+            //
+            // so there is in fact a cycle, where root/real-dir/symlink-dir/.../symlink-dir/... is a valid path
+            // The fact that scrubbing finishes proves we are deduping work
+
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(SymlinkDirectoriesDoNotIntroduceDuplicateWork));
+            string realDirectory = Path.Combine(rootDir, "real-dir");
+            Directory.CreateDirectory(realDirectory);
+
+            string symlinkDirectory = WriteSymlink(Path.Combine(realDirectory, "symlink-dir"), rootDir, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(symlinkDirectory));
+
+            var fileUnderSymlinkDir = Path.Combine(symlinkDirectory, "file.txt");
+            File.WriteAllText(fileUnderSymlinkDir, "content");
+
+            try
+            {
+                Scrubber.RemoveExtraneousFilesAndDirectories(
+                    isPathInBuild: path => false,
+                    pathsToScrub: new[] { rootDir },
+                    blockedPaths: CollectionUtilities.EmptyArray<string>(),
+                    nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+                XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
+                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(realDirectory));
+                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(symlinkDirectory));
+            }
+            finally 
+            {
+                // On Windows, the temp directory cleaner has problems with cycles. So let's remove the symlink dir explicitly here
+                if (!OperatingSystemHelper.IsMacOS)
+                {
+                    Directory.Delete(symlinkDirectory);
+                }
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void DeleteFilesCanDeleteSymlinkToAbsentFile(bool declareSymlinkTargetAsFile)
@@ -378,7 +546,7 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(0, numDeleted);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DeleteFilesHandlesMixedEntries()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesHandlesMixedEntries));

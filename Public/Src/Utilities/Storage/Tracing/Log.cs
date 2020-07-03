@@ -1,14 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
-using BuildXL.Utilities.Instrumentation;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Storage.Tracing
 {
@@ -17,6 +16,7 @@ namespace BuildXL.Storage.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("StorageLogger")]
     public abstract partial class Logger
     {
         /// <summary>
@@ -733,6 +733,33 @@ namespace BuildXL.Storage.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Directory '{path}' is enumerated multiple times with different resulting directory fingerprints; this indicates that the membership of directory changed during the build")]
         public abstract void ConflictDirectoryMembershipFingerprint(LoggingContext loggingContext, string path);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ComChunkerFailulre,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "COM chunker failed to initialize. Using ManagedChunker instead. Exception: '{exception}'")]
+        public abstract void ComChunkerFailulre(LoggingContext loggingContext, string exception);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ChunkerType,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "Using chunker '{chunkerType}'")]
+        public abstract void ChunkerType(LoggingContext loggingContext, string chunkerType);
+
+        [GeneratedEvent(
+            (int)LogEventId.TrackChangesToGvfsProjectionFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "Failed to track GVFS projection file '{0}'; error: {1}")]
+        public abstract void TrackChangesToGvfsProjectionFailed(LoggingContext context, string gvfsProjectionFile, string errorMessage);
 
         public class FileCombinerStats
         {

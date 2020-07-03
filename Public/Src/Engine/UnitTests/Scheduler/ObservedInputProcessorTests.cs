@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +18,7 @@ using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -1129,6 +1130,7 @@ namespace Test.BuildXL.Scheduler
         {
             // Setup the environment for the tests
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var config = ConfigurationHelpers.GetDefaultForTesting(
                 context.PathTable,
                 AbsolutePath.Create(context.PathTable, Path.Combine(TestOutputDirectory, "config.dc")));
@@ -1192,16 +1194,18 @@ namespace Test.BuildXL.Scheduler
 
             PipExecutionState pes = new PipExecutionState(
                 config,
+                loggingContext,
                 cache: null,
-                fileAccessWhitelist: null,
+                fileAccessAllowlist: null,
                 directoryMembershipFingerprinter: fingerprinter,
                 pathExpander: mountExpander,
                 fileSystemView: null,
                 executionLog: null,
                 unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
-                preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
+                preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
-                directoryMembershipFinterprinterRuleSet: parentRuleSet);
+                directoryMembershipFinterprinterRuleSet: parentRuleSet,
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);

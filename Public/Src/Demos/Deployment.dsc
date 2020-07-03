@@ -5,8 +5,8 @@ import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
 namespace Deployment {
-    @@public
-    export const deployment: Deployment.Definition = {
+    
+    const deployment: Deployment.Definition = {
         contents: [
             BlockAccesses.exe,
             ReportAccesses.exe,

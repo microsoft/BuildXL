@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
     {
         private readonly Logger m_logger;
 
-        private readonly bool m_skipTestClass = false;
+        private readonly string m_skipTestClassSkipReason = null;
 
         /// <nodoc />
         public ClassRunner(
@@ -41,24 +41,11 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             // Check if the test class has the attribute that specifies system requirements to run the tests
             var testClassAttributes = typeInfo.Type.GetCustomAttributes(typeof(TestClassIfSupportedAttribute), inherit: true);
             // If any of the attributes specify Skip, the test class is skipped
-            m_skipTestClass = !(testClassAttributes
+            m_skipTestClassSkipReason = testClassAttributes
                 .Cast<TestClassIfSupportedAttribute>()
-                .All(attribute => string.IsNullOrEmpty(attribute.Skip)));
-        }
-
-        protected override async Task<RunSummary> RunTestMethodsAsync()
-        {
-            if (m_skipTestClass)
-            {
-                // Fake the test run summary
-                var summary = new RunSummary();
-                summary.Total = summary.Skipped = TestCases.Count();
-                return summary;
-            }
-            else
-            {
-                return await base.RunTestMethodsAsync();
-            }
+                .Select(attribute => attribute.Skip)
+                .Where(skipReason => !string.IsNullOrEmpty(skipReason))
+                .FirstOrDefault();
         }
 
         /// <inheritdoc />
@@ -67,16 +54,31 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             IReflectionMethodInfo method,
             IEnumerable<IXunitTestCase> testCases,
             object[] constructorArguments)
-            => new BuildXLTestMethodRunner(
-                m_logger,
-                testMethod,
-                Class,
-                method,
-                testCases,
-                DiagnosticMessageSink,
-                MessageBus,
-                new ExceptionAggregator(Aggregator),
-                CancellationTokenSource,
-                constructorArguments).RunAsync();
+        {
+            if (!string.IsNullOrEmpty(m_skipTestClassSkipReason))
+            {
+                var runSummary = new RunSummary();
+                foreach (var testCase in testCases)
+                {
+                    MessageBus.QueueMessage(new TestSkipped(new XunitTest(testCase, testCase.DisplayName), m_skipTestClassSkipReason));
+                    runSummary.Skipped++;
+                    runSummary.Total++;
+                }
+                
+                return Task.FromResult(runSummary);
+            }
+
+            return new BuildXLTestMethodRunner(
+                           m_logger,
+                           testMethod,
+                           Class,
+                           method,
+                           testCases,
+                           DiagnosticMessageSink,
+                           MessageBus,
+                           new ExceptionAggregator(Aggregator),
+                           CancellationTokenSource,
+                           constructorArguments).RunAsync();
+        }
     }
 }

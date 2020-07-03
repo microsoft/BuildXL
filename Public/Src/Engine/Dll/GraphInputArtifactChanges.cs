@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Engine.Tracing;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine
@@ -19,11 +20,17 @@ namespace BuildXL.Engine
         /// <summary>
         /// Paths that possibly have changed.
         /// </summary>
+        /// <remarks>
+        /// When this value is set to <c>null</c>, it means that possibly changed paths could not be determined.
+        /// </remarks>
         public HashSet<string> PossiblyChangedPaths { get; private set; }
 
         /// <summary>
         /// Directories that have changed since they were enumerated in the previous build.
         /// </summary>
+        /// <remarks>
+        /// When this value is set to <c>null</c>, it means that changed directories could not be determined.
+        /// </remarks>
         public HashSet<string> ChangedDirs { get; private set; }
 
         /// <summary>
@@ -32,14 +39,16 @@ namespace BuildXL.Engine
         public bool HaveNoChanges => PossiblyChangedPaths != null && PossiblyChangedPaths.Count == 0 && ChangedDirs != null && ChangedDirs.Count == 0;
 
         private readonly LoggingContext m_loggingContext;
+        private readonly IReadOnlyCollection<string> m_gvfsProjections;
 
         /// <summary>
         /// Creates an instance of <see cref="GraphInputArtifactChanges"/>.
         /// </summary>
-        public GraphInputArtifactChanges(LoggingContext loggingContext)
+        public GraphInputArtifactChanges(LoggingContext loggingContext, IReadOnlyCollection<string> gvfsProjections)
         {
             Contract.Requires(loggingContext != null);
             m_loggingContext = loggingContext;
+            m_gvfsProjections = gvfsProjections;
         }
 
         /// <inheritdoc />
@@ -90,29 +99,45 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public void OnCompleted(ScanningJournalResult result)
         {
-            Log(result);
+            var gvfsProjectionChanges = new HashSet<string>(m_gvfsProjections, OperatingSystemHelper.PathComparer);
+            if (PossiblyChangedPaths != null)
+            {
+                gvfsProjectionChanges.IntersectWith(PossiblyChangedPaths);
+            }
 
-            if (!result.Succeeded)
+            Log(result, gvfsProjectionChanges);
+
+            // Reseting 'ChangedDirs' and 'PossibleChangedPaths' to null will force all 
+            // graph inputs to be explicitly checked for changes.  We have to do this 
+            // whenever either scanning failed or any gvfs projections changed.
+            if (!result.Succeeded || gvfsProjectionChanges.Count > 0)
             {
                 ChangedDirs = null;
                 PossiblyChangedPaths = null;
             }
         }
 
-        private void Log(ScanningJournalResult result)
+        private void Log(ScanningJournalResult result, HashSet<string> gvfsProjectionChanges)
         {
-            if (PossiblyChangedPaths != null && ChangedDirs != null)
+            if (gvfsProjectionChanges.Count > 0)
             {
-                if (PossiblyChangedPaths.Count > 0 || ChangedDirs.Count > 0)
+                Logger.Log.JournalDetectedGvfsProjectionChanges(m_loggingContext, string.Join(", ", gvfsProjectionChanges));
+            }
+            else
+            {
+                if (PossiblyChangedPaths != null && ChangedDirs != null)
                 {
-                    string path = PossiblyChangedPaths.Count > 0 ? PossiblyChangedPaths.First() : string.Empty;
-                    string directory = ChangedDirs.Count > 0 ? ChangedDirs.First() : string.Empty;
+                    if (PossiblyChangedPaths.Count > 0 || ChangedDirs.Count > 0)
+                    {
+                        string path = PossiblyChangedPaths.Count > 0 ? PossiblyChangedPaths.First() : string.Empty;
+                        string directory = ChangedDirs.Count > 0 ? ChangedDirs.First() : string.Empty;
 
-                    Logger.Log.JournalDetectedInputChanges(m_loggingContext, path, directory);
-                }
-                else if (result.Succeeded)
-                {
-                    Logger.Log.JournalDetectedNoInputChanges(m_loggingContext);
+                        Logger.Log.JournalDetectedInputChanges(m_loggingContext, path, directory);
+                    }
+                    else if (result.Succeeded)
+                    {
+                        Logger.Log.JournalDetectedNoInputChanges(m_loggingContext);
+                    }
                 }
             }
         }

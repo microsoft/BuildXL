@@ -8,7 +8,6 @@ namespace Scheduler {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Scheduler",
         generateLogs: true,
-        generateLogsLite: false,
         sources: globR(d`.`, "*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
@@ -19,6 +18,7 @@ namespace Scheduler {
             Processes.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,
+            importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
@@ -35,12 +35,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
-        ],
-        embeddedResources: [
-            {
-                resX: f`Filter/ErrorMessages.resx`
-            }
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

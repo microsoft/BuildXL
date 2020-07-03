@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Stores;
 
-// ReSharper disable All
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
@@ -20,6 +21,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Creates and returns a file location cache for the given session.
         /// </summary>
-        Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation);
+        Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation, ILocalContentStore? localContentStore);
     }
 }

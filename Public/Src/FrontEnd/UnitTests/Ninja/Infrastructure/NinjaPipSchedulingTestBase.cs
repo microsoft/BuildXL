@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +7,8 @@ using System.Linq;
 using BuildXL.FrontEnd.Ninja;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -16,11 +18,14 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Native.IO;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.TestEnv;
+using Test.BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
 {
@@ -32,11 +37,17 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
     /// Meant to be used in conjunction with <see cref="NinjaSchedulingProjectBuilder"/>
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class NinjaPipSchedulingTestBase : DsTestWithCacheBase
     {
         private readonly ModuleDefinition m_testModule;
         private readonly AbsolutePath m_configFilePath;
-        protected string BogusExecutable = Path.GetTempFileName();
+        protected string BogusExecutable = FileUtilities.GetTempFileName();
+
+        /// <summary>
+        /// <see cref="CmdHelper.CmdX64"/>
+        /// </summary>
+        protected string CMD => CmdHelper.CmdX64;
 
         protected AbsolutePath TestPath { get; }
 
@@ -58,7 +69,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
             PopulateMainConfigAndPrelude();
         }
 
-        protected override IPipGraph GetPipGraph() => new TestPipGraph();
+        protected override TestPipGraph GetPipGraph() => new TestPipGraph();
 
         /// <summary>
         /// Starts the addition of projects
@@ -99,7 +110,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         {
             return new NinjaNode(
                     rule ?? "",
-                    command ?? @"cmd.exe /C ""cd .""",
+                    command ?? $@"{CMD} /C ""cd .""",
                     inputs ?? new ReadOnlyHashSet<AbsolutePath>(),
                     outputs ?? new ReadOnlyHashSet<AbsolutePath>(),
                     dependencies ?? CollectionUtilities.EmptySet<NinjaNode>()
@@ -112,10 +123,9 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         internal NinjaSchedulingResult ScheduleAll(NinjaResolverSettings resolverSettings, IList<NinjaNode> nodes, QualifierId qualifierId)
         {
             var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(ParseAndEvaluateLogger);
 
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _))
             {
                 var pipConstructor = new NinjaPipConstructor(
                     FrontEndContext,

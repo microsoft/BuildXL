@@ -598,7 +598,8 @@ export function evaluate(inputArgs: Arguments): File {
         environmentVariables: environmentVars,
         implicitOutputs: [
             cnOutput
-        ]
+        ],
+        tags: ["codegen"],
     });
 
     return result.getOutputFile(outputFile);

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,27 +11,26 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
-using BuildXL.Pips;
-using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Testing.Helper.Ambients;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities;
 using Xunit.Sdk;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -47,6 +46,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         private readonly BuildXL.FrontEnd.Core.Tracing.Logger m_tracingLogger;
         private readonly Script.Tracing.Logger m_astLogger;
         private readonly BuildXL.Scheduler.Tracing.Logger m_schedulerLogger;
+        private readonly BuildXL.Pips.Tracing.Logger m_pipLogger;
         private readonly Action<Diagnostic> m_diagnosticHandler;
         private readonly bool m_updateFailedTests;
 
@@ -54,8 +54,9 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         public TestRunner(Action<Diagnostic> diagnosticHandler, bool updateFailedTests)
         {
             m_tracingLogger = BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(true);
-            m_astLogger = Script.Tracing.Logger.CreateLogger(true);
+            m_astLogger = Script.Tracing.Logger.CreateLoggerWithTracking(true);
             m_schedulerLogger = BuildXL.Scheduler.Tracing.Logger.CreateLogger(true);
+            m_pipLogger = BuildXL.Pips.Tracing.Logger.CreateLogger(true);
             m_diagnosticHandler = diagnosticHandler;
             m_updateFailedTests = updateFailedTests;
             BuildXL.Storage.ContentHashingUtilities.SetDefaultHashType();
@@ -128,7 +129,6 @@ export function test(args: TestArguments): TestResult {{
                 frontEndStatistics, 
                 configuration, 
                 out var ambientTesting, 
-                out var workspaceFactory, 
                 out var moduleRegistry, 
                 out var frontEndFactory))
             {
@@ -139,7 +139,6 @@ export function test(args: TestArguments): TestResult {{
             using (var performanceCollector = new PerformanceCollector(TimeSpan.FromHours(1)))
             using (var frontEndHostController = new FrontEndHostController(
                     frontEndFactory,
-                    workspaceFactory,
                     new EvaluationScheduler(1),
                     moduleRegistry,
                     frontEndStatistics,
@@ -170,7 +169,7 @@ export function test(args: TestArguments): TestResult {{
                     var graph = new PipGraph.Builder(
                         pipTable,
                         pipContext,
-                        m_schedulerLogger,
+                        m_pipLogger,
                         frontEndContext.LoggingContext,
                         configuration,
                         mountPathExpander);
@@ -227,7 +226,6 @@ export function test(args: TestArguments): TestResult {{
             FrontEndStatistics frontEndStatistics,
             ICommandLineConfiguration configuration,
             out AmbientTesting ambientTesting,
-            out DScriptWorkspaceResolverFactory workspaceFactory,
             out ModuleRegistry moduleRegistry,
             out FrontEndFactory frontEndFactory)
         {
@@ -237,17 +235,6 @@ export function test(args: TestArguments): TestResult {{
 
             var ambientAssert = new AmbientAssert(moduleRegistry.PrimitiveTypes);
             ambientAssert.Initialize(moduleRegistry.GlobalLiteral);
-
-            workspaceFactory = new DScriptWorkspaceResolverFactory();
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
 
             // Create the controller
             frontEndFactory = new FrontEndFactory();
@@ -330,6 +317,7 @@ export function test(args: TestArguments): TestResult {{
                     {
                         ConfigFile = configFilePath,
                     },
+                    DisableDefaultSourceResolver = false,
                 };
             return configuration;
         }
@@ -408,7 +396,7 @@ export function test(args: TestArguments): TestResult {{
                         return FailOrUpdateLkg(lkgFile, actual);
                     }
 
-                    var expected = File.ReadAllText(lkgFile);
+                    var expected = TranslateLkgContentForCurrentPlatform(File.ReadAllText(lkgFile));
                     string message;
                     if (!FileComparison.ValidateContentsAreEqual(expected, actual, lkgFile, out message))
                     {
@@ -425,6 +413,19 @@ export function test(args: TestArguments): TestResult {{
             }
 
             return true;
+        }
+
+        private static string TranslateLkgContentForCurrentPlatform(string str)
+        {
+            return !OperatingSystemHelper.IsUnixOS
+                ? str // LKG is written assuming Windows OS 
+                : str
+                    // Sometimes, a single '\' in an LKG file is escaped twice ('\\\\'): once for DScript and
+                    // once for JSON generated from DScript. Other times, it is escaped only once ('\\') for 
+                    // DScript.  In all those cases, we want to replace '\' with '/' when running on a Unix platform.
+                    .Replace(@"\\\\", "/")
+                    .Replace(@"\\", "/")
+                    .Replace(@"\r\n", @"\n");
         }
 
         private string GetAutoFixString()
@@ -512,6 +513,7 @@ export function test(args: TestArguments): TestResult {{
                     m_astLogger.CapturedDiagnostics,
                     m_tracingLogger.CapturedDiagnostics,
                     m_schedulerLogger.CapturedDiagnostics,
+                    m_pipLogger.CapturedDiagnostics,
                 }.SelectMany(x => x);
         }
 

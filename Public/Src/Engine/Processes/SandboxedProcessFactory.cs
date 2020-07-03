@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Operations;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
@@ -91,7 +94,103 @@ namespace BuildXL.Processes
             /// Number of paths with directory symlinks that were discarded
             /// </summary>
             [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsDiscardedCount
+            DirectorySymlinkPathsDiscardedCount,
+
+            /// <summary>
+            /// Duration of lazily deleting shared opaque outputs (when enabled)
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.ProcessSandboxedProcessResultAsync"/>.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseProcessingSandboxProcessResult,
+
+            /// <summary>
+            /// Duration of processing process's standard outputs
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseProcessingStandardOutputs,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.TryGetObservedFileAccesses"/>
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccesses,
+
+            /// <summary>
+            /// Duration of logging process's outputs
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseLoggingOutputs,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.RunAsync"/> inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseRunningPip,
+
+            /// <summary>
+            /// Duration of "ExecutionResult.ReportSandboxedExecutionResult" inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseReportingExeResult,
+
+            /// <summary>
+            /// Duration of PipExecutor.ValidateObservedFileAccesses
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseValidateObservedFileAccesses,
+
+            /// <summary>
+            /// Duration of computing IsDirty inside of PipExecutor.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseComputingIsDirty,
+
+            /// <summary>
+            /// Duration of storing cache content inside of PipExecutor.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseStoringCacheContent,
+
+            /// <summary>
+            /// Duration of computing strong fingerprint inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseComputingStrongFingerprint,
+
+            /// <summary>
+            /// Duration of storing strong fingerprint to XLG inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseStoringStrongFingerprintToXlg,
+
+            /// <summary>
+            /// Duration of flagging shared opaque outputs inside of Scheduler 
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseFlaggingSharedOpaqueOutputs,
+
+            /// <summary>
+            /// Duration of analyzing file access violations inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseAnalyzingFileAccessViolations,
+
+            /// <summary>
+            /// Duration of analyzing double writes inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseAnalyzingDoubleWrites,
+
+            /// <summary>
+            /// Duration of reporting output content inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseReportingOutputContent
         }
 
         /// <summary>
@@ -111,6 +210,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(info != null);
             Contract.Requires(info.FileName != null);
+            Contract.Requires(info.LoggingContext != null);
             Contract.Requires(info.GetCommandLine().Length <= SandboxedProcessInfo.MaxCommandLineLength);
 
             if (info.TestRetries)
@@ -142,7 +242,7 @@ namespace BuildXL.Processes
             }
             else if (OperatingSystemHelper.IsUnixOS)
             {
-                return new SandboxedProcessMac(sandboxedProcessInfo, ignoreReportedAccesses: sandboxKind == SandboxKind.MacOsKextIgnoreFileAccesses);
+                return new SandboxedProcessUnix(sandboxedProcessInfo, ignoreReportedAccesses: sandboxKind == SandboxKind.MacOsKextIgnoreFileAccesses);
             }
             else
             {
@@ -171,11 +271,19 @@ namespace BuildXL.Processes
             catch
             {
                 result?.Dispose();
-                info.ProcessIdListener?.Invoke(-1);
                 throw;
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Logs a process sub phase and ensures the time is recored in the Counters
+        /// </summary>
+        public static void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
+        {
+            Counters.AddToCounter(counter, duration);
+            Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
         }
     }
 }

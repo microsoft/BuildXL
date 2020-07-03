@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             return RunMockSessionTestAsync(context, async session =>
             {
-                await session.GetSelectors(context, weakFingerprint, Token, NonDefaultUrgencyHint).ToArray();
+                await session.GetSelectors(context, weakFingerprint, Token, NonDefaultUrgencyHint).ToListAsync();
                 Assert.True(_mockMemoizationSession.GetSelectorsParams.Contains(weakFingerprint), $"Expected to find ({weakFingerprint}) in set of GetSelectors calls.");
             });
         }

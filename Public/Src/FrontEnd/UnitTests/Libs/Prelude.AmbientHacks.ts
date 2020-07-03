@@ -9,6 +9,12 @@ namespace _PreludeAmbientHack_Hashing{
 namespace _PreludeAmbientHack_ValueCache {
     /** Returns an object from the cache for a given key. */
     export declare function getOrAdd<TKey, TValue>(key: TKey, createValue: () => TValue): TValue;
+
+    /** 
+     * Same as 'getOrAdd' except that it allows arbitrary state to be passed in which is then propagated to the 'createValue' function.
+     * Prefer using this to 'getOrAdd' to avoid cycles originating from inside the 'createValue' function.
+     */
+    export declare function getOrAddWithState<TKey, TState, TValue>(key: TKey, state: TState, createValue: (s: TState) => TValue): TValue;
 }
 
 namespace _PreludeAmbientHack_Json{
@@ -62,5 +68,5 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function sealDirectory(root: any, files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory;
     export declare function sealSourceDirectory(root: any, option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
     export declare function sealPartialDirectory(root: any, files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
-    export declare function composeSharedOpaqueDirectories(root: any, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;
+    export declare function composeSharedOpaqueDirectories(root: any, directories: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : any): SharedOpaqueDirectory;
 }

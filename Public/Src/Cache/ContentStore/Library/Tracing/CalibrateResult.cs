@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <summary>
@@ -26,13 +27,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="CalibrateResult"/> class.
         /// </summary>
-        public CalibrateResult(string errorMessage, string diagnostics = null)
+        public CalibrateResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
         }
 
         /// <nodoc />
-        public CalibrateResult(ResultBase other, string message)
+        public CalibrateResult(ResultBase other, string? message)
             : base(other, message)
         {
         }

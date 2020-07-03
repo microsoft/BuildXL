@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -31,6 +31,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// but not vice versa.
         /// </summary>
         private readonly ConcurrentBigMap<T, List<AbsolutePath>> m_valueToPathApproximation;
+
+        /// <summary>
+        /// Number of mappings.
+        /// </summary>
+        public int Count => m_pathToValue.Where(kvp => kvp.Value != null && kvp.Value.Count > 0).Count();
 
         /// <summary>
         /// Creates an instance of <see cref="IncrementalSchedulingPathMapping{T}"/>

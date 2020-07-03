@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -61,15 +61,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             Contract.Requires(separatorSymbol.IsValid);
             Contract.Requires(contentsSymbol.IsValid);
             Contract.Requires(pipDataBuilderPool != null);
-            Contract.Requires(data != null);
 
             return new DataProcessor(stringTable, separatorSymbol, contentsSymbol, pipDataBuilderPool).ProcessData(data, conversionContext);
         }
 
         private PipData ProcessData(EvaluationResult data, in ConversionContext conversionContext)
         {
-            Contract.Requires(data != null);
-
             using (var pipDataBuilderWrapper = m_pipDataBuilderPool.GetInstance())
             {
                 var pipDataBuilder = pipDataBuilderWrapper.Instance;

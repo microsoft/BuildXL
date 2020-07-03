@@ -4,9 +4,9 @@
 import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as SysMng from "System.Management";
+import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace Processes {
-    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -34,6 +34,8 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Newtonsoft.Json").pkg,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",
@@ -42,8 +44,13 @@ namespace Processes {
             "Test.BuildXL.Scheduler",
         ],
         runtimeContent: [
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+            ...addIfLazy(Context.getCurrentHost().os === "win" && qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.Sandbox.Windows").Deployment.detours,
+            ]),
+            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
+                MacServices.Deployment.kext,
+                MacServices.Deployment.sandboxMonitor,
+                MacServices.Deployment.sandboxLoadScripts
             ]),
         ],
     });

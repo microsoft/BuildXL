@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Utilities.Tracing;
@@ -53,37 +53,37 @@ namespace BuildXL.Engine
         /// <summary>
         /// Flag indicating that performance data was received from the cache
         /// </summary>
-        PerformanceDataStoredToCache,
+        HistoricPerfDataStoredToCache,
 
         /// <summary>
         /// Flag indicating that performance data was received from the cache
         /// </summary>
-        PerformanceDataRetrievedFromCache,
+        HistoricPerfDataRetrievedFromCache,
 
         /// <summary>
         /// Flag indicating that performance data was received from the disk
         /// </summary>
-        PerformanceDataRetrievedFromDisk,
+        HistoricPerfDataRetrievedFromDisk,
 
         /// <summary>
         /// Flag indicating that performance data was sucessfully loaded
         /// </summary>
-        PerformanceDataSuccessfullyLoaded,
+        HistoricPerfDataSuccessfullyLoaded,
 
         /// <summary>
-        /// The loading duration for running time table from cache
+        /// The loading duration for historic perf data from cache
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        PerformanceDataRetrievalDuration,
+        HistoricPerfDataRetrievalDuration,
 
         /// <summary>
-        /// The saving duration for running time table to cache
+        /// The saving duration for historic perf data to cache
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        PerformanceDataSavingDuration,
+        HistoricPerfDataSavingDuration,
 
         /// <summary>
-        /// The duration for processing post execution tasks (saving running time table, historic metadatacache, exporting fingerprints, graph, etc.)
+        /// The duration for processing post execution tasks (saving historic perf data, historic metadatacache, exporting fingerprints, graph, etc.)
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ProcessPostExecutionTasksDuration,

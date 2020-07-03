@@ -1,14 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler.Diagnostics
@@ -18,12 +19,14 @@ namespace BuildXL.Scheduler.Diagnostics
     /// </summary>
     public class ObservedInputAnomalyAnalyzer : ExecutionAnalyzerBase
     {
+        private readonly LoggingContext m_loggingContext;
         private readonly ConcurrentBigMap<PipId, ObservedInputCounts> m_observedInputCounts = new ConcurrentBigMap<PipId, ObservedInputCounts>();
 
         /// <nodoc />
-        public ObservedInputAnomalyAnalyzer(PipGraph pipGraph)
+        public ObservedInputAnomalyAnalyzer(LoggingContext loggingContext, PipGraph pipGraph)
             : base(pipGraph)
         {
+            m_loggingContext = loggingContext;
         }
 
         /// <inheritdoc />
@@ -68,7 +71,7 @@ namespace BuildXL.Scheduler.Diagnostics
                     {
                         var executionCounts = GetObservedInputCount(data.StrongFingerprintComputations[0].ObservedInputs);
                         ObservedInputCounts.LogForLowObservedInputs(
-                            Events.StaticContext,
+                            m_loggingContext,
                             GetDescription(GetPip(data.PipId)),
                             executionCounts: executionCounts,
                             cacheMaxCounts: cacheMaxCounts);

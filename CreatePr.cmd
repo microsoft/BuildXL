@@ -3,6 +3,8 @@ setlocal enabledelayedexpansion
 
 set ENLISTMENTROOT=%~dp0
 set SCRIPTROOT=%~dp0Shared\Scripts\
+set PRBRANCHPREFIX=dev/%USERNAME%/pr
+set CREATEPULLREQUESTURL=https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal
 
 if /I "%1" == "-help" (
 	goto :Usage
@@ -89,7 +91,7 @@ REM ************************************************************
 		)
 
 	:CreateBranchName
-		set PR_BRANCH_NAME=pr/%PrName%
+		set PR_BRANCH_NAME=%PRBRANCHPREFIX%/%PrName%
 
 	:CheckIfExists
 		for /f %%R in ('git branch -r --list */%PR_BRANCH_NAME%') do (
@@ -117,32 +119,13 @@ REM ************************************************************
 			goto :Error
 		)
 
-	:ExtractRemote
-		//for /F "usebackq" %%i in (`git remote -v ^| findstr /VC:"Microsoft/BuildXL.git"`) do set PR_REMOTE=%%i
-		REM: the Delims are tab and space intentionally
-		for /F "usebackq tokens=1,2 delims=	 " %%i in (`git remote -v ^| findstr /VC:"Microsoft/BuildXL.git"`) do (
-			set PR_REMOTE_NAME=%%i
-			set PR_REMOTE_URI=%%j
-		)
-		if "%PR_REMOTE_NAME%" == "" (
-			echo --------------------------------------------------------------------------------------
-			echo - FAILURE  :-(  Could not determine a git 'remote' that is not Microsoft/BuildXL.git -
-			echo --------------------------------------------------------------------------------------
-			exit /b 1
-			goto :Error
-		)
-
 	:ForcePushToServer
-		call git push --force %PR_REMOTE_NAME% HEAD:%PR_BRANCH_NAME%
+		call git push --force origin HEAD:%PR_BRANCH_NAME%
 		if %ERRORLEVEL% NEQ 0 (
 			echo >&2 Failed to force-push to branch %PR_BRANCH_NAME%
 			goto :Error
 		)
-		set PR_REMOTE_CREATE=%PR_REMOTE_URI:.git=/pull/new/!PR_BRANCH_NAME!%
-		echo %PR_REMOTE_CREATE%
-		start %PR_REMOTE_CREATE%
-		REM start https://dev.azure.com/mseng/_git/Domino/pullrequestcreate?targetRef=master^&sourceRef=%PR_BRANCH_NAME%
-
+		start %CREATEPULLREQUESTURL%/pullrequestcreate?targetRef=master^&sourceRef=%PR_BRANCH_NAME%
 
 	goto :Success
 
@@ -183,7 +166,7 @@ REM ************************************************************
 			echo ERROR: Missing ^<PrName^> argument
 			goto :Usage
 		)
-		set PR_BRANCH_NAME=personal/%USERNAME%/pr/%PrName%
+		set PR_BRANCH_NAME=%PRBRANCHPREFIX%/%PrName%
 
 	:CheckIfExists
 		for /f %%R in ('git branch -r --list */%PR_BRANCH_NAME%') do (
@@ -258,9 +241,9 @@ REM ************************************************************
 
 	for /f "tokens=1-6 delims=/" %%a in ('git branch --all ^| findstr /ic:"%username%/pr/"') do (
 		if "%%f" NEQ "" (
-			call git push --force origin :personal/%USERNAME%/pr/%%f
+			call git push --force origin :%PRBRANCHPREFIX%/%%f
 			if %ERRORLEVEL% NEQ 0 (
-				echo >&2 Failed to remove branch 'personal/%USERNAME%/pr/%%f'
+				echo >&2 Failed to remove branch '%PRBRANCHPREFIX%/%%f'
 				set SomeError=1
 			)
 		)
@@ -278,7 +261,7 @@ REM ************************************************************
 	echo.
 	echo ---------------------------------------------------------------
 	echo - Usage: %~nx0 ^<PrName^>
-	echo -	 This will create serverside branch with name 'personal/pr/%username%/pr/^<PrName^>'
+	echo -	 This will create serverside branch with name '%PRBRANCHPREFIX%/^<PrName^>'
 	echo -	 and open a browser to create a pull request for that branch
 	echo -	 If you already have a pull request open with that name it will update it.
 	echo -
@@ -286,10 +269,10 @@ REM ************************************************************
 	echo -	 Lists all existing pr branches you have open.
 	echo -
 	echo - Usage: %~nx0 /remove ^<PrName^>
-	echo -	 Removes the serverside branch with name 'personal/pr/%username%/pr/^<PrName^>'
+	echo -	 Removes the serverside branch with name '%PRBRANCHPREFIX%/^<PrName^>'
 	echo -
 	echo - Usage: %~nx0 /removeAll
-	echo -	 Removes all of the the serverside branches under 'personal/pr/%username%/pr'
+	echo -	 Removes all of the the serverside branches under '%PRBRANCHPREFIX%'
 	echo ---------------------------------------------------------------
 	exit /b 1
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
@@ -84,15 +84,28 @@ namespace BuildXL.Utilities.Configuration
         bool? StoreFingerprints { get; }
 
         /// <summary>
-        /// <see cref="FingerprintStoreMode"/>.
+        /// <see cref="FingerprintStoreMode"/>
         /// </summary>
         FingerprintStoreMode FingerprintStoreMode { get; }
+
+        /// <summary>
+        /// Whether to save fingerprint stores to Logs
+        /// </summary>
+        bool? SaveFingerprintStoreToLogs { get;}
 
         /// <summary>
         /// The maximum entry age in minutes of an entry in the fingerprint store. Any entry older than this will
         /// be removed at the end of the build.
         /// </summary>
         int FingerprintStoreMaxEntryAgeMinutes { get; }
+
+        /// <summary>
+        /// Bulk load fingerprint store to (hopefully) speed up writes.
+        /// </summary>
+        /// <remarks>
+        /// This option is temporary for AB testing.
+        /// </remarks>
+        bool FingerprintStoreBulkLoad { get; }
 
         /// <summary>
         /// Specifies the path to the fingerprints log directory which contains FingerprintStores.
@@ -183,6 +196,11 @@ namespace BuildXL.Utilities.Configuration
         /// Logs key/value statistics to a file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file
         /// </summary>
         AbsolutePath StatsLog { get; }
+
+        /// <summary>
+        /// Logs performance statistics to a json file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file
+        /// </summary>
+        AbsolutePath StatsPrfLog { get; }
 
         /// <summary>
         /// The file where to store events summary.
@@ -310,6 +328,16 @@ namespace BuildXL.Utilities.Configuration
         CacheMissAnalysisOption CacheMissAnalysisOption { get; }
 
         /// <summary>
+        /// Diff format for cache miss analysis.
+        /// </summary>
+        CacheMissDiffFormat CacheMissDiffFormat { get; }
+
+        /// <summary>
+        /// Whether cache miss analysis results should be batched when reporting to telemetry
+        /// </summary>
+        bool CacheMissBatch { get; }
+
+        /// <summary>
         /// Whether console output should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeConsoleOutputForAzureDevOps { get; }
@@ -328,5 +356,22 @@ namespace BuildXL.Utilities.Configuration
         /// Whether Vso annotations should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeVsoAnnotationsForAzureDevOps { get; }
+
+        /// <summary>
+        /// Specifies the internal max message size to be allowed for each individual messages sent to Aria.
+        /// Current default set at 0.8Mb to have enough space for other fields specified in the same message.
+        /// </summary>
+        /// <remarks>
+        /// According to https://www.aria.ms/developers/deep-dives/input-constraints/, 
+        /// The maximum length of an event can be upto 2.5Mb.
+        /// However, it was found that the maximum length of a column in an event is 1MB.
+        /// There is no documentation found about this limit.
+        /// </remarks>
+        public int AriaIndividualMessageSizeLimitBytes { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of PerProcessPipPerformanceInformation batched messages to be sent to Aria
+         /// </summary>
+        public int MaxNumPipTelemetryBatches { get; }
     }
 }

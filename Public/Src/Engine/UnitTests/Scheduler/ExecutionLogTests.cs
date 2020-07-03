@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -68,6 +69,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     PipId = new PipId(123),
                     CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
+                    MissedOutputs = new List<string>(),
                 });
             });
         }
@@ -191,7 +193,7 @@ namespace Test.BuildXL.Scheduler
                     ),
                     new ObservedPathEntryExpandedPathComparer(Context.PathTable.ExpandedPathComparer)),
                 emptyObservedAccessFileNames,
-                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, ContentHashingUtilities.CreateRandom()));
+                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), 0)));
         }
 
         private AbsolutePath RandomPath()

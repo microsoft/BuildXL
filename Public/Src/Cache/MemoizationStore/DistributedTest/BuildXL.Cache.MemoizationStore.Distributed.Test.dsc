@@ -32,12 +32,22 @@ namespace DistributedTest {
             Interfaces.dll,
             Library.dll,
 
+            importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+
             ...BuildXLSdk.fluentAssertionsWorkaround,
-            importFrom("StackExchange.Redis.StrongName").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         runtimeContent: [
-            ...importFrom("Redis-64").Contents.all.contents,
+            {
+                subfolder: r`redisServer`,
+                contents: [
+                    ...BuildXLSdk.isTargetRuntimeOsx 
+                        ? importFrom("Redis-osx-x64").Contents.all.contents 
+                        : importFrom("Redis-64").Contents.all.contents,
+                ]
+            },
         ],
     });
 }

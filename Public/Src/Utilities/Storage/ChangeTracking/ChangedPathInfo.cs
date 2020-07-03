@@ -1,12 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 
 namespace BuildXL.Storage.ChangeTracking
 {
     /// <summary>
     /// Information about changed path.
     /// </summary>
-    public readonly struct ChangedPathInfo
+    public readonly struct ChangedPathInfo : IEquatable<ChangedPathInfo>
     {
         /// <summary>
         /// Changed path.
@@ -26,5 +28,39 @@ namespace BuildXL.Storage.ChangeTracking
             Path = path;
             PathChanges = pathChanges;
         }
+
+        /// <inheritdoc />
+        public bool Equals(ChangedPathInfo other)
+        {
+            if (PathChanges != other.PathChanges)
+            {
+                return false;
+            }
+
+            return string.Equals(Path, other.Path, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            if (obj is null)
+            {
+                return false;
+            }
+
+            return obj is ChangedPathInfo location && Equals(location);
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Path.GetHashCode();
+                hashCode = (hashCode * 397) ^ (int)PathChanges;
+                return hashCode;
+            }
+        }
+
     }
 }

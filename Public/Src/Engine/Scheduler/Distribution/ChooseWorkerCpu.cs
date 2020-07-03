@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,14 +9,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -57,9 +58,12 @@ namespace BuildXL.Scheduler.Distribution
         public RunnablePip LastBlockedPip { get; private set; }
 
         /// <summary>
-        /// The last resource limiting acquisition of a worker
+        /// The last resource limiting acquisition of a worker. 
         /// </summary>
-        public WorkerResource? LastLimitingResource { get; set; }
+        /// <remarks>
+        /// If it is null, there is no resource limiting the worker.
+        /// </remarks>
+        public WorkerResource? LastConcurrencyLimiter { get; set; }
 
         /// <summary>
         /// The number of choose worker iterations
@@ -86,9 +90,12 @@ namespace BuildXL.Scheduler.Distribution
 
         private int m_totalProcessSlots;
 
+        private readonly bool m_enableSetupCost;
+
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
             int maxParallelDegree,
+            bool enableSetupCostWhenChoosingWorker,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             PipGraph pipGraph,
@@ -98,6 +105,7 @@ namespace BuildXL.Scheduler.Distribution
             m_executedProcessOutputs = new ContentTrackingSet(pipGraph);
             m_fileContentManager = fileContentManager;
             m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(() => new PipSetupCosts(this), costs => costs, size: maxParallelDegree);
+            m_enableSetupCost = enableSetupCostWhenChoosingWorker;
         }
 
         /// <summary>
@@ -134,7 +142,14 @@ namespace BuildXL.Scheduler.Distribution
             using (var pooledPipSetupCost = m_pipSetupCostPool.GetInstance())
             {
                 var pipSetupCost = pooledPipSetupCost.Instance;
-                pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip);
+                if (m_enableSetupCost)
+                {
+                    pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip);
+                }
+                else
+                {
+                    pipSetupCost.InitializeWorkerSetupCost(runnablePip.Pip);
+                }
 
                 using (await m_chooseWorkerMutex.AcquireAsync())
                 {
@@ -147,7 +162,6 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         m_lastIterationBlockedPip = runnablePip;
                         LastBlockedPip = runnablePip;
-                        LastLimitingResource = limitingResource;
                         var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<int>());
                         limitingResourceCount.Value++;
                     }
@@ -155,6 +169,9 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         m_lastIterationBlockedPip = null;
                     }
+                    
+                    // If a worker is successfully chosen, then the limiting resouce would be null.
+                    LastConcurrencyLimiter = limitingResource;
 
                     m_chooseTime += TimestampUtilities.Timestamp - startTime;
                     return chosenWorker;
@@ -175,7 +192,7 @@ namespace BuildXL.Scheduler.Distribution
 
             ResetStatus();
 
-            var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu);
+            var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumRunningByKind(DispatcherKind.ChooseWorkerCpu);
 
             bool loadBalanceWorkers = false;
             if (runnablePip.PipType == PipType.Process)
@@ -188,6 +205,13 @@ namespace BuildXL.Scheduler.Distribution
                     loadBalanceWorkers = true;
                 }
             }
+
+            double? disableLoadBalanceMultiplier = EngineEnvironmentSettings.DisableLoadBalanceMultiplier;
+
+            // Disable load-balance if there is a multiplier specified including 0.
+            loadBalanceWorkers &= !disableLoadBalanceMultiplier.HasValue;
+
+            long setupCostForBestWorker = workerSetupCosts[0].SetupBytes;
 
             limitingResource = null;
             foreach (var loadFactor in m_workerBalancedLoadFactors)
@@ -203,7 +227,23 @@ namespace BuildXL.Scheduler.Distribution
                     var worker = workerSetupCosts[i].Worker;
                     if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor))
                     {
+                        runnablePip.Performance.SetInputMaterializationCost(ByteSizeFormatter.ToMegabytes((ulong)setupCostForBestWorker), ByteSizeFormatter.ToMegabytes((ulong)workerSetupCosts[i].SetupBytes));
                         return worker;
+                    }
+
+                    // If the worker is not chosen due to the lack of process slots,
+                    // do not try the next worker immediately if 'BuildXLDisableLoadBalanceMultiplier' is specified.
+                    // We first check whether the number of pips waiting for a worker is less than the total slots times with the multiplier.
+                    // For example, if the multiplier is 1 and totalWorkerSlots is 100, then we do not try the next worker 
+                    // if there are less than 100 pips waiting for a worker. 
+                    // For Cosine builds, executing pips on a new worker is expensive due to the input materialization.
+                    // It is usually faster to wait for the busy worker to be available compared to trying on another worker.
+                    if (limitingResource == WorkerResource.AvailableProcessSlots && 
+                        disableLoadBalanceMultiplier.HasValue &&
+                        pendingWorkerSelectionPipCount < (worker.TotalProcessSlots * disableLoadBalanceMultiplier.Value))
+                    {
+                        limitingResource = WorkerResource.DisableLoadBalance;
+                        return null;
                     }
                 }
             }
@@ -244,9 +284,15 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
-        public void LogStats()
+        public void LogStats(Dictionary<string, long> statistics)
         {
             var limitingResourceStats = m_limitingResourceCounts.ToDictionary(kvp => kvp.Key.ToString(), kvp => (long)kvp.Value.Value);
+
+            foreach (var kvp in limitingResourceStats)
+            {
+                statistics.Add($"LimitingResource_{kvp.Key}", kvp.Value);
+            }
+
             Logger.Log.LimitingResourceStatistics(LoggingContext, limitingResourceStats);
         }
 
@@ -275,13 +321,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 var pip = runnablePip.Pip;
 
-                for (int i = 0; i < m_context.Workers.Count; i++)
-                {
-                    WorkerSetupCosts[i] = new WorkerSetupCost()
-                    {
-                        Worker = m_context.Workers[i],
-                    };
-                }
+                InitializeWorkerSetupCost(pip);
 
                 // The block below collects process input file artifacts and hashes
                 // Currently there is no logic to keep from sending the same hashes twice
@@ -329,17 +369,22 @@ namespace BuildXL.Scheduler.Distribution
                             }
                         }
                     }
-
-                    if (pip.PipType == PipType.Ipc)
-                    {
-                        for (int idx = 0; idx < m_context.Workers.Count; ++idx)
-                        {
-                            WorkerSetupCosts[idx].AcquiredIpcSlots = m_context.Workers[idx].AcquiredIpcSlots;
-                        }
-                    }
                 }
 
                 Array.Sort(WorkerSetupCosts);
+            }
+
+            public void InitializeWorkerSetupCost(Pip pip)
+            {
+                for (int i = 0; i < m_context.Workers.Count; i++)
+                {
+                    var worker = m_context.Workers[i];
+                    WorkerSetupCosts[i] = new WorkerSetupCost()
+                    {
+                        Worker = worker,
+                        AcquiredSlots = pip.PipType == PipType.Ipc ? worker.AcquiredIpcSlots : worker.AcquiredProcessSlots
+                    };
+                }
             }
         }
 
@@ -354,12 +399,12 @@ namespace BuildXL.Scheduler.Distribution
             public long SetupBytes { get; set; }
 
             /// <summary>
-            /// Number of acquired IPC slots.
+            /// Number of acquired slots
             /// </summary>
             /// <remarks>
-            /// This number is only used for setup cost of IPC pips, and, for process pip, the number is 0.
+            /// For IPC pips, this means acquired IPC slots, and for process pips, it means acquired process slots.
             /// </remarks>
-            public int AcquiredIpcSlots { get; set; }
+            public int AcquiredSlots { get; set; }
 
             /// <summary>
             /// The associated worker
@@ -370,7 +415,7 @@ namespace BuildXL.Scheduler.Distribution
             public int CompareTo(WorkerSetupCost other)
             {
                 var result = SetupBytes.CompareTo(other.SetupBytes);
-                return result == 0 ? AcquiredIpcSlots.CompareTo(other.AcquiredIpcSlots) : result;
+                return result == 0 ? AcquiredSlots.CompareTo(other.AcquiredSlots) : result;
             }
         }
     }

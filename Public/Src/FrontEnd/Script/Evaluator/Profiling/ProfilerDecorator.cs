@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -131,7 +131,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator.Profiling
         public void NotifyDiagnostics(Context context, Diagnostic diagnostic)
         {
             Contract.Requires(context != null);
-            Contract.Requires(diagnostic != null);
 
             // The profiler doesn't care about diagnostics (so far)
         }

@@ -1,45 +1,25 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
-// disable 'Missing XML comment for publicly visible type' warnings.
-#pragma warning disable 1591
-#pragma warning disable SA1600 // Elements must be documented
-
 namespace BuildXL.Cache.ContentStore.Hashing
 {
+    /// <nodoc />
     public sealed class BlobBlockHash : IEquatable<BlobBlockHash>
     {
+        /// <nodoc />
         public readonly byte[] HashBytes;
 
-        public BlobBlockHash(byte[] hashValue)
-        {
-            HashBytes = hashValue;
-        }
+        /// <nodoc />
+        public BlobBlockHash(byte[] hashValue) => HashBytes = hashValue;
 
-        public BlobBlockHash(string hex)
-        {
-            HashBytes = HexUtilities.HexToBytes(hex);
-        }
+        /// <nodoc />
+        public BlobBlockHash(string hex) => HashBytes = HexUtilities.HexToBytes(hex);
 
+        /// <nodoc />
         public string HashString => HexUtilities.BytesToHex(HashBytes);
-
-        public static bool operator ==(BlobBlockHash left, BlobBlockHash right)
-        {
-            if (left is null)
-            {
-                return right is null;
-            }
-
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(BlobBlockHash left, BlobBlockHash right)
-        {
-            return !(left == right);
-        }
 
         /// <summary>
         /// Returns true/false whether the object is equal to the current <see cref="BlobBlockHash"/>
@@ -48,10 +28,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>
         /// <c>true</c> if the objects are equal, otherwise <c>false</c>.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             var other = obj as BlobBlockHash;
-            return other != null && Equals(other);
+            return other is object && Equals(other);
         }
 
         /// <summary>
@@ -61,14 +41,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>
         /// <c>true</c> if the objects are equal, otherwise <c>false</c>.
         /// </returns>
-        public bool Equals(BlobBlockHash other)
+        public bool Equals(BlobBlockHash? other)
         {
             if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
-            return (other != null) && HashBytes.SequenceEqual(other.HashBytes);
+            return (other is object) && HashBytes.SequenceEqual(other.HashBytes);
         }
 
         /// <summary>
@@ -88,9 +68,24 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <returns>
         /// A user-friendly, non-canonical string representation of the content identifier
         /// </returns>
-        public override string ToString()
+        public override string ToString() => HashString;
+
+        /// <nodoc />
+        public static bool operator ==(BlobBlockHash? left, BlobBlockHash? right)
         {
-            return HashString;
+            if (left is null)
+            {
+                return right is null;
+            }
+
+            return left.Equals(right);
         }
+
+        /// <nodoc />
+        public static bool operator !=(BlobBlockHash? left, BlobBlockHash? right)
+        {
+            return !(left == right);
+        }
+
     }
 }

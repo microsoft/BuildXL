@@ -1,13 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.SandboxExec.Tracing
 {
@@ -17,6 +15,8 @@ namespace BuildXL.SandboxExec.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("SandboxExecLogger")]
+
     public abstract partial class Logger : LoggerBase
     {
         /// <summary>

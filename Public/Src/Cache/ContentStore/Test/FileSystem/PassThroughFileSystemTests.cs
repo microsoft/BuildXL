@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -14,14 +14,113 @@ using BuildXL.Native.IO;
 using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using FluentAssertions;
+using System.Linq;
 
 namespace ContentStoreTest.FileSystem
 {
+    [Trait("Category", "Integration")]
     public sealed class PassThroughFileSystemTests : AbsFileSystemTests
     {
         public PassThroughFileSystemTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger))
         {
+        }
+
+        [Fact]
+        public async Task CopyFileAsyncShouldOverrideContentWhenReplaceExistingFlagIsPassed()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var sourcePath = testDirectory.Path / "source.txt";
+                var destinationPath = testDirectory.Path / "destination.txt";
+                string sourceContent = "Short text";
+                string defaultDestinationContent = sourceContent + ". Some extra stuff.";
+
+                FileSystem.WriteAllText(sourcePath, sourceContent);
+                FileSystem.WriteAllText(destinationPath, defaultDestinationContent);
+
+                // CopyFileAsync should truncate the existing content.
+                await FileSystem.CopyFileAsync(sourcePath, destinationPath, true);
+                var destinationContent = FileSystem.ReadAllText(destinationPath);
+                Assert.Equal(sourceContent, destinationContent);
+            }
+        }
+
+        [Fact]
+        public async Task DoNotFailWithFileNotFoundExceptionWhenTheFileIsDeletedDuringOpenAsyncCall()
+        {
+            // There was a race condition in PassThroughFileSystem.OpenAsync implementation
+            // that could have caused FileNotFoundException instead of returning null.
+            using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
+            {
+                var path = testDirectory.Path / Guid.NewGuid().ToString();
+
+                int iterations = 100;
+
+                for(var i = 0; i < iterations; i++)
+                {
+                    await writeAllTextAsync(FileSystem, path, "test", attemptCount: 5);
+                    var t1 = openAndClose(FileSystem, path);
+                    var t2 = openAndClose(FileSystem, path);
+                    var t3 = openAndClose(FileSystem, path);
+                    var t4 = openAndClose(FileSystem, path);
+                    FileSystem.DeleteFile(path);
+
+                    await Task.WhenAll(t1, t2, t3, t4);
+                }
+            }
+
+            static async Task openAndClose(IAbsFileSystem fileSystem, AbsolutePath path)
+            {
+                await Task.Yield();
+                try
+                {
+                    // This operation may fail with UnauthorizedAccessException because
+                    // the test tries to delete the file in the process.
+                    using var f = await fileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+                }
+                catch(UnauthorizedAccessException)
+                { }
+            }
+
+            static async Task writeAllTextAsync(IAbsFileSystem fileSystem, AbsolutePath path, string content, int attemptCount)
+            {
+                // There is a subtle race condition dealing with file system deletion.
+                // It is possible that the deletion that happened on the previous iteration is not fully done yet
+                // and the following WriteAllText may fail with 'FileNotFound' exception.
+                for (int i = 0; i < attemptCount; i++)
+                {
+                    try
+                    {
+                        fileSystem.WriteAllText(path, content);
+                        await Task.Delay(10);
+                    }
+                    catch (FileNotFoundException)
+                    { }
+                }
+            }
+        }
+
+        [Fact(Skip = "Test does not work on all versions of Windows where BuildXL tests run")]
+        [Trait("Category", "WindowsOSOnly")] 
+        public async Task TestDeleteWithOpenFileStream()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
+            {
+                var path = testDirectory.Path / Guid.NewGuid().ToString();
+                var otherPath = testDirectory.Path / Guid.NewGuid().ToString();
+                FileSystem.WriteAllText(path, "Hello");
+                FileSystem.WriteAllText(otherPath, "Other");
+
+                using (Stream stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+                {
+                    FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
+
+                    FileSystem.FileExists(path).Should().BeFalse();
+
+                    FileSystem.MoveFile(otherPath, path, replaceExisting: false);
+                }
+            }
         }
 
         [Fact]
@@ -36,6 +135,24 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
+        public void CreateHardLinkFromFileWithDenyWrites()
+        {
+            // This test mimics an actual behavior:
+            // The content inside the cache is ackled with deny writes.
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var sourcePath = testDirectory.Path /  "source.txt";
+                var destinationPath = testDirectory.Path /  "destination.txt";
+                
+                FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
+                FileSystem.DenyFileWrites(sourcePath);
+
+                var result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
+                result.Should().Be(CreateHardLinkResult.Success, $"SourcePath='{sourcePath}', DestinationPath={destinationPath}");
+            }
+        }
+
+        [Fact]
         [Trait("Category", "WindowsOSOnly")] 
         public void CreateHardLinkResultsBasedOnDestinationDirectoryExistence()
         {
@@ -43,16 +160,15 @@ namespace ContentStoreTest.FileSystem
             {
                 var sourcePath = testDirectory.Path / "source.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
-                FileUtilities.SetFileAccessControl(sourcePath.Path, FileSystemRights.Write | FileSystemRights.ReadAndExecute, false);
 
                 // Covering short path case
-                CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 10));
+                createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 10));
 
                 // Covering long path case
-                CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 200));
+                createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 200));
             }
 
-            void CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(AbsolutePath root, AbsolutePath sourcePath, string pathSegment)
+            void createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(AbsolutePath root, AbsolutePath sourcePath, string pathSegment)
             {
                 var destinationPath = root / pathSegment / pathSegment / "destination.txt";
                 
@@ -70,7 +186,7 @@ namespace ContentStoreTest.FileSystem
 
                 FileSystem.CreateDirectory(destinationPath.Parent);
                 result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
-                Assert.Equal(CreateHardLinkResult.Success, result);
+                result.Should().Be(CreateHardLinkResult.Success, $"SourcePath='{sourcePath}', DestinationPath={destinationPath}");
             }
         }
 
@@ -149,21 +265,6 @@ namespace ContentStoreTest.FileSystem
                     var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
                     exception.Message.Should().ContainAny("Handle was used by", "Did not find any actively running processes using the handle");
                 }
-            }
-        }
-
-        [Fact]
-        public void CreateHardLinkFromFileWithDenyWriteReadExecute()
-        {
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                var sourcePath = testDirectory.Path / "source.txt";
-                var destinationPath = testDirectory.Path / "destination.txt";
-                FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
-                FileUtilities.SetFileAccessControl(sourcePath.Path, FileSystemRights.Write | FileSystemRights.ReadAndExecute, false);
-
-                var result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
-                Assert.Equal(CreateHardLinkResult.Success, result);
             }
         }
 
@@ -403,6 +504,52 @@ namespace ContentStoreTest.FileSystem
                         StringComparison.OrdinalIgnoreCase);
                 }
             }
+        }
+
+        [Fact]
+        public async Task DeleteOnCloseRemovesFileTest()
+        {
+            using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
+            var filePath = testDirectory.Path / "Foo.txt";
+
+            using (Stream file = await FileSystem.OpenSafeAsync(
+                filePath,
+                FileAccess.Write,
+                FileMode.CreateNew,
+                FileShare.None,
+                FileOptions.DeleteOnClose))
+            {
+                await file.WriteAsync(Enumerable.Range(1, 10).Select(b => (byte)b).ToArray(), 0, 10);
+                Assert.True(FileSystem.FileExists(filePath));
+            }
+
+            Assert.False(FileSystem.FileExists(filePath));
+        }
+
+        [Fact]
+        public async Task CanMoveFileIfYouShareDelete()
+        {
+            using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
+            var filePath = testDirectory.Path / "Foo.txt";
+            var replacementFilePath = testDirectory.Path / "Bar.txt";
+
+            using (Stream file = await FileSystem.OpenSafeAsync(
+                filePath,
+                FileAccess.Write,
+                FileMode.CreateNew,
+                FileShare.Delete,
+                FileOptions.DeleteOnClose))
+            {
+                await file.WriteAsync(Enumerable.Range(1, 10).Select(b => (byte)b).ToArray(), 0, 10);
+                Assert.True(FileSystem.FileExists(filePath));
+
+                FileSystem.MoveFile(filePath, replacementFilePath, replaceExisting: true);
+
+                Assert.False(FileSystem.FileExists(filePath));
+                Assert.True(FileSystem.FileExists(replacementFilePath));
+            }
+
+            Assert.False(FileSystem.FileExists(filePath));
         }
     }
 }

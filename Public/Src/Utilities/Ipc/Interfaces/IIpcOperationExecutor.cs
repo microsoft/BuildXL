@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -20,6 +20,6 @@ namespace BuildXL.Ipc.Interfaces
         /// because <see cref="IServer"/> is responsible for handling exceptions any thrown
         /// from here.
         /// </summary>
-        Task<IIpcResult> ExecuteAsync([NotNull]IIpcOperation op);
+        Task<IIpcResult> ExecuteAsync(int id, [NotNull]IIpcOperation op);
     }
 }

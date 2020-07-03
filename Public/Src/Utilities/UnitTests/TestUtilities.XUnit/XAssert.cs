@@ -1,16 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Xunit;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Test.BuildXL.TestUtilities.Xunit
@@ -213,6 +213,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
+        [StringFormatMethod("format")]
+        public static void IsEmpty<T>(IEnumerable<T> actual, string format = null, params object[] args)
+        {
+            AreSetsEqual(new T[0], actual, true, format: format, args: args);
+        }
+
+        /// <nodoc/>
         public static void AreSetsEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, bool expectedResult, IEqualityComparer<T> comparer = null, string format = null, params object[] args)
         {
             var expectedSet = expected != null ? new HashSet<T>(expected) : null;
@@ -246,8 +253,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 expected == null && actual == null ? null :
                 expected == null && actual != null ? "Expected null but got a non-null array" :
                 expected != null && actual == null ? "Expected a non-null array but got null" :
-                expected.Length != actual.Length ? "Array lengths are different" :
-                (i = firstDisagreeingIndex()) != -1 ? "Elements at position " + i + " disagree" :
+                expected.Length != actual.Length ? $"Array lengths are different (expected: {expected.Length}, actual: {actual.Length})" :
+                (i = firstDisagreeingIndex()) != -1 ? $"Elements at position {i} disagree(expected[{i}]: '{ToString(expected[i])}', actual[{i}]: '{ToString(actual[i])}'" :
                 null;
         }
 
@@ -263,6 +270,30 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 expected.Count != actual.Count ? "Set sizes are different" :
                 (missing = missingElems()).Any() ? "Missing elements: " + SetToString(missing) :
                 null;
+        }
+
+        /// <nodoc/>
+        public static void FileExists(string path, string message = "")
+        {
+            IsTrue(File.Exists(path), "File not found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
+        public static void FileDoesNotExist(string path, string message = "")
+        {
+            IsFalse(File.Exists(path), "File found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
+        public static void DirectoryExists(string path, string message = "")
+        {
+            IsTrue(Directory.Exists(path), "Directory not found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
+        public static void DirectoryDoesNotExist(string path, string message = "")
+        {
+            IsFalse(Directory.Exists(path), "Directory found at path {0}. {1}", path, message);
         }
 
         /// <nodoc/>
@@ -326,13 +357,37 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
+        public static void Contains(string container, params string[] elems)
+        {
+            foreach (var elem in elems)
+            {
+                if (!container.Contains(elem))
+                {
+                    Fail(I($"Substring '{elem}' not found in string '{container}'"));
+                }
+            }
+        }
+
+        /// <nodoc/>
+        public static void ContainsNot(string container, params string[] elems)
+        {
+            foreach (var elem in elems)
+            {
+                if (container.Contains(elem))
+                {
+                    Fail(I($"Substring '{elem}' found in string '{container}'"));
+                }
+            }
+        }
+
+        /// <nodoc/>
         public static void Contains<T>(IEnumerable<T> container, params T[] elems)
         {
             foreach (var elem in elems)
             {
                 if (!container.Contains(elem))
                 {
-                    Assert.True(false, I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
+                    Fail(I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
                 }
             }
         }
@@ -344,7 +399,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 if (container.Contains(elem))
                 {
-                    Assert.True(false, I($"Element '{elem}' found in container: {RenderContainer(container)}"));
+                    Fail(I($"Element '{elem}' found in container: {RenderContainer(container)}"));
                 }
             }
         }
@@ -354,6 +409,60 @@ namespace Test.BuildXL.TestUtilities.Xunit
             string nl = Environment.NewLine;
             var elems = container.Select(e => I($"  '{e}'"));
             return I($"[{nl}{string.Join("," + nl, elems)}{nl}]");
+        }
+
+        /// <summary>
+        /// Asserts that <paramref name="condition"/> holds for every element in <paramref name="container"/>
+        /// </summary>
+        public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
+        {
+            var failures = container.Where(elem => !condition(elem)).ToArray();
+            AssertNoFailures(container, failures.Select(e => (elem: e, exception: (Exception)null)).ToArray());
+        }
+
+        /// <summary>
+        /// Invokes <paramref name="action"/> on every element in <paramref name="container"/>.
+        /// The action itself is supposed to assert properties about the element it was given
+        /// (e.g., by calling some other XAssert.* methods).
+        /// </summary>
+        public static void All<T>(IEnumerable<T> container, Action<T> action)
+        {
+            var failures = container
+                .Select(elem =>
+                {
+                    try
+                    {
+                        action(elem);
+                        return (elem, exception: null);
+                    }
+                    catch (Exception exception)
+                    {
+                        return (elem, exception);
+                    }
+                })
+                .Where(t => t.exception != null)
+                .ToArray();
+            AssertNoFailures(container, failures);
+        }
+
+        private static void AssertNoFailures<T>(IEnumerable<T> container, (T elem, Exception exception)[] failures)
+        {
+            if (failures.Length > 0)
+            {
+                var nl = Environment.NewLine;
+                var errorMessage = $"XAssert.All() Failure: {failures.Length} out of {container.Count()} items did not pass;{nl}" +
+                    $"  Failed items: {RenderContainer(failures.Select(t => t.elem))}{nl}" +
+                    $"  All items: {RenderContainer(container)}";
+                var exceptions = failures.Where(t => t.exception != null).ToArray();
+                if (exceptions.Any())
+                {
+                    var exceptionsStr = string.Join(
+                        $"{nl}====================================================={nl}",
+                        exceptions.Select(t => $"{nl}  [{t.elem}]  {t.exception.ToString()}"));
+                    errorMessage += $"{nl}  Exceptions:{exceptionsStr}";
+                }
+                Fail(errorMessage);
+            }
         }
 
         /// <nodoc/>
@@ -454,23 +563,29 @@ namespace Test.BuildXL.TestUtilities.Xunit
             }
         }
 
+        private static string JoinNonEmpty(string separator, params string[] messages)
+            => string.Join(separator, messages.Where(s => !string.IsNullOrEmpty(s)));
+
+        /// <nodoc/>
+        public static void PossiblySucceeded<T, F>(Possible<T, F> result, string message = null) where F : Failure
+        {
+            if (result.Succeeded)
+            {
+                return;
+            }
+
+            Fail(JoinNonEmpty(Environment.NewLine, message, result.Failure.DescribeIncludingInnerFailures()));
+        }
+
         /// <nodoc/>
         public static void PossiblySucceeded<T>(Possible<T> result, string message = null)
         {
-            if (!result.Succeeded)
+            if (result.Succeeded)
             {
-                string failureMessage = result.Failure.DescribeIncludingInnerFailures();
-                if (message == null)
-                {
-                    message = failureMessage;
-                }
-                else
-                {
-                    message += Environment.NewLine + failureMessage;
-                }
+                return;
             }
 
-            XAssert.IsTrue(result.Succeeded, message);
+            Fail(JoinNonEmpty(Environment.NewLine, message, result.Failure.DescribeIncludingInnerFailures()));
         }
     }
 }

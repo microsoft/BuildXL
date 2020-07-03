@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -12,12 +12,21 @@ namespace BuildXL.Utilities.Configuration
 
         /// <nodoc/>
         public const DoubleWritePolicy DefaultDoubleWritePolicy = Configuration.DoubleWritePolicy.DoubleWritesAreErrors;
+        
+        /// <nodoc/>
+        public const bool DefaultProcessSymlinkedAccesses = false;
 
         // Extension methods
 
         /// <nodoc/>
         public static DoubleWritePolicy DoubleWritePolicy(this IUnsafeSandboxConfiguration configuration) => 
             configuration.DoubleWritePolicy ?? DefaultDoubleWritePolicy;
+
+        /// <summary>
+        /// Whether <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is enabled and we are in a Windows-based OS
+        /// </summary>
+        public static bool ProcessSymlinkedAccesses(this IUnsafeSandboxConfiguration configuration) =>
+            (configuration.ProcessSymlinkedAccesses ?? DefaultProcessSymlinkedAccesses) && !OperatingSystemHelper.IsMacOS;
 
     }
 }

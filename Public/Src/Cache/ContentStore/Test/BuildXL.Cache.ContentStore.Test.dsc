@@ -3,7 +3,7 @@
 
 namespace Test {
     @@public
-    export const categoriesToRunInParallel = [ "Integration1", "Integration2" ];
+    export const categoriesToRunInParallel = [ "Integration1", "Integration2", "Integration", "Performance" ];
 
     @@public
     export const dll = BuildXLSdk.cacheTest({
@@ -17,11 +17,18 @@ namespace Test {
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
-                NetFx.System.Runtime.Serialization.dll
+                NetFx.System.Runtime.Serialization.dll,
+                NetFx.Netstandard.dll
+            ),
+
+            ...addIf(BuildXLSdk.isFullFramework,
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
             ),
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("Google.Protobuf").pkg,
+            
             UtilitiesCore.dll,
             Hashing.dll,
             Distributed.dll,
@@ -33,10 +40,12 @@ namespace Test {
 
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             ...BuildXLSdk.fluentAssertionsWorkaround,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         runtimeContent: [
             Library.dll,
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
         ],
     });
 }

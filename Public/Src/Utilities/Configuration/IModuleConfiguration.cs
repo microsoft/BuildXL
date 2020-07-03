@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
@@ -26,19 +26,19 @@ namespace BuildXL.Utilities.Configuration
         /// List of file access exception rules.
         /// </summary>
         [NotNull]
-        IReadOnlyList<IFileAccessWhitelistEntry> FileAccessWhiteList { get; }
+        IReadOnlyList<IFileAccessAllowlistEntry> FileAccessAllowList { get; }
 
         /// <summary>
         /// List of file accesses that are benign and allow the pip that caused them to be cached.
         /// </summary>
         /// <remarks>
         /// This is a separate list from the above, rather than a bool field on the exceptions, because that makes it easier for a
-        /// central build team to control the contents of the (relatively dangerous) cacheable whitelist.  It can be placed in a
+        /// central build team to control the contents of the (relatively dangerous) cacheable allowlist.  It can be placed in a
         /// separate file in a locked-down area in source control, even while exposing the (safer)
-        /// do-not-cache-but-also-do-not-error whitelist to users.
+        /// do-not-cache-but-also-do-not-error allowlist to users.
         /// </remarks>
         [NotNull]
-        IReadOnlyList<IFileAccessWhitelistEntry> CacheableFileAccessWhitelist { get; }
+        IReadOnlyList<IFileAccessAllowlistEntry> CacheableFileAccessAllowList { get; }
 
         /// <summary>
         /// Exceptions for computing directory membership fingerprints
@@ -51,5 +51,20 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         [NotNull]
         IReadOnlyList<IMount> Mounts { get; }
+
+        // These fields exist to support the legacy name of AllowLists. The name must exactly match what is specified in configuration files.
+        #region Compatibility
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        [NotNull]
+        IReadOnlyList<IFileAccessAllowlistEntry> CacheableFileAccessWhitelist { get; }
+
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        [NotNull]
+        IReadOnlyList<IFileAccessAllowlistEntry> FileAccessWhiteList { get; }
+        #endregion
     }
 }

@@ -1,12 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "BuildXLException.hpp"
 #include "Trie.hpp"
 
-_Atomic uint Node::s_numUintNodes = 0;
-_Atomic uint Node::s_numPathNodes = 0;
+template <typename T>
+std::atomic<uint> Node<T>::s_numUintNodes(0);
 
-Node::Node(uint numChildren)
+template <typename T>
+std::atomic<uint> Node<T>::s_numPathNodes(0);
+
+template <typename T>
+Node<T>::Node(uint numChildren)
 {
     if (numChildren == s_uintNodeChildrenCount) ++s_numUintNodes;
     else if (numChildren == s_pathNodeChildrenCount) ++s_numPathNodes;
@@ -15,24 +20,30 @@ Node::Node(uint numChildren)
     childrenLength_ = numChildren;
     
     children_ = (Node **) malloc(numChildren * sizeof(Node *));
-
-    for (int i = 0; i < childrenLength_; i++)
+    if (children_)
     {
-        children_[i] = nullptr;
+        for (int i = 0; i < childrenLength_; i++)
+        {
+            children_[i] = nullptr;
+        }
     }
 }
 
-Node::~Node()
+template <typename T>
+Node<T>::~Node()
 {
-    for (int i = 0; i < childrenLength_; i++)
+    if (children_)
     {
-        children_[i] = nullptr;
+        for (int i = 0; i < childrenLength_; i++)
+        {
+            children_[i] = nullptr;
+        }
+
+        free(children_);
+        children_ = nullptr;
     }
-
-    free(children_);
-    children_ = nullptr;
-
-    if (record_ != nullptr) delete record_;
+    
+    if (record_ != nullptr) record_.reset();
 
     if (length() == s_uintNodeChildrenCount) --s_numUintNodes;
     else if (length() == s_pathNodeChildrenCount) --s_numPathNodes;
@@ -40,19 +51,21 @@ Node::~Node()
 
 // ================================== class Trie ==================================
 
-Trie::Trie(TrieKind kind)
+template <typename T>
+Trie<T>::Trie(TrieKind kind)
 {
     kind_ = kind;
     root_ = createNode();
-    if (root_ == nullptr)
+    if (root_->children_ == nullptr)
     {
-        throw "Trie creation failed as no root node could be allocated!";
+        throw BuildXLException("Trie creation failed as no root node could be allocated!");
     }
 }
 
-Trie::~Trie()
+template <typename T>
+Trie<T>::~Trie()
 {
-    traverse(/*computeKey*/ false, /*callbackArgs*/ nullptr, [](Trie*, void*, uint64_t, Node *node)
+    traverse(/*computeKey*/ false, /*callbackArgs*/ nullptr, [](Trie<T>*, void*, uint64_t, Node<T> *node)
     {
         delete node;
     });
@@ -61,7 +74,8 @@ Trie::~Trie()
     size_ = 0;
 }
 
-bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
+template <typename T>
+bool Trie<T>::findChildNode(Node<T> *node, int idx, bool createIfMissing)
 {
     if (idx < 0 || idx >= node->length())
     {
@@ -81,7 +95,7 @@ bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
         return false;
     }
 
-    Node* newNode = createNode();
+    Node<T>* newNode = createNode();
 
     // This should never happen except if we run out of memory.
     if (newNode == nullptr)
@@ -95,7 +109,8 @@ bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
     return true;
 }
 
-Trie::TrieResult Trie::makeSentinel(Node *node, SandboxedProcess *record)
+template <typename T>
+TrieResult Trie<T>::makeSentinel(Node<T> *node, std::shared_ptr<T> record)
 {
     // if this is a sentinel node --> nothing to do
     if (node->record_ != nullptr)
@@ -103,7 +118,7 @@ Trie::TrieResult Trie::makeSentinel(Node *node, SandboxedProcess *record)
         return kTrieResultAlreadyExists;
     }
 
-    SandboxedProcess *newRecord = record;
+    std::shared_ptr<T> newRecord = record;
     if (newRecord == nullptr)
     {
         return kTrieResultAlreadyExists;
@@ -111,7 +126,7 @@ Trie::TrieResult Trie::makeSentinel(Node *node, SandboxedProcess *record)
     
     if (node->record_ != nullptr)
     {
-//        delete newRecord;
+        newRecord.reset();
         return kTrieResultAlreadyExists;
     }
     
@@ -123,12 +138,14 @@ Trie::TrieResult Trie::makeSentinel(Node *node, SandboxedProcess *record)
     return kTrieResultInserted;
 }
 
-SandboxedProcess* Trie::get(Node *node)
+template <typename T>
+std::shared_ptr<T> Trie<T>::get(Node<T> *node)
 {
     return node != nullptr ? node->record_ : nullptr;
 }
 
-SandboxedProcess* Trie::getOrAdd(Node *node, SandboxedProcess *record, TrieResult *result)
+template <typename T>
+std::shared_ptr<T> Trie<T>::getOrAdd(Node<T> *node, std::shared_ptr<T> record, TrieResult *result)
 {
     if (node == nullptr) return nullptr;
     auto sentinelResult = makeSentinel(node, record);
@@ -137,25 +154,26 @@ SandboxedProcess* Trie::getOrAdd(Node *node, SandboxedProcess *record, TrieResul
     return node->record_;
 }
 
-Trie::TrieResult Trie::replace(Node *node, const SandboxedProcess *value)
+template <typename T>
+TrieResult Trie<T>::replace(Node<T> *node, const std::shared_ptr<T> value)
 {
     if (node == nullptr || value == nullptr)
     {
         return kTrieResultFailure;
     }
 
-    SandboxedProcess *previousValue = node->record_;
+    std::shared_ptr<T> previousValue = node->record_;
     
     if (previousValue != nullptr)
     {
-        node->record_ = (SandboxedProcess *) value;
-//        delete previousValue;
+        node->record_ = value;
+        previousValue.reset();
         
         return kTrieResultReplaced;
     }
     else
     {
-        node->record_ = (SandboxedProcess *) value;
+        node->record_ = value;
         
         int oldCount = (++size_);
         triggerOnChange(oldCount, oldCount + 1);
@@ -164,7 +182,8 @@ Trie::TrieResult Trie::replace(Node *node, const SandboxedProcess *value)
     }
 }
 
-Trie::TrieResult Trie::insert(Node *node, const SandboxedProcess *value)
+template <typename T>
+TrieResult Trie<T>::insert(Node<T> *node, const std::shared_ptr<T> value)
 {
     if (node == nullptr || value == nullptr)
     {
@@ -173,26 +192,25 @@ Trie::TrieResult Trie::insert(Node *node, const SandboxedProcess *value)
     
     if (node->record_ != nullptr) return kTrieResultAlreadyExists;
     
-    node->record_ = (SandboxedProcess *) value;
+    node->record_ = value;
     int oldCount = (++size_);
     triggerOnChange(oldCount, oldCount + 1);
     
     return kTrieResultInserted;
 }
 
-Trie::TrieResult Trie::remove(Node *node)
+template <typename T>
+TrieResult Trie<T>::remove(Node<T> *node)
 {
     if (node == nullptr || node->record_ == nullptr)
     {
         return kTrieResultAlreadyEmpty;
     }
 
-    SandboxedProcess *previousValue = node->record_;
-    
-    if (previousValue != nullptr)
+
+    if (node->record_ != nullptr)
     {
-        node->record_ = nullptr;
-//        delete previousValue;
+        node->record_.reset();
         
         int oldCount = (--size_);
         triggerOnChange(oldCount, oldCount - 1);
@@ -216,6 +234,7 @@ Trie::TrieResult Trie::remove(Node *node)
  }
  printf("};\n");
  */
+template <typename T>
 static int s_char2idx[256] =
 {
     -1, // '' (\0)
@@ -479,13 +498,44 @@ static int s_char2idx[256] =
 static_assert(CHAR_BIT == 8, "char is not 8 bits long");
 static_assert(UCHAR_MAX == 255, "max unsigned char is not 255");
 
-Node* Trie::findPathNode(const char *path, bool createIfMissing)
+template <typename T>
+static uint64_t s_pow10[] =
 {
-    Node *currNode = root_;
+    1,
+    10,
+    100,
+    1000,
+    10000,
+    100000,
+    1000000,
+    10000000,
+    100000000,
+    1000000000,
+    10000000000,
+    100000000000,
+    1000000000000
+};
+
+template <typename T>
+static int s_powLen = sizeof(s_pow10<T>)/sizeof(s_pow10<T>[0]);
+
+template <typename T>
+static uint64_t pow10(int exp)
+{
+    if (exp < s_powLen<T>) return s_pow10<T>[exp];
+    uint64_t result = 1;
+    while (--exp >= 0) result *= 10;
+    return result;
+}
+
+template <typename T>
+Node<T>* Trie<T>::findPathNode(const char *path, bool createIfMissing)
+{
+    Node<T> *currNode = root_;
     unsigned char ch;
     while ((ch = *path++) != '\0')
     {
-        int idx = s_char2idx[ch];
+        int idx = s_char2idx<T>[ch];
         if (!findChildNode(currNode, idx, createIfMissing))
         {
             return nullptr;
@@ -496,9 +546,10 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
     return currNode;
 }
 
-Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
+template <typename T>
+Node<T>* Trie<T>::findUintNode(uint64_t key, bool createIfMissing)
 {
-    Node *currNode = root_;
+    Node<T> *currNode = root_;
     
     while (true)
     {
@@ -524,7 +575,8 @@ Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
     return currNode;
 }
 
-bool Trie::onChange(void *callbackArgs, on_change_fn callback)
+template <typename T>
+bool Trie<T>::onChange(void *callbackArgs, on_change_fn callback)
 {
     if (onChangeCallback_) return false;
     
@@ -533,7 +585,8 @@ bool Trie::onChange(void *callbackArgs, on_change_fn callback)
     return true;
 }
 
-void Trie::triggerOnChange(int oldCount, int newCount) const
+template <typename T>
+void Trie<T>::triggerOnChange(int oldCount, int newCount) const
 {
     if (onChangeCallback_) return;
     
@@ -543,55 +596,55 @@ void Trie::triggerOnChange(int oldCount, int newCount) const
     }
 }
 
-void Trie::forEach(void *callbackArgs, for_each_fn callback)
+template <typename T>
+void Trie<T>::forEach(void *callbackArgs, for_each_fn callback)
 {
     typedef struct { for_each_fn callback; void *args; } State;
     State state = { .callback = callback, .args = callbackArgs };
-    traverse(/*computeKey*/ kind_ == kUintTrie, /*callbackArgs*/ &state, [](Trie *me, void *s, uint64_t key, Node *node)
-             {
-                 State *state = (State*)s;
-                 SandboxedProcess *record = node->record_;
-                 if (record)
-                 {
-//                     record->retain();
-                     state->callback(state->args, key, record);
-//                     record->release();
-                 }
-             });
-}
-
-void Trie::removeMatching(void *filterArgs, filter_fn filter)
-{
-    typedef struct { filter_fn filter; void *args; } State;
-    State state = { .filter = filter, .args = filterArgs };
-    traverse(/*computeKey*/ false, /*callbackArgs*/ &state, [](Trie *me, void *s, uint64_t, Node *node)
+    traverse(/*computeKey*/ kind_ == kUintTrie, /*callbackArgs*/ &state, [](Trie<T> *me, void *s, uint64_t key, Node<T> *node)
     {
         State *state = (State*)s;
-        SandboxedProcess *record = node->record_;
+        std::shared_ptr<T> record = node->record_;
         if (record)
         {
-//            record->retain();
-            if (state->filter(state->args, record))
-            {
-                me->remove(node);
-            }
-//            record->release();
+            state->callback(state->args, key, record);
         }
     });
 }
 
-typedef struct Stack {
-    Node *node;
+template <typename T>
+void Trie<T>::removeMatching(void *filterArgs, filter_fn filter)
+{
+    typedef struct { filter_fn filter; void *args; } State;
+    State state = { .filter = filter, .args = filterArgs };
+    traverse(/*computeKey*/ false, /*callbackArgs*/ &state, [](Trie<T> *me, void *s, uint64_t, Node<T> *node)
+    {
+        State *state = (State*)s;
+        std::shared_ptr<T> record = node->record_;
+        if (record)
+        {
+            if (state->filter(state->args, record))
+            {
+                me->remove(node);
+            }
+        }
+    });
+}
+
+template <typename T>
+struct Stack {
+    Node<T> *node;
     Stack *next;
     uint32_t depth;
     uint64_t key;
-} Stack;
+};
 
-static void push(Stack **stack, Node *node, uint64_t path, uint32_t depth)
+template <typename T>
+static void push(Stack<T> **stack, Node<T> *node, uint64_t path, uint32_t depth)
 {
     if (node == nullptr) return;
 
-    Stack *top = new Stack();
+    Stack<T> *top = new Stack<T>();
     top->node  = node;
     top->next  = *stack;
     top->key   = path;
@@ -600,58 +653,43 @@ static void push(Stack **stack, Node *node, uint64_t path, uint32_t depth)
     *stack = top;
 }
 
-static Node* pop(Stack **stack)
+template <typename T>
+static Node<T>* pop(Stack<T> **stack)
 {
-    Stack *top = *stack;
+    Stack<T> *top = *stack;
     *stack = top->next;
-    Node *node = top->node;
+    Node<T> *node = top->node;
     delete top;
     return node;
 }
 
-static uint64_t s_pow10[] =
+template <typename T>
+void Trie<T>::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
 {
-    1,
-    10,
-    100,
-    1000,
-    10000,
-    100000,
-    1000000,
-    10000000,
-    100000000,
-    1000000000,
-    10000000000,
-    100000000000,
-    1000000000000
-};
-
-static int s_powLen = sizeof(s_pow10)/sizeof(s_pow10[0]);
-
-static uint64_t pow10(int exp)
-{
-    if (exp < s_powLen) return s_pow10[exp];
-    uint64_t result = 1;
-    while (--exp >= 0) result *= 10;
-    return result;
-}
-
-void Trie::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
-{
-    Stack *stack = nullptr;
+    Stack<T> *stack = nullptr;
     push(&stack, root_, /*key*/ 0, /*depth*/ 0);
     while (stack != nullptr)
     {
         uint64_t key = stack->key;
         uint32_t depth = stack->depth;
 
-        Node *curr = pop(&stack);
+        Node<T> *curr = pop(&stack);
         for (int i = 0; i < curr->length(); ++i)
         {
-            push(&stack, curr->children()[i], computeKey ? (i * pow10(depth) + key) : 0, depth + 1);
+            push(&stack, curr->children()[i], computeKey ? (i * pow10<T>(depth) + key) : 0, depth + 1);
         }
 
         // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
         callback(this, callbackArgs, key, curr);
     }
 }
+
+// Forward declarations
+
+#ifndef MAC_DETOURS
+    #include "SandboxedProcess.hpp"
+    template class Trie<SandboxedProcess>;
+#else
+    #include "PathCacheEntry.hpp"
+    template class Trie<PathCacheEntry>;
+#endif

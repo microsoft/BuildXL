@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -53,13 +53,12 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var settings = resolverSettings as IDownloadResolverSettings;
             Contract.Assert(settings != null);
@@ -284,7 +283,7 @@ namespace BuildXL.FrontEnd.Download
                 downloadData.ModuleConfigFile,
                 new[] { downloadData.ModuleSpecFile },
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null); // A Download package does not have any module dependency restrictions nor whitelists cycles
+                cyclicalFriendModules: null); // A Download package does not have any module dependency restrictions nor allowlist cycles
 
             m_descriptors.Add(descriptor);
             m_descriptorsByName.Add(name, descriptor);

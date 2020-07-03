@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Microsoft.Build.Tasks;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -31,12 +30,19 @@ namespace MsBuildGraphBuilderTool
         private const string MicrosoftBuildUtilities = "Microsoft.Build.Utilities.Core.dll";
         private const string SystemCollectionsImmutable = "System.Collections.Immutable.dll";
         private const string SystemThreadingDataflow = "System.Threading.Tasks.Dataflow.dll";
+        private const string SystemMemory = "System.Memory.dll";
+        private const string CompilerServicesUnsafe = "System.Runtime.CompilerServices.Unsafe.dll";
+        private const string NumericsVectors = "System.Numerics.Vectors.dll";
 
-        // MsBuild is not a required to be loaded but is required to be found
+        // MsBuild is not required to be loaded but is required to be found
         // Under DotNetCore there is not an msbuild.exe but a msbuild.dll
-        private string m_msbuild;
+        private readonly string m_msbuild;
 
         private readonly string[] m_assemblyNamesToLoad;
+
+        // Intended to be a subset of m_assemblyNamesToLoad. Some newer versions of MSBuild contain
+        // assemblies in this list, but we cannot require them for all versions
+        private readonly string[] m_optionalAssemblyNames;
 
         /// <summary>
         /// The expected public token for each required assembly
@@ -59,7 +65,17 @@ namespace MsBuildGraphBuilderTool
                 MicrosoftBuildFramework,
                 MicrosoftBuildUtilities,
                 SystemCollectionsImmutable,
-                SystemThreadingDataflow
+                SystemThreadingDataflow,
+                SystemMemory,
+                CompilerServicesUnsafe,
+                NumericsVectors
+            };
+
+            m_optionalAssemblyNames = new[]
+            {
+                CompilerServicesUnsafe,
+                NumericsVectors,
+                SystemMemory
             };
 
             m_assemblyPublicTokens = new Dictionary<string, string>
@@ -70,6 +86,9 @@ namespace MsBuildGraphBuilderTool
                 [MicrosoftBuildUtilities] = MSBuildPublicKeyToken,
                 [SystemCollectionsImmutable] = DotNetPublicToken,
                 [SystemThreadingDataflow] = DotNetPublicToken,
+                [SystemMemory] = DotNetPublicToken,
+                [CompilerServicesUnsafe] = DotNetPublicToken,
+                [NumericsVectors] = DotNetPublicToken
             };
 
             m_loadedAssemblies = new ConcurrentDictionary<string, Assembly>(5, m_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
@@ -213,6 +232,12 @@ namespace MsBuildGraphBuilderTool
                 {
                     reporter.ReportMessage($"Search location '{location}' is skipped because an IO exception occurred while enumerating it. Details: {ex.Message}");
                 }
+            }
+
+            // Ignore assemblies that were not found that are flagged as optional
+            foreach (var optionalAssembly in m_optionalAssemblyNames)
+            {
+                assembliesToFind.Remove(optionalAssembly);
             }
 
             // When we are done enumerating the locations to search, if there are still assemblies we haven't found,

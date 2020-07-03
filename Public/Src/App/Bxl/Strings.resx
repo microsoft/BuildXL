@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!--
-    Microsoft ResX Schema
-
+  <!-- 
+    Microsoft ResX Schema 
+    
     Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
     associated with the data types.
-
+    
     Example:
-
+    
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -26,36 +26,36 @@
         <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
         <comment>This is a comment</comment>
     </data>
-
-    There are any number of "resheader" rows that contain simple
+                
+    There are any number of "resheader" rows that contain simple 
     name/value pairs.
-
-    Each data row contains a name, and value. The row also contains a
-    type or mimetype. Type corresponds to a .NET class that support
-    text/value conversion through the TypeConverter architecture.
-    Classes that don't support this are serialized and stored with the
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
     mimetype set.
-
-    The mimetype is used for serialized objects, and tells the
-    ResXResourceReader how to depersist the object. This is currently not
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
     extensible. For a given mimetype the value must be set accordingly:
-
-    Note - application/x-microsoft.net.object.binary.base64 is the format
-    that the ResXResourceWriter will generate, however the reader can
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
     read any of the formats listed below.
-
+    
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
-
+    
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
             : and then encoded with base64 encoding.
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array
+    value   : The object must be serialized into a byte array 
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
@@ -180,6 +180,9 @@
   <data name="HelpText_DisplayHelp_BreakOnUnexpectedFileAccess" xml:space="preserve">
     <value>Break into the debugger when {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing a new tool or SDKs using these tools. Defaults to off.</value>
   </data>
+  <data name="HelpText_DisplayHelp_MaxNumPipTelemetryBatches" xml:space="preserve">
+    <value>Specifies the maximum number of batched messages to be sent to telemetry, default set to 10 messages.</value>
+  </data>
   <data name="HelpText_DisplayHelp_LogsDirectory" xml:space="preserve">
     <value>Specifies the path to the logs directory.</value>
   </data>
@@ -246,6 +249,9 @@
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
   </data>
+  <data name="HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory" xml:space="preserve">
+    <value>When enabled, pips with duplicate temporary directories are allowed. Defaults to false.</value>
+  </data>
   <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
     <value>When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on.</value>
   </data>
@@ -284,6 +290,9 @@
   </data>
   <data name="HelpText_DisplayHelp_IgnoreReparsePoints" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreFullSymlinkResolving" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of symbolic links (directory + file symbolic links). This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
   </data>
   <data name="HelpText_DisplayHelp_IgnorePreloadedDlls" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>
@@ -555,9 +564,6 @@
   <data name="HelpText_DisplayHelp_CacheSpecs" xml:space="preserve">
     <value>Caches build specification files to a single large file to improve read performance on spinning disks. When unset the behavior is dynamic based on whether root configuration file is on a drive that is detected to have a seek penalty. May be forced on or off using the flag.</value>
   </data>
-  <data name="HelpText_DisplayHelp_CacheMemoryUsage" xml:space="preserve">
-    <value>How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks. Allowed values are 'Auto', 'Minimize', 'Liberal'. The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.</value>
-  </data>
   <data name="HelpText_DisplayHelp_DeterminismProbeUsage" xml:space="preserve">
     <value>When enabled, cache hits are ignored, but all pips are built and attempted to be added to the cache, with cache collisions reported to identify non-deterministic tools. Defaults to off.</value>
   </data>
@@ -685,9 +691,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_UsePartialEvaluation" xml:space="preserve">
     <value>When enabled, a partial graph may be constructed to decrease evaluation time. Defaults to off for XML specs.</value>
   </data>
-  <data name="ConsoleListener_AdditionalPips" xml:space="preserve">
-    <value>       + {0} more...</value>
-  </data>
   <data name="HelpText_DisplayHelp_ShowingStandardHelp" xml:space="preserve">
     <value>Standard help shown. For complete help options, use /help:verbose</value>
   </data>
@@ -751,9 +754,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Filter_SpecDependencies" xml:space="preserve">
     <value>Similar to the basic spec filter, but transitively includes specs of pips referenced by pips in target spec(s) of the filter.</value>
   </data>
-  <data name="ConsoleListener_PipsResourceWaitingStatusLine" xml:space="preserve">
-    <value>{0} running pips waiting on resources</value>
-  </data>
   <data name="HelpText_DisplayHelp_MaxRamUtilizationPercentage" xml:space="preserve">
     <value>Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%.</value>
   </data>
@@ -781,9 +781,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
     <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
   </data>
-  <data name="DX_Help_Link" xml:space="preserve">
-    <value>http://aka.ms/dhelp</value>
-  </data>
   <data name="HelpText_DisplayHelp_MaskUntrackedAccesses" xml:space="preserve">
     <value>When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on.</value>
   </data>
@@ -804,6 +801,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_TrackBuildsInUserFolder" xml:space="preserve">
     <value>When enabled, {ShortProductName} will log every build invocation in the users folder so the viewer and analyzers can use that to figure out what to use. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TrackGvfsProjections" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will track every .gvfs/GVFS_projection file found in any readable mount and disable features that depend on USN journal scanning whenever any of those files change. Defaults to off.</value>
   </data>
   <data name="HelpText_DisplayHelp_TrackMethodInvocations" xml:space="preserve">
     <value>When enabled, {ShortProductName} captures most frequently invoked {ShortScriptName} methods. Defaults to off.</value>
@@ -886,12 +886,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_AllowFetchingCachedGraphFromContentCache" xml:space="preserve">
     <value>Allow fetching cached graph from content cache. Defaults to on.</value>
   </data>
-  <data name="HelpText_DisplayHelp_SymlinkDefinitionFile" xml:space="preserve">
-    <value>Specifies the file containing mappings from symlinks to their targets, and those symlinks will be created, if necessary, before pip executions</value>
-  </data>
-  <data name="HelpText_DisplayHelp_LazySymlinkCreation" xml:space="preserve">
-    <value>Creates symlink from the symlink definition file lazily. Defaults to off.</value>
-  </data>
   <data name="HelpText_DisplayHelp_CompressGraphFiles" xml:space="preserve">
     <value>When enabled, graph files are compressed.</value>
   </data>
@@ -906,12 +900,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_UseFileContentTablePathMappings" xml:space="preserve">
     <value>Use file content table path mappings to avoid opening handles for hashing files already in the table. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_PopulateSymlinkDirectory" xml:space="preserve">
-    <value>Specifies a directory to eagerly populate with symlinks when symlink definition file and lazy symlink creation are enabled.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_UnexpectedSymlinkAccessReportingMode" xml:space="preserve">
-    <value>Specifies the when unexpected symlink file/directory accesses are reported as warnings: None, ExecutionOnly (only for executed processes), All (executed and cached process observations report unexpected accesses). Default: All. NOTE: This is only enabled when a symlink definition file is provided.</value>
   </data>
   <data name="HelpText_DisplayHelp_DisableGraphPostValidation" xml:space="preserve">
     <value>Disables post validation of graph construction. Defaults to on.</value>
@@ -954,9 +942,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_Filter_RequiredInputsFunction" xml:space="preserve">
     <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter. If pip is a matching neighbor of one of the matching pips for the inner filter, it will be excluded.</value>
-  </data>
-  <data name="App_Errors_LogsDirectory" xml:space="preserve">
-    <value>    {0} ERROR(S). Log Directory: {1}</value>
   </data>
   <data name="HelpText_DisplayHelp_CacheMiss" xml:space="preserve">
     <value>When enabled, {ShortProductName} performs the on-the-fly cache miss analysis during the execute phase. If no value is given (/cacheMiss+),  the local FingerprintStore is used for comparison. The user can pass the list of changesets if they want to compare the build to a remote FingerprintStore: /cacheMiss:[&lt;sha&gt;:&lt;sha&gt;:...]. Defaults to off.</value>
@@ -1038,5 +1023,32 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_ValidateCgManifest" xml:space="preserve">
     <value>Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:&lt;path&gt;</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DiskSpaceForPip" xml:space="preserve">
+    <value>Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheMissDiffFormat" xml:space="preserve">
+    <value>Diff format for cache miss analysis. Allowed values are CustomJsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheOnly" xml:space="preserve">
+    <value>Only processes cache hits. Any pips that are cache misses will skip execution. Skipped pips will not cause the build session to fail.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NumberofFailedPipRetry" xml:space="preserve">
+    <value>Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PathSetAugmentationMonitoring" xml:space="preserve">
+    <value>Check that the paths used in creating an augmented pathset/weak fingerprint are used during the execution of a pip. If a path is not used it's logged together with its hash. The argument controls the max number of paths logged per executed pip. If the value is set to 0, the monitoring is disabled.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxCommitUtilizationPercentage" xml:space="preserve">
+    <value>Specifies the maximum machine wide commit utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 95%.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection" xml:space="preserve">
+    <value>Controls whether Scheduler should use commit memory projection based on historic commit memory usage.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
+    <value>Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ManageMemoryMode" xml:space="preserve">
+    <value>Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory.</value>
   </data>
 </root>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -33,8 +33,9 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using ContentStoreTest.Stores;
-using ContentStoreTest.Sessions;
+using ContentStoreTest.Extensions;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using System.Diagnostics.ContractsLight;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -42,44 +43,149 @@ namespace ContentStoreTest.Distributed.Sessions
     {
         protected static readonly CancellationToken Token = CancellationToken.None;
         protected static readonly ContentStoreConfiguration Config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(50);
+        protected bool UseGrpcServer;
 
-        protected MemoryClock TestClock { get; } = new MemoryClock();
+        public MemoryClock TestClock { get; } = new MemoryClock();
 
-        protected ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
-
-        protected abstract IContentStore CreateStore(
+        protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            TestFileCopier fileCopier,
+            IAbsolutePathFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
-            bool enableDistributedEviction,
-            int? replicaCreditInMinutes,
-            bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled,
-            object additionalArgs);
+            int iteration,
+            uint grpcPort);
 
-        protected class TestContext
+        public class TestContext
         {
+            private readonly bool _traceStoreStatistics;
             public readonly Context Context;
-            public readonly TestFileCopier FileCopier;
+            public readonly Context[] StoreContexts;
+            public readonly TestFileCopier TestFileCopier;
+            public readonly IAbsolutePathFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
-            public readonly IList<IContentSession> Sessions;
+            public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
+            public readonly IList<IStartupShutdown> Servers;
             public readonly int Iteration;
 
-            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentSession> sessions, IList<IContentStore> stores, int iteration)
+            public TestContext(TestContext other)
+                : this(other.Context, other.FileCopier, other.Directories, other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(), other.Iteration, other._traceStoreStatistics)
             {
+            }
+
+            public TestContext(Context context, IAbsolutePathFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration, bool traceStoreStatistics = false)
+            {
+                _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
+                StoreContexts = stores.Select((s, index) => CreateContext(index, iteration)).ToArray();
+                TestFileCopier = fileCopier as TestFileCopier;
                 FileCopier = fileCopier;
                 Directories = directories;
-                Sessions = sessions;
-                Stores = stores;
+                Stores = stores.Select(s => s.store).ToList();
+                Servers = stores.Select(s => s.server ?? s.store).ToList();
                 Iteration = iteration;
 
-                for (int i = 0; i < Stores.Count; i++)
+                if (TestFileCopier != null)
                 {
-                    var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
-                    fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    for (int i = 0; i < Stores.Count; i++)
+                    {
+                        var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
+                        TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    }
+
+                }
+            }
+
+            private Context CreateContext(int index, int iteration)
+            {
+                var idBytes = Enumerable.Repeat(byte.MaxValue, 16).ToArray();
+                
+                idBytes[0] = (byte)index;
+                idBytes[5] = (byte)iteration;
+
+                return new Context(Context, new Guid(idBytes));
+            }
+
+            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast)
+            {
+                var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) =>
+                {
+                    if (index == storeToStartupLast)
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    return await server.StartupAsync(StoreContexts[index]);
+                }));
+
+                Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
+
+                if (storeToStartupLast.HasValue)
+                {
+                    var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccessAsync();
+                }
+
+                Sessions = Stores.Select((store, id) => store.CreateSession(Context, "store" + id, implicitPin).Session).ToList();
+                await TaskSafetyHelpers.WhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
+            }
+
+            public virtual async Task ShutdownAsync()
+            {
+                await TaskSafetyHelpers.WhenAll(
+                    Sessions.Select(async (session, index) =>
+                    {
+                        if (!session.ShutdownCompleted)
+                        {
+                            await session.ShutdownAsync(StoreContexts[index]).ThrowIfFailure();
+                        }
+                    }));
+
+                foreach (var session in Sessions)
+                {
+                    session.Dispose();
+                }
+
+                if (_traceStoreStatistics)
+                {
+                    await LogStatsAsync();
+                }
+
+                await ShutdownStoresAsync();
+            }
+
+            protected virtual async Task ShutdownStoresAsync()
+            {
+                await TaskSafetyHelpers.WhenAll(
+                    Servers.Select(
+                        async (server, index) =>
+                        {
+                            if (!server.ShutdownCompleted)
+                            {
+                                await server.ShutdownAsync(StoreContexts[index]).ThrowIfFailure();
+                            }
+                        }));
+
+                foreach (var server in Servers)
+                {
+                    server.Dispose();
+                }
+            }
+
+            protected async Task LogStatsAsync()
+            {
+                for (int storeId = 0; storeId < Stores.Count; storeId++)
+                {
+                    var store = Stores[storeId];
+                    var stats = await store.GetStatsAsync(StoreContexts[storeId]);
+                    if (stats.Succeeded)
+                    {
+                        foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
+                        {
+                            StoreContexts[storeId].Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
+                        }
+                    }
                 }
             }
 
@@ -87,7 +193,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public static implicit operator OperationContext(TestContext context) => new OperationContext(context);
 
-            public DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
+            public virtual DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
             {
                 var session = Sessions[idx];
                 return (DistributedContentSession<AbsolutePath>)session;
@@ -96,8 +202,8 @@ namespace ContentStoreTest.Distributed.Sessions
             public LocalLocationStore GetLocalLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).LocalLocationStore;
 
-            internal RedisContentLocationStore GetRedisLocationStore(int idx) =>
-                ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).RedisContentLocationStore;
+            internal RedisGlobalStore GetRedisGlobalStore(int idx) =>
+                (RedisGlobalStore)GetLocalLocationStore(idx).GlobalStore;
 
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
@@ -108,7 +214,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return store;
             }
 
-            internal int GetMasterIndex()
+            public int GetMasterIndex()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -132,17 +238,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetLocationStore(GetMasterIndex());
             }
 
-            internal RedisContentLocationStore GetRedisStore(DistributedContentSession<AbsolutePath> session)
+            internal IContentLocationStore GetContentLocationStore(DistributedContentSession<AbsolutePath> session)
             {
-                var cls = session.ContentLocationStore;
-                if (cls is TransitioningContentLocationStore transitionStore)
-                {
-                    return transitionStore.RedisContentLocationStore;
-                }
-                else
-                {
-                    return (RedisContentLocationStore)cls;
-                }
+                return session.ContentLocationStore;
             }
 
             internal Task SyncAsync(int idx)
@@ -152,7 +250,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return localContentStore.Store.SyncAsync(this);
             }
 
-            internal int GetFirstWorkerIndex()
+            public int GetFirstWorkerIndex()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -166,7 +264,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 throw new InvalidOperationException($"Unable to find Worker instance.");
             }
 
-            internal IEnumerable<int> EnumerateWorkersIndices()
+            public IEnumerable<int> EnumerateWorkersIndices()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -227,53 +325,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task PinWithRedundantRecordAvailability()
-        {
-            ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence;
-
-            await RunTestAsync(
-                new Context(Logger),
-                3,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-
-                    // Insert random file in session 0
-                    var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                    var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                    var localContentPath1 = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult1.ContentHash);
-                    Assert.True(putResult1.Succeeded);
-
-                    // Case 1: Underreplicated file exists
-                    context.FileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileExists);
-                    var pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.Success, pinResult.Code);
-
-                    // Case 2: Underreplicated file does not exist
-                    context.FileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileNotFound);
-                    pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Code);
-
-                    // Now insert the content into session 1 to ensure it is sufficiently replicated
-                    var putResult2 = await sessions[1].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                    var localContentPath2 = PathUtilities.GetContentPath(context.Directories[1].Path / "Root", putResult2.ContentHash);
-                    Assert.True(putResult2.Succeeded);
-
-                    // Ensure both files don't exist from file copier's point of view to verify that existence isn't checked
-                    var priorExistenceCheckCount1 = context.FileCopier.GetExistenceCheckCount(localContentPath1);
-
-                    // Should have checked existence already for content in session0 for Case1 and Case 2
-                    Assert.Equal(2, priorExistenceCheckCount1);
-
-                    var priorExistenceCheckCount2 = context.FileCopier.GetExistenceCheckCount(localContentPath2);
-                    Assert.Equal(0, priorExistenceCheckCount2);
-
-                    pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.Success, pinResult.Code);
-                });
-        }
-
-        [Fact]
         public Task RemoteFileAddedToLocalBeforePlace()
         {
             return RunTestAsync(new Context(Logger), 2, async context =>
@@ -303,7 +354,7 @@ namespace ContentStoreTest.Distributed.Sessions
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Fails without old redis")]
         public Task NoRetryOfCopyWhenLocalIsFull()
         {
             return RunTestAsync(new Context(Logger), 2, async context =>
@@ -330,7 +381,7 @@ namespace ContentStoreTest.Distributed.Sessions
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Fails without old redis")]
         public async Task RemoveFromTrackerWipesLocalLocation()
         {
             var contentHash = ContentHash.Random();
@@ -351,8 +402,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Wipe all hashes registered at the local machine from the content tracker
                     var removeFromTrackerResult = await store.RemoveFromTrackerAsync(context);
                     removeFromTrackerResult.ShouldBeSuccess();
-                },
-                enableRepairHandling: true);
+                });
 
             await RunTestAsync(
                 loggingContext,
@@ -388,8 +438,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Delete file from local content store 0
                 var localContentPath = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult0.ContentHash);
                 File.Delete(localContentPath.Path);
-                context.FileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
-                context.FileCopier.FileExistenceByReturnCode.GetOrAdd(
+                context.TestFileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
+                context.TestFileCopier.FileExistenceByReturnCode.GetOrAdd(
                     localContentPath,
                     (_) =>
                     {
@@ -420,233 +470,6 @@ namespace ContentStoreTest.Distributed.Sessions
             });
         }
 
-        [Fact]
-        public Task PinLargeSetsSucceeds()
-        {
-            return RunTestAsync(new Context(Logger), 3, async context =>
-            {
-                var sessions = context.Sessions;
-
-                // Insert random file in session 0
-                List<ContentHash> contentHashes = new List<ContentHash>();
-
-                for (int i = 0; i < 250; i++)
-                {
-                    var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                    var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult1.ContentHash);
-                }
-
-                // Insert same file in session 1
-                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[1].PinAsync(context, contentHashes, Token);
-
-                foreach (var pinResultTask in pinResultTasks)
-                {
-                    Assert.True((await pinResultTask).Item.Succeeded);
-                }
-            });
-        }
-
-        [Fact]
-        public async Task EvictionCausesRedisGarbageCollection()
-        {
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
-            // Set content hash for random file #1 because content hash cannot be null
-            var randomHash = ContentHash.Random();
-            ContentHash contentHash = randomHash;
-
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-
-                    // Insert random file #1 into session
-                    var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, Config.MaxSizeQuota.Hard, Token);
-                    Assert.True(putResult.Succeeded, putResult.ErrorMessage + " " + putResult.Diagnostics);
-
-                    contentHash = putResult.ContentHash;
-
-                    var result = await session.ContentLocationStore.GetBulkAsync(
-                        context,
-                        new[] { putResult.ContentHash },
-                        Token,
-                        UrgencyHint.Nominal);
-
-                    Assert.True(result.Succeeded, result.ErrorMessage + " " + result.Diagnostics);
-                    result.ContentHashesInfo.Count.Should().Be(1);
-                    result.ContentHashesInfo[0].ContentHash.Should().Be(putResult.ContentHash);
-                    result.ContentHashesInfo[0].Size.Should().Be(putResult.ContentSize);
-                    result.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-
-                    // Put large file #2 that will evict random file #1
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, Config.MaxSizeQuota.Hard, Token);
-                    Assert.True(putResult.Succeeded, putResult.ErrorMessage + " " + putResult.Diagnostics);
-                },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
-
-            // Content hash should be set to random file #1 from first session
-            contentHash.Should().NotBe(randomHash);
-
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-
-                    var locationsResult = await session.ContentLocationStore.GetBulkAsync(
-                        context,
-                        new[] { contentHash },
-                        Token,
-                        UrgencyHint.Nominal);
-
-                    // Random file #1 should not be found
-                    Assert.True(locationsResult.Succeeded, locationsResult.ErrorMessage + " " + locationsResult.Diagnostics);
-                    locationsResult.ContentHashesInfo.Count.Should().Be(1);
-                    locationsResult.ContentHashesInfo[0].Should().NotBeNull();
-                    locationsResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty();
-                });
-        }
-
-        [Fact]
-        public async Task EvictContentBasedOnLastAccessTime()
-        {
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
-            var contentHashes = new List<ContentHash>();
-
-            // HACK: Existing purge code removes an extra file. Testing with this in mind.
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = (DistributedContentSession<AbsolutePath>)context.Sessions[0];
-
-                    var store = context.GetRedisStore(session);
-
-                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
-
-                    // Insert random file #1 into session
-                    store.ContentHashBumpTime = TimeSpan.FromHours(1);
-                    var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #2 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #3 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(15);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #4 into session that will evict file #2 and #3.
-                    // Changing the ContentHashBumpTime tricks the store into believing that #1 was accessed the latest.
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-                },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
-
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = (DistributedContentSession<AbsolutePath>)context.Sessions[0];
-
-                    var locationsResult = await session.ContentLocationStore.GetBulkAsync(
-                        context,
-                        contentHashes,
-                        Token,
-                        UrgencyHint.Nominal);
-
-                    // Random file #2 and 3 should not be found
-                    Assert.True(locationsResult.Succeeded, locationsResult.ErrorMessage + " " + locationsResult.Diagnostics);
-                    locationsResult.ContentHashesInfo.Count.Should().Be(4);
-
-                    locationsResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-                    locationsResult.ContentHashesInfo[2].Locations.Should().BeNullOrEmpty();
-                    locationsResult.ContentHashesInfo[3].Locations.Count.Should().Be(1);
-                });
-        }
-
-        [Fact(Skip="Flaky and becoming obselete with LLS.")]
-        public async Task EvictContentBasedOnLastAccessTimeWithPriorityQueue()
-        {
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
-            var contentHashes = new List<ContentHash>();
-
-            // HACK: Existing purge code removes an extra file. Testing with this in mind.
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-                    var store = context.GetRedisStore(session);
-
-                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
-
-                    // Insert random file #1 into session
-                    store.ContentHashBumpTime = TimeSpan.FromHours(1);
-                    var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #2 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #3 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(15);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #4 into session that will evict file #2 and #3.
-                    // Changing the ContentHashBumpTime tricks the store into believing that #1 was accessed the latest.
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-
-                    contentHashes.Add(putResult.ContentHash);
-                },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true,
-                replicaCreditInMinutes: 10);
-
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-
-                    var locationsResult = await session.ContentLocationStore.GetBulkAsync(
-                        context,
-                        contentHashes,
-                        Token,
-                        UrgencyHint.Nominal);
-
-                    // Random file #2 and 3 should not be found
-                    Assert.True(locationsResult.Succeeded, locationsResult.ErrorMessage + " " + locationsResult.Diagnostics);
-                    locationsResult.ContentHashesInfo.Count.Should().Be(4);
-
-                    locationsResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-                    locationsResult.ContentHashesInfo[1].Locations.Should().BeNullOrEmpty();
-                    locationsResult.ContentHashesInfo[2].Locations.Should().BeNullOrEmpty();
-                    locationsResult.ContentHashesInfo[3].Locations.Count.Should().Be(1);
-                });
-        }
-
         [Fact(Skip = "Flaky test")]
         public async Task EvictContentBasedOnLastAccessTimeWithPinnedFiles()
         {
@@ -662,24 +485,24 @@ namespace ContentStoreTest.Distributed.Sessions
                 async context =>
                 {
                     var session = context.GetDistributedSession(0);
-                    var store = context.GetRedisStore(session);
+                    var store = context.GetContentLocationStore(session);
 
                     var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
 
                     // Insert random file #1 into session
-                    store.ContentHashBumpTime = TimeSpan.FromHours(1);
+                    //store.ContentHashBumpTime = TimeSpan.FromHours(1);
                     var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
 
                     contentHashes.Add(putResult.ContentHash);
 
                     // Put random large file #2 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(30);
+                    //store.ContentHashBumpTime = TimeSpan.FromMinutes(30);
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
 
                     contentHashes.Add(putResult.ContentHash);
 
                     // Put random large file #3 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(15);
+                    //store.ContentHashBumpTime = TimeSpan.FromMinutes(15);
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
 
@@ -691,8 +514,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     contentHashes.Add(putResult.ContentHash);
                 },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
+                implicitPin: ImplicitPin.None);
 
             await RunTestAsync(
                 loggingContext,
@@ -718,159 +540,132 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact]
-        public Task PinUpdatesExpiryAndSizeWhenFoundLocal()
-        {
-            return RunTestAsync(new Context(Logger), 1, async context =>
-            {
-                var sessions = context.Sessions;
+        //[Fact]
+        //public Task PinUpdatesExpiryAndSizeWhenFoundLocal()
+        //{
+        //    return RunTestAsync(new Context(Logger), 1, async context =>
+        //    {
+        //        var sessions = context.Sessions;
 
-                var session = context.GetDistributedSession(0);
-                var redisStore = context.GetRedisStore(session);
+        //        var session = context.GetDistributedSession(0);
+        //        var redisStore = context.GetRedisStore(session);
 
-                // Insert random file in session 0 with expiry of 30 minutes
-                redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                Assert.True(putResult1.Succeeded);
+        //        // Insert random file in session 0 with expiry of 30 minutes
+        //        //redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
+        //        var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
+        //        var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
+        //        Assert.True(putResult1.Succeeded);
 
-                // Insert same file in same session and update expiry to 1 hour
-                redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
-                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[0].PinAsync(context, new[] { putResult1.ContentHash }, Token);
-                Assert.True((await pinResultTasks.First()).Item.Succeeded);
+        //        // Insert same file in same session and update expiry to 1 hour
+        //        redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
+        //        IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[0].PinAsync(context, new[] { putResult1.ContentHash }, Token);
+        //        Assert.True((await pinResultTasks.First()).Item.Succeeded);
 
-                var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
-                Assert.True(expiry.HasValue);
-                Assert.InRange(expiry.Value, redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15), redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
+        //        var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
+        //        Assert.True(expiry.HasValue);
+        //        Assert.InRange(expiry.Value, redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15), redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
 
-                var result = await redisStore.GetBulkAsync(new Context(Logger), new[] { putResult1.ContentHash }, CancellationToken.None, UrgencyHint.Nominal);
-                Assert.True(result.Succeeded);
-                Assert.Equal(putResult1.ContentSize, result.ContentHashesInfo[0].Size);
-            });
-        }
+        //        var result = await redisStore.GetBulkAsync(new Context(Logger), new[] { putResult1.ContentHash }, CancellationToken.None, UrgencyHint.Nominal);
+        //        Assert.True(result.Succeeded);
+        //        Assert.Equal(putResult1.ContentSize, result.ContentHashesInfo[0].Size);
+        //    });
+        //}
 
-        [Fact]
-        public async Task PinUpdatesExpiryWhenFoundRemote()
-        {
-            await RunTestAsync(new Context(Logger), 2, async context =>
-            {
-                var sessions = context.Sessions;
+        //[Fact]
+        //public Task PlaceUpdatesExpiryWhenFoundLocal()
+        //{
+        //    return RunTestAsync(
+        //        new Context(Logger),
+        //        1,
+        //        async context =>
+        //        {
+        //            using (var directory = new DisposableDirectory(FileSystem))
+        //            {
+        //                var sessions = context.Sessions;
 
-                var session = context.GetDistributedSession(0);
-                var redisStore = context.GetRedisStore(session);
+        //                var session = context.GetDistributedSession(0);
+        //                var redisStore = context.GetRedisStore(session);
 
-                // Insert random file in session 0 with expiry of 30 minutes
-                redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                Assert.True(putResult1.Succeeded);
+        //                // Insert random file in session 0 with expiry of 30 minutes
+        //                //redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
+        //                var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
+        //                var putResult1 = await sessions[0].PutStreamAsync(
+        //                    context,
+        //                    HashType.Vso0,
+        //                    new MemoryStream(randomBytes1),
+        //                    Token);
+        //                Assert.True(putResult1.Succeeded);
 
-                // Insert same file in session 1 and update expiry to 1 hour
-                redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
-                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[1].PinAsync(context, new[] { putResult1.ContentHash }, Token);
-                Assert.True((await pinResultTasks.First()).Item.Succeeded);
+        //                // Insert same file in same session and update expiry to 1 hour
+        //                //redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
+        //                var result = await session.PlaceFileAsync(
+        //                    new Context(Logger),
+        //                    new[] { new ContentHashWithPath(putResult1.ContentHash, directory.CreateRandomFileName()) },
+        //                    FileAccessMode.Write,
+        //                    FileReplacementMode.FailIfExists,
+        //                    FileRealizationMode.Any,
+        //                    Token);
 
-                var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
-                Assert.True(expiry.HasValue);
-                Assert.InRange(expiry.Value, redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15), redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
-            });
-        }
+        //                Assert.True((await result.First()).Item.Succeeded);
+        //                var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
+        //                Assert.True(expiry.HasValue);
+        //                Assert.InRange(
+        //                    expiry.Value,
+        //                    redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15),
+        //                    redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
+        //            }
+        //        });
+        //}
 
-        [Fact]
-        public Task PlaceUpdatesExpiryWhenFoundLocal()
-        {
-            return RunTestAsync(
-                new Context(Logger),
-                1,
-                async context =>
-                {
-                    using (var directory = new DisposableDirectory(FileSystem))
-                    {
-                        var sessions = context.Sessions;
+        //[Fact]
+        //public Task PlaceUpdatesExpiryWhenFoundRemote()
+        //{
+        //    return RunTestAsync(
+        //        new Context(Logger),
+        //        2,
+        //        async context =>
+        //        {
+        //            using (var directory = new DisposableDirectory(FileSystem))
+        //            {
+        //                var sessions = context.Sessions;
 
-                        var session = context.GetDistributedSession(0);
-                        var redisStore = context.GetRedisStore(session);
+        //                var session = context.GetDistributedSession(0);
+        //                var redisStore = context.GetRedisStore(session);
 
-                        // Insert random file in session 0 with expiry of 30 minutes
-                        redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                        var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                        var putResult1 = await sessions[0].PutStreamAsync(
-                            context,
-                            HashType.Vso0,
-                            new MemoryStream(randomBytes1),
-                            Token);
-                        Assert.True(putResult1.Succeeded);
+        //                // Insert random file in session 0 with expiry of 30 minutes
+        //                redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
+        //                var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
+        //                var putResult1 = await sessions[0].PutStreamAsync(
+        //                    context,
+        //                    HashType.Vso0,
+        //                    new MemoryStream(randomBytes1),
+        //                    Token);
+        //                Assert.True(putResult1.Succeeded);
 
-                        // Insert same file in same session and update expiry to 1 hour
-                        redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
-                        var result = await session.PlaceFileAsync(
-                            new Context(Logger),
-                            new[] { new ContentHashWithPath(putResult1.ContentHash, directory.CreateRandomFileName()) },
-                            FileAccessMode.Write,
-                            FileReplacementMode.FailIfExists,
-                            FileRealizationMode.Any,
-                            Token);
+        //                session = session = context.GetDistributedSession(1);
+        //                redisStore = context.GetRedisStore(session);
 
-                        Assert.True((await result.First()).Item.Succeeded);
-                        var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
-                        Assert.True(expiry.HasValue);
-                        Assert.InRange(
-                            expiry.Value,
-                            redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15),
-                            redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
-                    }
-                });
-        }
+        //                // Insert same file in session 1 and update expiry to 1 hour
+        //                redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
+        //                var result = await session.PlaceFileAsync(
+        //                    new Context(Logger),
+        //                    new[] { new ContentHashWithPath(putResult1.ContentHash, directory.CreateRandomFileName()) },
+        //                    FileAccessMode.Write,
+        //                    FileReplacementMode.FailIfExists,
+        //                    FileRealizationMode.Any,
+        //                    Token);
 
-        [Fact]
-        public Task PlaceUpdatesExpiryWhenFoundRemote()
-        {
-            return RunTestAsync(
-                new Context(Logger),
-                2,
-                async context =>
-                {
-                    using (var directory = new DisposableDirectory(FileSystem))
-                    {
-                        var sessions = context.Sessions;
-
-                        var session = context.GetDistributedSession(0);
-                        var redisStore = context.GetRedisStore(session);
-
-                        // Insert random file in session 0 with expiry of 30 minutes
-                        redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                        var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                        var putResult1 = await sessions[0].PutStreamAsync(
-                            context,
-                            HashType.Vso0,
-                            new MemoryStream(randomBytes1),
-                            Token);
-                        Assert.True(putResult1.Succeeded);
-
-                        session = session = context.GetDistributedSession(1);
-                        redisStore = context.GetRedisStore(session);
-
-                        // Insert same file in session 1 and update expiry to 1 hour
-                        redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
-                        var result = await session.PlaceFileAsync(
-                            new Context(Logger),
-                            new[] { new ContentHashWithPath(putResult1.ContentHash, directory.CreateRandomFileName()) },
-                            FileAccessMode.Write,
-                            FileReplacementMode.FailIfExists,
-                            FileRealizationMode.Any,
-                            Token);
-
-                        var first = (await result.First()).Item;
-                        Assert.True(first.Succeeded, first.ErrorMessage);
-                        var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
-                        Assert.True(expiry.HasValue, "Expiry should have value.");
-                        Assert.InRange(
-                            expiry.Value,
-                            redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15),
-                            redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
-                    }
-                });
-        }
+        //                var first = (await result.First()).Item;
+        //                Assert.True(first.Succeeded, first.ErrorMessage);
+        //                var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
+        //                Assert.True(expiry.HasValue, "Expiry should have value.");
+        //                Assert.InRange(
+        //                    expiry.Value,
+        //                    redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15),
+        //                    redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
+        //            }
+        //        });
+        //}
 
         [Fact]
         public Task StreamEmptyFileWithoutCopying()
@@ -888,10 +683,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         openStreamResult.ShouldBeSuccess();
                         Assert.Equal(0, openStreamResult.Stream.Length);
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -908,10 +702,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         await context.GetDistributedSession(0).PinAsync(context, VsoHashInfo.Instance.EmptyHash, Token).ShouldBeSuccess();
 
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -936,86 +729,103 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         placeFileResult.ShouldBeSuccess();
                         Assert.Equal(0, placeFileResult.FileSize);
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
-        protected virtual object PrepareAdditionalCreateStoreArgs(int storeCount) => null;
-
-        protected async Task RunTestAsync(
+        public async Task RunTestAsync(
             Context context,
             int storeCount,
             Func<TestContext, Task> testFunc,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
-            bool enableDistributedEviction = false,
-            int? replicaCreditInMinutes = null,
-            bool enableRepairHandling = false,
-            bool emptyFileHashShortcutEnabled = false,
-            int iterations = 1)
+            int iterations = 1,
+            TestContext outerContext = null,
+            bool ensureLiveness = true,
+            int? storeToStartupLast = null)
         {
-            var additionalArgs = PrepareAdditionalCreateStoreArgs(storeCount);
+            var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
-                .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
+                .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
                 .ToList();
-            var testFileCopier = new TestFileCopier();
-            for (int iteration = 0; iteration < iterations; iteration++)
+
+            try
             {
-                var stores = indexedDirectories.Select(
-                    directory =>
-                        CreateStore(
-                            context,
-                            testFileCopier,
-                            directory.Directory,
-                            directory.Index,
-                            enableDistributedEviction,
-                            replicaCreditInMinutes,
-                            enableRepairHandling,
-                            emptyFileHashShortcutEnabled,
-                            additionalArgs)).ToList();
-
-                var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));
-
-                Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
-
-                var id = 0;
-                var sessions = stores.Select(store => store.CreateSession(context, "store" + id++, implicitPin).Session).ToList();
-                await TaskSafetyHelpers.WhenAll(sessions.Select(async session => await session.StartupAsync(context)));
-
-                var testContext = new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), sessions, stores, iteration);
-                await testFunc(testContext);
-
-                await TaskSafetyHelpers.WhenAll(
-                    sessions.Select(async session =>
-                     {
-                         if (!session.ShutdownCompleted)
-                         {
-                             await session.ShutdownAsync(context).ThrowIfFailure();
-                         }
-                     }));
-                sessions.ForEach(session => session.Dispose());
-
-                await TaskSafetyHelpers.WhenAll(Enumerable.Range(0, storeCount).Select(storeId => LogStats(testContext, storeId)));
-
-                await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.ShutdownAsync(context)));
-                stores.ForEach(store => store.Dispose());
-            }
-
-            indexedDirectories.ForEach(directory => directory.Directory.Dispose());
-        }
-
-        protected async Task LogStats(TestContext context, int storeId)
-        {
-            var store = context.Stores[storeId];
-            var stats = await store.GetStatsAsync(context);
-            if (stats.Succeeded)
-            {
-                foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
+                for (int iteration = 0; iteration < iterations; iteration++)
                 {
-                    context.Context.Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
+                    var testFileCopier = outerContext?.TestFileCopier ?? new TestFileCopier()
+                    {
+                        WorkingDirectory = indexedDirectories[0].Directory.Path
+                    };
+
+                    context.Always($"Starting test iteration {iteration}");
+
+                    var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
+                    IAbsolutePathFileCopier[] testFileCopiers;
+                    if (UseGrpcServer)
+                    {
+                        Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");
+                        testFileCopiers = Enumerable.Range(0, 2).Select(i => new GrpcFileCopier(context, ports[i == 1 ? 0 : 1], maxGrpcClientCount: 1, maxGrpcClientAgeMinutes: 1)).ToArray();
+                    }
+                    else
+                    {
+                        testFileCopiers = Enumerable.Range(0, storeCount).Select(i => testFileCopier).ToArray();
+                    }
+
+                    var stores = indexedDirectories.Select(
+                        directory =>
+                            CreateStore(
+                                context,
+                                testFileCopiers[directory.Index],
+                                directory.Directory,
+                                directory.Index,
+                                iteration: iteration,
+                                grpcPort: (uint)ports[directory.Index])).ToList();
+
+                    var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
+
+                    await testContext.StartupAsync(implicitPin, storeToStartupLast);
+
+                    // This mode is meant to make sure that all machines are alive and ready to go
+                    if (ensureLiveness)
+                    {
+                        for (int i = 0; i < testContext.Sessions.Count; i++)
+                        {
+                            var localStore = testContext.GetLocationStore(i);
+
+                            var globalStore = localStore.LocalLocationStore.GlobalStore;
+                            var state = (await globalStore.SetLocalMachineStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
+                            if (state == MachineState.Closed)
+                            {
+                                await localStore.ReconcileAsync(testContext, force: true).ShouldBeSuccess();
+                                await localStore.LocalLocationStore.HeartbeatAsync(testContext, inline: true).ShouldBeSuccess();
+                            }
+                        }
+
+                        for (int i = 0; i < testContext.Sessions.Count; i++)
+                        {
+                            var localStore = testContext.GetLocationStore(i);
+                            await localStore.LocalLocationStore.HeartbeatAsync(testContext, inline: true).ShouldBeSuccess();
+                        }
+                    }
+
+                    await testFunc(testContext);
+
+                    await testContext.ShutdownAsync();
                 }
             }
+            finally
+            {
+                foreach (var directory in indexedDirectories.Select(i => i.Directory))
+                {
+                    directory.Dispose();
+                }
+            }
+        }
+
+        protected virtual TestContext ConfigureTestContext(TestContext context)
+        {
+            return context;
         }
 
         protected async Task OpenStreamReturnsExpectedFile(

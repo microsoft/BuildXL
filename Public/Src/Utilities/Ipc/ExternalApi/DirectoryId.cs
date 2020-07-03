@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Utilities;
@@ -13,11 +13,16 @@ namespace BuildXL.Ipc.ExternalApi
     public static class DirectoryId
     {
         /// <summary>
+        /// Used for separating rendered values in <see cref="ToString(DirectoryArtifact)"/>
+        /// </summary>
+        internal const char Separator = ':';
+
+        /// <summary>
         /// Serializes a directory artifact into a string identifier.
         /// </summary>
         public static string ToString(DirectoryArtifact directory)
         {
-            return I($"{directory.Path.RawValue}:{(directory.IsSharedOpaque ? 1 : 0)}:{directory.PartialSealId}");
+            return I($"{directory.Path.RawValue}{Separator}{(directory.IsSharedOpaque ? 1 : 0)}{Separator}{directory.PartialSealId}");
         }
 
         /// <summary>
@@ -43,14 +48,14 @@ namespace BuildXL.Ipc.ExternalApi
         {
             directory = DirectoryArtifact.Invalid;
 
-            string[] splits = value.Split(':');
+            string[] splits = value.Split(Separator);
             if (splits.Length != 3)
             {
                 return false;
             }
 
             int pathId;
-            if (!int.TryParse(splits[0], out pathId) || pathId <= 0)
+            if (!int.TryParse(splits[0], out pathId))
             {
                 return false;
             }

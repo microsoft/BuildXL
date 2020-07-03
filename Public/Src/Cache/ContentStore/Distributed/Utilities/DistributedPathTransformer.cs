@@ -1,10 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -26,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot)
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
             if (!cacheRoot.IsLocal)
             {
@@ -38,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            return Encoding.UTF8.GetBytes(cacheRoot.Path.ToUpperInvariant());
+            return new MachineLocation(cacheRoot.Path.ToUpperInvariant());
         }
 
         /// <inheritdoc />

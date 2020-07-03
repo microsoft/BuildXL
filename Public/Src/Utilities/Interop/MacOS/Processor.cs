@@ -1,38 +1,34 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Runtime.InteropServices;
 
-namespace BuildXL.Interop.MacOS
+using static BuildXL.Interop.Dispatch;
+using static BuildXL.Interop.Unix.Constants;
+
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Processor class offers interop calls for processor based tasks into operating system facilities
     /// </summary>
     public static class Processor
     {
-        /// <nodoc />
+        #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         [StructLayout(LayoutKind.Sequential)]
         public struct CpuLoadInfo
         {
-            /// <nodoc />
             public ulong SystemTime;
-
-            /// <nodoc />
             public ulong UserTime;
-
-            /// <nodoc />
             public ulong IdleTime;
         }
-
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        private static extern int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize);
+        #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         /// <summary>
         /// Returns the current CPU load info accross all CPU cores to the caller
         /// </summary>
         /// <param name="buffer">A CpuLoadInfo struct to hold the timing inforamtion of the current host CPU</param>
-
-        public static int GetCpuLoadInfo(ref CpuLoadInfo buffer)
-            => GetCpuLoadInfo(ref buffer, Marshal.SizeOf(buffer));
+        public static int GetCpuLoadInfo(ref CpuLoadInfo buffer) => IsMacOS
+            ? Impl_Mac.GetCpuLoadInfo(ref buffer, Marshal.SizeOf(buffer))
+            : Impl_Linux.GetCpuLoadInfo(ref buffer, Marshal.SizeOf(buffer));
     }
 }

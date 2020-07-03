@@ -1,7 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
 namespace BuildXL.ViewModel
@@ -19,6 +19,9 @@ namespace BuildXL.ViewModel
         public List<CacheMissSummaryEntry> Entries { get; } = new List<CacheMissSummaryEntry>();
 
         /// <nodoc />
+        public List<string> BatchEntries { get; } = new List<string>();
+
+        /// <nodoc />
         internal void RenderMarkdown(MarkDownWriter writer)
         {
             int cacheHitRate = 0;
@@ -27,11 +30,11 @@ namespace BuildXL.ViewModel
                 cacheHitRate = (int)(100.0 * ProcessPipCacheHit / TotalProcessPips);
             }
 
-            var caseRateMessage = $"Process pip cache hits: {cacheHitRate}% ({ProcessPipCacheHit}/{TotalProcessPips}";
+            var caseRateMessage = $"Process pip cache hits: {cacheHitRate}% ({ProcessPipCacheHit}/{TotalProcessPips})";
 
-            if (Entries.Count == 0) 
+            if (Entries.Count == 0 && BatchEntries == null) 
             {
-                writer.WriteDetailedTableEntry("Cache rages", caseRateMessage);
+                writer.WriteDetailedTableEntry("Cache rates", caseRateMessage);
             }
             else
             {
@@ -42,14 +45,19 @@ namespace BuildXL.ViewModel
 
                 foreach (var entry in Entries)
                 {
-                    writer.WritePreDetails(
+                    writer.WritePreSection(
                         entry.PipDescription + (entry.FromCacheLookup ? " (From Cachelookup)" : null), 
                         entry.Reason,
                         25);
                 }
 
+                for (var i = 0; i < BatchEntries.Count; i++)
+                {
+                    writer.WritePreSection($"Batch #{i}", BatchEntries[i], 25);
+                }
                 writer.EndDetailedTableSummary();
             }
+            
         }
     }
 }

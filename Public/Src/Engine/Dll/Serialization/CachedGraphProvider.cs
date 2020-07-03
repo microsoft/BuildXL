@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -17,11 +17,13 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine
 {
@@ -89,7 +91,8 @@ namespace BuildXL.Engine
                 TryGetPipGraphCacheDescriptorAsync(
                     graphFingerprint.CompatibleFingerprint.OverallFingerprint,
                     buildParameters,
-                    mounts)).IsHit)
+                    mounts,
+                    ProviderContext.CompatibleGet)).IsHit)
             {
                 LogGetPipGraphDescriptorFromCache(compatibleResult, GetPipGraphCacheDescriptorResult.CreateForNone());
                 return compatibleResult.PipGraphCacheDescriptor;
@@ -98,7 +101,8 @@ namespace BuildXL.Engine
             GetPipGraphCacheDescriptorResult exactResult = await TryGetPipGraphCacheDescriptorAsync(
                 graphFingerprint.ExactFingerprint.OverallFingerprint,
                 buildParameters,
-                mounts);
+                mounts,
+                ProviderContext.ExactGet);
 
             LogGetPipGraphDescriptorFromCache(compatibleResult, exactResult);
 
@@ -108,10 +112,14 @@ namespace BuildXL.Engine
         private async Task<GetPipGraphCacheDescriptorResult> TryGetPipGraphCacheDescriptorAsync(
             ContentFingerprint graphFingerprint,
             BuildParameters.IBuildParameters buildParameters,
-            IReadOnlyDictionary<string, IMount> mounts)
+            IReadOnlyDictionary<string, IMount> mounts,
+            ProviderContext providerContext)
         {
             Contract.Requires(buildParameters != null);
             Contract.Requires(mounts != null);
+            Contract.Requires(
+                providerContext == ProviderContext.CompatibleGet 
+                || providerContext == ProviderContext.ExactGet);
 
             var singlePhaseFingerprintStore = new SinglePhaseFingerprintStoreAdapter(
                 m_loggingContext,
@@ -125,6 +133,7 @@ namespace BuildXL.Engine
             var sw = Stopwatch.StartNew();
             var getFingerprintEntrySw = new StopwatchVar();
             var hashPipGraphInputSw = new StopwatchVar();
+            MismatchedInputCollection lastRecentlyMismatchedInputs = null;
 
             while (true)
             {
@@ -170,6 +179,7 @@ namespace BuildXL.Engine
                     // Miss.
                     return GetPipGraphCacheDescriptorResult.CreateForMiss(
                         fingerprintChains,
+                        lastRecentlyMismatchedInputs,
                         hopCount,
                         sw.ElapsedMilliseconds,
                         (long) hashPipGraphInputSw.TotalElapsed.TotalMilliseconds,
@@ -194,7 +204,15 @@ namespace BuildXL.Engine
 
                         using (hashPipGraphInputSw.Start())
                         {
-                            possibleFingerprint = TryHashPipGraphInputDescriptor(currentFingerprint, buildParameters, mounts, pipGraphInputs, hopCount, null);
+                            possibleFingerprint = TryHashPipGraphInputDescriptor(
+                                currentFingerprint,
+                                buildParameters,
+                                mounts,
+                                pipGraphInputs,
+                                providerContext,
+                                hopCount,
+                                null,
+                                out lastRecentlyMismatchedInputs);
                         }
 
                         if (!possibleFingerprint.Succeeded)
@@ -230,14 +248,6 @@ namespace BuildXL.Engine
 
         private void LogGetPipGraphDescriptorFromCache(GetPipGraphCacheDescriptorResult compatible, GetPipGraphCacheDescriptorResult exact)
         {
-            string compatibleFingerprintChain = compatible.Fingerprints != null && compatible.Fingerprints.Count > 0
-                ? string.Join(Environment.NewLine, compatible.Fingerprints.Select(f => "\t\tFingerprint: " + f.ToString()))
-                : string.Empty;
-
-            string exactFingerprintChain = exact.Fingerprints != null && exact.Fingerprints.Count > 0
-                ? string.Join(Environment.NewLine, exact.Fingerprints.Select(f => "\t\tFingerprint: " + f.ToString()))
-                : string.Empty;
-
             Tracing.Logger.Log.GetPipGraphDescriptorFromCache(
                 m_loggingContext,
                 compatible.Kind.ToString(),
@@ -246,14 +256,33 @@ namespace BuildXL.Engine
                 unchecked((int) compatible.ElapsedTimeMs),
                 unchecked((int) compatible.HashGraphInputsElapsedTimeMs),
                 unchecked((int) compatible.GetFingerprintEntryElapsedTimeMs),
-                compatibleFingerprintChain,
+                fingerprintChainToString(compatible),
+                getMissReason(compatible),
                 exact.Kind.ToString(),
                 exact.HopCount,
                 exact.Reason,
                 unchecked((int) exact.ElapsedTimeMs),
                 unchecked((int) exact.HashGraphInputsElapsedTimeMs),
                 unchecked((int) exact.GetFingerprintEntryElapsedTimeMs),
-                exactFingerprintChain);
+                fingerprintChainToString(exact),
+                getMissReason(exact));
+
+            static string fingerprintChainToString(GetPipGraphCacheDescriptorResult result) => 
+                result.Fingerprints != null && result.Fingerprints.Count > 0
+                ? string.Join(", ", result.Fingerprints.Select(f => f.ToString()))
+                : string.Empty;
+
+            static string getMissReason(GetPipGraphCacheDescriptorResult result)
+            {
+                const string Prefix = "\t\t";
+
+                return result.Kind != GetPipGraphCacheDescriptorResultKind.Miss
+                    ? string.Empty
+                    : ((result.LastRecentlyMismatchedInputs == null || !result.LastRecentlyMismatchedInputs.HasMismatch)
+                        ? Environment.NewLine + Prefix + "Mismatched pip graph fingerprint"
+                        : Environment.NewLine + result.LastRecentlyMismatchedInputs.ToString(Prefix));
+            }
+
         }
 
         /// <summary>
@@ -283,10 +312,28 @@ namespace BuildXL.Engine
             var graphFingerprint = inputTracker.GraphFingerprint;
             var observedGraphInputs = CreateObservedGraphInputs(inputTracker, buildParametersImpactingBuild, mountsImpactingBuild);
 
+            // Instead of using build parameters and mounts that impact the build, we use the available ones for computing the hashes of graph inputs
+            // while traversing the chain of fingerprint look ups for storing the pip graph cache descriptor. We use the available ones because
+            // they are the ones used when we fetch the pip graph cache descriptor in <code>TryGetPipGraphCacheDescriptorAsync</code>.
+            //
+            // Suppose that one of the graph input is an environment variable E, i.e., one of the specs, S, queries (reads/probes) E. 
+            // When we store the pip graph cache descriptor, I = { ... E ... } will be a graph input in the chain of look-ups. 
+            //
+            // Now, if we modify S such that it no longer queries E, we expect to get a graph cache miss because S's hash is different.
+            // But note that during the fetch when we compute the hash of I, we use the available value of E because at the fetch time
+            // we don't know environment variables that would impact the build. Suppose that, when we store the pip graph cache descriptor,
+            // we are using the environment variables that impact the build (yes, we have it because graph cache miss results in a spec evaluation), i.e.,
+            // we are hashing the pair (E, NULL) when we compute the hash of I. NULL here means that E is not used during the spec evaluation, and thus not impact
+            // the build.
+            //
+            // Now, if we run the second build, we will have a graph cache miss again because when we hash I during fetch, we are using the available environment variable values.
+            //
+            // The above example also shows a pathological case where we may never get a graph cache hit. Suppose that E's value is a timestamp (or directory whose name contains timestamp).
+            // E changes from one build to another. If we mistakenly include E in the first build, then it will stay in I forever. If now we stop referring to E
+            // during evaluation, E will still be used during storing and fetching the pip graph cache descriptor because I is in the chain of look-ups.
+            // The only way out is to modify the graph fingerprint, and the easiest way is to pass a graph fingerprint salt.
             var storeResult = await TryStorePipGraphCacheDescriptorAsync(
                 inputTracker,
-                buildParametersImpactingBuild,
-                mountsImpactingBuild,
                 availableBuildParameters,
                 availableMounts,
                 graphFingerprint.OverallFingerprint,
@@ -300,19 +347,15 @@ namespace BuildXL.Engine
 
         private async Task<StorePipGraphCacheDescriptorResult> TryStorePipGraphCacheDescriptorAsync(
             InputTracker inputTracker,
-            BuildParameters.IBuildParameters buildParametersImpactingBuild,
-            IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
-            BuildParameters.IBuildParameters availableBuildParameters,
-            IReadOnlyDictionary<string, IMount> availableMounts,
+            BuildParameters.IBuildParameters buildParametersForHashingGraphInput,
+            IReadOnlyDictionary<string, IMount> mountsForHashingGraphInput,
             ContentFingerprint graphFingerprint,
             ObservedGraphInputs observedGraphInputs,
             PipGraphCacheDescriptor pipGraphCacheDescriptor)
         {
             Contract.Requires(inputTracker != null);
-            Contract.Requires(buildParametersImpactingBuild != null);
-            Contract.Requires(mountsImpactingBuild != null);
-            Contract.Requires(availableBuildParameters != null);
-            Contract.Requires(availableMounts != null);
+            Contract.Requires(buildParametersForHashingGraphInput != null);
+            Contract.Requires(mountsForHashingGraphInput != null);
             Contract.Requires(pipGraphCacheDescriptor != null);
 
             var singlePhaseFingerprintStore = new SinglePhaseFingerprintStoreAdapter(
@@ -326,6 +369,7 @@ namespace BuildXL.Engine
             PipGraphInputDescriptor observedGraphInputsToStore = observedGraphInputs.IsEmpty
                 ? null
                 : observedGraphInputs.ToPipGraphInputDescriptor(PathTable);
+
             var fingerprintChains = new List<ContentFingerprint>(MaxHopCount);
             int hopCount = 0;
             var sw = Stopwatch.StartNew();
@@ -426,11 +470,13 @@ namespace BuildXL.Engine
                                 {
                                     possibleFingerprint = TryHashPipGraphInputDescriptor(
                                         currentFingerprint,
-                                        availableBuildParameters,
-                                        availableMounts,
+                                        buildParametersForHashingGraphInput,
+                                        mountsForHashingGraphInput,
                                         (PipGraphInputDescriptor) descriptor.Result.Deserialize(cacheQueryData),
+                                        ProviderContext.Store,
                                         hopCount,
-                                        inputTracker);
+                                        inputTracker,
+                                        out var _);
                                 }
 
                                 if (!possibleFingerprint.Succeeded)
@@ -490,11 +536,13 @@ namespace BuildXL.Engine
                                 {
                                     possibleFingerprint = TryHashPipGraphInputDescriptor(
                                         currentFingerprint,
-                                        availableBuildParameters,
-                                        availableMounts,
+                                        buildParametersForHashingGraphInput,
+                                        mountsForHashingGraphInput,
                                         conflictingGraphInputDescriptor,
+                                        ProviderContext.Store,
                                         hopCount,
-                                        inputTracker);
+                                        inputTracker,
+                                        out var _);
                                 }
 
                                 if (!possibleFingerprint.Succeeded)
@@ -550,11 +598,13 @@ namespace BuildXL.Engine
                         {
                             possibleFingerprint = TryHashPipGraphInputDescriptor(
                                 currentFingerprint,
-                                availableBuildParameters,
-                                availableMounts,
+                                buildParametersForHashingGraphInput,
+                                mountsForHashingGraphInput,
                                 observedGraphInputs.ToPipGraphInputDescriptor(PathTable),
+                                ProviderContext.Store,
                                 hopCount,
-                                inputTracker);
+                                inputTracker,
+                                out var _);
                         }
 
                         if (!possibleFingerprint.Succeeded)
@@ -596,7 +646,7 @@ namespace BuildXL.Engine
         private void LogStorePipGraphCacheDescriptorToCache(StorePipGraphCacheDescriptorResult result)
         {
             string fingerprintChain = result.Fingerprints != null && result.Fingerprints.Count > 0 
-                ? string.Join(Environment.NewLine, result.Fingerprints.Select(f => "\tFingerprint: " + f.ToString()))
+                ? string.Join(", ", result.Fingerprints.Select(f => f.ToString()))
                 : string.Empty;
 
             Tracing.Logger.Log.StorePipGraphCacheDescriptorToCache(
@@ -616,12 +666,16 @@ namespace BuildXL.Engine
             BuildParameters.IBuildParameters buildParameters,
             IReadOnlyDictionary<string, IMount> mounts,
             PipGraphInputDescriptor pipGraphInputDescriptor,
+            ProviderContext providerContext,
             int hop,
-            InputTracker inputTracker)
+            InputTracker inputTracker,
+            out MismatchedInputCollection possibleMismatchedInputs)
         {
             Contract.Requires(buildParameters != null);
             Contract.Requires(mounts != null);
             Contract.Requires(pipGraphInputDescriptor != null);
+
+            possibleMismatchedInputs = new MismatchedInputCollection();
 
             int pathInputDifferenceCount = 0;
             int environmentInputDifferenceCount = 0;
@@ -664,6 +718,7 @@ namespace BuildXL.Engine
                                     {
                                         Tracing.Logger.Log.FailedHashingGraphFileInput(
                                             m_loggingContext,
+                                            providerContext.ToString(),
                                             hop,
                                             pathAndObservation.StringKeyedHash.Key,
                                             possibleHash.Failure.Describe());
@@ -691,6 +746,7 @@ namespace BuildXL.Engine
                                     {
                                         Tracing.Logger.Log.FailedComputingFingerprintGraphDirectoryInput(
                                             m_loggingContext,
+                                            providerContext.ToString(),
                                             hop,
                                             pathAndObservation.StringKeyedHash.Key,
                                             possibleDirectoryFingerprint.Failure.Describe());
@@ -715,13 +771,18 @@ namespace BuildXL.Engine
 
                         if (contentHashes[i] != hash && pathInputDifferenceCount++ < InputDifferencesLimit)
                         {
-                            Tracing.Logger.Log.MismatchPathInGraphInputDescriptor(
-                                m_loggingContext,
-                                hop,
+                            var mismatch = new MismatchedObservedInput(
                                 path,
-                                kind,
-                                hash.ToString(),
-                                contentHashes[i].ToString());
+                                pipGraphInputDescriptor.ObservedInputsSortedByPath[i].ObservedInputKind, 
+                                hash, 
+                                contentHashes[i]);
+                            possibleMismatchedInputs.Add(mismatch);
+
+                            Tracing.Logger.Log.MismatchInputInGraphInputDescriptor(
+                                m_loggingContext,
+                                providerContext.ToString(),
+                                hop,
+                                mismatch.ToString());
                         }
                     }
 
@@ -733,11 +794,13 @@ namespace BuildXL.Engine
                     foreach (var environmentVariable in pipGraphInputDescriptor.EnvironmentVariablesSortedByName)
                     {
                         HashEnvironmentVariable(
+                            providerContext,
                             hop,
                             buildParameters,
                             environmentVariableHasher,
                             environmentVariable.Key,
                             environmentVariable.Value,
+                            possibleMismatchedInputs,
                             ref environmentInputDifferenceCount);
                     }
 
@@ -749,11 +812,13 @@ namespace BuildXL.Engine
                     foreach (var mount in pipGraphInputDescriptor.MountsSortedByName)
                     {
                         HashMount(
+                            providerContext,
                             hop,
                             mounts,
                             mountHasher,
                             mount.Key,
                             mount.Value,
+                            possibleMismatchedInputs,
                             ref mountInputDifferenceCount);
                     }
 
@@ -807,11 +872,13 @@ namespace BuildXL.Engine
         }
 
         private void HashEnvironmentVariable(
+            ProviderContext providerContext,
             int hop,
             BuildParameters.IBuildParameters buildParameters,
             CoreHashingHelperBase hasher,
             string name,
             string comparedValue,
+            MismatchedInputCollection possibleMismatchedInputs,
             ref int environmentInputDifferenceCount)
         {
             Contract.Requires(buildParameters != null);
@@ -826,16 +893,20 @@ namespace BuildXL.Engine
 
             if (!string.Equals(comparedValue, value, StringComparison.OrdinalIgnoreCase) && ++environmentInputDifferenceCount < InputDifferencesLimit)
             {
-                Tracing.Logger.Log.MismatchEnvironmentInGraphInputDescriptor(m_loggingContext, hop, name, comparedValue, value);
+                var mismatch = new MismatchedEnvironmentVariableInput(name, comparedValue, value);
+                possibleMismatchedInputs.Add(mismatch);
+                Tracing.Logger.Log.MismatchInputInGraphInputDescriptor(m_loggingContext, providerContext.ToString(), hop, mismatch.ToString());
             }
         }
 
         private void HashMount(
+            ProviderContext providerContext,
             int hop,
             IReadOnlyDictionary<string, IMount> mounts,
             CoreHashingHelperBase hasher,
             string name,
             string comparedValue,
+            MismatchedInputCollection possibleMismatchedInputs,
             ref int mountInputDifferenceCount)
         {
             Contract.Requires(mounts != null);
@@ -850,7 +921,8 @@ namespace BuildXL.Engine
 
             if (!string.Equals(comparedValue, value, StringComparison.OrdinalIgnoreCase) && ++mountInputDifferenceCount < InputDifferencesLimit)
             {
-                Tracing.Logger.Log.MismatchMountInGraphInputDescriptor(m_loggingContext, hop, name, comparedValue, value);
+                var mismatch = new MismatchedMountInput(name, comparedValue, value);
+                Tracing.Logger.Log.MismatchInputInGraphInputDescriptor(m_loggingContext, providerContext.ToString(), hop, mismatch.ToString());
             }
         }
 
@@ -885,6 +957,206 @@ namespace BuildXL.Engine
                 MountInput.ByNameComparer.Instance);
 
             return new ObservedGraphInputs(inputPaths, inputEnvironmentVariables, inputMounts);
+        }
+
+        private enum ProviderContext
+        {
+            /// <summary>
+            /// Getting graph descriptor for compatible graph.
+            /// </summary>
+            CompatibleGet,
+
+            /// <summary>
+            /// Getting graph descriptor for exact graph.
+            /// </summary>
+            ExactGet,
+
+            /// <summary>
+            /// Storing graph descriptor.
+            /// </summary>
+            Store
+        }
+
+        /// <summary>
+        /// Base class for mismatched graph input.
+        /// </summary>
+        internal abstract class MismatchedInput
+        {
+        }
+
+        /// <summary>
+        /// Class recording mismatched observed input file or observed enumeration.
+        /// </summary>
+        internal class MismatchedObservedInput : MismatchedInput
+        { 
+            /// <summary>
+            /// Path to input file or to enumerated directory.
+            /// </summary>
+            public readonly string Path;
+
+            /// <summary>
+            /// Observation kind.
+            /// </summary>
+            public readonly ObservedInputKind Kind;
+
+            /// <summary>
+            /// Expected content hash.
+            /// </summary>
+            public readonly ContentHash ExpectedHash;
+
+            /// <summary>
+            /// Actual content hash.
+            /// </summary>
+            public readonly ContentHash ActualHash;
+
+            /// <summary>
+            /// Creates an instance of <see cref="MismatchedObservedInput"/>.
+            /// </summary>
+            /// <param name="path">Path to input file or enumerated directory.</param>
+            /// <param name="kind">Observation kind.</param>
+            /// <param name="expectedHash">Expected hash.</param>
+            /// <param name="actualHash">Actual hash.</param>
+            public MismatchedObservedInput(string path, ObservedInputKind kind, ContentHash expectedHash, ContentHash actualHash)
+            {
+                Path = path;
+                Kind = kind;
+                ExpectedHash = expectedHash;
+                ActualHash = actualHash;
+            }
+
+            /// <inheritdoc />
+            public override string ToString() => I($"Mismatched observed input: '{Path}' ({Kind}) | Expected hash: {ExpectedHash} | Actual hash: {ActualHash}");
+        }
+
+        /// <summary>
+        /// Class recording mismatched input environment variable.
+        /// </summary>
+        internal class MismatchedEnvironmentVariableInput : MismatchedInput
+        {
+            /// <summary>
+            /// Environment variable name.
+            /// </summary>
+            public readonly string Name;
+
+            /// <summary>
+            /// Expected value.
+            /// </summary>
+            public readonly string ExpectedValue;
+
+            /// <summary>
+            /// Actual value.
+            /// </summary>
+            public readonly string ActualValue;
+
+            /// <summary>
+            /// Creates an instance of <see cref="MismatchedEnvironmentVariableInput"/>.
+            /// </summary>
+            /// <param name="name">Environment variable name.</param>
+            /// <param name="expectedValue">Expected value.</param>
+            /// <param name="actualValue">Actual value.</param>
+            public MismatchedEnvironmentVariableInput(string name, string expectedValue, string actualValue)
+            {
+                Name = name;
+                ExpectedValue = expectedValue;
+                ActualValue = actualValue;
+            }
+
+            /// <inheritdoc />
+            public override string ToString() => I($"Mismatched environment variable: '{Name}' | Expected value: '{ExpectedValue}' | Actual value: '{ActualValue}'");
+        }
+
+        /// <summary>
+        /// Class recording mismatched input mounts.
+        /// </summary>
+        internal class MismatchedMountInput : MismatchedInput
+        {
+            /// <summary>
+            /// Mount name.
+            /// </summary>
+            public readonly string Name;
+
+            /// <summary>
+            /// Expected path.
+            /// </summary>
+            public readonly string ExpectedPath;
+
+            /// <summary>
+            /// Actual path.
+            /// </summary>
+            public readonly string ActualPath;
+
+            /// <summary>
+            /// Creates an instance of <see cref="MismatchedMountInput"/>.
+            /// </summary>
+            /// <param name="name">Mount name.</param>
+            /// <param name="expectedPath">Expected path.</param>
+            /// <param name="actualPath">Actual path.</param>
+            public MismatchedMountInput(string name, string expectedPath, string actualPath)
+            {
+                Name = name;
+                ExpectedPath = expectedPath;
+                ActualPath = actualPath;
+            }
+
+            /// <inheritdoc />
+            public override string ToString() => I($"Mismatched mount: '{Name}' | Expected path: '{ExpectedPath}' | Actual path: '{ActualPath}'");
+        }
+
+        /// <summary>
+        /// Class for collecting mismatched graph inputs.
+        /// </summary>
+        internal class MismatchedInputCollection
+        {
+            private const int MaxEntryKindCount = 10;
+            private int m_mismatchedObservedInputCount = 0;
+            private int m_mismatchedEnvironmentVariableCount = 0;
+            private int m_mismatchedMountCount = 0;
+            private readonly List<MismatchedInput> m_mismatchedInputs = new List<MismatchedInput>(MaxEntryKindCount * 3);
+
+            /// <summary>
+            /// True if there is a mismatched input.
+            /// </summary>
+            public bool HasMismatch => m_mismatchedInputs.Count > 0;
+
+            /// <summary>
+            /// Adds a mismatched input into this collection.
+            /// </summary>
+            /// <param name="mismatchedInput">An instance of <see cref="MismatchedInput"/>.</param>
+            public void Add(MismatchedInput mismatchedInput)
+            {
+                if (m_mismatchedInputs.Count == m_mismatchedInputs.Capacity)
+                {
+                    return;
+                }
+
+                int kindCount = 0;
+
+                switch (mismatchedInput)
+                {
+                    case MismatchedObservedInput _:
+                        kindCount = m_mismatchedObservedInputCount++;
+                        break;
+                    case MismatchedEnvironmentVariableInput _:
+                        kindCount = m_mismatchedEnvironmentVariableCount++;
+                        break;
+                    case MismatchedMountInput _:
+                        kindCount = m_mismatchedMountCount++;
+                        break;
+                }
+
+                if (kindCount < MaxEntryKindCount)
+                {
+                    m_mismatchedInputs.Add(mismatchedInput);
+                }
+            }
+
+            /// <inheritdoc />
+            public override string ToString() => ToString(string.Empty);
+
+            /// <summary>
+            /// Gets string representation with a prefix for each mismatch entry.
+            /// </summary>
+            public string ToString(string prefix) => string.Join(Environment.NewLine, m_mismatchedInputs.Select(m => prefix + m.ToString()));
         }
     }
 
@@ -990,6 +1262,11 @@ namespace BuildXL.Engine
         public readonly IReadOnlyList<ContentFingerprint> Fingerprints;
 
         /// <summary>
+        /// Last recently mismatched inputs.
+        /// </summary>
+        public readonly CachedGraphProvider.MismatchedInputCollection LastRecentlyMismatchedInputs;
+
+        /// <summary>
         /// True if the result is cache hit.
         /// </summary>
         public bool IsHit => Kind == GetPipGraphCacheDescriptorResultKind.Hit;
@@ -998,6 +1275,7 @@ namespace BuildXL.Engine
             PipGraphCacheDescriptor pipGraphCacheDescriptor,
             GetPipGraphCacheDescriptorResultKind kind,
             IReadOnlyList<ContentFingerprint> fingerprints,
+            CachedGraphProvider.MismatchedInputCollection lastRecentlyMismatchedInputs,
             int hopCount,
             string reason,
             long elapsedTimeMs,
@@ -1007,6 +1285,7 @@ namespace BuildXL.Engine
             PipGraphCacheDescriptor = pipGraphCacheDescriptor;
             Kind = kind;
             Fingerprints = fingerprints;
+            LastRecentlyMismatchedInputs = lastRecentlyMismatchedInputs;
             HopCount = hopCount;
             Reason = reason;
             ElapsedTimeMs = elapsedTimeMs;
@@ -1031,6 +1310,7 @@ namespace BuildXL.Engine
                 pipGraphCacheDescriptor,
                 GetPipGraphCacheDescriptorResultKind.Hit,
                 fingerprints,
+                null,
                 hopCount,
                 string.Empty,
                 elapsedTimeMs,
@@ -1043,6 +1323,7 @@ namespace BuildXL.Engine
         /// </summary>
         public static GetPipGraphCacheDescriptorResult CreateForMiss(
             IReadOnlyList<ContentFingerprint> fingerprints,
+            CachedGraphProvider.MismatchedInputCollection lastRecentlyMismatchedInputs,
             int hopCount,
             long elapsedTimeMs,
             long hashGraphInputsElapsedTimeMs,
@@ -1052,6 +1333,7 @@ namespace BuildXL.Engine
                 null,
                 GetPipGraphCacheDescriptorResultKind.Miss,
                 fingerprints,
+                lastRecentlyMismatchedInputs,
                 hopCount,
                 string.Empty,
                 elapsedTimeMs,
@@ -1068,6 +1350,7 @@ namespace BuildXL.Engine
                 null,
                 GetPipGraphCacheDescriptorResultKind.None,
                 new List<ContentFingerprint>(0),
+                null,
                 0,
                 string.Empty,
                 0,
@@ -1092,6 +1375,7 @@ namespace BuildXL.Engine
                 null,
                 kind,
                 fingerprints,
+                null,
                 hopCount,
                 reason ?? string.Empty,
                 elapsedTimeMs,

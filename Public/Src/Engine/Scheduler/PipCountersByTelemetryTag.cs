@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,10 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class PipCountersByTelemetryTag : PipCountersByGroupCategoryBase<StringId>
     {
-        private const string DefaultTelemetryTagPrefix = "telemetry:";
+        /// <summary>
+        /// Default prefix for Telemetry Tags.
+        /// </summary>
+        public const string DefaultTelemetryTagPrefix = "telemetry:";
 
         private readonly string m_telemetryTagPrefix;
 
@@ -42,13 +45,16 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         protected override IEnumerable<StringId> GetCategories(Process process)
         {
-            foreach (var tag in process.Tags)
+            using (var pooledWrapper = Pools.StringSetPool.GetInstance())
             {
-                var expandedTag = tag.ToString(m_stringTable);
-                if (expandedTag.StartsWith(m_telemetryTagPrefix))
+                foreach (var tag in process.Tags)
                 {
-                    var telemetryTag = StringId.Create(m_stringTable, expandedTag.Substring(m_telemetryTagPrefix.Length));
-                    yield return telemetryTag;
+                    var expandedTag = tag.ToString(m_stringTable);
+                    if (expandedTag.StartsWith(m_telemetryTagPrefix) && pooledWrapper.Instance.Add(expandedTag))
+                    {
+                        var telemetryTag = StringId.Create(m_stringTable, expandedTag.Substring(m_telemetryTagPrefix.Length));
+                        yield return telemetryTag;
+                    }
                 }
             }
         }

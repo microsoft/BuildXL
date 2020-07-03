@@ -1,13 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -23,10 +23,12 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.Host.Service.Internal
 {
     // TODO: move it to the library?
-    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler
+    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler, IPushFileHandler
     {
         private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
         private readonly string _preferredCacheDrive;
+
+        public IContentStore PreferredContentStore { get; }
 
         /// <summary>
         /// Execution tracer for the session.
@@ -49,10 +51,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             Contract.Requires(!string.IsNullOrEmpty(preferredCacheDrive), "preferredCacheDrive should not be null or empty.");
             Contract.Requires(drivesWithContentStore?.Count > 0, "drivesWithContentStore should not be null or empty.");
-            Contract.Requires(drivesWithContentStore.ContainsKey(preferredCacheDrive), $"drivesWithContentStore should contain '{preferredCacheDrive}'.");
-
+            Contract.Check(drivesWithContentStore.ContainsKey(preferredCacheDrive))?.Requires($"drivesWithContentStore should contain '{preferredCacheDrive}'.");
             _drivesWithContentStore = drivesWithContentStore;
             _preferredCacheDrive = preferredCacheDrive;
+            PreferredContentStore = drivesWithContentStore[preferredCacheDrive];
         }
 
         /// <inheritdoc />
@@ -282,9 +284,9 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
+        public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token)
         {
-            return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.HandleCopyFileRequestAsync(context, hash));
+            return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.HandleCopyFileRequestAsync(context, hash, token));
         }
 
         private async Task<TResult> PerformStoreOperationAsync<TStore, TResult>(Func<TStore, Task<TResult>> executeAsync)
@@ -292,9 +294,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             TResult result = null;
 
-            // Check primary content store
-            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is TStore store)
+            foreach (var store in GetStoresInOrder<TStore>())
             {
                 result = await executeAsync(store);
 
@@ -304,43 +304,81 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
             }
 
+            return result ?? new ErrorResult($"Could not find a content store which implements {typeof(TStore).Name} in {nameof(MultiplexedContentStore)}.").AsResult<TResult>();
+        }
+
+        private bool PerformStoreOperation<TStore>(Func<TStore, bool> executeAsync)
+        {
+            var result = false;
+
+            foreach (var store in GetStoresInOrder<TStore>())
+            {
+                result = executeAsync(store);
+
+                if (result)
+                {
+                    return result;
+                }
+            }
+
+            return result;
+        }
+
+        private IEnumerable<TStore> GetStoresInOrder<TStore>()
+        {
+            if (_drivesWithContentStore[_preferredCacheDrive] is TStore store)
+            {
+                yield return store;
+            }
+
             foreach (var kvp in _drivesWithContentStore)
             {
                 if (kvp.Key == _preferredCacheDrive)
                 {
-                    // Already checked the preferred cache
+                    // Already yielded the preferred cache
                     continue;
                 }
 
                 if (kvp.Value is TStore otherStore)
                 {
-                    result = await executeAsync(otherStore);
-
-                    if (result.Succeeded)
-                    {
-                        return result;
-                    }
+                    yield return otherStore;
                 }
             }
-
-            return result ?? new ErrorResult($"Could not find a content store which implements {typeof(TStore).Name} in {nameof(MultiplexedContentStore)}.").AsResult<TResult>();
         }
 
         /// <inheritdoc />
-        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions)
         {
+            long contentSize = 0L;
+            if (!deleteOptions.DeleteLocalOnly)
+            {
+                var mapping = new Dictionary<string, DeleteResult>();
+                foreach (var kvp in _drivesWithContentStore)
+                {
+                    var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, deleteOptions);
+                    if (deleteResult is DistributedDeleteResult distributedDelete)
+                    {
+                        foreach (var pair in distributedDelete.DeleteMapping)
+                        {
+                            mapping.Add(pair.Key, pair.Value);
+                        }
+                    }
+
+                    contentSize = Math.Max(deleteResult.ContentSize, contentSize);
+                }
+
+                return new DistributedDeleteResult(contentHash, contentSize, mapping);
+            }
+
             int code = (int)DeleteResult.ResultCode.ContentNotFound;
-            long evictedSize = 0L;
-            long pinnedSize = 0L;
 
             foreach (var kvp in _drivesWithContentStore)
             {
-                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash);
+                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, deleteOptions);
                 if (deleteResult.Succeeded)
                 {
                     code = Math.Max(code, (int)deleteResult.Code);
-                    evictedSize += deleteResult.EvictedSize;
-                    pinnedSize += deleteResult.PinnedSize;
+                    contentSize = Math.Max(deleteResult.ContentSize, contentSize);
                 }
                 else
                 {
@@ -348,7 +386,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
             }
 
-            return new DeleteResult((DeleteResult.ResultCode)code, contentHash, evictedSize, pinnedSize);
+            return new DeleteResult((DeleteResult.ResultCode)code, contentHash, contentSize);
         }
 
         /// <inheritdoc />
@@ -358,6 +396,29 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 kvp.Value.PostInitializationCompleted(context, result);
             }
+        }
+
+        /// <inheritdoc />
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        {
+            return PerformStoreOperationAsync<IPushFileHandler, PutResult>(store => store.HandlePushFileAsync(context, hash, sourcePath, token));
+        }
+
+        /// <inheritdoc />
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
+        {
+            // Rejection reason will be whatever we called last, or NotSupported if no stores implement IPushFileHandler.
+            rejectionReason = RejectionReason.NotSupported;
+
+            foreach (var store in GetStoresInOrder<IPushFileHandler>())
+            {
+                if (store.CanAcceptContent(context, hash, out rejectionReason))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

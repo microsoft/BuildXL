@@ -46,7 +46,8 @@ export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Tra
         // Opting to take individual file dependencies rather than as a sealed directory dependency
         runtimeDependencies: [
             ...onDiskDeployment.contents.getContent(),
-        ]
+        ],
+        runtimeDirectoryDependencies: onDiskDeployment.targetOpaques || []
     };
 
     if (args.options)

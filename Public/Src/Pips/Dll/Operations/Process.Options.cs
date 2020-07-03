@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using System;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Operations
 {
@@ -23,6 +22,11 @@ namespace BuildXL.Pips.Operations
         /// <see cref="Options.EnforceWeakFingerprintAugmentation"/> is on
         /// </summary>
         public static int DefaultAugmentWeakFingerprintPathSetThreshold = 5;
+
+        /// <summary>
+        /// Indicate whether the pip is used for integration test purposes.
+        /// </summary>
+        public const int IntegrationTestPriority = 99;
 
         /// <summary>
         /// Flag options controlling process pip behavior.
@@ -113,9 +117,9 @@ namespace BuildXL.Pips.Operations
             RequiresAdmin = 1 << 11,
 
             /// <summary>
-            /// Whether this process using non-empty <see cref="Process.PreserveOutputWhitelist"/>
+            /// Whether this process using non-empty <see cref="Process.PreserveOutputAllowlist"/>
             /// </summary>
-            HasPreserveOutputWhitelist = 1 << 12,
+            HasPreserveOutputAllowlist = 1 << 12,
 
             /// <summary>
             /// Incremental tool is superset of <see cref="AllowPreserveOutputs"/> and is only active when preserve output is active.
@@ -134,6 +138,35 @@ namespace BuildXL.Pips.Operations
             /// and <see cref="DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor"/>
             /// </summary>
             EnforceWeakFingerprintAugmentation = 1 << 15,
+
+            /// <summary>
+            /// This option makes all statically declared artifacts on this process (inputs and outputs) to be automatically
+            /// added to the sandbox access report, as if the process actually produced those accesses
+            /// </summary>
+            /// <remarks>
+            /// Useful for automatically augmenting the sandbox access report on trusted process breakaway. <see cref="ChildProcessesToBreakawayFromSandbox"/>.
+            /// Default is false. This is an unsafe option. Should only be used on trusted process, where the statically declared inputs and outputs are guaranteed to
+            /// match the process actual behavior.
+            /// Only takes effect if <see cref="ChildProcessesToBreakawayFromSandbox"/> is a non-empty array. Otherwise is ignored.
+            /// Note that when using this, the observed set of inputs can be larger than usual since observations cannot be used to determine what actually was read, and all
+            /// statically specified inputs are used instead.
+            /// </remarks>
+            TrustStaticallyDeclaredAccesses = 1 << 16,
+
+            /// <summary>
+            /// When this option is set, the scheduler will not be able to cancel the specified pip for perforance purposes.
+            /// </summary>
+            Uncancellable = 1 << 17,
+
+            /// <summary>
+            /// When set, the serialized path set of this process is not normalized wrt casing
+            /// </summary>
+            /// <remarks>
+            /// This is already the behavior when running in a non-Windows OS, therefore this option only has a effect on Windows systems.
+            /// Setting this option increases the chance BuildXL will preserve path casing on Windows, at the cost of less efficient
+            /// caching, where the same weak fingerprint may have different path sets that only differ in casing.
+            /// </remarks>
+            PreservePathSetCasing = 1 << 18,
         }
     }
 }

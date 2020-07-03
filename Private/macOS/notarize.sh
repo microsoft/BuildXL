@@ -108,13 +108,13 @@ declare request_id=$(/usr/libexec/PlistBuddy -c "print :notarization-upload:Requ
 
 echo "Checking notarization request validity..."
 if [[ $request_id =~ ^\{?[A-F0-9a-f]{8}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f]{12}\}?$ ]]; then
-    declare attempts=5
+    declare attempts=200
 
     while :
     do
         echo "Waiting a bit before checking on notarization status again..."
 
-        sleep 20
+        sleep 5
         xcrun altool --notarization-info $request_id -u $arg_AppleId -p $arg_Password --output-format xml | tee $output
 
         declare status=$(/usr/libexec/PlistBuddy -c "print :notarization-info:Status" $output)

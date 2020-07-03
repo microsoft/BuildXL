@@ -1,24 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
+using BuildXL.App.Tracing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -26,14 +29,14 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Scheduler.Fingerprints;
+using System;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -43,30 +46,57 @@ namespace Test.BuildXL.Scheduler
     public class SchedulerIntegrationTestBase : PipTestBase
     {
         public List<ScheduleRunResult> PriorResults = new List<ScheduleRunResult>();
-        public CommandLineConfiguration Configuration;
-        public EngineCache Cache;
-        public FileContentTable FileContentTable;
+        public CommandLineConfiguration Configuration { get; set; }
+        public EngineCache Cache { get; set; }
+        public FileContentTable FileContentTable { get; set; }
         public DirectoryTranslator DirectoryTranslator = new DirectoryTranslator();
 
         // Keep track of whether the graph was changed between runs of the scheduler for sake of passing the same graph and
         // graphid to tests to allow exercising incremental scheduling.
         private bool m_graphWasModified;
 
-        private PipGraph m_lastGraph;
-
-        public PipGraph LastGraph => m_lastGraph;
+        public PipGraph LastGraph { get; private set; }
 
         private JournalState m_journalState;
+
+        private readonly ITestOutputHelper m_testOutputHelper;
 
         /// <summary>
         /// Whether the scheduler should log all of its statistics at the end of every run.
         /// </summary>
         public bool ShouldLogSchedulerStats { get; set; } = false;
 
+        public bool ShouldCreateLogDir { get; set; } = false;
+
+        /// <summary>
+        /// Class for storing pip graph setup.
+        /// </summary>
+        public class PipGraphSetupData : PipTestBaseSetupData
+        {
+            private readonly PipGraph m_pipGraph;
+            private readonly SchedulerIntegrationTestBase m_testBase;
+
+            private PipGraphSetupData(SchedulerIntegrationTestBase testBase)
+                : base(testBase)
+            {
+                m_pipGraph = testBase.LastGraph;
+                m_testBase = testBase;
+            }
+
+            public static PipGraphSetupData Save(SchedulerIntegrationTestBase testBase) => new PipGraphSetupData(testBase);
+
+            public override void Restore()
+            {
+                m_testBase.LastGraph = m_pipGraph;
+                m_testBase.m_graphWasModified = false;
+                base.Restore();
+            }
+        }
+
         /// <nodoc/>
         public SchedulerIntegrationTestBase(ITestOutputHelper output) : base(output)
         {
-            CaptureAllDiagnosticMessages = false;
+            m_testOutputHelper = output;
 
             // Each event listener that we want to capture events from must be listed here
             foreach (var eventSource in BuildXLApp.GeneratedEventSources)
@@ -81,7 +111,7 @@ namespace Test.BuildXL.Scheduler
 
             Cache = InMemoryCacheFactory.Create();
 
-            FileContentTable = FileContentTable.CreateNew();
+            FileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             // Disable defaults that write disk IO but are not critical to correctness or performance
             Configuration.Logging.StoreFingerprints = false;
@@ -99,6 +129,9 @@ namespace Test.BuildXL.Scheduler
             // Compute static pip fingerprints for incremental scheduling tests.
             Configuration.Schedule.ComputePipStaticFingerprints = true;
 
+            // Disable currently enabled unsafe option.
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = false;
+            
             // Populate file system capabilities.
             // Here, for example, we use copy-on-write instead of hardlinks when Unix file system supports copy-on-write.
             // Particular tests can override this by setting Configuration.Engine.UseHardlinks.
@@ -107,6 +140,11 @@ namespace Test.BuildXL.Scheduler
             // Reset pip graph builder to use the populated configuration.
             ResetPipGraphBuilder();
         }
+
+        /// <summary>
+        /// Saves current pip graph setup.
+        /// </summary>
+        public PipGraphSetupData SavePipGraph() => PipGraphSetupData.Save(this);
 
         /// <summary>
         /// Resets pip graph builder using populated configuration.
@@ -237,6 +275,7 @@ namespace Test.BuildXL.Scheduler
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
                     contents,
                     OrdinalFileArtifactComparer.Instance),
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind,
                 tags,
                 description,
@@ -320,21 +359,38 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+        public ScheduleRunResult RunScheduler(
+            SchedulerTestHooks testHooks = null,
+            SchedulerState schedulerState = null,
+            RootFilter filter = null,
+            ITempCleaner tempCleaner = null,
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
+            PerformanceCollector performanceCollector = null,
+            bool updateStatusTimerEnabled = false,
+            Action<TestScheduler> verifySchedulerPostRun = default,
+            CancellationToken cancellationToken = default)
         {
-            if (m_graphWasModified || m_lastGraph == null)
+            if (m_graphWasModified || LastGraph == null)
             {
-                m_lastGraph = PipGraphBuilder.Build();
-                XAssert.IsNotNull(m_lastGraph, "Failed to build pip graph");
+                LastGraph = PipGraphBuilder.Build();
+                XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
             }
-            
+
             m_graphWasModified = false;
-            
-            return RunSchedulerSpecific(m_lastGraph, 
-                (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
-                testHooks, schedulerState, filter , constraintExecutionOrder);
+
+            return RunSchedulerSpecific(
+                LastGraph,
+                tempCleaner ?? MoveDeleteCleaner,
+                testHooks,
+                schedulerState,
+                filter,
+                constraintExecutionOrder,
+                performanceCollector: performanceCollector,
+                updateStatusTimerEnabled: updateStatusTimerEnabled,
+                verifySchedulerPostRun: verifySchedulerPostRun,
+                cancellationToken: cancellationToken);
         }
-        
+
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
 
         /// <summary>
@@ -349,17 +405,31 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        private void MarkSchedulerRun(string runNameOrDescription = null)
+        {
+            m_testOutputHelper.WriteLine("################################################################################");
+            m_testOutputHelper.WriteLine($"## {nameof(RunSchedulerSpecific)} {runNameOrDescription ?? string.Empty}");
+            m_testOutputHelper.WriteLine("################################################################################");
+        }
+
         /// <summary>
         /// Runs the scheduler allowing various options to be specifically set
         /// </summary>
         public ScheduleRunResult RunSchedulerSpecific(
             PipGraph graph,
             ITempCleaner tempCleaner,
-            SchedulerTestHooks testHooks = null, 
+            SchedulerTestHooks testHooks = null,
             SchedulerState schedulerState = null,
             RootFilter filter = null,
-            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
+            string runNameOrDescription = null,
+            PerformanceCollector performanceCollector = null,
+            bool updateStatusTimerEnabled = false,
+            Action<TestScheduler> verifySchedulerPostRun = default,
+            CancellationToken cancellationToken = default)
         {
+            MarkSchedulerRun(runNameOrDescription);
+
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
             // be validated against the LoggingContext to make sure the scheduler's return result and error logging
             // are in agreement.
@@ -369,9 +439,9 @@ namespace Test.BuildXL.Scheduler
             // Populating the configuration may modify the configuration, so it should occur first.
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
             BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext);
-            
-            FileAccessWhitelist whitelist = new FileAccessWhitelist(Context);
-            whitelist.Initialize(config);
+
+            FileAccessAllowlist allowlist = new FileAccessAllowlist(Context);
+            allowlist.Initialize(config);
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
@@ -389,37 +459,44 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(m_journalState.IsEnabled, "Incremental scheduling requires that journal is enabled");
             }
 
+            (string drive, string path)? subst = null;
+            if (!DirectoryTranslator.Sealed && TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                DirectoryTranslator.AddTranslation(substSource, substTarget);
+                subst = FileUtilities.GetSubstDriveAndPath(substSource, substTarget);
+            }
+
             // Seal the translator if not sealed
             DirectoryTranslator.Seal();
 
             // .....................................................................................
-            // some dummy setup in order to get a PreserveOutputsSalt.txt file and an actual salt
+            // some dummy setup in order to get a PreserveOutputsInfo.txt file and an actual salt
             // .....................................................................................
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
-            Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
-            ContentHash? previousOutputsSalt =
+            Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsInfo.txt here
+            PreserveOutputsInfo? previousOutputsSalt =
                 EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
 
-            testHooks = testHooks ?? new SchedulerTestHooks();
-            testHooks.FingerprintStoreTestHooks = testHooks.FingerprintStoreTestHooks ?? new FingerprintStoreTestHooks() { MinimalIO = true };
+            testHooks ??= new SchedulerTestHooks();
+            testHooks.FingerprintStoreTestHooks ??= new FingerprintStoreTestHooks();
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
-            using (var queue = new PipQueue(config.Schedule))
+            using (var queue = new PipQueue(LoggingContext, config.Schedule))
             using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
-                pipQueue: constraintExecutionOrder == null ? 
-                            testQueue : 
-                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
-                context: Context,
+                pipQueue: constraintExecutionOrder == null ?
+                            testQueue :
+                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue testQueue, (Pip before, Pip after) constraint) => { testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return testQueue; }).Unpause(),
+                context: BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationToken),
                 fileContentTable: FileContentTable,
                 loggingContext: localLoggingContext,
                 cache: Cache,
                 configuration: config,
                 journalState: m_journalState,
-                fileAccessWhitelist: whitelist,
+                fileAccessAllowlist: allowlist,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
                 directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable),
                 tempCleaner: tempCleaner,
@@ -428,22 +505,44 @@ namespace Test.BuildXL.Scheduler
                 failedPips: null,
                 ipcProvider: null,
                 directoryTranslator: DirectoryTranslator,
-                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)), // VM command proxy for unit tests comes from engine.
-                testHooks: testHooks))
+                vmInitializer: VmInitializer.CreateFromEngine(
+                    config.Layout.BuildEngineDirectory.ToString(Context.PathTable),
+                    config.Layout.ExternalSandboxedProcessDirectory.ToString(Context.PathTable),
+                    subst: subst), // VM command proxy for unit tests comes from engine.
+                testHooks: testHooks,
+                performanceCollector: performanceCollector))
             {
+                CancellableTimedAction updateStatusAction = null;
+
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
-                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner);
 
                 if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
+                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner, filter);
+
                 XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
+                if (ShouldCreateLogDir || ShouldLogSchedulerStats)
+                {
+                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
+                    Directory.CreateDirectory(logsDir);
+                }
+
                 testScheduler.Start(localLoggingContext);
+
+                if (updateStatusTimerEnabled)
+                {
+                    updateStatusAction = new CancellableTimedAction(
+                        () => testScheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: 1000),
+                        1000,
+                        "SchedulerUpdateStatus");
+                    updateStatusAction.Start();
+                }
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
 
@@ -457,10 +556,11 @@ namespace Test.BuildXL.Scheduler
                 {
                     // Logs are not written out normally during these tests, but LogStats depends on the existence of the logs directory
                     // to write out the stats perf JSON file
-                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
-                    Directory.CreateDirectory(logsDir);
                     testScheduler.LogStats(localLoggingContext, null);
                 }
+
+                // Verify internal data of scheduler.
+                verifySchedulerPostRun?.Invoke(testScheduler);
 
                 var runResult = new ScheduleRunResult
                 {
@@ -471,13 +571,18 @@ namespace Test.BuildXL.Scheduler
                     PipExecutorCounters = testScheduler.PipExecutionCounters,
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
-                    SchedulerState = new SchedulerState(testScheduler)
+                    SchedulerState = new SchedulerState(testScheduler),
+                    Session = localLoggingContext.Session,
                 };
 
                 runResult.AssertSuccessMatchesLogging(localLoggingContext);
 
                 // Prmote this run's specific LoggingContext into the test's LoggingContext.
                 LoggingContext.AbsorbLoggingContextState(localLoggingContext);
+
+                updateStatusAction?.Cancel();
+                updateStatusAction?.Join();
+
                 return runResult;
             }
         }
@@ -489,20 +594,26 @@ namespace Test.BuildXL.Scheduler
                 : new Failure<string>("Invalid");
         }
 
-        public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null)
-        {
-            return file.Path.ToString(pathTable ?? Context.PathTable);
-        }
+        public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null) => ToString(file.Path, pathTable);
+        protected string ToString(AbsolutePath path, PathTable pathTable = null) => path.ToString(pathTable ?? Context.PathTable);
+        protected AbsolutePath ToPath(string path, PathTable pathTable = null) => AbsolutePath.Create(pathTable ?? Context.PathTable, path);
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
             string sharedOpaqueDir,
-            params FileArtifact[] filesToProduce)
+            params FileArtifact[] filesToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
-                sharedOpaqueDir, 
-                fileToProduceStatically: FileArtifact.Invalid, 
-                sourceFileToRead: FileArtifact.Invalid, 
-                filesToProduce.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, filesToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            params FileArtifact[] filesToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically: FileArtifact.Invalid,
+                sourceFileToRead: FileArtifact.Invalid,
+                filesToProduceDynamically.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
@@ -511,7 +622,16 @@ namespace Test.BuildXL.Scheduler
             FileArtifact sourceFileToRead,
             params FileArtifact[] filesToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params FileArtifact[] filesToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
                 sharedOpaqueDir,
                 fileToProduceStatically,
                 sourceFileToRead,
@@ -524,7 +644,16 @@ namespace Test.BuildXL.Scheduler
             FileArtifact sourceFileToRead,
             params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesAndContentToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
                 sharedOpaqueDir,
                 fileToProduceStatically,
                 sourceFileToRead,
@@ -540,6 +669,15 @@ namespace Test.BuildXL.Scheduler
         }
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir, 
+            FileArtifact fileToProduceStatically, 
+            FileArtifact sourceFileToRead, 
+            params Operation[] additionalOperations)
+        {
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, additionalOperations));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
             string sharedOpaqueDir,
             FileArtifact fileToProduceStatically,
             FileArtifact sourceFileToRead,
@@ -564,7 +702,7 @@ namespace Test.BuildXL.Scheduler
 
             var builder = CreatePipBuilder(operations);
             builder.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
-            return SchedulePipBuilder(builder);
+            return builder;
         }
 
         protected ProcessWithOutputs CreateAndScheduleOpaqueProducer(string opaqueDir, FileArtifact sourceFile, params KeyValuePair<FileArtifact, string>[] filesAndContent)
@@ -598,15 +736,54 @@ namespace Test.BuildXL.Scheduler
             return SchedulePipBuilder(builder);
         }
 
+        protected ProcessBuilder CreateOpaqueDirectoryConsumer(
+            FileArtifact outputFile,
+            FileArtifact? staticallyConsumedFile,
+            DirectoryArtifact opaqueDirectory,
+            params FileArtifact[] dynamicallyConsumedFiles)
+        {
+            var operations = dynamicallyConsumedFiles.Select(file => Operation.ReadFile(file, doNotInfer: true)).ToList();
+            if (staticallyConsumedFile.HasValue)
+            {
+                operations.Add(Operation.ReadFile(staticallyConsumedFile.Value));
+            }
+            operations.Add(Operation.WriteFile(outputFile));
+
+            var builder = CreatePipBuilder(operations);
+            builder.AddInputDirectory(opaqueDirectory);
+
+            return builder;
+        }
+
+        protected void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
+        {
+            // Assert that shared opaque outputs were journaled and the explicitly declared ones were not
+            var journaledWrites = GetJournaledWritesForProcess(result, pip.Process);
+            XAssert.Contains(journaledWrites, outputInSharedOpaque);
+            XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
+        }
+
+        protected string GetSidebandFile(ScheduleRunResult result, Process process) 
+            => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+
         protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
-            var logFile = SharedOpaqueOutputLogger.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            var logFile = GetSidebandFile(result, process);
             XAssert.IsTrue(File.Exists(logFile));
-            return SharedOpaqueOutputLogger
+            return SidebandWriter
                 .ReadRecordedPathsFromSidebandFile(logFile)
                 .Select(path => AbsolutePath.Create(Context.PathTable, path))
                 .Distinct()
                 .ToArray();
+        }
+
+        protected void SetExtraSalts(string salt, bool booleanOptionValues)
+        {
+            Configuration.Cache.CacheSalt = salt;
+            Configuration.Sandbox.MaskUntrackedAccesses = booleanOptionValues;
+            Configuration.Sandbox.NormalizeReadTimestamps = booleanOptionValues;
+            Configuration.Logging.TreatWarningsAsErrors = booleanOptionValues;
+            Configuration.Distribution.ValidateDistribution = booleanOptionValues;
         }
 
         protected override void Dispose(bool disposing)

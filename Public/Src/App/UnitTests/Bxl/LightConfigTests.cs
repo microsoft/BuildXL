@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL;
 using BuildXL.Utilities;
@@ -34,7 +34,6 @@ namespace Test.BuildXL
                 "/server-",
                 "/serverdeploymentdir:" + m_serverDirPath,
                 "/nologo",
-                "/help:1234",
                 "/fancyConsole-",
                 "/color-",
                 "/substsource:" + m_srcPath,
@@ -68,7 +67,6 @@ namespace Test.BuildXL
             AssertPathCongruent(pathTable, lightConfig.Config, commandLineConfig.Startup.ConfigFile);
             XAssert.AreEqual(lightConfig.FancyConsole, commandLineConfig.Logging.FancyConsole);
             XAssert.AreEqual(lightConfig.Help, commandLineConfig.Help);
-            XAssert.AreEqual(lightConfig.HelpCode, commandLineConfig.HelpCode);
             XAssert.AreEqual(lightConfig.NoLogo, commandLineConfig.NoLogo);
             XAssert.AreEqual(lightConfig.Server, commandLineConfig.Server);
             XAssert.AreEqual(lightConfig.DisablePathTranslation, commandLineConfig.Logging.DisableLoggedPathTranslation);
@@ -87,6 +85,19 @@ namespace Test.BuildXL
             {
                 XAssert.AreEqual(s, p.ToString(pathTable));
             }
+        }
+
+        /// <summary>
+        /// This isn't part of the standard congruency test above because the full config parser doesn't extract hashtype
+        /// as data to the config object. Instead it sets it for the running application. That needs to be refactored
+        /// in order to run a proper unit test to make sure the two configurations objects align.
+        /// </summary>
+        [Fact]
+        public void VerifyHashType()
+        {
+            LightConfig lightConfig;
+            XAssert.IsTrue(LightConfig.TryParse(new[] { "/c:fake", "/hashtype:murmur" }, out lightConfig));
+            XAssert.AreEqual("murmur", lightConfig.HashType);
         }
     }
 }

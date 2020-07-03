@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -51,11 +52,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         };
 
         /// <summary>
-        /// Default for <see cref="_assumeAvailableReplicaCount"/>
-        /// </summary>
-        public const int DefaultAssumeAvailableReplicaCount = 3;
-
-        /// <summary>
         /// For file existence check, perform a quick check initially that allows iteration
         /// over multiple replicas first.
         /// </summary>
@@ -73,7 +69,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public static readonly TimeSpan VerifyTimeout = FileExistenceTimeoutSlowPath;
 
         private int? _proactiveReplicationParallelism = null;
-        private int? _assumeAvailableReplicaCount = null;
         //    PinConfiguration pinConfiguration = null,
 
         /// <summary>
@@ -86,33 +81,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <summary>
-        /// Number of replicas at or above the content is considered available (when pin better is disabled)
+        /// Files smaller than this should use the untrusted hash.
         /// </summary>
-        public int AssumeAvailableReplicaCount
-        {
-            get => Math.Max(_assumeAvailableReplicaCount ?? DefaultAssumeAvailableReplicaCount, 1);
-            set => _assumeAvailableReplicaCount = value;
-        }
-
-        /// <summary>
-        /// Clean random files at root
-        /// </summary>
-        public bool CleanRandomFilesAtRoot { get; set; } = false;
+        public long TrustedHashFileSizeBoundary { get; set; } = -1;
 
         /// <summary>
         /// Whether the underlying content store should be told to trust a hash when putting content.
         /// </summary>
-        public bool UseTrustedHash { get; set; } = false;
-
-        /// <summary>
-        /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-        /// </summary>
-        public bool EmptyFileHashShortcutEnabled { get; set; } = false;
-
-        /// <summary>
-        /// Files smaller than this should use the untrusted hash.
-        /// </summary>
-        public long TrustedHashFileSizeBoundary { get; set; } = -1;
+        /// <remarks>
+        /// When trusted, then distributed file copier will hash the file and the store won't re-hash the file.
+        /// </remarks>
+        public bool UseTrustedHash(long fileSize)
+        {
+            // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
+            return fileSize >= TrustedHashFileSizeBoundary;
+        }
 
         /// <summary>
         /// Files longer than this will be hashed concurrently with the download.
@@ -146,14 +129,59 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxRetryCount { get; set; } = 32;
 
         /// <summary>
+        /// Indicates whether proactive copies will trace successful results
+        /// </summary>
+        public bool TraceProactiveCopy { get; set; } = false;
+
+        /// <summary>
         /// The mode in which proactive copy should run
         /// </summary>
         public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
+        /// Whether to perform a proactive copy after putting a file.
+        /// </summary>
+        public bool ProactiveCopyOnPut { get; set; } = true;
+
+        /// <summary>
+        /// Whether to perform a proactive copy after copying because of a pin.
+        /// </summary>
+        public bool ProactiveCopyOnPin { get; set; } = false;
+
+        /// <summary>
+        /// Whether to push the content. If disabled, the copy will be requested and the target machine then will pull.
+        /// </summary>
+        public bool PushProactiveCopies { get; set; } = false;
+
+        /// <summary>
+        /// Whether to use the preferred locations for proactive copies.
+        /// </summary>
+        public bool ProactiveCopyUsePreferredLocations { get; set; } = false;
+
+        /// <summary>
+        /// Should only be used for testing to inline the operations like proactive copy.
+        /// </summary>
+        public bool InlineOperationsForTests { get; set; } = false;
+
+        /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
-        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+        public int ProactiveCopyLocationsThreshold { get; set; } = 3;
+
+        /// <summary>
+        /// Whether to reject push copies based on whether we've evicted something younger recently.
+        /// </summary>
+        public bool ProactiveCopyRejectOldContent { get; set; } = false;
+
+        /// <summary>
+        /// Number of copy attempts which should be restricted in its number or replicas.
+        /// </summary>
+        public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
+
+        /// <summary>
+        /// Number of replicas to attempt when a copy is being restricted.
+        /// </summary>
+        public int RestrictedCopyReplicaCount { get; set; } = 3;
 
         /// <summary>
         /// Time before a proactive copy times out.
@@ -161,21 +189,77 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
+        /// Whether to enable proactive replication
+        /// </summary>
+        public bool EnableProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// The interval between proactive replication interations
+        /// </summary>
+        public TimeSpan ProactiveReplicationInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Minimum delay between individual content proactive replications.
+        /// </summary>
+        public TimeSpan DelayForProactiveReplication { get; set; } = TimeSpan.FromMinutes(0.5);
+
+        /// <summary>
+        /// The maximum amount of copies allowed per proactive replication invocation.
+        /// </summary>
+        public int ProactiveReplicationCopyLimit { get; set; } = 5;
+        
+        /// <summary>
+        /// The amount of time for nagling GetBulk (locations) for proactive copy operations
+        /// </summary>
+        public TimeSpan ProactiveCopyGetBulkInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// The size of nagle batch for proactive copy get bulk
+        /// </summary>
+        public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;
+
+        /// <summary>
         /// Defines pinning behavior
         /// </summary>
-        public PinConfiguration PinConfiguration { get; set; } // Can be null.
+        public PinConfiguration PinConfiguration { get; set; }
 
         /// <nodoc />
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
 
         /// <summary>
-        /// Maximum number of PutFile operations that can happen concurrently.
+        /// Maximum number of PutFile and PlaceFile operations that can happen concurrently.
         /// </summary>
-        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+        public int MaximumConcurrentPutAndPlaceFileOperations { get; set; } = 512;
 
         /// <summary>
-        /// Name of the blob with the snapshot of the content placement predictions.
+        /// Indicates whether a post initialization task is set to complete after startup to force local eviction to wait
+        /// for distributed store initialization to complete.
         /// </summary>
-        public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
+        public bool SetPostInitializationCompletionAfterStartup { get; set; } = true;
+
+        /// <summary>
+        /// Indicates whether repair handling logic is enabled which removes a machine from Redis when a repair operation is triggered.
+        /// </summary>
+        public bool EnableRepairHandling { get; set; } = true;
+
+        /// <summary>
+        /// The amount of time added per replica for distributed eviction effective age computation.
+        /// </summary>
+        public int? ReplicaCreditInMinutes { get; set; }
+
+        /// <summary>
+        /// The batch size used by the location store
+        /// </summary>
+        public int LocationStoreBatchSize { get; set; }
+
+        /// <summary>
+        /// Max size for storing blobs in the ContentLocationStore
+        /// </summary>
+        public long MaxBlobSize { get; set; }
+
+        /// <summary>
+        /// Returns true if Redis can be used for storing small files.
+        /// </summary>
+        public bool AreBlobsSupported { get; set; }
     }
 }

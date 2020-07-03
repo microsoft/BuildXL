@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -157,9 +157,21 @@ namespace BuildXL.Native.IO
         [Pure]
         public IOTypeCounters GetAggregateIO()
         {
+            ulong operationsCount;
+            ulong transferCount;
+            try
+            {
+                operationsCount = ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount;
+                transferCount = ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount;
+            }
+            catch (OverflowException)
+            {
+                operationsCount = transferCount = 0;
+            }
+            
             return new IOTypeCounters(
-                operationCount: ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount,
-                transferCount: ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount);
+                operationCount: operationsCount,
+                transferCount: transferCount);
         }
 
         /// <nodoc />

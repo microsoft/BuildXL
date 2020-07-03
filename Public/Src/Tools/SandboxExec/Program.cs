@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Processes;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -47,7 +47,7 @@ namespace BuildXL.SandboxExec
                     enableTelemetry: true,
                     processTimeout: (int) s_defaultProcessTimeOut,
                     trackDirectoryCreation: false,
-                    useEndpointSecuritySandbox: false);
+                    sandboxKind: SandboxKind.MacOsKext);
 
             /// <summary>
             /// When set to true, the output contains long instead of short description of reported accesses.
@@ -85,12 +85,12 @@ namespace BuildXL.SandboxExec
             public bool TrackDirectoryCreation { get; }
 
             /// <summary>
-            /// When set, sandboxing is done using EndpointSecurity instead of the kernel extension
+            /// Sandboxing kind indicates which sandbox implementation to choose for observing I/O events
             /// </summary>
-            public bool UseEndpointSecuritySandbox { get; }
+            public SandboxKind SandboxKindUsed { get; }
 
             /// <nodoc />
-            public Options(bool verbose, bool logToStdOut, uint reportQueueSizeMB, bool enableTelemetry, int processTimeout, bool trackDirectoryCreation, bool enableReportBatching, bool useEndpointSecuritySandbox)
+            public Options(bool verbose, bool logToStdOut, uint reportQueueSizeMB, bool enableTelemetry, int processTimeout, bool trackDirectoryCreation, bool enableReportBatching, SandboxKind sandboxKind)
             {
                 Verbose = verbose;
                 LogToStdOut = logToStdOut;
@@ -99,7 +99,7 @@ namespace BuildXL.SandboxExec
                 EnableTelemetry = enableTelemetry;
                 ProcessTimeout = processTimeout;
                 TrackDirectoryCreation = trackDirectoryCreation;
-                UseEndpointSecuritySandbox = useEndpointSecuritySandbox;
+                SandboxKindUsed = sandboxKind;
             }
         }
 
@@ -130,7 +130,7 @@ namespace BuildXL.SandboxExec
             public bool TrackDirectoryCreation;
 
             /// <nodoc />
-            public bool UseEndpointSecuritySandbox;
+            public SandboxKind SandboxKindUsed;
 
             /// <nodoc />
             public OptionsBuilder() { }
@@ -145,11 +145,11 @@ namespace BuildXL.SandboxExec
                 EnableTelemetry = opts.EnableTelemetry;
                 ProcessTimeout = opts.ProcessTimeout;
                 TrackDirectoryCreation = opts.TrackDirectoryCreation;
-                UseEndpointSecuritySandbox = opts.UseEndpointSecuritySandbox;
+                SandboxKindUsed = opts.SandboxKindUsed;
             }
 
             /// <nodoc />
-            public Options Finish() => new Options(Verbose, LogToStdOut, ReportQueueSizeMB, EnableTelemetry, ProcessTimeout, TrackDirectoryCreation, EnableReportBatching, UseEndpointSecuritySandbox);
+            public Options Finish() => new Options(Verbose, LogToStdOut, ReportQueueSizeMB, EnableTelemetry, ProcessTimeout, TrackDirectoryCreation, EnableReportBatching, SandboxKindUsed);
         }
 
         private readonly Options m_options;
@@ -172,40 +172,53 @@ namespace BuildXL.SandboxExec
         public SandboxExecRunner(Options options)
         {
             m_options = options;
-            s_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) : null;
-
-            var useEndpointSecuritySandbox = m_options.UseEndpointSecuritySandbox;
-#if PLATFORM_OSX
-            if (useEndpointSecuritySandbox && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
-            {
-                useEndpointSecuritySandbox = false;
-            }
-#endif
-            m_sandboxConnection = OperatingSystemHelper.IsUnixOS
-                ?
-#if PLATFORM_OSX
-                useEndpointSecuritySandbox
-                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, measureCpuTimes: true)
-                    :
-#endif
-                    (ISandboxConnection) new SandboxConnectionKext(
-                        new SandboxConnectionKext.Config
-                        {
-                            FailureCallback = (int status, string description) =>
-                            {
-                                m_sandboxConnection.Dispose();
-                                throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
-                            },
-                            KextConfig = new Sandbox.KextConfig
-                            {
-                                ReportQueueSizeMB = m_options.ReportQueueSizeMB,
-                                EnableReportBatching = m_options.EnableReportBatching,
-#if PLATFORM_OSX
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
-#endif
-                            },
-                        })
+            s_crashCollector = OperatingSystemHelper.IsMacOS 
+                ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) 
                 : null;
+            
+            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && 
+                (m_options.SandboxKindUsed == SandboxKind.MacOsEndpointSecurity || m_options.SandboxKindUsed == SandboxKind.MacOsHybrid))
+            {
+                throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
+            }
+
+            // m_sandboxConnection
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback);
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                if (m_options.SandboxKindUsed == SandboxKind.MacOsKext)
+                {
+                    m_sandboxConnection = new SandboxConnectionKext(new SandboxConnectionKext.Config
+                    {
+                        FailureCallback = FailureCallback,
+                        KextConfig = new Sandbox.KextConfig
+                        {
+                            ReportQueueSizeMB = m_options.ReportQueueSizeMB,
+                            EnableReportBatching = m_options.EnableReportBatching,
+#if PLATFORM_OSX
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+#endif
+                        }
+                    });
+                }
+                else
+                {
+                    m_sandboxConnection = new SandboxConnection(m_options.SandboxKindUsed, isInTestMode: false, measureCpuTimes: true);
+                }
+            }
+            else
+            {
+                m_sandboxConnection = null;
+            }
+        }
+
+        private void FailureCallback(int status, string description)
+        {
+            m_sandboxConnection.Dispose();
+            throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
         }
 
         /// <summary>
@@ -252,7 +265,7 @@ namespace BuildXL.SandboxExec
             if (procArgs.Length < 1)
             {
                 var macOSUsageDescription = OperatingSystemHelper.IsUnixOS ? $" [/{ArgReportQueueSizeMB}:<1-1024>] [/{ArgEnableReportBatching}[+,-]]" : "";
-                PrintToStderr($"Usage: SandboxExec [[/{ArgVerbose}[+,-]] [/{ArgLogToStdOut}[+,-]] [/{ArgProcessTimeout}:seconds] [/{ArgTrackDirectoryCreation}] [/{ArgEnableStatistics}[+,-]] [/{ArgUseEndpointSecuritySandbox}[+,-]]{macOSUsageDescription} --] executable [arg1 arg2 ...]");
+                PrintToStderr($"Usage: SandboxExec [[/{ArgVerbose}[+,-]] [/{ArgLogToStdOut}[+,-]] [/{ArgProcessTimeout}:seconds] [/{ArgTrackDirectoryCreation}] [/{ArgEnableStatistics}[+,-]] [/{ArgSandboxKindUsed}:MacOsKext]{macOSUsageDescription} --] executable [arg1 arg2 ...]");
                 return 1;
             }
 
@@ -375,7 +388,12 @@ namespace BuildXL.SandboxExec
         public static SandboxedProcessInfo CreateSandboxedProcessInfo(string processFileName, SandboxExecRunner instance)
         {
             var sandboxProcessInfo = new SandboxedProcessInfo(
-                new PathTable(), fileStorage: instance, fileName: processFileName, disableConHostSharing: true, sandboxConnection: instance.m_sandboxConnection);
+                new PathTable(), 
+                fileStorage: instance, 
+                fileName: processFileName, 
+                disableConHostSharing: true, 
+                sandboxConnection: instance.m_sandboxConnection,
+                loggingContext: s_loggingContext);
             sandboxProcessInfo.PipDescription = processFileName;
 
             sandboxProcessInfo.StandardOutputEncoding = Encoding.UTF8;
@@ -389,6 +407,9 @@ namespace BuildXL.SandboxExec
 
             // Enable explicit file access reporting
             sandboxProcessInfo.FileAccessManifest.ReportFileAccesses = true;
+            sandboxProcessInfo.FileAccessManifest.ReportUnexpectedFileAccesses = true;
+            sandboxProcessInfo.FileAccessManifest.MonitorNtCreateFile = true;
+            sandboxProcessInfo.FileAccessManifest.IgnoreFullSymlinkResolving = false;
             sandboxProcessInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             sandboxProcessInfo.FileAccessManifest.PipId = Interlocked.Increment(ref s_pipIdCounter);
             return sandboxProcessInfo;
@@ -472,7 +493,7 @@ namespace BuildXL.SandboxExec
         private const string ArgEnableStatistics = "enableStatistics";
         private const string ArgProcessTimeout = "processTimeout";
         private const string ArgTrackDirectoryCreation = "trackDirectoryCreation";
-        private const string ArgUseEndpointSecuritySandbox = "useEndpointSecuritySandbox";
+        private const string ArgSandboxKindUsed = "sandboxKind";
 
         private static Options ParseOptions(string[] toolArgs)
         {
@@ -516,9 +537,10 @@ namespace BuildXL.SandboxExec
                     case "d":
                         opts.TrackDirectoryCreation = CommandLineUtilities.ParseBooleanOption(opt);
                         break;
-                    case ArgUseEndpointSecuritySandbox:
-                    case "e":
-                        opts.UseEndpointSecuritySandbox = CommandLineUtilities.ParseBooleanOption(opt);
+                    case ArgSandboxKindUsed:
+                    case "k":
+                        opts.SandboxKindUsed = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
+                        Console.WriteLine("BVla " + opts.SandboxKindUsed);
                         break;
                     default:
                         throw new InvalidArgumentException($"Unrecognized option {opt.Name}");

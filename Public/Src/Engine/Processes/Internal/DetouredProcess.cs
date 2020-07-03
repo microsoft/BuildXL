@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
+using BuildXL.Native.Tracing;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Storage;
@@ -30,7 +31,7 @@ using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 namespace BuildXL.Processes.Internal
 {
     /// <summary>
-    /// This class implements an managed abstraction of a detoured process creation
+    /// This class implements a managed abstraction of a detoured process creation
     /// </summary>
     /// <remarks>
     /// All public methods of this class are thread safe.
@@ -73,7 +74,8 @@ namespace BuildXL.Processes.Internal
         [SuppressMessage("Microsoft.Reliability", "CA2006:UseSafeHandleToEncapsulateNativeResources")]
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
-
+        private readonly bool m_setJobBreakawayOk;
+        private readonly bool m_createJobObjectForCurrentProcess;
         private readonly LoggingContext m_loggingContext;
 
 #region public getters
@@ -309,7 +311,9 @@ namespace BuildXL.Processes.Internal
             bool disableConHostSharing,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            bool setJobBreakawayOk,
+            bool createJobObjectForCurrentProcess)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -332,7 +336,8 @@ namespace BuildXL.Processes.Internal
             m_timeout = timeout;
             m_disableConHostSharing = disableConHostSharing;
             m_containerConfiguration = containerConfiguration;
-
+            m_setJobBreakawayOk = setJobBreakawayOk;
+            m_createJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
             {
                 m_workingDirectory = Directory.GetCurrentDirectory();
@@ -421,7 +426,7 @@ namespace BuildXL.Processes.Internal
                             writeHandle: out hStdError);
 
                         // We want a per-process job primarily. If nested job support is not available, then we make sure to not have a BuildXL-level job.
-                        if (JobObject.OSSupportsNestedJobs)
+                        if (JobObject.OSSupportsNestedJobs && m_createJobObjectForCurrentProcess)
                         {
                             JobObject.SetTerminateOnCloseOnCurrentProcessJob();
                         }
@@ -445,7 +450,7 @@ namespace BuildXL.Processes.Internal
 
                         // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
                         // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
-                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false);
+                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false, allowProcessesToBreakAway: m_setJobBreakawayOk);
 
                         m_processInjector.Listen();
 
@@ -587,8 +592,13 @@ namespace BuildXL.Processes.Internal
 
                     m_started = true;
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    if (e is AccessViolationException)
+                    {
+                        Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, creationFlags + " - " + m_commandLine);
+                    }
+
                     // Dispose pipe handles in case they are not assigned to streams.
                     if (m_standardInputWriter == null)
                     {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Scheduler.WorkDispatcher
 {
@@ -56,11 +56,25 @@ namespace BuildXL.Scheduler.WorkDispatcher
         ChooseWorkerCacheLookup,
 
         /// <summary>
+        /// The queue where sealdirectory pips are processed.
+        /// </summary>
+        SealDirs,
+
+        /// <summary>
+        /// Delayed cache lookup queue
+        /// </summary>
+        /// <remarks>
+        /// If the delayed cache lookup feature is enabled, pips are parked in this queue
+        /// if ChooseWorkerCpu already contains enough pips waiting.
+        /// </remarks>        
+        DelayedCacheLookup,
+
+        /// <summary>
         /// Queue for input/output materialization
         /// </summary>
         /// <remarks>
         /// WARNING: NoLimit must be the last member of the enum.
         /// </remarks>
-        Materialize
+        Materialize,
     }
 }

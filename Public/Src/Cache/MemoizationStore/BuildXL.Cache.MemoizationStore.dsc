@@ -5,14 +5,13 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as ContentStore from "BuildXL.Cache.ContentStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
 export {BuildXLSdk, ContentStore};
 
 export const NetFx = BuildXLSdk.NetFx;
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const deployment: Deployment.Definition =
@@ -88,6 +87,5 @@ export const deploymentForBuildXL: Deployment.Definition = BuildXLSdk.isDotNetCo
             file: App.exe.runtime.pdb,
             targetFileName: "Microsoft.MemoizationStoreApp.pdb",
         },
-        importFrom("CLAP").Contents.all.getFile("lib/net35/CLAP.dll"),
     ]
 };

@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
@@ -108,6 +109,22 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         public const bool DefaultOverrideUnixFileAccessMode = false;
 
+        /// <summary>
+        /// Default value indicating whether eager fingerprint incorporation is enabled.
+        /// </summary>
+        public const bool DefaultEnableEagerFingerprintIncorporation = false;
+
+        /// <nodoc />
+        public static readonly TimeSpan DefaultEagerFingerprintIncorporationNagleInterval = TimeSpan.FromMinutes(5);
+
+        /// <nodoc />
+        public const int DefaultEagerFingerprintIncorporationNagleBatchSize = 100;
+
+        /// <nodoc />
+        public static TimeSpan DefaultEagerFingerprintIncorporationExpiry = TimeSpan.FromDays(1);
+
+        /// <nodoc />
+        public static TimeSpan DefaultInlineFingerprintIncorporationExpiry = TimeSpan.FromHours(8);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
@@ -261,5 +278,36 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = DefaultOverrideUnixFileAccessMode;
+
+        /// <summary>
+        /// Gets or sets whether eager fingerprint incorporation is enabled.
+        /// </summary>
+        /// <remarks>
+        /// if the flag is set, then fingerprints will be incorporated (i.e. the ttl will be updated) eagerly within
+        /// the operations that gets or touches the fingerprints (like GetContentHashList).
+        /// 
+        /// Currently we have 3 ways for fingerprint incorporation:
+        /// 1. Inline incorporation: If eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
+        ///                          the entry will expire in <see cref="InlineFingerprintIncorporationExpiry"/> time.
+        /// 2. Eager bulk incorporation: if eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
+        ///                          the entry's expiry is not available or it won't expire in <see cref="EnableEagerFingerprintIncorporation"/> time.
+        /// 3. Session shutdown incorporation: if eager fingerprint incorporation is disabled and the normal fingerprint incorporation is enabled (<see cref="FingerprintIncorporationEnabled"/> is true).
+        /// </remarks>
+        [DataMember]
+        public bool EnableEagerFingerprintIncorporation { get; set; } = DefaultEnableEagerFingerprintIncorporation;
+
+        /// <summary>
+        /// Gets or sets time window during which incorporation is done inline.
+        /// </summary>
+        [DataMember]
+        public TimeSpan InlineFingerprintIncorporationExpiry { get; set; } = DefaultInlineFingerprintIncorporationExpiry;
+
+        /// <nodoc />
+        [DataMember]
+        public TimeSpan EagerFingerprintIncorporationNagleInterval { get; set; } = DefaultEagerFingerprintIncorporationNagleInterval;
+
+        /// <nodoc />
+        [DataMember]
+        public int EagerFingerprintIncorporationNagleBatchSize { get; set; } = DefaultEagerFingerprintIncorporationNagleBatchSize;
     }
 }

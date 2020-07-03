@@ -19,7 +19,7 @@ namespace Tools {
                 importFrom("BuildXL.Tools").Xldb.Analyzer.exe,
             ]
         };
-    
+
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
             targetLocation: r`${qualifier.configuration}/tools/XldbAnalyzer/${qualifier.targetRuntime}`,
@@ -32,11 +32,6 @@ namespace Tools {
 
         export const deployment : Deployment.Definition = {
             contents: [
-                ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                    MacServices.Deployment.kext,
-                    MacServices.Deployment.sandboxMonitor,
-                    MacServices.Deployment.sandboxLoadScripts
-                ]),
                 importFrom("BuildXL.Tools").SandboxExec.exe
             ]
         };
@@ -54,9 +49,7 @@ namespace Tools {
         export const deployment : Deployment.Definition = {
             contents: [
                 importFrom("BuildXL.Tools").withQualifier({
-                    configuration: qualifier.configuration,
-                    targetFramework: "netcoreapp3.0",
-                    targetRuntime: qualifier.targetRuntime
+                    targetFramework: "netcoreapp3.1",
                 }).Orchestrator.exe
             ],
         };
@@ -67,32 +60,62 @@ namespace Tools {
         });
     }
 
-    namespace BuildExplorer {
+    namespace CoreDumpTester {
+
+        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+
+        export const deployment : Deployment.Definition = {
+            contents: [
+                MacServices.Deployment.interopLibrary,
+                MacServices.Deployment.coreDumpTester
+            ],
+        };
+
+        // Only used for internal macOS runtime publishing
+        const deployed = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment,
+            targetLocation: r`${qualifier.configuration}/tools/CoreDumpTester/${qualifier.targetRuntime}`
+        });
+    }
+
+    namespace Bvfs
+    {
         export declare const qualifier: {
             configuration: "debug" | "release",
+            targetFramework: "net472",
             targetRuntime: "win-x64"
         };
 
         export const deployment : Deployment.Definition = {
             contents: [
-                ...(BuildXLSdk.Flags.excludeBuildXLExplorer
-                ? []
-                : [{
-                    // There is an error when deploying a single sealed directory where the graph
-                    // invalidly thinks there is a duplicate deployment between robocopy and the sealed
-                    // directory... Using a subfolder is a workaround for now.
-                    subfolder: "bxp",
-                    contents: [
-                        importFrom("BuildXL.Explorer").App.app.appFolder
-                    ]
-                }])
-            ]            
+                // If the current qualifier is full framework, this tool has to be built with 472
+                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
+                importFrom("BuildXL.Cache.ContentStore").App.exe
+            ]
         };
-            
+
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools`
+            targetLocation: r`${qualifier.configuration}/tools/bvfs`
         });
+    }
 
+    namespace DistributedBuildRunner {
+        export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+
+        export const deployment : Deployment.Definition = {
+            contents: [
+                importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
+            ],
+        };
+
+        const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
+            ? qualifier.targetRuntime
+            : qualifier.targetFramework;
+
+        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment,
+            targetLocation: r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}`
+        });
     }
 }

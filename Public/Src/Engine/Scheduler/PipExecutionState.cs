@@ -1,18 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.FileSystem;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -35,9 +37,9 @@ namespace BuildXL.Scheduler
         private readonly DirectoryMembershipFingerprinterRuleSet m_directoryMembershipFingerprinterRuleSet;
 
         /// <summary>
-        /// Whitelist for allowed-without-warning-but-unpredicted file operations.
+        /// Allowlist for allowed-without-warning-but-unpredicted file operations.
         /// </summary>
-        private readonly FileAccessWhitelist m_fileAccessWhitelist;
+        private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         /// <summary>
         /// Used to retrieve semantic path information
@@ -52,7 +54,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The global preserve outputs salt used for the build
         /// </summary>
-        private ContentHash m_preserveOutputsSalt { get; }
+        private PreserveOutputsInfo m_preserveOutputsSalt { get; }
 
         #endregion Scoped State
 
@@ -105,20 +107,27 @@ namespace BuildXL.Scheduler
         public PipEnvironment PipEnvironment { get; }
 
         /// <summary>
+        /// Whether lazy deletion of shared opaque outputs is enabled;
+        /// </summary>
+        public bool LazyDeletionOfSharedOpaqueOutputsEnabled { get; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public PipExecutionState(
-            IRootModuleConfiguration rootModuleConfiguration,
+            IConfiguration configuration,
+            LoggingContext loggingContext,
             PipTwoPhaseCache cache,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             IDirectoryMembershipFingerprinter directoryMembershipFingerprinter,
             SemanticPathExpander pathExpander,
             IExecutionLogTarget executionLog,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFinterprinterRuleSet,
             FileContentManager fileContentManager,
             IUnsafeSandboxConfiguration unsafeConfiguration,
-            ContentHash preserveOutputsSalt,
+            PreserveOutputsInfo preserveOutputsSalt,
             FileSystemView fileSystemView,
+            bool lazyDeletionOfSharedOpaqueOutputsEnabled,
             ServiceManager serviceManager = null)
         {
             Contract.Requires(fileContentManager != null);
@@ -126,20 +135,21 @@ namespace BuildXL.Scheduler
             Contract.Requires(pathExpander != null);
 
             Cache = cache;
-            m_fileAccessWhitelist = fileAccessWhitelist;
+            m_fileAccessAllowlist = fileAccessAllowlist;
             DirectoryMembershipFingerprinter = directoryMembershipFingerprinter;
-            ResourceManager = new ProcessResourceManager();
+            ResourceManager = new ProcessResourceManager(loggingContext);
             m_pathExpander = new FileContentManagerSemanticPathExpander(fileContentManager, pathExpander);
             ExecutionLog = executionLog;
-            m_rootModuleConfiguration = rootModuleConfiguration;
+            m_rootModuleConfiguration = configuration;
             m_directoryMembershipFingerprinterRuleSet = directoryMembershipFinterprinterRuleSet;
             PathExistenceCache = new ConcurrentBigMap<AbsolutePath, PathExistence>();
             FileContentManager = fileContentManager;
             ServiceManager = serviceManager ?? ServiceManager.Default;
-            PipEnvironment = new PipEnvironment();
+            PipEnvironment = new PipEnvironment(loggingContext);
             FileSystemView = fileSystemView;
             m_unsafeConfiguration = unsafeConfiguration;
             m_preserveOutputsSalt = preserveOutputsSalt;
+            LazyDeletionOfSharedOpaqueOutputsEnabled = lazyDeletionOfSharedOpaqueOutputsEnabled;
 
             if (fileSystemView != null)
             {

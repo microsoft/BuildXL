@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -112,14 +112,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 if (!SuccessfullyEvictedHash)
                 {
-                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize, PinnedSize);
+                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize);
                 }
 
-                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize, PinnedSize);
+                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize);
             }
 
             // !HasException && Succeeded && !SuccessfulyEvictedHash
-            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize, PinnedSize);
+            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize);
         }
 
         /// <nodoc />

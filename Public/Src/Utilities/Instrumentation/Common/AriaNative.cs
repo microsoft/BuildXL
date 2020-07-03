@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Runtime.InteropServices;
@@ -27,7 +27,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
             /// <nodoc />
             [MarshalAs(UnmanagedType.LPStr)]
-            public string Value;
+            public string? Value;
 
             /// <nodoc />
             public long PiiOrValue;

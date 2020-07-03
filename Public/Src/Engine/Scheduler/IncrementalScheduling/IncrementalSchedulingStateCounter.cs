@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -41,9 +41,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public long ChangedDynamicallyObservedEnumerationMembershipsCount;
 
         /// <summary>
-        /// Number of changed dynamically observed files.
+        /// Number of changed dynamically observed read files.
         /// </summary>
         public long ChangedDynamicallyObservedFilesCount;
+
+        /// <summary>
+        /// Number of changed dynamically observed probed files.
+        /// </summary>
+        public long ChangedDynamicallyProbedFilesCount;
 
         /// <summary>
         /// Number of prepetually dirty nodes.
@@ -76,6 +81,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 NewDirectoriesCount,
                 ChangedFilesCount,
                 ChangedDynamicallyObservedFilesCount,
+                ChangedDynamicallyProbedFilesCount,
                 ChangedDynamicallyObservedEnumerationMembershipsCount,
                 PerpetuallyDirtyNodesCount);
 

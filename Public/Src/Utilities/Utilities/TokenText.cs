@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -42,7 +42,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public static TokenText Create(TokenTextTable table, StringSegment text)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
@@ -54,7 +54,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public static TokenText Create(TokenTextTable table, CharArraySegment text)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
@@ -66,7 +66,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public static TokenText Create(TokenTextTable table, StringBuilderSegment text)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
@@ -79,7 +79,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public int GetLength(TokenTextTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
 
             return table.GetLength(Value);
         }
@@ -172,8 +172,7 @@ namespace BuildXL.Utilities
         [Pure]
         public string ToString(TokenTextTable table)
         {
-            Contract.Requires(table != null);
-            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.RequiresNotNull(table);
 
             return !IsValid ? "{Invalid}" : table.GetString(Value);
         }
@@ -184,8 +183,8 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public void CopyTo(TokenTextTable table, StringBuilder builder)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(builder != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(builder);
 
             if (!IsValid)
             {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -8,6 +8,28 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
+    /// <summary>
+    /// Certain hashers can make significant optimizations if they know the total input size up-front.
+    /// </summary>
+    public interface IHashAlgorithmInputLength
+    {
+        /// <summary>
+        /// Provides the hasher with the total length of the input.
+        /// </summary>
+        void SetInputLength(long inputLength);
+    }
+
+    /// <summary>
+    /// Certain hashers can save on lots of copies by providing a buffer of a particular size.
+    /// </summary>
+    public interface IHashAlgorithmBufferPool
+    {
+        /// <summary>
+        /// The buffer to fill as much as possible before calling TransformBlock or ComputeHash on it.
+        /// </summary>
+        Pool<byte[]>.PoolHandle GetBufferFromPool();
+    }
+
     /// <summary>
     ///     A content hashing object
     /// </summary>
@@ -29,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         /// <param name="content">Stream of content</param>
         /// <returns>The content hash of the stream</returns>
-        Task<ContentHash> GetContentHashAsync(Stream content);
+        Task<ContentHash> GetContentHashAsync(StreamWithLength content);
 
         /// <summary>
         ///     Computes a hash from the given byte array
@@ -50,12 +72,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is read.
         /// </summary>
-        HashingStream CreateReadHashingStream(Stream stream, long parallelHashingFileSizeBoundary = -1);
+        HashingStream CreateReadHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1);
+
+        /// <summary>
+        ///     Construct a stream wrapper that calculates the content hash as the stream is read.
+        /// </summary>
+        HashingStream CreateReadHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1);
 
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is written.
         /// </summary>
-        HashingStream CreateWriteHashingStream(Stream stream, long parallelHashingFileSizeBoundary = -1);
+        HashingStream CreateWriteHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1);
+
+        /// <summary>
+        ///     Construct a stream wrapper that calculates the content hash as the stream is written.
+        /// </summary>
+        HashingStream CreateWriteHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1);
 
         /// <summary>
         ///     Get statistics

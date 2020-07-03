@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -46,7 +46,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         {
             if (_inner is ITraceableAbsolutePathFileCopier traceable)
             {
-                return _checker.CheckBandwidthAtIntervalAsync(context, token => traceable.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize), destinationStream);
+                return _checker.CheckBandwidthAtIntervalAsync(
+                    context,
+                    // NOTE: We need to pass through the token from bandwidth checker to ensure copy cancellation for insufficient bandwidth gets triggered.
+                    token => traceable.CopyToAsync(context.WithCancellationToken(token), sourcePath, destinationStream, expectedContentSize),
+                    destinationStream);
             }
 
             return _checker.CheckBandwidthAtIntervalAsync(context, token => _inner.CopyToAsync(sourcePath, destinationStream, expectedContentSize, token), destinationStream);

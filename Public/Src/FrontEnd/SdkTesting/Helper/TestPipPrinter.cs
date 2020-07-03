@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,9 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using TypeScript.Net.Types;
 
@@ -59,15 +61,17 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
         private void AddPath(string name, string folder)
         {
-            m_pathExpander.AddReplacement(
-                AbsolutePath.Create(m_pathTable, folder),
-                "${Context.getMount('" + name + "').path}");
+            if (!string.IsNullOrWhiteSpace(folder) && 
+                AbsolutePath.TryCreate(m_pathTable, folder, out var path))
+            {
+                m_pathExpander.AddReplacement(path, "${Context.getMount('" + name + "').path}");
+            }
         }
 
         /// <summary>
         /// Prints a pipGraph. Relies on the TypeScript.Net pretty printer
         /// </summary>
-        public string Print(IPipGraph pipGraph)
+        public string Print(PipGraph.Builder pipGraph)
         {
             var sourceFile = Generate(pipGraph);
             return sourceFile.ToDisplayString();
@@ -77,7 +81,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// Generates a SourceFile from a PipGraph
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        public ISourceFile Generate(IPipGraph pipGraph)
+        public ISourceFile Generate(PipGraph.Builder pipGraph)
         {
             var statements = new List<IStatement>();
             foreach (var pip in pipGraph.RetrieveScheduledPips())
@@ -201,7 +205,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             if (pip.Provenance.Usage.IsValid)
             {
                 var description = pip.Provenance.Usage.ToString(m_pathTable);
-                if (!description.EndsWith(" files]"))
+                if (!description.EndsWith(" output directories]"))
                 {
                     args.Add(new PropertyAssignment("description", new LiteralExpression(pip.Provenance.Usage.ToString(m_pathTable))));
                 }
@@ -315,7 +319,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables.OrderBy(kv => kv.Name, m_pathTable.StringTable.OrdinalComparer).ToArray(), Generate)));
             }
 
-            if (pip.WarningRegex != null && pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)
+            if (pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)
             {
                 properties.Add(new PropertyAssignment("warningRegex", Generate(pip.WarningRegex.Pattern)));
             }
@@ -341,7 +345,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("additionalTempDirectories", Generate(pip.AdditionalTempDirectories, tempDir => Generate(tempDir, "d"))));
             }
 
-            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses)
+            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses || !pip.RequireGlobalDependencies)
             {
                 var unsafeProperties = new List<IObjectLiteralElement>();
                 if (pip.UntrackedPaths.Length > 0)
@@ -364,7 +368,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                     unsafeProperties.Add(new PropertyAssignment("allowPreservedOutputs", Generate(pip.AllowPreserveOutputs)));
                 }
 
-                if (pip.RequireGlobalDependencies)
+                if (!pip.RequireGlobalDependencies)
                 {
                     unsafeProperties.Add(new PropertyAssignment("requireGlobalDependencies", Generate(pip.RequireGlobalDependencies)));
                 }

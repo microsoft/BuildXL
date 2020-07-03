@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -23,6 +23,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 case BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.NodeAlgorithmId:
                 case ChunkDedupIdentifier.ChunkAlgorithmId:
                     return new ContentHash(HashType.DedupNodeOrChunk, blobId.Bytes);
+                case MurmurHashInfo.MurmurAlgorithmId:
+                    return new ContentHash(HashType.Murmur, blobId.Bytes);
                 default:
                     throw new ArgumentException($"BlobIdentifier has an unrecognized AlgorithmId: {blobId.AlgorithmId}");
             }
@@ -37,6 +39,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 case HashType.Vso0:
                 case HashType.DedupNodeOrChunk:
+                case HashType.Murmur:
                     return BlobIdentifier.Deserialize(contentHash.ToHex());
                 default:
                     throw new ArgumentException($"ContentHash has unsupported type when converting to BlobIdentifier: {contentHash.HashType}");

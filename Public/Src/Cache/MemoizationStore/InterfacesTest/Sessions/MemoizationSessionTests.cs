@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
@@ -124,6 +124,38 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 Assert.Equal(
                     Determinism[shouldUpgrade ? toDeterminism : fromDeterminism].EffectiveGuid,
                     getResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
+            });
+        }
+
+        [Fact]
+        public Task TestAddOrGetReturnsConflictingResult()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random();
+
+            return RunTestAsync(context, async session =>
+            {
+                ContentHashList contentHashList = null;
+
+                async Task<AddOrGetContentHashListResult> addNew()
+                {
+                    var putResult = await ((ICacheSession)session).PutRandomAsync(
+                        context, ContentHashType, false, RandomContentByteCount, Token);
+                    contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                    return await session.AddOrGetContentHashListAsync(
+                        context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None), Token).ShouldBeSuccess();
+                }
+
+                var originalResult = await addNew();
+                var originalContentHashList = contentHashList;
+                Assert.Null(originalResult.ContentHashListWithDeterminism.ContentHashList);
+
+                var conflictResult = await addNew();
+                Assert.NotNull(conflictResult.ContentHashListWithDeterminism.ContentHashList);
+                Assert.Equal(originalContentHashList, conflictResult.ContentHashListWithDeterminism.ContentHashList);
+
+                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token).ShouldBeSuccess();
+                Assert.Equal(originalContentHashList, getResult.ContentHashListWithDeterminism.ContentHashList);
             });
         }
 

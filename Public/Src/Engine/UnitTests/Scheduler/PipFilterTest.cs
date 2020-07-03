@@ -1,19 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using BuildXL.Ipc.Common;
-using BuildXL.Pips;
-using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Filter;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using Test.BuildXL.Scheduler.Utils;
+using BuildXL.Ipc.Common;
+using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

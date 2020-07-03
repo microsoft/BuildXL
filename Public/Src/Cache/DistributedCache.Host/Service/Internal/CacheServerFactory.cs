@@ -1,11 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -13,12 +14,15 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using static BuildXL.Cache.Host.Service.Internal.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -36,10 +40,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             _arguments = arguments;
             _logger = arguments.Logger;
+
+            // Enable POSIX delete to ensure that files are removed even when there are open handles
+            PassThroughFileSystem.EnablePosixDelete();
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 
-        public (LocalContentServer contentServer, LocalCacheServer cacheServer) Create()
+        public StartupShutdownBase Create()
         {
             var cacheConfig = _arguments.Configuration;
             cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
@@ -47,8 +54,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             var distributedSettings = cacheConfig.DistributedContentSettings;
             var isLocal = distributedSettings == null || !distributedSettings.IsDistributedContentEnabled;
 
-            var serviceConfiguration = CreateServiceConfiguration(_logger, _fileSystem, cacheConfig.LocalCasSettings, new AbsolutePath(_arguments.DataRootPath), isDistributed: !isLocal);
-            var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration);
+            var serviceConfiguration = CreateServiceConfiguration(
+                _logger,
+                _fileSystem,
+                cacheConfig.LocalCasSettings,
+                distributedSettings,
+                new AbsolutePath(_arguments.DataRootPath),
+                isDistributed: !isLocal);
+            var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration, distributedSettings);
 
             if (isLocal)
             {
@@ -63,15 +76,16 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
+        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
-            Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
+            Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, contentStoreSettings: default, distributedStore: null);
 
             if (distributedSettings?.EnableMetadataStore == true)
             {
+                var factory = CreateDistributedContentStoreFactory();
+
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    var factory = CreateDistributedContentStoreFactory();
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
                         memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
@@ -79,106 +93,109 @@ namespace BuildXL.Cache.Host.Service.Internal
                         passContentToMemoization: true);
                 };
 
-                return (null, new LocalCacheServer(
+                return new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration));
+                    localServerConfiguration);
             }
             else
             {
-                return (new LocalContentServer(
+                return new LocalContentServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration), null);
+                    localServerConfiguration);
             }
         }
 
         private DistributedContentStoreFactory CreateDistributedContentStoreFactory()
         {
             var cacheConfig = _arguments.Configuration;
-
             var hostInfo = _arguments.HostInfo;
             _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
 
-            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
-
-            return new DistributedContentStoreFactory(
-                _arguments,
-                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
-                secretRetriever);
+            return new DistributedContentStoreFactory(_arguments);
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
+        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
-
-            var hostInfo = _arguments.HostInfo;
-            _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
-
-            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
-
             var factory = CreateDistributedContentStoreFactory();
 
-            Func<AbsolutePath, IContentStore> contentStoreFactory = path =>
+            Func<AbsolutePath, MultiplexedContentStore> contentStoreFactory = path =>
             {
-                var cacheSettingsByCacheName = cacheConfig.LocalCasSettings.CacheSettingsByCacheName;
                 var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var settings in cacheSettingsByCacheName)
+                foreach (var resolvedCacheSettings in factory.OrderedResolvedCacheSettings)
                 {
-                    _logger.Debug($"Using [{settings.Key}]'s settings: {settings.Value}");
+                    _logger.Debug($"Using [{resolvedCacheSettings.Settings.CacheRootPath}]'s settings: {resolvedCacheSettings.Settings}");
 
-                    var rootPath = cacheConfig.LocalCasSettings.GetCacheRootPathWithScenario(settings.Key);
-                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath);
+                    drivesWithContentStore[resolvedCacheSettings.Drive] = factory.CreateContentStore(resolvedCacheSettings);
+                }
+
+                if (string.IsNullOrEmpty(cacheConfig.LocalCasSettings.PreferredCacheDrive))
+                {
+                    var knownDrives = string.Join(",", factory.OrderedResolvedCacheSettings.Select(cacheSetting => cacheSetting.Drive));
+                    throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
                 }
 
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 
-            if (distributedSettings.EnableMetadataStore)
+            if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    return new OneLevelCache(
-                        contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
-                        Guid.NewGuid(),
-                        passContentToMemoization: true);
+                    if (distributedSettings.EnableDistributedCache)
+                    {
+                        var contentStore = contentStoreFactory(path);
+                        return new DistributedOneLevelCache(contentStore,
+                            (DistributedContentStore<AbsolutePath>)contentStore.PreferredContentStore,
+                            Guid.NewGuid(),
+                            passContentToMemoization: true);
+                    }
+                    else
+                    {
+                        return new OneLevelCache(
+                            contentStoreFunc: () => contentStoreFactory(path),
+                            memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
+                            Guid.NewGuid(),
+                            passContentToMemoization: true);
+                    }
                 };
 
                 // NOTE(jubayard): When generating the service configuration, we create a single named cache root in
                 // the distributed case. This means that the factories will be called exactly once, so we will have
                 // a single MultiplexedContentStore and MemoizationStore. The latter will be located in the last cache
                 // root listed as per production configuration, which currently (8/27/2019) points to the SSD drives.
-                return (null, new LocalCacheServer(
+                return new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration));
+                    localServerConfiguration);
             }
             else
             {
-                return (new LocalContentServer(
+                return new LocalContentServer(
                     _fileSystem,
                     _logger,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration), null);
+                    localServerConfiguration);
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, DistributedContentStoreFactory factory = null)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, DistributedContentStoreFactory factory)
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
             if (distributedSettings.UseRedisMetadataStore)
             {
-                return factory.CreateMemoizationStoreAsync(path).GetAwaiter().GetResult();
+                return factory.CreateMemoizationStoreAsync().GetAwaiter().GetResult();
             }
             else
             {
@@ -186,47 +203,46 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
                     {
-                        MetadataGarbageCollectionEnabled = true,
+                        CleanOnInitialize = false,
                         OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = true,
+                        MetadataGarbageCollectionEnabled = true,
+                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore,
                     },
                 };
-
-                if (distributedSettings != null)
-                {
-                    config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore;
-                }
 
                 return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
             }
         }
 
-        private static LocalServerConfiguration CreateLocalServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)
+        private static LocalServerConfiguration CreateLocalServerConfiguration(
+            LocalCasServiceSettings localCasServiceSettings,
+            ServiceConfiguration serviceConfiguration,
+            DistributedContentSettings distributedSettings)
         {
             serviceConfiguration.GrpcPort = localCasServiceSettings.GrpcPort;
             serviceConfiguration.BufferSizeForGrpcCopies = localCasServiceSettings.BufferSizeForGrpcCopies;
             serviceConfiguration.GzipBarrierSizeForGrpcCopies = localCasServiceSettings.GzipBarrierSizeForGrpcCopies;
+            serviceConfiguration.ProactivePushCountLimit = localCasServiceSettings.MaxProactivePushRequestHandlers;
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
-
-            if (localCasServiceSettings.UnusedSessionTimeoutMinutes.HasValue)
-            {
-                localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(localCasServiceSettings.UnusedSessionTimeoutMinutes.Value);
-            }
-
-            if (localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.HasValue)
-            {
-                localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.Value);
-            }
-
-            if (localCasServiceSettings.GrpcThreadPoolSize.HasValue)
-            {
-                localContentServerConfiguration.GrpcThreadPoolSize = localCasServiceSettings.GrpcThreadPoolSize.Value;
-            }
+            
+            ApplyIfNotNull(localCasServiceSettings.UnusedSessionTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
+            ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
+            ApplyIfNotNull(localCasServiceSettings.GrpcThreadPoolSize, value => localContentServerConfiguration.GrpcThreadPoolSize = value);
+            ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value => localContentServerConfiguration.UseUnsafeByteStringConstruction = value);
+            ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;
         }
 
-        private static ServiceConfiguration CreateServiceConfiguration(ILogger logger, IAbsFileSystem fileSystem, LocalCasSettings localCasSettings, AbsolutePath dataRootPath, bool isDistributed)
+        private static ServiceConfiguration CreateServiceConfiguration(
+            ILogger logger,
+            IAbsFileSystem fileSystem,
+            LocalCasSettings localCasSettings,
+            DistributedContentSettings distributedSettings,
+            AbsolutePath dataRootPath,
+            bool isDistributed)
         {
             var namedCacheRoots = new Dictionary<string, AbsolutePath>(StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, NamedCacheSettings> settings in localCasSettings.CacheSettingsByCacheName)
@@ -261,7 +277,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 (int)localCasSettings.ServiceSettings.GrpcPort,
                 grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,
                 bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies,
-                gzipBarrierSizeForGrpcCopies: localCasSettings.ServiceSettings.GzipBarrierSizeForGrpcCopies);
+                gzipBarrierSizeForGrpcCopies: localCasSettings.ServiceSettings.GzipBarrierSizeForGrpcCopies,
+                proactivePushCountLimit: localCasSettings.ServiceSettings.MaxProactivePushRequestHandlers,
+                logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
+                logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval);
         }
 
         private static void WriteContentStoreConfigFile(string cacheSizeQuotaString, AbsolutePath rootPath, IAbsFileSystem fileSystem)

@@ -50,3 +50,7 @@ indent_size = 2
 # JSON files
 [*.json]
 indent_size = 2
+
+# RA006: Use fluent API for preconditions/assertions.
+# Forcing usage of fluent API to avoid allocations for contract checks.
+dotnet_diagnostic.RA006.severity = warning

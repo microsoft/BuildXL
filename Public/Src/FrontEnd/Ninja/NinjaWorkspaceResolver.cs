@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -211,8 +211,7 @@ namespace BuildXL.FrontEnd.Ninja
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IResolverSettings resolverSettings,
-            QualifierId[] requestedQualifiers)
+            IResolverSettings resolverSettings)
         {
             m_host = host;
             m_context = context;
@@ -275,7 +274,7 @@ namespace BuildXL.FrontEnd.Ninja
                 m_resolverSettings.File,
                 new List<AbsolutePath>() { specFileConfig } ,
                 allowedModuleDependencies: null, // no module policies
-                cyclicalFriendModules: null); // no whitelist of cycles
+                cyclicalFriendModules: null); // no allowlist of cycles
 
             return new NinjaGraphWithModuleDefinition(result.Graph, moduleDefinition);            
         }
@@ -310,7 +309,7 @@ namespace BuildXL.FrontEnd.Ninja
                     standardError);
             }
             
-            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, NinjaFrontEnd.Name, result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
+            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets
@@ -395,7 +394,7 @@ namespace BuildXL.FrontEnd.Ninja
         /// </summary>
         private AbsolutePath GetToolOutputPath()
         {
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(NinjaFrontEnd.Name);
+            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
             var now = DateTime.UtcNow.ToString("yyyy-MM-dd-THH-mm-ss.SSS-Z");
             var uniqueName = $"ninja_graph_{now}.json";
             return outputDirectory.Combine(m_context.PathTable, uniqueName);

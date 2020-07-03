@@ -1,28 +1,29 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using RocksDbSharp;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -138,6 +139,9 @@ namespace BuildXL.Scheduler.Fingerprints
             where TEnv : IObservedInputProcessingEnvironment
         {
             Contract.Requires(!isCacheLookup ^ observedAccessedFileNames.IsValid);
+
+            var envAdapter = environment as ObservedInputProcessingEnvironmentAdapter;
+
             using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorProcessInternalDuration))
             using (var processingState = ObservedInputProcessingState.GetInstance())
             {
@@ -150,6 +154,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 var sourceDirectoriesAllDirectories = processingState.SourceDirectoriesAllDirectories;
                 var sourceDirectoriesTopDirectoryOnly = processingState.SourceDirectoriesTopDirectoryOnly;
                 var dynamicallyObservedFiles = processingState.DynamicallyObservedFiles;
+                var dynamicallyProbedFiles = processingState.DynamicallyProbedFiles;
                 var allowedUndeclaredSourceReads = processingState.AllowedUndeclaredReads;
                 var absentPathProbesUnderNonDependenceOutputDirectories = processingState.AbsentPathProbesUnderNonDependenceOutputDirectories;
                 var directoryDependencyContentsFilePaths = processingState.DirectoryDependencyContentsFilePaths;
@@ -408,6 +413,29 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 allowedUndeclaredSourceReads.Add(path);
                             }
+                            // reclassify ExistingFileProbe as AbsentPathProbe if
+                            //   - file doesn't actually exist on disk
+                            //   - file is under an output directory
+                            //   - lazy shared opaque output deletion is disabled
+                            //   - the declared producer of the file is a pip downstream of the prober pip
+                            // reason:
+                            //   - access was originally classified as ExistingFileProbe despite the file being absent
+                            //     because the path is a declared ouput in the pip graph
+                            //   - however, if that path is under an opaque directory and lazy deletion is disabled,
+                            //     the file will always be scrubbed before the build so to this pip it will always be absent.
+                            else if (
+                                type == ObservedInputType.ExistingFileProbe &&
+                                envAdapter?.IsLazySODeletionEnabled == false &&
+                                !FileUtilities.FileExistsNoFollow(path.ToString(pathTable)) &&
+                                envAdapter.IsPathUnderOutputDirectory(path, out var isItSharedOpaque) &&
+                                isItSharedOpaque &&
+                                envAdapter.TryGetFileProducerPip(path, out var producerPipId) &&
+                                envAdapter.IsReachableFrom(from: pip.PipId, to: producerPipId))
+                            {
+                                environment.Counters.IncrementCounter(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput);
+                                observationTypes[i] = ObservedInputType.AbsentPathProbe;
+                                continue;
+                            }
                             else if (type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe)
                             {
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
@@ -542,13 +570,13 @@ namespace BuildXL.Scheduler.Fingerprints
                                 break;
                             case ObservedInputType.ExistingFileProbe:
                                 maybeProposed = ObservedInput.CreateExistingFileProbe(path);
-                                dynamicallyObservedFiles.Add(path);
+                                dynamicallyProbedFiles.Add(path);
                                 break;
                             case ObservedInputType.ExistingDirectoryProbe:
                                 maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path);
 
                                 // Directory probe is just like file probe.
-                                dynamicallyObservedFiles.Add(path);
+                                dynamicallyProbedFiles.Add(path);
                                 break;
                             case ObservedInputType.DirectoryEnumeration:
                                 // TODO: TryQueryDirectoryFingerprint should be in agreement with the VirtualFileSystem somehow.
@@ -712,7 +740,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                     if (valid != observedInputs.Length)
                     {
-                        // We may have valid < observedInputs.Length due to SuppressAndIgnorePath, e.g. due to monitoring whitelists.
+                        // We may have valid < observedInputs.Length due to SuppressAndIgnorePath, e.g. due to monitoring allowlists.
                         Array.Resize(ref observedInputs, valid);
                     }
 
@@ -723,6 +751,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             new ObservedInputExpandedPathComparer(pathComparer)),
                         observedAccessedFileNames: observedAccessedFileNames,
                         dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
+                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
                         dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
                         absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
@@ -735,6 +764,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
                         dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
+                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
                         dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
                         absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
@@ -889,10 +919,10 @@ namespace BuildXL.Scheduler.Fingerprints
             where TTarget : struct, IObservedInputProcessingTarget<TObservation>
         {
             using (var pooledPathSet = Pools.GetAbsolutePathSet())
-            using (var pooledStringIdSet = Pools.GetStringIdSet())
             {
-                HashSet<StringId> accessedFileNames = pooledStringIdSet.Instance;
                 HashSet<AbsolutePath> visitedPaths = pooledPathSet.Instance;
+
+                HashSet<StringId> accessedFileNames = new HashSet<StringId>(pathTable.StringTable.CaseInsensitiveEqualityComparer);
 
                 bool addFileNamesFromObservations = false;
                 if (!observedAccessedFileNames.IsValid)
@@ -939,7 +969,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     observedAccessedFileNames = SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.SortUnsafe(
                                                 accessedFileNames.ToArray(),
-                                                new CaseInsensitiveStringIdComparer(pathTable.StringTable));
+                                                pathTable.StringTable.CaseInsensitiveComparer);
                 }
 
                 if (searchPaths.Count == 0)
@@ -1278,9 +1308,14 @@ namespace BuildXL.Scheduler.Fingerprints
         public readonly int NumberOfInvalidEntries;
 
         /// <summary>
-        /// The list of dynamically observed files. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
+        /// The list of dynamically observed read files.
         /// </summary>
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
+
+        /// <summary>
+        /// The list of dynamically observed probed files. 
+        /// </summary>
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
 
         /// <summary>
         /// The list of dynamically observed enumerations. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
@@ -1308,6 +1343,7 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntires,
             int numberOfInvalidEntries,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
@@ -1316,6 +1352,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedAccessFileNames.IsValid);
             Contract.Requires((status != ObservedInputProcessingStatus.Success) || (numberOfInvalidEntries == 0));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
             Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
@@ -1324,6 +1361,7 @@ namespace BuildXL.Scheduler.Fingerprints
             NumberOfValidEntries = numberOfValidEntires;
             NumberOfInvalidEntries = numberOfInvalidEntries;
             DynamicallyObservedFiles = dynamicallyObservedFiles;
+            DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
             m_observedInputs = observedInputs;
             m_observedAccessFileNames = observedAccessFileNames;
@@ -1337,12 +1375,14 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntries,
             int numberOfInvalidEntries,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success);
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
             Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
@@ -1354,6 +1394,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 numberOfValidEntires: numberOfValidEntries,
                 numberOfInvalidEntries: numberOfInvalidEntries,
                 dynamicallyObservedFiles: dynamicallyObservedFiles,
+                dynamicallyProbedFiles: dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
                 absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
@@ -1364,11 +1405,13 @@ namespace BuildXL.Scheduler.Fingerprints
             SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> observedInputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
         {
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
 
@@ -1379,6 +1422,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 numberOfValidEntires: observedInputs.Length,
                 numberOfInvalidEntries: 0,
                 dynamicallyObservedFiles: dynamicallyObservedFiles,
+                dynamicallyProbedFiles: dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
                 absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
@@ -1569,6 +1613,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
         public ICacheConfiguration Configuration => m_env.Configuration.Cache;
 
+        public bool IsLazySODeletionEnabled => m_env.Configuration.Schedule.UnsafeLazySODeletion;
+
         public CounterCollection<PipExecutorCounter> Counters => m_env.Counters;
 
         public PipExecutionState.PipScopeState State => m_state;
@@ -1620,7 +1666,6 @@ namespace BuildXL.Scheduler.Fingerprints
             Possible<PathExistence> existence;
 
             // Check if path will be eventually produced as a file/directory by querying 'output file system'
-            // TODO: Should the file content manager be queried about eventual production (i.e. lazy symlink creation)?
             existence = FileSystemView.GetExistence(path, FileSystemViewMode.Output);
 
             // NOTE: We don't check success of existence from produced file system as it should never return failure
@@ -1677,6 +1722,34 @@ namespace BuildXL.Scheduler.Fingerprints
         public bool IsPathUnderOutputDirectory(AbsolutePath path)
         {
             return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out _);
+        }
+
+        /// <summary>
+        /// <see cref="Pips.Graph.IPipGraphFileSystemView.IsPathUnderOutputDirectory(AbsolutePath, out bool)"/>
+        /// </summary>
+        internal bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItSharedOpaque)
+        {
+            return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out isItSharedOpaque);
+        }
+
+        /// <summary>
+        /// Returns the producer pip of a file at location <paramref name="filePath"/>, if one exists.
+        /// </summary>
+        internal bool TryGetFileProducerPip(AbsolutePath filePath, out PipId producer)
+        {
+            producer = PipId.Invalid;
+            var fileArtifact = m_env.PipGraphView.TryGetLatestFileArtifactForPath(filePath);
+            return 
+                fileArtifact.IsValid && 
+                m_env.TryGetProducerPip(fileArtifact, out producer);
+        }
+
+        /// <summary>
+        /// Returns if pip <paramref name="to"/> is reachable from pip <paramref name="from"/>.
+        /// </summary>
+        internal bool IsReachableFrom(PipId from, PipId to)
+        {
+            return m_env.IsReachableFrom(from: from, to: to);
         }
 
         /// <summary>

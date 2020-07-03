@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,10 +10,10 @@ using BuildXL.Engine;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -113,9 +113,9 @@ namespace BuildXL.Execution.Analyzer
         public FailedPipInputAnalyzer(AnalysisInput input)
             : base(input)
         {
-            nodeVisitor = new NodeVisitor(DataflowGraph);
-            m_failedPipsClosure = new VisitationTracker(DataflowGraph);
-            m_cachedPips = new VisitationTracker(DataflowGraph);
+            nodeVisitor = new NodeVisitor(DirectedGraph);
+            m_failedPipsClosure = new VisitationTracker(DirectedGraph);
+            m_cachedPips = new VisitationTracker(DirectedGraph);
         }
 
         public override void Prepare()
@@ -253,7 +253,7 @@ namespace BuildXL.Execution.Analyzer
                     nodeVisitor.VisitTransitiveDependencies(m_failedPips.Select(p => p.ToNodeId()), m_failedPipsClosure, visitNode: node =>
                     {
                         dependencyBuffer.Clear();
-                        foreach (var dependencyEdge in DataflowGraph.GetIncomingEdges(node))
+                        foreach (var dependencyEdge in DirectedGraph.GetIncomingEdges(node))
                         {
                             if (PipTable.GetPipType(dependencyEdge.OtherNode.ToPipId()) != PipType.HashSourceFile)
                             {
@@ -282,10 +282,41 @@ namespace BuildXL.Execution.Analyzer
                     writer.WriteEndObject();
                 }
 
+                writer.WritePropertyName("TopFilesConsumedByFailedPips");
+                {
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("FailedPipsConsumedDirectly");
+                    WriteConsumerMap(writer, failedPipDirectDepsOnly: true);
+
+                    writer.WritePropertyName("ConsumedByFailedAndFailedDependencies");
+                    WriteConsumerMap(writer, failedPipDirectDepsOnly: false);
+                    writer.WriteEndObject();
+                }
+
                 writer.WriteEndObject();
             }
 
             return 0;
+        }
+
+        private void WriteConsumerMap(JsonWriter writer, bool failedPipDirectDepsOnly)
+        {
+            writer.WriteStartArray();
+
+            foreach (var item in m_fileToConsumerMap
+                                    .Select(kvp => new KeyValuePair<AbsolutePath, int>(kvp.Key, failedPipDirectDepsOnly ? kvp.Value.Intersect(m_failedPips).Count() : kvp.Value.Count))
+                                    .OrderByDescending(kvp => kvp.Value)
+                                    .Take(50))
+            {
+                writer.WriteStartObject();
+                writer.WritePropertyName("ConsumerCount");
+                writer.WriteValue(item.Value);
+                writer.WritePropertyName("Path");
+                writer.WriteValue(item.Key.ToString(PathTable));
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
         }
 
         private string ToDisplayString(PipId pipId)

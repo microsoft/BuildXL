@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -25,8 +25,7 @@ namespace BuildXL.FrontEnd.Workspaces
             [NotNull]FrontEndHost host,
             [NotNull]FrontEndContext context,
             [NotNull]IConfiguration configuration,
-            [NotNull]IResolverSettings resolverSettings,
-            [NotNull]QualifierId[] requestedQualifiers);
+            [NotNull]IResolverSettings resolverSettings);
 
         /// <summary>
         /// If <param name="moduleDescriptor"/> is owned by this resolver, returns the ModuleDefinition with that name.

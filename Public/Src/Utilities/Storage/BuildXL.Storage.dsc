@@ -3,7 +3,8 @@
 
 import * as Managed from "Sdk.Managed";
 namespace Storage {
-
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+    
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Storage",

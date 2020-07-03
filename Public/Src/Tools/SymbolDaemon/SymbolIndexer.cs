@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using Microsoft.VisualStudio.Services.Content.Common.Tracing;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -96,8 +96,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static bool TryCreate(StringTable table, string atom, out SymbolAtom result)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(atom != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(atom);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)atom, out result);
@@ -113,7 +113,7 @@ namespace BuildXL.Utilities
         public static bool TryCreate<T>(StringTable table, T atom, out SymbolAtom result)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, atom, out result, out _);
@@ -130,7 +130,7 @@ namespace BuildXL.Utilities
         public static ParseResult TryCreate<T>(StringTable table, T atom, out SymbolAtom result, out int characterWithError)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult validationResult = Validate(atom, out characterWithError);
@@ -146,8 +146,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static SymbolAtom Create(StringTable table, string atom)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(atom != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(atom);
             Contract.Requires(atom.Length > 0);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
@@ -163,7 +163,7 @@ namespace BuildXL.Utilities
         public static SymbolAtom Create<T>(StringTable table, T atom)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(atom.Length > 0);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
@@ -186,8 +186,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static SymbolAtom CreateUnchecked(StringTable table, string atom)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(atom != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(atom);
             Contract.Requires(atom.Length > 0);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
@@ -203,7 +203,7 @@ namespace BuildXL.Utilities
         public static SymbolAtom CreateUnchecked<T>(StringTable table, T atom)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(atom.Length > 0);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
@@ -216,7 +216,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public SymbolAtom Concat(StringTable table, SymbolAtom addition)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
@@ -289,9 +289,8 @@ namespace BuildXL.Utilities
         [Pure]
         public string ToString(StringTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
 
             return table.GetString(StringId);
         }

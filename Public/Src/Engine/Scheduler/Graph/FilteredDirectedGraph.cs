@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Graph
@@ -17,7 +18,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// The underlying graph
         /// </summary>
-        private readonly DirectedGraph m_graph;
+        private readonly IReadonlyDirectedGraph m_graph;
 
         /// <summary>
         /// The filter over the graph nodes
@@ -36,7 +37,7 @@ namespace BuildXL.Scheduler.Graph
 
         private readonly Lazy<Dictionary<NodeId, int>> m_nodeHeights;
 
-        public FilteredDirectedGraph(DirectedGraph graph, VisitationTracker nodeFilter)
+        public FilteredDirectedGraph(IReadonlyDirectedGraph graph, VisitationTracker nodeFilter)
         {
             m_graph = graph;
             m_nodeFilter = nodeFilter;
@@ -47,6 +48,9 @@ namespace BuildXL.Scheduler.Graph
 
         /// <inheritdoc />
         int IReadonlyDirectedGraph.NodeCount => m_nodeFilter.VisitedCount;
+
+        /// <inheritdoc />
+        int IReadonlyDirectedGraph.EdgeCount => m_graph.EdgeCount;
 
         /// <inheritdoc />
         NodeRange IReadonlyDirectedGraph.NodeRange => m_graph.NodeRange;

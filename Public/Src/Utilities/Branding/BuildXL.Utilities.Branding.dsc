@@ -4,23 +4,29 @@
 import {Transformer} from "Sdk.Transformers";
 import * as BuildXLBranding from "BuildXL.Branding";
 
+
 namespace Branding {
 
-    @@public
-    export const brandingManifest = Transformer.writeAllLines({
-        // The filename is relied upon by Branding.cs
-        outputPath: p`${Context.getNewOutputDirectory('branding')}/BuildXL.manifest`, 
-
-        // The lines in the file are relied up by Branding.cs. Any changes here need to be synced.
-        lines: [
-            BuildXLBranding.shortProductName,
-            BuildXLBranding.longProductName,
-            BuildXLBranding.version,
-            BuildXLBranding.sourceIdentification,
-            BuildXLBranding.mainExecutableName,
-            BuildXLBranding.analyzerExecutableName,
-        ]
-    });
+    namespace Manifest{
+        export declare const qualifier : {};
+        
+        @@public
+        export const file = Transformer.writeAllLines({
+            // The filename is relied upon by Branding.cs
+            outputPath: p`${Context.getNewOutputDirectory('branding')}/BuildXL.manifest`, 
+    
+            // The lines in the file are relied up by Branding.cs. Any changes here need to be synced.
+            lines: [
+                BuildXLBranding.shortProductName,
+                BuildXLBranding.longProductName,
+                BuildXLBranding.version,
+                BuildXLBranding.sourceIdentification,
+                BuildXLBranding.mainExecutableName,
+                BuildXLBranding.analyzerExecutableName,
+            ]
+        });
+    }
+    
     
     @@public
     export const dll = BuildXLSdk.library({
@@ -30,7 +36,7 @@ namespace Branding {
             $.dll,
         ],
         runtimeContent: [
-            brandingManifest,
+            Manifest.file,
         ],
     });
 }

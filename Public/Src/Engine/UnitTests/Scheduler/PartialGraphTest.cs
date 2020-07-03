@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
@@ -138,7 +138,7 @@ namespace Test.BuildXL.Scheduler
             var seal = CreateSealDirectory(root, SealDirectoryKind.Partial);
             PipGraphBuilder.AddSealDirectory(seal);
             var builder = new PatchablePipGraph(
-                oldPipGraph: PipGraphBuilder.DataflowGraph,
+                oldPipGraph: PipGraphBuilder.DirectedGraph,
                 oldPipTable: PipTable,
                 graphBuilder: CreatePipGraphBuilder(),
                 maxDegreeOfParallelism: Environment.ProcessorCount);
@@ -148,7 +148,7 @@ namespace Test.BuildXL.Scheduler
 
         private void ExpectEmptyGraph(GraphReloadResult reloadResult)
         {
-            var newGraph = reloadResult.PipGraph.DataflowGraph;
+            var newGraph = reloadResult.PipGraph.DirectedGraph;
             Assert.Equal(0, newGraph.NodeCount);
             Assert.Equal(0, newGraph.EdgeCount);
             Assert.Equal(0, reloadResult.Stats.NumPipsReloaded);
@@ -161,7 +161,7 @@ namespace Test.BuildXL.Scheduler
 
             var newPipGraph = reloadResult.PipGraph;
             var newPipTable = newPipGraph.PipTable;
-            var newGraph = newPipGraph.DataflowGraph;
+            var newGraph = newPipGraph.DirectedGraph;
 
             // check that the new pip table contains expected number of relevant pips
             var allPipTypes = new HashSet<PipType>(oldPips.Select(pip => pip.PipType).Distinct());
@@ -169,7 +169,7 @@ namespace Test.BuildXL.Scheduler
             Assert.Equal(expectedPipIndexes.Length, newRelevantPips.Count());
             
             // check that for all expected pips there is a node in the new graph
-            Assert.All(
+            XAssert.All(
                 expectedPipIndexes,
                 idx =>
                 {
@@ -178,7 +178,7 @@ namespace Test.BuildXL.Scheduler
 
             // check edges
             var newRelevantPipIdValues = new HashSet<uint>(newRelevantPips.Select(pip => pip.PipId.Value));
-            Assert.All(
+            XAssert.All(
                 expectedPipIndexes, 
                 idx =>
                 {
@@ -218,7 +218,7 @@ namespace Test.BuildXL.Scheduler
 
         private GraphReloadResult ReloadGraph(Pip[] procs, params int[] affectedIndexes)
         {
-            Assert.All(affectedIndexes, i => Assert.True(i >= 0 && i < procs.Length));
+            XAssert.All(affectedIndexes, i => Assert.True(i >= 0 && i < procs.Length));
             
             // add meta pips only for non-affected processes, because they should be present in the reloaded graph
             var nonAffectedIndexes = Enumerable.Range(0, procs.Length).Except(affectedIndexes);
@@ -226,7 +226,7 @@ namespace Test.BuildXL.Scheduler
 
             // partially reload graph into the newly created PipGraph.Builder
             var builder = new PatchablePipGraph(
-                oldPipGraph: PipGraphBuilder.DataflowGraph,
+                oldPipGraph: PipGraphBuilder.DirectedGraph,
                 oldPipTable: PipTable,
                 graphBuilder: CreatePipGraphBuilder(),
                 maxDegreeOfParallelism: Environment.ProcessorCount);
@@ -246,7 +246,7 @@ namespace Test.BuildXL.Scheduler
             return new PipGraph.Builder(
                 CreatePipTable(),
                 Context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 LoggingContext,
                 new ConfigurationImpl(), 
                 Expander);

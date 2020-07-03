@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -18,12 +18,13 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
@@ -32,7 +33,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
@@ -40,12 +40,12 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using PipLogEventId = BuildXL.Pips.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
     [Trait("Category", "SchedulerTest")]
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] /* Bug 1378018 */
     public sealed partial class SchedulerTest : PipTestBase
     {
         /// <summary>
@@ -77,6 +77,7 @@ namespace Test.BuildXL.Scheduler
         public SchedulerTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
@@ -89,10 +90,9 @@ namespace Test.BuildXL.Scheduler
             bool scheduleMetaPips = false,
             int maxProcesses = 1,
             bool enableJournal = false,
-            bool enableIncrementalScheduling = false,
-            bool enableGraphAgnosticIncrementalScheduling = true)
+            bool enableIncrementalScheduling = false)
         {
-            m_fileContentTable = FileContentTable.CreateNew();
+            m_fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             // Used for later construction of a scheduler (after pips added).
             m_schedulerShouldStopOnFirstFailure = stopOnFirstFailure;
@@ -115,11 +115,6 @@ namespace Test.BuildXL.Scheduler
             {
                 m_configuration.Schedule.IncrementalScheduling = true;
                 m_configuration.Schedule.ComputePipStaticFingerprints = true;
-
-                if (!enableGraphAgnosticIncrementalScheduling)
-                {
-                    m_configuration.Schedule.GraphAgnosticIncrementalScheduling = false;
-                }
             }
 
             if (m_configuration.Schedule.IncrementalScheduling)
@@ -128,7 +123,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             BaseSetup(m_configuration, disablePipSerialization: disablePipSerialization);
-            m_pipQueue = new PipQueue(m_configuration.Schedule);
+            m_pipQueue = new PipQueue(LoggingContext, m_configuration.Schedule);
             m_testQueue = new TestPipQueue(m_pipQueue, LoggingContext, initiallyPaused: pauseQueue);
 
             if (enableJournal)
@@ -194,10 +189,10 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { processDestinationArtifact });
 
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputUnderNonReadableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputUnderNonReadableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputUnderNonReadableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputUnderNonReadableRoot);
 
             return RunScheduler();
         }
@@ -249,13 +244,13 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { processDestinationArtifact });
 
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(writeFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             string workingDirectory = Path.Combine(ReadonlyRoot, "processWorking1");
 
@@ -278,7 +273,7 @@ namespace Test.BuildXL.Scheduler
                             PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, Path.Combine(ReadonlyRoot, "processTemp")))
                     });
                 XAssert.IsFalse(PipGraphBuilder.AddProcess(processWithNonWritableTempDirectory));
-                AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryUnderNonWritableRoot);
+                AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryUnderNonWritableRoot);
 
                 Process processWithInvalidPathTempDirectory = CreateProcess(
                     dependencies: new[] { sourceArtifact },
@@ -295,11 +290,11 @@ namespace Test.BuildXL.Scheduler
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
                     // Test setting TEMP environment variable to invalid path causes an error to be logged on Windows only
-                    AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryInvalidPath);
+                    AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryInvalidPath);
                 }
                 else
                 {
-                    AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryUnderNonWritableRoot);
+                    AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryUnderNonWritableRoot);
                 }
             }
 
@@ -316,7 +311,7 @@ namespace Test.BuildXL.Scheduler
             const string File1 = @"file1";
             const string File2 = @"file2";
 
-            using (TestEnv env = new TestEnv("TestLazyHashingSealDirectory", TemporaryDirectory, enableLazyOutputMaterialization: true))
+            using (TestEnv env = new TestEnv("TestLazyHashingSealDirectory", TemporaryDirectory, customizeConfig: config => config.Schedule.EnableLazyOutputMaterialization = true))
             {
                 AbsolutePath dirPath = env.SourceRoot.Combine(env.PathTable, "myDir");
                 AbsolutePath file1Path = dirPath.Combine(env.PathTable, "file1.txt");
@@ -346,15 +341,9 @@ namespace Test.BuildXL.Scheduler
                 RunSchedule(env);
             }
 
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                // ignoring /bin/sh is being used as a source file
-                AssertWarningEventLogged(EventId.IgnoringUntrackedSourceFileNotUnderMount);
-            }
-
             // Only 1 source file should have been hashed (file1.txt). Also the second pip that consumes file1.txt should not cause the file to be rehashed
-            // in a sealed directory used as input twice
-            AssertVerboseEventLogged(EventId.HashedSourceFile);
+            // in a sealed directory used as input twice; on Unix, add hashing of '/bin/sh' to that list
+            AssertVerboseEventLogged(LogEventId.HashedSourceFile, count: OperatingSystemHelper.IsUnixOS ? 2 : 1);
         }
 
         /// <summary>
@@ -372,10 +361,11 @@ namespace Test.BuildXL.Scheduler
 
             try
             {
-                pipQueue = new PipQueue(env.Configuration.Schedule);
+                pipQueue = new PipQueue(LoggingContext, env.Configuration.Schedule);
 
                 var schedulerAndContentCache = TestSchedulerFactory.CreateWithCaching(
                     env.Context,
+                    env.LoggingContext,
                     env.Configuration,
                     (PipGraph.Builder)env.PipGraph,
                     pipQueue);
@@ -490,8 +480,8 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.IsFalse(scheduleSucceeded);
 
-            AssertVerboseEventLogged(EventId.CancelingPipSinceScheduleIsTerminating);
-            AssertErrorEventLogged(EventId.TerminatingDueToPipFailure);
+            AssertVerboseEventLogged(LogEventId.CancelingPipSinceScheduleIsTerminating);
+            AssertErrorEventLogged(LogEventId.TerminatingDueToPipFailure);
         }
 
         [Fact]
@@ -574,8 +564,8 @@ namespace Test.BuildXL.Scheduler
 
             // With the given constraints  2 or 3 pips may get cancelled depending on the actual schedule. Uncertainty is  due to the fact that
             // processSkippedInQueue may get cancelled or skipped.
-            AssertVerboseEventCountIsInInterval(EventId.CancelingPipSinceScheduleIsTerminating, minOccurrences: 2, maxOccurrences: 3);
-            AssertErrorEventLogged(EventId.TerminatingDueToPipFailure);
+            AssertVerboseEventCountIsInInterval((int)LogEventId.CancelingPipSinceScheduleIsTerminating, minOccurrences: 2, maxOccurrences: 3);
+            AssertErrorEventLogged(LogEventId.TerminatingDueToPipFailure);
 
             AssertLatestProcessPipCounts(succeeded: 0, failed: 0, skipped: 1);
         }
@@ -599,7 +589,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(PipGraphBuilder.AddProcess(failsFilter));
 
             bool scheduleSucceeded = await RunScheduler(
-                CreateFilterForTags(tagsWhitelist: new[] { "Yep" }.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)), tagsBlacklist: new StringId[] { }),
+                CreateFilterForTags(tagsAllowlist: new[] { "Yep" }.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)), tagsBlocklist: new StringId[] { }),
                 overriddenSuccessfulPips: new Pip[0],
                 overriddenFailedPips: new Pip[] { passesFilter },
                 expectedFailedPips: new Pip[] { passesFilter },
@@ -644,7 +634,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(PipGraphBuilder.AddProcess(passesFilter2));
 
             bool scheduleSucceeded = await RunScheduler(
-                CreateFilterForTags(tagsWhitelist: new[] { "Yep" }.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)), tagsBlacklist: new StringId[] { }),
+                CreateFilterForTags(tagsAllowlist: new[] { "Yep" }.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)), tagsBlocklist: new StringId[] { }),
                 expectedSuccessfulPips: new Pip[] { seal2, seal1, passesFilter, passesFilter2 });
 
             XAssert.IsTrue(scheduleSucceeded);
@@ -676,7 +666,7 @@ namespace Test.BuildXL.Scheduler
                 expectedFailedPips: new Pip[] { copyFileB1 },
                 expectedSkippedPips: new Pip[] { copyFileB2, process }));
 
-            AssertVerboseEventLogged(EventId.PipFailedDueToFailedPrerequisite, 2 /*copy_7,copy_8*/ + 3 /*value_5,Value_7,Value_8*/ + 3 /*spec_5,spec_7,spec_8*/ + 1 /*module_1*/);
+            AssertVerboseEventLogged(LogEventId.PipFailedDueToFailedPrerequisite, 2 /*copy_7,copy_8*/ + 3 /*value_5,Value_7,Value_8*/ + 3 /*spec_5,spec_7,spec_8*/ + 1 /*module_1*/);
         }
 
         /// <summary>
@@ -746,11 +736,11 @@ namespace Test.BuildXL.Scheduler
         ///
         /// Each returned object array corresponds to the following formal parameters:
         /// <code>
-        ///     (string whitelistTags, string blacklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        ///     (string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         /// </code>
         ///
         /// Each returned object array indicates which pips should be executed (i.e., "done") given a
-        /// <see cref="TestGraphForTagFilter"/> pip graph, whitelist tags, and blacklist tags.
+        /// <see cref="TestGraphForTagFilter"/> pip graph, allowlist tags, and blocklist tags.
         /// </summary>
         public static IEnumerable<object[]> TagFilteringTestData()
         {
@@ -765,12 +755,12 @@ namespace Test.BuildXL.Scheduler
         [Feature(Features.Filtering)]
         [Theory]
         [MemberData(nameof(TagFilteringTestData))]
-        public async Task TestScheduleByTag(string whitelistTags, string blacklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        public async Task TestScheduleByTag(string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         {
             Setup(disableLazyOutputMaterialization: true);
 
             TestGraphForTagFilter g = CreateGraphForTagFilterTestingWithCopyPips();
-            await RunScheduler(CreateFilterForTags(ToStringIds(whitelistTags), ToStringIds(blacklistTags)));
+            await RunScheduler(CreateFilterForTags(ToStringIds(allowlistTags), ToStringIds(blocklistTags)));
 
             AssertPipStatesForTestGraphForTagFilter(g, a1Done, a2Done, b1Done, b2Done, pDone);
         }
@@ -1076,7 +1066,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputDueToMultipleConflictingRewriteCounts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputDueToMultipleConflictingRewriteCounts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1095,7 +1085,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidProcessPipDueToNoOutputArtifacts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidProcessPipDueToNoOutputArtifacts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1257,7 +1247,7 @@ namespace Test.BuildXL.Scheduler
             };
 
             await RunScheduler(scheduleConfiguration: customConfiguration);
-            AssertWarningEventLogged(EventId.FailedToHashInputFileBecauseTheFileIsDirectory);
+            AssertWarningEventLogged(LogEventId.FailedToHashInputFileBecauseTheFileIsDirectory);
             AssertErrorEventLogged(LogEventId.PipSourceDependencyCannotBeHashed);
             AssertErrorEventLogged(LogEventId.PipFailedDueToSourceDependenciesCannotBeHashed);
         }
@@ -1296,6 +1286,15 @@ namespace Test.BuildXL.Scheduler
 
             m_scheduler?.Dispose();
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             m_scheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: m_testQueue,
@@ -1304,12 +1303,13 @@ namespace Test.BuildXL.Scheduler
                 loggingContext: LoggingContext,
                 cache: cache ?? InMemoryCacheFactory.Create(),
                 configuration: m_configuration,
-                fileAccessWhitelist: new FileAccessWhitelist(Context),
+                fileAccessAllowlist: new FileAccessAllowlist(Context),
                 successfulPips: overriddenSuccessfulPips,
                 failedPips: overriddenFailedPips,
                 ipcProvider: ipcProvider,
                 journalState: m_journalState,
                 tempCleaner: MoveDeleteCleaner,
+                directoryTranslator: directoryTranslator,
                 testHooks: testHooks);
 
             bool success = m_scheduler.InitForMaster(LoggingContext, filter);
@@ -1395,7 +1395,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     if (dependencies.Any())
                     {
-                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/ls" : "dir");
+                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/cat" : "type");
                         foreach (var dependency in dependencies)
                         {
                             pipDataBuilder.Add(dependency);
@@ -1403,6 +1403,15 @@ namespace Test.BuildXL.Scheduler
                     }
                     else
                     {
+                        pipDataBuilder.Add("echo");
+                    }
+
+                    if (OperatingSystemHelper.IsUnixOS && dependencies.Any(d => d.Path.Equals(output.Path)))
+                    {
+                        // apparently, 'dependencies' and 'outputs' need not be disjoint, 
+                        // and so if we generate something like "/bin/cat file1 > file1"
+                        // that can lead to an infinite loop 
+                        pipDataBuilder.Add("&&");
                         pipDataBuilder.Add("echo");
                     }
 
@@ -1562,7 +1571,13 @@ namespace Test.BuildXL.Scheduler
             return (first ?? Enumerable.Empty<TSource>()).Union(second ?? Enumerable.Empty<TSource>());
         }
 
-        private void AssertSchedulerErrorEventLogged(EventId eventId, int count = 1)
+        private void AssertSchedulerErrorEventLogged(LogEventId eventId, int count = 1)
+        {
+            Contract.Requires(count >= 0);
+            AssertErrorEventLogged(eventId, count);
+        }
+
+        private void AssertSchedulerErrorEventLogged(PipLogEventId eventId, int count = 1)
         {
             Contract.Requires(count >= 0);
             AssertErrorEventLogged(eventId, count);
@@ -1627,7 +1642,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(process);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputIsSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputIsSource);
 
             return RunScheduler();
         }
@@ -1653,7 +1668,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process2));
 
             AssertPipDescriptionAndProvenanceLogged(process2);
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSincePathIsWrittenAndThusNotSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSincePathIsWrittenAndThusNotSource);
 
             return RunScheduler();
         }
@@ -1682,7 +1697,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
 
             return RunScheduler();
         }
@@ -1715,7 +1730,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
 
             return RunScheduler();
         }
@@ -1739,7 +1754,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(process);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputHasUnexpectedlyHighWriteCount);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputHasUnexpectedlyHighWriteCount);
 
             return RunScheduler();
         }
@@ -1760,7 +1775,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToMultipleConflictingRewriteCounts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToMultipleConflictingRewriteCounts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1794,7 +1809,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
 
             return RunScheduler();
         }
@@ -1828,7 +1843,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(secondWriter));
 
             AssertPipDescriptionAndProvenanceLogged(secondWriter);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewritingOldVersion);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewritingOldVersion);
 
             return RunScheduler();
         }
@@ -1859,7 +1874,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(sneakyConsumer));
 
             AssertPipDescriptionAndProvenanceLogged(sneakyConsumer);
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSinceInputIsRewritten);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSinceInputIsRewritten);
 
             return RunScheduler();
         }
@@ -1890,7 +1905,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(unluckyRewriter));
 
             AssertPipDescriptionAndProvenanceLogged(unluckyRewriter);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSincePreviousVersionUsedAsInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSincePreviousVersionUsedAsInput);
 
             return RunScheduler();
         }
@@ -1934,7 +1949,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile2));
 
             AssertPipDescriptionAndProvenanceLogged(copyFile2);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
 
             return RunScheduler();
         }
@@ -1953,7 +1968,7 @@ namespace Test.BuildXL.Scheduler
             WriteFile secondWrite = CreateWriteFile(targetArtifact.CreateNextWrittenVersion(), "\n", new List<string> { "4", "5", "6" });
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(secondWrite));
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidWriteFilePipSinceOutputIsRewritten);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidWriteFilePipSinceOutputIsRewritten);
             AssertPipDescriptionAndProvenanceLogged(secondWrite);
 
             return RunScheduler();
@@ -1971,7 +1986,7 @@ namespace Test.BuildXL.Scheduler
             WriteFile secondWrite = CreateWriteFile(targetArtifact, "\n", new List<string> { "4", "5", "6" });
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(secondWrite));
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
             AssertPipDescriptionAndProvenanceLogged(secondWrite);
 
             return RunScheduler();
@@ -1989,7 +2004,7 @@ namespace Test.BuildXL.Scheduler
             bool addWriteFile = PipGraphBuilder.AddWriteFile(writeFile);
             XAssert.IsFalse(addWriteFile);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputIsSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputIsSource);
 
             return RunScheduler();
         }
@@ -2030,7 +2045,7 @@ namespace Test.BuildXL.Scheduler
 
             var shutdownPipProcessDependencies = PipGraphBuilder
                 .Build()
-                .DataflowGraph
+                .DirectedGraph
                 .GetIncomingEdges(shutdownPip.PipId.ToNodeId())
                 .Where(e => PipTable.GetPipType(e.OtherNode.ToPipId()) == PipType.Process);
             XAssert.AreEqual(0, shutdownPipProcessDependencies.Count());
@@ -2098,7 +2113,7 @@ namespace Test.BuildXL.Scheduler
                 .WithServiceInfo(ServiceInfo.ServiceClient(new[] { copyPip.PipId }))
                 .Build();
             XAssert.IsFalse(PipGraphBuilder.AddProcess(clientPip));
-            AssertSchedulerErrorEventLogged(EventId.InvalidPipDueToInvalidServicePipDependency);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidPipDueToInvalidServicePipDependency);
         }
 
         [Fact]
@@ -2116,7 +2131,7 @@ namespace Test.BuildXL.Scheduler
                 .WithServiceInfo(ServiceInfo.ServiceClient(new[] { processPip.PipId }))
                 .Build();
             XAssert.IsFalse(PipGraphBuilder.AddProcess(clientPip));
-            AssertSchedulerErrorEventLogged(EventId.InvalidPipDueToInvalidServicePipDependency);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidPipDueToInvalidServicePipDependency);
         }
         #endregion
 
@@ -2218,7 +2233,7 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.IsTrue(PipGraphBuilder.AddCopyFile(copyPip1));
             XAssert.IsFalse(PipGraphBuilder.AddIpcPip(ipcPip, PipId.Invalid));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSincePathIsWrittenAndThusNotSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSincePathIsWrittenAndThusNotSource);
         }
 
         private void AssertGraphDirectPrecedence(PipGraph graph, Pip prev, Pip next)
@@ -2228,7 +2243,7 @@ namespace Test.BuildXL.Scheduler
             NodeId prevNode = prev.PipId.ToNodeId();
             NodeId nextNode = next.PipId.ToNodeId();
             XAssert.IsTrue(
-                graph.DataflowGraph.GetOutgoingEdges(prev.PipId.ToNodeId()).Any(edge => edge.OtherNode == next.PipId.ToNodeId()),
+                graph.DirectedGraph.GetOutgoingEdges(prev.PipId.ToNodeId()).Any(edge => edge.OtherNode == next.PipId.ToNodeId()),
                 "expected to find an edge between '" + prevDesc + "' and '" + nextDesc + "'");
         }
 
@@ -2252,7 +2267,7 @@ namespace Test.BuildXL.Scheduler
                 CreateProvenance(),
                 servicePipDependencies: new[] { copyPip.PipId });
             XAssert.IsFalse(PipGraphBuilder.AddIpcPip(ipcPip, PipId.Invalid));
-            AssertSchedulerErrorEventLogged(EventId.InvalidPipDueToInvalidServicePipDependency);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidPipDueToInvalidServicePipDependency);
         }
 
         [Fact]
@@ -2291,7 +2306,7 @@ namespace Test.BuildXL.Scheduler
                     ExpectPipsDone(LabelPip(ipcPip, nameof(ipcPip)));
 
                     // assert IpcClientFailed error was logged
-                    AssertWarningEventLogged(EventId.IpcClientFailed);
+                    AssertWarningEventLogged(LogEventId.IpcClientFailed);
                 });
         }
 
@@ -2324,7 +2339,7 @@ namespace Test.BuildXL.Scheduler
                     // assert error was logged
                     if (shouldFail)
                     {
-                        AssertSchedulerErrorEventLogged(EventId.PipIpcFailed);
+                        AssertSchedulerErrorEventLogged(LogEventId.PipIpcFailed);
                     }
                 });
         }
@@ -2333,21 +2348,21 @@ namespace Test.BuildXL.Scheduler
         [MemberData(nameof(TagFilteringTestData))]
         [Feature(Features.IpcPip)]
         [Feature(Features.Filtering)]
-        public Task TestIpcPipTagFiltering(string whitelistTags, string blacklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        public Task TestIpcPipTagFiltering(string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         {
-            return DoIpcTagFilteringTest(CreateGraphForTagFilterTestingWithIpcPips, whitelistTags, blacklistTags, a1Done, a2Done, b1Done, b2Done, pDone);
+            return DoIpcTagFilteringTest(CreateGraphForTagFilterTestingWithIpcPips, allowlistTags, blocklistTags, a1Done, a2Done, b1Done, b2Done, pDone);
         }
 
         [Theory]
         [MemberData(nameof(TagFilteringTestData))]
         [Feature(Features.Filtering)]
         [Feature(Features.IpcPip)]
-        public Task TestIpcAndCopyPipTagFiltering(string whitelistTags, string blacklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        public Task TestIpcAndCopyPipTagFiltering(string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         {
-            return DoIpcTagFilteringTest(CreateGraphForTagFilterTestingWithIpcAndCopyPips, whitelistTags, blacklistTags, a1Done, a2Done, b1Done, b2Done, pDone);
+            return DoIpcTagFilteringTest(CreateGraphForTagFilterTestingWithIpcAndCopyPips, allowlistTags, blocklistTags, a1Done, a2Done, b1Done, b2Done, pDone);
         }
 
-        private async Task DoIpcTagFilteringTest(Func<IpcClientInfo, TestGraphForTagFilter> graphFactory, string whitelistTags, string blacklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        private async Task DoIpcTagFilteringTest(Func<IpcClientInfo, TestGraphForTagFilter> graphFactory, string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         {
             Setup(disableLazyOutputMaterialization: true);
 
@@ -2360,7 +2375,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     var ipcInfo = new IpcClientInfo(moniker.ToStringId(Context.StringTable), new ClientConfig());
                     TestGraphForTagFilter g = graphFactory(ipcInfo);
-                    await RunScheduler(CreateFilterForTags(ToStringIds(whitelistTags), ToStringIds(blacklistTags)), ipcProvider: ipcProvider);
+                    await RunScheduler(CreateFilterForTags(ToStringIds(allowlistTags), ToStringIds(blocklistTags)), ipcProvider: ipcProvider);
                     AssertPipStatesForTestGraphForTagFilter(g, a1Done, a2Done, b1Done, b2Done, pDone);
                 });
         }
@@ -2442,9 +2457,9 @@ namespace Test.BuildXL.Scheduler
         }
         #endregion
 
-        [Fact]
+        // when one opens a file for writing on Unix, others can still read it
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        [Trait("Category", "WindowsOSOnly")] // when one opens a file for writing on Unix, others can still read it
         public async Task TestSourceFileLocked()
         {
             Setup();
@@ -2462,7 +2477,7 @@ namespace Test.BuildXL.Scheduler
                 await RunScheduler();
             }
 
-            AssertWarningEventLogged(EventId.FailedToHashInputFile);
+            AssertWarningEventLogged(LogEventId.FailedToHashInputFile);
             AssertErrorEventLogged(LogEventId.PipSourceDependencyCannotBeHashed);
             AssertErrorEventLogged(LogEventId.PipFailedDueToSourceDependenciesCannotBeHashed);
         }
@@ -2490,6 +2505,7 @@ namespace Test.BuildXL.Scheduler
                 new SealDirectory(
                     sealDirectoryInput.Path,
                     SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new[] { sealDirectoryInput }, OrdinalFileArtifactComparer.Instance),
+                    CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                     SealDirectoryKind.Full,
                     sharedProvenance,
                     ReadOnlyArray<StringId>.Empty,
@@ -2515,7 +2531,7 @@ namespace Test.BuildXL.Scheduler
                 // Serialize the schedule
                 BuildXLWriter writer = new BuildXLWriter(true, stream, true, true);
                 PipTable.Serialize(writer, maxDegreeOfParallelism: Environment.ProcessorCount);
-                PipGraphBuilder.DataflowGraph.Serialize(writer);
+                PipGraphBuilder.DirectedGraph.Serialize(writer);
                 var pipGraph = PipGraphBuilder.Build();
                 pipGraph.Serialize(writer);
 
@@ -2562,18 +2578,18 @@ namespace Test.BuildXL.Scheduler
             var output = CreateOutputFileArtifact();
             var processPipBuilder = NewProcessBuilderWithPreDeterminedArgumentsFactory()
                 .WithOutputs(output)
-                .WithPreserveOutputWhitelist(output.Path);
+                .WithPreserveOutputAllowlist(output.Path);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder.Build()));
-            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
+            AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
 
             var processPipBuilder2 = NewProcessBuilderWithPreDeterminedArgumentsFactory()
                 .WithOutputs(CreateOutputFileArtifact())
                 .WithOptions(Process.Options.AllowPreserveOutputs)
-                .WithPreserveOutputWhitelist(CreateOutputFileArtifact().Path);
+                .WithPreserveOutputAllowlist(CreateOutputFileArtifact().Path);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder2.Build()));
-            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist);
+            AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist);
 
         }
 
@@ -2739,7 +2755,7 @@ namespace Test.BuildXL.Scheduler
             configuration.Schedule.StopOnFirstError = false;
             configuration.Schedule.EnableLazyOutputMaterialization = !disableLazyOutputMaterialization;
 
-            PipQueue queue = new PipQueue(configuration.Schedule);
+            PipQueue queue = new PipQueue(LoggingContext, configuration.Schedule);
             var testQueue = new TestPipQueue(queue, LoggingContext, true);
             var context = Task.FromResult<PipExecutionContext>(new SchedulerContext(Context));
             DeserializedDirectedGraph directedGraph = await DeserializedDirectedGraph.DeserializeAsync(reader);
@@ -2751,17 +2767,27 @@ namespace Test.BuildXL.Scheduler
                 context,
                 Task.FromResult<SemanticPathExpander>(Expander));
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             var newScheduler = new TestScheduler(
                 graph,
                 pipQueue: testQueue,
                 context: context.Result,
                 loggingContext: LoggingContext,
                 fileContentTable: m_fileContentTable,
-                fileAccessWhitelist: new FileAccessWhitelist(Context),
+                fileAccessAllowlist: new FileAccessAllowlist(Context),
                 configuration: configuration,
                 cache: cache,
-                testHooks: new SchedulerTestHooks(),
-                tempCleaner: MoveDeleteCleaner);
+                directoryTranslator: directoryTranslator,
+                tempCleaner: MoveDeleteCleaner,
+                testHooks: new SchedulerTestHooks());
 
             newScheduler.InitForMaster(LoggingContext, filter);
 
@@ -2776,7 +2802,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Asserts that the given (verbose) event id occurs no less than <paramref name="minOccurrences"/> and no more than <paramref name="maxOccurrences"/> times in the event log.
         /// </summary>
-        private void AssertVerboseEventCountIsInInterval(EventId eventId, int minOccurrences = 1, int maxOccurrences = 1)
+        private void AssertVerboseEventCountIsInInterval(int eventId, int minOccurrences = 1, int maxOccurrences = 1)
         {
             Contract.Requires(minOccurrences >= 0);
             Contract.Requires(minOccurrences <= maxOccurrences);
@@ -2787,28 +2813,28 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Creates a filter for the legacy tag whitelist and blacklist
+        /// Creates a filter for the legacy tag allowlist and blocklist
         /// </summary>
-        private static RootFilter CreateFilterForTags(IEnumerable<StringId> tagsWhitelist, IEnumerable<StringId> tagsBlacklist)
+        private static RootFilter CreateFilterForTags(IEnumerable<StringId> tagsAllowlist, IEnumerable<StringId> tagsBlocklist)
         {
-            Contract.Requires(tagsWhitelist != null);
-            Contract.Requires(tagsBlacklist != null);
-            Contract.Requires(tagsWhitelist.Any() ^ tagsBlacklist.Any());
+            Contract.Requires(tagsAllowlist != null);
+            Contract.Requires(tagsBlocklist != null);
+            Contract.Requires(tagsAllowlist.Any() ^ tagsBlocklist.Any());
 
             FilterOperator filterOperator = FilterOperator.Or;
             bool isNegated = false;
             IEnumerable<StringId> tagsToFilter = null;
 
-            if (tagsWhitelist.Any())
+            if (tagsAllowlist.Any())
             {
                 filterOperator = FilterOperator.Or;
-                tagsToFilter = tagsWhitelist;
+                tagsToFilter = tagsAllowlist;
             }
-            else if (tagsBlacklist.Any())
+            else if (tagsBlocklist.Any())
             {
                 filterOperator = FilterOperator.And;
                 isNegated = true;
-                tagsToFilter = tagsBlacklist;
+                tagsToFilter = tagsBlocklist;
             }
 
             Contract.Assume(tagsToFilter != null);
@@ -2826,6 +2852,45 @@ namespace Test.BuildXL.Scheduler
             }
 
             return new RootFilter(filter);
+        }
+
+        /// <summary>
+        /// Create a dummy process
+        /// </summary>
+        public static Process CreateDummyProcess(PipExecutionContext context, PipId pipId)
+        {
+            var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, X("/X/exe")));
+            List<FileArtifact> dependencies = new List<FileArtifact> { exe };
+
+            var p = new Process(
+                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                executable: exe,
+                workingDirectory: AbsolutePath.Create(context.PathTable, X("/X")),
+                arguments: new PipDataBuilder(context.StringTable).ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                responseFile: FileArtifact.Invalid,
+                responseFileData: PipData.Invalid,
+                environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
+                standardInput: FileArtifact.Invalid,
+                standardOutput: FileArtifact.Invalid,
+                standardError: FileArtifact.Invalid,
+                standardDirectory: AbsolutePath.Create(context.PathTable, X("/X/std")),
+                warningTimeout: null,
+                timeout: null,
+                dependencies: ReadOnlyArray<FileArtifact>.From(dependencies),
+                outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                orderDependencies: ReadOnlyArray<PipId>.Empty,
+                untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                tags: ReadOnlyArray<StringId>.Empty,
+                successExitCodes: ReadOnlyArray<int>.Empty,
+                semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                provenance: PipProvenance.CreateDummy(context),
+                toolDescription: StringId.Invalid,
+                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty)
+            { PipId = pipId };
+
+            return p;
         }
     }
 }

@@ -33,10 +33,10 @@ namespace Helpers
         return {
             tool: {
                 exe: pkgContents.getFile(executable),
-                dependsOnCurrentHostOSDirectories: true,
+                dependsOnCurrentHostOSDirectories: true
             },
             dependencies: [
-                pkgContents,
+                pkgContents
             ],
             environmentVariables: [
                 // Make sure DotNet core runs isolated from the framework your build selected and doesn't go off reading registry and dependd on globally installed tools to make the build unreliable

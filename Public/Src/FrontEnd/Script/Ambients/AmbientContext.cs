@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Interop;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -44,15 +45,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private readonly SymbolAtom MountNameObject;
         private readonly SymbolAtom MountPathObject;
 
-        internal static string[] ConfigBlacklist =
+        internal static string[] ConfigBlocklist =
         {
             GetNewOutputDirectoryFunctionName,
             GetTempDirectoryFunctionName,
             GetMountFunctionName,
             HasMountFunctionName,
             GetTemplateFunctionName,
-            GetBuildEngineDirectoryFunctionName,
-            GetDominoBinDirectoryFunctionName,
             GetLastActiveUseModuleNameFunctionName,
         };
 
@@ -64,20 +63,10 @@ namespace BuildXL.FrontEnd.Script.Ambients
         {
             var currentHost = Host.Current;
             var osName = SymbolAtom.Create(StringTable, "os");
-            string osValue;
-            switch (currentHost.CurrentOS)
+            string osValue = currentHost.CurrentOS.GetDScriptValue();
+            if (string.IsNullOrEmpty(osValue))
             {
-                case BuildXL.Interop.OperatingSystem.Win:
-                    osValue = "win";
-                    break;
-                case BuildXL.Interop.OperatingSystem.MacOS:
-                    osValue = "macOS";
-                    break;
-                case BuildXL.Interop.OperatingSystem.Unix:
-                    osValue = "unix";
-                    break;
-                default:
-                    throw Contract.AssertFailure("Unhandled HostOS Type");
+                throw Contract.AssertFailure("Unhandled HostOS Type");
             }
 
             var cpuName = SymbolAtom.Create(StringTable, "cpuArchitecture");

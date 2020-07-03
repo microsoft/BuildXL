@@ -1,13 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
-    /// macOS specific constants for interop purposes
+    /// Constants for interop purposes
     /// </summary>
     internal static class Constants
     {
         internal const int MaxPathLength = 1024;
+
+        internal const int ERROR = -1;
     }
 }

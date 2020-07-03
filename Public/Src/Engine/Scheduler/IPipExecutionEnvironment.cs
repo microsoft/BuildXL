@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using BuildXL.Engine.Cache;
@@ -8,10 +8,10 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Processes.Containers;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -106,6 +106,16 @@ namespace BuildXL.Scheduler
         PipContentFingerprinter ContentFingerprinter { get; }
 
         /// <summary>
+        /// Indicates if outputs should be materialized in background rather than inline
+        /// </summary>
+        bool MaterializeOutputsInBackground { get; }
+
+        /// <summary>
+        /// Returns a Boolean indicating if the scheduler has received a request for cancellation.
+        /// </summary>
+        bool IsTerminating { get; }
+
+        /// <summary>
         /// Returns whether the directory artifact represents a source sealed directory. If that's the case, returns the patterns and type of
         /// the source sealed.
         /// </summary>
@@ -195,6 +205,24 @@ namespace BuildXL.Scheduler
         /// Temp directory cleaner
         /// </summary>
         ITempCleaner TempCleaner { get; }
+
+        /// <summary>
+        /// Retruns the declared producer pip of <paramref name="artifact"/>, if one exists.
+        /// </summary>
+        bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer);
+
+        /// <summary>
+        /// Returns whether pip <paramref name="to"/> is reachable from pip <paramref name="from"/>
+        /// </summary>
+        bool IsReachableFrom(PipId from, PipId to);
+
+        /// <summary>
+        /// Resolves file accesses containing symlinked paths
+        /// </summary>
+        /// <remarks>
+        /// Not null only when <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is true
+        /// </remarks>
+        [CanBeNull] SymlinkedAccessResolver SymlinkedAccessResolver { get; }
     }
 
     /// <summary>

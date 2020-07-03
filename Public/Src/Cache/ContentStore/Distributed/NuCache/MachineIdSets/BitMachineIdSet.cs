@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -150,6 +150,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public override int GetMachineIdIndex(MachineId currentMachineId)
+        {
+            int dataIndex = Offset + currentMachineId.Index / 8;
+            if (dataIndex >= Data.Length)
+            {
+                return -1;
+            }
+
+            var dataBitPosition = 7 - (currentMachineId.Index % 8);
+            int machineIdIndex = 0;
+            byte redisChar;
+            for (int i = Offset; i < dataIndex; i++)
+            {
+                redisChar = Data[i];
+                if (redisChar != 0)
+                {
+                    machineIdIndex += Bits.BitCount(redisChar);
+                }
+            }
+
+            redisChar = Data[dataIndex];
+            int position = 0;
+            while (redisChar != 0)
+            {
+                if ((redisChar & MaxCharBitMask) != 0)
+                {
+                    if (dataBitPosition == position)
+                    {
+                        return machineIdIndex;
+                    }
+
+                    machineIdIndex++;
+                }
+
+                redisChar <<= 1;
+                position++;
+            }
+
+            return -1;
+        }
+
+        /// <inheritdoc />
         public override string ToString()
         {
             return $"Count: {Count}";
@@ -180,14 +222,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             int dataIndex = offset + index / 8;
 
-            if (dataIndex >= data.Length)
-            {
-                Contract.Assert(false, $"data.Length={data.Length}, offset={offset}, index={index}, value={value}");
-                return;
-            }
+            Contract.Check(dataIndex < data.Length)?.Assert($"data.Length={data.Length}, offset={offset}, index={index}, value={value}");
 
             var bitPosition = 7 - (index % 8);
-            unchecked {
+            unchecked
+            {
                 if (value)
                 {
                     data[dataIndex] |= (byte)(1 << bitPosition);

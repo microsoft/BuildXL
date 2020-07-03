@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -63,8 +63,8 @@ namespace BuildXL.Utilities.Tracing
                 pathTranslator: pathTranslator,
                 timeDisplay: timeDisplay)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
 
             m_logErrors = logErrors;
             m_logWarnings = logWarnings;

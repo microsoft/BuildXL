@@ -3,6 +3,9 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
+const artifactNugetVersion = "18.172.30229-buildid12478013";
+const azureDevopsNugetVersion = "16.172.0-internal202006291";
+
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
 // Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems.
@@ -11,44 +14,48 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "2.2.99" },
-    { id: "Aria.Cpp.SDK", version: "8.5.6" },
+    { id: "runtime.osx-x64.BuildXL", version: "3.5.99" },
+    { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
+    { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS", "unix" ] },
 
-    { id: "CB.QTest", version: "19.10.17.210051" },
+    { id: "CB.QTest", version: "20.6.25.202902", osSkip: [ "macOS", "unix" ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
     // Windows Sdk so microsoft dev's don't have to install it.
-    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk" },
+    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS", "unix" ] },
 
     // Artifact packages and dependencies
-    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
-    { id: "Microsoft.VisualStudio.Services.Client", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
-    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
+    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "Microsoft.Azure.Cosmos.Table", "Microsoft.Azure.Storage.Blob"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
+    { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
+    { id: "Microsoft.Azure.Storage.Common", version:"11.1.0" },
+
+    { id: "GVFS.Installers", version: "0.3.20147.1" },
 
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.
     // This is further enforced by not including Cache bits in DropDaemon, other than BuildXL.Cache.Hashing.
-    { id: "ArtifactServices.App.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "ArtifactServices.App.Shared.Cache", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Drop.App.Core", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Drop.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "Drop.RemotableClient", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "Drop.RemotableClient.Interfaces", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "ItemStore.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "ArtifactServices.App.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "ArtifactServices.App.Shared.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
+    { id: "Drop.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
+    { id: "Drop.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "ItemStore.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
     { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1" },
-    { id: "Symbol.App.Core", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Symbol.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
+    { id: "Symbol.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
+    { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"] },
 
+    // CloudTest internal dependencies
+    { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
-    { id: "NodeJs", version: "8.12.0-noTest" },
-    { id: "PowerShell.Core", version: "6.1.0" },
+    { id: "NodeJs", version: "13.3.0-noTest" },
+    { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.2" },
+    { id: "Dotnet-Runtime", version: "5.0.3", osSkip: [ "macOS", "unix" ] },
 
 ] : [
 
@@ -57,20 +64,20 @@ export const pkgs = isMicrosoftInternal ? [
 
 ];
 
-// This contains facade modules for the packages that are only availalbe internally
+// This contains facade modules for the packages that are only available internally
 export const resolver = {
     kind: "SourceResolver",
     modules: [
-        f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
-        f`private/InternalSdk/CB.QTest/module.config.dsc`,
+        f`Private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
+        f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
-            f`private/InternalSdk/PowerShell.Core/module.config.dsc`,
-            f`private/InternalSdk/NodeJs/module.config.dsc`,
-            f`private/InternalSdk/DotNet-Runtime/module.config.dsc`,
-            f`private/InternalSdk/Windows.Sdk/module.config.dsc`
+            f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
+            f`Private/InternalSdk/NodeJs/module.config.dsc`,
+            f`Private/InternalSdk/DotNet-Runtime/module.config.dsc`,
+            f`Private/InternalSdk/Windows.Sdk/module.config.dsc`
         ),
 
-        f`private/InternalSdk/Drop/module.config.dsc`,
-        f`private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
+        f`Private/InternalSdk/Drop/module.config.dsc`,
+        f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
     ]
 };

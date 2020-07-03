@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -17,7 +17,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// </summary>
     public sealed class ActionBlockSlim<T>
     {
-        private readonly Action<T> m_processItemAction;
+        private readonly Func<T, Task> m_processItemAction;
         private readonly ConcurrentQueue<T> m_queue;
 
         private bool m_schedulingCompleted;
@@ -35,9 +35,25 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
         /// <nodoc />
         public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction)
+            : this(degreeOfParallelism, t =>
+            {
+                processItemAction(t);
+                return Task.CompletedTask;
+            })
+        {
+        }
+
+        /// <nodoc />
+        public static ActionBlockSlim<T> CreateWithAsyncAction(int degreeOfParallelism, Func<T, Task> processItemAction)
+        {
+            return new ActionBlockSlim<T>(degreeOfParallelism, processItemAction);
+        }
+
+        /// <nodoc />
+        private ActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction)
         {
             Contract.Requires(degreeOfParallelism >= -1);
-            Contract.Requires(processItemAction != null);
+            Contract.RequiresNotNull(processItemAction);
 
             m_processItemAction = processItemAction;
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
@@ -128,11 +144,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private void AssertNotCompleted([CallerMemberName]string callerName = null)
         {
             bool schedulingCompleted = Volatile.Read(ref m_schedulingCompleted);
-            if (schedulingCompleted)
-            {
-                Contract.Assert(false, $"Operation '{callerName}' is invalid because 'Complete' method was already called.");
-            }
-            
+            Contract.Check(!schedulingCompleted)?.Assert($"Operation '{callerName}' is invalid because 'Complete' method was already called.");
         }
 
         private Task CreateProcessorItemTask(int degreeOfParallelism)
@@ -146,7 +158,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
                         if (m_queue.TryDequeue(out var item))
                         {
-                            m_processItemAction(item);
+                            await m_processItemAction(item);
                         }
 
                         // Could be -1 if the number of pending items is already 0 and the task was awakened for graceful finish.

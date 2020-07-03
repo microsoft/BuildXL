@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,10 @@ namespace Test.BuildXL.Scheduler
         {
             return new TestHarness(
                 Context,
-                SourceRootPath.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, "config.dsc")));
+                SourceRootPath.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, "config.dsc")),
+                TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
+                ? (substSource, substTarget) 
+                : default((string, string)?));
         }
 
         [Fact]
@@ -102,8 +105,10 @@ namespace Test.BuildXL.Scheduler
             harness.VerifyContent(copyChainFinalOutput, copyFileOutputContents);
         }
 
-        [Fact]
-        public async Task SourceFilesMaterialization()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task SourceFilesMaterialization(bool testFileDeletionFailure)
         {
             var harness = CreateDefaultHarness();
             
@@ -134,11 +139,24 @@ namespace Test.BuildXL.Scheduler
                 dependencies: new[] { sourceFile },
                 outputs: new[] { CreateOutputFile() });
 
-            // Call the file content manager to ensure that the source file is materialized
-            var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesAsync(consumer, harness.UntrackedOpContext);
-            Assert.True(fileMaterializationResult);
+            if (!testFileDeletionFailure)
+            {
+                // Call the file content manager to ensure that the source file is materialized
+                var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesAsync(consumer, harness.UntrackedOpContext);
+                Assert.True(fileMaterializationResult);
 
-            harness.VerifyContent(sourceFile, sourceFileContents);
+                harness.VerifyContent(sourceFile, sourceFileContents);
+            }
+            else if (!OperatingSystemHelper.IsUnixOS)
+            {
+                // Disabled on Mac because on unix file systems opening a file doesn't prevent it from being deleted by a different process
+                using (var fs = new FileStream(sourceFile.Path.ToString(harness.PipContext.PathTable), FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                {
+                    // Call the file content manager to ensure that the source file materialization fails when local file cannot be deleted
+                    var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesInternalAsync(consumer, harness.UntrackedOpContext);
+                    Assert.Equal(fileMaterializationResult, ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure);
+                }
+            }
         }
 
         [Fact]
@@ -335,7 +353,7 @@ namespace Test.BuildXL.Scheduler
                 filesAndContentHashes,
                 onFailure: () => XAssert.Fail("TryLoadAvailableOutputContentAsync failed"),
                 onContentUnavailable:
-                    (i, s) =>
+                    (i, s, f) =>
                         XAssert.Fail(
                             I(
                                 $"Content of '{filesAndContentHashes[i].Item1.Path.ToString(harness.PipContext.PathTable)}' with content hash '{filesAndContentHashes[i].Item2.ToHex()}' is not available")));
@@ -387,7 +405,7 @@ namespace Test.BuildXL.Scheduler
                 filesAndContentHashes,
                 onFailure: () => XAssert.Fail("TryLoadAvailableOutputContentAsync failed"),
                 onContentUnavailable:
-                    (i, s) =>
+                    (i, s, f) =>
                     {
                         if (checkFileOnDiskForUpToDate)
                         {
@@ -438,13 +456,16 @@ namespace Test.BuildXL.Scheduler
 
             private readonly BuildXLContext m_context;
 
+            private (string substSource, string substTarget)? m_subst;
+
             /// <summary>
             /// Constructor.
             /// </summary>
-            public TestHarness(BuildXLContext context, AbsolutePath configFile)
+            public TestHarness(BuildXLContext context, AbsolutePath configFile, (string substSource, string substTarget)? subst)
             {
                 m_context = context;
                 Configuration = ConfigurationHelpers.GetDefaultForTesting(context.PathTable, configFile);
+                m_subst = subst;
             }
 
             /// <summary>
@@ -457,7 +478,7 @@ namespace Test.BuildXL.Scheduler
                     return;
                 }
 
-                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, sandboxConnection: GetSandboxConnection());
+                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, subst: m_subst, sandboxConnection: GetSandboxConnection());
                 FileContentManager = new FileContentManager(Environment, new NullOperationTracker());
                 UntrackedOpContext = OperationContext.CreateUntracked(Environment.LoggingContext);
 

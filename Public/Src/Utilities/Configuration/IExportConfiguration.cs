@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Export configuration
     /// </summary>
     public partial interface IExportConfiguration
     {

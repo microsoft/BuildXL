@@ -6,10 +6,10 @@
 #include "stdafx.h"
 #include "StringOperations.h"
 
-#if !(MAC_OS_SANDBOX)
+#if _WIN32 || MAC_OS_LIBRARY
 #include <string>
 #include "DebuggingHelpers.h"
-#endif // !(MAC_OS_SANDBOX)
+#endif // _WIN32 || MAC_OS_LIBRARY
 
 #define NoUsn -1
 
@@ -52,9 +52,12 @@
     m(IgnoreZwOtherFileInformation,       0x400000)       \
     m(MonitorZwCreateOpenQueryFile,       0x800000)       \
     m(IgnoreNonCreateFileReparsePoints,   0x1000000)      \
+    m(IgnoreCreateProcessReport,          0x2000000)      \
     m(QBuildIntegrated,                   0x4000000)      \
     m(IgnorePreloadedDlls,                0x8000000)      \
-    m(DirectoryCreationAccessEnforcement, 0x10000000)
+    m(DirectoryCreationAccessEnforcement, 0x10000000)     \
+    m(ProbeDirectorySymlinkAsDirectory,   0x20000000)     \
+    m(IgnoreFullSymlinkResolving,         0x40000000)
 
 //
 // FileAccessManifestFlag enum definition
@@ -92,7 +95,7 @@ enum class FileAccessManifestExtraFlag {
 };
 
 //
-// Keep this in sync with the C# version declared in FileAccessPolicy.cs
+// CODESYNC: Keep this in sync with the C# version declared in Public\Src\Engine\Processes\FileAccessPolicy.cs
 //
 enum FileAccessPolicy
 {
@@ -135,6 +138,9 @@ enum FileAccessPolicy
     // that was not created by the pip (i.e. the file was there before the first write), then it is a write on an undeclared input
     FileAccessPolicy_OverrideAllowWriteForExistingFiles = 0x400,
 
+    // When checking if a handle or path is a directory, treat directory symlink as directory.
+    FileAccessPolicy_TreatDirectorySymlinkAsDirectory = 0x800,
+
     // If set, then we will report all attempts to access files under this scope (whether existent or not).
     // BuildXL uses this information to discover dynamic dependencies, such as #include-ed files.
     FileAccessPolicy_ReportAccess = FileAccessPolicy_ReportAccessIfNonExistent | FileAccessPolicy_ReportAccessIfExistent,
@@ -174,7 +180,8 @@ enum ReportType
     ReportType_DebugMessage = 3,
     ReportType_ProcessData = 4,
     ReportType_ProcessDetouringStatus = 5,
-    ReportType_Max = 6,
+    ReportType_AugmentedFileAccess = 6,
+    ReportType_Max = 7,
 };
 
 // Keep this in sync with the C# version declared in FileAccessManifest.cs
@@ -347,18 +354,34 @@ typedef struct ManifestTranslatePathsStrings_t
 {
     GENERATE_TAG("ManifestTranslatePathsStrings", 0xABCDEF02)
 
+    typedef uint32_t    CountType;
+    CountType           Count;
+
+    /// There are no variable-length members, so the length of this struct can be determined using sizeof.
     inline size_t GetSize() const
     {
-// This conditional compilation here and in ManifestInternalDetoursErrorNotificationFileString_t are necessary because calling sizeof() on
-// an empty struct yields undefined behaviour according to the C99 standard. The optimized code the compiler produces returns 1, which is obviously wrong!
-#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
-        return 0;
-#else
         return sizeof(ManifestTranslatePathsStrings_t);
-#endif
     }
 } ManifestTranslatePathsStrings_t;
 typedef const ManifestTranslatePathsStrings_t * PManifestTranslatePathsStrings;
+
+// ==========================================================================
+// == ManifestChildProcessesToBreakAwayFromJob
+// ==========================================================================
+typedef struct ManifestChildProcessesToBreakAwayFromJob_t
+{
+    GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF05)
+
+    typedef uint32_t    CountType;
+    CountType           Count;
+
+    /// There are no variable-length members, so the length of this struct can be determined using sizeof.
+    size_t GetSize() const
+    {
+        return sizeof(ManifestChildProcessesToBreakAwayFromJob_t);
+    }
+} ManifestChildProcessesToBreakAwayFromJob_t;
+typedef const ManifestChildProcessesToBreakAwayFromJob_t* PManifestChildProcessesToBreakAwayFromJob;
 
 // ==========================================================================
 // == ManifestInternalDetoursErrorNotificationFileString
@@ -369,7 +392,7 @@ typedef struct ManifestInternalDetoursErrorNotificationFileString_t
 
     inline size_t GetSize() const
     {
-#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
+#if !_WIN32 && !_DEBUG
         return 0;
 #else
         return sizeof(ManifestInternalDetoursErrorNotificationFileString_t);
@@ -558,8 +581,9 @@ typedef struct ManifestSubstituteProcessExecutionShim_t
     // or whether to shim all except the matches.
     uint32_t ShimAllProcesses;
 
-    // Followed by WriteChars string and a custom collection consisting of N
-    // entries where each entry is 2 WriteChars strings.
+    // Followed by 3 WriteChars string, for substitute process shim path, 32-bit plugin path,
+    // and 64-bit plugin path. Then, followed by a custom collection consisting of N entries where each entry
+    // is 2 WriteChars strings.
 
     /// GetSize
     ///

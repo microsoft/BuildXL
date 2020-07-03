@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
-    public class MultiplexedContentSession : MultiplexedReadOnlyContentSession, IContentSession, IConfigurablePin
+    public class MultiplexedContentSession : MultiplexedReadOnlyContentSession, IContentSession
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="MultiplexedContentSession"/> class.
@@ -25,17 +25,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         public MultiplexedContentSession(ContentSessionTracer tracer, Dictionary<string, IReadOnlyContentSession> cacheSessionsByRoot, string name, string preferredCacheDrive)
                     : base(tracer, cacheSessionsByRoot, name, preferredCacheDrive)
         {
-        }
-
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
-        {
-            var session = PreferredContentSession as IConfigurablePin;
-            if (PreferredContentSession is IConfigurablePin configurablePin)
-            {
-                return configurablePin.PinAsync(operationContext, contentHashes, pinOperationConfiguration);
-            }
-
-            throw new InvalidOperationException($"Preferred content session does not have type {nameof(IConfigurablePin)}. Found {PreferredContentSession.GetType()}");
         }
 
         public Task<PutResult> PutFileAsync(

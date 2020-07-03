@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+#if !PLATFORM_WIN
+using System.Collections.Concurrent;
+#endif
 
 namespace BuildXL.Utilities
 {
@@ -113,7 +115,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public ObjectPool(Func<T> creator, Func<T, T> cleanup, int size)
         {
-            Contract.Requires(creator != null);
+            Contract.RequiresNotNull(creator);
             Contract.Requires(size >= 1);
 
             m_creator = creator;

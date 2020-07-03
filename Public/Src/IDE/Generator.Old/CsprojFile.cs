@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -363,6 +363,16 @@ namespace BuildXL.Ide.Generator.Old
                                 project.SetProperty("Features", features);
                             };
                             break;
+                        case "/nullable":
+                            action = (obj) =>
+                                     {
+                                         if ((string)obj == "+")
+                                         {
+                                             project.SetProperty("Nullable", "enable");
+                                         }
+                                     };
+                            break;
+
                         default:
                             if (strValue.StartsWith("/target:", StringComparison.OrdinalIgnoreCase))
                             {

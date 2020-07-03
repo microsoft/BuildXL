@@ -1,7 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes.Tracing
 {
@@ -40,10 +41,13 @@ namespace BuildXL.Processes.Tracing
         PipProcessChildrenSurvivedTooMany = 43,
         PipProcessMissingExpectedOutputOnCleanExit = 44,
         PipProcessOutputPreparationFailed = 46,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
 
 
-        PipProcessError = 64,
-        PipProcessWarning = 65,
+#pragma warning disable 618
+        PipProcessError = SharedLogEventId.PipProcessError,
+        PipProcessWarning = SharedLogEventId.PipProcessWarning,
+#pragma warning restore 618
         PipProcessOutput = 66,
 
         PipProcessResponseFileCreationFailed = 74,
@@ -62,11 +66,13 @@ namespace BuildXL.Processes.Tracing
         PipProcessChangeAffectedInputsWrittenFileCreationFailed = 90,
 
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
+        LogPhaseDuration = 93,
 
-        PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
-        PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,
-        FileAccessWhitelistFailedToParsePath = 274,
-        
+        PipProcessDisallowedFileAccessAllowlistedCacheable = 264,
+        PipProcessDisallowedFileAccessAllowlistedNonCacheable = 269,
+        FileAccessAllowlistFailedToParsePath = 274,
+        CannotProbeOutputUnderSharedOpaque = 275,
+
         //// Reserved = 306,
         //// Reserved = 307,
         PipFailSymlinkCreation = 308,
@@ -80,16 +86,22 @@ namespace BuildXL.Processes.Tracing
         PipRetryDueToExitedWithAzureWatsonExitCode = 317,
 
         DuplicateWindowsEnvironmentVariableEncountered = 336,
-        
+
         PipProcessDisallowedNtCreateFileAccessWarning = 480,
 
         PipProcessExpectedMissingOutputs = 504,
-        
+
         //// Additional Process Isolation
         PipProcessIgnoringPathWithWildcardsFileAccess = 800,
         PipProcessIgnoringPathOfSpecialDeviceFileAccess = 801,
         PipProcessFailedToParsePathOfFileAccess = 802,
         Process = 803,
+
+        SharedOpaqueOutputsDeletedLazily = 874,
+        CannotReadSidebandFileError = 875,
+        CannotReadSidebandFileWarning = 876,
+        CannotDeleteSharedOpaqueOutputFile = 877,
+        ResumeOrSuspendProcessError = 878,
 
         // Temp files/directory cleanup
         PipTempDirectoryCleanupError = 2201,
@@ -108,9 +120,10 @@ namespace BuildXL.Processes.Tracing
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         LogMismatchedDetoursVerboseCount = 2927,
         LogDetoursMaxHeapSize = 2928,
+        MoreBytesWrittenThanBufferSize = 2930,
 
         //DominoProcessesStart = 4400,
-        PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds = 4401,
+        PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds = 4401,
         //DominoProcessesEnd = 4499,
 
         //// Detours
@@ -123,14 +136,14 @@ namespace BuildXL.Processes.Tracing
         FailedToMergeOutputsToOriginalLocation = 12202,
         FailedToCleanUpContainer = 12203,
         WarningSettingUpContainer = 12204,
-        
+
         PipInContainerStarted = 12206,
         PipInContainerStarting = 12207,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
-        
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

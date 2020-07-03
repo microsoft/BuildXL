@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -104,7 +104,7 @@ namespace Test.ProjectGraphBuilder.Utilities
                 Assert.True(projectsAndReferences.ContainsKey(nodeName));
 
                 // And its references should match
-                IEnumerable<string> nodeReferenceNames = node.ProjectReferences.Select(nodeReference => Path.GetFileName(nodeReference.FullPath));
+                IEnumerable<string> nodeReferenceNames = node.Dependencies.Select(nodeReference => Path.GetFileName(nodeReference.FullPath));
                 if (!projectsAndReferences[nodeName].SetEquals(nodeReferenceNames))
                 {
                     var difference = new HashSet<string>(projectsAndReferences[nodeName]);

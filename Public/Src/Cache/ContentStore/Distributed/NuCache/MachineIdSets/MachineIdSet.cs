@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -64,6 +64,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Enumerates the bits in the machine id set
         /// </summary>
         public abstract IEnumerable<MachineId> EnumerateMachineIds();
+
+        /// <summary>
+        /// Returns a position of the <paramref name="currentMachineId"/> in the current machine id list.
+        /// </summary>
+        /// <returns>-1 if the given id is not part of the machine id list.</returns>
+        /// <remarks>
+        /// This method can be implemented on top of <see cref="EnumerateMachineIds"/> but it is a separate method
+        /// because different subtypes can implement this operation with no extra allocations.
+        /// </remarks>
+        public abstract int GetMachineIdIndex(MachineId currentMachineId);
 
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)

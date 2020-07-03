@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -26,6 +26,12 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public const string MsBuildResolverKind = "MsBuild";
 
         /// <nodoc/>
+        public const string RushResolverKind = "Rush";
+
+        /// <nodoc/>
+        public const string YarnResolverKind = "Yarn";
+
+        /// <nodoc/>
         public const string NinjaResolverKind = "Ninja";
 
         /// <nodoc/>
@@ -36,7 +42,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc />
         public static string[] KnownResolvers { get; } =
-            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind};
+            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind, YarnResolverKind};
 
         /// <summary>
         /// Returns whether a given string is a valid resolver kind.
@@ -52,7 +58,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 value == DownloadResolverKind ||
                 value == MsBuildResolverKind ||
                 value == NinjaResolverKind ||
-                value == CMakeResolverKind;
+                value == CMakeResolverKind ||
+                value == RushResolverKind ||
+                value == YarnResolverKind;
         }
     }
 }

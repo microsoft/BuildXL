@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,14 +13,15 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Pips;
-using BuildXL.Scheduler.Filter;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
+using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -73,7 +74,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 engineContext,
                 EvaluationFilter.Empty, // TODO: consider passing a filter that scopes down the build to the root folder
                 progressHandler,
-                false,
                 out workspace,
                 out controller,
                 out _,
@@ -96,7 +96,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="engineContext">Contextual information used by BuildXL engine.</param>
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
-        /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
         /// <param name="frontEndHostController">The host controller used for computing the workspace</param>
         /// <param name="pipGraph">Resulting pip graph</param>
@@ -110,10 +109,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EngineContext engineContext,
             EvaluationFilter evaluationFilter,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
-            bool topSort,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
-            out IPipGraph pipGraph,
+            out IMutablePipGraph pipGraph,
             WorkspaceBuilderConfiguration configuration,
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
@@ -163,7 +161,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            IPipGraph pipGraphBuilder = null;
+            IMutablePipGraph pipGraphBuilder = null;
 
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
@@ -187,29 +185,22 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             InputTracker.CreateDisabledTracker(loggingContext),
                             null,
                             null,
-                            () => FileContentTable.CreateStub(),
+                            () => FileContentTable.CreateStub(loggingContext),
                             5000,
-                            false);
+                            false,
+                            controller.RegisteredFrontEnds);
 
-                        if (topSort)
-                        {
-                            pipGraphBuilder = new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander);
-                        }
-                        else
-                        {
-                            pipGraphBuilder = new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
-                        }
+                        var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable).ComputeSearchPathToolsHash();
+                        pipGraphBuilder = new PipGraph.Builder(
+                            EngineSchedule.CreateEmptyPipTable(engineContext),
+                            engineContext,
+                            Pips.Tracing.Logger.Log,
+                            loggingContext,
+                            config,
+                            mountsTable.MountPathExpander,
+                            fingerprintSalt: config.Cache.CacheSalt,
+                            searchPathToolsHash: searchPathToolsHash);
 
-                        // TODO: Think more if an analyzer wants to use the real pip graph builder.
-                        //pipGraphBuilder = new PipGraph.Builder(
-                        //    EngineSchedule.CreateEmptyPipTable(engineContext),
-                        //    engineContext,
-                        //    Scheduler.Tracing.Logger.Log,
-                        //    loggingContext,
-                        //    config,
-                        //    mountsTable.MountPathExpander,
-                        //    fingerprintSalt: config.Cache.CacheSalt,
-                        //    directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
                         if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
                         {
                             return false;
@@ -246,17 +237,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     }
 
                     pipGraph = pipGraphBuilder;
-
-                    //if (pipGraphBuilder != null)
-                    //{
-                    //    pipGraph = pipGraphBuilder.Build();
-
-                    //    if (pipGraph == null)
-                    //    {
-                    //        // Error has been reported already.
-                    //        return false;
-                    //    }
-                    //}
                 }
             }
 
@@ -328,12 +308,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
                     // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
                     ReleaseWorkspaceBeforeEvaluation = !commandLineConfig.Engine.Phase.HasFlag(EnginePhases.Evaluate),
-                    UnsafeOptimizedAstConversion = true,
                     AllowUnsafeAmbient = true,
-                },
-                Schedule =
-                {
-                    UseFixedApiServerMoniker = true
                 },
                 Logging =
                 {
@@ -353,9 +328,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             Tracing.Logger logger,
             PathTable pathTable,
             ICommandLineConfiguration configuation,
-            bool topSort,
             out Workspace workspace,
-            out IPipGraph pipGraph,
+            out IMutablePipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
             out FrontEndContext context)
         {
@@ -387,7 +361,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 engineContext,
                 evaluationFilter,
                 progressHandler: null,
-                topSort,
                 workspace: out workspace,
                 frontEndHostController: out _,
                 pipGraph: out pipGraph,
@@ -567,7 +540,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             IFrontEndConfiguration configuration,
             PathTable pathTable)
         {
-            var logger = BuildXL.FrontEnd.Script.Tracing.Logger.CreateLogger(preserveLogEvents: true);
+            var logger = BuildXL.FrontEnd.Script.Tracing.Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
             var linter = DiagnosticAnalyzer.Create(
                 logger,

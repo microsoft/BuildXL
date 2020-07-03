@@ -1,18 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Engine;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Analyzer;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Providers;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Ide.LanguageServer
 {
@@ -81,7 +80,7 @@ namespace BuildXL.Ide.LanguageServer
             {
                 foreach (var document in testContext.Value.PrePopulatedDocuments)
                 {
-                    documentManager.Add(AbsolutePath.Create(pathTable, document.Uri), document);
+                    documentManager.Add(AbsolutePath.Create(pathTable, document.Uri.ToAbsolutePath()), document);
                 }
             }
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -23,11 +23,12 @@ namespace Test.BuildXL.Scheduler
         public void CleanNonexisting()
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
 
             string baseDir = TemporaryDirectory;
             string dir = Path.Combine(baseDir, "DirDoesntExist");
             string file = Path.Combine(baseDir, "FileDoesntExist.txt");
-            using (TempCleaner cleaner = new TempCleaner())
+            using (TempCleaner cleaner = new TempCleaner(LoggingContext))
             {
                 cleaner.RegisterDirectoryToDelete(dir, deleteRootDirectory: false);
                 cleaner.RegisterFileToDelete(file);
@@ -48,7 +49,7 @@ namespace Test.BuildXL.Scheduler
             PrepareFileWithConent(tempFile, "sampleContent");
 
             // Act
-            using (TempCleaner cleaner = new TempCleaner())
+            using (TempCleaner cleaner = new TempCleaner(LoggingContext))
             {
                 cleaner.RegisterDirectoryToDelete(dirs.Item1, deleteRootDirectory: false);
                 cleaner.RegisterDirectoryToDelete(dirs.Item2, deleteRootDirectory: false);
@@ -95,7 +96,7 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(File.Exists(file));
 
                 // Act
-                using (TempCleaner cleaner = new TempCleaner())
+                using (TempCleaner cleaner = new TempCleaner(LoggingContext))
                 {
                     // This should fail
                     cleaner.RegisterDirectoryToDelete(dirs.Item1, deleteRootDirectory: false);
@@ -139,7 +140,7 @@ namespace Test.BuildXL.Scheduler
             File.WriteAllText(deletedFile, "asdf");
 
             // Create a temp cleaner with a temp directory
-            using (TempCleaner cleaner = new TempCleaner(deletionTemp))
+            using (TempCleaner cleaner = new TempCleaner(LoggingContext, deletionTemp))
             {
                 // Move-delete a file into the TempCleaner temp directory
                 FileUtilities.TryMoveDelete(deletedFile, cleaner.TempDirectory);
@@ -169,7 +170,7 @@ namespace Test.BuildXL.Scheduler
             File.WriteAllText(movedFile, "asdf");
 
             // Create a temp cleaner with a temp directory
-            using (TempCleaner cleaner = new TempCleaner(moveDeletionTemp))
+            using (TempCleaner cleaner = new TempCleaner(LoggingContext, moveDeletionTemp))
             {
                 // Move-delete a file into the TempCleaner temp directory
                 FileUtilities.TryMoveDelete(movedFile, cleaner.TempDirectory);

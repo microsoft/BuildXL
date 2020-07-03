@@ -1,14 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tasks;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
@@ -17,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         where T : HashAlgorithm, new()
     {
         private readonly HashInfo _hashInfo;
-        private readonly byte[] _emptyByteArray = {};
+        private readonly byte[] _emptyByteArray = { };
 
         protected ContentHasherTests()
         {
@@ -206,12 +209,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [Theory]
-        [InlineData(-1)]
-        [InlineData(50)]
-        [InlineData(1000)]
-        public void ReadHashingStream(int concurrentHashBoundary)
+        [InlineData(-1, false)]
+        [InlineData(-1, true)]
+        [InlineData(50, false)]
+        [InlineData(50, true)]
+        [InlineData(1000, false)]
+        [InlineData(1000, true)]
+        public void ReadHashingStream(int concurrentHashBoundary, bool hasSize)
         {
-            foreach (int size in new int[] {100, 100000})
+            foreach (int size in new int[] { 100, 100000 })
             {
                 TestHasher(
                     hasher =>
@@ -219,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                         var content = ThreadSafeRandom.GetBytes(size);
 
                         using (var sourceStream = new MemoryStream(content))
-                        using (var hashingSourceStream = hasher.CreateReadHashingStream(sourceStream, concurrentHashBoundary))
+                        using (var hashingSourceStream = hasher.CreateReadHashingStream(hasSize ? (long)size : -1, sourceStream, concurrentHashBoundary))
                         using (var destinationSream = new MemoryStream())
                         {
                             hashingSourceStream.CopyTo(destinationSream);
@@ -231,12 +237,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [Theory]
-        [InlineData(-1)]
-        [InlineData(50)]
-        [InlineData(1000000)]
-        public void WriteHashingStream(int concurrentHashBoundary)
+        [InlineData(-1, false)]
+        [InlineData(-1, true)]
+        [InlineData(50, false)]
+        [InlineData(50, true)]
+        [InlineData(1000000, false)]
+        [InlineData(1000000, true)]
+        public void WriteHashingStream(int concurrentHashBoundary, bool hasSize)
         {
-            foreach (int size in new int[] {100, 100000})
+            foreach (int size in new int[] { 100, 100000 })
             {
                 TestHasher(
                     hasher =>
@@ -244,8 +253,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                         var content = ThreadSafeRandom.GetBytes(size);
 
                         using (var sourceStream = new MemoryStream(content))
-                        using (var destinationSream = new MemoryStream())
-                        using (var hashingDestinationStream = hasher.CreateWriteHashingStream(destinationSream, concurrentHashBoundary))
+                        using (var destinationStream = new MemoryStream())
+                        using (var hashingDestinationStream = hasher.CreateWriteHashingStream(hasSize ? (long)size : -1, destinationStream, concurrentHashBoundary))
                         {
                             sourceStream.CopyTo(hashingDestinationStream);
                             Assert.Equal(hashingDestinationStream.GetContentHash(), content.CalculateHash(hasher.Info.HashType));
@@ -269,6 +278,87 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             {
                 Assert.NotNull(hasher);
                 action(hasher);
+            }
+        }
+
+        /// <summary>
+        /// This test is to simulate possible corruption of pooled HashAlgorithm which can happen when a canceled copy operation
+        /// causes a pending write to execute after a hashing stream is disposed.
+        /// </summary>
+        [Fact]
+        [SuppressMessage("AsyncUsage", "AsyncFixer04:DisposableObjectUsedInFireForgetAsyncCall")]
+        public Task TestHasherNotCorruptedByDelayedWrite()
+        {
+            return TestHasherAsync(
+                async hasher =>
+                {
+                    var content = ThreadSafeRandom.GetBytes(1000);
+
+                    HashAlgorithm algorithm;
+                    using (var token = hasher.CreateToken())
+                    {
+                        // Capture hash algorithm from pool
+
+                        // WHAT???????
+                        algorithm = token.Hasher;
+                    }
+
+                    if (algorithm is IHashAlgorithmInputLength setInputLength)
+                    {
+                        setInputLength.SetInputLength(content.Length);
+                    }
+                    
+                    var startTaskSource = TaskSourceSlim.Create<bool>();
+                    var completeTaskSource = TaskSourceSlim.Create<bool>();
+
+                    Task writeTask = null;
+
+                    using (var destinationStream = new PausedMemoryStream(startTaskSource, completeTaskSource))
+                    using (var hashingDestinationStream = hasher.CreateWriteHashingStream(content.Length, destinationStream))
+                    {
+                        writeTask = hashingDestinationStream.WriteAsync(content, 0, content.Length);
+
+                        // Wait for write operation to reach inner paused stream
+                        await startTaskSource.Task;
+                    }
+
+                    // Stream is now disposed (meaning hasher is returned to pool)
+                    // Allow write operation to complete which could attempt to write to the underlying hash algorithm
+                    // if the operation is not properly guarded
+                    completeTaskSource.SetResult(true);
+
+                    // Wait for write task to complete
+                    await writeTask;
+
+                    // This should be the same HashAlgorithm which was used by the hashing stream
+                    // in the pool. We detect if the HashAlgorithm is corrupted by attempting to hash with
+                    // empty content which should give the empty hash.
+                    if (algorithm is IHashAlgorithmInputLength setInputLength2)
+                    {
+                        setInputLength2.SetInputLength(0);
+                    }
+                    var hash = algorithm.ComputeHash(new byte[0], 0, 0);
+                    Assert.Equal(hasher.Info.EmptyHash, new ContentHash(hasher.Info.HashType, hash));
+                });
+        }
+
+        private class PausedMemoryStream : MemoryStream
+        {
+            public TaskSourceSlim<bool> StartTaskSource { get; }
+            public TaskSourceSlim<bool> CompleteTaskSource { get; }
+
+            public PausedMemoryStream(TaskSourceSlim<bool> startTaskSource, TaskSourceSlim<bool> completeTaskSource)
+            {
+                StartTaskSource = startTaskSource;
+                CompleteTaskSource = completeTaskSource;
+            }
+
+            public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                StartTaskSource.SetResult(true);
+
+                // Don't actually write. Need to ensure no exceptions are thrown since we continue this write after dispose is called.
+                return CompleteTaskSource.Task;
             }
         }
     }

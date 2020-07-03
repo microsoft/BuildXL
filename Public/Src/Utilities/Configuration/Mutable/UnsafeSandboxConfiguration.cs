@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -15,7 +13,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorNtCreateFile = true;
             UnexpectedFileAccessesAreErrors = true;
             IgnoreReparsePoints = false;
-            IgnorePreloadedDlls = true; // TODO: Make this false when onboarded by users.
+            IgnoreFullSymlinkResolving = true;
+            IgnorePreloadedDlls = false;
             SandboxKind = SandboxKind.Default;
 
             // TODO: this is a temporarily flag. Take it out in few weeks.
@@ -28,8 +27,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsTrustLevel = (int)PreserveOutputsTrustValue.Lowest;
             IgnoreGetFinalPathNameByHandle = false;
             MonitorZwCreateOpenQueryFile = true;
-            IgnoreDynamicWritesOnAbsentProbes = false;
+            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
+            ProbeDirectorySymlinkAsDirectory = true;
+
+            if (EngineVersion.Version < 1)
+            {
+                IgnoreCreateProcessReport = true;
+            }
+
             // Make sure to update SafeOptions below if necessary when new flags are added
         }
 
@@ -39,7 +45,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// </summary>
         public static readonly IUnsafeSandboxConfiguration SafeOptions = new UnsafeSandboxConfiguration()
         {
-            IgnorePreloadedDlls = false,            
+            IgnorePreloadedDlls = false,
+            IgnoreCreateProcessReport = false,
+            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing,
+            ProbeDirectorySymlinkAsDirectory = false
         };
 
         /// <nodoc />
@@ -54,6 +63,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreNonCreateFileReparsePoints = template.IgnoreNonCreateFileReparsePoints;
             IgnoreSetFileInformationByHandle = template.IgnoreSetFileInformationByHandle;
             IgnoreReparsePoints = template.IgnoreReparsePoints;
+            IgnoreFullSymlinkResolving = template.IgnoreFullSymlinkResolving;
             IgnorePreloadedDlls = template.IgnorePreloadedDlls;
             SandboxKind = template.SandboxKind;
             ExistingDirectoryProbesAsEnumerations = template.ExistingDirectoryProbesAsEnumerations;
@@ -63,6 +73,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
             IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
+            IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
+            ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
+            ProcessSymlinkedAccesses = template.ProcessSymlinkedAccesses;
         }
 
         /// <inheritdoc />
@@ -88,6 +101,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IgnoreReparsePoints { get; set; }
+        
+        /// <inheritdoc />
+        public bool IgnoreFullSymlinkResolving { get; set; }
 
         /// <inheritdoc />
         public bool IgnorePreloadedDlls { get; set; }
@@ -111,12 +127,22 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool IgnoreGetFinalPathNameByHandle { get; set; }
 
         /// <inheritdoc />
-        public bool IgnoreDynamicWritesOnAbsentProbes { get; set; }
+        public DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; set; }
 
         /// <inheritdoc />
         public DoubleWritePolicy? DoubleWritePolicy { get; set; }
 
         /// <inheritdoc />
         public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }
+
+        /// <inheritdoc />
+        public bool IgnoreCreateProcessReport { get; set; }
+
+        /// <inheritdoc />
+        public bool ProbeDirectorySymlinkAsDirectory { get; set; }
+
+        /// <inheritdoc />
+        public bool? ProcessSymlinkedAccesses { get; set; }
+
     }
 }

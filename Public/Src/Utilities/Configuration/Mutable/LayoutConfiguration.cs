@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -30,13 +30,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TempDirectory = pathRemapper.Remap(template.TempDirectory);
             BuildEngineDirectory = pathRemapper.Remap(template.BuildEngineDirectory);
             FileContentTableFile = pathRemapper.Remap(template.FileContentTableFile);
-            SymlinkDefinitionFile = pathRemapper.Remap(template.SymlinkDefinitionFile);
             SchedulerFileChangeTrackerFile = pathRemapper.Remap(template.SchedulerFileChangeTrackerFile);
             IncrementalSchedulingStateFile = pathRemapper.Remap(template.IncrementalSchedulingStateFile);
             FingerprintStoreDirectory = pathRemapper.Remap(template.FingerprintStoreDirectory);
             SharedOpaqueSidebandDirectory = pathRemapper.Remap(template.SharedOpaqueSidebandDirectory);
             EmitSpotlightIndexingWarning = template.EmitSpotlightIndexingWarning;
             RedirectedUserProfileJunctionRoot = pathRemapper.Remap(template.RedirectedUserProfileJunctionRoot);
+            ExternalSandboxedProcessDirectory = pathRemapper.Remap(template.ExternalSandboxedProcessDirectory);
         }
 
         /// <inheritdoc />
@@ -73,9 +73,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public AbsolutePath FileContentTableFile { get; set; }
 
         /// <inheritdoc />
-        public AbsolutePath SymlinkDefinitionFile { get; set; }
-
-        /// <inheritdoc />
         public AbsolutePath SchedulerFileChangeTrackerFile { get; set; }
 
         /// <inheritdoc />
@@ -92,5 +89,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath RedirectedUserProfileJunctionRoot { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath ExternalSandboxedProcessDirectory { get; set; }
     }
 }

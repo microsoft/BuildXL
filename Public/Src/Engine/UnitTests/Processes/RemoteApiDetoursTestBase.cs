@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace Test.BuildXL.Processes
     /// <summary>
     /// Base class for tests that run a sanboxed <see cref="RemoteApi" /> process and verify reports from Detours.
     /// </summary>
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class RemoteApiDetoursTestBase : TemporaryStorageTestBase, ISandboxedProcessFileStorage
     {
         /// <summary>
@@ -128,6 +128,7 @@ namespace Test.BuildXL.Processes
             params RemoteApi.Command[] commands)
         {
             return RemoteApi.RunInSandboxAsync(
+                LoggingContext,
                 pathTable,
                 workingDirectory: TemporaryDirectory,
                 sandboxStorage: this,

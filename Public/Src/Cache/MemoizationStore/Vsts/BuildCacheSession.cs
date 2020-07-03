@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -49,6 +49,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes when placing files.</param>
         /// <param name="tracer">A tracer for logging calls</param>
+        /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
+        /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
+        /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         public BuildCacheSession(
             IAbsFileSystem fileSystem,
             string name,
@@ -66,7 +70,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             IContentSession writeThroughContentSession,
             bool sealUnbackedContentHashLists,
             bool overrideUnixFileAccessMode,
-            BuildCacheCacheTracer tracer)
+            BuildCacheCacheTracer tracer,
+            bool enableEagerFingerprintIncorporation,
+            TimeSpan inlineFingerprintIncorporationExpiry,
+            TimeSpan eagerFingerprintIncorporationInterval,
+            int eagerFingerprintIncorporationBatchSize)
             : base(
                 fileSystem,
                 name,
@@ -84,7 +92,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 writeThroughContentSession,
                 sealUnbackedContentHashLists,
                 overrideUnixFileAccessMode,
-                tracer)
+                tracer,
+                enableEagerFingerprintIncorporation,
+                inlineFingerprintIncorporationExpiry,
+                eagerFingerprintIncorporationInterval,
+                eagerFingerprintIncorporationBatchSize)
         {
         }
 
@@ -170,7 +182,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         if (!needToUpdateExistingValue)
                         {
                             SealIfNecessaryAfterUnbackedAddOrGet(context, strongFingerprint, contentHashListWithDeterminism, response);
-                            FingerprintTracker.Track(strongFingerprint, rawExpiration);
+
+                            await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
                             return new AddOrGetContentHashListResult(
                                 new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
                         }
@@ -188,7 +201,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     Tracer.Warning(
                         context,
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
-                    FingerprintTracker.Track(strongFingerprint, rawExpiration);
+                    await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
                     return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
                 });
         }
@@ -251,14 +264,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 // BuildCache remembers fingerprints for all content that has been fetched or added through it's APIs.
                 // However, the build may end up satisfying some fingerprints without using BuildCache. The build or
                 // other cache instances in the cache topology can track these "other" fingerprints and ask that the
-                // fingerprints be included in the cache session using the incoporate API. BuildCache will extend the
+                // fingerprints be included in the cache session using the incorporate API. BuildCache will extend the
                 // expiration of the fingerprints and mapped content, as if they had just been published.
                 foreach (var strongFingerprintTask in strongFingerprints)
                 {
                     var strongFingerprint = await strongFingerprintTask.ConfigureAwait(false);
 
                     // The Incorporate API currently does allow passing the expiration, so we can't pass it here.
-                    FingerprintTracker.Track(strongFingerprint);
+                    await TrackFingerprintAsync(context, strongFingerprint, expirationUtc: null).ConfigureAwait(false);
                 }
 
                 return BoolResult.Success;
@@ -274,7 +287,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutFileCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
+            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint));
@@ -289,7 +302,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutFileCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
+            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint));
@@ -303,7 +316,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutStreamCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), hashType, () =>
+            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), hashType, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint));
@@ -317,7 +330,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutStreamCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), contentHash, () =>
+            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), contentHash, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint));

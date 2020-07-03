@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -182,9 +182,9 @@ namespace BuildXL.Engine.Cache.Artifacts
 
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return Task.Run<Possible<Stream, Failure>>(
+            return Task.Run<Possible<StreamWithLength, Failure>>(
                 () =>
                 {
                     lock (m_lock)
@@ -197,7 +197,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 return new Failure<string>("Content is available in 'remote' cache but is not local. Load it locally first with TryLoadAvailableContentAsync.");
                             }
 
-                            return new MemoryStream(entry.Content, writable: false);
+                            return (new MemoryStream(entry.Content, writable: false)).HasLength();
                         }
                         else
                         {
@@ -233,7 +233,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                             if (!mayBeDelete.Succeeded)
                             {
-                                return mayBeDelete.Failure;
+                                return mayBeDelete.Failure.Annotate(LocalDiskContentStore.ExistingFileDeletionFailure);
                             }
 
                             try
@@ -295,13 +295,23 @@ namespace BuildXL.Engine.Cache.Artifacts
             FileRealizationMode fileRealizationModes,
             ContentHash? knownContentHash)
         {
-            return Task.Run<Possible<ContentHash, Failure>>(
+             return Task.Run<Possible<ContentHash, Failure>>(
                 () =>
                 {
                     lock (m_lock)
                     {
                         byte[] contentBytes = ExceptionUtilities.HandleRecoverableIOException(
-                            () => { return File.ReadAllBytes(path.ExpandedPath); },
+                            () =>
+                            {
+                                var expandedPath = path.ExpandedPath;
+
+                                using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                using (BinaryReader binaryReader = new BinaryReader(fileStream))
+                                {
+                                    // This will work with files up to 2GB in length, due to the 'int' API signature
+                                    return binaryReader.ReadBytes((int) new FileInfo(expandedPath).Length);
+                                }
+                            },
                             ex => { throw new BuildXLException("Failed to store content (couldn't read new content from disk)", ex); });
 
                         ContentHash contentHash = ContentHashingUtilities.HashBytes(contentBytes);

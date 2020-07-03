@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -17,8 +17,8 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public static void SerializeToFile(string file, object vmObject)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(file));
-            Contract.Requires(vmObject != null);
+            Contract.RequiresNotNullOrWhiteSpace(file);
+            Contract.RequiresNotNull(vmObject);
 
             var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
             {
@@ -39,7 +39,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public static T DeserializeFromFile<T>(string file)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(file));
+            Contract.RequiresNotNullOrWhiteSpace(file);
             return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
         }
     }

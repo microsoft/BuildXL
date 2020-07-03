@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Ipc.Interfaces;
 
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// No-op implementation of <see cref="ILogger"/>.
+    /// No-op implementation of <see cref="IIpcLogger "/>.
     /// </summary>
-    public sealed class VoidLogger : ILogger
+    public sealed class VoidLogger : IIpcLogger
     {
         /// <summary>Singleton instance.</summary>
         public static readonly VoidLogger Instance = new VoidLogger();

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -8,10 +8,11 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using static Test.BuildXL.Utilities.TestEvents;
 
 namespace Test.BuildXL.Utilities
 {
@@ -69,7 +70,6 @@ namespace Test.BuildXL.Utilities
 
                     eventMethod.Invoke(Events.Log, payload);
 
-                    XAssert.AreNotEqual(l.LastEvent.EventId, EventId.None, "Last EventId should not be None. Check payload and Message format.");
                     XAssert.AreEqual(eventAttribute.EventId, l.LastEvent.EventId, "Wrong event ID logged for event {0}", eventMethod.Name);
                     XAssert.AreNotEqual(0, eventAttribute.Task, "Invalid task id == 0 for event {0} (this results in auto-assignment of task id)", eventMethod.Name);
                     XAssert.AreEqual(eventAttribute.Task, l.LastEvent.Task, "Wrong task logged for event {0}", eventMethod.Name);

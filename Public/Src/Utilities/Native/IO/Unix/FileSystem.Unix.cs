@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+#if NET_COREAPP
+using System.IO.Enumeration;
+#endif
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-#if NET_CORE
-using System.IO.Enumeration;
-#endif
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -18,10 +18,11 @@ using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
@@ -29,7 +30,7 @@ namespace BuildXL.Native.IO.Unix
     /// <summary>
     /// FileSystem related native implementations for Unix based systems
     /// </summary>
-    public sealed class FileSystemUnix : IFileSystem
+    internal sealed class FileSystemUnix : IFileSystem
     {
         /// <summary>
         /// The file name for met information added by macOS Finder on folder inspection.
@@ -193,7 +194,7 @@ namespace BuildXL.Native.IO.Unix
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/, long /*fileSize*/> handleEntry,
             bool isEnumerationForDirectoryDeletion)
         {
-#if NET_CORE
+#if NET_COREAPP
             try
             {
                 GetFileFullPathsWithExtension(directoryPath).Any();
@@ -359,6 +360,9 @@ namespace BuildXL.Native.IO.Unix
         public string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false) => throw new NotImplementedException();
 
         /// <inheritdoc />
+        public bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false) => throw new NotImplementedException();
+
+        /// <inheritdoc />
         public OpenFileResult TryOpenFileById(
             SafeFileHandle existingHandleOnVolume,
             FileId fileId,
@@ -385,16 +389,14 @@ namespace BuildXL.Native.IO.Unix
                 throw ThrowForNativeFailure(Marshal.GetLastWin32Error(), nameof(GetFileSystemType), managedApiName: nameof(GetVolumeFileSystemByHandle));
             }
 
-            string fsTypeName = buffer.ToString().ToUpperInvariant();
-            switch (fsTypeName)
+            return buffer.ToString().ToUpperInvariant() switch
             {
-                case "APFS":
-                    return FileSystemType.APFS;
-                case "HFS":
-                    return FileSystemType.HFS;
-                default:
-                    return FileSystemType.Unknown;
-            }
+                "APFS" => FileSystemType.APFS,
+                "HFS"  => FileSystemType.HFS,
+                "EXT3" => FileSystemType.EXT3,
+                "EXT4" => FileSystemType.EXT4,
+                     _ => FileSystemType.Unknown
+            };
         }
 
         /// <inheritdoc />
@@ -464,7 +466,7 @@ namespace BuildXL.Native.IO.Unix
 
         private static OpenFlags CreateOpenFlags(FileDesiredAccess desiredAccess, FileShare fileShare, FileMode fileMode, bool openSymlink)
         {
-            OpenFlags flags = ShouldCreateAndOpen(fileMode) ? OpenFlags.O_CREAT : 0;
+            OpenFlags flags = (ShouldCreateAndOpen(fileMode) ? OpenFlags.O_CREAT : OpenFlags.O_RDONLY) | OpenFlags.O_CLOEXEC;
 
             switch (fileMode)
             {
@@ -575,15 +577,20 @@ namespace BuildXL.Native.IO.Unix
 
             OpenFileResult createErrorResult(int errorCode)
             {
-                Logger.Log.StorageTryOpenOrCreateFileFailure(Events.StaticContext, path, (int)fileMode, (int)errorCode);
                 return OpenFileResult.Create(path, (int)errorCode, fileMode, handleIsValid: false);
             }
         }
 
         private static bool IsSymlink(string path)
         {
-            var maybeReparsePointType = GetReparsePointType(path);
-            return maybeReparsePointType.Succeeded && maybeReparsePointType.Result == ReparsePointType.SymLink;
+            var mode = TryGetFilePermission(path, followSymlink: false, throwOnFailure: false);
+            if (mode < 0)
+            {
+                return false;
+            }
+
+            FilePermissions permissions = checked((FilePermissions)mode);
+            return permissions.HasFlag(FilePermissions.S_IFLNK);
         }
 
         /// <inheritdoc />
@@ -664,7 +671,7 @@ namespace BuildXL.Native.IO.Unix
         {
             // POSIX systems use the opposite ordering of inputs as Windows for linking files
             // Function stub from GNU docs: int link (const char *oldname, const char *newname)
-            int result = BuildXL.Interop.MacOS.IO.link(linkTarget, link);
+            int result = BuildXL.Interop.Unix.IO.link(linkTarget, link);
             if (result != 0)
             {
                 var errno = Marshal.GetLastWin32Error();
@@ -800,8 +807,13 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            Contract.Requires(reparsePointType != ReparsePointType.MountPoint, "Currently, ReparsePointType.MountPoint is not a valid reparse point type on macOS/Unix");
-            return reparsePointType == ReparsePointType.SymLink;
+            return reparsePointType == ReparsePointType.UnixSymlink;
+        }
+
+        /// <inheritdoc />
+        public bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        {
+            return IsReparsePointActionable(reparsePointType);
         }
 
         /// <inheritdoc />
@@ -812,25 +824,12 @@ namespace BuildXL.Native.IO.Unix
 
         private static Possible<ReparsePointType> GetReparsePointType(string path)
         {
-            try
+            if (IsSymlink(path))
             {
-                FileAttributes attributes = File.GetAttributes(path);
-
-                if ((attributes & FileAttributes.ReparsePoint) == 0)
-                {
-                    return ReparsePointType.None;
-                }
-
-                // The only reparse type supported by CoreFX is a symlink currently, we can revisit this once the implementation changes.
-                // See: https://github.com/dotnet/corefx/blob/f25eb288a449010574a6e95fe298f3ad880ada1e/src/System.IO.FileSystem/src/System/IO/FileStatus.Unix.cs
-                return ReparsePointType.SymLink;
+                return ReparsePointType.UnixSymlink;
             }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch
-            {
-                return ReparsePointType.None;
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            
+            return ReparsePointType.None;
         }
 
         /// <inheritdoc />
@@ -996,37 +995,31 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
             {
-                if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
-                {
-                    return default;
-                }
-
-                var fileIdAndVolumeId = new FileIdAndVolumeId(
-                        unchecked((ulong)statBuffer.DeviceID),
-                        new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
-
-                long sec = statBuffer.TimeLastStatusChange;
-                long nsec = statBuffer.TimeNSecLastStatusChange;
-
-                if (nsec == 0
-                    && (!IsPreciseFileVersionSupportedByEnlistmentVolume
-                        || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle)))
-                {
-                    // Nanosecond precision may not be supported (nsec == 0), and
-                    // either enlistment volume does not support precise file version, or
-                    // the volume where the file resides does not support precise file version.
-                    // Use the modified timestamp. Yes, this can result in unreliability.
-                    sec = statBuffer.TimeLastModification;
-                    nsec = statBuffer.TimeNSecLastModification;
-                }
-
-                ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
-                version += unchecked((ulong)nsec);
-
-                return (fileIdAndVolumeId, new Usn(version));
+                return default;
             }
+
+            var fileIdAndVolumeId = new FileIdAndVolumeId(
+                unchecked((ulong)statBuffer.DeviceID),
+                new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
+
+            long sec = statBuffer.TimeLastStatusChange;
+            long nsec = statBuffer.TimeNSecLastStatusChange;
+            if (!IsPreciseFileVersionSupportedByEnlistmentVolume || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle))
+            {
+                // Nanosecond precision may not be supported, and
+                // either enlistment volume does not support precise file version, or
+                // the volume where the file resides does not support precise file version.
+                // Use the modified timestamp. Yes, this can result in unreliability.
+                sec = statBuffer.TimeLastModification;
+                nsec = statBuffer.TimeNSecLastModification;
+            }
+
+            ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
+            version += unchecked((ulong)nsec);
+
+            return (fileIdAndVolumeId, new Usn(version));
         }
 
         /// <inheritdoc />
@@ -1034,78 +1027,77 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
             {
-                if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
-                {
-                    return default;
-                }
-
-                var fileIdAndVolumeId = new FileIdAndVolumeId(
-                        unchecked((ulong)statBuffer.DeviceID),
-                        new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
-
-                long sec = statBuffer.TimeLastStatusChange;
-                long nsec = statBuffer.TimeNSecLastStatusChange;
-
-                if (nsec == 0
-                    && (!IsPreciseFileVersionSupportedByEnlistmentVolume
-                        || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle)))
-                {
-                    // Nanosecond precision may not be supported (nsec == 0), and
-                    // either enlistment volume does not support precise file version, or
-                    // the volume where the file resides does not support precise file version.
-
-                    // Get the current time.
-                    var elapsedSeconds = (long)(DateTime.UtcNow - UnixEpoch).TotalSeconds;
-
-                    if (elapsedSeconds == statBuffer.TimeLastModification)
-                    {
-                        // Set the modified time 1s to the past, only if it matches the current time.
-                        // It means that modification and establishing identity happened in sub-second and high-precision timestamp is not supported.
-                        // This most likely happens for outputs or intermediate outputs.
-
-                        // Accessing hidden files in MacOs.
-                        // Ref: http://www.westwind.com/reference/os-x/invisibles.html
-                        // Another alternative is using fcntl with F_GETPATH that takes a handle and returns the concrete OS path owned by the handle.
-                        // Yet another alternative is to use fsetattrlist.
-                        var path = I($"/.vol/{fileIdAndVolumeId.VolumeSerialNumber}/{fileIdAndVolumeId.FileId.Low}");
-
-                        var setTimeStatBuffer = new StatBuffer();
-                        setTimeStatBuffer.TimeCreation = statBuffer.TimeCreation;
-                        setTimeStatBuffer.TimeNSecCreation = statBuffer.TimeNSecCreation;
-
-                        setTimeStatBuffer.TimeLastAccess = statBuffer.TimeLastAccess;
-                        setTimeStatBuffer.TimeNSecLastAccess = statBuffer.TimeNSecLastAccess;
-
-                        setTimeStatBuffer.TimeLastModification = statBuffer.TimeLastModification - 1;
-                        setTimeStatBuffer.TimeNSecLastModification = statBuffer.TimeNSecLastModification;
-
-                        setTimeStatBuffer.TimeLastStatusChange = statBuffer.TimeLastStatusChange;
-                        setTimeStatBuffer.TimeNSecLastStatusChange = statBuffer.TimeNSecLastStatusChange;
-
-                        int result = SetTimeStampsForFilePath(path, false, setTimeStatBuffer);
-
-                        if (result != 0)
-                        {
-                            return default;
-                        }
-
-                        sec = statBuffer.TimeLastModification - 1;
-                        nsec = statBuffer.TimeNSecLastModification;
-                    }
-                    else
-                    {
-                        sec = statBuffer.TimeLastModification;
-                        nsec = statBuffer.TimeNSecLastModification;
-                    }
-                }
-
-                ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
-                version += unchecked((ulong)nsec);
-
-                return (fileIdAndVolumeId, new Usn(version));
+                return default;
             }
+
+            var fileIdAndVolumeId = new FileIdAndVolumeId(
+                unchecked((ulong)statBuffer.DeviceID),
+                new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
+
+            long sec = statBuffer.TimeLastStatusChange;
+            long nsec = statBuffer.TimeNSecLastStatusChange;
+
+            if (!IsPreciseFileVersionSupportedByEnlistmentVolume || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle))
+            {
+                // Nanosecond precision may not be supported (nsec == 0), and
+                // either enlistment volume does not support precise file version, or
+                // the volume where the file resides does not support precise file version.
+
+                // Get the current time.
+                var elapsedSeconds = (long)(DateTime.UtcNow - UnixEpoch).TotalSeconds;
+                if (elapsedSeconds - statBuffer.TimeLastModification <= 1)
+                {
+                    // Set the modified time 1s to the past, only if it matches the current time.
+                    // It means that modification and establishing identity happened in sub-second and high-precision timestamp is not supported.
+                    // This most likely happens for outputs or intermediate outputs.
+
+                    var setTimeStatBuffer = new StatBuffer();
+                    setTimeStatBuffer.TimeCreation = statBuffer.TimeCreation;
+                    setTimeStatBuffer.TimeNSecCreation = statBuffer.TimeNSecCreation;
+
+                    setTimeStatBuffer.TimeLastAccess = statBuffer.TimeLastAccess;
+                    setTimeStatBuffer.TimeNSecLastAccess = statBuffer.TimeNSecLastAccess;
+
+                    setTimeStatBuffer.TimeLastModification = statBuffer.TimeLastModification - 1;
+                    setTimeStatBuffer.TimeNSecLastModification = statBuffer.TimeNSecLastModification;
+
+                    setTimeStatBuffer.TimeLastStatusChange = statBuffer.TimeLastStatusChange;
+                    setTimeStatBuffer.TimeNSecLastStatusChange = statBuffer.TimeNSecLastStatusChange;
+
+                    // Accessing hidden files in MacOs: http://www.westwind.com/reference/os-x/invisibles.html
+                    // 
+                    // An alternative would be using fcntl with F_GETPATH that takes a handle and returns
+                    // the concrete OS path owned by the handle; or calling fsetattrlist().
+                    //
+                    // TODO: in any case, this should be moved to Interop.IO so that there it is decided
+                    //       what to do based on the current os
+                    var path = OperatingSystemHelper.IsMacOS
+                        ? $"/.vol/{fileIdAndVolumeId.VolumeSerialNumber}/{fileIdAndVolumeId.FileId.Low}"
+                        : $"/proc/self/fd/{fileHandle.DangerousGetHandle().ToInt32()}";
+
+                    int result = SetTimeStampsForFilePath(path, followSymlink: true, setTimeStatBuffer);
+
+                    if (result != 0)
+                    {
+                        return default;
+                    }
+
+                    sec = statBuffer.TimeLastModification - 1;
+                    nsec = statBuffer.TimeNSecLastModification;
+                }
+                else
+                {
+                    sec = statBuffer.TimeLastModification;
+                    nsec = statBuffer.TimeNSecLastModification;
+                }
+            }
+
+            ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
+            version += unchecked((ulong)nsec);
+
+            return (fileIdAndVolumeId, new Usn(version));
 
             // TODO: if high-precision file timestamp is supported, this function should simply call TryGetVersionedFileIdentityByHandle.
             // return TryGetVersionedFileIdentityByHandle(fileHandle);
@@ -1137,7 +1129,7 @@ namespace BuildXL.Native.IO.Unix
         private bool SupportPreciseFileVersion()
         {
             // Use temp file name as an approximation whether file system supports precise file version.
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
             bool result = false;
 
             using (var fileStream = CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, FileOptions.None, false))
@@ -1175,7 +1167,7 @@ namespace BuildXL.Native.IO.Unix
         private bool SupportCopyOnWrite()
         {
             // Use temp file name as an approximation whether file system supports copy-on-write.
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
             bool result = false;
 
             using (var fileStream = CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, FileOptions.None, false))
@@ -1187,29 +1179,31 @@ namespace BuildXL.Native.IO.Unix
             return result;
         }
 
+        private static int TryGetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
+        {
+            var statBuffer = new StatBuffer();
+
+            if (StatFile(path, followSymlink, ref statBuffer) != 0)
+            {
+                if (throwOnFailure)
+                {
+                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+
+            return unchecked((int)statBuffer.Mode);
+        }
+
         /// <summary>
         /// Gets file permission.
         /// </summary>
         public int GetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
         {
-            var statBuffer = new StatBuffer();
-
-            unsafe
-            {
-               if (StatFile(path, followSymlink, ref statBuffer) != 0)
-               {
-                   if (throwOnFailure)
-                   {
-                       throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
-                   }
-                   else
-                   {
-                       return -1;
-                   }
-               }
-
-               return unchecked((int)statBuffer.Mode);
-            }
+            return TryGetFilePermission(path, followSymlink, throwOnFailure);
         }
 
         /// <summary>
@@ -1242,6 +1236,31 @@ namespace BuildXL.Native.IO.Unix
         public Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget)
         {
             return FileUtilities.TryResolveRelativeTarget(path, relativeTarget);
+        }
+
+        /// <inheritdoc />
+        public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
+
+        /// <inheritdoc />
+        public bool IsDirectorySymlinkOrJunction(string path)
+        {
+            var reparsePointType = TryGetReparsePointType(path);
+            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.UnixSymlink;
+        }
+
+        /// <inheritdoc/>
+        public string GetFullPath(string path)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+
+            try
+            {
+                return Path.GetFullPath(path);
+            }
+            catch(Exception e) when (e is ArgumentException || e is SecurityException || e is NotSupportedException || e is PathTooLongException)
+            {
+                throw new BuildXLException(I($"Failed to get a full path from '{path}'"), e);
+            }
         }
     }
 }

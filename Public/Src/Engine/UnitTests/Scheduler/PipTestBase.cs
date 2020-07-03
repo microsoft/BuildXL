@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,24 +8,25 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using BuildXL.Engine;
 using BuildXL.Interop;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Qualifier;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using System.Threading;
-using BuildXL.Scheduler;
-using MacPaths = BuildXL.Interop.MacOS.IO;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -39,9 +40,14 @@ namespace Test.BuildXL.Scheduler
         private const string WarningRegexDescription = "WARNING";
 
         /// <summary>
-        /// Test process tool base name name
+        /// Test process tool base name
         /// </summary>
         protected const string TestProcessToolNameWithoutExtension = "Test.BuildXL.Executables.TestProcess";
+
+        /// <summary>
+        /// Infinite waiter base name
+        /// </summary>
+        protected const string InfiniteWaiterWithoutExtension = "Test.BuildXL.Executables.InfiniteWaiter";
 
         /// <summary>
         /// Value if for created pip.
@@ -81,6 +87,13 @@ namespace Test.BuildXL.Scheduler
         protected string TestProcessToolName => OperatingSystemHelper.IsUnixOS
             ? TestProcessToolNameWithoutExtension
             : TestProcessToolNameWithoutExtension + ".exe";
+
+        /// <summary>
+        /// Infinite waiter process tool name
+        /// </summary>
+        protected string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
+            ? InfiniteWaiterWithoutExtension
+            : InfiniteWaiterWithoutExtension + ".exe";
 
         /// <summary>
         /// Context
@@ -281,6 +294,31 @@ namespace Test.BuildXL.Scheduler
             BaseSetup();
         }
 
+        public class PipTestBaseSetupData
+        {
+            private readonly PipTable m_pipTable;
+            private readonly QualifierTable m_qualifierTable;
+            private readonly MountPathExpander m_mountPathExpander;
+            private readonly PipTestBase m_pipTestBase;
+
+            protected PipTestBaseSetupData(PipTestBase pipTestBase)
+            {
+                m_pipTable = pipTestBase.PipTable;
+                m_qualifierTable = pipTestBase.QualifierTable;
+                m_mountPathExpander = pipTestBase.Expander;
+                m_pipTestBase = pipTestBase;
+            }
+
+            public static PipTestBaseSetupData Save(PipTestBase pipTestBase) => new PipTestBaseSetupData(pipTestBase);
+
+            public virtual void Restore()
+            {
+                m_pipTestBase.PipTable = m_pipTable;
+                m_pipTestBase.QualifierTable = m_qualifierTable;
+                m_pipTestBase.Expander = m_mountPathExpander;
+            }
+        }
+
         protected void BaseSetup(IConfiguration configuration = null, bool disablePipSerialization = false)
         {
             Directory.CreateDirectory(SourceRoot);
@@ -300,15 +338,16 @@ namespace Test.BuildXL.Scheduler
             Expander = new MountPathExpander(pathTable);
             configuration = configuration ?? new ConfigurationImpl();
 
+            var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
                 Context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 LoggingContext,
                 configuration,
                 Expander,
                 fingerprintSalt: configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable));
+                searchPathToolsHash: searchPathToolsHash);
 
             ReadonlyRoot = Path.Combine(ObjectRoot, "readonly");
             NonHashableRoot = Path.Combine(ObjectRoot, "nonhashable");
@@ -358,7 +397,7 @@ namespace Test.BuildXL.Scheduler
                 root: CmdExecutable.Path.GetParent(pathTable),
                 allowHashing: false,
                 readable: true,
-                writable: true));
+                writable: false));
 
             Expander.Add(pathTable, new SemanticPathInfo(
                 rootName: PathAtom.Create(stringTable, nameof(TestBinRoot)),
@@ -435,6 +474,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryPath,
                 sortedFileArtifacts,
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 partial ? SealDirectoryKind.Partial : SealDirectoryKind.Full,
                 CreateProvenance(StringId.Create(Context.PathTable.StringTable, SealDirectoryDescription)),
                 ConvertToStringIdArray(tags),
@@ -660,7 +700,7 @@ namespace Test.BuildXL.Scheduler
                 PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture));
         }
 
-        protected PipProvenance CreateProvenance(IPipGraph pipGraph, string value = null, string usage = null)
+        protected PipProvenance CreateProvenance(IMutablePipGraph pipGraph, string value = null, string usage = null)
         {
             value = value ?? PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture);
 
@@ -672,7 +712,7 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public static PipProvenance CreateProvenance(
             BuildXLContext context,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             StringId usage,
             AbsolutePath specFile,
             string valueName)
@@ -694,7 +734,7 @@ namespace Test.BuildXL.Scheduler
             return provenance;
         }
 
-        public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IPipGraph pipGraph)
+        public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IMutablePipGraph pipGraph)
         {
             var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path);
             var locationData = new LocationData(provenance.Token.Path, 0, 0);
@@ -716,6 +756,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryRoot: root,
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(files, OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ReadOnlyArray<StringId>.Empty,
@@ -734,6 +775,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryRoot: root,
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(files, OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ConvertToStringIdArray(new[] { tag }),
@@ -748,6 +790,7 @@ namespace Test.BuildXL.Scheduler
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
                     CollectionUtilities.EmptyArray<FileArtifact>(),
                     OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ReadOnlyArray<StringId>.Empty,
@@ -856,7 +899,7 @@ namespace Test.BuildXL.Scheduler
             FileArtifact? stdError = null,
             bool withWarning = false,
             string value = null,
-            IPipGraph pipGraph = null,
+            IMutablePipGraph pipGraph = null,
             IEnumerable<FileArtifact> untrackedFiles = null,
             IEnumerable<DirectoryArtifact> directoryOutputs = null)
         {
@@ -1098,6 +1141,7 @@ namespace Test.BuildXL.Scheduler
                                 break;
 
                             case Operation.Type.ReadFile:
+                            case Operation.Type.ReadFileFromOtherFile:
                             case Operation.Type.WaitUntilFileExists:
                                 dao.Dependencies.Add(op.Path.FileArtifact);
                                 break;
@@ -1118,6 +1162,13 @@ namespace Test.BuildXL.Scheduler
                                 if (op.LinkPath.IsFile)
                                 {
                                     dao.Outputs.Add(op.LinkPath.FileArtifact);
+                                }
+                                break;
+
+                            case Operation.Type.Spawn:
+                                if (op.Path.IsValid && op.Path.IsFile)
+                                {
+                                    dao.Outputs.Add(op.Path.FileArtifact);
                                 }
                                 break;
 
@@ -1191,9 +1242,18 @@ namespace Test.BuildXL.Scheduler
             }
 
             processBuilder.AddCurrentHostOSDirectories();
+            PipGraphBuilder.ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: true);
 
-            PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
-
+            // Code coverage runs cause some side effect accesses under the QTest toolchain. Add these by default
+            // so they don't interrupt with test results.
+            // Technically this shouldn't be necessary because we also have configured the coverage.test.runsettings file
+            // to not collect coverage information for child processes. But leaving this here as a catchall and a
+            // breadcrumb in case this issue pops up again.
+            string qbitsPath = Environment.GetEnvironmentVariable("QBITSPATH");
+            if (!string.IsNullOrWhiteSpace(qbitsPath))
+            {
+                processBuilder.AddUntrackedDirectoryScope(Context.PathTable, qbitsPath);
+            }
         }
 
         protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)

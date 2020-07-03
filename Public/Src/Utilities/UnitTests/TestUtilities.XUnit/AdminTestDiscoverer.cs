@@ -1,9 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
@@ -29,11 +27,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <inheritdoc />
         public IEnumerable<KeyValuePair<string, string>> GetTraits(IAttributeInfo traitAttribute)
         {
-            bool requiresAdmin = traitAttribute.GetNamedArgument<bool>(nameof(FactIfSupportedAttribute.RequiresAdmin));
-            bool requiresJournalScan = traitAttribute.GetNamedArgument<bool>(nameof(FactIfSupportedAttribute.RequiresJournalScan));
-            bool requiresSymlinkPermission = traitAttribute.GetNamedArgument<bool>(nameof(FactIfSupportedAttribute.RequiresSymlinkPermission));
+            var requirements = traitAttribute.GetNamedArgument<TestRequirements>(nameof(ITestIfSupportedTraitAttribute.Requirements));
 
-            if (requiresAdmin || requiresJournalScan || requiresSymlinkPermission)
+            if (requirements.HasFlag(TestRequirements.Admin) 
+                || requirements.HasFlag(TestRequirements.JournalScan)
+                || requirements.HasFlag(TestRequirements.SymlinkPermission))
             {
                 yield return new KeyValuePair<string, string>("Category", RequiresAdmin);
             }

@@ -3,9 +3,6 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
-@@public
-export const tool = getPowerShellTool();
-
 /**
  * Helper method to invoke some powershell commands
  */
@@ -34,7 +31,7 @@ export function executeCommands(commands:string[], executeArgs: Transformer.Exec
 
     return Transformer.execute(
         Object.merge<Transformer.ExecuteArguments>({
-            tool: tool,
+            tool: getPowerShellTool(),
             workingDirectory: d`.`,
             arguments: arguments,
             environmentVariables: [

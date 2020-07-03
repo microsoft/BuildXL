@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.RegularExpressions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -44,6 +45,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// PreserveOutput Trust level which is used to override the allowPreserveOutput option
         /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public int PreserveOutputsTrustLevel;
 
         /// <summary>
@@ -117,8 +119,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public FileArtifact ChangeAffectedInputListWrittenFile { get; }
 
         /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
@@ -251,11 +253,23 @@ namespace BuildXL.Pips.Operations
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public RegexDescriptor WarningRegex { get; }
 
+        /// <nodoc/>
+        public StringId WarningRegexPattern => WarningRegex.Pattern;
+
+        /// <nodoc/>
+        public RegexOptions WarningRegexOptions => WarningRegex.Options;
+
         /// <summary>
         /// Optional regular expression to detect errors in console error / output.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public RegexDescriptor ErrorRegex { get; }
+
+        /// <nodoc/>
+        public StringId ErrorRegexPattern => ErrorRegex.Pattern;
+
+        /// <nodoc/>
+        public RegexOptions ErrorRegexOptions => ErrorRegex.Options;
 
         /// <summary>
         /// When false (or not set): process output is scanned for error messages line by line;
@@ -363,7 +377,7 @@ namespace BuildXL.Pips.Operations
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
+        public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; }
 
         /// <summary>
         /// Class constructor
@@ -411,9 +425,11 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default,
-            int? preserveOutputsTrustLevel = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
+            FileArtifact changeAffectedInputListWrittenFile = default,
+            int? preserveOutputsTrustLevel = null,
+            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
+            ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -449,12 +465,14 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(
                 !standardInput.IsFile || Contract.Exists(dependencies, d => d == standardInput.File),
                 "If provided, the standard-input artifact must be declared as a dependency");
-            Contract.Requires(
-                !standardOutput.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardOutput),
-                "If provided, the standard-error artifact must be declared as an expected output");
-            Contract.Requires(
-                !standardError.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardError),
-                "If provided, the standard-error artifact must be declared as an expected output");
+            // (seteplia) Disabling this contract check. Previous (0.1.x) version of RuntimeContracts did nothing for Contract.Exists
+            // and after that issue was fixed, the following precondition started failing.
+            // Contract.Requires(
+            //     !standardOutput.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardOutput),
+            //     "If provided, the standard-error artifact must be declared as an expected output");
+            // Contract.Requires(
+            //     !standardError.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardError),
+            //     "If provided, the standard-error artifact must be declared as an expected output");
             Contract.Requires(
                 !responseFile.IsValid ^ responseFileData.IsValid,
                 "If provided, the response-file artifact must have a corresponding ResponseFileData");
@@ -514,16 +532,18 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
-            PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
-            ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+            PreserveOutputAllowlist = preserveOutputAllowlist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ChangeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
 
-            if (PreserveOutputWhitelist.Length != 0)
+            if (PreserveOutputAllowlist.Length != 0)
             {
-                options |= Options.HasPreserveOutputWhitelist;
+                options |= Options.HasPreserveOutputAllowlist;
             }
 
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
+            OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
         }
 
         /// <summary>
@@ -572,7 +592,7 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact? changeAffectedInputListWrittenFilePath = default,
             int? preserveOutputsTrustLevel = null)
         {
@@ -619,8 +639,8 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel,
                 weight,
                 priority,
-                preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
+                preserveOutputAllowlist ?? PreserveOutputAllowlist,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
 
         }
@@ -670,7 +690,7 @@ namespace BuildXL.Pips.Operations
         public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
 
         /// <summary>
-        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// Whether this process consumes /unsafe_GlobalPassthroughEnvVars and /unsafe_GlobalUntrackedScopes passed from the command line
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
@@ -692,10 +712,22 @@ namespace BuildXL.Pips.Operations
         public bool AllowUndeclaredSourceReads => (ProcessOptions & Options.AllowUndeclaredSourceReads) != 0;
 
         /// <summary>
+        /// <see cref="Options.TrustStaticallyDeclaredAccesses"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool TrustStaticallyDeclaredAccesses => (ProcessOptions & Options.TrustStaticallyDeclaredAccesses) != 0;
+
+        /// <summary>
         /// <see cref="Options.NeedsToRunInContainer"/>
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public bool NeedsToRunInContainer => (ProcessOptions & Options.NeedsToRunInContainer) != 0;
+
+        /// <summary>
+        /// <see cref="Options.PreservePathSetCasing"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool PreservePathSetCasing => (ProcessOptions & Options.PreservePathSetCasing) != 0;
 
         /// <summary>
         /// Shortcut; <see cref="ServiceInfo.ShutdownPipId"/>.
@@ -718,6 +750,25 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; }
 
+
+        /// <summary>
+        /// Process names that will break away from the sandbox when spawned by the main process
+        /// </summary>
+        /// <remarks>
+        /// The accesses of processes that break away from them sandbox won't be observed.
+        /// Processes that breakaway can survive the lifespan of the sandbox
+        /// </remarks>
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+
+        /// <summary>
+        /// Directory cones that will be excluded from opaque directories
+        /// </summary>
+        /// <remarks>
+        /// Any artifact produced under any of these directories won't be considered part of any opaque directory output
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<AbsolutePath> OutputDirectoryExclusions { get; }
+
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).
@@ -727,7 +778,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates whether this pip is configured to always miss
         /// </summary>
-        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;    
+        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;
+
+        /// <summary>
+        /// Whether this process produces any shared output directories
+        /// </summary>
+        public bool HasSharedOpaqueDirectoryOutputs => DirectoryOutputs.Any(d => d.IsSharedOpaque);
 
         /// <summary>
         /// What policy to apply when merging redirected outputs back
@@ -866,9 +922,11 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
-                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
-                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact(),
-                preserveOutputsTrustLevel: reader.ReadInt32()
+                preserveOutputAllowlist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
+                changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
+                preserveOutputsTrustLevel: reader.ReadInt32(),
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
+                outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath())
                 );
         }
 
@@ -916,9 +974,11 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
-            writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
-            writer.Write(ChangeAffectedInputListWrittenFilePath);
+            writer.Write(PreserveOutputAllowlist, (w, v) => w.Write(v));
+            writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
+            writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
+            writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
         }
         #endregion
     }

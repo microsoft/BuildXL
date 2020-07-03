@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -33,13 +33,13 @@ namespace BuildXL.Ipc.Common
         private readonly TaskSourceSlim<Unit> m_stopTask;
         private readonly CancellableListener m_listener;
         private readonly string m_name;
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
 
         private int m_startCounter;
         private ITargetBlock<TOutput> m_targetBlock;
 
         /// <nodoc/>
-        public ListenerSourceBlock(CancellableListener listener, string name = "unknown", ILogger logger = null)
+        public ListenerSourceBlock(CancellableListener listener, string name = "unknown", IIpcLogger logger = null)
         {
             Contract.Requires(listener != null);
 

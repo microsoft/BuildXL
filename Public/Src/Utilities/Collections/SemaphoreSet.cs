@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -195,7 +195,7 @@ namespace BuildXL.Utilities.Collections
     /// All members of this class are thread-safe.
     /// </remarks>
     /// <typeparam name="TKey">the type of the key to use for the semaphores</typeparam>
-    public sealed class SemaphoreSet<TKey> : SemaphoreSet
+    public sealed class SemaphoreSet<TKey> : SemaphoreSet where TKey : notnull
     {
         private readonly ConcurrentDictionary<TKey, SemaphoreInfo> m_semaphoresIndices;
         private readonly ConcurrentDictionary<int, TKey> m_semaphoreKeyIndexMap;
@@ -203,7 +203,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Class constructor
         /// </summary>
-        public SemaphoreSet(IEqualityComparer<TKey> equalityComparer = null)
+        public SemaphoreSet(IEqualityComparer<TKey>? equalityComparer = null)
         {
             equalityComparer = equalityComparer ?? EqualityComparer<TKey>.Default;
             m_semaphoresIndices = new ConcurrentDictionary<TKey, SemaphoreInfo>(equalityComparer);
@@ -245,7 +245,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the semaphore index</returns>
         public int CreateSemaphore(TKey key, int limit)
         {
-            if (m_semaphoresIndices.TryGetValue(key, out SemaphoreInfo semaphoreInfo))
+            if (m_semaphoresIndices.TryGetValue(key, out SemaphoreInfo? semaphoreInfo))
             {
                 if (semaphoreInfo.Limit == limit)
                 {

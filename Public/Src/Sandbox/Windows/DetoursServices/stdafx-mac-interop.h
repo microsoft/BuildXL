@@ -8,3 +8,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/event.h>
+
+#include <bsm/libbsm.h>
+#include <dispatch/dispatch.h>
+#include <EndpointSecurity/EndpointSecurity.h>

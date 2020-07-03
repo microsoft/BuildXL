@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -26,9 +26,9 @@ namespace Test.DScript.Workspaces.Utilities
     /// </summary>
     public sealed class SimpleWorkspaceSourceModuleResolver : IWorkspaceModuleResolver
     {
-        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_moduleDefinitions;
+        private Dictionary<ModuleDescriptor, ModuleDefinition> m_moduleDefinitions;
 
-        private readonly IFileSystem m_fileSystem;
+        private IFileSystem m_fileSystem;
 
         /// <inheritdoc />
         public string Kind => KnownResolverKind.DScriptResolverKind;
@@ -36,8 +36,12 @@ namespace Test.DScript.Workspaces.Utilities
         /// <inheritdoc />
         public string Name { get; private set; }
 
-        /// <nodoc/>
-        public SimpleWorkspaceSourceModuleResolver(IResolverSettings resolverSettings)
+        /// <inheritdoc />
+        public bool TryInitialize(
+            [NotNull] FrontEndHost host,
+            [NotNull] FrontEndContext context,
+            [NotNull] IConfiguration configuration,
+            [NotNull] IResolverSettings resolverSettings)
         {
             var sourceResolverSettings = resolverSettings as SimpleSourceResolverSettings;
 
@@ -45,16 +49,7 @@ namespace Test.DScript.Workspaces.Utilities
             Name = resolverSettings.Name;
             m_moduleDefinitions = sourceResolverSettings.ModuleDefinitions;
             m_fileSystem = sourceResolverSettings.FileSystem;
-        }
 
-        /// <inheritdoc />
-        public bool TryInitialize(
-            [NotNull] FrontEndHost host,
-            [NotNull] FrontEndContext context,
-            [NotNull] IConfiguration configuration,
-            [NotNull] IResolverSettings resolverSettings,
-            [NotNull] QualifierId[] requestedQualifiers)
-        {
             return true;
         }
 

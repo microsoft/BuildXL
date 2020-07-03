@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,9 +8,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.IncrementalScheduling;
@@ -19,7 +21,6 @@ using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -870,12 +871,11 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(scanningJournalResult.Succeeded);
         }
 
-        private void IncrementalSchedulingSetup(bool enableGraphAgnosticIncrementalScheduling = true, bool enableLazyOutputMaterialization = true)
+        private void IncrementalSchedulingSetup(bool enableLazyOutputMaterialization = true)
         {
             Setup(
                 enableJournal: true, 
-                enableIncrementalScheduling: true, 
-                enableGraphAgnosticIncrementalScheduling: enableGraphAgnosticIncrementalScheduling,
+                enableIncrementalScheduling: true,
                 disableLazyOutputMaterialization: !enableLazyOutputMaterialization);
 
             IgnoreWarnings();
@@ -884,11 +884,10 @@ ENDLOCAL && EXIT /b 1
         /// <summary>
         /// Verify that dirtying a node will dirty all dependents.
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public void TransitiveDirty(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public void TransitiveDirty()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             CreateBasicGraph(nodes);
@@ -928,11 +927,10 @@ ENDLOCAL && EXIT /b 1
         /// <summary>
         /// Verify that dirtying a node will dirty all dependents.
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public void PerpetualDirty(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public void PerpetualDirty()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             CreateBasicGraph(nodes);
@@ -967,11 +965,10 @@ ENDLOCAL && EXIT /b 1
         /// <summary>
         /// Verify that dirtying a node will dirty all dependents.
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public void PerpetualDirtySurvivesSaving(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public void PerpetualDirtySurvivesSaving()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             CreateBasicGraph(nodes);
@@ -1016,11 +1013,10 @@ ENDLOCAL && EXIT /b 1
         /// <summary>
         /// Save clean Incremental Scheduling State, change file, reload and see if the change is detected.
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public void CheckChangesWithIncrementalState(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public void CheckChangesWithIncrementalState()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1072,11 +1068,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestSchedulingWithIncrementalBuildWithPropagation(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestSchedulingWithIncrementalBuildWithPropagationAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1117,11 +1112,10 @@ ENDLOCAL && EXIT /b 1
         /// Simple filter with dependency. P1 and P3 will be scheduled when S3 is dirty.
         /// P2 is not a part in the filter.
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestSchedulingWithIncrementalBuild(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestSchedulingWithIncrementalBuildAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1164,11 +1158,10 @@ ENDLOCAL && EXIT /b 1
         /// </see>
         /// should recover the content in this case by storing it into the local cache
         /// </summary>
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestSchedulingWithContentRecovery(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestSchedulingWithContentRecoveryAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1205,11 +1198,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["C1"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithDirectoryDependenciesAndOutputDirectories(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithDirectoryDependenciesAndOutputDirectoriesAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1345,11 +1337,10 @@ ENDLOCAL && EXIT /b 1
             AssertLatestProcessPipCounts(succeeded: 3, hit:3);
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithNonSelectedSealedDirectory(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithNonSelectedSealedDirectoryAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1440,11 +1431,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["SD"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithSelectedSealedDirectory(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithSelectedSealedDirectoryAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1518,11 +1508,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["S3"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithSealedDirectoryButNonConsumedFile(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithSealedDirectoryButNonConsumedFileAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1570,11 +1559,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["SD"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithSealedDirectoryWhoseMemberIsConsumedDirectly(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithSealedDirectoryWhoseMemberIsConsumedDirectlyAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1632,11 +1620,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["SD"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithSourceSealedDirectory(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithSourceSealedDirectoryAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1695,11 +1682,10 @@ ENDLOCAL && EXIT /b 1
                 LabelProcessWithStatus(processes, "P2", PipResultStatus.Succeeded));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingSealedSourceAndOutputDirectories(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingSealedSourceAndOutputDirectoriesAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -1754,11 +1740,10 @@ ENDLOCAL && EXIT /b 1
                 LabelProcessWithStatus(processes, "P2", PipResultStatus.Succeeded));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithLazyWriteFile(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithLazyWriteFileAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, Pip> pips = new Dictionary<string, Pip>();
 
@@ -1786,11 +1771,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(pips["C2"].PipId.ToNodeId()));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithWriteFilePips(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithWriteFilePipsAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
             var pips = new Dictionary<string, Pip>();
             var files = new Dictionary<string, FileArtifact>();
 
@@ -1863,11 +1847,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(pips["W2"].PipId.ToNodeId()));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithPipThatEnumeratesNonSealedDirectory(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithPipThatEnumeratesNonSealedDirectoryAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             NodeId processNode;
             Process process;
@@ -1933,12 +1916,11 @@ ENDLOCAL && EXIT /b 1
             ExpectPipsNotDone(((Pip) process, "Process"));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithFilteredLazyOutputs(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithFilteredLazyOutputsAsync()
         {
             // Ensure lazy materialization is enabled.
-            IncrementalSchedulingSetup(enableGraphAgnosticIncrementalScheduling: enableGraphAgnostic, enableLazyOutputMaterialization: true);
+            IncrementalSchedulingSetup(enableLazyOutputMaterialization: true);
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
@@ -2068,11 +2050,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(FileExists(files["O1"]));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
-        public async Task TestIncrementalSchedulingWithNonSelectedSealingPipOutput(bool enableGraphAgnostic)
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithNonSelectedSealingPipOutputAsync()
         {
-            IncrementalSchedulingSetup(enableGraphAgnostic);
+            IncrementalSchedulingSetup();
 
             Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
             Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();

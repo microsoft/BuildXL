@@ -5,21 +5,26 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Test.Tool.Analyzers {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
+        // These tests require Detours to run itself, so we won't detour the test runner process itself
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.Tool.Analyzers",
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Engine").Cache.dll,
-            importFrom("BuildXL.App").Main.exe,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.FrontEnd").Script.dll,
+            importFrom("BuildXL.Ide").Script.Debugger.dll,
+            importFrom("BuildXL.Ide").VSCode.DebugProtocol.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.dll,
@@ -36,10 +41,10 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("BuildXL.Tools").Xldb.dll,
             importFrom("BuildXL.Tools").Xldb.Proto.dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe
-        ],
-        runTestArgs: { weight: 2 },
+        ]
     });
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,14 +12,15 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Utilities;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using PathGeneratorUtilities = BuildXL.Cache.ContentStore.InterfacesTest.Utils.PathGeneratorUtilities;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 {
@@ -98,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
             if (OperatingSystemHelper.IsUnixOS)
             {
-                _drives.Add(Path.VolumeSeparatorChar, new FileObject());
+                _drives.Add(Path.VolumeSeparatorChar, new FileObject(this));
             }
             else
             {
@@ -106,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 foreach (char driveLetter in drives)
                 {
-                    _drives.Add(char.ToUpperInvariant(driveLetter), new FileObject());
+                    _drives.Add(char.ToUpperInvariant(driveLetter), new FileObject(this));
                 }
             }
 
@@ -182,6 +183,23 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
+        public void EnumerateFiles(AbsolutePath path, string pattern, bool recursive, Action<FileInfo> fileHandler)
+        {
+            var options = recursive ? EnumerateOptions.Recurse : EnumerateOptions.None;
+
+            // This is not the precise way EnumerateFiles API works, they support only wildcards and ? operators. We
+            // perform a simple substitution, but likely won't work in all cases.
+            var regex = "^" + Regex.Escape(pattern).Replace("\\?", ".").Replace("\\*", ".*") + "$";
+            foreach (var info in EnumerateFiles(path, options))
+            {
+                if (Regex.IsMatch(info.FullPath.FileName, regex, RegexOptions.IgnoreCase))
+                {
+                    fileHandler(info);
+                }
+            }
+        }
+
+        /// <inheritdoc />
         public IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, EnumerateOptions options)
         {
             var infos = new List<FileInfo>();
@@ -198,27 +216,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             }
 
             return infos.Select(info => info.FullPath);
-        }
-
-        /// <inheritdoc />
-        public void EnumerateFiles(AbsolutePath path, string pattern, bool recursive, Action<FileInfo> fileHandler)
-        {
-            var infos = new List<FileInfo>();
-            lock (_drives)
-            {
-                FileObject root = FindFileObject(path);
-                if (root == null)
-                {
-                    throw new DirectoryNotFoundException();
-                }
-
-                EnumerateObjectPaths(path, root, recursive, fileObject => fileObject.IsDirectory, infos);
-            }
-
-            foreach (var info in infos)
-            {
-                fileHandler(info);
-            }
         }
 
         /// <inheritdoc />
@@ -449,7 +446,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                     return;
                 }
 
-                parent.Children[path.FileName] = new FileObject();
+                parent.Children[path.FileName] = new FileObject(this);
             }
         }
 
@@ -603,13 +600,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        public Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
-            return Task.FromResult((Stream)OpenStreamInternal(path, fileAccess, fileMode, share));
+            return Task.FromResult(OpenStreamInternal(path, fileAccess, fileMode, share)?.AssertHasLength());
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
+        public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {
             return this.OpenAsync(path, FileAccess.Read, FileMode.Open, share);
         }
@@ -623,7 +620,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         /// <inheritdoc />
         public async Task CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
-            using (var readStream = await this.OpenAsync(
+            using (Stream readStream = await this.OpenAsync(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
             {
                 if (readStream == null)
@@ -1013,6 +1010,25 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             parentDirectory.Children.Remove(directoryName);
         }
 
+        public DateTime GetDirectoryCreationTimeUtc(AbsolutePath path)
+        {
+            lock (_drives)
+            {
+                FileObject file = FindFileObject(path);
+                if (file == null)
+                {
+                    throw new DirectoryNotFoundException();
+                }
+
+                if (!file.IsDirectory)
+                {
+                    throw new IOException();
+                }
+
+                return file.CreationTimeUtc;
+            }
+        }
+
         private class CharCaseInsensitiveComparer : IEqualityComparer<char>
         {
             public static readonly CharCaseInsensitiveComparer Instance = new CharCaseInsensitiveComparer();
@@ -1050,6 +1066,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             public byte[] Content;
             public bool DenyAllWrites;
             public bool DenyAttributeWrites;
+            public DateTime CreationTimeUtc;
             public DateTime LastAccessTimeUtc;
 
             private readonly HashSet<AbsolutePath> _linkedPaths = new HashSet<AbsolutePath>();
@@ -1074,13 +1091,17 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 _fileSystem = fileSystem;
                 Attributes = attributes;
                 Content = content;
+                CreationTimeUtc = _fileSystem.Clock.UtcNow;
                 LastAccessTimeUtc = _fileSystem.Clock.UtcNow;
                 AddLink(linkPath);
             }
 
-            public FileObject()
+            public FileObject(MemoryFileSystem fileSystem)
             {
+                _fileSystem = fileSystem;
+
                 _attributes = FileAttributes.Directory;
+                CreationTimeUtc = _fileSystem.Clock.UtcNow;
                 Children = new Dictionary<string, FileObject>(StringComparer.OrdinalIgnoreCase);
             }
 

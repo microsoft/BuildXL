@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
-using BuildXL.Native.Processes;
+using BuildXL.Processes;
 using BuildXL.Utilities;
 
 namespace Test.BuildXL.Executables.TestProcess
@@ -28,6 +28,8 @@ namespace Test.BuildXL.Executables.TestProcess
         private const string WaitToFinishMoniker = "wait";
         private const string AllUppercasePath = "allUpper";
         private const string UseLongPathPrefix = "useLongPathPrefix";
+        private const string SpawnExePrefix = "[SpawnExe]";
+        private const string InvalidPathString = "{Invalid}";
 
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
@@ -122,6 +124,11 @@ namespace Test.BuildXL.Executables.TestProcess
             CopyFile,
 
             /// <summary>
+            /// Type for copying a symbolic link
+            /// </summary>
+            CopySymlink,
+
+            /// <summary>
             /// Type for probing a file
             /// </summary>
             Probe,
@@ -167,9 +174,14 @@ namespace Test.BuildXL.Executables.TestProcess
             EchoCurrentDirectory,
 
             /// <summary>
-            /// Spawns a child process
+            /// Spawns a child process that supports a list of <see cref="Operation"></see>
             /// </summary>
             Spawn,
+
+            /// <summary>
+            /// Spawns a given exe as a child process
+            /// </summary>
+            SpawnExe,
 
             /// <summary>
             /// Like WriteFile with 'content' being Environment.NewLine
@@ -194,7 +206,22 @@ namespace Test.BuildXL.Executables.TestProcess
             /// <summary>
             /// Waits until a given file is found on disk
             /// </summary>
-            WaitUntilFileExists
+            WaitUntilFileExists,
+
+            /// <summary>
+            /// A read file access informed to detours without doing any real IO
+            /// </summary>
+            AugmentedReadFile,
+
+            /// <summary>
+            /// A write file access informed to detours without doing any real IO
+            /// </summary>
+            AugmentedWriteFile,
+
+            /// <summary>
+            /// Invokes some native code that crashes hard (by segfaulting or something)
+            /// </summary>
+            CrashHardNative,
         }
 
         /// <summary>
@@ -302,12 +329,12 @@ namespace Test.BuildXL.Executables.TestProcess
         public int RetriesOnWrite { get; }
 
         private Operation(
-            Type type, 
-            FileOrDirectoryArtifact? path = null, 
-            string content = null, 
-            FileOrDirectoryArtifact? linkPath = null, 
-            SymbolicLinkFlag? symLinkFlag = null, 
-            bool? doNotInfer = null, 
+            Type type,
+            FileOrDirectoryArtifact? path = null,
+            string content = null,
+            FileOrDirectoryArtifact? linkPath = null,
+            SymbolicLinkFlag? symLinkFlag = null,
+            bool? doNotInfer = null,
             string additionalArgs = null, 
             int retriesOnWrite = 5)
         {
@@ -389,6 +416,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.CopyFile:
                         DoCopyFile();
                         return;
+                    case Type.CopySymlink:
+                        DoCopySymlink();
+                        return;
                     case Type.MoveDir:
                         DoMoveDir();
                         return;
@@ -425,11 +455,17 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.Spawn:
                         DoSpawn();
                         return;
+                    case Type.SpawnExe:
+                        DoSpawnExe();
+                        return;
                     case Type.AppendNewLine:
                         DoWriteFile(Environment.NewLine);
                         return;
                     case Type.Fail:
                         DoFail();
+                        return;
+                    case Type.CrashHardNative:
+                        DoCrashHardNative();
                         return;
                     case Type.WriteFileIfInputEqual:
                         DoWriteFileIfInputEqual();
@@ -445,6 +481,12 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.WaitUntilFileExists:
                         DoWaitUntilFileExists();
+                        return;
+                    case Type.AugmentedReadFile:
+                        DoAugmentedReadFile();
+                        return;
+                    case Type.AugmentedWriteFile:
+                        DoAugmentedWriteFile();
                         return;
                 }
             }
@@ -484,6 +526,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
         {
             return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
+        }
+
+        /// <summary>
+        /// Creates a delete directory operation (uses WinAPI)
+        /// </summary>
+        public static Operation DeleteDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
+        {
+            return new Operation(Type.DeleteDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -585,6 +635,14 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Creates a copy symlink operation
+        /// </summary>
+        public static Operation CopySymlink(FileArtifact srcPath, FileArtifact destPath, SymbolicLinkFlag symLinkFlag, bool doNotInfer = false)
+        {
+            return new Operation(Type.CopySymlink, path: srcPath, linkPath: destPath, symLinkFlag: symLinkFlag, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
         /// Creates a move directory operation
         /// </summary>
         public static Operation MoveDir(DirectoryArtifact srcPath, DirectoryArtifact destPath)
@@ -602,8 +660,9 @@ namespace Test.BuildXL.Executables.TestProcess
 
         /// <summary>
         /// Creates a enumerate directory operation
+        /// The path is a FileOrDirectoryArtifact, because we can enumerate directories through directory symlinks - which are FileArtifacts.
         /// </summary>
-        public static Operation EnumerateDir(DirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
+        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
         {
             return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: enumeratePattern);
         }
@@ -689,12 +748,77 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates an operation that spawns a child process executing given <paramref name="childOperations"/>.
         /// </summary>
         /// <param name="pathTable">Needed for rendering child process operations</param>
-        /// <param name="childOperations">Definition of the child process</param>
         /// <param name="waitToFinish">Whether to wait for the child process to finish before continuing</param>
-        public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
+        /// <param name="pidFile">If valid, file to which to write spawned process id</param>
+        /// <param name="doNotInfer">Whether or not to infer dependencies</param>
+        /// <param name="childOperations">Definition of the child process</param>
+        public static Operation SpawnAndWritePidFile(PathTable pathTable, bool waitToFinish, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, params Operation[] childOperations)
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
-            return new Operation(Type.Spawn, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null);
+            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Like <see cref="SpawnAndWritePidFile"/> except it doesn't write out spawned process pid to file.
+        /// </summary>
+        public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
+        {
+            return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, childOperations);
+        }
+
+        /// <summary>
+        /// Creates an operation that spawns a child process using a given executable name.
+        /// </summary>
+        /// <remarks>
+        /// The child is launched in a fire-and-forget manner, the parent process doesn't wait for it to finish
+        /// </remarks>
+        /// <param name="pathTable">Needed for rendering child process operations</param>
+        /// <param name="exeLocation">Path to the executable to launch</param>
+        /// <param name="arguments">Arguments to pass to the spawned process</param>
+        public static Operation SpawnExe(PathTable pathTable, FileOrDirectoryArtifact exeLocation, string arguments = null)
+        {
+            return new Operation(Type.SpawnExe, path: exeLocation, additionalArgs: arguments);
+        }
+
+        /// <summary>
+        /// Creates an operation that reports an augmented read file access to detours without actually performing any IO
+        /// </summary>
+        /// <remarks>
+        /// Processes running this operation have to run in a pip that has a non-empty set of processes allowed to breakaway
+        /// </remarks>
+        public static Operation AugmentedRead(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedReadFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Similar to <see cref="AugmentedRead(FileOrDirectoryArtifact, bool)"/>, but allows to pass paths as plain strings to validate
+        /// non-canonicalized path behavior.
+        /// </summary>
+        public static Operation AugmentedRead(string path, bool doNotInfer = false)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+            return new Operation(Type.AugmentedReadFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
+        }
+
+        /// <summary>
+        /// Creates an operation that reports an augmented write file access to detours without actually performing any IO
+        /// </summary>
+        /// <remarks>
+        /// Processes running this operation have to run in a pip that has a non-empty set of processes allowed to breakaway
+        /// </remarks>
+        public static Operation AugmentedWrite(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedWriteFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Similar to <see cref="AugmentedWrite(FileOrDirectoryArtifact, bool)"/>, but allows to pass paths as plain strings to validate
+        /// non-canonicalized path behavior.
+        /// </summary>
+        public static Operation AugmentedWrite(string path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedWriteFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
         }
 
         /// <summary>
@@ -703,6 +827,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Fail(int exitCode = -1)
         {
             return new Operation(Type.Fail, content: exitCode.ToString());
+        }
+
+        /// <summary>
+        /// Invokes some native code that crashes hard (by segfaulting or something)
+        /// </summary>
+        public static Operation CrashHardNative()
+        {
+            return new Operation(Type.CrashHardNative);
         }
 
         /// <summary>
@@ -785,7 +917,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoDeleteFile()
         {
-            File.Delete(PathAsString);
+            FileUtilities.DeleteFile(PathAsString);
         }
 
         private void DoDeleteDir()
@@ -908,6 +1040,46 @@ namespace Test.BuildXL.Executables.TestProcess
             return string.Empty;
         }
 
+        private string DoAugmentedReadFile(string path = null)
+        {
+            path = path ?? PathAsString;
+
+            // A plain string could have been passed to exercise non-canonicalized paths
+            if (path == InvalidPathString)
+            {
+                path = AdditionalArgs;
+            }
+
+            var success = AugmentedManifestReporter.Instance.TryReportFileReads(new[] { path });
+
+            if (!success)
+            {
+                throw new InvalidOperationException($"Cannot report augmented read for {path}");
+            }
+
+            return string.Empty;
+        }
+
+        private string DoAugmentedWriteFile(string path = null)
+        {
+            path = path ?? PathAsString;
+
+            // A plain string could have been passed to exercise non-canonicalized paths
+            if (path == InvalidPathString)
+            {
+                path = AdditionalArgs;
+            }
+
+            var success = AugmentedManifestReporter.Instance.TryReportFileCreations(new[] { path });
+
+            if (!success)
+            {
+                throw new InvalidOperationException($"Cannot report augmented write for {path}");
+            }
+
+            return string.Empty;
+        }
+
         private string DoReadRequiredFile()
         {
             return File.ReadAllText(PathAsString);
@@ -916,6 +1088,24 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoCopyFile()
         {
             File.Copy(PathAsString, LinkPathAsString, overwrite: true);
+        }
+
+        private void DoCopySymlink()
+        {
+            var possibleTarget = FileUtilities.TryGetReparsePointTarget(null, PathAsString);
+            if (!possibleTarget.Succeeded)
+            {
+                possibleTarget.Failure.Throw();
+            }
+
+            var reparsepointTarget = possibleTarget.Result;
+            FileUtilities.DeleteFile(LinkPathAsString);
+
+            var maybeSymlink = FileUtilities.TryCreateSymbolicLink(LinkPathAsString, reparsepointTarget, isTargetFile: SymLinkFlag == SymbolicLinkFlag.FILE);
+            if (!maybeSymlink.Succeeded)
+            {
+                throw maybeSymlink.Failure.CreateException();
+            }
         }
 
         private void DoMoveDir()
@@ -1062,6 +1252,12 @@ namespace Test.BuildXL.Executables.TestProcess
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
+            if (PathAsString != null && PathAsString != InvalidPathString)
+            {
+                // write PID to file
+                File.WriteAllText(PathAsString, contents: process.Id.ToString());
+            }
+
             if (waitToFinish)
             {
                 process.WaitForExit();
@@ -1082,10 +1278,53 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
+        private void DoSpawnExe()
+        {
+            var process = new Process();
+
+            process.StartInfo = new ProcessStartInfo
+            {
+                FileName = PathAsString,
+                Arguments = AdditionalArgs,
+                // Important to redirect stdout/stderr because we don't want stdout/stderr
+                // of this child process to go to this process's stdout/stderr; without
+                // this the child process cannot fully break away
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            process.Start();
+
+            // Log the the process that was launched with its id so it can be retrieved by bxl tests later
+            // This is used when the child process is launched to breakaway from the job object, so we actually
+            // don't get its information back as part of a reported process
+            string processName;
+            try
+            {
+                // process.ProcessName throws if process has already exited
+                processName = process.ProcessName;
+            }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch
+            {
+                processName = PathAsString;
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+
+            LogSpawnExeChildProcess(processName, process.Id);
+        }
+
         private void DoFail()
         {
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
             Environment.Exit(exitCode);
+        }
+
+        private void DoCrashHardNative()
+        {
+            global::BuildXL.Interop.Dispatch.ForceQuit();
         }
 
         private void DoSucceedOnRetry()
@@ -1138,9 +1377,9 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             Type opType;
-            string pathAsString = "{Invalid}";
+            string pathAsString = InvalidPathString;
             SymbolicLinkFlag symLinkFlag;
-            string linkPathAsString = "{Invalid}";
+            string linkPathAsString = InvalidPathString;
 
             if (!Enum.TryParse<Type>(opArgs[0], out opType))
             {
@@ -1208,6 +1447,36 @@ namespace Test.BuildXL.Executables.TestProcess
             return escapeResult
                 ? CommandLineEscaping.EscapeAsCommandLineWord(sb.ToString())
                 : sb.ToString();
+        }
+
+        /// <summary>
+        /// Retrieves all process (process name and pid) spawn by calling SpawnExe from the parent process standard output
+        /// </summary>
+        /// <remarks>
+        /// Useful when the spawn process is configured to breakaway, and therefore we have no detours to track them
+        /// </remarks>
+        public static IEnumerable<(string processName, int pid)> RetrieveChildProcessesCreatedBySpawnExe(string processStandardOutput)
+        {
+            var result = new List<(string processName, int pid)>();
+            var prefixLength = SpawnExePrefix.Length;
+            foreach (string line in processStandardOutput.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (line.StartsWith(SpawnExePrefix))
+                {
+                    int separatorIndex = line.IndexOf(':');
+                    result.Add((line.Substring(prefixLength, separatorIndex - prefixLength), int.Parse(line.Substring(separatorIndex + 1))));
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Keep in sync with <see cref="RetrieveChildProcessesCreatedBySpawnExe"/>
+        /// </summary>
+        private void LogSpawnExeChildProcess(string processName, long processId)
+        {
+            Console.WriteLine($"{SpawnExePrefix}{processName}:{processId}");
         }
 
         /*** TO STRING HELPER FUNCTIONS ***/

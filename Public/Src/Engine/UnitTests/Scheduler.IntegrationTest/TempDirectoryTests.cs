@@ -1,11 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -15,8 +16,9 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
-namespace IntegrationTest.Domino.Scheduler
+namespace IntegrationTest.BuildXL.Scheduler
 {
     /// <summary>
     /// Tests that validate file access policies and caching behavior
@@ -126,15 +128,14 @@ namespace IntegrationTest.Domino.Scheduler
         /// </summary>
         /// <param name="tempArtifactType"></param>
         [Theory]
-        [InlineData(TempArtifactType.AdditionalTempDirectory)]
-        [InlineData(TempArtifactType.TempDirectory)]
-        [InlineData(TempArtifactType.TempFile)]
-        public void FailOnTempInput(int tempArtifactType)
+        [InlineData(TempArtifactType.AdditionalTempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempFile, LogEventId.InvalidInputSinceCorrespondingOutputIsTemporary)]
+        public void FailOnTempInput(int tempArtifactType, LogEventId errorEvent)
         {
             // First pip writes a file to its temp directory
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut);
-
-            try
+            Assert.Throws<BuildXLTestException>(() =>
             {
                 // Second pip consumes a file from pipA's temp directory
                 CreateAndSchedulePipBuilder(new Operation[]
@@ -142,20 +143,9 @@ namespace IntegrationTest.Domino.Scheduler
                     Operation.ReadFile(tempOut),
                     Operation.WriteFile(CreateOutputFileArtifact())
                 });
-            }
-            catch (System.Exception contractException)
-            {
-#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
-                // input files in temp directories throw this contract exception
-                contractException.Message.StartsWith("Assumption failed: Output artifact has no producer.");
-#pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+            });
 
-                // temp files error
-                if (tempArtifactType == TempArtifactType.TempFile)
-                {
-                    AssertErrorEventLogged(EventId.InvalidInputSinceCorrespondingOutputIsTemporary);
-                }
-            }
+            AssertErrorEventLogged(errorEvent);
         }
 
         [Theory]
@@ -182,7 +172,7 @@ namespace IntegrationTest.Domino.Scheduler
             XAssert.IsTrue(exception != null);
             XAssert.IsTrue(exception.Message.Contains("Failed to add process pip"));
 
-            AssertErrorEventLogged(EventId.InvalidProcessPipDueToNoOutputArtifacts);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.InvalidProcessPipDueToNoOutputArtifacts);
         }
 
         [Theory]
@@ -201,7 +191,7 @@ namespace IntegrationTest.Domino.Scheduler
             });
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -216,7 +206,7 @@ namespace IntegrationTest.Domino.Scheduler
             var copyFilePip = CreateAndScheduleCopyFile(srcFile, destFile);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -233,7 +223,7 @@ namespace IntegrationTest.Domino.Scheduler
             }).Process;
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
 
@@ -253,7 +243,7 @@ namespace IntegrationTest.Domino.Scheduler
             SchedulePipBuilder(builder);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -274,7 +264,7 @@ namespace IntegrationTest.Domino.Scheduler
             tempOut.Path);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -300,7 +290,7 @@ namespace IntegrationTest.Domino.Scheduler
             SchedulePipBuilder(builder);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -326,7 +316,7 @@ namespace IntegrationTest.Domino.Scheduler
             var pip = SchedulePipBuilder(builder).Process;
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -348,7 +338,7 @@ namespace IntegrationTest.Domino.Scheduler
             SchedulePipBuilder(builderWithOutputDirectory);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -373,7 +363,7 @@ namespace IntegrationTest.Domino.Scheduler
             SchedulePipBuilder(builderWithOutputDirectory);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -393,7 +383,7 @@ namespace IntegrationTest.Domino.Scheduler
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut, tempRoot: sealDir.Path);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -410,12 +400,18 @@ namespace IntegrationTest.Domino.Scheduler
             PipGraphBuilder.Build();
         }
 
-        [Theory(Skip = "Bug 1463540")]
-        [InlineData(TempArtifactType.AdditionalTempDirectory)]
-        [InlineData(TempArtifactType.TempDirectory)]
-        public void FailWhenTwoPipsHaveSameTempDirectory(int tempArtifactType)
+        /// <summary>
+        /// This tests verifies that multiple pips are unable to use same temporary directory according to flag.
+        /// </summary>
+        [Theory]
+        [InlineData(true,  TempArtifactType.AdditionalTempDirectory)]
+        [InlineData(false, TempArtifactType.AdditionalTempDirectory)]
+        [InlineData(true,  TempArtifactType.TempDirectory)]
+        [InlineData(false, TempArtifactType.TempDirectory)]
+        public void FailWhenTwoPipsHaveSameTempDirectory(bool allowDuplicateTemporaryDirectory, int tempArtifactType)
         {
-            Exception exception = null;
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = allowDuplicateTemporaryDirectory;
+            Exception caughtExpection = null;
             try
             {
                 CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut1);
@@ -423,12 +419,21 @@ namespace IntegrationTest.Domino.Scheduler
 
                 PipGraphBuilder.Build();
             }
-            catch (Exception ex)
+            catch(Exception e)
             {
-                exception = ex;
+                caughtExpection = e;
             }
 
-            XAssert.AreNotEqual(null, exception);
+            if (!allowDuplicateTemporaryDirectory)
+            {
+                AssertTrue(caughtExpection != null, "Expected PipGraph Builder Exception, but Graph built successfully");
+                AssertErrorEventLogged(LogEventId.MultiplePipsUsingSameTemporaryDirectory);
+            }
+            else
+            {
+                AssertTrue(caughtExpection == null, "Expected PipGraph Builder to pass, but Graph built failed with exception: " + caughtExpection?.Message);
+            }
+            
         }
 
         /// <summary>
@@ -461,7 +466,7 @@ namespace IntegrationTest.Domino.Scheduler
             if (ensureTempDirectoriesCreation)
             {
                 result.AssertFailure();
-                AssertErrorEventLogged(EventId.PipProcessError, 1);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, 1);
             }
             else
             {
@@ -486,14 +491,15 @@ namespace IntegrationTest.Domino.Scheduler
             var tempRootPath = tempRoot ?? TempRootPath;
 
             tempFileWritten = CreateOutputFileArtifact(tempRootPath);
-            var pip = CreateAndScheduleTempDirProcess(new Operation[]
-            {
-                Operation.WriteFile(tempFileWritten, doNotInfer: true),
-                Operation.WriteFile(CreateOutputFileArtifact())
-            },
-            tempArtifactType,
-            tempRootPath,
-            tempFileWritten.Path);
+            var pip = CreateAndScheduleTempDirProcess(
+                new Operation[]
+                {
+                    Operation.WriteFile(tempFileWritten, doNotInfer: true),
+                    Operation.WriteFile(CreateOutputFileArtifact())
+                },
+                tempArtifactType,
+                tempRootPath,
+                tempFileWritten.Path);
 
             return pip;
         }

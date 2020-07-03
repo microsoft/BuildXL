@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using System.Diagnostics.Tracing;
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -109,7 +109,7 @@ namespace BuildXL.Utilities.Tracing
             bool useCustomPipDescription = false)
             : base(eventSource, warningMapper, level, captureAllDiagnosticMessages, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages)
         {
-            Contract.Requires(eventSource != null);
+            Contract.RequiresNotNull(eventSource);
 
             BaseTime = baseTime;
             TimeDisplay = timeDisplay;
@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Performs the final output activity for the listener.
         /// </summary>
-        protected abstract void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text,bool doNotTranslatePaths = false);
+        protected abstract void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false);
 
         /// <summary>
         /// Enables sending log output to ETW via the provider logger
@@ -139,7 +139,7 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="suppressEvent">Whether an event should be suppressed</param>
         protected virtual void Write(EventWrittenEventArgs eventData, EventLevel level, string message = null, bool suppressEvent = false)
         {
-            Contract.Requires(eventData != null);
+            Contract.RequiresNotNull(eventData);
 
             string label;
             switch (level)
@@ -183,9 +183,20 @@ namespace BuildXL.Utilities.Tracing
 
                 // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
                 // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
-                Output(level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, full, doNotTranslatePaths: eventData.EventId == (int)EventId.DominoInvocation);
+                Output(level, eventData, full, doNotTranslatePaths: DoNotTranslatePath(eventData.EventId));                         
             }
         }
+
+        private bool DoNotTranslatePath(int eventId) =>
+            // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
+            // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
+            (int)SharedLogEventId.DominoInvocation == eventId || (int)SharedLogEventId.DominoInvocationForLocalLog == eventId
+            // Don't translate paths in the CacheMissAnalysis event since that can give a wrong presentation, e.g.,
+            // two fingerprints do not match because path D:\a\b\c equals D:\a\b\c, but the latter path is actually a translation
+            // from B:\c, with D:\a\b is the subst path and B: is the subst drive. Furthermore, presentation-wise, path translation
+            // can result in invalid format. Consider for example the JSON format where paths are property names and all paths are escaped.
+            // Any occurence of "B:\\c" will be translated into "D:\a\b\\c".
+            || (int)SharedLogEventId.CacheMissAnalysis == eventId || (int)SharedLogEventId.CacheMissAnalysisBatchResults == eventId;
 
         /// <nodoc/>
         public static string TimeSpanToString(TimeDisplay timeDisplay, TimeSpan t)
@@ -245,9 +256,9 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static string CreateFullMessageString(EventWrittenEventArgs eventData, string label, string message, DateTime baseTime, bool useCustomPipDescription, TimeDisplay timeDisplay = TimeDisplay.Seconds)
         {
-            Contract.Requires(eventData != null);
-            Contract.Requires(label != null);
-            Contract.Requires(message != null);
+            Contract.RequiresNotNull(eventData);
+            Contract.RequiresNotNull(label);
+            Contract.RequiresNotNull(message);
 
             // Note that we cannot assume that Payload or other fields are actually populated.
             // In particular, an event-write failure goes through EventSource.WriteStringToAllListeners,

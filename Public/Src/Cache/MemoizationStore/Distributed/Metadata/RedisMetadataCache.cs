@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), context.CreateNested());
+            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), context.CreateNested(nameof(RedisMetadataCache)));
             var redisDatabaseAdapter = new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(context, ConnectionStringProvider), Keyspace);
             _dbAdapter = redisDatabaseAdapter;
             _stringDatabaseAdapter = redisDatabaseAdapter;
@@ -161,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
                         {
                             _cacheTracer.AddContentHashListStart(context);
                             bool result = await StringSetWithExpiryBumpAsync(context, cacheKey, cacheValue);
-                            context.Logger.Debug($"Added redis cache entry for {strongFingerprint}: {getResult}. Result: {result}");
+                            context.Debug($"Added redis cache entry for {strongFingerprint}: {getResult}. Result: {result}");
                         }
                         finally
                         {

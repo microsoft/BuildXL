@@ -1,0 +1,28 @@
+/***********************************************************************************************
+This suppressions file is generated and maintained by CloudBuild's Flaky Test Management System.
+Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/Flaky-Test-Management-System.html
+***********************************************************************************************/
+{
+  "FlakyTestsPerModule": {
+    "Public\\Src\\Tools\\UnitTests\\MsBuildGraphBuilder_retail_X64": {
+      "FlakyTestMap": {
+        "Test.ProjectGraphBuilder.MsBuildGraphProgressTests.ProgressIsReported": {
+          "Name": "Test.ProjectGraphBuilder.MsBuildGraphProgressTests.ProgressIsReported",
+          "DetectionTimeUtc": "2020-06-23T10:32:19.6732111Z",
+          "QuarantineExpiryTimeUtc": "2020-12-20T10:32:19.6732128Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1739435",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "system.timeoutexception : the operation has timed out."
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/ae7ea9cc-8503-c480-4dc9-1bcbc8f4a98c",
+          "ScheduledDeletionTimeUtc": null
+        }
+      },
+      "Metadata": {
+        "ErrorSignatureToModuleBugReportUri": {}
+      },
+      "TestSourceDir": "Public\\Src\\Tools\\UnitTests\\MsBuildGraphBuilder"
+    }
+  }
+}

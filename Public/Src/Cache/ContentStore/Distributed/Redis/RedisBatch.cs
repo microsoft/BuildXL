@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,9 +7,11 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
@@ -306,9 +308,12 @@ return { requestedIncrement, currentValue }";
         }
 
         private readonly List<IRedisOperationAndResult> _redisOperations = new List<IRedisOperationAndResult>();
+        private readonly string _databaseName;
 
-        /// <inheritdoc />
-        public RedisBatch(RedisOperation operation, string keySpace) => (Operation, KeySpace) = (operation, keySpace);
+        public string DatabaseName => _databaseName;
+
+        /// <nodoc />
+        public RedisBatch(RedisOperation operation, string keySpace, string databaseName) => (Operation, KeySpace, _databaseName) = (operation, keySpace, databaseName);
 
         /// <inheritdoc />
         public RedisOperation Operation { get; }
@@ -325,6 +330,13 @@ return { requestedIncrement, currentValue }";
             var redisOperation = new RedisOperationAndResult<T>(batch => operation(batch));
             _redisOperations.Add(redisOperation);
             return redisOperation.FinalTaskResult.Task;
+        }
+
+        /// <nodoc />
+        public void AddOperationAndTraceIfFailure<T>(Context context, string key, Func<IBatch, Task<T>> operation, [CallerMemberName]string operationName = null)
+        {
+            // Trace failure using 'Debug' severity to avoid pollution of warning traces.
+            AddOperation(key, operation).FireAndForget(context, batch: this, operationName);
         }
 
         /// <inheritdoc />
@@ -400,17 +412,16 @@ return { requestedIncrement, currentValue }";
             return (maxMachineId, unknownMachines);
         }
 
-        /// <inheritdoc />
-        public async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet)> HeartbeatAsync(
+        /// <nodoc />
+        public async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet)> HeartbeatAsync(
             string clusterStateKey,
             int machineId,
             MachineState declaredState,
             DateTime currentTime,
-            TimeSpan recomputeExpiryInterval,
-            TimeSpan machineExpiryInterval)
+            TimeSpan recomputeInterval,
+            TimeSpan machineActiveToClosedInterval,
+            TimeSpan machineActiveToExpiredInterval)
         {
-            // -- (MachineState: priorState, BitSet: inactiveMachineBitSet)
-            // Heartbeat(string clusterStateKey, int machineId, MachineStatus declaredState, long currentTime, long recomputeExpiryInterval, long machineExpiryInterval)
             var redisOperation =
                 new RedisOperationAndResult<RedisResult>(
                     batch =>
@@ -422,8 +433,9 @@ return { requestedIncrement, currentValue }";
                                 machineId,
                                 (int)declaredState,
                                 GetUnixTimeSecondsFromDateTime(currentTime),
-                                (long)recomputeExpiryInterval.TotalSeconds,
-                                (long)machineExpiryInterval.TotalSeconds
+                                (long)recomputeInterval.TotalSeconds,
+                                (long)machineActiveToClosedInterval.TotalSeconds,
+                                (long)machineActiveToExpiredInterval.TotalSeconds
                             }));
 
             _redisOperations.Add(redisOperation);
@@ -432,7 +444,9 @@ return { requestedIncrement, currentValue }";
             var priorState = (MachineState)(int)arrayResult[0];
             var inactiveMachinesData = (byte[])arrayResult[1] ?? CollectionUtilities.EmptyArray<byte>();
             var inactiveMachineIdSet = new BitMachineIdSet(inactiveMachinesData, 0);
-            return (priorState, inactiveMachineIdSet);
+            var closedMachinesData = (byte[])arrayResult[2] ?? CollectionUtilities.EmptyArray<byte>();
+            var closedMachineIdSet = new BitMachineIdSet(closedMachinesData, 0);
+            return (priorState, inactiveMachineIdSet, closedMachineIdSet);
         }
 
         /// <inheritdoc />
@@ -847,7 +861,12 @@ return { requestedIncrement, currentValue }";
             foreach (IRedisOperationAndResult operation in _redisOperations)
             {
                 var task = operation.AddTaskToBatch(batch);
-                task.FireAndForget(context); // FireAndForget not inlined because we don't want to replace parent task with continuation
+                // FireAndForget not inlined because we don't want to replace parent task with continuation. Failure
+                // severity is Unknown to stop the logging from happening. We still need to do FireAndForget in order
+                // to avoid any ThrowOnUnobservedTaskException triggers.
+
+                // The tracing is effectively disabled, because the failure is observed by the caller of this method.
+                task.FireAndForget(context, failureSeverity: Severity.Diagnostic);
                 taskToTrack.Add(task);
             }
 
@@ -878,16 +897,22 @@ return { requestedIncrement, currentValue }";
         {
             var callingAssembly = typeof(RedisBatch).GetTypeInfo().Assembly;
             var stream = callingAssembly.GetManifestResourceStream(resourceKey);
-            if (stream == null)
-            {
-                Contract.Assert(false, $"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
-                return null;
-            }
+            Contract.Check(stream != null)?.Assert($"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
 
             using (var sr = new StreamReader(stream))
             {
                 return sr.ReadToEnd();
             }
+        }
+    }
+
+    /// <nodoc />
+    internal static class RedisBatchTaskExtensions
+    {
+        public static void FireAndForget(this Task task, Context context, IRedisBatch batch, [CallerMemberName]string operation = null)
+        {
+            string extraMessage = string.IsNullOrEmpty(batch.DatabaseName) ? string.Empty : $"Database={batch.DatabaseName}";
+            task.FireAndForget(context, operation, failureSeverity: Severity.Debug, extraMessage: extraMessage);
         }
     }
 }

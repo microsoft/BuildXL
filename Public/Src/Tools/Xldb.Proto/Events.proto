@@ -165,7 +165,7 @@ message ProcessExecutionMonitoringReportedEvent{
     repeated ReportedFileAccess ReportedFileAccesses = 4;
     
     // The reported file accesses
-    repeated ReportedFileAccess WhitelistedReportedFileAccesses = 5;
+    repeated ReportedFileAccess AllowlistedReportedFileAccesses = 5;
 
     // The reported Process Detouring Status messages
     repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
@@ -237,6 +237,9 @@ message BuildSessionConfigurationEvent{
 
     // Extra optional fingerprint salt for MacOS
     string RequiredKextVersionNumber = 22;
+    
+    // Whether the /unsafe_IgnoreFullSymlinkResolving flag is passed to BuildXL
+    bool IgnoreFullSymlinkResolving = 23;
 }
 
 // The DependencyViolationReported Event message
@@ -339,8 +342,8 @@ message StatusReportedEvent{
     // Number of running items in the CacheLookup dispatcher
     int32 LookupRunning = 18;
 
-    // Number of externally running processes
-    int32 ExternalProcesses = 19;
+    // Number of processes running under PipExecutor
+    int32 RunningPipExecutorProcesses = 19;
 
     // Number of pips succeeded for each type
     repeated int64 PipsSucceededAllTypes = 20;
@@ -357,6 +360,9 @@ message StatusReportedEvent{
 
     // Number of process pips allocated a slot on workers (including localworker)
     int64 ProcessPipsAllocatedSlots = 24;
+
+    // Number of OS processes physically running (not including child processes, just main pip processes).
+    int32 RunningProcesses = 25;
 }
 
 // The ProcessFingerprintComputation Event message

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -32,7 +32,18 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
             if (string.Equals(VmCommands.InitializeVm, command, StringComparison.OrdinalIgnoreCase))
             {
-                return InitializeVm();
+                if (!TryParseArgs(args, out inputFile, out _))
+                {
+                    return -1;
+                }
+
+                if (string.IsNullOrWhiteSpace(inputFile))
+                {
+                    Console.Error.WriteLine($"{VmCommands.InitializeVm} command requires input");
+                    return -1;
+                }
+
+                return InitializeVm(inputFile);
             }
             else if (string.Equals(VmCommands.Run, command, StringComparison.OrdinalIgnoreCase))
             {
@@ -83,7 +94,41 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
             return true;
         }
 
-        private static int InitializeVm() => 0;
+        private static int InitializeVm(string inputFile)
+        {
+            Console.WriteLine($"Read initialize VM request from '{inputFile}'");
+
+            InitializeVmRequest request = VmSerializer.DeserializeFromFile<InitializeVmRequest>(inputFile);
+
+            if (string.IsNullOrEmpty(request.SubstDrive) != string.IsNullOrEmpty(request.SubstPath))
+            {
+                Console.Error.WriteLine("Invalid subst input");
+                return 1;
+            }
+
+            if (!string.IsNullOrEmpty(request.SubstDrive))
+            {
+                if (request.SubstDrive.Length != 2
+                    || !char.IsLetter(request.SubstDrive[0])
+                    || request.SubstDrive[1] != ':')
+                {
+                    Console.Error.WriteLine($"Invalid subst drive '{request.SubstDrive}'");
+                    return 1;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(request.SubstPath))
+            {
+                if (!Path.IsPathRooted(request.SubstPath)
+                    || request.SubstPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                {
+                    Console.Error.Write($"Invalid subst path '{request.SubstPath}'");
+                    return 1;
+                }
+            }
+
+            return 0;
+        }
 
         private static int Run(string inputFile, string outputFile)
         {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -216,6 +216,17 @@ namespace BuildXL.FrontEnd.Sdk
             return hooks.TryGetValue(phase, out hook)
                 ? hook
                 : () => { };
+        }
+
+        /// <summary>
+        /// Initializes the frontends
+        /// </summary>
+        public void InitializeFrontEnds(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
+        {
+            foreach (var frontEnd in RegisteredFrontEnds)
+            {
+                frontEnd.InitializeFrontEnd(host, context, configuration);
+            }
         }
     }
 }

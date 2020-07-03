@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -38,7 +38,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Task GetOrCreate(Func<Task> factory)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
 
             // Can't use LazyInitializer.EnsureInitialized because it can call factory method
             // more than once! So using double-checked lock manually to ensure, that factory method
@@ -85,7 +85,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Task<T> GetOrCreate(Func<Task<T>> factory)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
 
             // Can't use LazyInitializer.EnsureInitialized because it can call factory method
             // more than once! So using double-checked lock manually to ensure, that factory method
@@ -109,7 +109,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Task<T> GetOrCreate<TData>(TData data, Func<TData, Task<T>> factory)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
 
             // Can't use LazyInitializer.EnsureInitialized because it can call factory method
             // more than once! So using double-checked lock manually to ensure, that factory method

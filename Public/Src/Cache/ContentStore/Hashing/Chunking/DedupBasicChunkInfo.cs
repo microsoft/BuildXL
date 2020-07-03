@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using size_t = System.UInt64;
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
             return (int)m_nStartChunk ^ (int)m_nChunkLength ^ (int)m_eCutType;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is DedupBasicChunkInfo)
             {

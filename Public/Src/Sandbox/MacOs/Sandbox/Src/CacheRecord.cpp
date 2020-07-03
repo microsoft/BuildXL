@@ -29,7 +29,7 @@ bool CacheRecord::init()
         return false;
     }
 
-    lock_ = IOLockAlloc();
+    lock_ = BXLLockAlloc();
     if (lock_ == nullptr)
     {
         return false;
@@ -43,7 +43,7 @@ void CacheRecord::free()
 {
     if (lock_ != nullptr)
     {
-        IOLockFree(lock_);
+        BXLLockFree(lock_);
         lock_ = nullptr;
     }
 
@@ -53,7 +53,7 @@ void CacheRecord::free()
 bool CacheRecord::Check(const AccessCheckResult *result) const
 {
     // It's a cache hit if we've previously seen all the requested accesses.
-    return HasAllFlags(requestedAccess_, result->RequestedAccess);
+    return HasAllFlags(requestedAccess_, result->Access);
 }
 
 static const RequestedAccess LookupProbe     = RequestedAccess::Lookup | RequestedAccess::Probe;
@@ -127,14 +127,14 @@ void CacheRecord::Update(const AccessCheckResult *result)
     //   - whenever Probe is seen, add Lookup as well;
     //   - whenever Read is seen, add Probe and Lookup as well;
     //   - whenever Write is seen, add Read, Probe, and Lookup as well.
-    RequestedAccess access = result->RequestedAccess;
+    RequestedAccess access = result->Access;
     requestedAccess_ |= access | implies(access);
 }
 
 bool CacheRecord::CheckAndUpdate(const AccessCheckResult *checkResult)
 {
     bool isHit;
-    IOLockLock(lock_);
+    BXLLockLock(lock_);
     {
         isHit = Check(checkResult);
         if (!isHit)
@@ -142,6 +142,6 @@ bool CacheRecord::CheckAndUpdate(const AccessCheckResult *checkResult)
             Update(checkResult);
         }
     }
-    IOLockUnlock(lock_);
+    BXLLockUnlock(lock_);
     return isHit;
 }

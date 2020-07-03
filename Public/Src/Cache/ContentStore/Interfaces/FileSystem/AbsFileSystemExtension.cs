@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -22,6 +24,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static async Task CreateEmptyFileAsync(this IAbsFileSystem fileSystem, AbsolutePath path)
         {
+            Contract.RequiresNotNull(path);
+            Contract.RequiresNotNull(path.Parent);
+
             fileSystem.CreateDirectory(path.Parent);
             using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, bufferSize: 1).ConfigureAwait(false))
             {
@@ -61,21 +66,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         /// <returns>Returns <code>null</code> if file does not exist, or content of the file otherwise.</returns>
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
-        public static async Task<string> TryReadFileAsync(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
+        public static async Task<string?> TryReadFileAsync(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
         {
-            using (Stream readLockFile = await fileSystem.OpenAsync(
-                absolutePath, FileAccess.Read, FileMode.Open, fileShare).ConfigureAwait(false))
+            using Stream? readLockFile = await fileSystem.OpenAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).ConfigureAwait(false);
+            if (readLockFile != null)
             {
-                if (readLockFile != null)
-                {
-                    using (var reader = new StreamReader(readLockFile))
-                    {
-                        return await reader.ReadToEndAsync().ConfigureAwait(false);
-                    }
-                }
-
-                return null;
+                using var reader = new StreamReader(readLockFile);
+                return await reader.ReadToEndAsync().ConfigureAwait(false);
             }
+
+            return null;
         }
 
         /// <summary>
@@ -84,13 +84,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
         public static string ReadAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
         {
-            using (Stream readLockFile = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).GetAwaiter().GetResult())
-            {
-                using (var reader = new StreamReader(readLockFile))
-                {
-                    return reader.ReadToEnd();
-                }
-            }
+            using Stream readLockFile = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).GetAwaiter().GetResult();
+            using var reader = new StreamReader(readLockFile);
+            return reader.ReadToEnd();
         }
 
         /// <summary>
@@ -99,13 +95,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
         public static void WriteAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, string contents, FileShare fileShare = FileShare.ReadWrite)
         {
-            using (Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult())
-            {
-                using (var writer = new StreamWriter(file))
-                {
-                    writer.WriteLine(contents);
-                }
-            }
+            using Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult();
+            using var writer = new StreamWriter(file);
+            writer.Write(contents);
         }
 
         /// <summary>
@@ -115,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// Unlike <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<Stream> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = DefaultFileStreamBufferSize)
+        public static async Task<StreamWithLength> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = DefaultFileStreamBufferSize)
         {
             var stream = await fileSystem.OpenAsync(path, fileAccess, fileMode, share, options, bufferSize);
             if (stream == null)
@@ -123,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new FileNotFoundException($"The file '{path}' does not exist.");
             }
 
-            return stream;
+            return stream.Value;
         }
 
         /// <summary>
@@ -133,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// Unlike <see cref="IReadableFileSystem{T}.OpenReadOnlyAsync(T, FileShare)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<Stream> OpenReadOnlySafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
+        public static async Task<StreamWithLength> OpenReadOnlySafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
         {
             var stream = await fileSystem.OpenReadOnlyAsync(path, share);
             if (stream == null)
@@ -141,13 +133,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new FileNotFoundException($"The file '{path}' does not exist.");
             }
 
-            return stream;
+            return stream.Value;
         }
 
         /// <summary>
         /// Calls <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)" /> with the default buffer stream size.
         /// </summary>
-        public static Task<Stream> OpenAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
+        public static Task<StreamWithLength?> OpenAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
         {
             return fileSystem.OpenAsync(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
         }

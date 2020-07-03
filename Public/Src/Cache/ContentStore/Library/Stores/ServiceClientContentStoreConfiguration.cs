@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Default interval, in seconds, between client retries.
         /// </summary>
-        public const int DefaultRetryIntervalSeconds = 5;
+        public const int DefaultRetryIntervalSeconds = 10;
 
         /// <summary>
         ///     Default number of client retries to attempt before giving up.

@@ -17,8 +17,8 @@ namespace Distributed {
             
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("StackExchange.Redis.StrongName").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

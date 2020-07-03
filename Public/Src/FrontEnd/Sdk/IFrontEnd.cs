@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.FrontEnd.Workspaces;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Sdk
@@ -15,6 +16,11 @@ namespace BuildXL.FrontEnd.Sdk
     [SuppressMessage("Microsoft.Naming", "CA1724:TypeNamesShouldNotMatchNamespaces")]
     public interface IFrontEnd
     {
+        /// <summary>
+        /// The name of the frontend
+        /// </summary>
+        string Name { get; }
+
         /// <summary>
         /// Returns the supported resolvers
         /// </summary>
@@ -35,8 +41,19 @@ namespace BuildXL.FrontEnd.Sdk
         IResolver CreateResolver([NotNull]string kind);
 
         /// <summary>
+        /// Creates a resolver for a given kind. The resolver must be part of the front end
+        /// supported resolvers.
+        /// </summary>
+        bool TryCreateWorkspaceResolver([NotNull] IResolverSettings resolverSettings, [NotNull] out IWorkspaceModuleResolver workspaceResolver);
+
+        /// <summary>
         /// Allows a frontend to log its statistics after evaluation
         /// </summary>
         void LogStatistics(Dictionary<string, long> statistics);
+
+        /// <summary>
+        /// Whether the use of environment variables are restricted during evaluation.
+        /// </summary>
+        bool ShouldRestrictBuildParameters { get; }
     }
 }

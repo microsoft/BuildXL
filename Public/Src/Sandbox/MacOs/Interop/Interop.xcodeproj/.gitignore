@@ -1,2 +1,2 @@
 project.xcworkspace
-xcuserdata
+**/xcuserdata/**

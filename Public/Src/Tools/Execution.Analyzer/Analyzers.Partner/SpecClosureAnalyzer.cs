@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,8 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -35,7 +34,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else
                 {
-                    throw Error("Unknown option for whitelist analysis: {0}", opt.Name);
+                    throw Error("Unknown option for allowlist analysis: {0}", opt.Name);
                 }
             }
 
@@ -70,7 +69,7 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class SpecClosureAnalyzer
     {
         /// <summary>
-        /// The path to the whitelist directory
+        /// The path to the allowlist directory
         /// </summary>
         public string OutputPath;
         public string DependenciesFilePath;

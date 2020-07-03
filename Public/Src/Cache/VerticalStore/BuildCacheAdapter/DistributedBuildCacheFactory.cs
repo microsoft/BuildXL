@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,6 @@ using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Metadata;
@@ -73,8 +72,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
             /// <summary>
             /// The Id of the cache instance
             /// </summary>
-            [DefaultValue("DistributedBuildCache")]
-            public string CacheId { get; set; }
+            [DefaultValue(typeof(CacheId))]
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Cache key expiry bump time in minutes

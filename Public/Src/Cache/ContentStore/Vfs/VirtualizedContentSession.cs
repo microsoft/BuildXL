@@ -1,26 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Vfs
@@ -29,6 +21,9 @@ namespace BuildXL.Cache.ContentStore.Vfs
     internal class VirtualizedContentSession : ContentSessionBase
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentSession));
+
+        // Should not trace since it mostly delegates to underlying content session
+        protected override bool TraceErrorsOnly => true;
 
         private readonly IContentSession _innerSession;
         private readonly VirtualizedContentStore _store;
@@ -77,9 +72,27 @@ namespace BuildXL.Cache.ContentStore.Vfs
             return _innerSession.PinAsync(operationContext, contentHashes, operationContext.Token, urgencyHint);
         }
 
+        protected override bool TraceErrorsOnlyForPlaceFile(AbsolutePath path)
+        {
+            return !path.IsVirtual;
+        }
+
         /// <inheritdoc />
         protected override async Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
+            if (!path.IsVirtual)
+            {
+                return await _innerSession.PlaceFileAsync(
+                    operationContext,
+                    contentHash,
+                    path,
+                    accessMode,
+                    replacementMode,
+                    realizationMode,
+                    operationContext.Token,
+                    urgencyHint);
+            }
+
             if (replacementMode != FileReplacementMode.ReplaceExisting && _fileSystem.FileExists(path))
             {
                 if (replacementMode == FileReplacementMode.SkipIfExists)
@@ -94,26 +107,9 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 }
             }
 
-            var virtualPath = _contentManager.ToVirtualPath(path);
-            if (virtualPath == null)
-            {
-                return await _innerSession.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint);
-            }
+            var placementData = new VfsFilePlacementData(contentHash, realizationMode, accessMode);
 
-            _contentManager.Tree.AddFileNode(virtualPath, new VfsFilePlacementData(contentHash, realizationMode, accessMode));
-            return new PlaceFileResult(GetPlaceResultCode(realizationMode, accessMode), fileSize: -1 /* Unknown */);
-        }
-
-        private PlaceFileResult.ResultCode GetPlaceResultCode(FileRealizationMode realizationMode, FileAccessMode accessMode)
-        {
-            if (realizationMode == FileRealizationMode.Copy
-                || realizationMode == FileRealizationMode.CopyNoVerify
-                || accessMode == FileAccessMode.Write)
-            {
-                return PlaceFileResult.ResultCode.PlacedWithCopy;
-            }
-
-            return PlaceFileResult.ResultCode.PlacedWithHardLink;
+            return await _contentManager.PlaceFileAsync(operationContext, path, placementData, operationContext.Token);
         }
 
         /// <inheritdoc />

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,14 +8,14 @@ using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
     [DataContract]
     public class LocalCasSettings
     {
-        [JsonConstructor]
+        public const string DefaultScenario = "ContentAddressableStore";
+
         public LocalCasSettings()
         {    
         }
@@ -96,7 +96,7 @@ namespace BuildXL.Cache.Host.Configuration
         public LocalCasServiceSettings ServiceSettings { get; set; }
 
         [DataMember]
-        private Dictionary<string, NamedCacheSettings> CacheSettings { get; set; }
+        public Dictionary<string, NamedCacheSettings> CacheSettings { get; set; }
 
         /// <summary>
         /// Deprecated - Recognized in config, but deprecated in favor of <see cref="DrivePreferenceOrder"/>.
@@ -145,6 +145,16 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public List<string> DrivePreferenceOrder { get; set; } = new List<string> { DefaultCacheDrive.Path };
 
+        /// <summary>
+        /// Indicates whether CAS instances should be separated by Scenario
+        /// </summary>
+        public bool UseScenarioIsolation { get; set; } = true;
+
+        public AbsolutePath GetCacheRootPathWithScenario(string cacheName)
+        {
+            return new AbsolutePath(GetCacheRootPath(cacheName, ServiceSettings?.ScenarioName ?? DefaultScenario));
+        }
+
         public Dictionary<string, NamedCacheSettings> CacheSettingsByCacheName
         {
             get { return CacheSettings?.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase); }
@@ -161,13 +171,20 @@ namespace BuildXL.Cache.Host.Configuration
                 throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(cacheName)}");
             }
 
-            if (string.IsNullOrEmpty(intent))
-            {
-                throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(intent)}");
-            }
-
             var settings = GetCacheSettings(cacheName);
-            return Path.Combine(settings.CacheRootPath, intent);
+            if (UseScenarioIsolation)
+            {
+                if (string.IsNullOrEmpty(intent))
+                {
+                    throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(intent)}");
+                }
+
+                return Path.Combine(settings.CacheRootPath, intent);
+            }
+            else
+            {
+                return settings.CacheRootPath;
+            }
         }
 
         public NamedCacheSettings GetCacheSettings(string cacheName)

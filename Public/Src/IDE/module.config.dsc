@@ -2,9 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "BuildXL.Ide", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [
+    name: "BuildXL.Ide",
+	projects: [
         f`BuildXL.Ide.dsc`,
         f`Common/VersionUtilities.dsc`,
         f`Debugger/BuildXL.Ide.Script.Debugger.dsc`,

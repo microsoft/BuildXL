@@ -24,7 +24,7 @@ class ClientInfo : public OSObject
 private:
 
     /*! Recursive lock used for synchronization */
-    IORecursiveLock *lock_;
+    BXLRecursiveLock *lock_;
 
     /*!
      * Shared counters (with all other clients) for counting the number of enqueued/sent reports.

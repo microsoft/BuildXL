@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,10 +18,12 @@ using BuildXL.Engine.Cache.Fingerprints.SinglePhase;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -394,27 +396,27 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        protected override async Task<Possible<Stream>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
+        protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
         {
             await EnsureLoadedAsync();
 
             if (TryGetContent(pathSetHash, out var content))
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetHits);
-                return new MemoryStream(content.Array, content.Offset, content.Count, writable: false);
+                return (new MemoryStream(content.Array, content.Offset, content.Count, writable: false)).HasLength();
             }
 
             var possiblyOpened = await base.TryLoadAndOpenPathSetStreamAsync(pathSetHash);
             if (possiblyOpened.Succeeded)
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetMisses);
-                using (var stream = possiblyOpened.Result)
+                using (Stream stream = possiblyOpened.Result)
                 {
                     content = new ArraySegment<byte>(new byte[(int)stream.Length]);
                     var readCount = await stream.ReadAsync(content.Array, 0, content.Count);
                     Contract.Assert(readCount == content.Count);
                     TryAddContent(pathSetHash, content);
-                    return new MemoryStream(content.Array, writable: false);
+                    return (new MemoryStream(content.Array, writable: false)).HasLength();
                 }
             }
 
@@ -618,7 +620,8 @@ namespace BuildXL.Scheduler.Cache
             ContentHash? pathSetHash,
             WeakContentFingerprint? weakFingerprint,
             StrongContentFingerprint? strongFingerprint,
-            bool isExecution)
+            bool isExecution,
+            bool preservePathCasing)
         {
             if (metadata != null && metadataHash.HasValue)
             {
@@ -640,7 +643,7 @@ namespace BuildXL.Scheduler.Cache
 
             if (pathSet.HasValue && pathSetHash.HasValue)
             {
-                if (TryAdd(pathSetHash.Value, pathSet.Value))
+                if (TryAdd(pathSetHash.Value, pathSet.Value, preservePathCasing))
                 {
                     Counters.IncrementCounter(
                         isExecution
@@ -678,7 +681,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Adding pathset
         /// </summary>
-        private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet)
+        private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet, bool preservePathCasing)
         {
             using (Counters.StartStopwatch(PipCachingCounter.HistoricTryAddPathSetDuration))
             {
@@ -691,6 +694,7 @@ namespace BuildXL.Scheduler.Cache
                                 added = TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));
                                 return s_genericSuccessTask;
                             },
+                        preservePathCasing,
                         pathSetHash: hash
                     ).GetAwaiter().GetResult()
                 );

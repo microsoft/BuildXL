@@ -32,16 +32,24 @@ namespace Native {
 
     @@public
     export const nativeWin = [ 
-        ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [ importFrom("BuildXL.Sandbox.Windows").Deployment.natives ])
+        ...addIfLazy(qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win", () => [
+            importFrom("BuildXL.Sandbox.Windows").Deployment.natives
+        ])
     ];
 
     @@public
     export const nativeMac = [
         ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () =>
         [
-            MacServices.Deployment.sandboxMonitor,
-            MacServices.Deployment.ariaLibrary,
             MacServices.Deployment.interopLibrary,
+        ]),
+    ];
+
+    @@public
+    export const nativeLinux = [
+        ...addIfLazy(qualifier.targetRuntime === "linux-x64", () =>
+        [
+            ...globR(d`${importFrom("runtime.linux-x64.BuildXL").Contents.all.root}/runtimes/linux-x64/native/${qualifier.configuration}`, "*.so")
         ]),
     ];
 
@@ -60,6 +68,10 @@ namespace Native {
         runtimeContent: [
             ...nativeMac,
             ...nativeWin,
+            ...nativeLinux,
+        ],
+        internalsVisibleTo: [
+            "Test.BuildXL.Storage"
         ]
     });
 }

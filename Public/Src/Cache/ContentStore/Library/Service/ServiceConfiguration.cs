@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+
 #pragma warning disable IDE0044 // Make field readonly
 
 namespace BuildXL.Cache.ContentStore.Service
@@ -58,7 +59,11 @@ namespace BuildXL.Cache.ContentStore.Service
             int grpcPort,
             string grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? gzipBarrierSizeForGrpcCopies = null,
+            int? proactivePushCountLimit = null,
+            TimeSpan? logIncrementalStatsInterval = null,
+            TimeSpan? logMachineStatsInterval = null
+            )
         {
             Contract.Requires(namedCacheRoots != null);
 
@@ -70,6 +75,9 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = proactivePushCountLimit;
+            LogMachineStatsInterval = logMachineStatsInterval;
+            LogIncrementalStatsInterval = logIncrementalStatsInterval;
             Initialize();
         }
 
@@ -130,6 +138,11 @@ namespace BuildXL.Cache.ContentStore.Service
         public int? BufferSizeForGrpcCopies { get; set; }
 
         /// <summary>
+        /// The max number of proactive pushes that can happen at the same time.
+        /// </summary>
+        public int? ProactivePushCountLimit { get; set; }
+
+        /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.
         /// </summary>
         [DataMember]
@@ -166,6 +179,12 @@ namespace BuildXL.Cache.ContentStore.Service
                 return _dataRootPath;
             }
         }
+
+        /// <inheritdoc cref="LocalServerConfiguration.LogMachineStatsInterval"/>
+        public TimeSpan? LogMachineStatsInterval { get; set; }
+
+        /// <inheritdoc cref="LocalServerConfiguration.LogIncrementalStatsInterval"/>
+        public TimeSpan? LogIncrementalStatsInterval { get; set; }
 
         /// <summary>
         /// Gets the verb on ContentStoreApp.exe to use.

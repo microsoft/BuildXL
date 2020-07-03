@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -21,7 +21,7 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the minimum amount of available RAM before scheduling is paused to allow freeing resources.
         /// NOTE: In order for scheduling to be paused, both this limit and <see cref="MaximumRamUtilizationPercentage"/> must be met.
         /// </summary>
-        int MinimumTotalAvailableRamMb { get; }
+        int? MinimumTotalAvailableRamMb { get; }
 
         /// <summary>
         /// Indicates that processes should not be cancelled and retried when machine RAM is low as specified by
@@ -195,11 +195,6 @@ namespace BuildXL.Utilities.Configuration
         int ProcessRetries { get; }
 
         /// <summary>
-        /// Create symlink lazily from the symlink definition manifest.
-        /// </summary>
-        bool UnsafeLazySymlinkCreation { get; }
-
-        /// <summary>
         /// Enables lazy materialization of write file outputs. Defaults to off (on for CloudBuild)
         /// </summary>
         /// <remarks>
@@ -211,11 +206,6 @@ namespace BuildXL.Utilities.Configuration
         /// Gets whether IPC pip output should be written to disk. Defaults to on (off for CloudBuild)
         /// </summary>
         bool WriteIpcOutput { get; }
-
-        /// <summary>
-        /// Gets the mode for reporting unexpected symlink accesses which defines when unexpected accesses are reported
-        /// </summary>
-        UnexpectedSymlinkAccessReportingMode UnexpectedSymlinkAccessReportingMode { get; }
 
         /// <summary>
         /// Stores pip outputs to cache.
@@ -234,11 +224,6 @@ namespace BuildXL.Utilities.Configuration
         /// This implies <see cref="IEngineConfiguration.ScanChangeJournal" /> and is functionally a superset.
         /// </remarks>
         bool IncrementalScheduling { get; }
-
-        /// <summary>
-        /// Enables graph-agnostic incremental scheduling when <see cref="IncrementalScheduling"/> is set to true.
-        /// </summary>
-        bool GraphAgnosticIncrementalScheduling { get; }
 
         /// <summary>
         /// Computes static fingerprints of pips during graph construction.
@@ -309,9 +294,16 @@ namespace BuildXL.Utilities.Configuration
         bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
 
         /// <summary>
+        /// Delay scrubbing of shared opaque outputs until right before the pip is executed.
+        /// 
+        /// It's currently unsafe because not all corner cases have been worked out.
+        /// </summary>
+        bool UnsafeLazySODeletion { get; }
+
+        /// <summary>
         /// Indicates whether historic cpu information should be used to decide the weight of process pips.
         /// </summary>
-        bool UseHistoricalCpuUsageInfo { get; }
+        bool? UseHistoricalCpuUsageInfo { get; }
 
         /// <summary>
         /// Instead of creating a random moniker for API server, use a fixed predetermined moniker.
@@ -322,5 +314,80 @@ namespace BuildXL.Utilities.Configuration
         /// Path to file containing input changes.
         /// </summary>
         AbsolutePath InputChanges { get; }
+
+        /// <summary>
+        /// Required minimum available disk space on all drives to keep executing pips 
+        /// Checked every 2 seconds.
+        /// </summary>
+        int? MinimumDiskSpaceForPipsGb { get; }
+
+        /// <summary>
+        /// Number of retries allowed per Pip failing due to low memory. 
+        /// null represents inifinite attempts.
+        /// </summary>
+        int? MaxRetriesDueToLowMemory { get; }
+
+        /// <summary>
+        /// Number of retries allowed per pip failing due to retryable failures. 
+        /// </summary>
+        int MaxRetriesDueToRetryableFailures { get; }
+
+        /// <summary>
+        /// Instructs the scheduler to only perform cache lookup and skip execution of pips that are cache misses.
+        /// </summary>
+        bool CacheOnly { get; }
+
+        /// <summary>
+        /// Enable estimating the setup cost when choosing worker.
+        /// </summary>
+        bool EnableSetupCostWhenChoosingWorker { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of sealdirectory pips that BuildXL will process at one time. The default value is the number of processors in the current machine.
+        /// </summary>
+        int MaxSealDirs { get; }
+
+        /// <summary>
+        /// Enable memory projection based on historic commit memory usage.
+        /// </summary>
+        bool EnableHistoricCommitMemoryProjection { get; }
+
+        /// <summary>
+        /// Specifies the maximum amount of commit memory which can be utilized before scheduling is paused to allow freeing resources.
+        /// </summary>
+        int MaximumCommitUtilizationPercentage { get; }
+
+        /// <summary>
+        /// Specifies the min multiplier for the number of elements in ChooseWorkerCPU queue
+        /// </summary>
+        /// <remarks>
+        /// The actual number is determined at runtime by applying the multiplier to the total number of CPU slots across all workers,
+        /// e.g., MinElements = multiplier * TotalCpuSlots;
+        /// 
+        /// The idea is to always have at least 'min' number of elements sitting in ChooseWorkerCPU queue, but stop populating
+        /// that queue if there are 'max' number of elements.
+        /// </remarks>
+        double? DelayedCacheLookupMinMultiplier { get; }
+
+        /// <summary>
+        /// Specifies the max multiplier for the number of elements in ChooseWorkerCPU queue
+        /// </summary>
+        double? DelayedCacheLookupMaxMultiplier { get; }
+
+        /// <summary>
+        /// Enable less aggresive memory projection by using average memory usage instead of peak usage
+        /// </summary>
+        bool EnableLessAggresiveMemoryProjection { get; }
+
+        /// <summary>
+        /// Mode for managing memory during builds
+        /// </summary>
+        ManageMemoryMode ManageMemoryMode { get; }
+
+        /// <summary>
+        /// Ignores any filters that might have been specified for composite shared opaques.
+        /// Temporary option. For A/B testing purposes only.
+        /// </summary>
+        bool? DisableCompositeOpaqueFilters { get; }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -17,10 +17,11 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
-using BuildXL.Native.IO;
 
 namespace BuildXL.Cache.BasicFilesystem
 {
@@ -37,6 +38,7 @@ namespace BuildXL.Cache.BasicFilesystem
         internal const string WFP_TOKEN = "WFP";
         internal const string CAS_TOKEN = "CAS";
         internal const string END_TOKEN = "END";
+        internal const string SHARDS_FILE_NAME = "Shards";
 
         // Files that are pending delete in the GC are renamed with this extension
         // Renaming them back to the original name is how "pin" and other operations
@@ -83,7 +85,7 @@ namespace BuildXL.Cache.BasicFilesystem
         // Root path for the sessions
         private readonly string m_sessionRoot;
 
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
 
         private readonly bool m_strictMetadataCasCoupling;
 
@@ -138,7 +140,7 @@ namespace BuildXL.Cache.BasicFilesystem
         /// May throw an exception on construction if the cache can not be created
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
-        internal BasicFilesystemCache(string cacheId, string rootPath, bool readOnly, bool strictMetadataCasCoupling, bool isauthoritative, int contentionBackoffMax, int defaultMinFingerprintAgeMinutes)
+        internal BasicFilesystemCache(CacheId cacheId, string rootPath, bool readOnly, bool strictMetadataCasCoupling, bool isauthoritative, int contentionBackoffMax, int defaultMinFingerprintAgeMinutes)
         {
             Contract.Requires(cacheId != null);
             Contract.Requires(rootPath != null);
@@ -154,7 +156,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
             m_sessionRoot = Path.Combine(m_cacheRoot, "Sessions");
 
-            string shardFile = Path.Combine(m_cacheRoot, "Shards");
+            string shardFile = Path.Combine(m_cacheRoot, SHARDS_FILE_NAME);
             if (File.Exists(shardFile))
             {
                 // Read the file containing sharding information
@@ -554,7 +556,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 try
                 {
-                    return Path.GetTempFileName();
+                    return FileUtilities.GetTempFileName();
                 }
                 catch (UnauthorizedAccessException)
                 {
@@ -577,7 +579,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
             // One last try that will then surface the error
             // if it has not recovered
-            return Path.GetTempFileName();
+            return FileUtilities.GetTempFileName();
         }
 
         /// <summary>
@@ -2760,7 +2762,7 @@ namespace BuildXL.Cache.BasicFilesystem
         #region ICache interface methods
 
         /// <inheritdoc/>
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         /// <inheritdoc/>
         public Guid CacheGuid => m_cacheGuid;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.IO;
 using BuildXL.Native.IO;
@@ -13,9 +13,9 @@ using Xunit.Abstractions;
 namespace Test.BuildXL.Engine
 {
     [Trait("Category", "LazyMaterializationBuildTests")]
-    [Trait("Category", "WindowsOSOnly")] // depends on csc.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // depends on csc.exe
     [Feature(Features.LazyOutputMaterialization)]
-    public sealed class LazyMaterializationBuildTests : IncrementalBuildTestBase
+    public class LazyMaterializationBuildTests : IncrementalBuildTestBase
     {
         /* The build used for tests in this class generate the following layout
          *
@@ -183,6 +183,7 @@ function runTool(exeFileName: string, args: Argument[]) : File {
 
     const deployment = Deployment.deployToDisk({
         targetDirectory: d`obj/deploy/bin`,
+        sealPartialWithoutScrubbing: true,
         definition: {
             contents: [
                 f`./${exeFileName + '.config'}`,

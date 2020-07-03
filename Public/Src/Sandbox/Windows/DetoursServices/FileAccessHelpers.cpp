@@ -39,6 +39,7 @@ static bool IsPathNonexistent(DWORD error)
     // drive will result in file Nonexistent.
     return error == ERROR_PATH_NOT_FOUND ||
            error == ERROR_FILE_NOT_FOUND ||
+           error == ERROR_DIRECTORY ||
            error == ERROR_NOT_READY ||
            error == FVE_E_LOCKED_VOLUME ||
            error == ERROR_BAD_PATHNAME;
@@ -46,13 +47,13 @@ static bool IsPathNonexistent(DWORD error)
 
 void FileReadContext::InferExistenceFromError(DWORD error) {
     if (IsPathNonexistent(error)) {
-        FileExistence = FileExistence::Nonexistent;
+        Existence = FileExistence::Nonexistent;
     }
     else if (error == ERROR_INVALID_NAME) {
-        FileExistence = FileExistence::InvalidPath;
+        Existence = FileExistence::InvalidPath;
     } 
     else {
-        FileExistence = FileExistence::Existent;
+        Existence = FileExistence::Existent;
     }
 }
 

@@ -9,6 +9,7 @@ import * as Ilc        from "Sdk.Managed.Tools.ILCompiler";
 import * as ResGen     from "Sdk.Managed.Tools.ResGen.Lite";
 import * as AppPatcher from "Sdk.Managed.Tools.AppHostPatcher";
 import * as Xml        from "Sdk.Xml";
+import * as Crossgen   from "Sdk.Managed.Tools.Crossgen";
 
 @@public
 export * from "Sdk.Managed.Shared";
@@ -51,22 +52,135 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let framework = args.framework || Frameworks.framework;
     if (!framework)
     {
-        Contract.fail("You must specify a .NET framework. For exmple: 'importFrom(\"Sdk.Managed.Frameworks.Net451\").framework' ");
+        Contract.fail("You must specify a .NET framework. For exmple: 'importFrom(\"Sdk.Managed.Frameworks.Net472\").framework' ");
     }
     if (framework.targetFramework !== qualifier.targetFramework)
     {
         Contract.fail(`The specified framework does not match the given qualifier. Your project uses targetFramework '${qualifier.targetFramework}' where the specified framework is '${framework.targetFramework}'.`);
     }
 
+    args = processDeploymentDefaults(args, targetType, framework);
+
     let name = args.assemblyName || Context.getLastActiveUseNamespace();
-    let rootNamespace = args.rootNamespace || name;
     let compileClosure = Helpers.computeCompileClosure(framework, args.references);
 
     // assemblyinfo
-    let assemblyInfo = generateAssemblyInfoFile(framework, name, args.assemblyInfo);
+    let assemblyInfo = generateAssemblyInfoFile(args.assemblyInfo, name, framework);
 
     // Process resources
-    let resourceSources : File[] = [];
+    let resourceResult = processResources(args, name);
+
+    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    let appConfig = processAppConfigAndBindingRedirects(args, framework);
+
+    // Adding helper tags that allow building only a subset of the codebase.
+    // For instance, bxl CompileDebugNet472 will only compile all the sources and target net472
+    // and bxl CompileWin will compile sources for two key qualifiers for Windows - for net472 and for .net core app.
+    let helperTags = [
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileDebugNetCoreWin", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileLinux"),
+        ];
+
+    // csc
+    let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);
+    let cscArgs : Csc.Arguments = {
+        sources: [
+            assemblyInfo,
+            ...resourceResult.sources,
+            ...(args.sources || []),
+        ],
+        sourceFolders: args.sourceFolders,
+        references: compileClosure,
+        targetType: targetType,
+        linkResources: resourceResult.linkResources,
+        resourceFiles: resourceResult.resourceFiles,
+        treatWarningsAsErrors: qualifier.configuration === "release",
+        optimize: qualifier.configuration === "release",
+        checked: true,
+        doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
+        out: outputFileName,
+        pdb: name + ".pdb",
+        debugType: framework.requiresPortablePdb ? "portable" : "full",
+        allowUnsafeBlocks: args.allowUnsafeBlocks || false,
+        appConfig: appConfig,
+        implicitSources: args.implicitSources,
+        noConfig: args.noConfig || true,
+        defines: [
+            ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
+            "TRACE",
+            ...framework.conditionalCompileDefines,
+            ...targetRuntimeDefines,
+            ...(args.defineConstants || []),
+        ],
+        nullable: args.nullable,
+        nullabilityContext: args.nullabilityContext,
+        tags: helperTags
+    };
+
+    const references = [
+        ...(args.references || []),
+        ...framework.standardReferences,
+    ];
+
+    if (args.tools && args.tools.csc) {
+        cscArgs = Object.merge(args.tools.csc, cscArgs);
+    }
+
+    let cscResult =  Csc.compile(cscArgs);
+
+    // Run crossgen if specified and the framework/deployment style allows for it.
+    // An additional condition is that cross-targeting is not supported by ReadyToRun, so we can only compile on the given target, 
+    // see https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#cross-platformarchitecture-restrictions
+    if (args.runCrossgenIfSupported && 
+        Shared.supportsCrossgen(args.deploymentStyle, framework) && 
+        qualifier.targetRuntime === Shared.TargetFrameworks.MachineQualifier.current.targetRuntime) {
+        
+        // crossgen needs the runtime assemblies, not the compile ones
+        const referenceClosure = Helpers.computeTransitiveClosure(args.references, args.runtimeContentToSkip, /*compile*/ false);
+
+        const nativeImage = Crossgen.crossgen({
+            inputBinary: cscResult.binary,
+            references: referenceClosure,
+            targetRuntime: qualifier.targetRuntime,
+            targetFramework: framework,
+        });
+
+        // Replace the binary with the native image. The reference assembly is still the original one
+        cscResult = {binary: nativeImage, reference: cscResult.reference};
+    }
+
+    let runtimeConfigFiles = undefined;
+    const compileBinary = cscResult.reference || cscResult.binary;
+    const runtimeBinary = cscResult.binary;
+
+    if (args.deployRuntimeConfigFile)
+    {
+        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, args.deploymentStyle, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
+    }
+
+    let deploymentResult = processDeploymentStyle(args, targetType, framework, cscResult);
+
+    // TODO: Add version
+    return {
+        name: a`${name}`,
+        targetFramework: framework.targetFramework,
+        targetRuntime: qualifier.targetRuntime,
+        compile: compileBinary,
+        runtime: runtimeBinary,
+        references: references,
+        runtimeConfigFiles: runtimeConfigFiles,
+        runtimeContent: deploymentResult.runtimeContent,
+        runtimeContentToSkip: args.runtimeContentToSkip,
+        deploy: deploymentResult.deployFunction,
+    };
+}
+
+function processResources(args: Arguments, name: string) : { sources: File[], linkResources: Shared.LinkResource[], resourceFiles: File[] }
+{
+    let rootNamespace = args.rootNamespace || name;
+    let sources : File[] = [];
     let resources : Shared.LinkResource[] = args.resources || [];
     if (args.embeddedResources) {
         for (let resource of args.embeddedResources) {
@@ -95,7 +209,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
                 resources = resources.push(result.resourceFile);
                 if (result.sourceFile) {
-                    resourceSources = resourceSources.push(result.sourceFile);
+                    sources = sources.push(result.sourceFile);
                 }
             }
             else if (resource.linkedContent)
@@ -114,7 +228,46 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         }
     }
 
-    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    return {
+        linkResources: resources.filter(r => r.file !== undefined && r.logicalName !== undefined),
+        resourceFiles: resources.filter(r => r.file !== undefined && r.logicalName === undefined).map(r => r.file),
+        sources: sources,
+    };
+}
+
+/**
+ * Checks the type of application an sets the deployment option defaults for that
+ * type. We pass the default as the first argument to merge so applications can always override.
+ */
+function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework)
+{
+    switch (targetType)
+    {
+        case "exe":
+            // For executables we set the default deployment options.cscResult
+            return Object.merge<Arguments>(
+                {
+                    deploymentStyle: framework.defaultApplicationDeploymentStyle,
+                    deployRuntimeConfigFile: true,
+                },
+                args
+            );
+        case "library":
+            // For libraries we deploy the runtime config file if we have an explicit appconfig.
+            args = Object.merge<Arguments>(
+                {
+                    deployRuntimeConfigFile: args.appConfig !== undefined,
+                },
+                args
+            );
+        default:
+            return args;
+
+    }
+}
+
+function processAppConfigAndBindingRedirects(args: Arguments, framework: Shared.Framework) : File
+{
     let appConfig = args.appConfig;
     if (args.assemblyBindingRedirects) {
 
@@ -158,130 +311,66 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         appConfig = Xml.write(updatedAppConfigPath, Xml.doc(patchedConfiguration));
     }
 
-    // csc
-    let outputFileName = name + targetTypeToFileExtension(targetType, framework.applicationDeploymentStyle);
-    let cscArgs : Csc.Arguments = {
-        sources: [
-            assemblyInfo,
-            ...resourceSources,
-            ...(args.sources || []),
-        ],
-        sourceFolders: args.sourceFolders,
-        references: compileClosure,
-        targetType: targetType,
-        linkResources: resources.filter(r => r.file !== undefined && r.logicalName !== undefined),
-        resourceFiles: resources.filter(r => r.file !== undefined && r.logicalName === undefined).map(r => r.file),
-        treatWarningsAsErrors: qualifier.configuration === "release",
-        optimize: qualifier.configuration === "release",
-        checked: true,
-        doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
-        out: outputFileName,
-        pdb: name + ".pdb",
-        debugType: framework.requiresPortablePdb ? "portable" : "full",
-        allowUnsafeBlocks: args.allowUnsafeBlocks || false,
-        appConfig: appConfig,
-        implicitSources: args.implicitSources,
-        noConfig: args.noConfig || true,
-        defines: [
-            ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
-            "TRACE",
-            ...framework.conditionalCompileDefines,
-            ...targetRuntimeDefines,
-            ...(args.defineConstants || []),
-            // Defining a special symbol that can be used in C# code for using new API available in .NET 4.6.1+
-            ...(qualifier.targetFramework !== "net451" ? ["NET461Plus"] : []),
-        ],
-        nullable: args.nullable,
-        nullabilityContext: args.nullabilityContext,
-    };
-
-    const references = [
-        ...(args.references || []),
-        ...framework.standardReferences,
-    ];
-
-    if (args.tools && args.tools.csc) {
-        cscArgs = Object.merge(args.tools.csc, cscArgs);
-    }
-
-    cscArgs = Object.merge(Helpers.patchReferencesForSystemInteractiveAsync(references), cscArgs);
-
-    let cscResult =  Csc.compile(cscArgs);
-
-    let runtimeConfigFiles = undefined;
-    let runtimeContent = args.runtimeContent;
-
-    let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
-
-    const compileBinary = cscResult.reference || cscResult.binary;
-    const runtimeBinary = cscResult.binary;
-
-    if (targetType === "exe")
-    {
-        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary, references, args.runtimeContentToSkip, appConfig);
-        if (framework.applicationDeploymentStyle === "selfContained")
-        {
-            const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
-            const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
-
-            const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.currentMachineQualifier).patchBinary({
-                binary: cscResult.binary.binary,
-                targetRuntimeVersion: qualifier.targetRuntime
-            });
-
-            runtimeContent = [
-                ...(runtimeContent || []),
-                // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
-                ...frameworkRuntimeFiles,
-                ...patchResult.contents,
-            ];
-
-            // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
-            // the runtime over the ones that come from nuget. We do so by providing a deploy function that customizes
-            // the handleDuplicate function to prefer the runtime file.
-            deployFunction = (
-                assembly: Shared.Assembly,
-                targetFolder: RelativePath,
-                handleDuplicate: Deployment.HandleDuplicateFileDeployment,
-                currentResult: Deployment.FlattenedResult,
-                deploymentOptions?: Object,
-                provenance?: Deployment.Diagnostics.Provenance): Deployment.FlattenedResult => {
-
-                const customHandleDuplicate : Deployment.HandleDuplicateFileDeployment = (targetFile: RelativePath, sourceA: Deployment.DeployedFileWithProvenance, sourceB: Deployment.DeployedFileWithProvenance, message?: string) : Deployment.DeployedFileAction => {
-                    if (frameworkRuntimeFileSet.contains(sourceA.file)) {
-                        return "takeA";
-                    }
-
-                    if (frameworkRuntimeFileSet.contains(sourceB.file)) {
-                        return "takeB";
-                    }
-
-                    return handleDuplicate(targetFile, sourceA, sourceB, message);
-                };
-
-                return Shared.Deployment.flattenAssembly(assembly, targetFolder, customHandleDuplicate, currentResult, deploymentOptions, provenance);
-            };
-        }
-    }
-    else if (targetType === "library")
-    {
-        runtimeConfigFiles = RuntimeConfigFiles.createDllAppConfig(framework, name, appConfig);
-    }
-
-    // TODO: Add version
-    return {
-        name: a`${name}`,
-        targetFramework: framework.targetFramework,
-        compile: compileBinary,
-        runtime: runtimeBinary,
-        references: references,
-        runtimeConfigFiles: runtimeConfigFiles,
-        runtimeContent: runtimeContent ? { contents: runtimeContent } : undefined,
-        runtimeContentToSkip: args.runtimeContentToSkip,
-        deploy: deployFunction,
-    };
+    return appConfig;
 }
 
+function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework, cscResult: Csc.Result) : {
+    deployFunction: Deployment.FlattenForDeploymentFunction,
+    runtimeContent: Deployment.Definition
+}
+{
+    let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
+    let runtimeContent = args.runtimeContent;
+
+    if (args.deploymentStyle === "selfContained")
+    {
+        const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
+        const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
+
+        const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
+            binary: cscResult.binary.binary,
+            targetRuntimeVersion: qualifier.targetRuntime
+        });
+
+        runtimeContent = [
+            ...(runtimeContent || []),
+            // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
+            ...frameworkRuntimeFiles,
+            ...patchResult.contents,
+        ];
+
+        // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
+        // the runtime over the ones that come from nuget. We do so by providing a deploy function that customizes
+        // the handleDuplicate function to prefer the runtime file.
+        deployFunction = (
+            assembly: Shared.Assembly,
+            targetFolder: RelativePath,
+            handleDuplicate: Deployment.HandleDuplicateFileDeployment,
+            currentResult: Deployment.FlattenedResult,
+            deploymentOptions?: Object,
+            provenance?: Deployment.Diagnostics.Provenance): Deployment.FlattenedResult => {
+
+            const customHandleDuplicate : Deployment.HandleDuplicateFileDeployment = (targetFile: RelativePath, sourceA: Deployment.DeployedFileWithProvenance, sourceB: Deployment.DeployedFileWithProvenance, message?: string) : Deployment.DeployedFileAction => {
+                if (frameworkRuntimeFileSet.contains(sourceA.file)) {
+                    return "takeA";
+                }
+
+                if (frameworkRuntimeFileSet.contains(sourceB.file)) {
+                    return "takeB";
+                }
+
+                return handleDuplicate(targetFile, sourceA, sourceB, message);
+            };
+
+            return Shared.Deployment.flattenAssembly(assembly, targetFolder, customHandleDuplicate, currentResult, deploymentOptions, provenance);
+        };
+    }
+
+    return {
+        deployFunction: deployFunction,
+        runtimeContent: runtimeContent ? { contents: runtimeContent } : undefined,
+    };
+}
 
 @@public
 export interface Result extends Shared.Assembly {
@@ -344,7 +433,7 @@ export interface Arguments {
 
     /**
      * List of deployable items to skip when deploying the dependencies of this assembly.
-     * This is usefull for when you take a dependency on an assembly or a package but it comes with files or nuget packages
+     * This is useful for when you take a dependency on an assembly or a package but it comes with files or nuget packages
      * that conflict with other dependencies.
      */
     runtimeContentToSkip?: Deployment.DeployableItem[];
@@ -353,7 +442,13 @@ export interface Arguments {
     assemblyInfo?: AssemblyInfo;
 
     /** Optional set of assembly binding redirects. If there is an existing app.config file, it will be merged with it, else when these are present one will be emitted. */
-    assemblyBindingRedirects?: AssemblyBindingRedirect[],
+    assemblyBindingRedirects?: AssemblyBindingRedirect[];
+
+    /** Whether to create a runtime config file like xxxx.deps.json, runtimesettings.json, xxx.exe.config, etc */
+    deployRuntimeConfigFile?: boolean;
+
+    /** How to deploy this application. This only applies to dotnet core deployments */
+    deploymentStyle?: Shared.ApplicationDeploymentStyle;
 
     /** Settings for nested tools */
     tools?: {
@@ -368,7 +463,10 @@ export interface Arguments {
     };
 
     /** Options that control how this compiled assembly gets deployed */
-    deploymentOptions?: Deployment.DeploymentOptions
+    deploymentOptions?: Deployment.DeploymentOptions;
+
+    /** Whether to run crossgen tool on the produced assembly (if the target framework allows for it) */
+    runCrossgenIfSupported?: boolean;
 }
 
 @@public
@@ -492,6 +590,8 @@ function getTargetRuntimeDefines() : string[] {
             return ["PLATFORM_WIN", "PLATFORM_X64"];
         case "osx-x64":
             return ["PLATFORM_OSX", "PLATFORM_X64"];
+        case "linux-x64":
+            return ["PLATFORM_LINUX", "PLATFORM_X64"];
         default:
             Contract.fail("Unexpected targetRuntime");
     }

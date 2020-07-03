@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Execution.Analyzer.Analyzers.ExportDgml;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
 
 namespace BuildXL.Execution.Analyzer
@@ -78,7 +78,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var valuePip in allValuePips)
             {
-                foreach (var incoming in DataflowGraph.GetIncomingEdges(valuePip.PipId.ToNodeId()))
+                foreach (var incoming in DirectedGraph.GetIncomingEdges(valuePip.PipId.ToNodeId()))
                 {
                     if (!PipTable.GetPipType(incoming.OtherNode.ToPipId()).IsMetaPip())
                     {
@@ -92,7 +92,7 @@ namespace BuildXL.Execution.Analyzer
                 var value = ((ValuePip)concretePipValue.HydratePip()).Symbol.ToString(SymbolTable);
                 writer.AddNode(new DgmlWriter.Node(concretePipValue.PipId.ToString(), value));
 
-                foreach (var incoming in DataflowGraph.GetIncomingEdges(concretePipValue.PipId.ToNodeId()))
+                foreach (var incoming in DirectedGraph.GetIncomingEdges(concretePipValue.PipId.ToNodeId()))
                 {
                     var incomingId = incoming.OtherNode.ToPipId();
                     if (concretePipValues.ContainsKey(incomingId))

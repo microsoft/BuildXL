@@ -4,8 +4,6 @@
 namespace Download {
     @@public
     export const dll = BuildXLSdk.test({
-        // TODO: QTest does not respect single threadded runs.
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.FrontEnd.Download",
         sources: globR(d`.`, "*.cs"),
         references: [

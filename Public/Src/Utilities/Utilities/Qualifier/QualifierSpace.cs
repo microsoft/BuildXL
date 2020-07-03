@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Qualifier
         public QualifierSpaceEntry(StringId key, StringId[] values)
         {
             Contract.Requires(key.IsValid);
-            Contract.Requires(values != null);
+            Contract.RequiresNotNull(values);
             Contract.Requires(values.Length > 0);
             Contract.RequiresForAll(values, v => v.IsValid);
 
@@ -144,9 +144,9 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         private QualifierSpace(StringId[] keys, StringId[] defaults, StringId[][] valueValues)
         {
-            Contract.Requires(keys != null);
-            Contract.Requires(defaults != null);
-            Contract.Requires(valueValues != null);
+            Contract.RequiresNotNull(keys);
+            Contract.RequiresNotNull(defaults);
+            Contract.RequiresNotNull(valueValues);
             Contract.Requires(keys.Length == valueValues.Length);
             Contract.Requires(keys.Length == defaults.Length);
             Contract.RequiresForAll(keys, key => key.IsValid);
@@ -168,8 +168,8 @@ namespace BuildXL.Utilities.Qualifier
         /// </remarks>
         internal static QualifierSpace CreateQualifierSpace(StringTable stringTable, QualifierSpaceEntry[] entries)
         {
-            Contract.Requires(stringTable != null);
-            Contract.Requires(entries != null);
+            Contract.RequiresNotNull(stringTable);
+            Contract.RequiresNotNull(entries);
 
             Array.Sort(entries, new QualifierSpaceEntryComparerByKey(stringTable));
 
@@ -266,7 +266,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public string ToDisplayString(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             var builder = new StringBuilder();
             builder.Append("{");
@@ -311,9 +311,9 @@ namespace BuildXL.Utilities.Qualifier
             out UnsupportedQualifierValue error,
             bool useDefaults)
         {
-            Contract.Requires(stringTable != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(loggingContext != null);
+            Contract.RequiresNotNull(stringTable);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(loggingContext);
 
             StringId[] keys;
             StringId[] values;
@@ -429,7 +429,7 @@ namespace BuildXL.Utilities.Qualifier
 
             public QualifierSpaceEntryComparerByKey(StringTable stringTable)
             {
-                Contract.Requires(stringTable != null);
+                Contract.RequiresNotNull(stringTable);
                 m_stringTable = stringTable;
             }
 
@@ -444,7 +444,7 @@ namespace BuildXL.Utilities.Qualifier
         /// <nodoc />
         public static QualifierSpace Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             var keys = reader.ReadArray(r => r.ReadStringId());
             var defaults = reader.ReadArray(r => r.ReadStringId());

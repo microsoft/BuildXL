@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -225,8 +225,7 @@ namespace ContentStoreTest.Stores
 
                 DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
                 deleteResult.ShouldBeSuccess();
-                deleteResult.EvictedSize.Should().Be(contentSize);
-                deleteResult.PinnedSize.Should().Be(0);
+                deleteResult.ContentSize.Should().Be(contentSize);
 
                 store.IsPinned(putResult.ContentHash).Should().BeFalse();
             });

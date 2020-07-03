@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -21,7 +21,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static Lazy<T> Create<T>(Func<T> factory, LazyThreadSafetyMode mode = LazyThreadSafetyMode.ExecutionAndPublication)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
             return new Lazy<T>(factory, mode);
         }
 
@@ -33,7 +33,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static AsyncLazy<T> CreateAsync<T>(Func<Task<T>> factory)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
             return new AsyncLazy<T>(factory);
         }
     }

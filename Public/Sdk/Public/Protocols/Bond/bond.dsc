@@ -5,6 +5,7 @@ import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 import * as MacOS from "Sdk.MacOS";
 
+// TODO: build 'gbc' from sources on Linux and publish Bond.CSharp.linux-x64
 const pkgContents = Context.getCurrentHost().os === "win"
     ? importFrom("Bond.CSharp").Contents.all
     : importFrom("Bond.CSharp.osx-x64").Contents.all;
@@ -38,7 +39,8 @@ export function generate(args: Arguments) : Result {
         outputs: [
             typesFile
         ],
-        dependencies: args.includeFiles
+        dependencies: args.includeFiles,
+        tags: ["codegen"]
     });
 
     return {

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -45,7 +45,7 @@ namespace ContentStoreTest.Grpc
         public void SuccessPerResult(DeleteResult.ResultCode code, bool succeeded)
         {
             var hash = ContentHash.Random(HashType.Vso0);
-            DeleteResult r = new DeleteResult(code, hash, 0L, 0L);
+            DeleteResult r = new DeleteResult(code, hash, 0L);
             r.Succeeded.Should().Be(succeeded);
         }
 
@@ -73,12 +73,11 @@ namespace ContentStoreTest.Grpc
                 placeResult.ShouldBeSuccess();
 
                 // Delete content
-                var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash);
+                var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentHash.Equals(putResult.ContentHash).Should().BeTrue();
                 string.IsNullOrEmpty(deleteResult.ErrorMessage).Should().BeTrue();
-                deleteResult.EvictedSize.Should().Be(size);
-                deleteResult.PinnedSize.Should().Be(0L);
+                deleteResult.ContentSize.Should().Be(size);
 
                 // Fail to place content
                 var failPlaceResult = await rpcClient.PlaceFileAsync(context, putResult.ContentHash, new AbsolutePath(fileName.Path + "fail"), FileAccessMode.None, FileReplacementMode.None, FileRealizationMode.Copy);
@@ -100,12 +99,10 @@ namespace ContentStoreTest.Grpc
                 var contentHash = content.CalculateHash(HashType.Vso0);
 
                 // Delete content
-                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash);
+                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
-                deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotFound);
                 deleteResult.ContentHash.Equals(contentHash).Should().BeTrue();
-                deleteResult.EvictedSize.Should().Be(0L);
-                deleteResult.PinnedSize.Should().Be(0L);
+                deleteResult.ContentSize.Should().Be(0L);
             });
         }
 

@@ -54,8 +54,8 @@ int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath,
         isSymlink                          ? Checkers::CheckCreateSymlink :
         !isDir                             ? Checkers::CheckWrite :
         enforceDirectoryCreation           ? Checkers::CheckCreateDirectory :
-                                             Checkers::CheckProbe;
-    AccessCheckResult result = CheckAndReport(kOpMacVNodeCreate, fullPath, checker, isDir);
+                                             Checkers::CheckCreateDirectoryNoEnforcement;
+    AccessCheckResult result = CheckAndReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, fullPath, checker, isDir);
 
     if (result.ShouldDenyAccess())
     {
@@ -111,6 +111,12 @@ void TrustedBsdHandler::HandleProcessWantsToFork(const pid_t parentProcessPid)
 
 void TrustedBsdHandler::HandleProcessFork(const pid_t childProcessPid)
 {
+    // don't track if child processes are allowed to break away
+    if (GetPip()->AllowChildProcessesToBreakAway())
+    {
+        return;
+    }
+
     if (GetSandbox()->TrackChildProcess(childProcessPid, GetProcess()))
     {
         ReportChildProcessSpawned(childProcessPid);

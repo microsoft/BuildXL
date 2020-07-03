@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -35,30 +35,30 @@ namespace BuildXL.Utilities.Tracing
 
         // Set of characters to allow as prefixes to denote a path. A sequence matching fromPath must be preceded
         // by one of these characters or be at the beginning of the string in order to be translated.
-        private static readonly char[] s_prefixCharacters = { ':', '\'', '"', '[', ']' };
+        private static readonly char[] s_prefixCharacters = { '\'', '|', ':', '"', '[', ']' };
         private static readonly string[] s_prefixPatterns = { @"\\?\", @"\??\" };
 
-        public static bool CreateIfEnabled(AbsolutePath target, AbsolutePath source, PathTable pathTable, out PathTranslator translator)
+        public static bool CreateIfEnabled(AbsolutePath from, AbsolutePath to, PathTable pathTable, out PathTranslator translator)
         {
             translator = null;
-            if (!target.IsValid || !source.IsValid)
+            if (!from.IsValid || !to.IsValid)
             {
                 return false;
             }
 
-            translator = new PathTranslator(target.ToString(pathTable), source.ToString(pathTable));
+            translator = new PathTranslator(from.ToString(pathTable), to.ToString(pathTable));
             return true;
         }
 
-        public static bool CreateIfEnabled(string target, string source, out PathTranslator translator)
+        public static bool CreateIfEnabled(string from, string to, out PathTranslator translator)
         {
             translator = null;
-            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(source))
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
             {
                 return false;
             }
 
-            translator = new PathTranslator(target, source);
+            translator = new PathTranslator(from, to);
             return true;
         }
 
@@ -69,8 +69,8 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="toPath">Root to translate paths to</param>
         public PathTranslator(string fromPath, string toPath)
         {
-            Contract.Requires(fromPath != null);
-            Contract.Requires(toPath != null);
+            Contract.RequiresNotNull(fromPath);
+            Contract.RequiresNotNull(toPath);
 
             String suffix = Path.DirectorySeparatorChar + string.Empty;
             FromPath = fromPath.EndsWith(suffix, StringComparison.Ordinal) ? fromPath : fromPath + suffix;
@@ -127,15 +127,24 @@ namespace BuildXL.Utilities.Tracing
                             if (char.IsWhiteSpace(previousChar))
                             {
                                 matches.Add(found);
+                                continue;
                             }
+
+                            bool added = false;
 
                             foreach (char allowedPrefix in s_prefixCharacters)
                             {
                                 if (previousChar == allowedPrefix)
                                 {
                                     matches.Add(found);
+                                    added = true;
                                     break;
                                 }
+                            }
+
+                            if (added)
+                            {
+                                continue;
                             }
 
                             foreach (string prefixPattern in s_prefixPatterns)

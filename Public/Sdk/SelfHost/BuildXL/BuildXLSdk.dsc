@@ -13,7 +13,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
 import * as Frameworks from "Sdk.Managed.Frameworks";
-import * as Net451 from "Sdk.Managed.Frameworks.Net451";
+import * as Net462 from "Sdk.Managed.Frameworks.Net462";
 import * as Net472 from "Sdk.Managed.Frameworks.Net472";
 
 import * as ResXPreProcessor from "Sdk.BuildXL.Tools.ResXPreProcessor";
@@ -25,14 +25,13 @@ import * as Contracts from "Tse.RuntimeContracts";
 export * from "Sdk.Managed";
 
 @@public
-export const NetFx = qualifier.targetFramework === "net451" 
-    ? Net451.withQualifier({targetFramework: "net451"}).NetFx
-    : Net472.withQualifier({targetFramework: "net472"}).NetFx
-    ;
+export const NetFx = qualifier.targetFramework === "net462" 
+    ? Net462.withQualifier({targetFramework: "net462"}).NetFx
+    : Net472.withQualifier({targetFramework: "net472"}).NetFx;
 
 export const publicKey = "0024000004800000940000000602000000240000525341310004000001000100BDD83CF6A918814F5B0395F20B6AA573B872FCDDB8B121F162BDD7D5EB302146B2EA6D7E6551279FF9D62E7BEA417ACAE39BADC6E6DECFE45BA7B3AD70AF432A1AA587343AA67647A4D402A0E2D011A9758AAB9F0F8D1C911D554331E8176BE34592BADC08BC94BBD892AF7BCB72AC613F37E4B57A6E18599535211FEF8A7EBA";
 
-const envVarNamePrefix = "[Sdk.BuildXL]";
+const envVarNamePrefix = Flags.envVarNamePrefix;
 const redisConnectionStringEnvVarName = "CloudStoreRedisConnectionString";
 
 const brandingDefines = [
@@ -58,9 +57,9 @@ export interface Arguments extends Managed.Arguments {
 
     /** Whether to run LogGen. */
     generateLogs?: boolean;
-    
-    /** Whether we can use the fast lite version of loggen. Defaults to true. */
-    generateLogsLite?: boolean;
+
+    /** If the log generation needs external references, one can explicitly declare them. */
+    generateLogBinaryRefs?: Managed.Binary[],
 
     /** Disables assembly signing with the BuildXL key. */
     skipAssemblySigning?: boolean;
@@ -69,13 +68,14 @@ export interface Arguments extends Managed.Arguments {
     contractsLevel?: Contracts.ContractsLevel;
 
     /** The assemblies that are internal visible for this assembly */
-    internalsVisibleTo?: string[],
+    internalsVisibleTo?: string[];
 
-    /** Temporary workaround for old names */
-    cacheOldNames?: {
-        namespace: string,
-        factoryClass: string,
-    }[]
+    /**
+     * Whether to use the compiler's strict mode or not.
+     * In strict the compiler emits extra diagnostics for dangerous or invalid code.
+     * For instance, the compiler will warn on empty lock statements or when a value type instance potentially may be used in lock statement etc.
+     */
+    strictMode?: boolean;
 }
 
 @@public
@@ -84,7 +84,6 @@ export interface Result extends Managed.Assembly {
 
 @@public
 export interface TestArguments extends Arguments, Managed.TestArguments {
-    standaloneTestFolder?: PathAtom;
 }
 
 @@public
@@ -96,26 +95,47 @@ export interface TestResult extends Managed.TestResult {
  * Returns if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.0" || qualifier.targetFramework === "netstandard2.0";
+export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0";
 
 @@public
-export const isFullFramework : boolean = qualifier.targetFramework === "net451" || qualifier.targetFramework === "net472";
+export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1";
+
+@@public
+export const isFullFramework : boolean = qualifier.targetFramework === "net472" || qualifier.targetFramework === "net462";
 
 @@public
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
+
+@@public
+export const isTargetRuntimeLinux : boolean = qualifier.targetRuntime === "linux-x64";
+
+@@public
+export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
+
+@@public
+export const isHostOsWin : boolean = Context.getCurrentHost().os === "win";
+
+@@public
+export const isHostOsLinux : boolean = Context.getCurrentHost().os === "unix";
+
+@@public
+export const targetFrameworkMatchesCurrentHost = 
+    (qualifier.targetRuntime === "win-x64" && isHostOsWin)
+    || (qualifier.targetRuntime === "osx-x64" && isHostOsOsx)
+    || (qualifier.targetRuntime === "linux-x64" && isHostOsLinux);
 
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */
 @@public
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "netcoreapp3.0" && qualifier.targetFramework !== "net472") ||
-    (Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64");
+    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net472") ||
+    !targetFrameworkMatchesCurrentHost;
 
-@@public
 /***
 * Whether service pip daemon tooling is included with the BuildXL deployment
 */
+@@public
 export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
 
 /***
@@ -133,8 +153,13 @@ export const isSymbolToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosof
 namespace Flags {
     export declare const qualifier: {};
 
+    export const envVarNamePrefix = "[Sdk.BuildXL]";
+
     @@public
-    export const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
+    export const isMicrosoftInternal = Environment.getFlag(envVarNamePrefix + "microsoftInternal");
+
+    @@public
+    export const isValidatingOsxRuntime = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "validateOsxRuntime");
 
     @@public
     export const isVstsArtifactsEnabled = isMicrosoftInternal;
@@ -143,7 +168,7 @@ namespace Flags {
     * Whether tests are configured to run with QTest. Not whether QTest gets bundled with the BuildXL deployment
     */
     @@public
-    export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag("[Sdk.BuildXL]useQTest");
+    export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "useQTest");
 
     /**
      * Whether we are generating VS solution.
@@ -153,17 +178,45 @@ namespace Flags {
     export const genVSSolution = Environment.getFlag("[Sdk.BuildXL]GenerateVSSolution");
 
     /**
-     * Temporary flag to exclude building BuildXL.Explorer.
-     * BuildXL.Explorer is broken but building it can take a long time in CB environment.
+     * Whether to build BuildXL.Explorer during the build.
+     * BuildXL.Explorer is barely used, but building it can take a long time in CB environment and makes our rolling
+     * build unreliable currently. Thus, we make building BuildXL.Explorer optional based on the specified environment variable.
      */
     @@public
-    export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");
+    export const buildBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]BuildBuildXLExplorer");
 
     /**
      * Build tests that require admin privilege in VM.
      */
     @@public
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
+
+    /**
+     * When running tests in VM, use the specified test framework; do not let BuildXL force the framework to XUnit.
+     */
+    @@public
+    export const doNotForceXUnitFrameworkInVm = Environment.getFlag("[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm");
+
+    /**
+     * Use shared compilation for csc calls. Experimental feature.
+     */
+    @@public
+    export const useManagedSharedCompilation = Environment.getFlag("[Sdk.BuildXL]useManagedSharedCompilation");
+
+    /**
+     * Enable running crossgen (aka ReadyToRun) on managed assemblies when available. This option is only available
+     * when targeting netcoreapp (and the netcoreapp framwors supports it) and for assemblies whose target runtime
+     * matches the current machine runtime. Otherwise ignored.
+     */
+    @@public
+    export const enableCrossgen = Environment.getFlag("[Sdk.BuildXL]enableCrossgen");
+
+    /**
+     * Whether to use the C# compiler's strict mode by default or not.
+     * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
+     */
+    @@public
+    export const useCSharpCompilerStrictMode = Environment.getFlag("[Sdk.BuildXL]useStrictMode") || true;
 }
 
 @@public
@@ -174,8 +227,8 @@ export const cacheRuleSet = f`BuildXl.Cache.ruleset`;
 
 @@public
 export const dotNetFramework = isDotNetCoreBuild
-? qualifier.targetRuntime
-: qualifier.targetFramework;
+    ? qualifier.targetRuntime
+    : qualifier.targetFramework;
 
 /**
  * Builds a BuildXL library project, resulting in a DLL.
@@ -183,58 +236,29 @@ export const dotNetFramework = isDotNetCoreBuild
  */
 @@public
 export function library(args: Arguments): Managed.Assembly {
-    let csFiles : File[] = undefined;
-
-    if (args.cacheOldNames)
-    {
-        csFiles = args.cacheOldNames.map(cacheOldName =>
-            Transformer.writeAllLines({
-                outputPath: p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`,
-                lines: [
-                    `namespace Cache.${cacheOldName.namespace}`,
-                    `{`,
-                    `    /// <nodoc />`,
-                    `    public class ${cacheOldName.factoryClass} : BuildXL.Cache.${cacheOldName.namespace}.${cacheOldName.factoryClass}`,
-                    `    {`,
-                    `    }`,
-                    `}`,
-                ]
-            })
-        );
-
-        args = args.merge<Arguments>({
-            sources: csFiles,
-        });
-    }
-
     args = processArguments(args, "library");
-    let result = Managed.library(args);
-
-    if (args.cacheOldNames)
-    {
-        let assemblyWithOldName = library({
-            assemblyName: args.assemblyName.replace("BuildXL.", ""),
-            sources: csFiles,
-            references: [
-                result
-            ],
-        });
-
-        result = result.merge<Managed.Assembly>({
-            runtimeContent: {
-                contents: [
-                    assemblyWithOldName.runtime.binary,
-                ]
-            }
-        });
-    }
-
-    return result;
+    return Managed.library(args);
 }
 
 @@public
+export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
+        importFrom("System.Threading.Tasks.Extensions").pkg,
+        importFrom("System.Linq.Async").pkg,
+        // .NET Core version is tricky, because there are some crucial differences between .netcoreapp and netstandard
+        (qualifier.targetFramework === "netcoreapp3.1" 
+          ? importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg
+          : importFrom("Microsoft.Bcl.AsyncInterfaces").pkg)
+    ];
+
+@@public
+export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNugetPackage[] = 
+    qualifier.targetFramework === "netcoreapp3.1" ? [] : [
+            importFrom("System.Threading.Tasks.Dataflow").pkg,
+        ];
+
+@@public
 export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult {
-    if (Context.getCurrentHost().os !== "macOS") {
+    if (!isHostOsOsx) {
         const asm = executable(args);
         return asm.override<CoreRT.NativeExecutableResult>({
             getExecutable: () => asm.runtime.binary
@@ -243,9 +267,7 @@ export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult
 
     /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
     args = args.override<Arguments>({
-        framework: (args.framework || Frameworks.framework).override<Shared.Framework>({
-            applicationDeploymentStyle: "frameworkDependent"
-        })
+        deploymentStyle:  "frameworkDependent",
     });
 
     /** Compile to MSIL */
@@ -269,8 +291,8 @@ export function executable(args: Arguments): Managed.Assembly {
                 name: "Newtonsoft.Json",
                 publicKeyToken: "30ad4fe6b2a6aeed",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-11.0.0.0",
-                newVersion: "11.0.0.0",
+                oldVersion: "0.0.0.0-12.0.0.0",
+                newVersion: "12.0.0.0",
             },
             {
                 name: "Microsoft.VstsContentStore",
@@ -299,6 +321,13 @@ export function executable(args: Arguments): Managed.Assembly {
                 culture: "neutral",
                 oldVersion: "0.0.0.0-15.1280.0.0",
                 newVersion: "1.0.0.0",
+            },
+            {
+                name: "System.Net.Http.Formatting",
+                publicKeyToken: "31bf3856ad364e35",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.2.7.0",
+                newVersion: "5.2.7.0",
             }
         ],
         tools: {
@@ -327,23 +356,21 @@ export function test(args: TestArguments) : TestResult {
     let result = Managed.test(args);
 
     if (!args.skipTestRun) {
-        StandaloneTest.deploy(
-            result.testDeployment,
-            args.testFramework,
-            /* deploymentOptions:    */ args.deploymentOptions,
-            /* subfolder:            */ args.standaloneTestFolder,
-            /* parallelCategories:   */ args.runTestArgs && args.runTestArgs.parallelGroups,
-            /* limitCategories:      */ args.runTestArgs && args.runTestArgs.limitGroups,
-            /* skipCategories:       */ args.runTestArgs && args.runTestArgs.skipGroups,
-            /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
-
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
-            // QTest doesn't really work when the limit categories filter out all the tests.
-            // Basically, the logic below follows standalone test runner.
-            const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
-            const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
-            const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
-            const framework = untracked ? untrackedFramework : trackedFramework;
+            
+            let framework = args.testFramework;
+
+            let executeTestUntracked = false;
+            let forceXunitForAdminTests = false;
+            if (args.runTestArgs && args.runTestArgs.unsafeTestRunArguments) {
+                executeTestUntracked = args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
+                forceXunitForAdminTests = args.runTestArgs.unsafeTestRunArguments.forceXunitForAdminTests;
+            }
+            if (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked || forceXunitForAdminTests) {
+                framework = importFrom("Sdk.Managed.Testing.XUnit").framework;
+            }
+
+            Contract.assert(args.testFramework !== undefined, "testFramework must have been set by processTestArguments");
             args = args.merge({
                 testFramework: framework,
                 runTestArgs: {
@@ -351,6 +378,10 @@ export function test(args: TestArguments) : TestResult {
                     limitGroups: ["RequiresAdmin"],
                     parallelGroups: undefined,
                     tags: ["RequiresAdminTest"],
+                    unsafeTestRunArguments: {
+                         // Some unit test assemblies may not have unit tests that require admin privilege.
+                        allowForZeroTestCases: true
+                    }
                 }
             });
             const adminResult = Managed.runTestOnly(
@@ -416,6 +447,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     let rootNamespace = args.rootNamespace || assemblyName;
 
     args = Contracts.withRuntimeContracts(args, args.contractsLevel);
+    
+    // Need to turn on an experiemtal feature of the compiler in order to use some of the analyzers.
+    let features = args.enableStyleCopAnalyzers ? ['IOperation'] : [];
+    // Using strict mode if its enabled explicitely or if its not disabled explicitly,
+    // but enabled by default.
+    if (args.strictMode === true || (args.strictMode !== false && Flags.useCSharpCompilerStrictMode === true)) {
+        features = features.push('strict');
+    }
 
     args = Object.merge<Arguments>(
         {
@@ -427,7 +466,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...addIf(isDotNetCoreBuild,
                     "FEATURE_SAFE_PROCESS_HANDLE",
                     "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",
-                    "DISABLE_FEATURE_HTMLWRITER",
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
                 ),
                 ...addIf(Flags.isMicrosoftInternal,
@@ -441,27 +479,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...(args.skipDefaultReferences ? [] : [
                     ...(isDotNetCoreBuild ? [] : [
                         NetFx.System.Threading.Tasks.dll,
-                        ...(qualifier.targetFramework === "net451"
-                            ? [
-                                // net451 needs an explicit reference to ValueTuple
-                                importFrom("System.ValueTuple").pkg,
-                                // net451 does not have its own version of TPL Data flow types
-                                importFrom("Microsoft.Tpl.Dataflow").pkg,
-                            ]
-                            : [
-                                importFrom("System.Threading.Tasks.Dataflow").pkg,
-                            ]
-                        )
                     ]),
-                    ...(qualifier.targetFramework === "netstandard2.0" ? [] : [
-                        importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-                    ]),
-                    ...(qualifier.targetFramework !== "net451" ? [] : [
-                        importFrom("BuildXL.Utilities").System.FormattableString.dll
-                    ]),
+                    importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
                     ...(args.generateLogs ? [
                         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
                     ] : []),
+                    ...addIf(qualifier.targetFramework === "net462",
+                        importFrom("System.ValueTuple").pkg
+                    ),
                 ]),
             ],
             allowUnsafeBlocks: args.allowUnsafeBlocks || args.generateLogs, // When we generate logs we must add /unsafe since we generate unsafe code
@@ -475,13 +500,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: getAnalyzers(args),
 
-                    // Need to turn on an experiemtal feature of the compiler in order to use some of the analyzers.
-                    features: args.enableStyleCopAnalyzers ? ['IOperation'] : undefined,
+                    features: features,
                     codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,
                     additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
+                    shared: Flags.useManagedSharedCompilation,
                 }
             },
+            runCrossgenIfSupported: Flags.enableCrossgen,
         },
         args);
 
@@ -493,7 +519,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 if (resource.resX) {
                     return resource.override({
                         resX: ResXPreProcessor
-                            .withQualifier(Managed.TargetFrameworks.currentMachineQualifier)
+                            .withQualifier(Managed.TargetFrameworks.MachineQualifier.current)
                             .preProcess({
                                 resX: resource.resX,
                                 defines: brandingDefines,
@@ -508,17 +534,20 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     }
 
     if (args.generateLogs) {
-        let compileClosure = args.generateLogsLite === false
-            ? Managed.Helpers.computeCompileClosure(framework, args.references)
-            : [
+        let compileClosure = args.generateLogBinaryRefs !== undefined
+            ? [
+                ...args.generateLogBinaryRefs,
+                ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
+            ] : [
                 importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
         
-        let sources = args.generateLogsLite === false
-            ? args.sources
-            : args.sources.filter(f => f.parent.name === a`Tracing`);
+        // $TODO: We have some ugglyness here in that there is not a good way to do a 'under' path check from the sdk
+        // without the caller passing in the path. BuildXL.Tracing doesn't follow the proper loggen pattern either with
+        // subfolders hence the ugly logic here for now.
+        let sources = args.sources.filter(f => f.parent.name === a`Tracing` || f.parent.parent.name === a`Tracing`);
 
         let extraSourceFile = LogGenerator.generate({
             references: compileClosure,
@@ -568,54 +597,64 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
     ]
 });
 
+/** Returns true if test should use QTest framework. */
+function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
+    return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
+        && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
+}
+
+/** Gets test framework. */
+function getTestFramework(args: Managed.TestArguments) : Managed.TestFramework {
+    return args.testFramework || (shouldUseQTest(args.runTestArgs) ? QTest.getFramework(XUnit.framework) : XUnit.framework);
+}
 
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {
     args = processArguments(args, "library");
 
     let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8; 
-    let useQTest = Flags.isQTestEnabled 
-        && qualifier.targetFramework !== "netcoreapp3.0" // QTest is not support for .net core apps
-        && !(args.runTestArgs && args.runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
-    let testFramework = args.testFramework || (useQTest ? QTest.getFramework(XUnit.framework) : XUnit.framework);
+    let testFramework = getTestFramework(args);
 
     args = Object.merge<Managed.TestArguments>({
         testFramework: testFramework,
         skipDocumentationGeneration: true,
         sources: [
-            ...(qualifier.targetFramework === "net451" ? [] : [
-                testFrameworkOverrideAttribute,
-            ]),
+            testFrameworkOverrideAttribute,
         ],
         references: [
-            ...addIf(qualifier.targetFramework !== "net451",
-                importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-                importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll
-            ),
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),
         ],
-        skipTestRun: Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64",
+        skipTestRun: !targetFrameworkMatchesCurrentHost,
         runTestArgs: {
             // TODO: When BuildXL has proper threadsafe logging infrastructure we can go back to the default or parallel.
             parallel: "none",
             tools: {
-                acquireSemaphores: [
-                    {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}
-                ],
                 exec: {
                     acquireSemaphores: [
                         {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}
                     ],
                     errorRegex: " \b",
+                    unsafe: {
+                        // allowing process dumps to be written to /cores on macOS
+                        untrackedScopes: isHostOsOsx ?  [ d`/cores` ] : []
+                    },
+                    // Need to let BuildXL know all the paths where the sources are located, because some assertions 
+                    // libraries (like FluentAssertion) may decide to read the source file while the test runs in order
+                    // to make error messages more descriptive.
+                    dependencies: args.sources,
                 }
             }
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.
-            importFrom("BuildXL.Utilities").Branding.brandingManifest,
+            importFrom("BuildXL.Utilities").Branding.Manifest.file,
         ]
-    }, args);
+    }, 
+    args);
+
 
     return args;
 }

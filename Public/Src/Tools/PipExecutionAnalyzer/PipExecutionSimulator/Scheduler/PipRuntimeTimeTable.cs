@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler
                 async () =>
                 {
                     int size = await ReadFileFormatMarkerAsync(fileStream);
-                    var table = new PipRuntimeTimeTable();
+                    var table = new PipRuntimeTimeTable(LoggingContext);
 
                     using (BuildXLReader reader = new BuildXLReader(false, fileStream, true))
                     {

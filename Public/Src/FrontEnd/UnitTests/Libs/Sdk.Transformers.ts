@@ -223,7 +223,7 @@ namespace Transformer {
             hasUntrackedChildProcesses?: boolean;
             allowPreservedOutputs?: boolean | number;
             passThroughEnvironmentVariables?: string[];
-            preserveOutputWhitelist?: (File | Directory)[];
+            preserveOutputAllowlist?: (File | Directory)[];
         }
 
         /**
@@ -313,7 +313,7 @@ namespace Transformer {
 
     /** Seals specified root folder with a set of files; the created pip is tagged with 'tags'. */
     @@public
-    export function sealDirectory(rootOrArgs: any, files: File[], tags?: string[], description?: string, scrub?: boolean): StaticDirectory {
+    export function sealDirectory(rootOrArgs: any, files?: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory {
         return _PreludeAmbientHack_Transformer.sealDirectory(rootOrArgs, files, tags, description, scrub);
     }
 
@@ -333,10 +333,16 @@ namespace Transformer {
      * The provided root can be any arbitrary directory that is a common ancestor to all the provided directories
     */
     @@public
-    export function composeSharedOpaqueDirectories(rootOrArgs: any, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(rootOrArgs, directories);
+    export function composeSharedOpaqueDirectories(rootOrArgs: any, directories: SharedOpaqueDirectory[], contentFilter?: any): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(rootOrArgs, directories, contentFilter);
     }
 
+    /** Creates a new shared opaque directory whose content matches the specified regex.
+    */
+   @@public
+   export function filterSharedOpaqueDirectory(directory: any, contentFilter?: any): SharedOpaqueDirectory {
+       return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory, [], contentFilter);
+   }
 
     /** Options for sealing source directory. */
     @@public

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -187,7 +188,8 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public const int FormatVersion = 4;
         private readonly JsonTextWriter m_writer;
-        private Dictionary<AbsolutePath, int> m_fileIds = new Dictionary<AbsolutePath, int>(capacity: 10 * 1000);
+        private Dictionary<string, int> m_fileIds = new Dictionary<string, int>(capacity: 30 * 1000);
+        private int m_nextId;
 
         /// <summary>
         /// Creates a JSON writer which writes text to <paramref name="output" />
@@ -233,8 +235,7 @@ namespace BuildXL.Execution.Analyzer
             // Observed execution info may get queued up for when we begin draining the queue (below).
 
             // Don't overlap pip ids with file/directory ids
-            int nextId = graph.PipCount + 1;
-            var directoryIds = new Dictionary<DirectoryArtifact, int>(capacity: 1000);
+            m_nextId = graph.PipCount + 1;
 
             m_writer.WriteStartObject(); // Outermost object
 
@@ -254,28 +255,28 @@ namespace BuildXL.Execution.Analyzer
                 {
                     pips.Add(pip);
 
-                    // We retrieve outputs rather than inputs since we do not expect duplicate outputs among pips
-                    // (not true with inputs). This means the ID assignment work is linear in the number of artifacts.
+                    // Add all of the inputs to the file list
+                    PipArtifacts.ForEachInput(pip, dependency =>
+                    {
+                        if (dependency.IsFile)
+                        {
+                            // Use producerId=0, if first referenced will indicate consumed source file
+                            AssignFileIdAndWriteFileEntry(dependency.FileArtifact.Path.ToString(context.PathTable), null);
+                        }
+                        return true;
+                    }, includeLazyInputs: true);
+
+                    // Now add all of the outputs
                     PipArtifacts.ForEachOutput(pip, output =>
                     {
                         if (output.IsFile)
                         {
-                            AssignFileIdAndWriteFileEntry(output.FileArtifact, context, ref nextId);
+                            AssignFileIdAndWriteFileEntry(output.FileArtifact.Path.ToString(context.PathTable), pip.PipId);
                         }
 
                         return true;
                     },
                     includeUncacheable: true);
-
-                    // SealDirectory pips are the only ones with directory outputs. As part of the artifact entry for the directory output,
-                    // we want to capture the membership of the directory. This means we want to have assigned IDs to all member files before
-                    // writing out that list (for easier parsing). So, we defer writing out seal directory pips until all file artifacts have been visited.
-                    if (pip.PipType == PipType.SealDirectory)
-                    {
-                        var directoryPip = (SealDirectory)pip;
-                        Contract.Assume(directoryPip.IsInitialized);
-                        directoryPips.Add(directoryPip);
-                    }
 
                     // Record files that are written into SharedOpaqueDirectories
                     if (directoryOutputContent.TryGetValue(pip.PipId, out var pipOutput))
@@ -287,20 +288,39 @@ namespace BuildXL.Execution.Analyzer
 
                             foreach (var file in content)
                             {
-                                AssignFileIdAndWriteFileEntry(file, context, ref nextId);
+                                AssignFileIdAndWriteFileEntry(file.Path.ToString(context.PathTable), pip.PipId);
                             }
+                        }
+                    }
+
+                    // SealDirectory pips are the only ones with directory outputs. As part of the artifact entry for the directory output,
+                    // we want to capture the membership of the directory. This means we want to have assigned IDs to all member files before
+                    // writing out that list (for easier parsing). So, we defer writing out seal directory pips until all file artifacts have been visited.
+                    if (pip.PipType == PipType.SealDirectory)
+                    {
+                        var directoryPip = (SealDirectory)pip;
+                        Contract.Assume(directoryPip.IsInitialized);
+                        directoryPips.Add(directoryPip);
+
+                        // Add any file artifacts from the sealed directory, many will be
+                        // outputs of process pips but some will be source files
+                        foreach (FileArtifact directoryMember in directoryPip.Contents)
+                        {
+                            AssignFileIdAndWriteFileEntry(directoryMember.Path.ToString(context.PathTable), pip.PipId);
                         }
                     }
                 }
 
-                foreach (SealDirectory directoryPip in directoryPips)
-                {
-                    AssignDirectoryIdAndWriteDirectoryEntry(directoryPip.Directory, context, directoryPip.Contents, directoryIds, ref nextId);
-                }
+                //// Now write out the directory entries
+                //foreach (SealDirectory directoryPip in directoryPips)
+                //{
+                //    AssignDirectoryIdAndWriteDirectoryEntry(directoryPip.Directory, context, directoryPip.Contents);
+                //}
             }
 
             m_writer.WriteEndArray();
 
+            m_writer.WriteWhitespace(Environment.NewLine);
             m_writer.WritePropertyName("graph");
             m_writer.WriteStartArray();
             {
@@ -312,20 +332,15 @@ namespace BuildXL.Execution.Analyzer
                         continue;
                     }
 
-                    WriteGraphNodeEntry(pip, graph, context, directoryIds, directoryInputContent, directoryOutputContent);
+                    WriteGraphNodeEntry(pip, graph, context, directoryInputContent, directoryOutputContent);
                 }
             }
 
             m_writer.WriteEndArray();
 
-            // Avoid holding a reference to this map if it isn't later needed by the special file details exporter
-            if (fileData == null)
-            {
-                m_fileIds = null;
-            }
-
             if (executionData != null)
             {
+                m_writer.WriteWhitespace(Environment.NewLine);
                 m_writer.WritePropertyName("execution");
                 m_writer.WriteStartArray();
 
@@ -342,15 +357,18 @@ namespace BuildXL.Execution.Analyzer
 
             if (workers != null)
             {
+                m_writer.WriteWhitespace(Environment.NewLine);
                 ExportWorkerDetails(workers);
             }
 
             if (fileData != null)
             {
-                ExportFileDetails(fileData);
+                m_writer.WriteWhitespace(Environment.NewLine);
+                ExportFileDetails(fileData, context);
             }
 
             // End the outermost object
+            m_writer.WriteWhitespace(Environment.NewLine);
             m_writer.WriteEndObject();
             m_writer.Flush();
         }
@@ -382,7 +400,9 @@ namespace BuildXL.Execution.Analyzer
             m_writer.WriteEndArray();
         }
 
-        private void ExportFileDetails(IEnumerable<KeyValuePair<FileArtifact, FileContentInfo>> fileData)
+        private void ExportFileDetails(
+            IEnumerable<KeyValuePair<FileArtifact, FileContentInfo>> fileData,
+            PipExecutionContext context)
         {
             Contract.Assert(fileData != null);
 
@@ -395,7 +415,7 @@ namespace BuildXL.Execution.Analyzer
                 // from opaque directories are not currently represented in the graph and thus have not corresponding
                 // fileid
                 int fileId;
-                if (m_fileIds.TryGetValue(kvp.Key.Path, out fileId))
+                if (m_fileIds.TryGetValue(kvp.Key.Path.ToString(context.PathTable), out fileId))
                 {
                     m_writer.WriteWhitespace(Environment.NewLine);
                     m_writer.WriteStartObject();
@@ -415,20 +435,21 @@ namespace BuildXL.Execution.Analyzer
         }
 
         private void AssignFileIdAndWriteFileEntry(
-            FileArtifact artifact,
-            PipExecutionContext context,
-            ref int nextId)
+            string fullPath,
+            PipId? producerId)
         {
             int fileId;
-            if (!m_fileIds.TryGetValue(artifact.Path, out fileId))
+            if (!m_fileIds.TryGetValue(fullPath, out fileId))
             {
-                fileId = nextId++;
-                m_fileIds.Add(artifact.Path, fileId);
+                fileId = m_nextId++;
+                //Console.WriteLine("Adding file " + fullPath + " ID=" + fileId.ToString());
+                m_fileIds.Add(fullPath, fileId);
             }
-            else
+             else
             {
-                Contract.Assume(false, "Multiple producers for file artifact " + artifact.Path.ToString(context.PathTable));
-                throw new InvalidOperationException("Unreachable");
+                // ignore duplicates since frequently someones output is someone else's input
+                //Console.WriteLine("Ignoring duplicate file " + fullPath + " ID=" + fileId.ToString());
+                return;
             }
 
             m_writer.WriteWhitespace(Environment.NewLine);
@@ -437,57 +458,14 @@ namespace BuildXL.Execution.Analyzer
             m_writer.WritePropertyName("id");
             m_writer.WriteValue(fileId);
 
+//            if (producerId != null)
+//            {
+//                m_writer.WritePropertyName("producedBy");
+//                m_writer.WriteValue(producerId.Value);
+//            }
+
             m_writer.WritePropertyName("file");
-            string path = artifact.Path.ToString(context.PathTable);
-            m_writer.WriteValue(path);
-            m_writer.WriteEndObject();
-        }
-
-        private void AssignDirectoryIdAndWriteDirectoryEntry(
-            DirectoryArtifact artifact,
-            PipExecutionContext context,
-            ReadOnlyArray<FileArtifact> contents,
-            Dictionary<DirectoryArtifact, int> directoryIds,
-            ref int nextId)
-        {
-            int directoryId;
-            if (!directoryIds.TryGetValue(artifact, out directoryId))
-            {
-                directoryId = nextId++;
-                directoryIds.Add(artifact, directoryId);
-            }
-            else
-            {
-                Contract.Assume(false, "Multiple producers for directory artifact " + artifact.Path.ToString(context.PathTable));
-                throw new InvalidOperationException("Unreachable");
-            }
-
-            m_writer.WriteWhitespace(Environment.NewLine);
-            m_writer.WriteStartObject();
-
-            m_writer.WritePropertyName("id");
-            m_writer.WriteValue(directoryId);
-
-            m_writer.WritePropertyName("directory");
-            m_writer.WriteValue(artifact.Path.ToString(context.PathTable));
-
-            m_writer.WritePropertyName("contents");
-            m_writer.WriteStartArray();
-
-            foreach (FileArtifact directoryMember in contents)
-            {
-                int dependencyId;
-                if (!m_fileIds.TryGetValue(directoryMember.Path, out dependencyId))
-                {
-                    Contract.Assume(false, "Expected file artifact already written (member of a directory) " + directoryMember.Path.ToString(context.PathTable));
-                    throw new InvalidOperationException("Unreachable");
-                }
-
-                m_writer.WriteValue(dependencyId);
-            }
-
-            m_writer.WriteEndArray();
-
+            m_writer.WriteValue(fullPath);
             m_writer.WriteEndObject();
         }
 
@@ -513,7 +491,6 @@ namespace BuildXL.Execution.Analyzer
             Pip pip,
             IPipScheduleTraversal graph,
             PipExecutionContext context,
-            Dictionary<DirectoryArtifact, int> directoryIds,
             Dictionary<PipId, ProcessExecutionMonitoringReportedEventData> directoryInputContent,
             Dictionary<PipId, PipExecutionDirectoryOutputs> directoryOutputContent)
         {
@@ -555,30 +532,23 @@ namespace BuildXL.Execution.Analyzer
                         int dependencyId;
                         if (dependency.IsFile)
                         {
-                            if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path, out dependencyId))
+                            if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path.ToString(context.PathTable), out dependencyId))
                             {
                                 Contract.Assume(false, "Expected file artifact already written (dependency of pip) " + dependency.Path.ToString(context.PathTable));
                                 throw new InvalidOperationException("Unreachable");
                             }
-                        }
-                        else
-                        {
-                            if (!directoryIds.TryGetValue(dependency.DirectoryArtifact, out dependencyId))
+
+                            if (!writtenHeader)
                             {
-                                Contract.Assume(false, "Expected directory artifact already written (input of pip) " + dependency.Path.ToString(context.PathTable));
-                                throw new InvalidOperationException("Unreachable");
+                                m_writer.WritePropertyName("consumes");
+                                m_writer.WriteStartArray();
+
+                                writtenHeader = true;
                             }
+
+                            m_writer.WriteValue(dependencyId);
                         }
 
-                        if (!writtenHeader)
-                        {
-                            m_writer.WritePropertyName("consumes");
-                            m_writer.WriteStartArray();
-
-                            writtenHeader = true;
-                        }
-
-                        m_writer.WriteValue(dependencyId);
                         return true;
                     }, includeLazyInputs: true);
                     
@@ -588,7 +558,7 @@ namespace BuildXL.Execution.Analyzer
                         foreach (var input in pipInput.ReportedFileAccesses)
                         {
                             int dependencyId;
-                            if (!m_fileIds.TryGetValue(input.ManifestPath, out dependencyId))
+                            if (!m_fileIds.TryGetValue(input.ManifestPath.ToString(context.PathTable), out dependencyId))
                             {
                                 // Ignore unrecognized reads (these are usually directories / files that aren't produced, so we don't have their ID)
                                 continue;
@@ -607,29 +577,22 @@ namespace BuildXL.Execution.Analyzer
                     m_writer.WritePropertyName("produces");
                     m_writer.WriteStartArray();
 
-                    SortedSet<int> reads = new SortedSet<int>();
+                    SortedSet<int> writes = new SortedSet<int>();
 
                     PipArtifacts.ForEachOutput(pip, dependency =>
                     {
                         int dependencyId;
                         if (dependency.IsFile)
                         {
-                            if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path, out dependencyId))
+                            if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path.ToString(context.PathTable), out dependencyId))
                             {
                                 Contract.Assume(false, "Expected file artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
                                 throw new InvalidOperationException("Unreachable");
                             }
-                        }
-                        else
-                        {
-                            if (!directoryIds.TryGetValue(dependency.DirectoryArtifact, out dependencyId))
-                            {
-                                Contract.Assume(false, "Expected directory artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
-                                throw new InvalidOperationException("Unreachable");
-                            }
+
+                            writes.Add(dependencyId);
                         }
 
-                        reads.Add(dependencyId);
                         return true;
                     }, includeUncacheable: true);
 
@@ -644,17 +607,17 @@ namespace BuildXL.Execution.Analyzer
                             foreach (var file in content)
                             {
                                 int dependencyId;
-                                if (!m_fileIds.TryGetValue(file.Path, out dependencyId))
+                                if (!m_fileIds.TryGetValue(file.Path.ToString(context.PathTable), out dependencyId))
                                 {
                                     Contract.Assume(false, "Expected file artifact not found in fileId table " + file.Path.ToString(context.PathTable));
                                     throw new InvalidOperationException("Unreachable");
                                 }
-                                reads.Add(dependencyId);
+                                writes.Add(dependencyId);
                             }
                         }
                     }
 
-                    foreach (int dependencyId in reads)
+                    foreach (int dependencyId in writes)
                     {
                         m_writer.WriteValue(dependencyId);
                     }
@@ -710,7 +673,7 @@ namespace BuildXL.Execution.Analyzer
                 m_writer.WritePropertyName("exe");
                 m_writer.WriteValue(process.GetToolName(context.PathTable).ToString(context.StringTable));
 
-                if (process.Semaphores != null && process.Semaphores.Length > 0)
+                if (process.Semaphores.Length > 0)
                 {
                     m_writer.WritePropertyName("semaphores");
                     m_writer.WriteStartArray();
@@ -794,10 +757,10 @@ namespace BuildXL.Execution.Analyzer
                         m_writer.WriteValue(processPerformance.KernelTime.Ticks);
                     }
 
-                    if (processPerformance.PeakMemoryUsage != 0)
+                    if (processPerformance.MemoryCounters.PeakWorkingSetMb != 0)
                     {
-                        m_writer.WritePropertyName("peakMemory");
-                        m_writer.WriteValue(processPerformance.PeakMemoryUsage);
+                        m_writer.WritePropertyName("peakMemoryMb");
+                        m_writer.WriteValue(processPerformance.MemoryCounters.PeakWorkingSetMb);
                     }
 
                     if (processPerformance.IO.GetAggregateIO().TransferCount > 0)
@@ -843,16 +806,16 @@ namespace BuildXL.Execution.Analyzer
                             m_writer.WritePropertyName("total");
                             m_writer.WriteValue(monitoring.Total);
 
-                            if (monitoring.TotalWhitelisted > 0)
+                            if (monitoring.TotalAllowlisted > 0)
                             {
-                                m_writer.WritePropertyName("whitelisted");
-                                m_writer.WriteValue(monitoring.TotalWhitelisted);
+                                m_writer.WritePropertyName("allowlisted");
+                                m_writer.WriteValue(monitoring.TotalAllowlisted);
                             }
 
-                            if (monitoring.NumFileAccessesWhitelistedButNotCacheable > 0)
+                            if (monitoring.NumFileAccessesAllowlistedButNotCacheable > 0)
                             {
-                                m_writer.WritePropertyName("whitelistedButNotCacheable");
-                                m_writer.WriteValue(monitoring.NumFileAccessesWhitelistedButNotCacheable);
+                                m_writer.WritePropertyName("allowlistedButNotCacheable");
+                                m_writer.WriteValue(monitoring.NumFileAccessesAllowlistedButNotCacheable);
                             }
                         }
 

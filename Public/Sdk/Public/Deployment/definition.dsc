@@ -13,6 +13,7 @@ export interface Definition {
 @@public
 export interface DeploymentOptions {
     excludedDeployableItems?: DeployableItem[];
+    tags?: string[];
 }
 
 /**

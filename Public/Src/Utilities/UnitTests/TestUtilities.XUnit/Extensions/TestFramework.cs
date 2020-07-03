@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -28,8 +28,9 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
 
             // Unfortunately, the following line won't be executed, because Xunit console runner calls Environment.Exit in a similar handler.
             // But this handler still make sense because xunit does that only for NET 4.5.1.
+
             AppDomain.CurrentDomain.UnhandledException += (sender, args) => m_logger.LogError("Domain unhandled error: " + (args.ExceptionObject as Exception)?.ToString());
-            
+
         }
 
         /// <inheritdoc />

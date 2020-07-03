@@ -1,19 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
+using System.IO;
+using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
-using System.IO;
-using BuildXL.Pips.Builders;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using System;
-using System.Linq;
-using BuildXL.Utilities.Tracing;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -85,7 +84,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             new []{ filterTag });
 
             var failedPipRun = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             var explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
             var implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;
@@ -98,7 +97,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             Configuration.Filter = $"tag='{filterTag}'";
             failedPipRun = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
             implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;
@@ -307,6 +306,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertProcessPipCountersByFilterSumToPipExecutorCounters(filterMissFilterRun);
         }
         
+        [Fact]
         public void ValidateProcessPipCountersByTelemetryTag()
         {
             // A <- B [blue] <- C [blue]
@@ -335,7 +335,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Process B.
             FileArtifact bInput = CreateSourceFile();
             FileArtifact bOutput = CreateOutputFileArtifact();
-            var processB = CreateAndSchedulePipBuilder(new[] { Operation.ReadFile(bInput), Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) }, tags(BlueTag));
+            var processB = CreateAndSchedulePipBuilder(new[] { Operation.ReadFile(bInput), Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) }, 
+                // Make sure we don't count BlueTag twice if mistakenly duplicated in the pip specification.
+                tags(BlueTag, BlueTag));
 
             // Process C.
             FileArtifact cInput = CreateSourceFile();

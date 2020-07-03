@@ -5,46 +5,53 @@
 #define IOHandler_hpp
 
 #include "AccessHandler.hpp"
+#include "IOEvent.hpp"
 
-#define NO_ERROR 0
-
-struct IOHandler : public AccessHandler
+struct IOHandler final : public AccessHandler
 {
 public:
 
-    IOHandler(ESSandbox *sandbox) : AccessHandler(sandbox) { }
+    IOHandler(Sandbox *sandbox) : AccessHandler(sandbox) { }
+
+    AccessCheckResult HandleEvent(const IOEvent &event);
 
 #pragma mark Process life cycle
     
-    void HandleProcessFork(const es_message_t *msg);
+    AccessCheckResult HandleProcessFork(const IOEvent &event);
 
-    void HandleProcessExec(const es_message_t *msg);
+    AccessCheckResult HandleProcessExec(const IOEvent &event);
 
-    void HandleProcessExit(const es_message_t *msg);
+    AccessCheckResult HandleProcessExit(const IOEvent &event);
 
-    void HandleProcessUntracked(const pid_t pid);
+    AccessCheckResult HandleProcessUntracked(const pid_t pid);
     
 #pragma mark Process I/O observation
     
-    void HandleLookup(const es_message_t *msg);
+    AccessCheckResult HandleLookup(const IOEvent &event);
     
-    void HandleOpen(const es_message_t *msg);
+    AccessCheckResult HandleOpen(const IOEvent &event);
     
-    void HandleClose(const es_message_t *msg);
+    AccessCheckResult HandleClose(const IOEvent &event);
+
+    AccessCheckResult HandleCreate(const IOEvent &event);
     
-    void HandleLink(const es_message_t *msg);
+    AccessCheckResult HandleLink(const IOEvent &event);
     
-    void HandleUnlink(const es_message_t *msg);
+    AccessCheckResult HandleUnlink(const IOEvent &event);
     
-    void HandleReadlink(const es_message_t *msg);
+    AccessCheckResult HandleReadlink(const IOEvent &event);
     
-    void HandleRename(const es_message_t *msg);
+    AccessCheckResult HandleRename(const IOEvent &event);
     
-    void HandleExchange(const es_message_t *msg);
+    AccessCheckResult HandleClone(const IOEvent &event);
+
+    AccessCheckResult HandleExchange(const IOEvent &event);
     
-    void HandleCreate(const es_message_t *msg);
+    AccessCheckResult HandleGenericWrite(const IOEvent &event);
     
-    void HandleWrite(const es_message_t *msg);
+    AccessCheckResult HandleGenericRead(const IOEvent &event);
+    
+    AccessCheckResult HandleGenericProbe(const IOEvent &event);
 };
 
 #endif /* IOHandler_hpp */

@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System.Linq;
 using System.Threading;
 using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Ide.LanguageServer.UnitTests.Helpers;
@@ -33,21 +34,27 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                     },
                     TextDocument = new TextDocumentIdentifier()
                     {
-                        Uri = m_fixture.GetChildUri(@"module\hoverTests.bxt").ToString()
+                        Uri = m_fixture.GetChildUri(@"module\hoverTests.bxt")
                     }
                 }, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
+            
+           
+            if (result.SuccessValue == null)
+            {
+                Assert.False(expectedResults.Any());
+                return;
+            }
 
             // Hover provider could return null.
-
-            var enumResults = (result.SuccessValue?.Contents ?? new object[] {}) .GetEnumerator();
             var enumExpectedContents = expectedResults.GetEnumerator();
+            var enumResults = ((SumType<string, MarkedString>[])result.SuccessValue.Contents).GetEnumerator();
             while (enumResults.MoveNext())
             {
-                Assert.True(enumResults.Current is StringOrObject<MarkedString>);
+                Assert.True(enumResults.Current is SumType<string, MarkedString>);
                 Assert.True(enumExpectedContents.MoveNext());
-                Assert.Equal(enumExpectedContents.Current, (enumResults.Current as StringOrObject<MarkedString>).Right.Value);
+                Assert.Equal(enumExpectedContents.Current, ((MarkedString)(SumType<string, MarkedString>)enumResults.Current).Value);
             }
         }
 

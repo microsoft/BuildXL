@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
@@ -25,6 +26,8 @@ namespace BuildXL.SandboxedProcessExecutor
         private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
         private OutputErrorObserver m_outputErrorObserver;
         private readonly ConsoleLogger m_logger = new ConsoleLogger();
+        private ISandboxConnection m_sandboxConnection = null;
+        private const int ReportQueueSizeForKextMB = 1024;
 
         /// <summary>
         /// Creates an instance of <see cref="Executor"/>.
@@ -95,25 +98,27 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.FailedReadInput;
             }
 
-            using (sandboxedProcessInfo.SharedOpaqueOutputLogger)
+            if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
             {
-                if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
-                {
-                    return ExitCode.FailedSandboxPreparation;
-                }
-
-                (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
-
-                if (executeResult.result != null)
-                {
-                    if (!TryWriteSandboxedProcessResult(executeResult.result))
-                    {
-                        return ExitCode.FailedWriteOutput;
-                    }
-                }
-
-                return executeResult.exitCode;
+                return ExitCode.FailedSandboxPreparation;
             }
+
+            (ExitCode exitCode, SandboxedProcessResult result) executeResult;
+            using (sandboxedProcessInfo.SidebandWriter)
+            {
+                executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+                sandboxedProcessInfo.SidebandWriter?.EnsureHeaderWritten();
+            }
+
+            if (executeResult.result != null)
+            {
+                if (!TryWriteSandboxedProcessResult(sandboxedProcessInfo.PathTable, executeResult.result))
+                {
+                    return ExitCode.FailedWriteOutput;
+                }
+            }
+
+            return executeResult.exitCode;
         }
 
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
@@ -136,9 +141,37 @@ namespace BuildXL.SandboxedProcessExecutor
             return sandboxedProcessInfo != null;
         }
 
-        private bool TryWriteSandboxedProcessResult(SandboxedProcessResult result)
+        private bool TryWriteSandboxedProcessResult(PathTable pathTable, SandboxedProcessResult result)
         {
             Contract.Requires(result != null);
+
+            // When BuildXL serializes SandboxedProcessInfo, it does not serialize the path table used by SandboxedProcessInfo.
+            // On deserializing that info, a new path table is created; see the Deserialize method of SandboxedProcessInfo.
+            // Unix sandbox uses the new path table in the deserialized SandboxedProcessInfo to create ManifestPath (AbsolutePath)
+            // from reported path access (string) in ReportFileAccess. Without special case, the serialization of SandboxedProcessResult
+            // will serialize the AbsolutePath as is. Then, when SandboxedProcessResult is read by BuildXL, BuildXL will not understand
+            // the ManifestPath because it is created from a different path table.
+            //
+            // In Windows, instead of creating ManifestPath from the reported path access (string), ManifestPath is reported from Detours
+            // using the AbsolutePath id embedded in the file access manifest. That AbsolutePath id is obtained using the same
+            // path table used by BuildXL, and thus BuildXL will understand the ManifestPath serialized by this tool.
+            //
+            // For Unix, we need to give a special care of path serialization.
+            bool isWindows = !OperatingSystemHelper.IsUnixOS;
+
+            Action<BuildXLWriter, AbsolutePath> writePath = (writer, path) => 
+            {
+                if (isWindows)
+                {
+                    writer.Write(true);
+                    writer.Write(path);
+                }
+                else
+                {
+                    writer.Write(false);
+                    writer.Write(path.ToString(pathTable));
+                }
+            };
 
             bool success = false;
 
@@ -147,7 +180,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     using (FileStream stream = File.OpenWrite(Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile)))
                     {
-                        result.Serialize(stream);
+                        result.Serialize(stream, writePath);
                     }
 
                     success = true;
@@ -165,24 +198,17 @@ namespace BuildXL.SandboxedProcessExecutor
         {
             Contract.Requires(info != null);
 
-            FileAccessManifest fam = info.FileAccessManifest;
-
-            if (!string.IsNullOrEmpty(fam.InternalDetoursErrorNotificationFile))
+            if (!string.IsNullOrEmpty(info.DetoursFailureFile) && FileUtilities.FileExistsNoFollow(info.DetoursFailureFile))
             {
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fam.InternalDetoursErrorNotificationFile));
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(info.DetoursFailureFile));
             }
 
-            if (fam.CheckDetoursMessageCount && !OperatingSystemHelper.IsUnixOS)
+            if (!string.IsNullOrEmpty(info.FileAccessManifest.InternalDetoursErrorNotificationFile)
+                && FileUtilities.FileExistsNoFollow(info.FileAccessManifest.InternalDetoursErrorNotificationFile))
             {
-                string semaphoreName = fam.InternalDetoursErrorNotificationFile.Replace('\\', '_');
-
-                if (!fam.SetMessageCountSemaphore(semaphoreName))
-                {
-                    m_logger.LogError($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
-                    return false;
-                }
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(info.FileAccessManifest.InternalDetoursErrorNotificationFile));
             }
-
+            
             if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
             {
                 m_logger.LogError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine().Length}");
@@ -193,7 +219,63 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            return TryPrepareTemporaryFolders(info);
+            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryFolders(info))
+            {
+                return false;
+            }
+
+            SetSandboxConnectionIfNeeded(info);
+
+            return true;
+        }
+
+        private void SetSandboxConnectionIfNeeded(SandboxedProcessInfo info)
+        {
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_sandboxConnection = new SandboxConnectionLinuxDetours(SandboxConnectionFailureCallback);
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                m_sandboxConnection = new SandboxConnectionKext(
+                    new SandboxConnectionKext.Config
+                    {
+                        FailureCallback = SandboxConnectionFailureCallback,
+                        KextConfig = new Interop.Unix.Sandbox.KextConfig
+                        {
+                            ReportQueueSizeMB = ReportQueueSizeForKextMB,
+#if PLATFORM_OSX
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+#endif
+                        }
+                    });
+            }
+
+            info.SandboxConnection = m_sandboxConnection;
+        }
+
+        private void SandboxConnectionFailureCallback(int status, string description)
+        {
+            m_sandboxConnection?.Dispose();
+            throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status:X}, Description: {description}), please reload the extension and retry.");
+        }
+
+        private bool TryPrepareWorkingDirectory(SandboxedProcessInfo info)
+        {
+            if (!Directory.Exists(info.WorkingDirectory))
+            {
+                try
+                {
+                    FileUtilities.CreateDirectory(info.WorkingDirectory);
+                }
+                catch (BuildXLException e)
+                {
+                    m_logger.LogError($"Failed to prepare temporary folder '{info.WorkingDirectory}': {e.ToStringDemystified()}");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool TryPrepareTemporaryFolders(SandboxedProcessInfo info)
@@ -219,16 +301,19 @@ namespace BuildXL.SandboxedProcessExecutor
 
             foreach (var tmpEnvVar in BuildParameters.DisallowedTempVariables)
             {
-                string tempPath = info.EnvironmentVariables[tmpEnvVar];
+                if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
+                {
+                    string tempPath = info.EnvironmentVariables[tmpEnvVar];
 
-                try
-                {
-                    FileUtilities.CreateDirectory(tempPath);
-                }
-                catch (BuildXLException e)
-                {
-                    m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
-                    return false;
+                    try
+                    {
+                        FileUtilities.CreateDirectory(tempPath);
+                    }
+                    catch (BuildXLException e)
+                    {
+                        m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
+                        return false;
+                    }
                 }
             }
 
@@ -237,8 +322,37 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private async Task<(ExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
         {
+            FileAccessManifest fam = info.FileAccessManifest;
+
             try
             {
+                if (fam.CheckDetoursMessageCount && !OperatingSystemHelper.IsUnixOS)
+                {
+                    string semaphoreName = !string.IsNullOrEmpty(info.DetoursFailureFile)
+                        ? info.DetoursFailureFile.Replace('\\', '_')
+                        : "Detours_" + info.PipSemiStableHash.ToString("X16", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString();
+
+                    int maxRetry = 3;
+                    while (!fam.SetMessageCountSemaphore(semaphoreName))
+                    {
+                        m_logger.LogInfo($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
+                        fam.UnsetMessageCountSemaphore();
+                        --maxRetry;
+                        if (maxRetry == 0)
+                        {
+                            break;
+                        }
+
+                        semaphoreName += $"_{maxRetry}";
+                    }
+
+                    if (maxRetry == 0)
+                    {
+                        m_logger.LogError($"Semaphore for counting Detours messages cannot be newly created");
+                        return (ExitCode.FailedSandboxPreparation, null);
+                    }
+                }
+
                 using (Stream standardInputStream = TryOpenStandardInputStream(info, out bool succeedInOpeningStdIn))
                 {
                     if (!succeedInOpeningStdIn)
@@ -271,7 +385,7 @@ namespace BuildXL.SandboxedProcessExecutor
             }
             finally
             {
-                info.FileAccessManifest.UnsetMessageCountSemaphore();
+                fam.UnsetMessageCountSemaphore();
             }
         }
 

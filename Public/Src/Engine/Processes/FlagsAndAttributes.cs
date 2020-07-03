@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -30,6 +30,12 @@ namespace BuildXL.Processes
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
         FILE_ATTRIBUTE_SYSTEM = 0x00000004,
+
+        /// <summary>
+        /// The path is a directory.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_ATTRIBUTE_DIRECTORY = 0x00000010,
 
         /// <summary>
         /// The file should be archived. Applications use this attribute to mark files for backup or removal.

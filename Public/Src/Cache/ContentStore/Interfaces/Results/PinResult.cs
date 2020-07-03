@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -75,19 +75,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
-        public PinResult(ResultCode code, string errorMessage, string diagnostics = null)
+        public PinResult(ResultCode code, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.RequiresNotNullOrEmpty(errorMessage);
             Contract.Requires(code != ResultCode.Success, "This constructor should be used for error cases only.");
-
             Code = code;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
-        public PinResult(string errorMessage, string diagnostics = null)
+        public PinResult(string errorMessage, string? diagnostics = null)
             : this(ResultCode.Error, errorMessage, diagnostics)
         {
         }
@@ -95,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
-        public PinResult(Exception exception, string message = null)
+        public PinResult(Exception exception, string? message = null)
             : base(exception, message)
         {
             Code = ResultCode.Error;
@@ -104,7 +103,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
-        public PinResult(ResultBase other, string message = null)
+        public PinResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = ResultCode.Error;
@@ -128,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is PinResult other && Equals(other);
         }
@@ -158,29 +157,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             {
                 case ResultCode.Error:
                     return GetErrorString();
+                case ResultCode.Success:
+                    return GetSuccessString();
                 default:
                     return $"{Code}";
             }
-        }
-
-        /// <summary>
-        /// Merges two strings.
-        /// </summary>
-        private static string Merge(string s1, string s2, string separator)
-        {
-            if (s1 == null)
-            {
-                return s2;
-            }
-
-            if (s2 == null)
-            {
-                return s1;
-            }
-
-            separator = separator ?? string.Empty;
-
-            return $"{s1}{separator}{s2}";
         }
     }
 }

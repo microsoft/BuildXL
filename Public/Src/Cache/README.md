@@ -51,9 +51,9 @@ would return a set of `Selector` objects associated with that weak fingerprint. 
   <_F<sub>1</sub>C<sub>1</sub>_, _F<sub>1</sub>C<sub>1</sub>H<sub>2</sub>_>, 
   <_F<sub>1</sub>C<sub>1</sub>_, _F<sub>1</sub>C<sub>1</sub>H<sub>3</sub>_>,
   <_F<sub>1</sub>C<sub>2</sub>_, _F<sub>1</sub>C<sub>2</sub>H<sub>1</sub>_> }. 
-The `CasElement` term is a content identifier for a CAS blob. The the contents of that blob being application dependent.  
+The `CasElement` term is a content identifier for a CAS blob. The contents of that blob being application dependent.  
 In the BuildXL case, the build engine uses the blob referenced by `CasElement` to store the list of **dynamic inputs** observed doing a previous execution of the task.  In the C++ example above, this would be paths to header files last used by the compiler.  
-The `HashElement` is an applicationdefined opaque byte-array, used to test "how good of a match" this cache record is to the application's need.
+The `HashElement` is an application defined opaque byte-array, used to test "how good of a match" this cache record is to the application's need.
 
 1. BuildXL evaluates the returned `Selectors` attempting to find one that matches the file system state for the present build.  For each `Selector`, BuildXL retrieves the blob referenced by its `CasElement` and, using the paths listed as **dynamic inputs**, computes a hash-of-hashes which summarizes the file system state for the relevant files.  The hash-of-hashes is then compared to the `HashElement` in the `Selector` (and possibly to any other `Selectors` with the same `CasElement`).  In the example above, let's say that it matches the value 
 _F<sub>1</sub>C<sub>1</sub>H<sub>2</sub>_.  

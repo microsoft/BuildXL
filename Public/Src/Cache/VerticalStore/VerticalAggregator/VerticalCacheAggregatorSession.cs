@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.VerticalAggregator
     public sealed class VerticalCacheAggregatorSession : ICacheSession
     {
         private readonly VerticalCacheAggregator m_cache;
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
         private readonly string m_sessionId;
         private readonly bool m_isReadOnly;
         private readonly bool m_remoteIsReadOnly;
@@ -57,7 +58,7 @@ namespace BuildXL.Cache.VerticalAggregator
             m_localSession = localSession;
             m_remoteSession = remoteSession;
             m_remoteROSession = remoteROSession;
-            m_cacheId = localSession.CacheId + "_" + remoteROSession.CacheId;
+            m_cacheId = new CacheId(localSession.CacheId, remoteROSession.CacheId);
             m_remoteIsReadOnly = remoteIsReadOnly;
             m_sessionCounters = new SessionCounters();
             m_finalStats = Lazy.Create(ExportStats);
@@ -68,7 +69,7 @@ namespace BuildXL.Cache.VerticalAggregator
         public string CacheSessionId => m_sessionId;
 
         /// <inheritdoc/>
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         /// <inheritdoc/>
         public bool StrictMetadataCasCoupling => m_cache.StrictMetadataCasCoupling;
@@ -738,7 +739,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var counters = m_sessionCounters.GetStreamCounter())
             {
@@ -751,7 +752,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         if (localStream.Succeeded)
                         {
                             counters.HitLocal();
-                            return eventing.Returns(localStream);
+                            return eventing.Returns<StreamWithLength>(localStream);
                         }
 
                         // NOTE: Avoid checking for existence in local session since GetStream already failed.

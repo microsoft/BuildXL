@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -56,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        public static Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
+        public static System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
             this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
@@ -73,22 +71,22 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Enumerates a given <paramref name="enumerable"/> until the predicate <paramref name="predicate"/> returns true.
         /// </summary>
-        private static Async::System.Collections.Generic.IAsyncEnumerable<T> StopAfter<T>(this Async::System.Collections.Generic.IAsyncEnumerable<T> enumerable, Func<T, bool> predicate)
+        private static System.Collections.Generic.IAsyncEnumerable<T> StopAfter<T>(this System.Collections.Generic.IAsyncEnumerable<T> enumerable, Func<T, bool> predicate)
         {
-            return AsyncEnumerable.CreateEnumerable(
-                () =>
+            return AsyncEnumerable.Create(
+                token =>
                 {
-                    var enumerator = enumerable.GetEnumerator();
+                    var enumerator = enumerable.GetAsyncEnumerator(token);
                     bool stop = false;
-                    return AsyncEnumerable.CreateEnumerator(
-                        async token =>
+                    return AsyncEnumerator.Create(
+                        async () =>
                         {
                             if (stop)
                             {
                                 return false;
                             }
 
-                            if (await enumerator.MoveNext(token))
+                            if (await enumerator.MoveNextAsync(token))
                             {
                                 if (!predicate(enumerator.Current))
                                 {
@@ -101,11 +99,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                             return false;
                         },
                         () => enumerator.Current,
-                        () => enumerator.Dispose());
+                        () => enumerator.DisposeAsync());
                 });
         }
 
-        private static Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
+        private static System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
         {
             IEnumerable<GetSelectorResult> selectorResults;
             if (!levelResult)
@@ -120,7 +118,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             return selectorResults.ToAsyncEnumerable();
         }
 
-        private static Async::System.Collections.Generic.IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
+        private static System.Collections.Generic.IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
             this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,

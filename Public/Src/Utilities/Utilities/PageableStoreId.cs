@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -78,8 +78,8 @@ namespace BuildXL.Utilities
 
         protected PageableStore(PathTable pathTable, SymbolTable symbolTable, int initialBufferSize, bool debug)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(symbolTable != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(symbolTable);
             Contract.Requires(initialBufferSize >= 0);
             PathTable = pathTable;
             SymbolTable = symbolTable;
@@ -94,8 +94,8 @@ namespace BuildXL.Utilities
         /// </summary>
         protected PageableStore(PathTable pathTable, SymbolTable symbolTable, SerializedState state, int initialBufferSize)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(symbolTable != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(symbolTable);
             PathTable = pathTable;
             SymbolTable = symbolTable;
             m_lastId = state.LastId;
@@ -233,7 +233,7 @@ namespace BuildXL.Utilities
 
             public MemoryPageStream(PageableStore store)
             {
-                Contract.Requires(store != null);
+                Contract.RequiresNotNull(store);
                 Contract.Requires(store.CanWrite);
                 Contract.Ensures(CanWrite);
                 Contract.Assume(
@@ -295,7 +295,6 @@ namespace BuildXL.Utilities
 
             private void Seal()
             {
-                Contract.Ensures(m_buffer != null);
                 m_writer.Dispose();
 
                 // Calling GetBuffer has side effect of making sure m_buffer is defined.
@@ -316,7 +315,7 @@ namespace BuildXL.Utilities
 
             public ItemLocation(PageStreamBase pageStream, int offset)
             {
-                Contract.Requires(pageStream != null);
+                Contract.RequiresNotNull(pageStream);
                 Contract.Requires(offset >= 0);
                 PageStream = pageStream;
                 Offset = offset;
@@ -385,7 +384,7 @@ namespace BuildXL.Utilities
         /// <returns>Unique id for stored value.</returns>
         public PageableStoreId Write(Action<BuildXLWriter> serializer)
         {
-            Contract.Requires(serializer != null);
+            Contract.RequiresNotNull(serializer);
             Contract.Ensures(Contract.Result<PageableStoreId>().IsValid);
 
             PageStreamBase writablePageStream;
@@ -399,7 +398,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(writablePageStream != null);
+            Contract.AssertNotNull(writablePageStream);
 
             var idValue = (uint)Interlocked.Increment(ref m_lastId);
             Contract.Assume(idValue > 0);
@@ -422,7 +421,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id.IsValid);
             Contract.Requires(Contains(id));
-            Contract.Requires(deserializer != null);
+            Contract.RequiresNotNull(deserializer);
             ItemLocation itemLocation = m_itemLocations[id.Value];
             return itemLocation.PageStream.Read<T>(this, itemLocation.Offset, deserializer);
         }
@@ -460,7 +459,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
 
             lock (m_pageStreams)
             {
@@ -515,7 +514,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         protected static SerializedState ReadSerializedState(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             bool debug = reader.ReadBoolean();
             int streamCount = reader.ReadInt32();

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,9 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Execution.Analyzer.Analyzers.Simulator;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -205,14 +206,14 @@ namespace BuildXL.Execution.Analyzer
             WriteActualAndSimulationResults(data, actualSimulation);
 
 
-            writers.WriteLine("Edge Count: {0}", data.DataflowGraph.EdgeCount);
+            writers.WriteLine("Edge Count: {0}", data.DirectedGraph.EdgeCount);
             writers.WriteLine("Pip Type Counts:");
             foreach (var pipType in EnumTraits<PipType>.EnumerateValues())
             {
                 writers.WriteLine("{0}: {1}", data.PipTypeCounts[(int)pipType].ToString().PadLeft(10), pipType);
             }
 
-            writers.WriteLine("Processes with timing information:{0} ", data.DataflowGraph.Nodes.Where(node => data.GetPipType(node) == PipType.Process && data.StartTimes[node] != 0).Count());
+            writers.WriteLine("Processes with timing information:{0} ", data.DirectedGraph.Nodes.Where(node => data.GetPipType(node) == PipType.Process && data.StartTimes[node] != 0).Count());
 
             writers.WriteLine("Actual Total Build Time: {0} min", data.TotalDuration.ToMinutes());
             writers.WriteLine("Actual Concurrency: {0}", data.ActualConcurrency);
@@ -257,7 +258,7 @@ namespace BuildXL.Execution.Analyzer
             File.WriteAllLines(GetResultsPath("actualSimulation.starts.txt"), actualSimulation.GetSpans().Select(ps => ps.StartTime.ToMinutes().ToString()));
             File.WriteAllLines(GetResultsPath("actualSimulation.ends.txt"), actualSimulation.GetSpans().Select(ps => ps.EndTime.ToMinutes().ToString()));
             File.WriteAllLines(GetResultsPath("heights.txt"), data.Spans.Where(ps => data.GetPipType(ps.Id) == PipType.Process)
-                .Select(ps => data.DataflowGraph.GetNodeHeight(ps.Id))
+                .Select(ps => data.DirectedGraph.GetNodeHeight(ps.Id))
                 .GroupBy(i => i)
                 .OrderBy(g => g.Key)
                 .Select(g => $"Height: {g.Key}, Count: {g.Count()}"));
@@ -276,8 +277,8 @@ namespace BuildXL.Execution.Analyzer
                     table.Set(SimColumns.StartTime, ps.StartTime.ToMinutes());
                     table.Set(SimColumns.EndTime, ps.EndTime.ToMinutes());
                     table.Set(SimColumns.Duration, ps.Duration.ToMinutes());
-                    table.Set(SimColumns.Incoming, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
-                    table.Set(SimColumns.Outgoing, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.Incoming, data.DirectedGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.Outgoing, data.DirectedGraph.GetIncomingEdgesCount(ps.Id));
                     table.Set(SimColumns.LongestRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LongestRunningDependency[ps.Id]));
                     table.Set(SimColumns.LastRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LastRunningDependency[ps.Id]));
                 }

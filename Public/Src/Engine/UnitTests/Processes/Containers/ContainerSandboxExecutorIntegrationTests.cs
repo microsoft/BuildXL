@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -13,15 +13,15 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId=BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class ContainerSandboxExecutorIntegrationTests : XunitBuildXLTest
     {
         public ContainerSandboxExecutorIntegrationTests(ITestOutputHelper output)
@@ -182,8 +182,8 @@ namespace Test.BuildXL.Processes
                 var pipExecutionResult = await RunProcess(context, pip, failUnexpectedFileAccesses: false);
 
                 // The redirected output is created as a tombstone file, but the sandboxed pip executor should report it as an absent file
-                AssertErrorEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
             }
         }
 
@@ -191,24 +191,26 @@ namespace Test.BuildXL.Processes
         {
             var loggingContext = CreateLoggingContextForTest();
 
-            return new SandboxedProcessPipExecutor(
-                            context,
-                            loggingContext,
-                            pip,
-                            new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
-                            layoutConfig: null,
-                            loggingConfig: null,
-                            rootMappings: new Dictionary<string, string>(),
-                            processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
-                            whitelist: null,
-                            makeInputPrivate: null,
-                            makeOutputPrivate: null,
-                            semanticPathExpander: SemanticPathExpander.Default,
-                            disableConHostSharing: false,
-                            pipEnvironment: new PipEnvironment(),
-                            validateDistribution: false,
-                            tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
-                            directoryArtifactContext: TestDirectoryArtifactContext.Empty).RunAsync();
+            var pipExecutor = new SandboxedProcessPipExecutor(
+                context,
+                loggingContext,
+                pip,
+                new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
+                layoutConfig: null,
+                loggingConfig: null,
+                rootMappings: new Dictionary<string, string>(),
+                processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
+                allowlist: null,
+                makeInputPrivate: null,
+                makeOutputPrivate: null,
+                semanticPathExpander: SemanticPathExpander.Default,
+                disableConHostSharing: false,
+                pipEnvironment: new PipEnvironment(loggingContext),
+                validateDistribution: false,
+                isLazySharedOpaqueOutputDeletionEnabled: false,
+                tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
+                directoryArtifactContext: TestDirectoryArtifactContext.Empty);
+            return pipExecutor.RunAsync();
         }
 
         private static Process CreateOutputFileProcess(BuildXLContext context, TempFileStorage tempFiles, AbsolutePath outputFilePath)

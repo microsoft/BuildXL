@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -85,7 +85,6 @@ namespace ContentStoreTest.Stores
             var quota = new DiskFreePercentQuota(Hard, Soft);
             return new DiskFreePercentRule(
                 quota,
-                (context, contentHashInfo, onlyUnlinked) => Task.FromResult(evictResult ?? new EvictResult("error")),
                 mock,
                 new AbsolutePath(dummyPath));
         }
@@ -189,6 +188,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public DateTime GetDirectoryCreationTimeUtc(AbsolutePath path)
+            {
+                throw new NotImplementedException();
+            }
+
             public FileAttributes GetFileAttributes(AbsolutePath path)
             {
                 throw new NotImplementedException();
@@ -234,12 +238,12 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+            public Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<Stream> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
+            public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
             {
                 throw new NotImplementedException();
             }
@@ -321,6 +325,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public Task<BoolResult> ShutdownEvictionAsync(Context context)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync()
             {
                 throw new NotImplementedException();
@@ -346,7 +355,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+            public Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions options)
             {
                 throw new NotImplementedException();
             }
@@ -421,7 +430,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteContentOptions)
             {
                 throw new NotImplementedException();
             }

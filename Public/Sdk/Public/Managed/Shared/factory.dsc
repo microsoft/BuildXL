@@ -79,9 +79,7 @@ namespace Factory {
             untrackedDirectoryScopes: [
                 d`${Context.getMount("ProgramData").path}/microsoft/netFramework/breadcrumbStore`
             ]
-
-        } : {
-        };
+        } : { };
 
         return Object.merge<Transformer.ToolDefinition>(
             toolDefault,

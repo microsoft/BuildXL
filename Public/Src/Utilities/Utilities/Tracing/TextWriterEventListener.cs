@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -75,8 +75,8 @@ namespace BuildXL.Utilities.Tracing
                 onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
 
             m_writer = writer;
 
@@ -128,7 +128,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <inheritdoc />
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
             m_writer.WriteLine(level, (m_translator != null && !doNotTranslatePaths) ? m_translator.Translate(text) : text);
 

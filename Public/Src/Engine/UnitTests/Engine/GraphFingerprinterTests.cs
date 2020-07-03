@@ -1,27 +1,33 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Engine.Tracing;
-using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Pips.Filter;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Sdk;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Xunit;
+using BuildXL.Utilities.Configuration.Mutable;
+using Test.BuildXL.TestUtilities.Xunit;
+using System.IO;
+using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Engine
 {
-    public class GraphFingerprinterTests
+    public class GraphFingerprinterTests : TemporaryStorageTestBase
     {
         private readonly PathTable m_pathTable;
         private readonly SymbolTable m_symbolTable;
+        private readonly BuildXLContext m_context;
 
         /// <inheritdoc />
         public GraphFingerprinterTests()
         {
-            m_pathTable = new PathTable();
+            m_context = BuildXLContext.CreateInstanceForTesting();
+            m_pathTable = m_context.PathTable;
             m_symbolTable = new SymbolTable(m_pathTable.StringTable);
         }
 
@@ -88,6 +94,107 @@ namespace Test.BuildXL.Engine
             Assert.Equal(GraphCacheMissReason.EvaluationFilterChanged, comparison);
         }
 
+        [Fact]
+        public void FingerprintWithDifferentTopLevelHash()
+        {
+            var oldFingerprint = CreateRandomWithModulesAndValues(modules: new[] { "A", "B" }, valueNames: new[] { "v", "v2" });
+            oldFingerprint.TopLevelHash = Fingerprint.Random(33);
+            var newFingerprint = CreateRandomWithModulesAndValues(modules: new[] { "A", "B" }, valueNames: new[] { "v", "v2" });
+
+            var comparison = oldFingerprint.CompareFingerprint(newFingerprint);
+            Assert.Equal(GraphCacheMissReason.FingerprintChanged, comparison);
+
+            newFingerprint.TopLevelHash = oldFingerprint.TopLevelHash;
+            var comparison2 = oldFingerprint.CompareFingerprint(newFingerprint);
+            Assert.Equal(GraphCacheMissReason.NoMiss, comparison2);
+        }
+
+        [Fact]
+        public void GenerateHashWithDifferentTopLevelHash()
+        {
+            WriteFile("config.ds", "SampleConfig");
+            var configPath = Path.Combine(TemporaryDirectory, "config.ds");
+
+            var oldFingerprint = GenerateRandomTopLevelHash(configPath, "1", false);
+            var newFingerprint1 = GenerateRandomTopLevelHash(configPath, "1", true);
+            var newFingerprint2 = GenerateRandomTopLevelHash(configPath, "2", true);
+            var newFingerprint3 = GenerateRandomTopLevelHash(configPath, "2", false);
+
+            var comparison1 = oldFingerprint.CompareFingerprint(newFingerprint1);
+            var comparison2 = oldFingerprint.CompareFingerprint(newFingerprint2);
+            var comparison3 = oldFingerprint.CompareFingerprint(newFingerprint3);
+
+            Assert.Equal(GraphCacheMissReason.FingerprintChanged, comparison1);
+            Assert.Equal(GraphCacheMissReason.FingerprintChanged, comparison2);
+            Assert.Equal(GraphCacheMissReason.FingerprintChanged, comparison3);
+        }
+
+        [Fact]
+        public void GenerateHashWithSameTopLevelHash()
+        {
+            WriteFile("config.ds", "SampleConfig");
+            var configPath = Path.Combine(TemporaryDirectory, "config.ds");
+
+            var oldFingerprint1 = GenerateRandomTopLevelHash(configPath, "1", false);
+            var newFingerprint1 = GenerateRandomTopLevelHash(configPath, "1", false);
+            var comparison1 = oldFingerprint1.CompareFingerprint(newFingerprint1);
+            Assert.Equal(GraphCacheMissReason.NoMiss, comparison1);
+
+            var oldFingerprint2 = GenerateRandomTopLevelHash(configPath, "2", true);
+            var newFingerprint2 = GenerateRandomTopLevelHash(configPath, "2", true);
+            var comparison2 = oldFingerprint2.CompareFingerprint(newFingerprint2);
+            Assert.Equal(GraphCacheMissReason.NoMiss, comparison2);
+        }
+
+        [Fact]
+        public void GenerateHashWithDifferentEvaluationFilters()
+        {
+            WriteFile("config.ds", "SampleConfig");
+
+            var context1 = BuildXLContext.CreateInstanceForTesting();
+
+            var configuration1 = ConfigurationHelpers.GetDefaultForTesting(context1.PathTable, AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, "config.ds")));
+
+            var evaluationFilter1 = new EvaluationFilter(
+                                context1.SymbolTable,
+                                context1.PathTable,
+                                new FullSymbol[0],
+                                new[]
+                                {
+                                    AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"testFile1.txt")),
+                                },
+                                CollectionUtilities.EmptyArray<StringId>());
+
+            var evaluationFilter2 = new EvaluationFilter(
+                                context1.SymbolTable,
+                                context1.PathTable,
+                                new FullSymbol[0],
+                                new[]
+                                {
+                                    AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"testFile2.txt")),
+                                },
+                                CollectionUtilities.EmptyArray<StringId>());
+
+            configuration1.Layout.ObjectDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"ObjectDirectory1"));
+            configuration1.Layout.TempDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"TempDirectory1"));
+            configuration1.Layout.SourceDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SourceDirectory1"));
+            configuration1.Logging.SubstTarget = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SubstTarget1"));
+            configuration1.Engine.CompressGraphFiles = false;
+            configuration1.Schedule.SkipHashSourceFile = false;
+            configuration1.Schedule.ComputePipStaticFingerprints = false;
+
+            var loggingContext1 = CreateLoggingContextForTest();
+
+            var fileContentTable1 = FileContentTable.CreateNew(loggingContext1);
+
+            var oldFingerprint = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null).ExactFingerprint;
+            var newFingerprint1 = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter2, fileContentTable1, "111aaa", null).ExactFingerprint;
+            
+            var comparison = oldFingerprint.CompareFingerprint(newFingerprint1);
+
+            Assert.Equal(GraphCacheMissReason.EvaluationFilterChanged, comparison);
+        }
+
         private CompositeGraphFingerprint CreateRandomWithModules(params string[] modules)
         {
             return new CompositeGraphFingerprint()
@@ -98,7 +205,39 @@ namespace Test.BuildXL.Engine
                        BuildEngineHash = FingerprintUtilities.ZeroFingerprint,
                        ConfigFileHash = FingerprintUtilities.ZeroFingerprint,
                        QualifierHash = FingerprintUtilities.ZeroFingerprint,
+                       TopLevelHash = FingerprintUtilities.ZeroFingerprint,
             };
+        }
+
+        private CompositeGraphFingerprint GenerateRandomTopLevelHash(string configPath, string index, bool flag)
+        {
+            var context1 = BuildXLContext.CreateInstanceForTesting();
+
+            var configuration1 = ConfigurationHelpers.GetDefaultForTesting(context1.PathTable, AbsolutePath.Create(context1.PathTable, configPath));
+
+            var evaluationFilter1 = new EvaluationFilter(
+                                context1.SymbolTable,
+                                context1.PathTable,
+                                new FullSymbol[0],
+                                new[]
+                                {
+                                    AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"testFile{index}.txt")),
+                                },
+                                CollectionUtilities.EmptyArray<StringId>());
+
+            configuration1.Layout.ObjectDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"ObjectDirectory{index}"));
+            configuration1.Layout.TempDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"TempDirectory{index}"));
+            configuration1.Layout.SourceDirectory = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SourceDirectory{index}"));
+            configuration1.Logging.SubstTarget = AbsolutePath.Create(context1.PathTable, Path.Combine(TemporaryDirectory, $"SubstTarget{index}"));
+            configuration1.Engine.CompressGraphFiles = flag;
+            configuration1.Schedule.SkipHashSourceFile = flag;
+            configuration1.Schedule.ComputePipStaticFingerprints = flag;
+
+            var loggingContext1 = CreateLoggingContextForTest();
+
+            var fileContentTable1 = FileContentTable.CreateNew(loggingContext1);
+
+            return GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null).ExactFingerprint;
         }
 
         private CompositeGraphFingerprint CreateRandomWithModulesAndValues(string[] modules, string[] valueNames)
@@ -110,12 +249,13 @@ namespace Test.BuildXL.Engine
                        EvaluationFilter = new EvaluationFilter(
                            m_symbolTable,
                            m_pathTable,
-                           valueNames.Select(vn => FullSymbol.Create(this.m_symbolTable, new StringSegment(vn))).ToArray(),
+                           valueNames.Select(vn => FullSymbol.Create(m_symbolTable, new StringSegment(vn))).ToArray(),
                            new AbsolutePath[0],
-                           modules.Select(m => StringId.Create(this.m_pathTable.StringTable, m)).ToArray()),
+                           modules.Select(m => StringId.Create(m_pathTable.StringTable, m)).ToArray()),
                        BuildEngineHash = FingerprintUtilities.ZeroFingerprint,
                        ConfigFileHash = FingerprintUtilities.ZeroFingerprint,
                        QualifierHash = FingerprintUtilities.ZeroFingerprint,
+                       TopLevelHash = FingerprintUtilities.ZeroFingerprint,
             };
         }
     }

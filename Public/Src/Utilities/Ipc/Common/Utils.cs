@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -37,10 +37,10 @@ namespace BuildXL.Ipc.Common
         /// If executing the operation (via <paramref name="executor"/>) fails, the <see cref="IIpcResult.ExitCode"/>
         /// of the result is <see cref="IpcResultStatus.ExecutionError"/>
         /// </summary>
-        internal static async Task<IIpcResult> ReceiveOperationAndExecuteLocallyAsync(Stream stream, IIpcOperationExecutor executor, CancellationToken token)
+        internal static async Task<IIpcResult> ReceiveOperationAndExecuteLocallyAsync(int id, Stream stream, IIpcOperationExecutor executor, CancellationToken token)
         {
             IIpcOperation operation = await IpcOperation.DeserializeAsync(stream, token);
-            IIpcResult result = await HandleExceptionsAsync(IpcResultStatus.ExecutionError, () => executor.ExecuteAsync(operation));
+            IIpcResult result = await HandleExceptionsAsync(IpcResultStatus.ExecutionError, () => executor.ExecuteAsync(id, operation));
             if (operation.ShouldWaitForServerAck)
             {
                 await IpcResult.SerializeAsync(stream, result, token);

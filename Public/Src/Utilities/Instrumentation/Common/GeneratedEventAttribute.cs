@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -44,7 +44,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Message format used for the event. Format string consumes the
         /// </summary>
-        public string Message { get; set; }
+        public string? Message { get; set; }
 
         /// <summary>
         /// Constructor that takes event id.

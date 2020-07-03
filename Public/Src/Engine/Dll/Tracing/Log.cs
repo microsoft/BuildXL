@@ -1,20 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.Globalization;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Engine.Tracing
 {
@@ -23,6 +21,7 @@ namespace BuildXL.Engine.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("EngineLogger")]
     public abstract partial class Logger
     {
         /// <summary>
@@ -96,7 +95,7 @@ namespace BuildXL.Engine.Tracing
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
-        public abstract void ExecutePhaseComplete(LoggingContext context, ExecuteStatistics executeStatistics, Scheduler.ExecutionSampler.LimitingResourcePercentages limitingResourcePercentages);
+        public abstract void ExecutePhaseComplete(LoggingContext context, ExecuteStatistics executeStatistics, LimitingResourcePercentages limitingResourcePercentages);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartCheckingForPipGraphReuse,
@@ -227,6 +226,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void JournalDetectedInputChanges(LoggingContext context, string specFile, string directory);
 
         [GeneratedEvent(
+            (ushort)LogEventId.JournalDetectedGvfsProjectionChanges,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Engine,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            Message = EventConstants.PhasePrefix + "USN journal: One or more GVFS_projection files changed: {gvfsProjectionFiles}. All graph inputs will be checked for changes explicitly.")]
+        public abstract void JournalDetectedGvfsProjectionChanges(LoggingContext context, string gvfsProjectionFiles);
+
+        [GeneratedEvent(
             (ushort)LogEventId.JournalProcessingStatisticsForGraphReuseCheck,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -343,6 +351,14 @@ namespace BuildXL.Engine.Tracing
         public abstract void SerializingPipGraphComplete(LoggingContext context, GraphCacheSaveStatistics graphCacheSaveStatistics);
 
         [GeneratedEvent(
+            (ushort)LogEventId.FailedReloadPipGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Failed to reload pip graph: {message}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Engine)]
+        public abstract void FailedReloadPipGraph(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToDuplicateGraphFile,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Failed to create a duplicate of {file} in {directory}. The execution log may not be usable. Error: {message}",
@@ -427,6 +443,15 @@ namespace BuildXL.Engine.Tracing
         #region Distribution
 
         [GeneratedEvent(
+            (ushort)LogEventId.WorkerTotalRamMb,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "{worker} could not send available ram to master. Master used the default limit in MB: {defaultRamMb}. Available Commit in MB: {commitMb}")]
+        public abstract void WorkerTotalRamMb(LoggingContext context, string worker, int defaultRamMb, int commitMb);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionHostLog,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -438,7 +463,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionConnectedToWorker,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Connected to worker {ipAddress}:{port}")]
@@ -447,7 +472,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerChangedState,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Worker {ipAddress}:{port} changed status from {fromState} to {toState} by {caller}")]
@@ -471,68 +496,6 @@ namespace BuildXL.Engine.Tracing
             string ipAddress,
             int port,
             string caller);
-
-        public void DistributionSendBondCallFormat(
-            LoggingContext context,
-            RpcMachineData receiverData,
-            string function,
-            Guid callId,
-            string formatMessage,
-            params object[] messageArgs)
-        {
-            DistributionBondCall(
-                context: context,
-                receiverName: receiverData.ToString(),
-                senderName: "SELF",
-                function: function,
-                callId: callId.ToString(),
-                message: string.Format(CultureInfo.InvariantCulture, formatMessage, messageArgs));
-        }
-
-        public void DistributionReceiveBondCallFormat(
-            LoggingContext context,
-            RpcMachineData senderData,
-            string function,
-            Guid callId,
-            string formatMessage,
-            params object[] messageArgs)
-        {
-            DistributionBondCall(
-                context: context,
-                receiverName: "SELF",
-                senderName: senderData.ToString(),
-                function: function,
-                callId: callId.ToString(),
-                message: string.Format(CultureInfo.InvariantCulture, formatMessage, messageArgs));
-        }
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionBondCall,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "[{senderName} -> {receiverName}] BONDCALL:{function}#{callId}: {message}.")]
-        public abstract void DistributionBondCall(
-            LoggingContext context,
-            string receiverName,
-            string senderName,
-            string function,
-            string callId,
-            string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionFailedToCallWorker,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "Failed call to worker {name}: Function='{function}' Failure='{errorMessage}'")]
-        public abstract void DistributionFailedToCallWorker(
-            LoggingContext context,
-            string name,
-            string function,
-            string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionCallWorkerCodeException,
@@ -558,6 +521,18 @@ namespace BuildXL.Engine.Tracing
             LoggingContext context,
             string function,
             string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RemoteWorkerProcessedExecutionBlob,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "'{workerName}' processed execution blob '{message}'.")]
+        public abstract void RemoteWorkerProcessedExecutionBlob(
+            LoggingContext context,
+            string workerName,
+            string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionFailedToStoreValidationContentToWorkerCacheWithException,
@@ -652,7 +627,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWaitingForMasterAttached,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Waiting for master to attach")]
@@ -697,7 +672,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionAttachReceived,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}.")]
@@ -749,14 +724,14 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.DistributionTryMaterializeInputsSuccessfulRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Successfully materialize inputs for pip on retry. Number of failed attempts: {numberOfFailedAttempts}.",
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionTryMaterializeInputsSuccessfulRetry(LoggingContext context, long pipSemiStableHash, string pipDescription, int numberOfFailedAttempts);
 
         [GeneratedEvent(
-            (ushort)EventId.ErrorUnableToCacheGraphDistributedBuild,
+            (ushort)LogEventId.ErrorUnableToCacheGraphDistributedBuild,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Graph could not be cached. Distributed builds require graphs to be cached in order to send graph to workers.",
             EventLevel = Level.Error,
@@ -776,7 +751,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionServiceInitializationError(LoggingContext context, string role, ushort port, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.ErrorCacheDisabledDistributedBuild,
+            (ushort)LogEventId.ErrorCacheDisabledDistributedBuild,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Cache is not enabled. Distributed builds require caching to be enabled.",
             EventLevel = Level.Error,
@@ -786,7 +761,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ErrorCacheDisabledDistributedBuild(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.DistributionWorkerForwardedError,
+            (ushort)SharedLogEventId.DistributionWorkerForwardedError,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged error:\n{workerForwardedEvent.Text}",
             EventLevel = Level.Error,
@@ -796,7 +771,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerForwardedWarning,
+            (ushort)SharedLogEventId.DistributionWorkerForwardedWarning,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged warning:\n{workerForwardedEvent.Text}",
             EventLevel = Level.Warning,
@@ -866,7 +841,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerStatus,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "{pipsReported} reported, {pipsReporting} reporting, {pipsRecording} recording, {pipsPrepped} prepped, {pipsPrepping} prepping, {pipsQueued} queued")]
@@ -882,7 +857,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionMasterStatus,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "{pipsCompleted} completed, {pipsReported} reported, {pipsSent} sent, {pipsLocal} local, {pipsSending} sending,\n\t" +
@@ -920,7 +895,7 @@ namespace BuildXL.Engine.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.NonDeterministicPipOutput,
+            (ushort)LogEventId.NonDeterministicPipOutput,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{nonDeterministicPipOutputData.PipDescription}] produced nondeterministic output '{nonDeterministicPipOutputData.OutputPath}' with hash '{nonDeterministicPipOutputData.OutputHash1}' on worker '{nonDeterministicPipOutputData.WorkerDescription1}' and hash '{nonDeterministicPipOutputData.OutputHash2}' on worker '{nonDeterministicPipOutputData.WorkerDescription2}'",
             EventLevel = Level.Warning,
@@ -930,7 +905,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void NonDeterministicPipOutput(LoggingContext context, NonDeterministicPipOutputData nonDeterministicPipOutputData);
 
         [GeneratedEvent(
-            (ushort)EventId.NonDeterministicPipResult,
+            (ushort)LogEventId.NonDeterministicPipResult,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{nonDeterministicPipResultData.PipDescription}] has nondeterministic execution with result '{nonDeterministicPipResultData.Result1}' on worker '{nonDeterministicPipResultData.WorkerDescription1}' and result '{nonDeterministicPipResultData.Result2}' on worker '{nonDeterministicPipResultData.WorkerDescription2}'",
             EventLevel = Level.Warning,
@@ -940,7 +915,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void NonDeterministicPipResult(LoggingContext context, NonDeterministicPipResultData nonDeterministicPipResultData);
 
         [GeneratedEvent(
-            (ushort)EventId.EnvironmentVariablesImpactingBuild,
+            (ushort)LogEventId.EnvironmentVariablesImpactingBuild,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Environment variables impacting build (Count = {effectiveEnvironmentVariables.Count})\nUsed (Count = {effectiveEnvironmentVariables.UsedCount}):\n{effectiveEnvironmentVariables.UsedVariables}\n\nUnused (Count = {effectiveEnvironmentVariables.UnusedCount}):\n{effectiveEnvironmentVariables.UnusedVariables}",
             EventLevel = Level.Verbose,
@@ -950,7 +925,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void EnvironmentVariablesImpactingBuild(LoggingContext context, EffectiveEnvironmentVariables effectiveEnvironmentVariables);
 
         [GeneratedEvent(
-            (ushort)EventId.MountsImpactingBuild,
+            (ushort)LogEventId.MountsImpactingBuild,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Mounts impacting build (Count = {effectiveMounts.Count}):\n{effectiveMounts.UsedMountsText}",
             EventLevel = Level.Verbose,
@@ -960,7 +935,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void MountsImpactingBuild(LoggingContext context, EffectiveMounts effectiveMounts);
 
         [GeneratedEvent(
-            (ushort)EventId.PerformanceSample,
+            (ushort)LogEventId.PerformanceSample,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Perf: CPU:{machineProcessorTime}%, FreeMemory:{machineAvailableMemoryMegabytes}MB. Ready:{ready}, Running:{running}, Max:{maxRunning}, Limiting factor heuristic: {limitingResource}",
             EventLevel = Level.Verbose,
@@ -969,16 +944,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void PerformanceSample(LoggingContext context, int machineProcessorTime, int machineAvailableMemoryMegabytes, long ready, long running, int maxRunning, string limitingResource);
 
         [GeneratedEvent(
-            (ushort)EventId.WhitelistFileAccess,
+            (ushort)LogEventId.AllowlistFileAccess,
 
             // This is no longer sent to telemetry because it is a relatively large amount of data and was never used.
             // Add | EventGenerators.TelemetryOnly to resume sending it to telemetry
             EventGenerators = Generators.Statistics,
-            Message = "Whitelist usage")]
-        public abstract void WhitelistFileAccess(LoggingContext context, IDictionary<string, int> entryMatches);
+            Message = "Allowlist usage")]
+        public abstract void AllowlistFileAccess(LoggingContext context, IDictionary<string, int> entryMatches);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigExportGraphRequiresScheduling,
+            (ushort)LogEventId.ConfigExportGraphRequiresScheduling,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -987,7 +962,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigExportGraphRequiresScheduling(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeIgnoringChangeJournal,
+            (ushort)LogEventId.ConfigUnsafeIgnoringChangeJournal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -996,7 +971,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeIgnoringChangeJournal(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheIsStillBeingInitialized,
+            (ushort)LogEventId.CacheIsStillBeingInitialized,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1005,7 +980,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void CacheIsStillBeingInitialized(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeDisabledFileAccessMonitoring,
+            (ushort)LogEventId.ConfigUnsafeDisabledFileAccessMonitoring,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1014,7 +989,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeDisabledFileAccessMonitoring(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreZwRenameFileInformation,
+            (ushort)LogEventId.ConfigIgnoreZwRenameFileInformation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1023,7 +998,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreZwRenameFileInformation(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreZwOtherFileInformation,
+            (ushort)LogEventId.ConfigIgnoreZwOtherFileInformation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1032,7 +1007,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreZwOtherFileInformation(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreValidateExistingFileAccessesForOutputs,
+            (ushort)LogEventId.ConfigIgnoreValidateExistingFileAccessesForOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1041,7 +1016,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreValidateExistingFileAccessesForOutputs(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreNonCreateFileReparsePoints,
+            (ushort)LogEventId.ConfigIgnoreNonCreateFileReparsePoints,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1050,7 +1025,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreNonCreateFileReparsePoints(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreSetFileInformationByHandle,
+            (ushort)LogEventId.ConfigIgnoreSetFileInformationByHandle,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1059,7 +1034,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreSetFileInformationByHandle(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreReparsePoints,
+            (ushort)LogEventId.ConfigIgnoreReparsePoints,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1068,7 +1043,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreReparsePoints(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnorePreloadedDlls,
+            (ushort)LogEventId.ConfigIgnoreFullSymlinkResolving,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnoreFullSymlinkResolving enabled: {ShortProductName} will not fully resolve paths containing any sort of symbolic links (directory + file symbolic links). This might lead to incorrect builds because some file accesses will not be enforced.")]
+        public abstract void ConfigIgnoreFullSymlinkResolving(LoggingContext context);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigIgnorePreloadedDlls,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1077,7 +1061,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnorePreloadedDlls(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigDisableDetours,
+            (ushort)LogEventId.ConfigDisableDetours,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1086,7 +1070,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigDisableDetours(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreGetFinalPathNameByHandle,
+            (ushort)LogEventId.ConfigIgnoreGetFinalPathNameByHandle,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1095,7 +1079,25 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreGetFinalPathNameByHandle(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigPreserveOutputs,
+            (ushort)LogEventId.ConfigIgnoreCreateProcessReport,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnoreCreateProcessReport enabled: {ShortProductName} is configured to not report file access due to CreateProcess API. This can lead to incorrect builds.")]
+        public abstract void ConfigIgnoreCreateProcessReport(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigProbeDirectorySymlinkAsDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_ProbeDirectorySymlinkAsDirectory enabled: {ShortProductName} is configured to treat directory symlink probe as directory probe. This makes {ShortProductName} not track the target directory path. This can lead to incorrect builds.")]
+        public abstract void ConfigProbeDirectorySymlinkAsDirectory(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigPreserveOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1104,7 +1106,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigPreserveOutputs(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeUnexpectedFileAccessesAsWarnings,
+            (ushort)LogEventId.ConfigUnsafeUnexpectedFileAccessesAsWarnings,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1113,7 +1115,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeUnexpectedFileAccessesAsWarnings(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques,
+            (ushort)LogEventId.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1122,7 +1124,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeOptimizedAstConversion,
+            (ushort)LogEventId.ConfigUnsafeOptimizedAstConversion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1131,16 +1133,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeOptimizedAstConversion(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeLazySymlinkCreation,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_LazySymlinkCreation enabled: {ShortProductName} is configured to create symlinks from symlink definition manifest lazily. This might lead to incorrect builds because symlinks may have not been created when a pip consumes (read or probe) it or enumerates its parent.")]
-        public abstract void ConfigUnsafeLazySymlinkCreation(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)EventId.ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously,
+            (ushort)LogEventId.ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -1149,7 +1142,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeMonitorNtCreateFileOff,
+            (ushort)LogEventId.ConfigUnsafeMonitorNtCreateFileOff,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1158,7 +1151,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeMonitorNtCreateFileOff(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeAllowMissingOutput,
+            (ushort)LogEventId.ConfigUnsafeAllowMissingOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1167,7 +1160,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeAllowMissingOutput(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeDisableCycleDetection,
+            (ushort)LogEventId.ConfigUnsafeDisableCycleDetection,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1176,7 +1169,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeDisableCycleDetection(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeExistingDirectoryProbesAsEnumerations,
+            (ushort)LogEventId.ConfigUnsafeExistingDirectoryProbesAsEnumerations,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1185,7 +1178,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeExistingDirectoryProbesAsEnumerations(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeMonitorZwCreateOpenQueryFileOff,
+            (ushort)LogEventId.ConfigUnsafeMonitorZwCreateOpenQueryFileOff,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1194,7 +1187,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeMonitorZwCreateOpenQueryFileOff(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigArtificialCacheMissOptions,
+            (ushort)LogEventId.ConfigArtificialCacheMissOptions,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -1203,7 +1196,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigArtificialCacheMissOptions(LoggingContext context, double missRate, string currentParameters, string invertedParameters);
 
         [GeneratedEvent(
-            (int)EventId.AssignProcessToJobObjectFailed,
+            (int)LogEventId.AssignProcessToJobObjectFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1212,7 +1205,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void AssignProcessToJobObjectFailed(LoggingContext context, string nativeError);
 
         [GeneratedEvent(
-            (ushort)EventId.CannotHonorLowPriority,
+            (ushort)LogEventId.CannotHonorLowPriority,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1221,7 +1214,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void CannotEnforceLowPriority(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUsingExperimentalOptions,
+            (ushort)LogEventId.ConfigUsingExperimentalOptions,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1230,7 +1223,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUsingExperimentalOptions(LoggingContext context, string optionsEnabled);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIncompatibleIncrementalSchedulingDisabled,
+            (ushort)LogEventId.ConfigIncompatibleIncrementalSchedulingDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1239,7 +1232,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIncompatibleIncrementalSchedulingDisabled(LoggingContext context, string option);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIncompatibleOptionWithDistributedBuildError,
+            (ushort)LogEventId.ConfigIncompatibleOptionWithDistributedBuildError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1248,7 +1241,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIncompatibleOptionWithDistributedBuildError(LoggingContext context, string option);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIncompatibleOptionWithDistributedBuildWarn,
+            (ushort)LogEventId.ConfigIncompatibleOptionWithDistributedBuildWarn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1257,7 +1250,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIncompatibleOptionWithDistributedBuildWarn(LoggingContext context, string option, string currentValue, string newValue);
 
         [GeneratedEvent(
-            (ushort)EventId.WarnToNotUsePackagesButModules,
+            (ushort)LogEventId.WarnToNotUsePackagesButModules,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1267,7 +1260,7 @@ namespace BuildXL.Engine.Tracing
 
 
         [GeneratedEvent(
-            (ushort)EventId.WarnToNotUseProjectsField,
+            (ushort)LogEventId.WarnToNotUseProjectsField,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1298,7 +1291,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void WarnToNotUseProjectsField(LoggingContext context, string configFile, string moduleFileName, string suggestedModuleName);
 
         [GeneratedEvent(
-            (ushort)EventId.SpecCacheDisabledForNoSeekPenalty,
+            (ushort)LogEventId.SpecCacheDisabledForNoSeekPenalty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1316,7 +1309,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EngineCachePrefersLoadingInMemoryForSeekPenalty(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.EngineErrorSavingFileContentTable,
+            (ushort)LogEventId.EngineErrorSavingFileContentTable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1325,7 +1318,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EngineErrorSavingFileContentTable(LoggingContext context, string file, string exceptionDetails);
 
         [GeneratedEvent(
-            (ushort)EventId.EnvFreezing,
+            (ushort)LogEventId.EnvFreezing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1397,7 +1390,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FinishedCopyingGraphToLogDir(LoggingContext context, string fileNames, long milliseconds);
 
         [GeneratedEvent(
-            (int)EventId.CannotAddCreatePipsDuringConfigOrModuleEvaluation,
+            (int)LogEventId.CannotAddCreatePipsDuringConfigOrModuleEvaluation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -1406,13 +1399,13 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void CannotAddCreatePipsDuringConfigOrModuleEvaluation(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FileAccessManifestSummary,
+            (int)LogEventId.FileAccessManifestSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Scheduler,
             Message =
-                "File access whitelist provided to scheduler for module {moduleName} has {cacheableEntryCount} cacheable and {unchacheableEntryCount} uncacheable entries.")]
+                "File access allowlist provided to scheduler for module {moduleName} has {cacheableEntryCount} cacheable and {unchacheableEntryCount} uncacheable entries.")]
         public abstract void FileAccessManifestSummary(
             LoggingContext context,
             string moduleName,
@@ -1545,23 +1538,25 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message =
-                "Fetching pip graph descriptor from cache:\r\n\tCompatible fingerprint: [Status: {compatibleStatus} | Hop count: {compatibleHopCount} | Reason: {compatibleReason} | Elapsed time: {compatibleElapsed}ms (Hashing graph inputs: {compatibleHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {compatibleFingerprintRetrievalElapsedMs}ms)]\r\n{compatibleFingerprintChain}\r\n\tExact fingerprint: [Status: {exactStatus} | Hop count: {exactHopCount} | Reason: {exactReason} | Elapsed time: {exactElapsed}ms (Hashing graph inputs: {exactHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {exactFingerprintRetrievalElapsedMs}ms)]{exactFingerprintChain}")]
+                "Fetching pip graph descriptor from cache:\r\n\tCompatible fingerprint: [Status: {compatibleStatus} | Hop count: {compatibleHopCount} | Failed reason: {compatibleFailedReason} | Elapsed time: {compatibleElapsed}ms (Hashing graph inputs: {compatibleHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {compatibleFingerprintRetrievalElapsedMs}ms) | Fingerprint look-up chain: [{compatibleFingerprintChain}]]{compatibleMissReason}\r\n\tExact fingerprint: [Status: {exactStatus} | Hop count: {exactHopCount} | Failed reason: {exactFailedReason} | Elapsed time: {exactElapsed}ms (Hashing graph inputs: {exactHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {exactFingerprintRetrievalElapsedMs}ms) | Fingerprint look-up chain: [{exactFingerprintChain}]]{exactMissReason}")]
         public abstract void GetPipGraphDescriptorFromCache(
             LoggingContext context,
             string compatibleStatus,
             int compatibleHopCount,
-            string compatibleReason,
+            string compatibleFailedReason,
             int compatibleElapsed,
             int compatibleHashingGraphInputsElapsedMs,
             int compatibleFingerprintRetrievalElapsedMs,
             string compatibleFingerprintChain,
+            string compatibleMissReason,
             string exactStatus,
             int exactHopCount,
-            string exactReason,
+            string exactFailedReason,
             int exactElapsed,
             int exactHashingGraphInputsElapsedMs,
             int exactFingerprintRetrievalElapsedMs,
-            string exactFingerprintChain);
+            string exactFingerprintChain,
+            string exactMissReason);
 
         [GeneratedEvent(
             (int) LogEventId.StorePipGraphCacheDescriptorToCache,
@@ -1569,7 +1564,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms)\r\n{fingerprintChains}")]
+            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms) | Fingerprint loop-up chain: [{fingerprintChains}]")]
         public abstract void StorePipGraphCacheDescriptorToCache(
             LoggingContext context,
             string status,
@@ -1582,13 +1577,13 @@ If you can't update and need this feature after July 2018 please reach out to th
             string fingerprintChains);
 
         [GeneratedEvent(
-            (int)LogEventId.MismatchPathInGraphInputDescriptor,
+            (int)LogEventId.MismatchInputInGraphInputDescriptor,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input path '{path}' ({kind}) in graph input descriptor: Given: '{givenHash}' | Actual: '{actualHash}'")]
-        public abstract void MismatchPathInGraphInputDescriptor(LoggingContext context, int hop, string path, string kind, string givenHash, string actualHash);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] {mismatch}")]
+        public abstract void MismatchInputInGraphInputDescriptor(LoggingContext context, string providerContext, int hop, string mismatch);
 
         [GeneratedEvent(
             (int)LogEventId.FailedHashingGraphFileInput,
@@ -1596,8 +1591,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Failed to hash '{path}' for graph input: {reason}")]
-        public abstract void FailedHashingGraphFileInput(LoggingContext context, int hop, string path, string reason);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] Failed to hash '{path}' for graph input: {reason}")]
+        public abstract void FailedHashingGraphFileInput(LoggingContext context, string providerContext, int hop, string path, string reason);
 
         [GeneratedEvent(
             (int)LogEventId.FailedComputingFingerprintGraphDirectoryInput,
@@ -1605,26 +1600,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Failed to compute directory membership fingerprint of '{path}' for graph input: {reason}")]
-        public abstract void FailedComputingFingerprintGraphDirectoryInput(LoggingContext context, int hop, string path, string reason);
-
-        [GeneratedEvent(
-            (int)LogEventId.MismatchEnvironmentInGraphInputDescriptor,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input environment variable '{name}' in graph input descriptor: Given: '{givenValue}' | Actual: '{actualValue}'")]
-        public abstract void MismatchEnvironmentInGraphInputDescriptor(LoggingContext context, int hop, string name, string givenValue, string actualValue);
-
-        [GeneratedEvent(
-            (int)LogEventId.MismatchMountInGraphInputDescriptor,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input mount '{name}' in graph input descriptor: Given: '{givenValue}' | Actual: '{actualValue}'")]
-        public abstract void MismatchMountInGraphInputDescriptor(LoggingContext context, int hop, string name, string givenValue, string actualValue);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] Failed to compute directory membership fingerprint of '{path}' for graph input: {reason}")]
+        public abstract void FailedComputingFingerprintGraphDirectoryInput(LoggingContext context, string providerContext, int hop, string path, string reason);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToFetchSerializedGraphFromCache,
@@ -1732,7 +1709,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         #endregion
 
         [GeneratedEvent(
-            (int)EventId.ErrorSavingSnapshot,
+            (int)LogEventId.ErrorSavingSnapshot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1741,7 +1718,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ErrorSavingSnapshot(LoggingContext context, string file, string exceptionDetails);
 
         [GeneratedEvent(
-            (int)EventId.GenericSnapshotError,
+            (int)LogEventId.GenericSnapshotError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (int)Tasks.Engine,
@@ -1750,7 +1727,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void GenericSnapshotError(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (int)EventId.ErrorCaseSensitiveFileSystemDetected,
+            (int)LogEventId.ErrorCaseSensitiveFileSystemDetected,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (int)Tasks.Engine,
@@ -1758,14 +1735,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             Message = "{ShortProductName} failed to run because only 'case-insensitive' file-systems are currently supported on non-windows hosts.")]
         public abstract void ErrorCaseSensitiveFileSystemDetected(LoggingContext context);
 
-        public void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception)
-        {
-            BusyOrUnavailableOutputDirectories(context, objectDirectoryPath);
-            BusyOrUnavailableOutputDirectoriesException(context, objectDirectoryPath, exception);
-        }
-
         [GeneratedEvent(
-            (int)EventId.BusyOrUnavailableOutputDirectories,
+            (int)LogEventId.BusyOrUnavailableOutputDirectories,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
@@ -1783,7 +1754,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void BusyOrUnavailableOutputDirectoriesException(LoggingContext context, string objectDirectoryPath, string exception);
 
         [GeneratedEvent(
-            (int)EventId.BusyOrUnavailableOutputDirectoriesRetry,
+            (int)LogEventId.BusyOrUnavailableOutputDirectoriesRetry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1795,7 +1766,7 @@ If you can't update and need this feature after July 2018 please reach out to th
 
         #region Scrubbing/Cleaning
         [GeneratedEvent(
-            (int)EventId.ScrubbingExternalFileOrDirectoryFailed,
+            (int)LogEventId.ScrubbingExternalFileOrDirectoryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1804,7 +1775,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingExternalFileOrDirectoryFailed(LoggingContext context, string path, string error);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingFailedToEnumerateDirectory,
+            (int)LogEventId.ScrubbingFailedToEnumerateDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1813,7 +1784,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingFailedToEnumerateDirectory(LoggingContext context, string path, string error);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingFailedToEnumerateMissingDirectory,
+            (int)LogEventId.ScrubbingFailedToEnumerateMissingDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
@@ -1822,7 +1793,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingFailedToEnumerateMissingDirectory(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable,
+            (int)LogEventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1831,7 +1802,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingFailedBecauseDirectoryIsNotScrubbable(LoggingContext context, string path, string mountName, string mountPath);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingDirectory,
+            (int)LogEventId.ScrubbingDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1840,7 +1811,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingDirectory(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingDeleteDirectoryContents,
+            (int)LogEventId.ScrubbingDeleteDirectoryContents,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1849,7 +1820,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingDeleteDirectoryContents(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingFile,
+            (int)LogEventId.ScrubbingFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1860,7 +1831,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         private const string ScrubbingStatusPrefix = "Scrubbing files extraneous to this build.";
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled,
+            (ushort)LogEventId.ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1869,7 +1840,44 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
+            (ushort)LogEventId.SidebandFileIntegrityCheckThrewException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Exception caught while validating integrity of sideband files: {ex}")]
+        public abstract void SidebandFileIntegrityCheckThrewException(LoggingContext context, string ex);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SidebandIntegrityCheckForProcessFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Sideband integrity check failed for {pipSemiStableHash} and file '{sidebandFile}'. Reason: {reason}. {details}")]
+        public abstract void SidebandIntegrityCheckForProcessFailed(LoggingContext context, string pipSemiStableHash, string sidebandFile, string reason, string details);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PostponingDeletionOfSharedOpaqueOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Postponing deletion of shared opaque outputs.")]
+        public abstract void PostponingDeletionOfSharedOpaqueOutputs(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.DeletingOutputsFromExtraneousSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in extraneous sideband files.")]
+        public abstract void DeletingOutputsFromExtraneousSidebandFilesStarted(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1879,7 +1887,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void DeletingOutputsFromSharedOpaqueSidebandFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingSharedOpaqueSidebandFilesStarted,
+            (int)LogEventId.DeletingSharedOpaqueSidebandFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1889,7 +1897,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void DeletingSharedOpaqueSidebandFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingStarted,
+            (int)LogEventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1909,7 +1917,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingSharedOpaquesStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingFinished,
+            (int)LogEventId.ScrubbingFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1919,7 +1927,17 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingFinished(LoggingContext context, int directoryCount, int totalFiles, int deletedFiles, int deletedDirectoriesRecursively);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingStatus,
+            (int)LogEventId.ScrubbingCancelled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Stop,
+            Message = EventConstants.PhasePrefix + "Scrubbing cancelled by cancellation token. Cancellation was triggered after {deletedFiles} out of {totalFiles} files were deleted.")]
+        public abstract void ScrubbingCancelled(LoggingContext context, int totalFiles, int deletedFiles);
+
+        [GeneratedEvent(
+            (int)LogEventId.ScrubbingStatus,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1929,7 +1947,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingStatus(LoggingContext context, int filesCompleteCount);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbingProgress,
+            (int)LogEventId.ScrubbingProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
@@ -1939,7 +1957,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingProgress(LoggingContext context, string prefix, int numDeleted, int numTotal);
 
         [GeneratedEvent(
-            (int)EventId.ScrubbableMountsMayOnlyContainScrubbableMounts,
+            (int)LogEventId.ScrubbableMountsMayOnlyContainScrubbableMounts,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2002,7 +2020,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void MountHasInvalidPath(LoggingContext context, string file, int line, int column, string name);
 
         [GeneratedEvent(
-            (int)EventId.CleaningStarted,
+            (int)LogEventId.CleaningStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -2012,7 +2030,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void CleaningStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.CleaningFinished,
+            (int)LogEventId.CleaningFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2022,7 +2040,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void CleaningFinished(LoggingContext context, int successCount, int failCount);
 
         [GeneratedEvent(
-            (int)EventId.CleaningFileFailed,
+            (int)LogEventId.CleaningFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2031,7 +2049,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void CleaningFileFailed(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
-            (int)EventId.CleaningDirectoryFailed,
+            (int)LogEventId.CleaningDirectoryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2040,7 +2058,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void CleaningDirectoryFailed(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
-            (int)EventId.CleaningOutputFile,
+            (int)LogEventId.CleaningOutputFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2051,7 +2069,7 @@ If you can't update and need this feature after July 2018 please reach out to th
 
         #region Running Time and Critical Path Suggestions
         [GeneratedEvent(
-            (int)EventId.StartRehydratingConfigurationWithNewPathTable,
+            (int)LogEventId.StartRehydratingConfigurationWithNewPathTable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2061,7 +2079,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StartRehydratingConfigurationWithNewPathTable(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndRehydratingConfigurationWithNewPathTable,
+            (int)LogEventId.EndRehydratingConfigurationWithNewPathTable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -2071,92 +2089,92 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndRehydratingConfigurationWithNewPathTable(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.StartLoadingRunningTimes,
+            (int)LogEventId.StartLoadingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Loading running times")]
-        public abstract void StartLoadingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Loading historic perf data")]
+        public abstract void StartLoadingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndLoadingRunningTimes,
+            (int)LogEventId.EndLoadingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Message = EventConstants.PhasePrefix + "Done loading running times")]
-        public abstract void EndLoadingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Done loading historic perf data")]
+        public abstract void EndLoadingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.StartSavingRunningTimes,
+            (int)LogEventId.StartSavingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Saving updated running times")]
-        public abstract void StartSavingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Saving updated historic perf data")]
+        public abstract void StartSavingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndSavingRunningTimes,
+            (int)LogEventId.EndSavingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Message = EventConstants.PhasePrefix + "Done saving updated running times")]
-        public abstract void EndSavingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Done saving updated historic perf data")]
+        public abstract void EndSavingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FailedToResolveHistoricDataFileName,
+            (int)LogEventId.FailedToResolveHistoricDataFileName,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to resolve historic data filename. Error: {0}")]
+            Message = "Unable to resolve historic perf data filename. Error: {0}")]
         public abstract void FailedToResolveHistoricDataFileName(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.LoadingRunningTimesFailed,
+            (int)LogEventId.LoadingHistoricPerfDataFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to load historic performance data file {0}: {1}")]
-        public abstract void LoadingRunningTimesFailed(LoggingContext context, string fileName, string errorMessage);
+            Message = "Unable to load historic perf data file {0}: {1}")]
+        public abstract void LoadingHistoricPerfDataFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.RunningTimesLoaded,
+            (int)LogEventId.HistoricPerfDataLoaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Historic performance data loaded: {0} entries")]
-        public abstract void RunningTimesLoaded(LoggingContext context, int size);
+            Message = "Historic perf data loaded: {0} entries")]
+        public abstract void HistoricPerfDataLoaded(LoggingContext context, int size);
 
         [GeneratedEvent(
-            (int)EventId.SavingRunningTimesFailed,
+            (int)LogEventId.SavingHistoricPerfDataFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to save historic performance data file {0}: {1}")]
-        public abstract void SavingRunningTimesFailed(LoggingContext context, string fileName, string errorMessage);
+            Message = "Unable to save historic perf data file {0}: {1}")]
+        public abstract void SavingHistoricPerfDataFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.RunningTimesSaved,
+            (int)LogEventId.HistoricPerfDataSaved,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Historic performance data saved: {0} entries")]
-        public abstract void RunningTimesSaved(LoggingContext context, int size);
+            Message = "Historic perf data saved: {0} entries")]
+        public abstract void HistoricPerfDataSaved(LoggingContext context, int size);
 
         [GeneratedEvent(
-            (int)EventId.FailedToResolveHistoricMetadataCacheFileName,
+            (int)LogEventId.FailedToResolveHistoricMetadataCacheFileName,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
@@ -2165,7 +2183,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FailedToResolveHistoricMetadataCacheFileName(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.LoadingHistoricMetadataCacheFailed,
+            (int)LogEventId.LoadingHistoricMetadataCacheFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
@@ -2174,7 +2192,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void LoadingHistoricMetadataCacheFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.HistoricMetadataCacheLoaded,
+            (int)LogEventId.HistoricMetadataCacheLoaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2183,7 +2201,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void HistoricMetadataCacheLoaded(LoggingContext context, int metadataCount, int pathSetCount);
 
         [GeneratedEvent(
-            (int)EventId.SavingHistoricMetadataCacheFailed,
+            (int)LogEventId.SavingHistoricMetadataCacheFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.Diagnostics,
@@ -2192,7 +2210,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void SavingHistoricMetadataCacheFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.HistoricMetadataCacheSaved,
+            (int)LogEventId.HistoricMetadataCacheSaved,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2205,7 +2223,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         #region Configuration
 
         [GeneratedEvent(
-            (int)EventId.ConfigFailedParsingCommandLinePipFilter,
+            (int)LogEventId.ConfigFailedParsingCommandLinePipFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2215,7 +2233,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigFailedParsingCommandLinePipFilter(LoggingContext context, string rawFilter, int position, string filterWithPointer, string error);
 
         [GeneratedEvent(
-            (int)EventId.ConfigFailedParsingDefaultPipFilter,
+            (int)LogEventId.ConfigFailedParsingDefaultPipFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2225,7 +2243,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigFailedParsingDefaultPipFilter(LoggingContext context, string rawFilter, int position, string filterWithPointer, string error);
 
         [GeneratedEvent(
-            (int)EventId.ConfigUsingPipFilter,
+            (int)LogEventId.ConfigUsingPipFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -2235,7 +2253,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUsingPipFilter(LoggingContext context, string rawFilter);
 
         [GeneratedEvent(
-            (int)EventId.ConfigFilterAndPathImplicitNotSupported,
+            (int)LogEventId.ConfigFilterAndPathImplicitNotSupported,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2247,7 +2265,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         #endregion
 
         [GeneratedEvent(
-            (int)EventId.StartInitializingCache,
+            (int)LogEventId.StartInitializingCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2257,7 +2275,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StartInitializingCache(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndInitializingCache,
+            (int)LogEventId.EndInitializingCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -2267,7 +2285,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndInitializingCache(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.SynchronouslyWaitedForCache,
+            (int)LogEventId.SynchronouslyWaitedForCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -2276,7 +2294,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void SynchronouslyWaitedForCache(LoggingContext context, int waitTimeMs, int overlappedTimeMs);
 
         [GeneratedEvent(
-            (int)EventId.StartParseConfig,
+            (int)LogEventId.StartParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2286,7 +2304,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StartParseConfig(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndParseConfig,
+            (int)LogEventId.EndParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -2296,7 +2314,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndParseConfig(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.StorageCacheStartupError,
+            (int)LogEventId.StorageCacheStartupError,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2305,7 +2323,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StorageCacheStartupError(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.StatsBanner,
+            (int)LogEventId.StatsBanner,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2314,7 +2332,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StatsBanner(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FrontEndStatsBanner,
+            (int)LogEventId.FrontEndStatsBanner,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2323,7 +2341,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FrontEndStatsBanner(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.GCStats,
+            (int)LogEventId.GCStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2332,7 +2350,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void GCStats(LoggingContext context, long gen0CollectionCount, long gen1CollectionCount, long gen2CollectionCount);
 
         [GeneratedEvent(
-            (int)EventId.ObjectPoolStats,
+            (int)LogEventId.ObjectPoolStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2341,7 +2359,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ObjectPoolStats(LoggingContext context, string pool, int entryCount, long useCount, long factoryInvocations);
 
         [GeneratedEvent(
-            (int)EventId.PipWriterStats,
+            (int)LogEventId.PipWriterStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2350,7 +2368,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void PipWriterStats(LoggingContext context, string category, long entries, long totalBytes, int bytesPerEntry);
 
         [GeneratedEvent(
-            (int)EventId.InterningStats,
+            (int)LogEventId.InterningStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2359,7 +2377,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void InterningStats(LoggingContext context, string table, int entryCount, long sizeInBytes, int skippedEntries = 0);
 
         [GeneratedEvent(
-            (int)EventId.ObjectCacheStats,
+            (int)LogEventId.ObjectCacheStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2368,7 +2386,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ObjectCacheStats(LoggingContext context, string table, long hits, long misses);
 
         [GeneratedEvent(
-            (int)EventId.EnvironmentValueForTempDisallowed,
+            (int)LogEventId.EnvironmentValueForTempDisallowed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2384,15 +2402,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             string environmentVariableName);
 
         [GeneratedEvent(
-            (int)EventId.FileAccessWhitelistEntryHasInvalidRegex,
+            (int)LogEventId.FileAccessAllowlistEntryHasInvalidRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
             Message =
                 EventConstants.ProvenancePrefix +
-                "Unable to create file access whitelist entry.  Failed to construct an ECMAScript regex object with error '{3}'.")]
-        public abstract void FileAccessWhitelistEntryHasInvalidRegex(
+                "Unable to create file access allowlist entry.  Failed to construct an ECMAScript regex object with error '{3}'.")]
+        public abstract void FileAccessAllowlistEntryHasInvalidRegex(
             LoggingContext context,
             string file,
             int line,
@@ -2400,16 +2418,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             string constructorExceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.JournalRequiredOnVolumeError,
+            (ushort)LogEventId.JournalRequiredOnVolumeError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
-            Message = "The volume, '{drive}' does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
-        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string command);
+            Message = "The volume, '{drive}' (checked path: '{checkedPath}', final path: '{finalPath}') does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
+        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string checkedPath, string finalPath, string command);
 
         [GeneratedEvent(
-            (int)EventId.StartEngineRun,
+            (int)SharedLogEventId.StartEngineRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.Diagnostics | (int)Keywords.Progress,
@@ -2419,7 +2437,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void StartEngineRun(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.EndEngineRun,
+            (int)SharedLogEventId.EndEngineRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.Diagnostics | (int)Keywords.Performance | (int)Keywords.Progress,
@@ -2429,15 +2447,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndEngineRun(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FileAccessWhitelistCouldNotCreateIdentifier,
+            (int)LogEventId.FileAccessAllowlistCouldNotCreateIdentifier,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
             Message =
                 EventConstants.ProvenancePrefix +
-                "Unable to create file access whitelist entry for requested value '{3}'. Value names only allow a-z, 0-9, and '.' separating pars.")]
-        public abstract void FileAccessWhitelistCouldNotCreateIdentifier(
+                "Unable to create file access allowlist entry for requested value '{3}'. Value names only allow a-z, 0-9, and '.' separating pars.")]
+        public abstract void FileAccessAllowlistCouldNotCreateIdentifier(
             LoggingContext context,
             string file,
             int line,
@@ -2445,7 +2463,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             string environmentVariableName);
 
         [GeneratedEvent(
-            (int)EventId.SchedulerExportFailedSchedulerNotInitialized,
+            (int)LogEventId.SchedulerExportFailedSchedulerNotInitialized,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Failed to exporting pip graph, fingerprints, or incremental scheduling state because the scheduler was not initialized.",
             EventLevel = Level.Error,
@@ -2455,7 +2473,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void SchedulerExportFailedSchedulerNotInitialized(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.PipTableStats,
+            (int)LogEventId.PipTableStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage
@@ -2467,7 +2485,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void PipTableStats(LoggingContext context, int streams, long size, long used, int count, int writes, long reads, int alive, long writingTime, long readingTime);
 
         [GeneratedEvent(
-            (int)EventId.PipTableDeserializationContext,
+            (int)LogEventId.PipTableDeserializationContext,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage | (int)Keywords.Diagnostics,
@@ -2478,7 +2496,7 @@ If you can't update and need this feature after July 2018 please reach out to th
       [GeneratedEvent(
             (int)LogEventId.VirusScanEnabledForPath,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Virus scanning software is enabled for '{path}' which is used in this build. Build performance is potentially greatly impacted unless a directory exclusion is configured.")]
@@ -2577,13 +2595,13 @@ If you can't update and need this feature after July 2018 please reach out to th
 
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailedToInitalizeFileAccessWhitelist,
+            (ushort)LogEventId.FailedToInitalizeFileAccessAllowlist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to initialize the FileAccess whitelist: {error}")]
-        internal abstract void FailedToInitializeFileAccessWhitelist(LoggingContext loggingContext, string error);
+            Message = "Failed to initialize the FileAccess allowlist: {error}")]
+        internal abstract void FailedToInitializeFileAccessAllowlist(LoggingContext loggingContext, string error);
 
         [GeneratedEvent(
             (ushort)LogEventId.ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling,
@@ -2676,7 +2694,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ErrorRelatedLocation(LoggingContext context, string file, int line, int column, string originalFile, int originalLine, int originalColumn);
 
         [GeneratedEvent(
-            (ushort)EventId.ConfigIgnoreDynamicWritesOnAbsentProbes,
+            (ushort)LogEventId.ConfigIgnoreDynamicWritesOnAbsentProbes,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -2685,7 +2703,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigIgnoreDynamicWritesOnAbsentProbes(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.LogAndRemoveEngineStateOnBuildFailure,
+            (ushort)LogEventId.LogAndRemoveEngineStateOnBuildFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
@@ -2764,6 +2782,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Tasks.Engine,
             Message = "Initializing VM: {message}")]
         internal abstract void InitializingVm(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeAllowDuplicateTemporaryDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_AllowDuplicateTemporaryDirectory enabled: Duplicate temporary directory detection between pips is disabled.")]
+        public abstract void ConfigUnsafeAllowDuplicateTemporaryDirectory(LoggingContext context);
     }
 
     /// <summary>
@@ -3227,38 +3254,6 @@ If you can't update and need this feature after July 2018 please reach out to th
                 text = stringBuilder.ToString();
             }
         }
-    }
-
-    /// <summary>
-    /// Represents an event forwarded from a worker
-    /// </summary>
-    [SuppressMessage("Microsoft.Performance", "CA1815")]
-    public struct WorkerForwardedEvent
-    {
-        /// <summary>
-        /// The worker name
-        /// </summary>
-        public string WorkerName;
-
-        /// <summary>
-        /// The message of the worker event
-        /// </summary>
-        public string Text { get; set; }
-
-        /// <summary>
-        /// The ID of the original event
-        /// </summary>
-        public int EventId { get; set; }
-
-        /// <summary>
-        /// The name of the original event
-        /// </summary>
-        public string EventName { get; set; }
-
-        /// <summary>
-        /// The keywords of the original event
-        /// </summary>
-        public long EventKeywords { get; set; }
     }
 
     /// <summary>

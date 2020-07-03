@@ -1,12 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -24,10 +27,10 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         /// <summary>
         /// The scheduled graph
         /// </summary>
-        public IPipGraph PipGraph { get; }
+        public IMutablePipGraph PipGraph { get; }
 
         /// <nodoc/>
-        internal NinjaSchedulingResult(PathTable pathTable, IPipGraph pipGraph, Dictionary<NinjaNode, (bool, Process)> schedulingResult)
+        internal NinjaSchedulingResult(PathTable pathTable, IMutablePipGraph pipGraph, Dictionary<NinjaNode, (bool, Process)> schedulingResult)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(schedulingResult != null);

@@ -60,6 +60,9 @@ export interface DeployToDiskArguments {
     /** Optional list of tags to tag the pips with. */
     tags?: string[];
 
+    /** Whether the deployment should not be fully sealed and therefore not be scrubbed. This means that old files no longer part of the build will not be removed between builds. */
+    sealPartialWithoutScrubbing?: boolean;
+
     /** A set of options specific to the deployment. deployToDisk just dumbly passes it along to the flatten method of the Deployable interface. */
     deploymentOptions?: DeploymentOptions;
 }
@@ -99,11 +102,11 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub?
 }
 
 /**
- * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
- * on 'sourceOpaqueDir`, which should be the parent opaque directory containing the file 'source'.
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.
  */
 @@public
-export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
+export function copyFileProcess(source: Artifact, target: Artifact, dependencies: Transformer.InputArtifact[], outputs: Transformer.Output[]): Transformer.ExecuteResult {
+    const wd = Context.getNewOutputDirectory("cp");
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
         ? <Transformer.ExecuteArguments>{
             tool: {
@@ -111,19 +114,18 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
                 dependsOnWindowsDirectories: true,
                 description: "Copy File",
             },
-            workingDirectory: d`${source.parent}`,
+            workingDirectory: d`${wd}`,
             arguments: [
                 Cmd.argument("/D"),
                 Cmd.argument("/C"),
                 Cmd.argument("copy"),
                 Cmd.argument("/Y"),
                 Cmd.argument("/V"),
-                Cmd.argument(Artifact.none(source)),
-                Cmd.argument(Artifact.output(target))
+                Cmd.argument(source),
+                Cmd.argument(target)
             ],
-            dependencies: [
-                sourceOpaqueDir
-            ]
+            dependencies: dependencies,
+            outputs: outputs
         }
         : <Transformer.ExecuteArguments>{
             tool: {
@@ -132,28 +134,57 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
                 dependsOnCurrentHostOSDirectories: true,
                 prepareTempDirectory: true
             },
-            workingDirectory: d`${source.parent}`,
+            workingDirectory: d`${wd}`,
             arguments: [
                 Cmd.argument("-f"),
-                Cmd.argument(Artifact.none(source)),
-                Cmd.argument(Artifact.output(target))
+                Cmd.argument(source),
+                Cmd.argument(target)
             ],
-            dependencies: [
-                sourceOpaqueDir
-            ]
+            dependencies: dependencies,
+            outputs: outputs
         };
 
-    const result = Transformer.execute(args);
-    return result.getOutputFile(target);
+    return Transformer.execute(args);
+}
+
+/**
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
+ * on 'sourceOpaqueDir`, which should be the parent opaque directory containing the file 'source'.
+ */
+@@public
+export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
+    Contract.requires(source.isWithin(sourceOpaqueDir), "Source path must be within the source opaque directory");
+    return copyFileProcess(
+        /*source*/ Artifact.none(source),
+        /*target*/ Artifact.output(target),
+        /*dependencies*/ [ sourceOpaqueDir ],
+        /*outputs*/ []
+    ).getOutputFile(target);
+}
+
+/**
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
+ * on 'source' and produces a shared opaque directory at the same path as 'targetOpaqueDir'.
+ */
+@@public
+export function copyFileIntoSharedOpaqueDirectory(source: File, target: Path, targetOpaqueDir: OpaqueDirectory): OpaqueDirectory {
+    Contract.requires(target.isWithin(targetOpaqueDir), "Target path must be within the target opaque directory");
+    return copyFileProcess(
+        /*source*/ Artifact.input(source),
+        /*target*/ Artifact.none(target),
+        /*dependencies*/ [ ],
+        /*outputs*/ [{ directory: targetOpaqueDir.root, kind: "shared" }]
+    ).getOutputDirectory(targetOpaqueDir.root);
 }
 
 /**
  * Based on the current platform schedules either a robocopy.exe or rsync pip to copy 'sourceDir' to 'targetDir'.
- * That pip takes a dependency on `sourceDirDep`.  If 'sourceDir' is not within `sourceDirDep.root`, disallowed
- * file accesses are almost certain to happen.
+ * That pip takes a dependency on `sourceDirDep` and, optionally, on a collection of opaque directories.  
+ * If 'sourceDir' is not within `sourceDirDep.root`, disallowed file accesses are almost certain to happen. opaqueDirDeps
+ * allows for the case where there are opaque directories under the given root, which is sometimes the case of a deployment on disk
  */
 @@public
-export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): OpaqueDirectory {
+export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory, opaqueDirDeps?: OpaqueDirectory[]): SharedOpaqueDirectory {
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
         ? <Transformer.ExecuteArguments>{
             tool: {
@@ -170,14 +201,15 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument(Artifact.none(sourceDir)),
                 Cmd.argument(Artifact.none(targetDir)),
                 Cmd.argument("*.*"),
-                Cmd.argument("/MIR"), // Mirror the directory
+                Cmd.argument("/E"),   // Copy subdirectories including empty ones (but no /PURGE, i.e., don't delete dest files that no longer exist)
                 Cmd.argument("/NJH"), // No Job Header
                 Cmd.argument("/NFL"), // No File list reducing stdout processing
                 Cmd.argument("/NP"),  // Don't show per-file progress counter
                 Cmd.argument("/MT"),  // Multi threaded
             ],
             dependencies: [
-                sourceDirDep
+                sourceDirDep,
+                ...(opaqueDirDeps || [])
             ],
             outputs: [
                 { directory: targetDir, kind: "shared" }
@@ -195,10 +227,10 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument("-arvh"),
                 Cmd.argument(Cmd.join("", [ Artifact.none(sourceDir), '/' ])),
                 Cmd.argument(Artifact.none(targetDir)),
-                Cmd.argument("--delete"),
             ],
             dependencies: [
-                sourceDirDep
+                sourceDirDep,
+                ...(opaqueDirDeps || [])
             ],
             outputs: [
                 { directory: targetDir, kind: "shared" }
@@ -206,7 +238,7 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
         };
 
     const result = Transformer.execute(args);
-    return result.getOutputDirectory(targetDir);
+    return <SharedOpaqueDirectory>result.getOutputDirectory(targetDir);
 }
 
 /**
@@ -240,7 +272,20 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
     // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents;
     // we do, however, pass those additional opaque directories along (via the 'targetOpaques' property)
     // so the caller can appropriately take dependencies on them.
-    const contents = Transformer.sealPartialDirectory(rootDir, targetFiles, args.tags);
+    const contents = args.sealPartialWithoutScrubbing
+        ? Transformer.sealPartialDirectory({
+            root: rootDir,
+            files: targetFiles,
+            tags: args.tags
+            })
+        : Transformer.sealDirectory({
+            root: rootDir,
+            files: targetFiles,
+            outputDirectories: targetOpaques,
+            scrub: true,
+            tags: args.tags
+            })
+        ;
 
     return {
         deployedDefinition: args.definition,

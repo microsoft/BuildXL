@@ -4,7 +4,6 @@ import * as Managed from "Sdk.Managed";
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
 namespace Xldb.Analyzer {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "xldbanalyzer",

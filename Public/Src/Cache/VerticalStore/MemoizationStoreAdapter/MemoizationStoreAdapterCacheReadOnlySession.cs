@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -70,7 +70,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public MemoizationStoreAdapterCacheReadOnlySession(
             IReadOnlyCacheSession readOnlyCacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
-            string cacheId,
+            CacheId cacheId,
             ILogger logger,
             string sessionId = null,
             bool replaceExistingOnPlaceFile = false)
@@ -85,7 +85,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public string CacheId { get; }
+        public CacheId CacheId { get; }
 
         /// <inheritdoc />
         public string CacheSessionId { get; }
@@ -127,7 +127,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 {
                     try
                     {
-                        var results = await ReadOnlyCacheSession.GetSelectors(new Context(Logger), weak.ToMemoization(), CancellationToken.None).ToList();
+                        var results = await ReadOnlyCacheSession.GetSelectors(new Context(Logger), weak.ToMemoization(), CancellationToken.None).ToListAsync();
                         tcs.SetResult(results);
                         return results.Any() ? results.First().FromMemoization(weak, CacheId) : StrongFingerprintSentinel.Instance;
                     }
@@ -235,15 +235,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             var result = await ReadOnlyCacheSession.OpenStreamAsync(new Context(Logger), hash.ToMemoization(), CancellationToken.None);
             switch (result.Code)
             {
                 case OpenStreamResult.ResultCode.Success:
-                    if (result.Stream != null)
+                    if (result.StreamWithLength != null)
                     {
-                        return result.Stream;
+                        return result.StreamWithLength.Value;
                     }
 
                     return new NoCasEntryFailure(CacheId, hash);

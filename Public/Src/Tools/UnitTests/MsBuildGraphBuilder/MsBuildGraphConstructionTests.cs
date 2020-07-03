@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -90,9 +90,9 @@ namespace Test.ProjectGraphBuilder
             var innerProject = projectNodes.First(project => project.GlobalProperties.Count == 2);
 
             // There should be only a single reference from the outer project to the inner one
-            Assert.Equal(1, outerProject.ProjectReferences.Count);
+            Assert.Equal(1, outerProject.Dependencies.Count);
             // And the inner one should have no references
-            Assert.Equal(0, innerProject.ProjectReferences.Count);
+            Assert.Equal(0, innerProject.Dependencies.Count);
         }
 
         [Fact]
@@ -156,7 +156,7 @@ namespace Test.ProjectGraphBuilder
             var releaseNode = nodes.First(node => node.GlobalProperties["configuration"] == "release");
 
             // Both nodes should have the same platform, since that's part of the global properties
-            Assert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
+            XAssert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
         }
 
         [Theory]

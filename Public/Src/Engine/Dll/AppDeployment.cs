@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -16,6 +17,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
 namespace BuildXL.Engine
@@ -192,7 +194,6 @@ namespace BuildXL.Engine
 
                 if (!skipManifestCheckTestHook)
                 {
-                    ContentHashingUtilities.SetDefaultHashType();
                     AddHashForManifestFile(sb);
                 }
 
@@ -223,7 +224,14 @@ namespace BuildXL.Engine
 
                 try
                 {
-                    sb.Append(ContentHashingUtilities.HashString(File.ReadAllText(Path.Combine(BaseDirectory, path))).ToHex());
+                    using (MD5 md5Hash = MD5.Create())
+                    {
+                        byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
+                        foreach (var b in data)
+                        {
+                            sb.Append(b.ToString("x2"));
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {

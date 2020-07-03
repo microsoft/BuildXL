@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public abstract class DedupIdentifier : IEquatable<DedupIdentifier>, IComparable<DedupIdentifier>
     {
-        private readonly byte[] value;
+        private readonly byte[] _value;
 
         /// <nodoc />
         protected DedupIdentifier(byte[] algorithmResult, byte algorithmId)
@@ -59,9 +59,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(algorithmResult != null);
             Contract.Requires(algorithmResult.Length == 32);
 
-            value = new byte[algorithmResult.Length + 1];
-            algorithmResult.CopyTo(value, 0);
-            value[algorithmResult.Length] = algorithmId;
+            _value = new byte[algorithmResult.Length + 1];
+            algorithmResult.CopyTo(_value, 0);
+            _value[algorithmResult.Length] = algorithmId;
         }
 
         /// <nodoc />
@@ -73,35 +73,35 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Hash produced by AlgorithmId's hashing algorithm.
         /// </summary>
-        public byte[] AlgorithmResult => value.Take(AlgorithmIdIndex).ToArray();
+        public byte[] AlgorithmResult => _value.Take(AlgorithmIdIndex).ToArray();
 
         /// <summary>
         /// Byte appended to end of identifier to mark the type of hashing algorithm used.
         /// </summary>
-        public byte AlgorithmId => value[AlgorithmIdIndex];
+        public byte AlgorithmId => _value[AlgorithmIdIndex];
 
-        private int AlgorithmIdIndex => value.Length - 1;
+        private int AlgorithmIdIndex => _value.Length - 1;
 
         /// <nodoc />
-        public bool Equals(DedupIdentifier other)
+        public bool Equals(DedupIdentifier? other)
         {
             if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
-            return (other != null) && value.SequenceEqual(other.value);
+            return (other != null) && _value.SequenceEqual(other._value);
         }
 
         /// <nodoc />
-        public int CompareTo(DedupIdentifier other)
+        public int CompareTo(DedupIdentifier? other)
         {
             if (other == null)
             {
                 return -1;
             }
 
-            return ByteArrayComparer.Instance.Compare(value, other.value);
+            return ByteArrayComparer.Instance.Compare(_value, other._value);
         }
     }
 }

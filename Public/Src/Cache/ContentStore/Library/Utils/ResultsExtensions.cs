@@ -1,8 +1,13 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -11,6 +16,22 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     public static class ResultsExtensions
     {
+        /// <summary>
+        /// Waits for the given task to complete within the given timeout, returns unsuccessful <see cref="BoolResult"/> if the timeout expires before the task completes.
+        /// </summary>
+        public static async Task<BoolResult> WithTimeoutAsync(this Task<BoolResult> task, string operationName, TimeSpan timeout)
+        {
+            try
+            {
+                return await task.WithTimeoutAsync(timeout);
+            }
+            catch (TimeoutException)
+            {
+                string error = $"{operationName} didn't finished after '{timeout}'.";
+                return new BoolResult(error);
+            }
+        }
+
         /// <summary>
         /// Converts <see cref="Possible{TResult}"/> to <see cref="Result{T}"/>
         /// </summary>

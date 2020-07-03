@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -47,6 +47,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     DedupChunk or DedupNode with respective algorithm ID appended (33 bytes)
         /// </summary>
         DedupNodeOrChunk = 7,
+
+        /// <summary>
+        ///     Murmur3 Well distributed hash
+        /// </summary>
+        Murmur = 8,
 
         /// <summary>
         ///     Legacy VSO hash (33 bytes)

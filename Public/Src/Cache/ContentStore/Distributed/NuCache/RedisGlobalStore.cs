@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -35,10 +35,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IClock _clock;
 
+        /// <inheritdoc />
+        public ClusterState ClusterState { get; private set; }
+
+        /// <summary>
+        /// Exposing raided redis from global store for access from tests, specifically LocalLocationStoreDistributedContentTests.
+        /// During test with raided redis, verifying counters are correct values.
+        /// </summary>
+        internal RaidedRedisDatabase RaidedRedis => _raidedRedis;
+
         /// <summary>
         /// The accessor for the redis database
         /// </summary>
-        private readonly RaidedRedisDatabase _redis;
+        private readonly RaidedRedisDatabase _raidedRedis;
+
+        /// <summary>
+        /// Gets the backing primary redis database for the store
+        /// </summary>
+        public RedisDatabaseAdapter RedisDatabase => _raidedRedis.PrimaryRedisDb;
 
         private readonly ReplicatedRedisHashKey _checkpointsKey;
         private readonly ReplicatedRedisHashKey _masterLeaseKey;
@@ -49,15 +63,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public RedisKey FullyQualifiedClusterStateKey => _clusterStateKey.UnsafeGetFullKey();
 
+        internal RedisContentLocationStoreConfiguration Configuration => _configuration;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
-        private readonly RedisBlobAdapter _blobAdapter;
-
-        /// <nodoc />
-        public MachineId LocalMachineId { get; private set; }
-
-        /// <inheritdoc />
-        public MachineLocation LocalMachineLocation { get; }
+        internal RedisBlobAdapter PrimaryBlobAdapter => _primaryBlobAdapter;
+        private readonly RedisBlobAdapter _primaryBlobAdapter;
+        internal RedisBlobAdapter SecondaryBlobAdapter => _secondaryBlobAdapter;
+        private readonly RedisBlobAdapter _secondaryBlobAdapter;
 
         private Role? _role = null;
 
@@ -77,21 +89,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => _configuration.ClusterStateMirrorInterval;
 
         /// <nodoc />
-        public RedisGlobalStore(IClock clock, RedisContentLocationStoreConfiguration configuration, MachineLocation localMachineLocation, RedisDatabaseAdapter primaryRedisDb, RedisDatabaseAdapter secondaryRedisDb)
+        public RedisGlobalStore(
+            IClock clock,
+            RedisContentLocationStoreConfiguration configuration,
+            RedisDatabaseAdapter primaryRedisDb,
+            RedisDatabaseAdapter secondaryRedisDb)
         {
             Contract.Requires(configuration.CentralStore != null);
 
             _clock = clock;
             _configuration = configuration;
-            _redis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
+            _raidedRedis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
             var checkpointKeyBase = configuration.CentralStore.CentralStateKeyBase;
 
-            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, _redis);
-            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _redis);
-            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _redis);
-            LocalMachineLocation = localMachineLocation;
+            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, _raidedRedis);
+            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _raidedRedis);
+            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _raidedRedis);
 
-            _blobAdapter = new RedisBlobAdapter(_redis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock, Tracer);
+            _primaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
+            _secondaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.SecondaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
         }
 
         /// <inheritdoc />
@@ -101,43 +117,49 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public CounterSet GetCounters(OperationContext context)
         {
             var counters = Counters.ToCounterSet();
-            counters.Merge(_blobAdapter.GetCounters(), "BlobAdapter.");
-            counters.Merge(_redis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
+            counters.Merge(_primaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
+            counters.Merge(_secondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
+            counters.Merge(_raidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            var machineLocation = LocalMachineLocation;
+            List<MachineLocation> allMachineLocations = new List<MachineLocation>();
+            Contract.Assert(_configuration.PrimaryMachineLocation.IsValid, "Primary machine location must be specified");
 
-            var machineId = await RegisterMachineAsync(context, machineLocation);
-            LocalMachineId = new MachineId(machineId);
+            allMachineLocations.Add(_configuration.PrimaryMachineLocation);
+            allMachineLocations.AddRange(_configuration.AdditionalMachineLocations);
 
-            Tracer.Info(context, $"Secondary redis enabled={_redis.HasSecondary}");
+            var machineMappings = await Task.WhenAll(allMachineLocations.Select(machineLocation => RegisterMachineAsync(context, machineLocation)));
 
-            return BoolResult.Success;
+            ClusterState = new ClusterState(machineMappings[0].Id, machineMappings);
+
+            // When we start up, we don't want to modify the previous state set until we know if we need to do anything
+            // about it.
+            return await UpdateClusterStateAsync(context, ClusterState, MachineState.Unknown);
         }
 
-        internal async Task<int> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
+        public async Task<MachineMapping> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
         {
             // Get the local machine id
             var machineIdAndIsAdded = await _clusterStateKey.UseReplicatedHashAsync(
-                context, 
+                context,
+                _configuration.RetryWindow,
                 RedisOperation.StartupGetOrAddLocalMachine, 
                 (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow))
                 .ThrowIfFailureAsync();
 
             Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
 
-            return machineIdAndIsAdded.machineId;
+            return new MachineMapping(machineLocation, new MachineId(machineIdAndIsAdded.machineId));
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             await ReleaseRoleIfNecessaryAsync(context);
-
             return BoolResult.Success;
         }
 
@@ -157,14 +179,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     foreach (var page in contentHashes.AsIndexed().GetPages(_configuration.RedisBatchPageSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async redisDb =>
+                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             var redisBatch = redisDb.CreateBatch(RedisOperation.GetBulkGlobal);
 
                             foreach (var indexedHash in page)
                             {
                                 var key = GetRedisKey(indexedHash.Item);
-                                redisBatch.AddOperation(key, async batch =>
+                                redisBatch.AddOperationAndTraceIfFailure(context, key, async batch =>
                                 {
                                     var redisEntry = await batch.StringGetAsync(key);
                                     ContentLocationEntry entry;
@@ -181,18 +203,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     if (originalEntry != null)
                                     {
                                         // Existing entry was there. Merge the entries.
-                                        entry = MergeEntries(entry, originalEntry);
+                                        entry = ContentLocationEntry.MergeEntries(entry, originalEntry);
                                         results[indexedHash.Index] = entry;
                                         Interlocked.Increment(ref dualResultCount);
                                     }
 
                                     return Unit.Void;
-                                }).FireAndForget(context);
+                                });
                             }
 
-                            return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
+                            // TODO ST: now this operation may fail with TaskCancelledException. But this should be traced differently!
+                            return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
 
-                        });
+                        }, _configuration.RetryWindow);
 
                         if (!batchResult)
                         {
@@ -200,7 +223,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    if (_redis.HasSecondary)
+                    if (_raidedRedis.HasSecondary)
                     {
                         Counters[GlobalStoreCounters.GetBulkEntrySingleResult].Add(contentHashes.Count - dualResultCount);
                     }
@@ -211,31 +234,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 traceErrorsOnly: true);
         }
 
-        private ContentLocationEntry MergeEntries(ContentLocationEntry entry, ContentLocationEntry originalEntry)
-        {
-            if (entry.IsMissing)
-            {
-                return originalEntry;
-            }
-
-            if (originalEntry.IsMissing)
-            {
-                return entry;
-            }
-
-            return entry.SetMachineExistence(originalEntry.Locations, exists: true); ;
-        }
-
         /// <inheritdoc />
-        public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes)
+        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes)
         {
-            return RegisterLocationAsync(context, contentHashes, LocalMachineId);
-        }
-
-        /// <inheritdoc />
-        internal Task<BoolResult> RegisterLocationByIdAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, int id)
-        {
-            return RegisterLocationAsync(context, contentHashes, new MachineId(id));
+            return RegisterLocationAsync(context, contentHashes, machineId);
         }
 
         private Task<BoolResult> RegisterLocationAsync(
@@ -253,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     foreach (var page in contentHashes.GetPages(hashBatchSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async redisDb =>
+                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             Counters[GlobalStoreCounters.RegisterLocalLocationHashCount].Add(page.Count);
 
@@ -272,7 +274,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     var hash = indexedHash.value;
                                     var key = GetRedisKey(hash.Hash);
-                                    redisBatch.AddOperation(key, async batch =>
+                                    redisBatch.AddOperationAndTraceIfFailure(context, key, async batch =>
                                     {
                                         bool set = await batch.StringSetAsync(key, ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(hash.Size, machineId), _configuration.LocationEntryExpiry, When.NotExists);
                                         if (!set)
@@ -282,10 +284,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         }
 
                                         return set;
-                                    }).FireAndForget(context);
+                                    }, operationName: "ConvertSizeAndMachineIdToRedisValue");
                                 }
 
-                                var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
+                                var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
                                 if (!result || requiresSetBitCount == 0)
                                 {
                                     return result;
@@ -307,12 +309,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 foreach (var hash in page.Where((h, index) => requiresSetBit?[index] ?? true))
                                 {
                                     var key = GetRedisKey(hash.Hash);
-                                    updateRedisBatch.AddOperation(key, batch => SetLocationBitAndExpireAsync(context, batch, key, hash, machineId)).FireAndForget(context);
+                                    updateRedisBatch.AddOperationAndTraceIfFailure(
+                                        context,
+                                        key,
+                                        batch => SetLocationBitAndExpireAsync(context, batch, key, hash, machineId),
+                                        operationName: "SetLocationBitAndExpireAsync");
                                 }
 
-                                return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, context.Token);
+                                return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, token);
                             }
-                        });
+                        }, _configuration.RetryWindow);
 
                         if (!batchResult)
                         {
@@ -324,7 +330,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 Counters[GlobalStoreCounters.RegisterLocalLocation],
                 caller: caller,
-                traceOperationStarted: false);
+                traceErrorsOnly: true);
         }
 
         private async Task<Unit> SetLocationBitAndExpireAsync(OperationContext context, IBatch batch, RedisKey key, ContentHashWithSize hash, MachineId machineId)
@@ -397,9 +403,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return configuredRole.Value;
                         }
 
-                        var localMachineName = LocalMachineLocation.ToString();
+                        var localMachineName = _configuration.PrimaryMachineLocation.ToString();
 
-                        var masterAcquisitonResult = await _masterLeaseKey.UseReplicatedHashAsync(context, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
+                        var masterAcquisitonResult = await _masterLeaseKey.UseReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
                                 masterRoleRegistryKey: key,
                                 machineName: localMachineName,
                                 currentTime: _clock.UtcNow,
@@ -431,47 +437,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
                 },
-                Counters[GlobalStoreCounters.UpdateRole]).FireAndForgetAndReturnTask(context);
+                Counters[GlobalStoreCounters.UpdateRole]);
         }
 
         #endregion Role Management
 
         /// <inheritdoc />
-        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState)
+        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, MachineState machineState = MachineState.Open)
         {
             return context.PerformOperationAsync(
                 Tracer,
-                () => UpdateLocalClusterStateAsync(context, clusterState),
+                () => UpdateClusterStateCoreAsync(context, clusterState, machineState),
                 Counters[GlobalStoreCounters.UpdateClusterState]);
         }
 
-        private async Task<BoolResult> UpdateLocalClusterStateAsync(OperationContext context, ClusterState clusterState)
+        private async Task<BoolResult> UpdateClusterStateCoreAsync(OperationContext context, ClusterState clusterState, MachineState machineState)
         {
-            (var heartbeatResult, var getUnknownMachinesResult) = await _clusterStateKey.UseReplicatedHashAsync(context, RedisOperation.UpdateClusterState, async (batch, key) =>
+            (var inactiveMachineIdSet, var closedMachineIdSet, var getUnknownMachinesResult) = await _clusterStateKey.UseReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
             {
-                var heartbeatResultTask = CallHeartbeatAsync(context, batch, key, MachineState.Active);
+                var heartbeatResultTask = CallHeartbeatAsync(context, clusterState, batch, key, machineState);
+
                 var getUnknownMachinesTask = batch.GetUnknownMachinesAsync(
                     key,
                     clusterState.MaxMachineId);
-
 
                 await Task.WhenAll(heartbeatResultTask, getUnknownMachinesTask);
 
                 var heartbeatResult = await heartbeatResultTask;
                 var getUnknownMachinesResult = await getUnknownMachinesTask;
 
-                return (heartbeatResult, getUnknownMachinesResult);
+                return (heartbeatResult.inactiveMachineIdSet, heartbeatResult.closedMachineIdSet, getUnknownMachinesResult);
             }).ThrowIfFailureAsync();
-
-            if (getUnknownMachinesResult.maxMachineId < LocalMachineId.Index)
-            {
-                return new BoolResult($"Invalid redis cluster state on machine {LocalMachineId} (redis max machine id={getUnknownMachinesResult.maxMachineId})");
-            }
-
-            if (heartbeatResult.priorState == MachineState.Unavailable || heartbeatResult.priorState == MachineState.Expired)
-            {
-                clusterState.LastInactiveTime = _clock.UtcNow;
-            }
+            Contract.Assert(inactiveMachineIdSet != null, "inactiveMachineIdSet != null");
+            Contract.Assert(closedMachineIdSet != null, "closedMachineIdSet != null");
 
             if (getUnknownMachinesResult.maxMachineId != clusterState.MaxMachineId)
             {
@@ -483,28 +481,67 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             clusterState.AddUnknownMachines(getUnknownMachinesResult.maxMachineId, getUnknownMachinesResult.unknownMachines);
-            clusterState.SetInactiveMachines(heartbeatResult.inactiveMachineIdSet);
-            Tracer.Debug(context, $"Inactive machines: Count={heartbeatResult.inactiveMachineIdSet.Count}, [{string.Join(", ", heartbeatResult.inactiveMachineIdSet)}]");
-            Tracer.TrackMetric(context, "InactiveMachineCount", heartbeatResult.inactiveMachineIdSet.Count);
+            clusterState.SetMachineStates(inactiveMachineIdSet, closedMachineIdSet).ThrowIfFailure();
+
+            Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
+            Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
+
+            foreach (var machineMapping in clusterState.LocalMachineMappings)
+            {
+                if (!clusterState.TryResolveMachineId(machineMapping.Location, out var machineId))
+                {
+                    return new BoolResult($"Invalid redis cluster state on machine {machineMapping}. (Missing location {machineMapping.Location})");
+                }
+                else if (machineId != machineMapping.Id)
+                {
+                    Tracer.Warning(context, $"Machine id mismatch for location {machineMapping.Location}. Registered id: {machineMapping.Id}. Cluster state id: {machineId}. Updating registered id with cluster state id.");
+                    machineMapping.Id = machineId;
+                }
+
+                if (getUnknownMachinesResult.maxMachineId < machineMapping.Id.Index)
+                {
+                    return new BoolResult($"Invalid redis cluster state on machine {machineMapping} (redis max machine id={getUnknownMachinesResult.maxMachineId})");
+                }
+            }
+
             return BoolResult.Success;
         }
 
-        private async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet)> CallHeartbeatAsync(OperationContext context, RedisBatch batch, string key, MachineState state)
+        private async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet)> CallHeartbeatAsync(
+            OperationContext context,
+            ClusterState clusterState,
+            RedisBatch batch,
+            string key,
+            MachineState state)
         {
-            var heartbeatResult = await batch.HeartbeatAsync(
-                key,
-                LocalMachineId.Index,
-                state,
-                _clock.UtcNow,
-                _configuration.RecomputeInactiveMachinesExpiry,
-                _configuration.MachineExpiry);
-
-            if (heartbeatResult.priorState != state)
+            var heartbeatResults = await Task.WhenAll(clusterState.LocalMachineMappings.Select(async machineMapping =>
             {
-                Tracer.Debug(context, $"Machine state changed from {heartbeatResult.priorState} to {state}");
-            }
+                (MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet) = await batch.HeartbeatAsync(
+                    key,
+                    machineMapping.Id.Index,
+                    state,
+                    _clock.UtcNow,
+                    _configuration.MachineStateRecomputeInterval,
+                    _configuration.MachineActiveToClosedInterval,
+                    _configuration.MachineActiveToExpiredInterval);
 
-            return heartbeatResult;
+                if (priorState != state)
+                {
+                    Tracer.Debug(context, $"Machine {machineMapping} state changed from {priorState} to {state}");
+                }
+
+                if (priorState == MachineState.DeadUnavailable || priorState == MachineState.DeadExpired)
+                {
+                    clusterState.LastInactiveTime = _clock.UtcNow;
+                }
+
+                return (priorState, inactiveMachineIdSet, closedMachineIdSet);
+            }).ToList());
+
+            return heartbeatResults.Any()
+                ? heartbeatResults.First()
+                : (priorState: MachineState.Unknown, inactiveMachineIdSet: BitMachineIdSet.EmptyInstance,
+                    closedMachineIdSet: BitMachineIdSet.EmptyInstance);
         }
 
         /// <inheritdoc />
@@ -516,6 +553,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var (checkpoints, startCursor) = await _checkpointsKey.UseReplicatedHashAsync(
                         context,
+                        _configuration.RetryWindow,
                         RedisOperation.GetCheckpoint,
                         (batch, key) => batch.GetCheckpointsInfoAsync(key, _clock.UtcNow))
                     .ThrowIfFailureAsync();
@@ -540,7 +578,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     Tracer.Debug(context, $"Getting checkpoint state: Found checkpoint '{maxCheckpoint}'");
 
-                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime));
+                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
                 },
                 Counters[GlobalStoreCounters.GetCheckpointState]);
         }
@@ -553,13 +591,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     Contract.Assert(sequencePoint.SequenceNumber != null);
 
-                    var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, LocalMachineLocation.ToString());
+                    var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, _configuration.PrimaryMachineLocation.ToString());
                     Tracer.Debug(context, $"Saving checkpoint '{checkpoint}' into the central store.");
 
                     var slotNumber = await _checkpointsKey.UseReplicatedHashAsync(
                         context,
+                        _configuration.RetryWindow,
                         RedisOperation.UploadCheckpoint,
-                        (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount)).ThrowIfFailureAsync();
+                        (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount))
+                        .ThrowIfFailureAsync();
 
                     Tracer.Debug(context, $"Saved checkpoint into slot '{slotNumber}'.");
                     return BoolResult.Success;
@@ -568,34 +608,65 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context)
+        public async Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state)
         {
+            var counter = state switch
+            {
+                MachineState.Unknown => GlobalStoreCounters.SetMachineStateUnknown,
+                MachineState.Open => GlobalStoreCounters.SetMachineStateOpen,
+                MachineState.DeadUnavailable => GlobalStoreCounters.SetMachineStateDeadUnavailable,
+                MachineState.Closed => GlobalStoreCounters.SetMachineStateClosed,
+                _ => throw new NotImplementedException($"Unexpected machine state transition to state: {state}"),
+            };
+
             return await context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
-                    return _clusterStateKey.UseReplicatedHashAsync(
+                    var result = await _clusterStateKey.UseReplicatedHashAsync(
                         context,
-                        RedisOperation.InvalidateLocalMachine,
-                        (batch, key) => CallHeartbeatAsync(context, batch, key, MachineState.Unavailable));
+                        _configuration.RetryWindow,
+                        RedisOperation.SetLocalMachineState,
+                        (batch, key) => CallHeartbeatAsync(context, ClusterState, batch, key, state)).ThrowIfFailureAsync();
 
-                }, Counters[GlobalStoreCounters.InvalidateLocalMachine]);
+                    return new Result<MachineState>(result.priorState);
+                },
+                counter: Counters[counter],
+                extraEndMessage: r => r.Succeeded ? $"OldState=[{r.Value}] NewState=[{state}]" : $"NewState=[{state}]");
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return await _blobAdapter.PutBlobAsync(context, hash, blob);
+            return context.PerformOperationAsync(
+                Tracer,
+                () => GetBlobAdapter(hash).PutBlobAsync(context, hash, blob),
+                traceOperationStarted: false,
+                counter: Counters[GlobalStoreCounters.PutBlob]);
         }
 
         /// <inheritdoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
-            return _blobAdapter.GetBlobAsync(context, hash);
+            return context.PerformOperationAsync(
+                Tracer,
+                () => TaskUtilities.WithTimeoutAsync(_ => GetBlobAdapter(hash).GetBlobAsync(context, hash), _configuration.GetBlobTimeout, context.Token),
+                traceOperationStarted: false,
+                counter: Counters[GlobalStoreCounters.GetBlob]);
         }
+
+        internal RedisBlobAdapter GetBlobAdapter(ContentHash hash)
+        {
+            if (!_raidedRedis.HasSecondary)
+            {
+                return _primaryBlobAdapter;
+            }
+
+            return hash[0] >= 128 ? _primaryBlobAdapter : _secondaryBlobAdapter;
+        } 
     }
 }

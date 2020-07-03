@@ -37,7 +37,7 @@ bool ResourceManager::init(ResourceCounters *counters)
 
     counters_ = counters;
 
-    procBarrier_ = IOLockAlloc();
+    procBarrier_ = BXLLockAlloc();
     if (procBarrier_ == nullptr)
     {
         return false;
@@ -50,8 +50,8 @@ void ResourceManager::free()
 {
     if (procBarrier_ != nullptr)
     {
-        IOLockWakeup(procBarrier_, this, /*oneThread*/ false);
-        IOLockFree(procBarrier_);
+        BXLLockWakeup(procBarrier_, this, /*oneThread*/ false);
+        BXLLockFree(procBarrier_);
         procBarrier_ = nullptr;
     }
 
@@ -126,14 +126,14 @@ void ResourceManager::WaitForCpu()
     
     if (shouldThrottleProcesses())
     {
-        IOLockLock(procBarrier_);
+        BXLLockLock(procBarrier_);
         while (shouldThrottleProcesses())
         {
             OSIncrementAtomic(&counters_->numBlockedProcesses);
-            IOLockSleep(procBarrier_, this, THREAD_INTERRUPTIBLE);
+            BXLLockSleep(procBarrier_, this, THREAD_INTERRUPTIBLE);
             OSDecrementAtomic(&counters_->numBlockedProcesses);
         }
-        IOLockUnlock(procBarrier_);
+        BXLLockUnlock(procBarrier_);
     }
 }
 
@@ -141,6 +141,6 @@ void ResourceManager::wakeupBlockedProcesses(bool justOne)
 {
     if (procBarrier_ != nullptr && counters_->numBlockedProcesses > 0 && !shouldThrottleProcesses())
     {
-        IOLockWakeup(procBarrier_, this, justOne);
+        BXLLockWakeup(procBarrier_, this, justOne);
     }
 }

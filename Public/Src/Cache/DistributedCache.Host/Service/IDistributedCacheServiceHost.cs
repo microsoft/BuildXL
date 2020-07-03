@@ -1,10 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -25,9 +25,14 @@ namespace BuildXL.Cache.Host.Service
         void OnTeardownCompleted();
 
         /// <summary>
-        /// Notifies the host when the service is sucessfully started
+        /// Notifies the host when the service is successfully started
         /// </summary>
         void OnStartedService();
+
+        /// <summary>
+        /// Request a graceful shutdown of a current service instance.
+        /// </summary>
+        void RequestTeardown(string reason);
 
         /// <summary>
         /// Gets a value from the hosting environment's secret store

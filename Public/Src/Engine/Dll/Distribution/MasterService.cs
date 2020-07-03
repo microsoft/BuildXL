@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -14,6 +14,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -136,11 +137,11 @@ namespace BuildXL.Engine.Distribution
         /// Handler for the 'work completion' notification from worker.
         /// </summary>
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
-        public async void ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
+        public async Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
         {
             var worker = GetWorkerById(notification.WorkerId);
 
-            if (notification.ExecutionLogData != null && notification.ExecutionLogData.Count != 0)
+            if (notification.ExecutionLogData.Count != 0)
             {
                 // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
                 await worker.LogExecutionBlobAsync(notification);
@@ -152,19 +153,57 @@ namespace BuildXL.Engine.Distribution
             foreach (var forwardedEvent in notification.ForwardedEvents)
             {
                 EventLevel eventLevel = (EventLevel)forwardedEvent.Level;
+
+                // For some errors, we need to exit the worker.
+                // Those errors should not make the master fail, 
+                // so we override the level with Warning.
+                if (await worker.NotifyInfrastructureErrorAsync(forwardedEvent))
+                {
+                    eventLevel = EventLevel.Warning;
+                }
+
                 switch (eventLevel)
                 {
                     case EventLevel.Error:
-                        Logger.Log.DistributionWorkerForwardedError(
-                            m_loggingContext,
-                            new WorkerForwardedEvent()
-                            {
-                                Text = forwardedEvent.Text,
-                                WorkerName = worker.Name,
-                                EventId = forwardedEvent.EventId,
-                                EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,
-                            });
+                        if (forwardedEvent.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
+                        {
+                            var pipProcessErrorEvent = new PipProcessErrorEventFields(
+                                forwardedEvent.PipProcessErrorEvent.PipSemiStableHash,
+                                forwardedEvent.PipProcessErrorEvent.PipDescription,
+                                forwardedEvent.PipProcessErrorEvent.PipSpecPath,
+                                forwardedEvent.PipProcessErrorEvent.PipWorkingDirectory,
+                                forwardedEvent.PipProcessErrorEvent.PipExe,
+                                forwardedEvent.PipProcessErrorEvent.OutputToLog,
+                                forwardedEvent.PipProcessErrorEvent.MessageAboutPathsToLog,
+                                forwardedEvent.PipProcessErrorEvent.PathsToLog,
+                                forwardedEvent.PipProcessErrorEvent.ExitCode,
+                                forwardedEvent.PipProcessErrorEvent.OptionalMessage,
+                                forwardedEvent.PipProcessErrorEvent.ShortPipDescription);
+                            Logger.Log.DistributionWorkerForwardedError(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.Name,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                    PipProcessErrorEvent = pipProcessErrorEvent,
+                                });
+                        } else
+                        {
+                            Logger.Log.DistributionWorkerForwardedError(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.Name,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                });
+                        }
+
                         m_loggingContext.SpecifyErrorWasLogged((ushort)forwardedEvent.EventId);
                         break;
                     case EventLevel.Warning:
@@ -176,7 +215,7 @@ namespace BuildXL.Engine.Distribution
                                 WorkerName = worker.Name,
                                 EventId = forwardedEvent.EventId,
                                 EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,
+                                EventKeywords = forwardedEvent.EventKeywords,                               
                             });
                         break;
                     default:

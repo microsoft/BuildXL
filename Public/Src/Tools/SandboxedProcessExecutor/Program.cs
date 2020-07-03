@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.ToolSupport;
@@ -20,10 +20,19 @@ namespace BuildXL.SandboxedProcessExecutor
             }
             catch (InvalidArgumentException e)
             {
-                Console.Error.WriteLine("Execution error: " + (e.InnerException ?? e).Message);
+                Console.Error.WriteLine("Execution error due to InvalidArgumentException: " + e);
+                return (int)ExitCode.InvalidArgument;
             }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch (Exception e)
+            {
+                // To convert all bxl crashes to build failures.
+                // Logs the exception text to help developers while debugging crashes.
+                Console.Error.WriteLine("Execution error: " + e);
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
 
-            return (int)ExitCode.InvalidArgument;
+            return (int)ExitCode.InternalError;
         }
 
         public override bool TryParse(string[] rawArgs, out Args arguments)

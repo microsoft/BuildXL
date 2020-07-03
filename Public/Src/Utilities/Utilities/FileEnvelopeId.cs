@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -55,14 +55,14 @@ namespace BuildXL.Utilities
         public void Serialize(BinaryWriter writer)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.Write(Value);
         }
 
         /// <nodoc />
         public static FileEnvelopeId Deserialize(BinaryReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             var value = reader.ReadString();
             if (!FileEnvelope.IsValidIdentifier(value))
             {
@@ -177,7 +177,7 @@ namespace BuildXL.Utilities
         /// <exception cref="BuildXLException">Thrown when the file header is incomplete, outdated, or corrupted.</exception>
         public FileEnvelopeId ReadHeader(Stream stream)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
             Contract.Requires(stream.Position == 0);
             Contract.Ensures(Contract.Result<FileEnvelopeId>().IsValid);
 
@@ -198,7 +198,7 @@ namespace BuildXL.Utilities
         /// <returns></returns>
         public Possible<FileEnvelopeId> TryReadHeader(Stream stream, bool ignoreChecksum)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
             Contract.Requires(stream.Position == 0);
 
             string firstError = null;
@@ -212,7 +212,7 @@ namespace BuildXL.Utilities
             }
 
             Possible<FileEnvelopeId> getErrorResult() => new Failure<string>(firstError);
-            Possible<FileEnvelopeId> error(string err) => new Failure<string>(err);
+            static Possible<FileEnvelopeId> error(string err) => new Failure<string>(err);
 
             try
             {
@@ -388,7 +388,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public void WriteHeader(Stream stream, FileEnvelopeId correlationId)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
             Contract.Requires(correlationId.IsValid);
 
             if (stream.Position != 0)
@@ -425,7 +425,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public void FixUpHeader(Stream stream, FileEnvelopeId correlationId)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
             Contract.Requires(correlationId.IsValid);
 
             var length = stream.Position;

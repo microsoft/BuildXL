@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -21,6 +21,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]
@@ -47,15 +48,16 @@ namespace Test.BuildXL.Scheduler
                 outputs2.TryGetOutputDirectory(sodPath2, out var sharedOpaqueDirectory2);
 
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
-                    env.Paths.CreateAbsolutePath(root), 
-                    new[] { sharedOpaqueDirectory1.Root, sharedOpaqueDirectory2.Root }, 
-                    description: null, 
-                    tags: new string[] { }, 
+                    env.Paths.CreateAbsolutePath(root),
+                    new[] { sharedOpaqueDirectory1.Root, sharedOpaqueDirectory2.Root },
+                    contentFilter: null,
+                    description: null,
+                    tags: new string[] { },
                     out var composedSharedOpaque);
 
                 XAssert.IsFalse(result);
 
-                AssertErrorEventLogged(EventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
             }
         }
 
@@ -82,12 +84,13 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root, sourceSealDirectory },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var composedSharedOpaque);
 
                 XAssert.IsFalse(result);
-                AssertErrorEventLogged(EventId.ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque);
             }
         }
 
@@ -110,6 +113,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var composedSharedOpaque);
@@ -120,6 +124,7 @@ namespace Test.BuildXL.Scheduler
                 result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { composedSharedOpaque },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var nestedComposedSharedOpaque);

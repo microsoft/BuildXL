@@ -1,19 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
-using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
-using BuildXL.Native.IO;
 
 namespace BuildXL.Scheduler
 {
@@ -57,6 +59,11 @@ namespace BuildXL.Scheduler
         /// Execution environment
         /// </summary>
         public IPipExecutionEnvironment Environment { get; }
+
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        public readonly int MaxRetryLimitForStoppedWorker;
 
         /// <summary>
         /// The underlying pip
@@ -177,6 +184,7 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
+            int maxRetryLimitForStoppedWorker,
             Pip pip = null)
         {
             Contract.Requires(phaseLoggingContext != null);
@@ -192,6 +200,7 @@ namespace BuildXL.Scheduler
             ScheduleTime = DateTime.UtcNow;
             Performance = new RunnablePipPerformanceInfo(ScheduleTime);
             m_pip = pip;
+            MaxRetryLimitForStoppedWorker = maxRetryLimitForStoppedWorker;
         }
 
         /// <summary>
@@ -276,6 +285,18 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipExecutionStep SetPipResult(in PipResult result)
         {
+            Performance.Suspended(ExecutionResult?.PerformanceInformation?.SuspendedDurationMs ?? 0);
+
+            if (result.Status == PipResultStatus.Canceled &&
+                !Environment.IsTerminating)
+            {
+                SetWorker(null);
+
+                Performance.Retried(ExecutionResult?.CancellationReason ?? CancellationReason.StoppedWorker);
+
+                return DecideNextStepForRetry();
+            }
+
             if (result.Status.IndicatesFailure())
             {
                 Contract.Assert(LoggingContext.ErrorWasLogged, "Error was not logged for pip marked as failure");
@@ -283,6 +304,25 @@ namespace BuildXL.Scheduler
 
             Result = result;
             return PipExecutionStep.HandleResult;
+        }
+
+        private PipExecutionStep DecideNextStepForRetry()
+        {
+            switch (Step)
+            {
+                case PipExecutionStep.CacheLookup:
+                    return PipExecutionStep.ChooseWorkerCacheLookup;
+                default:
+                    return PipExecutionStep.ChooseWorkerCpu;
+            }
+        }
+
+        /// <summary>
+        /// Returns if the failed pip should be retired on a different worker
+        /// </summary>
+        public bool ShouldRetryDueToStoppedWorker()
+        {
+            return MaxRetryLimitForStoppedWorker > Performance.RetryCountDueToStoppedWorker;
         }
 
         /// <summary>
@@ -347,7 +387,8 @@ namespace BuildXL.Scheduler
 
             m_dispatcherReleaser = dispatcherReleaser ?? m_dispatcherReleaser;
 
-            Performance.Dequeued();
+            bool hasWaitedForMaterializeOutputsInBackground = Step == PipExecutionStep.MaterializeOutputs && Environment.MaterializeOutputsInBackground;
+            Performance.Dequeued(hasWaitedForMaterializeOutputsInBackground);
             return m_executionFunc(this);
         }
 
@@ -371,7 +412,8 @@ namespace BuildXL.Scheduler
             DateTime startTime,
             TimeSpan duration)
         {
-            if (step.IncludeInRunningTime())
+            bool includeInRunningTime = step.IncludeInRunningTime(Environment);
+            if (includeInRunningTime)
             {
                 RunningTime += duration;
             }
@@ -385,6 +427,7 @@ namespace BuildXL.Scheduler
                 Duration = duration,
                 Dispatcher = DispatcherKind,
                 Step = step,
+                IncludeInRunningTime = includeInRunningTime
             });
         }
 
@@ -412,14 +455,15 @@ namespace BuildXL.Scheduler
             PipType type,
             int priority,
             Func<RunnablePip, Task> executionFunc,
-            ushort cpuUsageInPercent)
+            ushort cpuUsageInPercent,
+            int maxRetryLimit = 0)
         {
             switch (type)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, cpuUsageInPercent);
+                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, maxRetryLimit, cpuUsageInPercent);
                 default:
-                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment);
+                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment, maxRetryLimit);
             }
         }
 
@@ -431,14 +475,15 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             Pip pip,
             int priority,
-            Func<RunnablePip, Task> executionFunc)
+            Func<RunnablePip, Task> executionFunc,
+            int maxRetryLimitForStoppedWorker = 0)
         {
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip: pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip: pip);
                 default:
-                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, pip);
+                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip);
             }
         }
 
@@ -470,9 +515,10 @@ namespace BuildXL.Scheduler
                         ioCounters: performanceInformation.IO,
                         userTime: performanceInformation.UserTime,
                         kernelTime: performanceInformation.KernelTime,
-                        peakMemoryUsage: performanceInformation.PeakMemoryUsage,
+                        memoryCounters: performanceInformation.MemoryCounters,
                         numberOfProcesses: performanceInformation.NumberOfProcesses,
-                        workerId: performanceInformation.WorkerId);
+                        workerId: performanceInformation.WorkerId,
+                        suspendedDurationMs: performanceInformation.SuspendedDurationMs);
                 }
                 else
                 {
@@ -489,9 +535,10 @@ namespace BuildXL.Scheduler
                             ioCounters: default(IOCounters),
                             userTime: TimeSpan.Zero,
                             kernelTime: TimeSpan.Zero,
-                            peakMemoryUsage: 0,
+                            memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0, 0, 0),
                             numberOfProcesses: 0,
-                            workerId: 0);
+                            workerId: 0,
+                            suspendedDurationMs: 0);
                 }
             }
             else
@@ -504,6 +551,7 @@ namespace BuildXL.Scheduler
                 perf,
                 result.MustBeConsideredPerpetuallyDirty,
                 result.DynamicallyObservedFiles,
+                result.DynamicallyProbedFiles,
                 result.DynamicallyObservedEnumerations);
         }
 

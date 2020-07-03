@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,12 +8,13 @@ using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.FrontEnd.Core.Incrementality;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core.Incrementality;
-using BuildXL.FrontEnd.Sdk;
 using TypeScript.Net.Core;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;

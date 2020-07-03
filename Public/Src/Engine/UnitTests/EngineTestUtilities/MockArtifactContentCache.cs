@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -441,9 +441,9 @@ namespace Test.BuildXL.EngineTestUtilities
         }
 
         /// <inheritdoc />
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return Task.Run<Possible<Stream, Failure>>(
+            return Task.Run<Possible<StreamWithLength, Failure>>(
                 () =>
                 {
                     lock (m_lock)
@@ -459,7 +459,7 @@ namespace Test.BuildXL.EngineTestUtilities
                             string localPath = GetLocalPath(contentHash);
                             Contract.Assert(File.Exists(localPath));
 
-                            return new FileStream(localPath, FileMode.Open, FileAccess.Read);
+                            return (new FileStream(localPath, FileMode.Open, FileAccess.Read)).HasLength();
                         }
                         else
                         {

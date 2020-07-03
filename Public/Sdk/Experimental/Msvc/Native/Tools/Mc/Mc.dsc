@@ -290,7 +290,8 @@ export function evaluate(args: Arguments) : Map<PathAtom, McOutput> {
                 dependencies: [],
                 workingDirectory: Context.getSpecFileDirectory(),
                 arguments: cmdArgs,
-                implicitOutputs: [header, resourceCompilerScript, ...languageBinaryResources]
+                implicitOutputs: [header, resourceCompilerScript, ...languageBinaryResources],
+                tags: ["codegen"]
             });
 
             let mcOutput = createMcOutput(workContext, transformerResult);

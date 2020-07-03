@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -23,6 +23,7 @@ using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.FrontEnd.Workspaces;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -274,7 +275,6 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var controller = new FrontEndHostController(
                 factory, 
-                new DScriptWorkspaceResolverFactory(), 
                 new EvaluationScheduler(degreeOfParallelism: 8),
                 moduleRegistry,
                 new FrontEndStatistics(),
@@ -305,8 +305,12 @@ namespace Test.BuildXL.FrontEnd.Core
             return controller;
         }
 
-        private class DummyFrontEnd1 : global::BuildXL.FrontEnd.Sdk.IFrontEnd
+        private class DummyFrontEnd1 : IFrontEnd
         {
+            public string Name { get; } = "DummyFrontEnd1";
+
+            public bool ShouldRestrictBuildParameters { get; } = false;
+
             public IReadOnlyCollection<string> SupportedResolvers => new[] { "UnitTest1" };
 
             public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration frontEndConfiguration)
@@ -315,6 +319,12 @@ namespace Test.BuildXL.FrontEnd.Core
             }
 
             public IResolver CreateResolver(string kind)
+            {
+                throw new NotImplementedException();
+            }
+
+            /// <inheritdoc/>
+            public bool TryCreateWorkspaceResolver(IResolverSettings resolverSettings, out IWorkspaceModuleResolver workspaceResolver)
             {
                 throw new NotImplementedException();
             }

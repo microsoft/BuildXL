@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -22,7 +22,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     public sealed class DScriptExprEvaluator : IExpressionEvaluator
     {
         // The logger is reused across invocations, so it needs to be cleared out before parsing/evaluation occurs
-        private readonly Logger m_logger = Logger.CreateLogger(preserveLogEvents: true, forwardDiagnosticsTo: null, notifyContextWhenErrorsAreLogged: false);
+        private readonly Logger m_logger = Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
         private static readonly ConfigurationImpl s_configuration = new ConfigurationImpl();
 

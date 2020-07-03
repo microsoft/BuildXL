@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace BuildXL.Cache.Compositing
     /// </summary>
     internal sealed class CompositingCache : ICache
     {
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
 
         private readonly bool m_strictMetadataCasCoupling;
 
@@ -32,7 +32,7 @@ namespace BuildXL.Cache.Compositing
             new EventSource("CompositingCacheEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
 #endif
 
-        internal CompositingCache(ICache metadatCache, ICache casCache, string cacheId, bool strictMetadataCasCoupling)
+        internal CompositingCache(ICache metadatCache, ICache casCache, CacheId cacheId, bool strictMetadataCasCoupling)
         {
             m_metadataCache = metadatCache;
             m_casCache = casCache;
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Compositing
 
         #region ICache interface methods
 
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         public Guid CacheGuid => m_metadataCache.CacheGuid;
 
@@ -142,7 +142,7 @@ namespace BuildXL.Cache.Compositing
             {
                 if (casPossible.Succeeded)
                 {
-                    return CacheId;
+                    return CacheId.ToString();
                 }
 
                 return casPossible.Failure;

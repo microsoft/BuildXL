@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Utils;
+using FluentAssertions;
 using Xunit;
 
 namespace ContentStoreTest.Utils
@@ -102,11 +104,13 @@ namespace ContentStoreTest.Utils
         [Fact]
         public void ItemsInEagerBlocksAreProcessedEagerly()
         {
+            int dataLength = 0;
             var processBatchWasCalled = false;
             var processBatchEvent = new ManualResetEvent(false);
             using (var queue = NagleQueue<int>.Create(
                 processBatch: data =>
                               {
+                                  dataLength = data.Length;
                                   processBatchWasCalled = true;
                                   processBatchEvent.Set();
                                   return Task.FromResult(42);
@@ -119,6 +123,7 @@ namespace ContentStoreTest.Utils
                 queue.Enqueue(42);
                 processBatchEvent.WaitOne(5000);
                 Assert.True(processBatchWasCalled, "processBatch should be called eagerly.");
+                Assert.Equal(1, dataLength);
             }
         }
 
@@ -191,6 +196,41 @@ namespace ContentStoreTest.Utils
             }
 
             Assert.Equal(2, batchSize);
+        }
+
+        [Fact]
+        public void TestExceptionHandling()
+        {
+            int callbackCount = 0;
+            var queue = NagleQueue<int>.CreateUnstarted(
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(10),
+                batchSize: 2);
+            queue.Start(
+                processBatch: async data =>
+                              {
+                                  callbackCount++;
+                                  await Task.Yield();
+                                  var e = new InvalidOperationException(string.Join(", ", data.Select(n => n.ToString())));
+                                  throw e;
+                              });
+            queue.Enqueue(1);
+            queue.Enqueue(2);
+            queue.Enqueue(3);
+
+            // And if callback fails, the queue itself moves to a faulted state.
+            // This will manifest itself in an error during Dispose invocation.
+            // This is actually quite problematic, because Dispose method can be called
+            // from the finally block (explicitly, or implicitly via using block)
+            // and in this case the original exception that caused the finally block invocation
+            // will be masked by the exception from Dispose method.
+            // Work item: 1741215
+
+            // Dispose method propagates the error thrown in the callback.
+            Assert.Throws<InvalidOperationException>(() => queue.Dispose());
+
+            // Once callback fails, it won't be called any more
+            callbackCount.Should().Be(1);
         }
     }
 }

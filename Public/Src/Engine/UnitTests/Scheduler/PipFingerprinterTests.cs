@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,22 +13,21 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -275,6 +274,47 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreNotEqual(baselineFingerprint, fingerprintWithPipDataDependency);
         }
 
+        [Fact]
+        public void TestSourceChangeAffectedContentsFingerprinting()
+        {
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+            var changeAffectedInputListWrittenFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/changeAffectedInputList.txt")));
+            var changeAffectedDll = AbsolutePath.Create(pathTable, X("/x/pkgs/changeAffected.dll"));
+
+            var baselineProcess = GetDefaultProcessBuilder(pathTable, executable).Build();
+            var processWithChangeAffectedInputListWrittenFile = GetDefaultProcessBuilder(pathTable, executable).WithChangeAffectedInputListWrittenFile(changeAffectedInputListWrittenFile).Build();
+
+            var sourceChangeAffectedInputsLookup = new PipFingerprinter.SourceChangeAffectedInputsLookup(process =>
+            {
+                if (process.ChangeAffectedInputListWrittenFile.IsValid)
+                {
+                    return ReadOnlyArray<AbsolutePath>.From(new AbsolutePath[] { changeAffectedDll });
+                }
+
+                return ReadOnlyArray<AbsolutePath>.Empty;
+            });
+
+            // TODO: Maybe test that version is included in the fingerprint.
+            var fingerprinter = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetContentHashLookup(executable),
+                ExtraFingerprintSalts.Default(),
+                sourceChangeAffectedInputsLookup: sourceChangeAffectedInputsLookup)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            string fingerprintText;
+            var baselineFingerprint = fingerprinter.ComputeWeakFingerprint(baselineProcess, out fingerprintText);
+            XAssert.IsFalse(fingerprintText.ToUpper().Contains(changeAffectedDll.ToString(m_context.PathTable).ToUpper()));
+
+            var fingerprintChangeAffectedInputList = fingerprinter.ComputeWeakFingerprint(processWithChangeAffectedInputListWrittenFile, out fingerprintText);
+            XAssert.IsTrue(fingerprintText.ToUpper().Contains(changeAffectedDll.ToString(m_context.PathTable).ToUpper()));
+
+            XAssert.AreNotEqual(baselineFingerprint, fingerprintChangeAffectedInputList);
+        }
+
         private (string, string) CreateProcessAndFingerprintsWithPathArg(string pathArg, bool pathAsStringLIteral)
         {
             var pathTable = new PathTable();
@@ -405,7 +445,7 @@ namespace Test.BuildXL.Scheduler
         [InlineData(false, false, 1, 1, true)] // not untracked in any way + same content hashes => same fingerprint
         [InlineData(false, false, 1, 2, false)] // not untracked in any way + different content hashes => different fingerprints
         [InlineData(true, false, 1, 2, true)] // untracked path + different content hashes => same fingerprint
-        [InlineData(false, true, 1, 2, true)] // untracked scope + different content hashes => same fingerprint
+        [InlineData(false, true, 1, 2, false)] // untracked scope + different content hashes => different fingerprint
         [InlineData(true, true, 1, 2, true)] // untracked as path and as scope + different content hashes => same fingerprint
         public void TestContentHashesOfUntrackedPathsStayOutOfWeakFingerprint(bool untrackPath, bool untrackScope, int contentHash1, int contentHash2, bool expectedEqualityOutcome)
         {
@@ -612,12 +652,12 @@ namespace Test.BuildXL.Scheduler
             config.TreatWarningsAsErrors = true;
             XAssert.IsTrue(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
 
-            config.WarningsNotAsErrors.Add((int)EventId.PipProcessWarning);
+            config.WarningsNotAsErrors.Add((int)ProcessesLogEventId.PipProcessWarning);
             XAssert.IsFalse(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
 
             config.WarningsNotAsErrors.Clear();
             config.TreatWarningsAsErrors = false;
-            config.WarningsAsErrors.Add((int)EventId.PipProcessWarning);
+            config.WarningsAsErrors.Add((int)ProcessesLogEventId.PipProcessWarning);
             XAssert.IsTrue(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
         }
 
@@ -768,6 +808,8 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            FileArtifact changeAffectedInputListWrittenFile = source.Vary(p => p.ChangeAffectedInputListWrittenFile);
+
             bool hasUntrackedChildProcesses = source.Vary(p => p.HasUntrackedChildProcesses);
             bool producesPathIndepenentOutputs = source.Vary(p => p.ProducesPathIndependentOutputs);
             bool outputsMustBeWritable = source.Vary(p => p.OutputsMustRemainWritable);
@@ -777,7 +819,9 @@ namespace Test.BuildXL.Scheduler
             DoubleWritePolicy doubleWritePolicy = source.Vary(p => p.DoubleWritePolicy);
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
-            var preserveOutputWhitelist = source.Vary(p => p.PreserveOutputWhitelist);
+            var preserveOutputAllowlist = source.Vary(p => p.PreserveOutputAllowlist);
+            bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
+            bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -811,9 +855,19 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            if (trustStaticallyDeclaredAccesses)
+            {
+                options |= Process.Options.TrustStaticallyDeclaredAccesses;
+            }
+
             if (requiresAdmin)
             {
                 options |= Process.Options.RequiresAdmin;
+            }
+
+            if (preservePathSetCasing)
+            {
+                options |= Process.Options.PreservePathSetCasing;
             }
 
             return new Process(
@@ -851,7 +905,9 @@ namespace Test.BuildXL.Scheduler
                 options: options,
                 doubleWritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
-                preserveOutputWhitelist: preserveOutputWhitelist);
+                preserveOutputAllowlist: preserveOutputAllowlist,
+                changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)));
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)
@@ -913,29 +969,36 @@ namespace Test.BuildXL.Scheduler
 
             var kind = source.Vary(sd => sd.Kind);
             var contents = source.Vary(sd => sd.Contents);
+            var directoryContents = source.Vary(sd => sd.OutputDirectoryContents);
             var patterns = source.Vary(sd => sd.Patterns);
             var composedDirectories = source.Vary(sd => sd.ComposedDirectories);
             var isComposite = source.Vary(sd => sd.IsComposite);
             var scrub = source.Vary(sd => sd.Scrub);
+            var contentFilter = source.Vary(sd => sd.ContentFilter);
 
             // If the resulting combination will create an invalid seal directory, create a random valid combination.
             if (kind == SealDirectoryKind.Full || kind == SealDirectoryKind.Partial)
             {
-                if (isComposite || composedDirectories.Count > 0 || patterns.Any())
+                if (isComposite || composedDirectories.Count > 0 || patterns.Any() || contentFilter != null)
+                {
+                    return null;
+                }
+
+                if (kind == SealDirectoryKind.Partial && directoryContents.Any())
                 {
                     return null;
                 }
             }
             else if (kind == SealDirectoryKind.Opaque)
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any() || contentFilter != null)
                 {
                     return null;
                 }
             }
             else if (kind.IsSourceSeal())
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || directoryContents.Any() || contentFilter != null)
                 {
                     return null;
                 }
@@ -944,14 +1007,14 @@ namespace Test.BuildXL.Scheduler
             {
                 if (isComposite)
                 {
-                    if (contents.Any() || patterns.Any())
+                    if (contents.Any() || patterns.Any() || directoryContents.Any())
                     {
                         return null;
                     }
                 }
                 else
                 {
-                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any())
+                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any() || contentFilter != null)
                     {
                         return null;
                     }
@@ -964,12 +1027,14 @@ namespace Test.BuildXL.Scheduler
                     root,
                     composedDirectories,
                     PipProvenance.CreateDummy(m_context),
-                    ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)));
+                    ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)),
+                    contentFilter);
             }
 
             var sealDirectory = new SealDirectory(
                 root,
                 contents,
+                directoryContents,
                 kind,
                 PipProvenance.CreateDummy(m_context),
                 ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)),
@@ -1023,7 +1088,7 @@ namespace Test.BuildXL.Scheduler
                    {
                        new FingerprintingTypeDescriptor<bool>(false, true),
                        new FingerprintingTypeDescriptor<int>(0, -1, 1, 11, 2, 3),
-                       new FingerprintingTypeDescriptor<string>(string.Empty, "A", "1", "Abc", "ABC", "Def", "ABC with suffix"),
+                       new FingerprintingTypeDescriptor<string>(null, string.Empty, "A", "1", "Abc", "ABC", "Def", "ABC with suffix"),
                        new FingerprintingTypeDescriptor<TimeSpan?>(null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)),
                        new FingerprintingTypeDescriptor<StringId>(
                            StringId.Create(stringTable, "A"),
@@ -1110,6 +1175,11 @@ namespace Test.BuildXL.Scheduler
                            ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, 
                            ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories, 
                            ContainerIsolationLevel.IsolateOutputFiles),
+
+                       new FingerprintingTypeDescriptor<SealDirectoryContentFilter?>(
+                           null,
+                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Include, ".*"),
+                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Exclude, ".*"))
                    };
         }
 
@@ -1571,6 +1641,22 @@ namespace Test.BuildXL.Scheduler
                             .Cast<ReadOnlyArray<FileArtifact>>()
                             .Select(arr => SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>
                             .CloneAndSort(arr, OrdinalFileArtifactComparer.Instance)),
+                        ec.ContentHashOverlays,
+                        ec.FingerprintOverlays)));
+            }
+
+            if (type == typeof(SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>))
+            {
+                return new FingerprintingTypeDescriptor<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>(
+                    baseVal: SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.FromSortedArrayUnsafe(
+                        ReadOnlyArray<DirectoryArtifact>.Empty,
+                        OrdinalDirectoryArtifactComparer.Instance),
+                    generateClasses: role => GenerateArrayVariants<DirectoryArtifact>(descriptors, role)
+                    .Select(ec => new EquivalenceClass<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>(
+                        ec.Values
+                            .Cast<ReadOnlyArray<DirectoryArtifact>>()
+                            .Select(arr => SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>
+                            .CloneAndSort(arr, OrdinalDirectoryArtifactComparer.Instance)),
                         ec.ContentHashOverlays,
                         ec.FingerprintOverlays)));
             }

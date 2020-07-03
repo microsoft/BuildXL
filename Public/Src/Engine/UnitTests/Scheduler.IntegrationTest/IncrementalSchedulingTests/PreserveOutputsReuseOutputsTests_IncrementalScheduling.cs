@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
-    [Trait("Category", "PreserveOutputsTests")]
+    [Trait("Category", "PreserveOutputsReuseIncSchedTests")]
     [Feature(Features.IncrementalScheduling)]
     [TestClassIfSupported(requiresJournalScan: true)]
     public class PreserveOutputsReuseOutputsTests_IncrementalScheduling : PreserveOutputsReuseOutputsTests

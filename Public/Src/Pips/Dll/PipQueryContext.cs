@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Pips
 {
@@ -75,6 +75,7 @@ namespace BuildXL.Pips
         PipViewerRequest,
         ViewerAnalyzer,
         LoggingUncacheableProcessImpact,
+        HandlePipStepOnWorker,
         LoggingPipFailedOnWorker,
         Test,
         PipQueueGetCpuQueueProcessResources,
@@ -90,7 +91,9 @@ namespace BuildXL.Pips
         Explorer,
         PreserveOutput,
         CacheMaterializationError,
+        VisualStudioDebugView,
         End,
+        PathSetAugmentation,
 #pragma warning restore 1591
     }
 }

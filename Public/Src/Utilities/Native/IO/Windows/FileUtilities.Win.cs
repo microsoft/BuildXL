@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -31,20 +31,27 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// A concrete native FileSystem implementation based on Windows APIs
         /// </summary>
-        private static readonly FileSystemWin s_fileSystem = new FileSystemWin();
+        private readonly FileSystemWin m_fileSystem;
 
         private static readonly SecurityIdentifier s_worldSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
 
         /// <inheritdoc />
         public PosixDeleteMode PosixDeleteMode { get; set; }
 
+        private readonly LoggingContext m_loggingContext;
+
         /// <summary>
         /// Creates a concrete FileUtilities instance
         /// </summary>
-        public FileUtilitiesWin()
+        public FileUtilitiesWin(LoggingContext loggingContext)
         {
+            m_fileSystem = new Windows.FileSystemWin(loggingContext);
+            m_loggingContext = loggingContext;
             PosixDeleteMode = PosixDeleteMode.RunLast;
         }
+
+        /// <inheritdoc />
+        internal IFileSystem FileSystem => m_fileSystem;
 
         /// <summary>
         /// Canonicalizes path by calling GetFullPathNameW.
@@ -52,11 +59,11 @@ namespace BuildXL.Native.IO.Windows
         /// <remarks>
         /// Marked internal rather than private for testing purposes
         /// </remarks>
-        public static string NormalizeDirectoryPath(string path)
+        public string NormalizeDirectoryPath(string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 
-            string fullPath = s_fileSystem.GetFullPath(path, out int hr);
+            string fullPath = m_fileSystem.GetFullPath(path, out int hr);
 
             if (fullPath == null)
             {
@@ -84,7 +91,7 @@ namespace BuildXL.Native.IO.Windows
                 {
                     string path = FileSystemWin.LocalDevicePrefix + driveLetter + ":";
                     SafeFileHandle handle;
-                    var handleResult = s_fileSystem.TryCreateOrOpenFile(
+                    var handleResult = m_fileSystem.TryCreateOrOpenFile(
                         path,
                         FileDesiredAccess.None,
                         FileShare.Read,
@@ -98,7 +105,7 @@ namespace BuildXL.Native.IO.Windows
                         {
                             bool hasSeekPenalty;
                             int error;
-                            if (s_fileSystem.TryReadSeekPenaltyProperty(handle, out hasSeekPenalty, out error))
+                            if (m_fileSystem.TryReadSeekPenaltyProperty(handle, out hasSeekPenalty, out error))
                             {
                                 result = hasSeekPenalty;
                             }
@@ -118,7 +125,7 @@ namespace BuildXL.Native.IO.Windows
             ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default)
         {
-            var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: true);
+            var maybeExistence = m_fileSystem.TryProbePathExistence(path, followSymlink: true);
 
             if (!maybeExistence.Succeeded || maybeExistence.Result != PathExistence.ExistsAsDirectory)
             {
@@ -169,14 +176,16 @@ namespace BuildXL.Native.IO.Windows
 
                 // Enumerate the directory, deleting contents along the way
                 // The enumeration operation itself is not recursive, but there is a recursive call to DeleteDirectoryAndContentsInternal
-                EnumerateDirectoryResult result = s_fileSystem.EnumerateDirectoryEntries(
+                EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
                     directoryPath,
-                    (name, attr) =>
+                    (name, attr, isActionableReparsePoint) =>
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
 
                         string childPath = Path.Combine(directoryPath, name);
-                        if ((attr & FileAttributes.Directory) != 0)
+
+                        // Only descend if the entry is a directory and not an actionable reparse point
+                        if ((attr & FileAttributes.Directory) != 0 && !isActionableReparsePoint)
                         {
                             int subDirectoryEntryCount = DeleteDirectoryAndContentsInternal(
                                 childPath,
@@ -248,7 +257,7 @@ namespace BuildXL.Native.IO.Windows
                             int actualRemainingChildCount = 0;
 
                             // Poll the root directory (we don't want to delete it): We want to guarantee there are no lingering (pending-delete) children before returning (see above).
-                            result = s_fileSystem.EnumerateDirectoryEntries(
+                            result = m_fileSystem.EnumerateDirectoryEntries(
                                 directoryPath,
                                 (name, attr) => { actualRemainingChildCount++; });
 
@@ -285,7 +294,7 @@ namespace BuildXL.Native.IO.Windows
                 if (!success)
                 {
                     // Send a signal to eventcount telemetry
-                    Logger.Log.FileUtilitiesDirectoryDeleteFailed(Events.StaticContext, directoryPath);
+                    Logger.Log.FileUtilitiesDirectoryDeleteFailed(m_loggingContext, directoryPath);
 
                     // We failed to delete the directory after everything. Enumerate the contents of the directory
                     // for sake of debugging.
@@ -326,12 +335,12 @@ namespace BuildXL.Native.IO.Windows
 
             // Attempt 3: Windows delete, this may leave the directory in a pending delete state that causes Access Denied errors,
             // so it is attempted last
-            s_fileSystem.RemoveDirectory(directoryPath);
+            m_fileSystem.RemoveDirectory(directoryPath);
 
-            // Attempt 4: If directory still exists, then try run POSIX delete if enabled. 
+            // Attempt 4: If directory still exists, then try run POSIX delete if enabled.
             var possiblyPathExistence = FileUtilities.TryProbePathExistence(directoryPath, false);
 
-            if (possiblyPathExistence.Succeeded 
+            if (possiblyPathExistence.Succeeded
                 && possiblyPathExistence.Result == PathExistence.ExistsAsDirectory
                 && PosixDeleteMode == PosixDeleteMode.RunLast)
             {
@@ -373,7 +382,7 @@ namespace BuildXL.Native.IO.Windows
                             if (logFailures)
                             {
                                 Logger.Log.FileUtilitiesDiagnostic(
-                                    Events.StaticContext,
+                                    m_loggingContext,
                                     directoryPath,
                                     "Directory deletion failed after taking ownership of file with native error code: " +
                                     secondaryDeleteException.NativeErrorCode);
@@ -386,7 +395,7 @@ namespace BuildXL.Native.IO.Windows
                         {
                             var reason = GetACL(directoryPath) ?? "Failed to get directory ACL from ICACLS";
                             Logger.Log.FileUtilitiesDiagnostic(
-                                Events.StaticContext,
+                                m_loggingContext,
                                 directoryPath,
                                 I($"Failed to take ownership of the directory. Directory ACL: {reason}"));
                         }
@@ -410,7 +419,7 @@ namespace BuildXL.Native.IO.Windows
             using (var builderPool = Pools.GetStringBuilder())
             {
                 StringBuilder builder = builderPool.Instance;
-                s_fileSystem.EnumerateDirectoryEntries(
+                m_fileSystem.EnumerateDirectoryEntries(
                     directoryPath,
                     true,
                     (directoryName, filePath, attributes) =>
@@ -435,16 +444,16 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
+        public Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
                 DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
-                return Unit.Void;
+                return path;
             }
             catch (BuildXLException ex)
             {
-                return new RecoverableExceptionFailure(ex);
+                return new DeletionFailure(path, ex);
             }
         }
 
@@ -452,7 +461,7 @@ namespace BuildXL.Native.IO.Windows
         public bool Exists(string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
-            var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: true);
+            var maybeExistence = m_fileSystem.TryProbePathExistence(path, followSymlink: true);
             return maybeExistence.Succeeded && maybeExistence.Result != PathExistence.Nonexistent;
         }
 
@@ -534,7 +543,6 @@ namespace BuildXL.Native.IO.Windows
         private bool DeleteFileInternal(string path, ITempCleaner tempDirectoryCleaner, out OpenFileResult deleteResult)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
-            LoggingContext context = Events.StaticContext;
 
             if (PosixDeleteMode == PosixDeleteMode.RunFirst && RunPosixDelete(path, out deleteResult))
             {
@@ -562,7 +570,7 @@ namespace BuildXL.Native.IO.Windows
             {
                 // Before attempting new method, log failure of previous attempt
                 Logger.Log.FileUtilitiesDiagnostic(
-                    context,
+                    m_loggingContext,
                     path,
                     I($"Open for deletion failed with native error code: {deleteResult.NativeErrorCode}. Attempting to remove readonly attribute."));
                 ExceptionUtilities.HandleRecoverableIOException(
@@ -588,7 +596,7 @@ namespace BuildXL.Native.IO.Windows
                             else if (ex.NativeErrorCode == NativeIOConstants.ErrorAccessDenied)
                             {
                                 Logger.Log.FileUtilitiesDiagnostic(
-                                    context,
+                                    m_loggingContext,
                                     path,
                                     "Readonly attribute could not be set due to AccessDenied. Attempting to set WriteAttributes ACL for file.");
 
@@ -598,9 +606,9 @@ namespace BuildXL.Native.IO.Windows
                                 // are still denied access to writing the attributes
                                 if (TrySetWriteAttributesPermission(path, AccessControlType.Allow))
                                 {
-                                    Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully set WriteAttributes ACL. Trying to remove readonly attribute again");
+                                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully set WriteAttributes ACL. Trying to remove readonly attribute again");
                                     RemoveReadonlyFlag(path);
-                                    Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully set readonly attribute. Resetting WriteAttributes ACL to deny.");
+                                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully set readonly attribute. Resetting WriteAttributes ACL to deny.");
                                     TrySetWriteAttributesPermission(path, AccessControlType.Deny);
                                 }
 
@@ -618,7 +626,7 @@ namespace BuildXL.Native.IO.Windows
                 deleteResult = TryOpenForDeletion(path);
                 if (deleteResult.Succeeded || IsNonExistentResult(deleteResult))
                 {
-                    Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully deleted file after resetting readonly attribute");
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully deleted file after resetting readonly attribute");
                     return true;
                 }
             }
@@ -628,13 +636,13 @@ namespace BuildXL.Native.IO.Windows
             {
                 // Before attempting new method, log failure of previous attempt
                 Logger.Log.FileUtilitiesDiagnostic(
-                    context,
+                    m_loggingContext,
                     path,
                     I($"File deletion failed after removing readonly flag with native error code: {deleteResult.NativeErrorCode}. Attempting to delete file via MoveReplacement."));
 
                 if (TryDeleteViaMoveReplacement(path))
                 {
-                    Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully deleted file via MoveReplacement");
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully deleted file via MoveReplacement");
                     return true;
                 }
             }
@@ -643,14 +651,14 @@ namespace BuildXL.Native.IO.Windows
             if (deleteResult.Status == OpenFileStatus.AccessDenied)
             {
                 // Before attempting new method, log failure of previous attempt
-                Logger.Log.FileUtilitiesDiagnostic(context, path, "Failed to delete via MoveReplacement. Attempting to take ownership of file.");
+                Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Failed to delete via MoveReplacement. Attempting to take ownership of file.");
                 if (TryTakeOwnershipAndSetAcl(path))
                 {
-                    Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully took ownership of file. Attempting delete again.");
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully took ownership of file. Attempting delete again.");
                     deleteResult = TryOpenForDeletion(path);
                     if (deleteResult.Succeeded)
                     {
-                        Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully deleted file.");
+                        Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully deleted file.");
                         return true;
                     }
                 }
@@ -666,12 +674,12 @@ namespace BuildXL.Native.IO.Windows
                 if (!string.IsNullOrWhiteSpace(deletionTempDirectory) && !path.Contains(deletionTempDirectory))
                 {
                     Logger.Log.FileUtilitiesDiagnostic(
-                        context,
+                        m_loggingContext,
                         path,
                         $"File deletion failed after taking ownership of file with native error code: {deleteResult.NativeErrorCode}. Attempting move-delete.");
                     if (TryMoveDelete(path, deletionTempDirectory))
                     {
-                        Logger.Log.FileUtilitiesDiagnostic(context, path, "Successfully move-deleted file.");
+                        Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully move-deleted file.");
                         return true;
                     }
                 }
@@ -690,7 +698,7 @@ namespace BuildXL.Native.IO.Windows
                 // 3. We successfully deleted the file at some point, but the OS put the delete action on a background thread until now. Windows can succesfully
                 // mark a file for deletion but wait until all handles to a file are closed before deleting a file.
                 Logger.Log.FileUtilitiesDiagnostic(
-                    Events.StaticContext,
+                    m_loggingContext,
                     path,
                     "The file does not exist. Something may have successfully deleted file in the background.");
                 return true;
@@ -698,7 +706,7 @@ namespace BuildXL.Native.IO.Windows
 
             // File deletion could fail because a handle is open to the file.
             // Note: All delete attempts fail in non-RS3 Windows versions on all hardlinks to the same file if a single one is open without FileShare Delete mode
-            Logger.Log.FileUtilitiesDiagnostic(context, path, "Exhausted all backup methods of deleting file. Deletion may be reattempted in outer retry loop.");
+            Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Exhausted all backup methods of deleting file. Deletion may be reattempted in outer retry loop.");
             return false;
         }
 
@@ -707,10 +715,10 @@ namespace BuildXL.Native.IO.Windows
             if (PosixDeleteMode == PosixDeleteMode.RunLast)
             {
                 // We run as fallback.
-                Logger.Log.FileUtilitiesDiagnostic(Events.StaticContext, path, "Run POSIX delete as a fallback.");
+                Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Run POSIX delete as a fallback.");
             }
 
-            if (s_fileSystem.TryPosixDelete(path, out deleteResult))
+            if (m_fileSystem.TryPosixDelete(path, out deleteResult))
             {
                 return true;
             }
@@ -724,19 +732,19 @@ namespace BuildXL.Native.IO.Windows
             return false;
         }
 
-        private static void RemoveReadonlyFlag(string path)
+        private void RemoveReadonlyFlag(string path)
         {
-            FileAttributes fileAttr = s_fileSystem.GetFileAttributes(path);
+            FileAttributes fileAttr = m_fileSystem.GetFileAttributes(path);
             if ((fileAttr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
             {
-                s_fileSystem.SetFileAttributes(
+                m_fileSystem.SetFileAttributes(
                     path,
                     ((fileAttr & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint) ?
                     FileAttributes.Normal | FileAttributes.ReparsePoint : FileAttributes.Normal);
             }
         }
 
-        private static bool TrySetWriteAttributesPermission(string path, AccessControlType control)
+        private bool TrySetWriteAttributesPermission(string path, AccessControlType control)
         {
             try
             {
@@ -771,14 +779,14 @@ namespace BuildXL.Native.IO.Windows
             }
             catch (Exception ex)
             {
-                Logger.Log.FileUtilitiesDiagnostic(Events.StaticContext, path, "Failed to set WriteAttributes permission: " + ex.GetLogEventMessage());
+                Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Failed to set WriteAttributes permission: " + ex.GetLogEventMessage());
                 return false;
             }
 
             return true;
         }
 
-        private static bool TryTakeOwnershipAndSetAcl(string path)
+        private bool TryTakeOwnershipAndSetAcl(string path)
         {
             if (path.StartsWith(FileSystemWin.LongPathPrefix, StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith(FileSystemWin.LocalDevicePrefix, StringComparison.OrdinalIgnoreCase) ||
@@ -787,18 +795,19 @@ namespace BuildXL.Native.IO.Windows
                 path = path.Substring(4, path.Length - 4);
             }
 
-            Logger.Log.SettingOwnershipAndAcl(Events.StaticContext, path);
+            Logger.Log.SettingOwnershipAndAcl(m_loggingContext, path);
 
             // It is possible that TakeOwn fails, but ICACLS will still succeed, so do not return false on failure
             StartProcess("takeown", I($"/F \"{path}\""));
 
+#if !NET_STANDARD_20
             string userSid = WindowsIdentity.GetCurrent().User?.Value;
             if (userSid != null)
             {
                 // SID must be prefixed with '*' char
                 return StartProcess("icacls", I($"\"{path}\" /grant *{userSid}:(F)"));
             }
-
+#endif
             // could not get user's SID -> fall back to using username
             return StartProcess("icacls", I($"\"{path}\" /grant {Environment.UserName}:(F)"));
 
@@ -819,7 +828,7 @@ namespace BuildXL.Native.IO.Windows
                 if (process.ExitCode != 0)
                 {
                     Logger.Log.SettingOwnershipAndAclFailed(
-                        Events.StaticContext,
+                        m_loggingContext,
                         path,
                         process.StartInfo.FileName,
                         process.StartInfo.Arguments,
@@ -869,7 +878,7 @@ namespace BuildXL.Native.IO.Windows
             SafeFileHandle srcHandle;
 
             // Requires delete access on path that will be target of TryRename
-            OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                 path,
                 FileDesiredAccess.Delete,
                 FileShare.ReadWrite | FileShare.Delete,
@@ -882,16 +891,16 @@ namespace BuildXL.Native.IO.Windows
                 if (!openResult.Succeeded)
                 {
                     Logger.Log.FileUtilitiesDiagnostic(
-                        Events.StaticContext,
+                        m_loggingContext,
                         path,
                         I($"Opening file for file move failed with native error code: {openResult.NativeErrorCode}"));
                     return false;
                 }
 
-                if (!s_fileSystem.TryRename(srcHandle, destination, replaceExisting: true))
+                if (!m_fileSystem.TryRename(srcHandle, destination, replaceExisting: true))
                 {
                     Logger.Log.FileUtilitiesDiagnostic(
-                        Events.StaticContext,
+                        m_loggingContext,
                         path,
                         I($"File moved failed with native error code: {Marshal.GetLastWin32Error()}"));
                     return false;
@@ -901,7 +910,7 @@ namespace BuildXL.Native.IO.Windows
             // Ensure move completed successfully
             if (Exists(path) || !Exists(destination))
             {
-                Logger.Log.FileUtilitiesDiagnostic(Events.StaticContext, path, "File move failed, but no native error occurred.");
+                Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "File move failed, but no native error occurred.");
                 return false;
             }
 
@@ -923,12 +932,12 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
             SafeFileHandle handle;
-            OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                 path,
                 FileDesiredAccess.FileWriteAttributes,
                 FileShare.ReadWrite | FileShare.Delete,
                 FileMode.Open,
-                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                 out handle);
 
             using (handle)
@@ -938,7 +947,7 @@ namespace BuildXL.Native.IO.Windows
                     throw new BuildXLException("Failed to open a file to set its timestamps.", openResult.CreateExceptionForError());
                 }
 
-                s_fileSystem.SetFileTimestampsByHandle(
+                m_fileSystem.SetFileTimestampsByHandle(
                     handle,
                     timestamps.CreationTime,
                     timestamps.AccessTime,
@@ -955,12 +964,12 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
             SafeFileHandle handle;
-            OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                 path,
                 FileDesiredAccess.FileReadAttributes,
                 FileShare.Read | FileShare.Delete,
                 FileMode.Open,
-                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                 out handle);
 
             using (handle)
@@ -970,7 +979,7 @@ namespace BuildXL.Native.IO.Windows
                     throw new BuildXLException("Failed to open a file to get its timestamps.", openResult.CreateExceptionForError());
                 }
 
-                s_fileSystem.GetFileTimestampsByHandle(
+                m_fileSystem.GetFileTimestampsByHandle(
                     handle,
                     out var creationTime,
                     out var accessTime,
@@ -991,7 +1000,7 @@ namespace BuildXL.Native.IO.Windows
         /// <remarks>
         /// Supports paths greater than MAX_PATH.
         /// </remarks>
-        private static OpenFileResult TryOpenForDeletion(string path)
+        private OpenFileResult TryOpenForDeletion(string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 
@@ -1000,7 +1009,7 @@ namespace BuildXL.Native.IO.Windows
             // which fails in those cases. Note that this function does NOT work for unlinking running executable
             // images. See TryDeleteViaMoveReplacement.
             SafeFileHandle handle;
-            OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                 path,
                 FileDesiredAccess.Delete,
                 FileShare.Read | FileShare.Write | FileShare.Delete,
@@ -1046,7 +1055,7 @@ namespace BuildXL.Native.IO.Windows
                     if (predicate != null)
                     {
                         SafeFileHandle destinationHandle;
-                        OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                        OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                             filePath,
                             FileDesiredAccess.GenericRead,
                             FileShare.Read | FileShare.Delete,
@@ -1110,7 +1119,7 @@ namespace BuildXL.Native.IO.Windows
                         if (predicate != null)
                         {
                             SafeFileHandle destinationHandle;
-                            OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                            OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                                 destination,
                                 FileDesiredAccess.GenericRead,
                                 FileShare.Read | FileShare.Delete,
@@ -1142,11 +1151,11 @@ namespace BuildXL.Native.IO.Windows
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -1154,13 +1163,16 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
-                () => ExceptionUtilities.HandleRecoverableIOException(
-                    () =>
-                    {
-                        return s_fileSystem.MoveFile(source, destination, replaceExisting);
-                    },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+            return Task.Run(() => {
+                try
+                {
+                    m_fileSystem.MoveFile(source, destination, replaceExisting);
+                }
+                catch (NativeWin32Exception ex)
+                {
+                    throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex);
+                }
+            });
         }
 
         /// <inheritdoc />
@@ -1203,7 +1215,7 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
             Contract.EnsuresOnThrow<BuildXLException>(true);
 
-            return s_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
+            return m_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
         }
 
         /// <inheritdoc />
@@ -1215,7 +1227,7 @@ namespace BuildXL.Native.IO.Windows
             FileFlagsAndAttributes flagsAndAttributes,
             Func<SafeFileHandle, long, TResult> handleStream)
         {
-            var openResult = s_fileSystem.TryCreateOrOpenFile(
+            var openResult = m_fileSystem.TryCreateOrOpenFile(
                        path,
                        desiredAccess,
                        shareMode,
@@ -1282,7 +1294,7 @@ namespace BuildXL.Native.IO.Windows
         /// Experimentally, this is the most foolproof way to delete a link to a file when that file is mapped for execution
         /// in some process. It also works in most other cases, except when the file has a *writable* mapped section.
         /// </remarks>
-        private static bool TryDeleteViaMoveReplacement(string destinationPath)
+        private bool TryDeleteViaMoveReplacement(string destinationPath)
         {
             const int MaxTemporaryFileCreationAttempts = 20;
 
@@ -1296,7 +1308,7 @@ namespace BuildXL.Native.IO.Windows
             {
                 string temporaryPath = I($"{dirPath}\\~DT-{unchecked((ushort) rng.Next()):X4}");
 
-                OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+                OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                     temporaryPath,
                     FileDesiredAccess.Delete,
                     FileShare.Delete,
@@ -1329,11 +1341,11 @@ namespace BuildXL.Native.IO.Windows
                     return false;
                 }
 
-                bool success = s_fileSystem.TryRename(temporaryHandle, destinationPath, replaceExisting: true);
+                bool success = m_fileSystem.TryRename(temporaryHandle, destinationPath, replaceExisting: true);
                 if (!success)
                 {
                     Logger.Log.FileUtilitiesDiagnostic(
-                        Events.StaticContext,
+                        m_loggingContext,
                         destinationPath,
                         I($"Renaming file failed with native error code: {Marshal.GetLastWin32Error()}"));
                 }
@@ -1347,7 +1359,7 @@ namespace BuildXL.Native.IO.Windows
         {
             try
             {
-                return s_fileSystem.GetFileName(path);
+                return m_fileSystem.GetFileName(path);
             }
             catch (NativeWin32Exception exception)
             {
@@ -1389,10 +1401,10 @@ namespace BuildXL.Native.IO.Windows
                     bool localLowExists = FileUtilities.DirectoryExistsNoFollow(expectedLocation);
 
                     throw new BuildXLException(
-                        I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}' (Known GUID for LocalLow). Path '{expectedLocation}' exists: '{localLowExists}'. HResult='{(hr == E_INVALIDARG ? "E_INVALIDARG" : (hr == E_FAIL ? "E_FAIL" : hr.ToString()))}'"), 
+                        I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}' (Known GUID for LocalLow). Path '{expectedLocation}' exists: '{localLowExists}'. HResult='{(hr == E_INVALIDARG ? "E_INVALIDARG" : (hr == E_FAIL ? "E_FAIL" : hr.ToString()))}'"),
                         new NativeWin32Exception(hr));
                 }
-                
+
                 throw new BuildXLException(I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}'"), new NativeWin32Exception(hr));
             }
 
@@ -1421,7 +1433,7 @@ namespace BuildXL.Native.IO.Windows
 #endif
             var settingsFolder = Path.Combine(homeFolder, ToPascalCase(appName));
 
-            s_fileSystem.CreateDirectory(settingsFolder);
+            m_fileSystem.CreateDirectory(settingsFolder);
             return settingsFolder;
         }
 
@@ -1485,7 +1497,7 @@ namespace BuildXL.Native.IO.Windows
         public uint GetHardLinkCount(string path)
         {
             SafeFileHandle handle;
-            OpenFileResult openResult = s_fileSystem.TryCreateOrOpenFile(
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
                 path,
                 FileDesiredAccess.GenericRead,
                 FileShare.Read | FileShare.Delete,
@@ -1499,7 +1511,7 @@ namespace BuildXL.Native.IO.Windows
                     throw new BuildXLException("Failed to open a file to get its hard link count.", openResult.CreateExceptionForError());
                 }
 
-                return s_fileSystem.GetHardLinkCountByHandle(handle);
+                return m_fileSystem.GetHardLinkCountByHandle(handle);
             }
         }
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading;
@@ -23,7 +23,7 @@ namespace ContentStoreTest.Synchronization
         {
             using (var sempahore = new SemaphoreSlim(1, 1))
             {
-                using (await sempahore.WaitToken())
+                using (await sempahore.WaitTokenAsync())
                 {
                 }
             }
@@ -34,7 +34,7 @@ namespace ContentStoreTest.Synchronization
         {
             using (var sempahore = new SemaphoreSlim(2, 2))
             {
-                using (SemaphoreSlimToken waitToken = await sempahore.WaitToken())
+                using (SemaphoreSlimToken waitToken = await sempahore.WaitTokenAsync())
                 {
                     Action a = () => waitToken.GetHashCode().Should().BePositive();
                     a.Should().Throw<InvalidOperationException>();
@@ -47,8 +47,8 @@ namespace ContentStoreTest.Synchronization
         {
             using (var sempahore = new SemaphoreSlim(2, 2))
             {
-                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitToken(),
-                    waitToken2 = await sempahore.WaitToken())
+                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitTokenAsync(),
+                    waitToken2 = await sempahore.WaitTokenAsync())
                 {
                     Action a = () => (waitToken1 == waitToken2).Should().BeTrue();
                     a.Should().Throw<InvalidOperationException>();
@@ -61,8 +61,8 @@ namespace ContentStoreTest.Synchronization
         {
             using (var sempahore = new SemaphoreSlim(2, 2))
             {
-                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitToken(),
-                    waitToken2 = await sempahore.WaitToken())
+                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitTokenAsync(),
+                    waitToken2 = await sempahore.WaitTokenAsync())
                 {
                     Action a = () => waitToken1.Equals(waitToken2).Should().BeTrue();
                     a.Should().Throw<InvalidOperationException>();
@@ -75,8 +75,8 @@ namespace ContentStoreTest.Synchronization
         {
             using (var sempahore = new SemaphoreSlim(2, 2))
             {
-                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitToken(),
-                    waitToken2 = await sempahore.WaitToken())
+                using (SemaphoreSlimToken waitToken1 = await sempahore.WaitTokenAsync(),
+                    waitToken2 = await sempahore.WaitTokenAsync())
                 {
                     Action a = () => (waitToken1 != waitToken2).Should().BeTrue();
                     a.Should().Throw<InvalidOperationException>();

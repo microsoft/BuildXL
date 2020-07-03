@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
@@ -184,6 +185,17 @@ namespace BuildXL.Execution.Analyzer
                 writer.WriteLine(Print(entry));
             }
 
+            writer.WriteLine("Unsafe options:");
+            writer.WriteLine();
+            writer.WriteLine(JsonFingerprinter.CreateJsonString(fp => info.StrongFingerprintComputation.UnsafeOptions.ComputeFingerprint(fp), Newtonsoft.Json.Formatting.Indented));
+
+            writer.WriteLine("Observed access file names:");
+            writer.WriteLine();
+            foreach (var entry in info.StrongFingerprintComputation.ObservedAccessedFileNames)
+            {
+                writer.WriteLine(entry.ToString(m_model.PathTable.StringTable));
+            }
+
             writer.WriteLine();
             writer.WriteLine("Observed Inputs:");
             writer.WriteLine();
@@ -245,7 +257,7 @@ namespace BuildXL.Execution.Analyzer
 
         private string Print(ObservedPathEntry arg)
         {
-            return I($"{Print(arg.Path)} (Flags = {PrintFlags(arg)})");
+            return I($"{Print(arg.Path)} (Flags = {PrintFlags(arg)}, Raw flags = {{ {arg.Flags.ToString()} }}, Enumerate pattern regex = {arg.EnumeratePatternRegex})");
         }
 
         private string Print(AbsolutePath path)

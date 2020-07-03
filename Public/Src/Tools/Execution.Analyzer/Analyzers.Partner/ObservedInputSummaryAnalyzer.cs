@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -71,6 +71,7 @@ namespace BuildXL.Execution.Analyzer
             int directoryEnumerationCount = 0;
             int fileContentReadCount = 0;
             int existingDirectoryCount = 0;
+            int existingFileProbe = 0;
 
             Dictionary<AbsolutePath, int> paths = new Dictionary<AbsolutePath, int>();
             Dictionary<PathAtom, int> files = new Dictionary<PathAtom, int>();
@@ -110,7 +111,11 @@ namespace BuildXL.Execution.Analyzer
                                     case ObservedInputType.ExistingDirectoryProbe:
                                         existingDirectoryCount++;
                                         break;
+                                    case ObservedInputType.ExistingFileProbe:
+                                        existingFileProbe++;
+                                        break;
                                     default:
+                                        Console.WriteLine(file.Type);
                                         throw new NotImplementedException();
                                 }
                             }
@@ -120,7 +125,8 @@ namespace BuildXL.Execution.Analyzer
                     writer.WriteLine("AbsentPathProbe count: " + absentPathCount);
                     writer.WriteLine("DirectoryEnumeration count: " + directoryEnumerationCount);
                     writer.WriteLine("FileContentRead count: " + fileContentReadCount);
-                    writer.WriteLine("existingDirectory count: " + existingDirectoryCount);
+                    writer.WriteLine("ExistingDirectory count: " + existingDirectoryCount);
+                    writer.WriteLine("ExistingFileProbe count: " + existingFileProbe);
                     writer.WriteLine();
                     writer.WriteLine();
                     writer.WriteLine("Paths:");

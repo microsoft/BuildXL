@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
+import * as Xml from "Sdk.Xml";
 
 namespace Engine {
 
@@ -22,7 +23,8 @@ namespace Engine {
         },
     ];
 
-    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.0.0/module.config.bm`;
+    // Update the value of this variable if you change the version of Microsoft.Net.Compilers in config.dsc.
+    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.5.0/module.config.bm`;
 
     @@public
     export const categoriesToRunInParallel = [
@@ -35,14 +37,14 @@ namespace Engine {
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
         assemblyName: "Test.BuildXL.Engine",
         rootNamespace: "Test.BuildXL.EngineTests",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
             parallelGroups: categoriesToRunInParallel,
             testRunData: {
                 MicrosoftNetCompilersSdkLocation: microsoftNetCompilerSpec,
@@ -60,7 +62,10 @@ namespace Engine {
         references: [
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
+            importFrom("BuildXL.Cache.ContentStore").VfsTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").VfsLibrary.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Cache.dll,
@@ -73,6 +78,7 @@ namespace Engine {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
@@ -80,7 +86,6 @@ namespace Engine {
         ],
         runtimeContent: [
             ...libsUsedForTesting,
-            importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
         ],
     });
 }

@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Interop
 {
     /// <summary>
     /// Constants for names of various native libraries.
     /// </summary>
-    internal static class Libraries
+    public static class Libraries
     {
         /// <summary>
         /// BuildXL interop library for macOS
@@ -16,7 +16,7 @@ namespace BuildXL.Interop
         /// <summary>
         /// Standard C Library
         /// </summary>
-        public const string LibC = "libC";
+        public const string LibC = "libc";
 
         /// <summary>
         /// Windows Kernel32

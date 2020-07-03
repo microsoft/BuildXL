@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -14,6 +14,8 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -71,18 +73,29 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Modify untracked input file /dir/nestedFile
             File.WriteAllText(ArtifactToString(nestedFile), "nestedFile");
 
-            RunScheduler().AssertCacheHit(pip.PipId);
+            var runSchedulerResult = RunScheduler();
 
-            // Delete untracked input file /dir/nestedFile
-            File.Delete(ArtifactToString(nestedFile));
-
-            RunScheduler().AssertCacheHit(pip.PipId);
+            if (!declareDependency || !inputUnderUntrackedScope)
+            {
+                runSchedulerResult.AssertCacheHit(pip.PipId);
+            }
+            else
+            {
+                runSchedulerResult.AssertCacheMiss(pip.PipId);
+            }
 
             ResetPipGraphBuilder();
 
             // Validate cache miss if the process removes untracked path declarations
             pip = CreateAndSchedulePipBuilder(ops).Process;
-            RunScheduler().AssertCacheMiss(pip.PipId);
+            runSchedulerResult = RunScheduler().AssertCacheHitWithoutAssertingSuccess();
+
+            if (!declareDependency)
+            {
+                runSchedulerResult.AssertPipResultStatus((pip.PipId, PipResultStatus.Failed));
+                AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
+            }
         }
 
         [Feature(Features.DirectoryEnumeration)]
@@ -181,7 +194,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             DirectoryArtifact undefinedDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(SourceRootPrefix, TemporaryDirectory));
 
             ValidateCachingBehaviorUntrackedMount(undefinedFile, undefinedDir, undefinedMount: true);
-            AssertWarningEventLogged(EventId.IgnoringUntrackedSourceFileNotUnderMount, 7);
+            AssertWarningEventLogged(SchedulerLogEventId.IgnoringUntrackedSourceFileNotUnderMount, 7);
         }
 
         public void ValidateCachingBehaviorUntrackedMount(FileArtifact file, DirectoryArtifact dir, bool undefinedMount)
@@ -342,14 +355,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 RunScheduler().AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             }
         }
 
         [Feature(Features.Mount)]
         [Fact]
-        public void FailWhenCreatingDirectoryReadOnlyMount()
+        public void SucceedWhenCreatingDirectoryInsideReadWriteMount()
         {
             // Process creates directory in read/write mount ObjectRoot
             DirectoryArtifact dirReadWriteMount = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("rw-dir", ObjectRoot));
@@ -359,21 +372,24 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
             RunScheduler().AssertSuccess();
+        }
 
-            ResetPipGraphBuilder();
-
+        [Feature(Features.Mount)]
+        [Fact]
+        public void FailWhenCreatingDirectoryReadOnlyMount()
+        {
             // Process creates directory in read only mount ReadonlyRoot is disallowed when policies are 
             // enforced on directory creation (/EnforceAccessPoliciesOnDirectoryCreation+)
             Configuration.Sandbox.EnforceAccessPoliciesOnDirectoryCreation = true;
             DirectoryArtifact dirReadonlyMount = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("r-dir", ReadonlyRoot));
-            pip = CreateAndSchedulePipBuilder(new Operation[]
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.CreateDir(dirReadonlyMount),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
     }
 }

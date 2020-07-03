@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,8 +9,8 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Execution.Analyzer.Model;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -58,7 +58,14 @@ namespace BuildXL.Execution.Analyzer
 
         protected virtual bool ReadEvents()
         {
-            return Input.ReadExecutionLog(this);
+            try
+            {
+                return Input.ReadExecutionLog(this);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("Cannot read execution log; the version of the log has possibly changed.", e);
+            }
         }
 
         #region Utility Methods

@@ -1,11 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
@@ -23,14 +25,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public ErrorRegexTests(ITestOutputHelper output) : base(output)
         {
             m_loggedPipFailures = new List<string>();
-            EventListener.NestedLoggerHandler += eventData =>
-            {
-                if (eventData.EventId == (int)LogEventId.PipProcessError)
-                {
-                    var loggedMessage = eventData.Payload.ToArray()[5].ToString();
-                    m_loggedPipFailures.Add(loggedMessage);
-                }
-            };
+            ShouldCreateLogDir = true;
         }
 
         public static IEnumerable<object[]> Test1Data()
@@ -82,6 +77,15 @@ err3" };
         [MemberData(nameof(Test1Data))]
         public void Test1(bool useStdErr, string text, string errRegex, bool enableMultiLineScanning, string expectedPrintedError)
         {
+            EventListener.NestedLoggerHandler += eventData =>
+            {
+                if (eventData.EventId == (int)LogEventId.PipProcessError)
+                {
+                    var loggedMessage = eventData.Payload.ToArray()[5].ToString();
+                    m_loggedPipFailures.Add(loggedMessage);
+                }
+            };
+
             var ops = SplitLines(text)
                 .Select(l => Operation.Echo(l, useStdErr))
                 .Concat(new[]
@@ -89,7 +93,7 @@ err3" };
                     Operation.WriteFile(CreateOutputFileArtifact()),
                     Operation.Fail()
                 });
-            var pipBuilder = CreatePipBuilder(ops);
+            var pipBuilder = CreatePipBuilder(ops);            
             pipBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(Context.StringTable, errRegex), RegexOptions.None);
             pipBuilder.EnableMultiLineErrorScanning = enableMultiLineScanning;
 
@@ -100,6 +104,99 @@ err3" };
             XAssert.ArrayEqual(
                 SplitLines(expectedPrintedError), 
                 m_loggedPipFailures.SelectMany(SplitLines).ToArray());
+        }
+
+        [Theory]
+        [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputAlways)]
+        [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputOnError)]
+        [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputOnWarningOrError)]
+        [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)]
+        public void StdFileCopyTest(global::BuildXL.Utilities.Configuration.OutputReportingMode outputReportingMode)
+        {
+            EventListener.NestedLoggerHandler += eventData =>
+            {
+                if (eventData.EventId == (int)LogEventId.PipProcessError)
+                {
+                    var loggedMessage = eventData.Payload.ToArray()[5].ToString();
+                    var extraLoggedMessage = eventData.Payload.ToArray()[6].ToString();
+                    m_loggedPipFailures.Add(loggedMessage);
+                    m_loggedPipFailures.Add(extraLoggedMessage);
+                }
+            };
+
+            Configuration.Sandbox.OutputReportingMode = outputReportingMode;
+            var text = @"
+* BEFORE *
+* <error> *
+* err1 *
+* </error> *
+* AFTER *
+* <error>err2</error> * <error>err3</error> *
+";
+
+            var errRegex = "error";
+
+            var ops = SplitLines(text)
+                .Select(l => Operation.Echo(l, true))
+                .Concat(new[]
+                {
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                    Operation.Fail()
+                });
+            var pipBuilder = CreatePipBuilder(ops);
+            pipBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(Context.StringTable, errRegex), RegexOptions.None);
+            pipBuilder.EnableMultiLineErrorScanning = false;
+
+            Process pip = SchedulePipBuilder(pipBuilder).Process;
+            var runResult = RunScheduler();
+            runResult.AssertFailure();
+
+            AssertErrorEventLogged(LogEventId.PipProcessError);
+            string expectedPrintedError;
+            var stdFilePathInLogDir = Path.Combine(runResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), SandboxedProcessPipExecutor.StdOutputsDirNameInLog, pip.FormattedSemiStableHash, SandboxedProcessFile.StandardError.DefaultFileName());
+            if (outputReportingMode == global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)
+            {
+                expectedPrintedError = @"
+* <error> *
+* </error> *
+* <error>err2</error> * <error>err3</error> *
+This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) in the log directory.";
+
+                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+            else
+            {
+                expectedPrintedError = @"
+* <error> *
+* </error> *
+* <error>err2</error> * <error>err3</error> *
+This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
+
+                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+
+            XAssert.ArrayEqual(
+                SplitLines(expectedPrintedError),
+                m_loggedPipFailures.SelectMany(SplitLines).ToArray());
+
+            // Rerun the pip and the std file will be copied to the log directory too
+            runResult = RunScheduler();
+            runResult.AssertFailure();
+
+            string extension = Path.GetExtension(stdFilePathInLogDir);
+            var basename = stdFilePathInLogDir.Substring(0, stdFilePathInLogDir.Length - extension.Length);
+            stdFilePathInLogDir = $"{basename}.1{extension}";
+
+            if (outputReportingMode == global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)
+            {
+                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+            else
+            {
+                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+
+            AssertErrorEventLogged(LogEventId.PipProcessError);
         }
 
         private string[] SplitLines(string text)

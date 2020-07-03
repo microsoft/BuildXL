@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Collections;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.CLI.Utils;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public static string Usage(this IParser parser, Option[] options, string indent = "", string tab = "    ")
         {
-            Contract.Requires(options != null);
+            Contract.RequiresNotNull(options);
 
             var result = new StringBuilder();
             foreach (var o in options)
@@ -153,7 +153,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public string Render(Config conf)
         {
-            Contract.Requires(conf != null);
+            Contract.RequiresNotNull(conf);
 
             return string.Join(
                 " ",
@@ -165,7 +165,7 @@ namespace BuildXL.Utilities.CLI
         /// <summary><see cref="CommonSplitArgs(string)"/></summary>
         public string[] SplitArgs(string args)
         {
-            Contract.Requires(args != null);
+            Contract.RequiresNotNull(args);
             return CommonSplitArgs(args);
         }
 #pragma warning restore CA1822 // Member SplitArgs does not access instance data and can be marked as static
@@ -181,7 +181,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public virtual string RenderSingleOption(PrefixKind prefixKind, string name, string value)
         {
-            Contract.Requires(name != null);
+            Contract.RequiresNotNull(name);
 
             var prefix = GetPrefixString(string.IsNullOrWhiteSpace(name) ? PrefixKind.None : prefixKind);
             var separator = GetSeparatorString(prefixKind, name, value);
@@ -304,7 +304,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public ParsedOption Parse(Queue<string> args)
         {
-            Contract.Requires(args != null);
+            Contract.RequiresNotNull(args);
             Contract.Requires(args.Count > 0);
             return ParseWinOption(args.Dequeue());
         }
@@ -320,7 +320,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public static ParsedOption ParseWinOption(string str)
         {
-            Contract.Requires(str != null);
+            Contract.RequiresNotNull(str);
 
             var format = StartsWith(str, "/") ? PrefixKind.Either : PrefixKind.None;
             if (format == PrefixKind.None)
@@ -363,7 +363,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public ParsedOption Parse(Queue<string> args)
         {
-            Contract.Requires(args != null);
+            Contract.RequiresNotNull(args);
             Contract.Requires(args.Count > 0);
 
             var first = args.Dequeue();
@@ -385,7 +385,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public static ParsedOption ParseUnixOption(string key, string value)
         {
-            Contract.Requires(key != null);
+            Contract.RequiresNotNull(key);
 
             var format =
                 StartsWith(key, LongPrefix) ? PrefixKind.Long :

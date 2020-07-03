@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -91,7 +91,7 @@ namespace ContentStoreTest.Grpc
                 {
                     using (var stream = new MemoryStream())
                     {
-                        return await rpcClient.PutStreamAsync(context, HashType.Vso0, stream);
+                        return await rpcClient.PutStreamAsync(context, HashType.Vso0, stream, createDirectory: false);
                     }
                 });
         }
@@ -234,7 +234,7 @@ namespace ContentStoreTest.Grpc
                     ContentHash contentHash;
                     using (var stream = new MemoryStream())
                     {
-                        PutResult putResult = await rpcClient.PutStreamAsync(context, HashType.Vso0, stream);
+                        PutResult putResult = await rpcClient.PutStreamAsync(context, HashType.Vso0, stream, createDirectory: false);
                         putResult.ShouldBeSuccess();
                         putResult.ContentSize.Should().Be(0);
                         contentHash = putResult.ContentHash;
@@ -337,7 +337,7 @@ namespace ContentStoreTest.Grpc
 
                         using (var stream = new MemoryStream())
                         {
-                            Func<Task<PutResult>> putFunc = () => rpcClient.PutStreamAsync(context, HashType.Vso0, stream);
+                            Func<Task<PutResult>> putFunc = () => rpcClient.PutStreamAsync(context, HashType.Vso0, stream, createDirectory: false);
                             putFunc.Should().Throw<ClientCanRetryException>();
                         }
 

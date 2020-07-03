@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 

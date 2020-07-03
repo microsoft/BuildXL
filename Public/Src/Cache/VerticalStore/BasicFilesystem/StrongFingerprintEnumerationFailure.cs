@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -26,7 +26,6 @@ namespace BuildXL.Cache.BasicFilesystem
         public StrongFingerprintEnumerationFailure(string cacheId, WeakFingerprintHash weak, Exception rootCause)
         {
             Contract.Requires(cacheId != null);
-            Contract.Requires(weak != null);
             Contract.Requires(rootCause != null);
 
             m_cacheId = cacheId;

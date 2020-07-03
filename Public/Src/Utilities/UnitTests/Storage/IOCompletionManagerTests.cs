@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -21,7 +21,7 @@ namespace Test.BuildXL.Storage
     /// Low level tests for receiving completion callbacks on an <see cref="IOCompletionManager" />.
     /// </summary>
     // Depends on IOCompletionManager, which explicitly depends on BuildXL.Native.IO.Windows.FileSystem for IO completion (not on Unix)
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class IOCompletionManagerTests : TemporaryStorageTestBase
     {
 

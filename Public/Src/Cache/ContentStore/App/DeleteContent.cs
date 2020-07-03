@@ -1,9 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 // ReSharper disable once UnusedMember.Global
+
 using System;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using CLAP;
@@ -36,8 +39,9 @@ namespace BuildXL.Cache.ContentStore.App
                     _fileSystem,
                     grpcPort,
                     _scenario);
-
-                var deleteResult = client.DeleteContentAsync(context, contentHash).GetAwaiter().GetResult();
+                
+                var deleteResult = client.DeleteContentAsync(context, contentHash, deleteLocalOnly: false).GetAwaiter().GetResult();
+                _tracer.Always(context, deleteResult.ToString());
             }
             catch (Exception e)
             {

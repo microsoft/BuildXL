@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -8,10 +8,11 @@ using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using static Test.BuildXL.Utilities.TestEvents;
 
 namespace Test.BuildXL.Utilities
 {
@@ -26,8 +27,9 @@ namespace Test.BuildXL.Utilities
             // make sure this thing only deals with the BuildXL event source
             using (var listener = new TrackingEventListener(Events.Log))
             {
+                listener.RegisterEventSource(TestEvents.Log);
                 // this one should get through
-                Events log = Events.Log;
+                TestEvents log = TestEvents.Log;
                 log.InfoEvent("Test 1");
                 XAssert.AreEqual(listener.InformationalCount, 1);
 
@@ -45,31 +47,34 @@ namespace Test.BuildXL.Utilities
         {
             using (var listener = new TestEventListener(Events.Log, "Test.BuildXL.Utilities.EventListenerTests.BaseEventListenerDiagnosticFiltering", captureAllDiagnosticMessages: false))
             {
+                listener.RegisterEventSource(TestEvents.Log);
                 // Initially, diagnostic events are disabled.
-                Events.Log.DiagnosticEvent("Super low level");
-                Events.Log.DiagnosticEventInOtherTask("Also super low level");
-                XAssert.AreEqual(0, listener.GetEventCount(EventId.DiagnosticEvent));
-                XAssert.AreEqual(0, listener.GetEventCount(EventId.DiagnosticEventInOtherTask));
+                TestEvents.Log.DiagnosticEvent("Super low level");
+                TestEvents.Log.DiagnosticEventInOtherTask("Also super low level");
+                XAssert.AreEqual(0, listener.GetEventCount((int)EventId.DiagnosticEvent));
+                XAssert.AreEqual(0, listener.GetEventCount((int)EventId.DiagnosticEventInOtherTask));
 
                 // We can enable messages from one task, but leave those in another disabled.
                 listener.EnableTaskDiagnostics(Tasks.UnitTest);
 
-                Events.Log.DiagnosticEvent("Super low level");
-                Events.Log.DiagnosticEventInOtherTask("Also super low level");
-                XAssert.AreEqual(1, listener.GetEventCount(EventId.DiagnosticEvent));
-                XAssert.AreEqual(0, listener.GetEventCount(EventId.DiagnosticEventInOtherTask));
+                TestEvents.Log.DiagnosticEvent("Super low level");
+                TestEvents.Log.DiagnosticEventInOtherTask("Also super low level");
+                XAssert.AreEqual(1, listener.GetEventCount((int)EventId.DiagnosticEvent));
+                XAssert.AreEqual(0, listener.GetEventCount((int)EventId.DiagnosticEventInOtherTask));
             }
         }
 
         [Fact]
         public void WarningMapping()
         {
-            Events log = Events.Log;
+            TestEvents log = TestEvents.Log;
 
             var wm = new WarningManager();
 
             using (var listener = new TrackingEventListener(Events.Log, warningMapper: wm.GetState))
             {
+                listener.RegisterEventSource(TestEvents.Log);
+
                 // should log as a warning
                 XAssert.AreEqual(0, listener.WarningCount);
                 log.WarningEvent("1");
@@ -93,6 +98,8 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log, warningMapper: wm.GetState))
             {
+                listener.RegisterEventSource(TestEvents.Log);
+
                 // should log as a info
                 XAssert.AreEqual(0, listener.InformationalCount);
                 log.InfoEvent("1");
@@ -126,7 +133,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new TextWriterEventListener(Events.Log, writer, DateTime.UtcNow, warningNumber => WarningState.AsWarning, EventLevel.Warning))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     // should be captured
                     log.AlwaysEvent("Cookie 1 ");
@@ -153,7 +162,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new TextWriterEventListener(Events.Log, writer, DateTime.UtcNow, warningNumber => WarningState.AsWarning))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     // should be captured
                     log.AlwaysEvent("Cookie 11 ");
@@ -185,7 +196,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new ErrorAndWarningEventListener(Events.Log, writer, DateTime.UtcNow, true, false, warningNumber => WarningState.AsWarning))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     // should be captured
                     log.CriticalEvent("Cookie 1 ");
@@ -212,7 +225,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new ErrorAndWarningEventListener(Events.Log, writer, DateTime.UtcNow, false, true, warningNumber => WarningState.AsWarning))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     // should be captured
                     log.WarningEvent("Cookie 3 ");
@@ -242,28 +257,32 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new ErrorAndWarningEventListener(Events.Log, writer, DateTime.UtcNow, true, false, warningNumber => WarningState.Suppressed))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     log.WarningEvent("Cookie 3 ");
                 }
 
                 text = writer.ToString();
             }
-            
+
             XAssert.IsFalse(Regex.IsMatch(text, ".*Cookie 3 .*"));
 
             using (var writer = new StringWriter(CultureInfo.InvariantCulture))
             {
                 using (var listener = new ErrorAndWarningEventListener(Events.Log, writer, DateTime.UtcNow, false, true, warningNumber => WarningState.Suppressed))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     log.WarningEvent("Cookie 3 ");
                 }
 
                 text = writer.ToString();
             }
-            
+
             XAssert.IsFalse(Regex.IsMatch(text, ".*Cookie 3 .*"));
         }
 
@@ -279,7 +298,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events log = Events.Log;
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents log = TestEvents.Log;
 
                 for (int i = 0; i < NumVerbose; i++)
                 {
@@ -323,7 +344,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events log = Events.Log;
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents log = TestEvents.Log;
 
                 XAssert.IsFalse(listener.HasFailures);
                 XAssert.IsFalse(listener.HasFailuresOrWarnings);
@@ -340,7 +363,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events log = Events.Log;
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents log = TestEvents.Log;
 
                 log.CriticalEvent("1");
 
@@ -350,7 +375,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log, warningMapper: _ => WarningState.AsError))
             {
-                Events log = Events.Log;
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents log = TestEvents.Log;
 
                 log.WarningEvent("1");
 
@@ -365,27 +392,35 @@ namespace Test.BuildXL.Utilities
         {
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.VerboseEvent("1");
-                Events.Log.InfoEvent("1");
-                Events.Log.AlwaysEvent("1");
+
+                listener.RegisterEventSource(TestEvents.Log);
+                TestEvents.Log.VerboseEvent("1");
+                TestEvents.Log.InfoEvent("1");
+                TestEvents.Log.AlwaysEvent("1");
                 XAssert.IsFalse(listener.HasFailuresOrWarnings);
             }
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.WarningEvent("1");
+
+                listener.RegisterEventSource(TestEvents.Log);
+                TestEvents.Log.WarningEvent("1");
                 XAssert.IsTrue(listener.HasFailuresOrWarnings);
             }
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.ErrorEvent("1");
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents.Log.ErrorEvent("1");
                 XAssert.IsTrue(listener.HasFailuresOrWarnings);
             }
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.CriticalEvent("1");
+
+                listener.RegisterEventSource(TestEvents.Log);
+                TestEvents.Log.CriticalEvent("1");
                 XAssert.IsTrue(listener.HasFailuresOrWarnings);
             }
         }
@@ -395,8 +430,10 @@ namespace Test.BuildXL.Utilities
         {
             using (var listener = new TrackingEventListener(Events.Log))
             {
+                listener.RegisterEventSource(TestEvents.Log);
+
                 string testMessage = "Message from test event";
-                Events.Log.UserErrorEvent(testMessage);
+                TestEvents.Log.UserErrorEvent(testMessage);
                 XAssert.IsTrue(listener.HasFailures);
                 XAssert.AreEqual(1, listener.UserErrorDetails.Count);
                 XAssert.AreEqual(0, listener.InfrastructureErrorDetails.Count);
@@ -407,7 +444,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.InfrastructureErrorEvent("1");
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents.Log.InfrastructureErrorEvent("1");
                 XAssert.IsTrue(listener.HasFailures);
                 XAssert.AreEqual(0, listener.UserErrorDetails.Count);
                 XAssert.AreEqual(1, listener.InfrastructureErrorDetails.Count);
@@ -417,7 +456,9 @@ namespace Test.BuildXL.Utilities
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.ErrorEvent("1");
+                listener.RegisterEventSource(TestEvents.Log);
+
+                TestEvents.Log.ErrorEvent("1");
                 XAssert.IsTrue(listener.HasFailures);
                 XAssert.AreEqual(0, listener.UserErrorDetails.Count);
                 XAssert.AreEqual(0, listener.InfrastructureErrorDetails.Count);
@@ -452,7 +493,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new TextWriterEventListener(Events.Log, writer, DateTime.UtcNow, warningNumber => WarningState.AsWarning))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     log.AlwaysEvent("Cookie 1");
                     log.CriticalEvent("Cookie 2");
@@ -477,7 +520,9 @@ namespace Test.BuildXL.Utilities
             {
                 using (var listener = new TextWriterEventListener(Events.Log, writer, DateTime.UtcNow, warningNumber => WarningState.Suppressed))
                 {
-                    Events log = Events.Log;
+                    listener.RegisterEventSource(TestEvents.Log);
+
+                    TestEvents log = TestEvents.Log;
 
                     // although we are suppressing the warning, it still should be captured (suppression only applies to console output and err/wrn files)
                     // however, this time a different label should be used

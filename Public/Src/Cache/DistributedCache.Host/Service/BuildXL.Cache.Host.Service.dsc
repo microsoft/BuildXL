@@ -10,6 +10,8 @@ namespace Service {
         skipDocumentationGeneration: true,
         references: [
             Configuration.dll,
+            ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
+
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
@@ -22,8 +24,20 @@ namespace Service {
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
 
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Branding.dll,
+
+            importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("WindowsAzure.Storage").pkg,
+            importFrom("NLog").pkg,
+            ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Web.dll,
+                NetFx.System.Xml.dll
+            ),
         ],
-        allowUnsafeBlocks: false
+        allowUnsafeBlocks: false,
+        internalsVisibleTo: [
+            "BuildXL.Cache.Host.Test",
+        ]
     });
 }

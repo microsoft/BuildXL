@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -9,11 +9,11 @@ using BuildXL.Cache.ContentStore.Distributed;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestPathTransformer : IPathTransformer<AbsolutePath>
+    public class TestPathTransformer : IAbsolutePathTransformer, IPathTransformer<AbsolutePath>
     {
-        public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot)
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
-            return Encoding.Default.GetBytes(cacheRoot.Path.ToCharArray());
+            return new MachineLocation(cacheRoot.Path);
         }
 
         public virtual AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)

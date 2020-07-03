@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -35,16 +36,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class with resulting stream.
         /// </summary>
-        public OpenStreamResult(Stream stream)
+        public OpenStreamResult(StreamWithLength? stream)
         {
             Code = stream != null ? ResultCode.Success : ResultCode.ContentNotFound;
-            Stream = stream;
+            StreamWithLength = stream;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult"/> class.
         /// </summary>
-        public OpenStreamResult(ResultCode code, string errorMessage, string diagnostics = null)
+        public OpenStreamResult(ResultCode code, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Code = code;
@@ -53,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult"/> class.
         /// </summary>
-        public OpenStreamResult(string errorMessage, string diagnostics = null)
+        public OpenStreamResult(string errorMessage, string? diagnostics = null)
             : this(ResultCode.Error, errorMessage, diagnostics)
         {
         }
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class.
         /// </summary>
-        public OpenStreamResult(Exception exception, string message = null)
+        public OpenStreamResult(Exception exception, string? message = null)
             : base(exception, message)
         {
             Code = ResultCode.Error;
@@ -70,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class.
         /// </summary>
-        public OpenStreamResult(ResultBase other, string message = null)
+        public OpenStreamResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = ResultCode.Error;
@@ -79,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class.
         /// </summary>
-        public OpenStreamResult(ResultBase other, ResultCode code, string message = null)
+        public OpenStreamResult(ResultBase other, ResultCode code, string? message = null)
             : base(other, message)
         {
             Code = code;
@@ -96,7 +97,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Gets opened stream.
         /// </summary>
-        public readonly Stream Stream;
+        public Stream? Stream => StreamWithLength?.Stream;
+
+        /// <summary>
+        ///     Gets opened stream.
+        /// </summary>
+        public readonly StreamWithLength? StreamWithLength;
 
         /// <inheritdoc />
         public bool Equals(OpenStreamResult other)
@@ -105,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is OpenStreamResult other && Equals(other);
         }

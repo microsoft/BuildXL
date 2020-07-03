@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -98,7 +98,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public MonitoringState CheckStateForPath(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (m_state == MonitoringState.Enabled)
             {

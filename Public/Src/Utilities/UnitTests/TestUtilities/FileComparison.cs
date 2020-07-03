@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
 using System.Text;
+using BuildXL.Native.IO;
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -36,11 +37,11 @@ namespace Test.BuildXL.TestUtilities
                 if (string.IsNullOrEmpty(expectedFileForDiffing))
                 {
                     // if the expected file is not given, write it to a temp file.
-                    expectedFileForDiffing = Path.GetTempFileName();
+                    expectedFileForDiffing = FileUtilities.GetTempFileName();
                     File.WriteAllText(expectedFileForDiffing, expected);
                 }
 
-                var actualFileForDiffing = Path.GetTempFileName();
+                var actualFileForDiffing = FileUtilities.GetTempFileName();
                 File.WriteAllText(actualFileForDiffing, actual);
 
                 var messageBuilder = new StringBuilder();

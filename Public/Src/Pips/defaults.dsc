@@ -6,5 +6,4 @@ import { NetFx } from "Sdk.BuildXL";
 
 export {BuildXLSdk, NetFx};
 
-// This code has to support Net451 because CloudBuild relies on this code from Net452 assemblies
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;

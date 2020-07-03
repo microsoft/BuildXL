@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -217,7 +217,7 @@ namespace Test.BuildXL.Ipc
                         req.Operation.Payload == hiOp.Payload ? Tuple.Create(hiTask, helloTask) :
                         req.Operation.Payload == helloOp.Payload ? Tuple.Create(helloTask, hiTask) :
                         null;
-                    Assert.NotNull(match);
+                    XAssert.IsNotNull(match, $"No match found for request: {req}");
 
                     var matchedTask = match.Item1;
                     var otherTask = match.Item2;

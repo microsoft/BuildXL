@@ -7,8 +7,7 @@
 
 module({
     name: "Test.Sdk",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [
+	projects: [
         f`module.dsc`,
         ...globR(d`.`, "SdkTest.*.dsc"),
     ],

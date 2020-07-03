@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Ipc.Interfaces;
 
@@ -11,7 +11,7 @@ namespace BuildXL.Ipc.Common
     public sealed class ServerConfig : IServerConfig
     {
         /// <inheritdoc />
-        public ILogger Logger { get; set; } = VoidLogger.Instance;
+        public IIpcLogger Logger { get; set; } = VoidLogger.Instance;
 
         /// <inheritdoc />
         public int MaxConcurrentClients { get; set; } = 10;

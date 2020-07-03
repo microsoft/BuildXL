@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -63,6 +63,17 @@ namespace BuildXL.Utilities
         internal static DirectoryArtifact CreateDirectoryArtifactForTesting(AbsolutePath path, uint partialSealId)
         {
             return new DirectoryArtifact(path, partialSealId, false);
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (this == Invalid)
+            {
+                return "{Invalid}";
+            }
+
+            return $"{{Directory (pathId: {Path.Value.Value:x}) (partialSealId: {PartialSealId})}}";
         }
 
         /// <summary>

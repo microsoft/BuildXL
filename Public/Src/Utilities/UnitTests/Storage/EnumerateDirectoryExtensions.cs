@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -50,7 +50,7 @@ namespace Test.BuildXL.Storage
     public static class EnumerateDirectoryExtensions
     {
         /// <nodoc />
-        public static List<EnumerateDirectoryEntry> EnumerateDirectories(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
+        internal static List<EnumerateDirectoryEntry> EnumerateDirectories(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
         {
             List<EnumerateDirectoryEntry> entries = new List<EnumerateDirectoryEntry>();
 
@@ -69,7 +69,7 @@ namespace Test.BuildXL.Storage
         }
 
         /// <nodoc />
-        public static List<EnumerateDirectoryEntry> EnumerateFiles(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
+        internal  static List<EnumerateDirectoryEntry> EnumerateFiles(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
         {
             List<EnumerateDirectoryEntry> entries = new List<EnumerateDirectoryEntry>();
 

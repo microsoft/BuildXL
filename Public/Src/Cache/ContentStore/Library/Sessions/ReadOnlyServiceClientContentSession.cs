@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -130,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             var counterSet = new CounterSet();
             counterSet.Merge(GetCounters(), $"{Tracer.Name}.");
-            counterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operationContext, s));
+            Tracer.TraceStatisticsAtShutdown(operationContext, counterSet, prefix: "ServiceClientContentSessionStats");
 
             return result;
         }
@@ -218,7 +218,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 var sw = Stopwatch.StartNew();
                 try
                 {
-                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk({contentHashes.Count}) start for hashes:[{string.Join(",", contentHashes)}]");
                     fileCounter.Add(contentHashes.Count);
 
                     if (retry > 0)
@@ -230,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 }
                 finally
                 {
-                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk() stop {sw.Elapsed.TotalMilliseconds}ms");
+                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk({contentHashes.Count}) stop {sw.Elapsed.TotalMilliseconds}ms. Hashes: [{string.Join(",", contentHashes)}]");
                 }
             }
         }

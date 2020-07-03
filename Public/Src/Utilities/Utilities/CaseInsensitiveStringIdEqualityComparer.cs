@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -15,7 +15,7 @@ namespace BuildXL.Utilities
 
         public CaseInsensitiveStringIdEqualityComparer(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             m_stringTable = stringTable;
         }
@@ -45,7 +45,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public CaseInsensitiveStringIdComparer(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             m_stringTable = stringTable;
         }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -65,17 +65,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult"/> class.
         /// </summary>
-        public PlaceFileResult(ResultCode code, string errorMessage, string diagnostics = null)
+        public PlaceFileResult(ResultCode code, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.RequiresNotNullOrEmpty(errorMessage);
             Code = code;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult"/> class.
         /// </summary>
-        public PlaceFileResult(string errorMessage, string diagnostics = null)
+        public PlaceFileResult(string errorMessage, string? diagnostics = null)
             : this(ResultCode.Error, errorMessage, diagnostics)
         {
         }
@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult" /> class.
         /// </summary>
-        public PlaceFileResult(Exception exception, string message = null)
+        public PlaceFileResult(Exception exception, string? message = null)
             : base(exception, message)
         {
             Code = ResultCode.Error;
@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult" /> class.
         /// </summary>
-        public PlaceFileResult(ResultBase other, string message = null)
+        public PlaceFileResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = ResultCode.Error;
@@ -101,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PlaceFileResult" /> class.
         /// </summary>
-        public PlaceFileResult(ResultBase other, ResultCode code, string message = null)
+        public PlaceFileResult(ResultBase other, ResultCode code, string? message = null)
             : base(other, message)
         {
             Code = code;
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is PlaceFileResult other && Equals(other);
         }
@@ -167,5 +167,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     return $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
             }
         }
+
+        internal ResultMetaData? Metadata { get; set; }
     }
 }

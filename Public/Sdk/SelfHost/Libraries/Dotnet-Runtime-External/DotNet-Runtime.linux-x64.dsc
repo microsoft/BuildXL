@@ -4,8 +4,7 @@
 import {Transformer} from "Sdk.Transformers";
 import {createPublicDotNetRuntime} from "DotNet-Runtime.Common";
 
-const v3 = <StaticDirectory>importFrom("DotNet-Runtime.linux-x64.3.0.0").extracted;
-const v2 = <StaticDirectory>importFrom("DotNet-Runtime.linux-x64.2.2.2").extracted;
+const v3 = importFrom("DotNet-Runtime.linux-x64.3.1.100").extracted;
 
 @@public
-export const extracted = createPublicDotNetRuntime(v3, v2);
+export const extracted = createPublicDotNetRuntime(v3, undefined);

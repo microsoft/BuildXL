@@ -84,6 +84,10 @@ ClientBin/
 *.log
 *.scc
 *.stackdump
+*.o
+*.a
+*.so
+*.deps
 
 *.g.csproj
 *.g.vcxproj

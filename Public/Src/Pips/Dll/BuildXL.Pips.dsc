@@ -6,7 +6,13 @@ import * as Managed from "Sdk.Managed";
 @@public
 export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
+    generateLogs: true,
     sources: globR(d`.`, "*.cs"),
+    embeddedResources: [
+        {
+            resX: f`Filter/ErrorMessages.resx`
+        }
+    ],
     references: [
         importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
@@ -18,7 +24,7 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Ipc.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Collections.dll,
-        importFrom("BuildXL.Utilities").Configuration.dll,        
+        importFrom("BuildXL.Utilities").Configuration.dll,
     ],
     internalsVisibleTo: [
         "BuildXL.Scheduler",

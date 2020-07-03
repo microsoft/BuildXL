@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,11 +11,12 @@ using BuildXL.Engine;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -133,9 +134,9 @@ namespace BuildXL.Execution.Analyzer
         public FailedPipsDumpAnalyzer(AnalysisInput input)
             : base(input)
         {
-            nodeVisitor = new NodeVisitor(DataflowGraph);
-            m_failedPipsClosure = new VisitationTracker(DataflowGraph);
-            m_cachedPips = new VisitationTracker(DataflowGraph);
+            nodeVisitor = new NodeVisitor(DirectedGraph);
+            m_failedPipsClosure = new VisitationTracker(DirectedGraph);
+            m_cachedPips = new VisitationTracker(DirectedGraph);
             m_pipTable = input.CachedGraph.PipTable;
         }
 
@@ -273,12 +274,12 @@ namespace BuildXL.Execution.Analyzer
                             provenance != null ? provenance.OutputValueSymbol.ToString(SymbolTable) : string.Empty);
 
                         var pipPerformance = m_pipPerformance[pip.PipId.Value];
-                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.PeakMemoryUsageMb.ToString());
+                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.MemoryCounters.PeakWorkingSetMb.ToString());
                         WritePropertyAndValue(writer, "NumberOfProcesses", pipPerformance.NumberOfProcesses.ToString());
                         WritePropertyAndValue(
                             writer,
-                            "FileMonitoringViolationsNotWhitelisted",
-                            pipPerformance.FileMonitoringViolations.NumFileAccessViolationsNotWhitelisted.ToString());
+                            "FileMonitoringViolationsNotAllowlisted",
+                            pipPerformance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted.ToString());
 
                         if (isDiff)
                         {
@@ -348,7 +349,7 @@ namespace BuildXL.Execution.Analyzer
                         visitNode: node =>
                                    {
                                        dependencyBuffer.Clear();
-                                       foreach (var dependencyEdge in DataflowGraph.GetIncomingEdges(node))
+                                       foreach (var dependencyEdge in DirectedGraph.GetIncomingEdges(node))
                                        {
                                            if (PipTable.GetPipType(dependencyEdge.OtherNode.ToPipId()) != PipType.HashSourceFile)
                                            {
@@ -711,7 +712,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             // Contains : ReportedProcesses (process chain), 
-            //            ReportedFileAccesses, WhitelistedReportedFileAccesses, ProcessDetouringStatuses
+            //            ReportedFileAccesses, AllowlistedReportedFileAccesses, ProcessDetouringStatuses
             m_pipProcessExecutionMonitoringReported.Add(data.PipId, data);
         }
 
@@ -724,7 +725,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             // Contains : ReportedProcesses (process chain), 
-            //            ReportedFileAccesses, WhitelistedReportedFileAccesses, ProcessDetouringStatuses
+            //            ReportedFileAccesses, AllowlistedReportedFileAccesses, ProcessDetouringStatuses
             if (m_pipDependencyViolationEventData.TryGetValue(data.ViolatorPipId, out var entry))
             {
                 entry.Add(data);
@@ -853,8 +854,8 @@ namespace BuildXL.Execution.Analyzer
                 : base(input)
             {
                 m_failedPipsDumpAnalyzer = analyzer;
-                m_failedPipsClosure = new VisitationTracker(DataflowGraph);
-                nodeVisitor = new NodeVisitor(DataflowGraph);
+                m_failedPipsClosure = new VisitationTracker(DirectedGraph);
+                nodeVisitor = new NodeVisitor(DirectedGraph);
                 m_pipTable = input.CachedGraph.PipTable;
                 m_tokenizeByMounts = analyzer.TokenizeByMounts;
                 InclusionMountNames = analyzer.InclusionMountNames;
@@ -943,7 +944,7 @@ namespace BuildXL.Execution.Analyzer
                 }
 
                 // Contains : ReportedProcesses (process chain), 
-                //            ReportedFileAccesses, WhitelistedReportedFileAccesses, ProcessDetouringStatuses
+                //            ReportedFileAccesses, AllowlistedReportedFileAccesses, ProcessDetouringStatuses
                 m_pipProcessExecutionMonitoringReported.Add(data.PipId, data);
             }
 

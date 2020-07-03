@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -12,34 +12,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Native.IO
 {
     /// <summary>
+    /// Due to the clr's various static initialization order of members this one has to be held
+    /// in a separate static class so that setting this does not intiialize the members that depend on the
+    /// overwritten version of the LoggingContext
+    /// </summary>
+    public static class FileUtilitiesStaticLoggingContext
+    {
+        /// <summary>
+        /// The loggingcontext to use for file operations.
+        /// Anybody using the static filesystem MUST override this static member before calling any methods;
+        /// </summary>
+        public static LoggingContext LoggingContext = new LoggingContext("FileUtilities");
+    }
+
+    /// <summary>
     /// Static facade with utilities for manipulating files and directories. Also offers functions for directly calling filesystem level functionality.
     /// Serves as an entry point for direct I/O throughout BuildXL's code base and proxies its calls to platform specific implementations of IFileSystem and IFileUtilities.
     /// </summary>
     public static class FileUtilities
     {
-        /// <summary>
-        /// A platform specific concrete implementation of the file system layer functions
-        /// </summary>
-        /// <remarks>
-        /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
-        /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
-        /// </remarks>
-        private static readonly IFileSystem s_fileSystem = OperatingSystemHelper.IsUnixOS
-            ? (IFileSystem) new Unix.FileSystemUnix()
-            : (IFileSystem) new Windows.FileSystemWin();
-
-        /// <summary>
-        /// A platform specific implementation of the file system.
-        /// </summary>
-        public static IFileSystem FileSystem => s_fileSystem;
+        private static LoggingContext LoggingContext => FileUtilitiesStaticLoggingContext.LoggingContext;
 
         /// <summary>
         /// A platform specific concrete implementation of I/O helpers and utilities
@@ -50,7 +52,18 @@ namespace BuildXL.Native.IO
         /// </remarks>
         private static readonly IFileUtilities s_fileUtilities = OperatingSystemHelper.IsUnixOS
             ? (IFileUtilities) new Unix.FileUtilitiesUnix()
-            : (IFileUtilities) new Windows.FileUtilitiesWin();
+            : (IFileUtilities) new Windows.FileUtilitiesWin(LoggingContext);
+
+        /// <summary>
+        /// A platform specific concrete implementation of the file system layer functions
+        /// </summary>
+        /// <remarks>
+        /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
+        /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
+        /// </remarks>
+        private static readonly IFileSystem s_fileSystem =  OperatingSystemHelper.IsUnixOS
+            ? ((Unix.FileUtilitiesUnix)s_fileUtilities).FileSystem
+            : ((Windows.FileUtilitiesWin)s_fileUtilities).FileSystem;
 
         private static readonly ObjectPool<List<StringSegment>> StringSegmentListPool = Pools.CreateListPool<StringSegment>();
 
@@ -131,9 +144,9 @@ namespace BuildXL.Native.IO
 
         /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, CancellationToken?)"/>
         public static void DeleteDirectoryContents(
-            string path, 
-            bool deleteRootDirectory = false, 
-            Func<string, bool> shouldDelete = null, 
+            string path,
+            bool deleteRootDirectory = false,
+            Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default) =>
             s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
@@ -156,7 +169,7 @@ namespace BuildXL.Native.IO
         {
             return s_fileSystem.EnumerateDirectoryEntries(directoryPath, recursive, pattern, handleEntry, followSymlinksToDirectories: true);
         }
-        
+
         /// <see cref="IFileSystem.EnumerateFiles(string, bool, string, Action{string, string, FileAttributes, long})"/>
         public static EnumerateDirectoryResult EnumerateFiles(
             string directoryPath,
@@ -218,7 +231,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => s_fileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.MoveFileAsync(string, string, bool)"/>
-        public static Task<bool> MoveFileAsync(
+        public static Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false) => s_fileUtilities.MoveFileAsync(source, destination, replaceExisting);
@@ -290,7 +303,7 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempCleaner)"/>
-        public static Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
+        public static Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
             s_fileUtilities.TryDeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
 
         /// <summary>
@@ -298,11 +311,11 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="fileOrDirectoryPath">Path to file or directory to be deleted, if exists.</param>
         /// <param name="tempDirectoryCleaner">Temporary directory cleaner.</param>
-        public static Possible<Unit, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
+        public static Possible<string, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
         {
             if (FileExistsNoFollow(fileOrDirectoryPath))
             {
-                Possible<Unit, RecoverableExceptionFailure> possibleDeletion = TryDeleteFile(
+                var possibleDeletion = TryDeleteFile(
                     fileOrDirectoryPath,
                     waitUntilDeletionFinished: true,
                     tempDirectoryCleaner: tempDirectoryCleaner);
@@ -317,7 +330,7 @@ namespace BuildXL.Native.IO
                 DeleteDirectoryContents(fileOrDirectoryPath, deleteRootDirectory: true, tempDirectoryCleaner: tempDirectoryCleaner);
             }
 
-            return Unit.Void;
+            return fileOrDirectoryPath;
         }
 
         /// <summary>
@@ -384,7 +397,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle> onCompletion = null) => s_fileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.TryFindOpenHandlesToFile"/>
-        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true) 
+        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true)
             => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
         /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
@@ -575,6 +588,12 @@ namespace BuildXL.Native.IO
             s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow);
         }
 
+        /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
+        public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
+        {
+            return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
+        }
+
         #endregion
 
         #region General file and directory utilities
@@ -677,6 +696,12 @@ namespace BuildXL.Native.IO
             return s_fileSystem.IsReparsePointActionable(reparsePointType);
         }
 
+        /// <see cref="IFileSystem.IsReparsePointSymbolicLink(ReparsePointType)"/>
+        public static bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        {
+            return s_fileSystem.IsReparsePointSymbolicLink(reparsePointType);
+        }
+
         /// <see cref="IFileSystem.TryGetReparsePointType(string)"/>
         public static Possible<ReparsePointType> TryGetReparsePointType(string path)
         {
@@ -717,30 +742,72 @@ namespace BuildXL.Native.IO
         }
 
         /// <summary>
-        /// Checks if a path is a directory symlink or a junction.
+        /// Returns the last element of a reparse point chain. If the source path is not a reparse point
+        /// it returns the same path.
         /// </summary>
-        public static bool IsDirectorySymlinkOrJunction(string path)
+        /// <param name="handle">Handle to the source path. Can be null, in which case is not used</param>
+        /// <param name="sourcePath">Path to the artifact</param>
+        public static Possible<string> TryGetLastReparsePointTargetInChain([CanBeNull]SafeFileHandle handle, string sourcePath)
         {
-            try
-            {
-                FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
-                FileAttributes attributes = FileUtilities.GetFileAttributes(path);
+            Contract.RequiresNotNullOrEmpty(sourcePath);
 
-                return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
-            }
-            catch (NativeWin32Exception)
+            if (handle == null)
             {
-                // FileSystem.Win.
-                return false;
+                var openResult = FileUtilities.TryOpenDirectory(
+                                                sourcePath,
+                                                FileDesiredAccess.GenericRead,
+                                                FileShare.Read | FileShare.Delete,
+                                                FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                                                out handle);
+                if (!openResult.Succeeded)
+                {
+                    return openResult.CreateFailureForError();
+                } 
             }
-            catch (BuildXLException)
+
+            using (handle)
             {
-                // FileSystem.Unix.
-                return false;
+                var symlinkChainElements = new List<string>();
+                FileUtilities.GetChainOfReparsePoints(handle, sourcePath, symlinkChainElements);
+                return symlinkChainElements[symlinkChainElements.Count - 1];
             }
         }
 
-#endregion
+        /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>
+        public static bool IsDirectorySymlinkOrJunction(string path) => s_fileSystem.IsDirectorySymlinkOrJunction(path);
+
+        /// <see cref="IFileSystem.GetFullPath(string)"/>
+        public static string GetFullPath(string path) => s_fileSystem.GetFullPath(path);
+
+        /// <summary>
+        /// Returns a unique temporary file name, and creates a 0-byte file by that name on disk.
+        /// </summary>
+        /// <remarks>
+        /// This method functions like <see cref="Path.GetTempFileName()"/>, i.e., it creates a unqiue temp file and returns its name with full path.
+        /// <see cref="Path.GetTempFileName()"/> uses the combination a hardcoded prefix and a 4-letter random number as the file name. 
+        /// If the file already exist, it will loop to create a new random number until it finds a name of a file doesn't exist. 
+        /// This API is shared. If any of the managed process doesn't clean up their temp files, it will affect our performance and we might possibly get access denial. 
+        /// So we implement this API to replace <see cref="Path.GetTempFileName()"/>. 
+        /// We use Guid.NewGuid().ToString() as part of the file name to make sure the uniqueness.
+        /// </remarks>
+        public static string GetTempFileName()
+        {
+            var path = GetTempPath();
+            using var fileStream = File.Create(path);
+            fileStream.Close();
+            return path;
+        }
+
+        /// <summary>
+        /// Returns a unique temporary file path without creating a file at that location.
+        /// <seealso cref="GetTempFileName" />
+        /// </summary>
+        public static string GetTempPath()
+        {
+            return Path.Combine(Path.GetTempPath(), "bxl_" + Guid.NewGuid().ToString() + ".tmp");
+        }
+
+        #endregion
 
         #region Journaling functions
 
@@ -880,6 +947,12 @@ namespace BuildXL.Native.IO
         {
             return s_fileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
         }
+        
+        /// <see cref="IFileSystem.TryGetFinalPathNameByPath(string, out string, out int, bool)"/>
+        public static bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
+        {
+            return s_fileSystem.TryGetFinalPathNameByPath(path, out finalPath, out nativeErrorCode, volumeGuidPath);
+        }
 
         /// <see cref="IFileSystem.FlushPageCacheToFilesystem(SafeFileHandle)"/>
         public static unsafe NtStatus FlushPageCacheToFilesystem(SafeFileHandle handle)
@@ -981,9 +1054,9 @@ namespace BuildXL.Native.IO
         /// this method simply combines A\B with D\E\F and normalizes the result, i.e., removes '.' and '..'.
         /// </remarks>
         public static Possible<string> TryResolveRelativeTarget(
-            string path, 
+            string path,
             string relativeTarget,
-            Stack<string> processed = null, 
+            Stack<string> processed = null,
             Stack<string> needToBeProcessed = null)
         {
             int rootLength = s_fileSystem.GetRootLength(path);
@@ -1020,8 +1093,8 @@ namespace BuildXL.Native.IO
         /// Tries to combine an absolute path with a relative path by resolving all the "." and ".." prefixes of the relative paths.
         /// </summary>
         private static bool TryCombinePaths(
-            string absolutePath, 
-            string relativePath, 
+            string absolutePath,
+            string relativePath,
             out string result,
             Stack<string> processed = null,
             Stack<string> needToBeProcessed = null)
@@ -1051,7 +1124,7 @@ namespace BuildXL.Native.IO
                 if (ch == '.' && index == start)
                 {
                     // Component starts with a .
-                    if ((index == relativePath.Length - 1) 
+                    if ((index == relativePath.Length - 1)
                         || s_fileSystem.IsDirectorySeparator(relativePath[index + 1]))
                     {
                         // Component is a sole . so skip it
@@ -1189,12 +1262,77 @@ namespace BuildXL.Native.IO
                 SetFileTimestamps(temporaryPath, timestamps);
             }
 
-            if (!await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true))
-            {
-                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed"));
-            }
+            await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true);
 
             return Unit.Void;
+        }
+
+        /// <summary>
+        /// Infers subst source and subst target from a given reference path.
+        /// </summary>
+        /// <param name="referenceFullPath">Rooted reference path.</param>
+        /// <param name="substSource">Output subst source.</param>
+        /// <param name="substTarget">Output subst target.</param>
+        /// <returns>True if subst is used.</returns>
+        /// <remarks>
+        /// This method calls <code>GetFinalPathByHandle</code> which is only applicable on Windows.
+        /// </remarks>
+        public static bool TryGetSubstSourceAndTarget(string referenceFullPath, out string substSource, out string substTarget)
+        {
+            Contract.Requires(Path.IsPathRooted(referenceFullPath));
+
+            substSource = null;
+            substTarget = null;
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // There is currently no subst in non-Windows OS.
+                return false;
+            }
+
+            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
+                referenceFullPath,
+                FileShare.Read | FileShare.Write | FileShare.Delete,
+                out SafeFileHandle directoryHandle);
+
+            if (!directoryOpenResult.Succeeded)
+            {
+                throw directoryOpenResult.ThrowForError();
+            }
+
+            string directoryHandlePath = GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
+
+            if (!string.Equals(referenceFullPath, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
+            {
+                string commonPath = referenceFullPath.Substring(2); // Include '\' of '<Drive>:\'  for searching.
+                substTarget = referenceFullPath.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
+                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
+
+                if (commonIndex == -1)
+                {
+                    substTarget = null;
+                }
+                else
+                {
+                    substSource = directoryHandlePath.Substring(0, commonIndex + 1);
+                }
+            }
+
+            return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
+        }
+
+        /// <summary>
+        /// Gets subst drive and path from subst source and target.
+        /// </summary>
+        public static (string drive, string path) GetSubstDriveAndPath(string substSource, string substTarget)
+        {
+            Contract.Requires(Path.IsPathRooted(substSource));
+            Contract.Requires(Path.IsPathRooted(substTarget));
+
+            string substDrive = Path.GetPathRoot(substTarget).TrimEnd(Path.DirectorySeparatorChar);
+            string substPath = substSource.TrimEnd(Path.DirectorySeparatorChar);
+
+            return (substDrive, substPath);
         }
 
         #endregion

@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using JsonDiffPatchDotNet;
 using Newtonsoft.Json;
@@ -68,14 +69,14 @@ namespace BuildXL.Engine.Cache.Serialization
                 return false;
             }
 
-            if (this.Values.Count != other.Values.Count)
+            if (Values.Count != other.Values.Count)
             {
                 return false;
             }
 
-            for (int i = 0; i < this.Values.Count; ++i)
+            for (int i = 0; i < Values.Count; ++i)
             {
-                if (this.Values[i] != other.Values[i])
+                if (Values[i] != other.Values[i])
                 {
                     return false;
                 }
@@ -119,7 +120,7 @@ namespace BuildXL.Engine.Cache.Serialization
     /// </summary>
     public static class JsonTree
     {
-        private static JsonDiffPatch s_jdp = null;
+        private static readonly JsonDiffPatch s_jdp = null;
 
         static JsonTree()
         {
@@ -156,7 +157,7 @@ namespace BuildXL.Engine.Cache.Serialization
                             Parent = parentNode,
                             Name = reader.Value.ToString()
                         };
-                        parentNode.Children.AddFirst(currentNode);
+                        parentNode.Children.AddLast(currentNode);
                         break;
                     case JsonToken.String:
                         currentNode.Values.Add(reader.Value.ToString());
@@ -184,14 +185,14 @@ namespace BuildXL.Engine.Cache.Serialization
         /// This function is recursive to allow re-using <see cref="JsonFingerprinter"/> helper functions for nested objects instead of having to re-build the JSON string from scratch.
         /// The max nested depth for JSON representation of fingerprints is relatively low (~5 stacks), so stack memory should be trivial.
         /// </remarks>
-        public static string Serialize(JsonNode root)
+        public static string Serialize(JsonNode root, Formatting format = Formatting.Indented)
         {
             return JsonFingerprinter.CreateJsonString(wr =>
             {
                 // If the root is being used to just point to a bunch of child nodes, skip printing it
                 if (string.IsNullOrEmpty(root.Name))
                 {
-                    for (var it = root.Children.Last; it != null; it = it.Previous)
+                    for (var it = root.Children.First; it != null; it = it.Next)
                     {
                         BuildStringHelper(it.Value, wr);
                     }
@@ -201,7 +202,7 @@ namespace BuildXL.Engine.Cache.Serialization
                     BuildStringHelper(root, wr);
                 }
             },
-            Formatting.Indented);
+            format);
         }
 
         private static void BuildStringHelper(JsonNode root, IFingerprinter wr)
@@ -230,7 +231,7 @@ namespace BuildXL.Engine.Cache.Serialization
                         collectionWriter.Add(value);
                     }
 
-                    for (var it = n.Children.Last; it != null; it = it.Previous)
+                    for (var it = n.Children.First; it != null; it = it.Next)
                     {
                         BuildStringHelper(it.Value, collectionWriter);
                     }
@@ -381,6 +382,22 @@ namespace BuildXL.Engine.Cache.Serialization
 
                     // Make sure writer is fully closed and done writing before using the underlying string
                     return sbPool.Instance.ToString();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Visits tree.
+        /// </summary>
+        public static void VisitTree(JsonNode root, Action<JsonNode> processNode, bool recurse)
+        {
+            for (var it = root.Children.First; it != null; it = it.Next)
+            {
+                JsonNode node = it.Value;
+                processNode(node);
+                if (recurse)
+                {
+                    VisitTree(node, processNode, recurse);
                 }
             }
         }

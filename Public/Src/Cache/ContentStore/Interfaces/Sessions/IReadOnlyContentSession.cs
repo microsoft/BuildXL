@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Threading;
@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     /// <summary>
     ///     A related set of read accesses to a content store.
     /// </summary>
-    public interface IReadOnlyContentSession : IName, IStartupShutdown
+    public interface IReadOnlyContentSession : IName, IStartupShutdown, IConfigurablePin
     {
         /// <summary>
         ///     Ensure content does not get deleted.

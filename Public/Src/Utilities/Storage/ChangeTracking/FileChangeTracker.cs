@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,6 @@ using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
@@ -173,7 +172,7 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(journal != null);
             Contract.Ensures(Contract.Result<FileChangeTracker>().TrackingState == FileChangeTrackingState.BuildingInitialChangeTrackingSet);
 
-            return new FileChangeTracker(
+            var tracker = new FileChangeTracker(
                 loggingContext,
                 correlatedId ?? FileEnvelopeId.Create(),
                 FileChangeTrackingState.BuildingInitialChangeTrackingSet,
@@ -181,6 +180,17 @@ namespace BuildXL.Storage.ChangeTracking
                 journal,
                 FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal),
                 buildEngineFingerprint);
+
+            foreach (var gvfsProjectionFile in volumeMap.GvfsProjections)
+            {
+                var maybeTracking = tracker.TryProbeAndTrackPath(gvfsProjectionFile);
+                if (!maybeTracking.Succeeded)
+                {
+                    Logger.Log.TrackChangesToGvfsProjectionFailed(loggingContext, gvfsProjectionFile, maybeTracking.Failure.DescribeIncludingInnerFailures());
+                }
+            }
+
+            return tracker;
         }
 
         /// <summary>

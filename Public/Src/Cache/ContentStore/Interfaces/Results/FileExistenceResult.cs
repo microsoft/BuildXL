@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="FileExistenceResult" /> class.
         /// </summary>
-        public FileExistenceResult(ResultCode code, string message, string diagnostics = null)
+        public FileExistenceResult(ResultCode code, string message, string? diagnostics = null)
             : base(message, diagnostics)
         {
             Code = code;
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="FileExistenceResult" /> class.
         /// </summary>
-        public FileExistenceResult(ResultCode code, Exception innerException, string message = null)
+        public FileExistenceResult(ResultCode code, Exception innerException, string? message = null)
             : base(innerException, message)
         {
             Code = code;
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="FileExistenceResult" /> class.
         /// </summary>
-        public FileExistenceResult(ResultCode code, ResultBase other, string message = null)
+        public FileExistenceResult(ResultCode code, ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = code;
@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="FileExistenceResult" /> class.
         /// </summary>
-        public FileExistenceResult(ResultBase other, string message = null)
+        public FileExistenceResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = ResultCode.Error;
@@ -103,7 +103,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is CopyFileResult other && Equals(other);
         }

@@ -3,8 +3,6 @@
 
 namespace MemoizationStoreAdapter {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStoreAdapter.Test",

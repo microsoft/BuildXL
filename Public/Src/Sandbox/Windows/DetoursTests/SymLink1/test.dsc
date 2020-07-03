@@ -3,6 +3,8 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
+export declare const qualifier: {targetRuntime: "win-x64"};
+
 const cmdExe: Transformer.ToolDefinition = {
         exe: f`${Environment.getPathValue("ComSpec")}`,
         dependsOnWindowsDirectories: true,

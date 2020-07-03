@@ -1,9 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace BuildXL.Utilities.Instrumentation.Common
 {
@@ -12,25 +17,116 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// </summary>
     public abstract class LoggerBase
     {
+        /// <nodoc />
+        public bool PreserveLogEvents { get; protected set; }
+
+        /// <nodoc />
+        public bool InspectMessageEnabled { get; protected set; }
+
+        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
+
+        private ConcurrentBag<ILogMessageObserver>? m_messageObservers;
+
+        private int m_errorCount;
+
         /// <summary>
-        /// Gets whether message inspection in enabled.
+        /// True when at least one error occurred. The logger must have 
         /// </summary>
-        public virtual bool InspectMessageEnabled => false;
+
+        public bool HasErrors => ErrorCount != 0;
+
+        /// <summary>
+        /// Returns number of errors.
+        /// </summary>
+        public int ErrorCount
+        {
+            get
+            {
+                Contract.Requires(InspectMessageEnabled);
+                return m_errorCount;
+            }
+        }
+
+        /// <summary>
+        /// Gets a copy of the captured diagnostic messages
+        /// </summary>
+        public IReadOnlyList<Diagnostic> CapturedDiagnostics
+        {
+            get
+            {
+                Contract.Requires(InspectMessageEnabled);
+                return m_capturedDiagnostics.ToList();
+            }
+        }
 
         /// <summary>
         /// Hook for inspecting log messages on a logger
         /// </summary>
-        protected virtual void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
+        public void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
         {
-            // Do nothing. Must be overridden to enable this functionality.
+            var diagnostic = new Diagnostic(logEventId, level, message, location);
+
+            if (PreserveLogEvents)
+            {
+                m_capturedDiagnostics.Enqueue(diagnostic);
+            }
+
+            if (m_messageObservers != null)
+            {
+                foreach (var observer in m_messageObservers)
+                {
+                    observer.OnMessage(diagnostic);
+                }
+            }
+
+            if (diagnostic.IsError)
+            {
+                Interlocked.Increment(ref m_errorCount);
+            }
         }
 
         /// <summary>
         /// See <see cref="LoggingContext.EnqueueLogAction"/>.
         /// </summary>
-        protected static void EnqueueLogAction(LoggingContext loggingContext, int logEventId, Action logAction, [CallerMemberName] string eventName = null)
+        protected static void EnqueueLogAction(LoggingContext loggingContext, int logEventId, Action logAction, [CallerMemberName] string? eventName = null)
         {
             loggingContext.EnqueueLogAction(logEventId, logAction, eventName);
         }
+
+        /// <nodoc />
+        public void AddObserver(ILogMessageObserver observer)
+        {
+            // Adding an observer implies we want to inspect messages.
+            InspectMessageEnabled = true;
+            m_messageObservers = m_messageObservers ?? new ConcurrentBag<ILogMessageObserver>();
+
+            if (observer != null && !m_messageObservers.Contains(observer))
+            {
+                m_messageObservers.Add(observer);
+            }
+        }
+
+        /// <summary>
+        /// Tries to empty the collection of diagnostics.
+        /// </summary>
+        /// <returns>Whether it succeeded emptying the diagnostics</returns>
+        public bool TryClearCapturedDiagnostics()
+        {
+            while (!m_capturedDiagnostics.IsEmpty)
+            {
+                if (!m_capturedDiagnostics.TryDequeue(out Diagnostic result))
+                {
+                    return false;
+                }
+
+                if (result.IsError)
+                {
+                    Interlocked.Decrement(ref m_errorCount);
+                }
+            }
+
+            return true;
+        }
+
     }
 }

@@ -13,11 +13,12 @@ enum PipCacheMissType{
     Hit = 51;
     MissForDescriptorsDueToStrongFingerprints = 53;
     MissForDescriptorsDueToWeakFingerprints = 54;
-    MissForDescriptorsDueToArtificialMissOptions = 55;
-    MissForCacheEntry = 56;
-    MissDueToInvalidDescriptors = 57;
-    MissForProcessMetadata = 58;
-    MissForProcessMetadataFromHistoricMetadata = 59;
-    MissForProcessOutputContent = 60;
-    MissForProcessConfiguredUncacheable = 61;
+    MissForDescriptorsDueToAugmentedWeakFingerprints = 55; 
+    MissForDescriptorsDueToArtificialMissOptions = 56;
+    MissForCacheEntry = 57;
+    MissDueToInvalidDescriptors = 58;
+    MissForProcessMetadata = 59;
+    MissForProcessMetadataFromHistoricMetadata = 60;
+    MissForProcessOutputContent = 61;
+    MissForProcessConfiguredUncacheable = 62;
 }

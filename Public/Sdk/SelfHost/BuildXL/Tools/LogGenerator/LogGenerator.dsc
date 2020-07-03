@@ -4,6 +4,8 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 
+export declare const qualifier: Managed.TargetFrameworks.ConfigurationQualifier;
+
 /**
  * Arguments for LogGenenerator
  */
@@ -40,7 +42,7 @@ export const defaultArgs: Arguments = {
     outputFile: undefined,
     references: [],
     sources: [],
-    targetFramework: "netcoreapp3.0",
+    targetFramework: "netcoreapp3.1",
     targetRuntime: "win-x64",
 };
 
@@ -83,11 +85,13 @@ export function generate(inputArgs: Arguments): File {
 
     const result = Transformer.execute(
         {
-            tool: importFrom("BuildXL.Utilities.Instrumentation").LogGen.withQualifier(Managed.TargetFrameworks.currentMachineQualifier).tool,
+            tool: importFrom("BuildXL.Utilities.Instrumentation").LogGen.withQualifier(Managed.TargetFrameworks.MachineQualifier.current).tool,
             arguments: commandLineArgs,
             workingDirectory: outputFolder,
+            tags: ["codegen"]
         }
     );
 
     return result.getOutputFile(outFile);
 }
+

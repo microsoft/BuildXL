@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -44,15 +44,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         //     "SingleInstanceTimeoutInSeconds":{11}
         //     "SynchronizationMode":{12},
         //     "LogFlushIntervalSeconds":{13},
-        //    "ReplaceExistingOnPlaceFile":{14},
+        //     "ReplaceExistingOnPlaceFile":{14},
+        //     "VfsCasRoot": "{15}",
+        //     "UseVfsSymlinks": "{16}",
         // }
         private sealed class Config
         {
             /// <summary>
             /// The Id of the cache instance.
             /// </summary>
-            [DefaultValue("CasServiceCache")]
-            public string CacheId { get; set; }
+            [DefaultValue(typeof(CacheId))]
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Max number of CasEntries entries.
@@ -165,6 +167,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             [DefaultValue(500_000)]
             public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; }
+
+            /// <summary>
+            /// Path to the root of VFS cas
+            /// </summary>
+            [DefaultValue(null)]
+            public string VfsCasRoot { get; set; }
+
+            /// <summary>
+            /// Indicates whether symlinks should be used to specify VFS files
+            /// </summary>
+            [DefaultValue(true)]
+            public bool UseVfsSymlinks { get; set; } = true;
         }
 
         /// <inheritdoc />
@@ -244,6 +258,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
+            if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
+            {
+                logger.Debug($"Creating virtualized cache");
+
+                localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
+                {
+                    RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
+                    UseSymlinks = cacheConfig.UseVfsSymlinks
+                }.Build());
+            }
+
             var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
             return cache;
         }
@@ -261,6 +286,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         MetadataGarbageCollectionEnabled = true,
                         MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = cacheConfig.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
                         OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = true,
                     },
                 };
 

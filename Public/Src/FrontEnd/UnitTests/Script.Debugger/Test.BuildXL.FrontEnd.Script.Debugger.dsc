@@ -7,7 +7,6 @@ namespace Script.Debugger {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.FrontEnd.Script.Debugger",
         sources: globR(d`.`, "*.cs"),
-        skipTestRun: true, // TODO: Debugger test takes a very long time.
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.Compression.dll

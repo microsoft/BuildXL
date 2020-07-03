@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -163,7 +163,7 @@ namespace BuildXL.Utilities.Serialization
         /// <param name="startPosition">the start position of the compound stream</param>
         public static CompoundStream OpenRead(Func<Stream> readStreamFactory, long startPosition = 0)
         {
-            Contract.Requires(readStreamFactory != null);
+            Contract.RequiresNotNull(readStreamFactory);
             return new CompoundStream(readStreamFactory, startPosition: startPosition);
         }
 
@@ -176,7 +176,7 @@ namespace BuildXL.Utilities.Serialization
         /// <returns>a compound stream which writes to the given underlying stream</returns>
         public static CompoundStream OpenWrite(Stream writeStream, int initialStreamBlockSize = DefaultBlockSize)
         {
-            Contract.Requires(writeStream != null);
+            Contract.RequiresNotNull(writeStream);
             // Wrap stream in tracked stream to avoid unnecessary seeking
             return new CompoundStream(writeStream, initialStreamBlockSize);
         }

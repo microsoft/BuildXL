@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using Xunit.Sdk;
@@ -25,21 +25,21 @@ namespace Test.BuildXL.TestUtilities.Xunit
     /// </remarks>
     [TraitDiscoverer(AdminTestDiscoverer.ClassName, AdminTestDiscoverer.AssemblyName)]
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-    public sealed class TestClassIfSupportedAttribute : Attribute, ITraitAttribute
+    public sealed class TestClassIfSupportedAttribute : Attribute, ITestIfSupportedTraitAttribute
     {
-        /// <summary>
-        /// Whether the entire test class should be skipped or not.
-        /// </summary>
-        public readonly string Skip = null;
+        /// <inheritdoc />
+        public string Skip { get; }
+
+        /// <inheritdoc />
+        public TestRequirements Requirements => m_inner.Requirements;
+
+        private readonly ITestIfSupportedTraitAttribute m_inner;
 
         /// <nodoc/>
-        public bool RequiresAdmin { get; set; }
-
-        /// <nodoc/>
-        public bool RequiresJournalScan { get; set; }
-
-        /// <nodoc/>
-        public bool RequiresSymlinkPermission { get; set; }
+        public TestClassIfSupportedAttribute(TestRequirements requirements)
+            : this(additionalRequirements: requirements)
+        {
+        }
 
         /// <nodoc/>
         public TestClassIfSupportedAttribute(
@@ -48,21 +48,23 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresSymlinkPermission = false,
             bool requiresWindowsBasedOperatingSystem = false,
             bool requiresUnixBasedOperatingSystem = false,
-            bool requiresHeliumDriversAvailable = false)
+            bool requiresHeliumDriversAvailable = false,
+            bool requiresMacOperatingSystem = false,
+            TestRequirements additionalRequirements = TestRequirements.None)
         {
-            RequiresAdmin = requiresAdmin;
-            RequiresJournalScan = requiresJournalScan;
-            RequiresSymlinkPermission = requiresSymlinkPermission;
-
-            // Use same logic and underlying static state to determine wheter to Skip tests
-            Skip = new FactIfSupportedAttribute(
+            // Use same logic and underlying static state to determine whether to Skip tests
+            m_inner = new FactIfSupportedAttribute(
                 requiresAdmin: requiresAdmin,
                 requiresJournalScan: requiresJournalScan,
                 requiresSymlinkPermission: requiresSymlinkPermission,
                 requiresWindowsBasedOperatingSystem: requiresWindowsBasedOperatingSystem,
-                requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem
+                requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem,
+                requiresMacOperatingSystem: requiresMacOperatingSystem,
+                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable,
+                additionalRequirements: additionalRequirements
+            );
 
-            ).Skip;
+            Skip = m_inner.Skip;
         }
     }
 }

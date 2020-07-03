@@ -1,23 +1,23 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using BuildXL.Engine;
 using BuildXL.Execution.Analyzer.JPath;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
 using static BuildXL.FrontEnd.Script.Debugger.Renderer;
-
 using ProcessMonitoringData = BuildXL.Scheduler.Tracing.ProcessExecutionMonitoringReportedEventData;
 
 namespace BuildXL.Execution.Analyzer
@@ -27,6 +27,11 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public class XlgDebuggerState : ThreadState, IExpressionEvaluator
     {
+        /// <summary>
+        /// Reserved name of the "last value" variable.
+        /// </summary>
+        private const string LastValueVarName = "$_result";
+        private const string EvalDurationVarName = "$_evalDuration";
         private const string ExeLevelNotCompleted = "NotCompleted";
         private const int XlgThreadId = 1;
 
@@ -66,51 +71,49 @@ namespace BuildXL.Execution.Analyzer
                 new DisplayStackTraceEntry(file: logFile, line: 1, position: 1, functionName: "<main>", entry: null)
             };
 
-            PipsByType = new ObjectInfo(Enum
+            PipsByType = Enum
                 .GetValues(typeof(PipType))
                 .Cast<PipType>()
                 .Except(new[] { PipType.Max })
-                .Select(pipType => new Property(pipType.ToString(), () => PipGraph.RetrievePipReferencesOfType(pipType).ToArray())));
+                .Aggregate(new ObjectInfoBuilder(), (obi, pipType) => obi.Prop(pipType.ToString(), () => PipGraph.RetrievePipReferencesOfType(pipType).ToArray()))
+                .Build();
 
-            PipsByStatus = new ObjectInfo(Enum
+            PipsByStatus = Enum
                 .GetValues(typeof(PipExecutionLevel))
                 .Cast<PipExecutionLevel>()
                 .Select(level => level.ToString())
                 .Concat(new[] { ExeLevelNotCompleted })
-                .Select(levelStr => new Property(levelStr, () => GetPipsForExecutionLevel(levelStr))));
+                .Aggregate(new ObjectInfoBuilder(), (obi, levelStr) => obi.Prop(levelStr, () => GetPipsForExecutionLevel(levelStr)))
+                .Build();
 
-            RootObject = new ObjectInfo(preview: "Root", properties: new[]
-            {
-                new Property("Pips",          () => PipGraph.RetrieveAllPips()),
-                new Property("Files",         () => PipGraph.AllFiles),
-                new Property("Directories",   () => PipGraph.AllSealDirectories),
-                new Property("DirMembership", () => Analyzer.GetDirMembershipData()),
-                //new Property("CriticalPath",  new AnalyzeCricialPath()),
-                new Property("GroupedBy",     new ObjectInfo(new[]
-                {
-                    new Property("Pips",          new PipsScope()),
-                    new Property("Files",         () => GroupFiles(PipGraph.AllFiles)),
-                    new Property("Directories",   () => GroupDirs(PipGraph.AllSealDirectories))
-                }))
-            });
+            RootObject = new ObjectInfoBuilder()
+                .Preview("Root")
+                .Prop("Pips",          () => PipGraph.RetrieveAllPips())
+                .Prop("ProcessPips",   () => PipGraph.RetrievePipReferencesOfType(PipType.Process))
+                .Prop("Files",         () => PipGraph.AllFiles)
+                .Prop("Directories",   () => PipGraph.AllSealDirectories)
+                .Prop("DirMembership", () => Analyzer.GetDirMembershipData())
+                //.Prop("CriticalPath",  () => new AnalyzeCriticalPath())
+                .Prop("GroupedBy",         new ObjectInfoBuilder()
+                    .Prop("Pips",          new PipsScope())
+                    .Prop("Files",         () => GroupFiles(PipGraph.AllFiles))
+                    .Prop("Directories",   () => GroupDirs(PipGraph.AllSealDirectories))
+                    .Build())
+                .Build();
 
             RootEnv = new Env(
                 parent: null,
                 resolver: (obj) => 
                 {
-                    var result = Renderer.GetObjectInfo(context: this, obj);
-                    return new ObjectInfo(
-                        result.Preview,
-                        properties: result.Properties
-                            .Select(p => new Property(p.Name, value: Renderer.IsInvalid(p.Value) ? new object[0] : p.Value))
-                            .ToArray());
+                    return Renderer.GetObjectInfo(context: this, obj).SetValidator(obj => !Renderer.IsInvalid(obj));
                 },
                 vars: LibraryFunctions.All.ToDictionary(f => '$' + f.Name, f => Result.Scalar(f)),
                 current: RootObject);
 
             Evaluator = new Evaluator(
                 new Env(parent: RootEnv, resolver: RootEnv.Resolver, current: RootEnv.Current),
-                Analyzer.EnableEvalCaching);
+                Analyzer.EnableEvalCaching,
+                Analyzer.EnsureOrdering);
         }
 
         private IEnumerable<T> Concat<T>(params IEnumerable<T>[] list)
@@ -157,10 +160,17 @@ namespace BuildXL.Execution.Analyzer
                 return new ObjectContext(context: this, new AnalyzePath(path));
             }
 
+            var start = DateTime.UtcNow;
             var exprToEval = evaluateForCompletions ? $"({expr})[0]" : expr;
             var maybeResult = JPath.JPath.TryEval(Evaluator, exprToEval);
+            var evalDuration = DateTime.UtcNow.Subtract(start);
             if (maybeResult.Succeeded)
             {
+                if (!evaluateForCompletions)
+                {
+                    Analysis.IgnoreResult(Evaluator.TopEnv.SetVar(LastValueVarName, maybeResult.Result));
+                    Analysis.IgnoreResult(Evaluator.TopEnv.SetVar(EvalDurationVarName, Result.Scalar(evalDuration)));
+                }
                 return new ObjectContext(this, maybeResult.Result);
             }
             else
@@ -191,7 +201,6 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public ObjectInfo Render(Renderer renderer, object ctx, object obj)
         {
-
             switch (obj)
             {
                 case AbsolutePath p:               return new ObjectInfo(p.ToString(PathTable));
@@ -201,11 +210,11 @@ namespace BuildXL.Execution.Analyzer
                 case FileArtifact f:               return FileArtifactInfo(f);
                 case DirectoryArtifact d:          return DirectoryArtifactInfo(d);
                 case AnalyzePath ap:               return AnalyzePathInfo(ap);
-                case AnalyzeCricialPath cp:        return AnalyzeCricialPathInfo();
-                case PipId pipId:                  return renderer.GetObjectInfo(ctx, Analyzer.GetPip(pipId)).WithPreview(pipId.ToString());
-                case PipReference pipRef:          return renderer.GetObjectInfo(ctx, Analyzer.GetPip(pipRef.PipId));
+                case AnalyzeCriticalPath cp:       return AnalyzeCriticalPathInfo();
+                case PipId pipId:                  return Render(renderer, ctx, Analyzer.GetPip(pipId)).WithPreview(pipId.ToString());
+                case PipReference pipRef:          return Render(renderer, ctx, Analyzer.GetPip(pipRef.PipId));
                 case Process proc:                 return ProcessInfo(proc);
-                case Pip pip:                      return PipInfo(pip);
+                case Pip pip:                      return PipInfo(pip).Build();
                 case FileArtifactWithAttributes f: return FileArtifactInfo(f.ToFileArtifact()); // return GenericObjectInfo(f, preview: FileArtifactPreview(f.ToFileArtifact()));
                 case ProcessMonitoringData m:      return ProcessMonitoringInfo(m);
                 case string s:                     return new ObjectInfo(s);
@@ -214,22 +223,29 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
-        private ObjectInfo PipInfo(Pip pip)
+        private static readonly PropertyInfo[] s_pipProperties = GetPublicProperties(typeof(Pip));
+        private static readonly FieldInfo[] s_pipFields = GetPublicFields(typeof(Pip));
+
+        private ObjectInfoBuilder PipInfo(Pip pip)
         {
-            var props = ExtractObjectProperties(pip)
-                .Concat(ExtractObjectFields(pip))
-                .Concat(GetPipDownAndUpStreamProperties(pip));
-            return new ObjectInfo(preview: PipPreview(pip), properties: props);
+            var obi = new ObjectInfoBuilder();
+            obi = s_pipProperties.Aggregate(obi, (acc, pi) => acc.Prop(pi.Name, () => pi.GetValue(pip)));
+            obi = s_pipFields.Aggregate(obi, (acc, fi) => acc.Prop(fi.Name, () => fi.GetValue(pip)));
+            return obi
+                .Prop("Description", () => pip.GetDescription(PipGraph.Context))
+                .Prop("DownstreamPips", CachedGraph.DirectedGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
+                .Prop("UpstreamPips", CachedGraph.DirectedGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
+                .Preview(PipPreview(pip));
         }
 
-        private ObjectInfo AnalyzeCricialPathInfo()
+        private ObjectInfo AnalyzeCriticalPathInfo()
         {
-            return GenericObjectInfo(Analyzer.CriticalPath, preview: "");
+            return GenericObjectInfo(Analyzer.CriticalPath, preview: "").Build();
         }
 
         private ObjectInfo ProcessMonitoringInfo(ProcessMonitoringData m)
         {
-            return GenericObjectInfo(m, excludeProperties: new[] { "PipId", "Metadata" });
+            return GenericObjectInfo(m).Remove("PipId").Remove("Metadata").Build();
         }
 
         private ObjectInfo AnalyzePathInfo(AnalyzePath ap)
@@ -262,39 +278,24 @@ namespace BuildXL.Execution.Analyzer
 
         private ObjectInfo ProcessInfo(Process proc)
         {
-            var pipExePerf = Analyzer.TryGetPipExePerf(proc.PipId);
-            return new ObjectInfo(preview: PipPreview(proc), properties: new[]
-            {
-                new Property("PipId", proc.PipId.Value),
-                new Property("PipType", proc.PipType),
-                new Property("SemiStableHash", proc.SemiStableHash),
-                new Property("Description", proc.GetDescription(PipGraph.Context)),
-                new Property("ExecutionLevel", GetPipExecutionLevel(pipExePerf)),
-                new Property("EXE", proc.Executable),
-                new Property("CMD", Analyzer.RenderProcessArguments(proc)),
-                new Property("Inputs", new ObjectInfo(properties: new[]
-                {
-                    new Property("Files", proc.Dependencies.ToArray()),
-                    new Property("Directories", proc.DirectoryDependencies.ToArray())
-                })),
-                new Property("Outputs", new ObjectInfo(properties: new[]
-                {
-                    new Property("Files", proc.FileOutputs.ToArray()),
-                    new Property("Directories", proc.DirectoryOutputs.ToArray())
-                })),
-                new Property("ExecutionPerformance", pipExePerf),
-                new Property("MonitoringData", () => Analyzer.TryGetProcessMonitoringData(proc.PipId)),
-                new Property("GenericInfo", () => GenericObjectInfo(proc, preview: ""))
-            }.Concat(GetPipDownAndUpStreamProperties(proc)));
-        }
-
-        private IEnumerable<Property> GetPipDownAndUpStreamProperties(Pip pip)
-        {
-            return new[]
-            {
-                new Property("DownstreamPips", CachedGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId()))),
-                new Property("UpstreamPips", CachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId()))),
-            };
+            return PipInfo(proc)
+                .Preview(PipPreview(proc))
+                .Prop("EXE", () => proc.Executable)
+                .Prop("CMD", () => Analyzer.RenderProcessArguments(proc))
+                .Prop("Inputs", new ObjectInfoBuilder()
+                    .Prop("Files", () => proc.Dependencies.ToArray())
+                    .Prop("Directories", () => proc.DirectoryDependencies.ToArray())
+                    .Build())
+                .Prop("Outputs", new ObjectInfoBuilder()
+                    .Prop("Files", () => proc.FileOutputs.ToArray())
+                    .Prop("Directories", proc.DirectoryOutputs.ToArray())
+                    .Build())
+                .Prop("ExecutionPerformance", () => Analyzer.TryGetPipExePerf(proc.PipId))
+                .Prop("ExecutionLevel", () => GetPipExecutionLevel(Analyzer.TryGetPipExePerf(proc.PipId)))
+                .Prop("MonitoringData", () => Analyzer.TryGetProcessMonitoringData(proc.PipId))
+                .Prop("FingerprintData", () => Analyzer.TryGetProcessFingerprintData(proc.PipId))
+                .Prop("GenericInfo", () => GenericObjectInfo(proc, preview: "").Build())
+                .Build();
         }
 
         private string FileArtifactPreview(FileArtifact f)
@@ -311,18 +312,15 @@ namespace BuildXL.Execution.Analyzer
                 return new ObjectInfo("Invalid");
             }
 
-            return new ObjectInfo(
-                preview: FileArtifactPreview(f), 
-                properties: new[]
-                {
-                    new Property("Path", f.Path.ToString(PathTable)),
-                    new Property("Kind", f.IsSourceFile ? "source" : "output"),
-                    new Property("RewriteCount", f.RewriteCount),
-                    new Property("FileContentInfo", () => Analyzer.TryGetFileContentInfo(f)),
-                    f.IsOutputFile ? new Property("Producer", () => Analyzer.GetPip(PipGraph.GetProducer(f))) : null,
-                    new Property("Consumers", () => PipGraph.GetConsumingPips(f.Path))
-                }
-                .Where(p => p != null));
+            return new ObjectInfoBuilder()
+                .Preview(FileArtifactPreview(f))
+                .Prop("Path", f.Path.ToString(PathTable))
+                .Prop("Kind", f.IsSourceFile ? "source" : "output")
+                .Prop("RewriteCount", f.RewriteCount)
+                .Prop("FileContentInfo", () => Analyzer.TryGetFileContentInfo(f))
+                .Prop("Producer", () => f.IsOutputFile ? Analyzer.GetPip(PipGraph.TryGetProducer(f)) : null)
+                .Prop("Consumers", () => PipGraph.GetConsumingPips(f.Path))
+                .Build();
         }
 
         private ObjectInfo DirectoryArtifactInfo(DirectoryArtifact d)
@@ -334,34 +332,30 @@ namespace BuildXL.Execution.Analyzer
 
             var name = d.Path.GetName(PathTable).ToString(StringTable);
             var kind = d.IsSharedOpaque ? "shared opaque" : d.IsOutputDirectory() ? "exclusive opaque" : "source";
-            var members = d.IsOutputDirectory()
-                ? Analyzer.GetDirMembers(d, PipGraph.GetProducer(d))
-                : d.PartialSealId > 0
-                    ? PipGraph.ListSealedDirectoryContents(d).Select(f => f.Path)
-                    : CollectionUtilities.EmptyArray<AbsolutePath>();
-            return new ObjectInfo(
-                preview: $"{name} [{kind}]",
-                properties: new[]
-                {
-                    new Property("Path", d.Path.ToString(PathTable)),
-                    new Property("PartialSealId", d.PartialSealId),
-                    new Property("Kind", kind),
-                    d.IsOutputDirectory() ? new Property("Producer", () => Analyzer.GetPip(PipGraph.GetProducer(d))) : null,
-                    new Property("Consumers", PipGraph.GetConsumingPips(d)),
-                    new Property("Members", members)
-                }
-                .Where(p => p != null));
+
+            return new ObjectInfoBuilder()
+                .Preview($"{name} [{kind}]")
+                .Prop("Path", d.Path.ToString(PathTable))
+                .Prop("PartialSealId", d.PartialSealId)
+                .Prop("Kind", kind)
+                .Prop("Producer", () => d.IsOutputDirectory() ? Analyzer.GetPip(PipGraph.TryGetProducer(d)) : null)
+                .Prop("Consumers", PipGraph.GetConsumingPips(d))
+                .Prop("Members", () => d.IsOutputDirectory()
+                    ? (object)Analyzer.GetDirMembers(d)
+                    : d.PartialSealId > 0
+                        ? PipGraph.ListSealedDirectoryContents(d).Select(f => f.Path)
+                        : CollectionUtilities.EmptyArray<AbsolutePath>())
+                .Build();
         }
 
         private ObjectInfo PipsInfo(PipsScope _)
         {
-            return new ObjectInfo(new[]
-            {
-                new Property("ByType", PipsByType),
-                new Property("ByStatus", PipsByStatus),
-                new Property("ByExecutionStart", () => PipsOrderedBy(exePerf => exePerf.ExecutionStart)),
-                new Property("ByExecutionStop", () => PipsOrderedBy(exePerf => exePerf.ExecutionStop))
-            });
+            return new ObjectInfoBuilder()
+                .Prop("ByType", PipsByType)
+                .Prop("ByStatus", PipsByStatus)
+                .Prop("ByExecutionStart", () => PipsOrderedBy(exePerf => exePerf.ExecutionStart))
+                .Prop("ByExecutionStop", () => PipsOrderedBy(exePerf => exePerf.ExecutionStop))
+                .Build();
         }
 
         private PipReference[] PipsOrderedBy(Func<PipExecutionPerformance, object> selector)
@@ -374,21 +368,19 @@ namespace BuildXL.Execution.Analyzer
 
         private ObjectInfo GroupFiles(IEnumerable<FileArtifact> files)
         {
-            return new ObjectInfo(properties: new[]
-            {
-                new Property("Source", () => GroupByFirstFileNameLetter(files.Where(f => f.IsSourceFile), f => f.Path)),
-                new Property("Output", () => GroupByFirstFileNameLetter(files.Where(f => f.IsOutputFile), f => f.Path))
-            });
+            return new ObjectInfoBuilder()
+                .Prop("Source", () => GroupByFirstFileNameLetter(files.Where(f => f.IsSourceFile), f => f.Path))
+                .Prop("Output", () => GroupByFirstFileNameLetter(files.Where(f => f.IsOutputFile), f => f.Path))
+                .Build();
         }
 
         private ObjectInfo GroupDirs(IEnumerable<DirectoryArtifact> dirs)
         {
-            return new ObjectInfo(properties: new[]
-            {
-                new Property("Source",          () => GroupByFirstFileNameLetter(dirs.Where(d => !d.IsOutputDirectory()), d => d.Path)),
-                new Property("ExclusiveOpaque", () => GroupByFirstFileNameLetter(dirs.Where(d => d.IsOutputDirectory() && !d.IsSharedOpaque), d => d.Path)),
-                new Property("SharedOpaque",    () => GroupByFirstFileNameLetter(dirs.Where(d => d.IsSharedOpaque), d => d.Path))
-            });
+            return new ObjectInfoBuilder()
+                .Prop("Source", () => GroupByFirstFileNameLetter(dirs.Where(d => !d.IsOutputDirectory()), d => d.Path))
+                .Prop("ExclusiveOpaque", () => GroupByFirstFileNameLetter(dirs.Where(d => d.IsOutputDirectory() && !d.IsSharedOpaque), d => d.Path))
+                .Prop("SharedOpaque", () => GroupByFirstFileNameLetter(dirs.Where(d => d.IsSharedOpaque), d => d.Path))
+                .Build();
         }
 
         private ObjectInfo GroupByFirstFileNameLetter<T>(IEnumerable<T> elems, Func<T, AbsolutePath> toPath)
@@ -403,7 +395,7 @@ namespace BuildXL.Execution.Analyzer
 
         private class PipsScope { }
         private class FilesScope { }
-        private class AnalyzeCricialPath { }
+        private class AnalyzeCriticalPath { }
         private class AnalyzePath
         {
             internal AbsolutePath Path { get; }

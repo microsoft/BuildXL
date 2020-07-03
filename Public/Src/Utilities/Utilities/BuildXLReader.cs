@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static BuildXLReader Create(Stream stream, bool leaveOpen = false)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
             return new BuildXLReader(debug: false, stream: stream, leaveOpen: leaveOpen);
         }
 
@@ -175,7 +175,6 @@ namespace BuildXL.Utilities
         /// </summary>
         public Token ReadToken()
         {
-            Contract.Ensures(Contract.Result<Token>() != null);
             Start<Token>();
             Token value = Token.Deserialize(this);
             End();
@@ -354,7 +353,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public ReadOnlyArray<T> ReadReadOnlyArray<T>(Func<BuildXLReader, T> reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<ReadOnlyArray<T>>();
             int length = ReadInt32Compact();
             if (length == 0)
@@ -374,7 +373,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public IReadOnlySet<T> ReadReadOnlySet<T>(Func<BuildXLReader, T> reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<IReadOnlySet<T>>();
             int length = ReadInt32Compact();
             if (length == 0)
@@ -392,9 +391,9 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Reads an array
         /// </summary>
-        public T[] ReadArray<T>(Func<BuildXLReader, T> reader)
+        public T[] ReadArray<T>(Func<BuildXLReader, T> reader, int minimumLength = 0)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<T[]>();
             int length = ReadInt32Compact();
             if (length == 0)
@@ -403,7 +402,7 @@ namespace BuildXL.Utilities
                 return CollectionUtilities.EmptyArray<T>();
             }
 
-            T[] array = ReadArrayCore(reader, length);
+            T[] array = ReadArrayCore(reader, length, minimumLength: minimumLength);
 
             End();
             return array;
@@ -414,7 +413,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public IReadOnlyList<T> ReadReadOnlyList<T>(Func<BuildXLReader, T> reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<IReadOnlyList<T>>();
             int length = ReadInt32Compact();
             T[] array = ReadArrayCore(reader, length);
@@ -422,9 +421,9 @@ namespace BuildXL.Utilities
             return array;
         }
 
-        private T[] ReadArrayCore<T>(Func<BuildXLReader, T> reader, int length)
+        private T[] ReadArrayCore<T>(Func<BuildXLReader, T> reader, int length, int minimumLength = 0)
         {
-            var array = CollectionUtilities.NewOrEmptyArray<T>(length);
+            var array = CollectionUtilities.NewOrEmptyArray<T>(Math.Max(minimumLength, length));
             for (int i = 0; i < length; i++)
             {
                 array[i] = reader(this);
@@ -441,8 +440,8 @@ namespace BuildXL.Utilities
             TComparer comparer)
             where TComparer : class, IComparer<TValue>
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(comparer);
             Start<SortedReadOnlyArray<TValue, TComparer>>();
             ReadOnlyArray<TValue> array = ReadReadOnlyArray(reader);
             End();
@@ -492,7 +491,7 @@ namespace BuildXL.Utilities
         public T? ReadNullableStruct<T>(Func<BuildXLReader, T> reader)
             where T : struct
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<T?>();
             T? value = ReadBoolean() ? (T?) reader(this) : (T?) null;
             End();
@@ -505,7 +504,7 @@ namespace BuildXL.Utilities
         public T ReadNullable<T>(Func<BuildXLReader, T> reader)
             where T : class
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Start<T>();
             T value = ReadBoolean() ? (T) reader(this) : (T) null;
             End();
@@ -539,7 +538,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public async Task<SymbolTable> ReadSymbolTableAsync(Task<StringTable> stringTableTask)
         {
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(stringTableTask);
 
             Start<SymbolTable>();
             var value = await SymbolTable.DeserializeAsync(this, stringTableTask);
@@ -552,7 +551,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public async Task<QualifierTable> ReadQualifierTableAsync(Task<StringTable> stringTableTask)
         {
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(stringTableTask);
 
             Start<SymbolTable>();
             var value = await QualifierTable.DeserializeAsync(this, stringTableTask);
@@ -565,7 +564,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public async Task<PathTable> ReadPathTableAsync(Task<StringTable> stringTableTask)
         {
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(stringTableTask);
 
             Start<PathTable>();
             var value = await PathTable.DeserializeAsync(this, stringTableTask);

@@ -1,4 +1,7 @@
-﻿using System.Diagnostics.ContractsLight;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 
@@ -43,9 +46,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// </summary>
         public static LocalCacheConfiguration CreateServerEnabled(int grpcPort, string cacheName, string scenarioName, int retryIntervalSeconds, int retryCount)
         {
-            Contract.Requires(grpcPort > 0, $"Local server must have a positive GRPC port. Found {grpcPort}.");
-            Contract.Requires(!string.IsNullOrWhiteSpace(cacheName), $"Local server must have a non-empty cache name. Found {cacheName}.");
-
+            Contract.Check(grpcPort > 0)?.Requires($"Local server must have a positive GRPC port. Found {grpcPort}.");
+            Contract.Check(!string.IsNullOrWhiteSpace(cacheName))?.Requires($"Local server must have a non-empty cache name. Found {cacheName}.");
             return new LocalCacheConfiguration(true, grpcPort, cacheName, scenarioName, retryIntervalSeconds, retryCount);
         }
 

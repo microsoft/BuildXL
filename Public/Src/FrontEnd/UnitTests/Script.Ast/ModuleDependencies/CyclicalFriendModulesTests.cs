@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Script.Tracing;
 using Test.DScript.Ast.DScriptV2;
@@ -71,7 +71,7 @@ namespace Test.DScript.Ast.ModuleDependencies
         }
 
         [Fact]
-        public void CyclicalFriendsWhitelistCycles()
+        public void CyclicalFriendsAllowlistCycles()
         {
             // A -> B -> C -> A, but A allows C in a cycle
             BuildWithModulePolicies()
@@ -85,7 +85,7 @@ namespace Test.DScript.Ast.ModuleDependencies
         }
 
         [Fact]
-        public void CyclicalFriendsWhitelistCycles2()
+        public void CyclicalFriendsAllowlistCycles2()
         {
             // A -> B -> C -> A, but C allows B in a cycle
             BuildWithModulePolicies()

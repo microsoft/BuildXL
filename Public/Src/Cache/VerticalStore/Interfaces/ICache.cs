@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Interfaces
         /// The identifier for this cache - used for telemetry
         /// </returns>
         [NotNull]
-        string CacheId { get; }
+        CacheId CacheId { get; }
 
         /// <summary>
         /// This is the unique GUID for the given cache

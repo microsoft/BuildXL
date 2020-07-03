@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -28,7 +28,7 @@ namespace BuildXL.Storage.FileContentTableAccessor
                 return true;
             }
 
-            VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext(nameof(IFileContentTableAccessor)));
+            VolumeMap volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(new LoggingContext(nameof(IFileContentTableAccessor)));
 
             if (volumeMap == null)
             {

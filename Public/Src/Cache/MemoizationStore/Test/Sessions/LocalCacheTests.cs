@@ -1,7 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -183,8 +181,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             return RunCacheAndSessionTestAsync(async (cache, session, context) =>
             {
-                Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> enumerator = session.GetSelectors(context, Fingerprint.Random(), Token);
-                await enumerator.ToList(CancellationToken.None);
+                System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> enumerator = session.GetSelectors(context, Fingerprint.Random(), Token);
+                await enumerator.ToListAsync(CancellationToken.None);
                 long counter = await GetCounterValue("GetSelectorsCall", cache, context);
                 counter.Should().Be(1);
             });

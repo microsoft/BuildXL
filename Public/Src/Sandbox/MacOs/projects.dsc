@@ -1,5 +1,5 @@
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-import {XCode} from "Sdk.MacOS";
+import {Clang, Xcode} from "Sdk.MacOS";
 
 namespace Sandbox {
     export declare const qualifier : {
@@ -14,7 +14,8 @@ namespace Sandbox {
         semaphores?: string[],
         xcconfig?: File,
         dependencies?: StaticDirectory[],
-        overrideXcodeBuildPath?: File
+        overrideXcodeBuildPath?: File,
+        headerSearchPaths?: Xcode.HeaderSearchPath[];
     }
 
     interface Result {
@@ -44,7 +45,8 @@ namespace Sandbox {
         const conf = args.configuration || qualifier.configuration;
         const outDir = Context.getNewOutputDirectory(args.scheme);
         const outFilePaths = (args.outFiles || []).map(a => p`${outDir}/Build/Products/${conf}/${a}`);
-        const result = XCode.execute({
+        const result = Xcode.execute({
+            useModernBuildSystem: true,
             project: args.project,
             xcconfig: args.xcconfig,
             scheme: args.scheme,
@@ -58,7 +60,8 @@ namespace Sandbox {
                 ...(args.dependencies || []),
                 ...sourceFileDependencies
             ],
-            overrideXcodeBuildPath: args.overrideXcodeBuildPath
+            overrideXcodeBuildPath: args.overrideXcodeBuildPath,
+            headerSearchPaths: args.headerSearchPaths
         });
 
         return {
@@ -73,6 +76,11 @@ namespace Sandbox {
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
 
+    const detoursXcodeproj = Transformer.sealDirectory({
+        root: d`Detours/Detours.xcodeproj`,
+        files: globR(d`Detours/Detours.xcodeproj`, "*")
+    });
+
     const interopXcodeproj = Transformer.sealDirectory({
         root: d`Interop/Interop.xcodeproj`,
         files: globR(d`Interop/Interop.xcodeproj`, "*")
@@ -83,7 +91,7 @@ namespace Sandbox {
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 
-    const ariaPkg = importFrom("Aria.Cpp.SDK");
+    const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
     const ariaXcconfig = Transformer.writeData({
         outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
         contents: {
@@ -115,6 +123,14 @@ namespace Sandbox {
         xcconfig: bundleInfoXCConfig
     }).outFiles[0];
 
+    @@public 
+    export const libDetours = isMacOs && build({
+        project: detoursXcodeproj,
+        scheme: "DetoursLibrary",
+        outFiles: [ a`libBuildXLDetours.dylib` ],
+        xcconfig: bundleInfoXCConfig
+    }).outFiles[0];
+
     @@public
     export const coreDumpTester = isMacOs && build({
         project: interopXcodeproj,
@@ -140,10 +156,17 @@ namespace Sandbox {
     }
 
     function buildKext(bundleInfo: File): KextFiles {
+        const kernelHeaders = <Xcode.HeaderSearchPath>{
+            type: "system",
+            directory: importFrom("Apple.Darwin.Xnu").extracted,
+            recursive: true
+        };
+
         const result = build({
             project: sandboxXcodeproj,
             scheme: "BuildXLSandbox",
             xcconfig: bundleInfo || bundleInfoXCConfig,
+            headerSearchPaths: [ kernelHeaders ],
             outFiles: [
                 r`BuildXLSandbox.kext/Contents/Info.plist`,
                 r`BuildXLSandbox.kext/Contents/MacOS/BuildXLSandbox`,
@@ -154,11 +177,9 @@ namespace Sandbox {
                     r`BuildXLSandbox.kext.dSYM/Contents/Resources/DWARF/BuildXLSandbox`
                 ])
             ],
-            // For as long as we support the sandbox kernel extension for macOS 10.14, we have to build it with the
-            // 10.3 version of Xcode, obtainable from https://developer.apple.com/download/more/. After downloading,
-            // either adjust this path to where you have placed the tool or put everything into your /Applications
-            // folder, renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found!
-            overrideXcodeBuildPath: f`/Applications/Xcode_10.3.app/Contents/Developer/usr/bin/xcodebuild`
+            dependencies: [
+                kernelHeaders.directory
+            ]
         });
         return {
             plist: result.outFiles[0],

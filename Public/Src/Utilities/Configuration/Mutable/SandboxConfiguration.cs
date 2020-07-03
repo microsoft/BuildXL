@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -51,6 +52,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
             PreserveOutputsForIncrementalTool = false;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
+            VmConcurrencyLimit = 0;
         }
 
         /// <nodoc />
@@ -59,7 +61,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration(template.UnsafeSandboxConfiguration);
 
-            DebugInstantPipOutputs = template.DebugInstantPipOutputs;
             BreakOnUnexpectedFileAccess = template.BreakOnUnexpectedFileAccess;
             FileAccessIgnoreCodeCoverage = template.FileAccessIgnoreCodeCoverage;
             FailUnexpectedFileAccesses = template.FailUnexpectedFileAccesses;
@@ -99,6 +100,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
             PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
+            VmConcurrencyLimit = template.VmConcurrencyLimit;
         }
 
         /// <inheritdoc />
@@ -128,9 +130,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 m_unsafeSandboxConfig = value;
             }
         }
-
-        /// <inheritdoc />
-        public bool DebugInstantPipOutputs { get; set; }
 
         /// <inheritdoc />
         public bool BreakOnUnexpectedFileAccess { get; set; }
@@ -257,5 +256,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
+
+        /// <inheritdoc />
+        public int VmConcurrencyLimit { get; set; }
     }
 }

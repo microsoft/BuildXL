@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -34,26 +34,26 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Internal stopwatch.
         /// </summary>
-        private readonly Stopwatch m_stopwatch;
+        private readonly Stopwatch? m_stopwatch;
 
         /// <summary>
         /// Flag indicating if this perf measurment has been disposed.
         /// </summary>
         private bool m_isDisposed;
 
-        private readonly PerformanceCollector.Aggregator m_aggregator;
+        private readonly PerformanceCollector.Aggregator? m_aggregator;
 
         /// <summary>
         /// Struct initializer.
         /// </summary>
         private PerformanceMeasurement(
             LoggingContext parentLoggingContext,
-            PerformanceCollector.Aggregator aggregator,
-            string phaseFriendlyName,
+            PerformanceCollector.Aggregator? aggregator,
+            string? phaseFriendlyName,
             Action<LoggingContext> endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(endAction != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(endAction);
 
             LoggingContext = new LoggingContext(parentLoggingContext, phaseFriendlyName);
             m_aggregator = aggregator;
@@ -90,11 +90,13 @@ namespace BuildXL.Tracing
             if (m_stopwatch != null)
             {
                 m_stopwatch.Stop();
+                Contract.AssertNotNull(LoggingContext.LoggerComponentInfo);
                 LoggingHelpers.LogCategorizedStatistic(LoggingContext, LoggingContext.LoggerComponentInfo, Statistics.DurationMs, (int)m_stopwatch.ElapsedMilliseconds);
             }
 
             if (m_aggregator != null)
             {
+                Contract.AssertNotNull(LoggingContext.LoggerComponentInfo);
                 LoggingHelpers.LogPerformanceCollector(m_aggregator, LoggingContext, LoggingContext.LoggerComponentInfo);
                 m_aggregator.Dispose();
             }
@@ -113,9 +115,9 @@ namespace BuildXL.Tracing
             Action<Guid> startAction,
             Action endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
 
             return Start(
                 parentLoggingContext,
@@ -133,9 +135,9 @@ namespace BuildXL.Tracing
             Action<LoggingContext> startAction,
             Action<LoggingContext> endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
 
             return Start(
                 parentLoggingContext,
@@ -155,10 +157,10 @@ namespace BuildXL.Tracing
             Action<Guid> startAction,
             Action endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(phaseFriendlyName));
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNullOrWhiteSpace(phaseFriendlyName);
 
             return Start(
                 parentLoggingContext,
@@ -177,10 +179,10 @@ namespace BuildXL.Tracing
             Action<LoggingContext> startAction,
             Action<LoggingContext> endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(phaseFriendlyName));
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNullOrWhiteSpace(phaseFriendlyName);
 
             return Start(
                 parentLoggingContext,
@@ -198,15 +200,15 @@ namespace BuildXL.Tracing
             Justification = "We specifically want a PerfCounterCollector so its aggregator returns the appropriate type")]
         public static PerformanceMeasurement Start(
             LoggingContext parentLoggingContext,
-            PerformanceCollector collector,
-            string phaseFriendlyName,
+            PerformanceCollector? collector,
+            string? phaseFriendlyName,
             Action<Guid> startAction,
             Action endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
+            Contract.RequiresNotNull(parentLoggingContext);
             Contract.Requires(collector == null || !string.IsNullOrWhiteSpace(phaseFriendlyName));
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
 
             return Start(
                 parentLoggingContext,
@@ -231,15 +233,15 @@ namespace BuildXL.Tracing
             Justification = "We specifically want a PerfCounterCollector so its aggregator returns the appropriate type")]
         public static PerformanceMeasurement Start(
             LoggingContext parentLoggingContext,
-            PerformanceCollector collector,
-            string phaseFriendlyName,
+            PerformanceCollector? collector,
+            string? phaseFriendlyName,
             Action<LoggingContext> startAction,
             Action<LoggingContext> endAction)
         {
-            Contract.Requires(parentLoggingContext != null);
+            Contract.RequiresNotNull(parentLoggingContext);
             Contract.Requires(collector == null || !string.IsNullOrWhiteSpace(phaseFriendlyName));
-            Contract.Requires(startAction != null);
-            Contract.Requires(endAction != null);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNull(endAction);
 
             var pm = new PerformanceMeasurement(
                 parentLoggingContext,

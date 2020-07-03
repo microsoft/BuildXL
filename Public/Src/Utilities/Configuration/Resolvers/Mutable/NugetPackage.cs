@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
@@ -11,6 +11,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public NugetPackage()
         {
+            OsSkip = new List<string>();
+            DependentPackageIdsToSkip = new List<string>();
+            DependentPackageIdsToIgnore = new List<string>();
         }
 
         /// <nodoc />
@@ -20,8 +23,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Version = template.Version;
             Alias = template.Alias;
             Tfm = template.Tfm;
-            DependentPackageIdsToSkip = template.DependentPackageIdsToSkip ?? new List<string>() { };
-            DependentPackageIdsToIgnore = template.DependentPackageIdsToIgnore ?? new List<string>() { };
+            OsSkip = template.OsSkip ?? new List<string>();
+            DependentPackageIdsToSkip = template.DependentPackageIdsToSkip ?? new List<string>();
+            DependentPackageIdsToIgnore = template.DependentPackageIdsToIgnore ?? new List<string>();
             ForceFullFrameworkQualifiersOnly = template.ForceFullFrameworkQualifiersOnly;
         }
 
@@ -36,6 +40,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public string Tfm { get; set; }
+
+        /// <inheritdoc />
+        public List<string> OsSkip { get; private set; }
 
         /// <inheritdoc />
         public List<string> DependentPackageIdsToSkip { get; private set; }

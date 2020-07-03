@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -39,15 +39,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Filter = template.Filter;
             Server = template.Server;
             ServerDeploymentDirectory = pathRemapper.Remap(template.ServerDeploymentDirectory);
-            HelpCode = template.HelpCode;
             ServerMaxIdleTimeInMinutes = template.ServerMaxIdleTimeInMinutes;
         }
 
         /// <inheritdoc />
         public HelpLevel Help { get; set; }
-
-        /// <inheritdoc />
-        public int HelpCode { get; set; }
 
         /// <inheritdoc />
         public bool NoLogo { get; set; }

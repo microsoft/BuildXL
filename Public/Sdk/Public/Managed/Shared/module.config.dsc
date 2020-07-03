@@ -3,6 +3,5 @@
 
 module({
     name: "Sdk.Managed.Shared",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: glob(d`.`, "*.dsc"),
 });

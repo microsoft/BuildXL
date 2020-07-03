@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -240,21 +240,39 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 expectedQueries: new int[] { 1, 2, 2, 2, 2, 2 });
         }
 
-        private static void TestApproximateSort(int[] elements, int poolSize, int pageSize, float removalFraction, int[] expectedEnumerator, int[] expectedQueries)
+        [Fact]
+        public void TestApproximateSort5()
+        {
+            // Enabling maximum removal fraction kills the obvious outlier. Notice it also kills a non-outlier, 5.
+            TestApproximateSort(
+                elements: new int[] { 2, 4, 1000, 5, 1, 6 },
+                poolSize: 3,
+                pageSize: 3,
+                removalFraction: 1.0f / 10.0f,
+                expectedEnumerator: new int[] { 2, 1, 4, 6, -1, -1 },
+                expectedQueries: new int[] { 1, 2, 3, 3, -1, -1 },
+                maximumRemovalFraction: 1.0f/2.0f);
+        }
+
+        private static void TestApproximateSort(int[] elements, int poolSize, int pageSize, float removalFraction, int[] expectedEnumerator, int[] expectedQueries, float maximumRemovalFraction = 0)
         {
             var comparer = Comparer<int>.Default;
             var numQueries = 0;
             Func<IEnumerable<int>, IEnumerable<int>> query = page => { numQueries++; return page; };
-            var enumerable = elements.ApproximateSort(comparer, query, poolSize, pageSize, removalFraction);
+            var enumerable = elements.ApproximateSort(comparer, query, poolSize, pageSize, removalFraction, maximumRemovalFraction);
             var enumerator = enumerable.GetEnumerator();
 
             numQueries.Should().Be(0);
 
-            var actualEnumerator = new int[elements.Length];
-            var actualQueries = new int[elements.Length];
+            var actualEnumerator = Enumerable.Repeat(-1, elements.Length).ToArray();
+            var actualQueries = Enumerable.Repeat(-1, elements.Length).ToArray();
             for (int i = 0; i < elements.Length; ++i)
             {
-                enumerator.MoveNext();
+                if (!enumerator.MoveNext())
+                {
+                    break;
+                }
+
                 actualQueries[i] = numQueries;
                 actualEnumerator[i] = enumerator.Current;
             }

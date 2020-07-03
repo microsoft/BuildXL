@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using System.Linq;
@@ -34,7 +34,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                                },
                     TextDocument = new TextDocumentIdentifier()
                                    {
-                                       Uri = m_fixture.GetChildUri(@"module\goToDefinitions.bxt").ToString()
+                                       Uri = m_fixture.GetChildUri(@"module\goToDefinitions.bxt")
                                    }
                 }, CancellationToken.None);
 
@@ -63,7 +63,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                                },
                     TextDocument = new TextDocumentIdentifier()
                                    {
-                                       Uri = m_fixture.GetChildUri(@"project\project.bxt").ToString()
+                                       Uri = m_fixture.GetChildUri(@"project\project.bxt")
                                    }
                 }, CancellationToken.None);
 

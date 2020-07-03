@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,15 +9,17 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Management;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using BuildXL.Interop;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
-using static BuildXL.Interop.MacOS.Memory;
-using static BuildXL.Interop.MacOS.Processor;
+using static BuildXL.Interop.Unix.Memory;
+using static BuildXL.Interop.Unix.Processor;
 using static BuildXL.Interop.Windows.IO;
 using static BuildXL.Interop.Windows.Memory;
 using static BuildXL.Interop.Windows.Processor;
@@ -37,6 +39,7 @@ namespace BuildXL.Utilities
         private readonly object m_collectLock = new object();
         private readonly TimeSpan m_collectionFrequency;
         private readonly bool m_collectHeldBytesFromGC;
+        private readonly TestHooks m_testHooks;
 
         // Objects that aggregate performance info during their lifetime
         private readonly HashSet<Aggregator> m_aggregators = new HashSet<Aggregator>();
@@ -53,7 +56,7 @@ namespace BuildXL.Utilities
         private CpuLoadInfo m_lastCpuLoadInfo;
 
         // Used for collecting disk activity
-        private readonly Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>[] m_drives;
+        private readonly (DriveInfo driveInfo, SafeFileHandle safeFileHandle, DISK_PERFORMANCE diskPerformance)[] m_drives;
 
         // NetworkMonitor to measure network bandwidth of the computer.
         private NetworkMonitor m_networkMonitor;
@@ -67,7 +70,20 @@ namespace BuildXL.Utilities
         /// </summary>
         public IEnumerable<string> GetDrives()
         {
-            return m_drives.Where(t => !t.Item2.IsInvalid && !t.Item2.IsClosed).Select(t => t.Item1.Name.TrimStart('\\').TrimEnd('\\').TrimEnd(':'));
+            return OperatingSystemHelper.IsUnixOS ? // Drive names are processed differently depending on OS
+                m_drives.Select(t => t.driveInfo.Name) : 
+                m_drives.Where(t => !t.safeFileHandle.IsInvalid && !t.safeFileHandle.IsClosed).Select(t => t.driveInfo.Name.TrimStart('\\').TrimEnd('\\').TrimEnd(':'));
+        }
+
+        /// <summary>
+        /// Test hooks for PerformanceCollector
+        /// </summary>
+        public class TestHooks
+        {
+            /// <summary>
+            /// Return a specific AvailableDiskSpace
+            /// </summary>
+            public int AvailableDiskSpace;
         }
 
         /// <summary>
@@ -75,33 +91,35 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, TestHooks testHooks = null)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
             m_collectHeldBytesFromGC = collectBytesHeld;
+            m_testHooks = testHooks;
 
             // Figure out which drives we want to get counters for
-            List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>> drives = new List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>>();
+            List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
 
-            if (!OperatingSystemHelper.IsUnixOS)
+            foreach (var drive in DriveInfo.GetDrives())
             {
-                foreach (var drive in DriveInfo.GetDrives())
+                if (drive.DriveType == DriveType.Fixed && drive.IsReady)
                 {
-                    if (drive.DriveType == DriveType.Fixed && drive.DriveType != DriveType.Removable && drive.IsReady)
+                    if (OperatingSystemHelper.IsUnixOS)
                     {
-                        if (drive.Name.Length == 3 && drive.Name.EndsWith(@":\", StringComparison.OrdinalIgnoreCase))
+                        drives.Add((drive, null, default));
+                    }
+                    else if (drive.Name.Length == 3 && drive.Name.EndsWith(@":\", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string path = @"\\.\" + drive.Name[0] + ":";
+                        SafeFileHandle handle = CreateFileW(path, FileDesiredAccess.None, FileShare.Read, IntPtr.Zero, FileMode.Open, FileFlagsAndAttributes.FileAttributeNormal, IntPtr.Zero);
+                        if (!handle.IsClosed && !handle.IsInvalid)
                         {
-                            string path = @"\\.\" + drive.Name[0] + ":";
-                            SafeFileHandle handle = CreateFileW(path, FileDesiredAccess.None, FileShare.Read, IntPtr.Zero, FileMode.Open, FileFlagsAndAttributes.FileAttributeNormal, IntPtr.Zero);
-                            if (!handle.IsClosed && !handle.IsInvalid)
-                            {
-                                drives.Add(new Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>(drive, handle, default(DISK_PERFORMANCE)));
-                            }
-                            else
-                            {
-                                handle.Dispose();
-                            }
+                            drives.Add((drive, handle, default));
+                        }
+                        else
+                        {
+                            handle.Dispose();
                         }
                     }
                 }
@@ -109,11 +127,36 @@ namespace BuildXL.Utilities
 
             m_drives = drives.ToArray();
 
-            // Initialize network telemetry objects
-            InitializeNetworkMonitor();
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                // Initialize network telemetry objects
+                InitializeNetworkMonitor();
+
+                InitializeWMI();
+            }
 
             // Perform all initialization before starting the timer
             m_collectionTimer = new Timer(Collect, null, 0, 0);
+        }
+
+        private ManagementScope m_scope;
+        private ManagementObjectSearcher m_querySearcher;
+
+        private void InitializeWMI()
+        {
+            try
+            {
+                m_scope = new ManagementScope(String.Format("\\\\{0}\\root\\CIMV2", "."), null);
+                m_scope.Connect();
+
+                ObjectQuery query = new ObjectQuery("SELECT AvailableBytes, ModifiedPageListBytes, FreeAndZeroPageListBytes, StandbyCacheCoreBytes, StandbyCacheNormalPriorityBytes, StandbyCacheReserveBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
+                m_querySearcher = new ManagementObjectSearcher(m_scope, query);
+            }
+#pragma warning disable ERP022
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         /// <summary>
@@ -154,9 +197,14 @@ namespace BuildXL.Utilities
 
                 double? machineAvailablePhysicalBytes = null;
                 double? machineTotalPhysicalBytes = null;
-                double? commitTotalBytes = null;
+                double? commitUsedBytes = null;
                 double? commitLimitBytes = null;
-                DISK_PERFORMANCE[] diskStats = null;
+
+                double? modifiedPagelistBytes = null;
+                double? freePagelistBytes = null;
+                double? standbyPagelistBytes = null;
+
+                DiskStats[] diskStats = null;
 
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
@@ -172,18 +220,25 @@ namespace BuildXL.Utilities
                     PERFORMANCE_INFORMATION performanceInfo = PERFORMANCE_INFORMATION.CreatePerfInfo();
                     if (GetPerformanceInfo(out performanceInfo, performanceInfo.cb))
                     {
-                        commitTotalBytes = performanceInfo.CommitTotal.ToInt64() * performanceInfo.PageSize.ToInt64();
+                        commitUsedBytes = performanceInfo.CommitUsed.ToInt64() * performanceInfo.PageSize.ToInt64();
                         commitLimitBytes = performanceInfo.CommitLimit.ToInt64() * performanceInfo.PageSize.ToInt64();
                     }
 
-                    diskStats = GetDiskCounters();
+                    diskStats = GetDiskCountersWindows();
+
+                    TryGetRAMDetails(ref modifiedPagelistBytes, ref freePagelistBytes, ref standbyPagelistBytes);
                 }
                 else
                 {
+                    diskStats = GetDiskCountersMacOS();
                     machineCpu = GetMachineCpuMacOS();
-                    ulong totalPhysicalBytes = OperatingSystemHelper.GetPhysicalMemorySize().Bytes;
-                    machineTotalPhysicalBytes = totalPhysicalBytes;
-                    machineAvailablePhysicalBytes = GetAvailablePhysicalBytesMacOS(totalPhysicalBytes);
+
+                    RamUsageInfo ramUsageInfo = new RamUsageInfo();
+                    if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
+                    {
+                        machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
+                        machineAvailablePhysicalBytes = ramUsageInfo.FreeBytes;
+                    }
                 }
 
                 // stop network monitor measurement and gather data
@@ -215,13 +270,16 @@ namespace BuildXL.Utilities
                             machineCpu: machineCpu,
                             machineTotalPhysicalBytes: machineTotalPhysicalBytes,
                             machineAvailablePhysicalBytes: machineAvailablePhysicalBytes,
-                            commitTotalBytes: commitTotalBytes,
+                            commitUsedBytes: commitUsedBytes,
                             commitLimitBytes: commitLimitBytes,
                             machineBandwidth: m_networkMonitor?.Bandwidth,
                             machineKbitsPerSecSent: machineKbitsPerSecSent,
                             machineKbitsPerSecReceived: machineKbitsPerSecReceived,
-                            diskPerformance: diskStats,
-                            gcHeldBytes: processHeldBytes);
+                            diskStats: diskStats,
+                            gcHeldBytes: processHeldBytes,
+                            modifiedPagelistBytes: modifiedPagelistBytes,
+                            freePagelistBytes: freePagelistBytes,
+                            standbyPagelistBytes: standbyPagelistBytes);
                     }
                 }
 
@@ -230,10 +288,43 @@ namespace BuildXL.Utilities
             }
         }
 
+        private void TryGetRAMDetails(ref double? modifiedPagelistBytes, ref double? freePagelistBytes, ref double? standbyPagelistBytes)
+        {
+            try
+            {
+                if (m_querySearcher != null)
+                {
+                    foreach (ManagementObject WmiObject in m_querySearcher.Get())
+                    {
+                        modifiedPagelistBytes = (UInt64)WmiObject["ModifiedPageListBytes"];
+                        freePagelistBytes = (UInt64)WmiObject["FreeAndZeroPageListBytes"];
+
+                        standbyPagelistBytes = (UInt64)WmiObject["StandbyCacheCoreBytes"];
+                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheNormalPriorityBytes"];
+                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheReserveBytes"];
+                    }
+                }
+            }
+#pragma warning disable ERP022 // TODO: This should really handle specific errors
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+        }
+
         private static double BytesToKbits(long bytes)
         {
             // Convert to Kbits
             return (bytes / 1024.0) * 8;
+        }
+
+        /// <summary>
+        /// Converts Bytes to GigaBytes
+        /// </summary>
+        public static double BytesToGigaBytes(long bytes)
+        {
+            // Convert to Gigabytes
+            return ((double)bytes / (1024 * 1024 * 1024));
         }
 
         private void ReschedulerTimer()
@@ -295,7 +386,7 @@ namespace BuildXL.Utilities
             {
                 foreach (var item in m_drives)
                 {
-                    item.Item2.Dispose();
+                    item.safeFileHandle?.Dispose();
                 }
             }
         }
@@ -323,40 +414,66 @@ namespace BuildXL.Utilities
 #pragma warning restore ERP022
         }
 
-        private DISK_PERFORMANCE[] GetDiskCounters()
+        private DiskStats[] GetDiskCountersWindows()
         {
-            DISK_PERFORMANCE[] diskStats = new DISK_PERFORMANCE[m_drives.Length];
+            DiskStats[] diskStats = new DiskStats[m_drives.Length];
             for (int i = 0; i < m_drives.Length; i++)
             {
+                if (m_testHooks != null)
+                {
+                    // Various tests may need to inject artificial results for validation of scenarios
+                    diskStats[i] = new DiskStats(availableDiskSpace: m_testHooks.AvailableDiskSpace);
+                    continue;
+                }
+
                 var drive = m_drives[i];
-                if (!drive.Item2.IsClosed && !drive.Item2.IsInvalid)
+                if (!drive.safeFileHandle.IsClosed && !drive.safeFileHandle.IsInvalid)
                 {
                     uint bytesReturned;
-                    DISK_PERFORMANCE diskPerf = default(DISK_PERFORMANCE);
 
                     try
                     {
-                        bool result = DeviceIoControl(drive.Item2, IOCTL_DISK_PERFORMANCE,
+                        DISK_PERFORMANCE perf = default(DISK_PERFORMANCE);
+                        bool result = DeviceIoControl(drive.safeFileHandle, IOCTL_DISK_PERFORMANCE,
                             inputBuffer: IntPtr.Zero,
                             inputBufferSize: 0,
-                            outputBuffer: out diskPerf,
+                            outputBuffer: out perf,
                             outputBufferSize: Marshal.SizeOf(typeof(DISK_PERFORMANCE)),
                             bytesReturned: out bytesReturned,
                             overlapped: IntPtr.Zero);
-                        if (result)
+                        if (result && drive.driveInfo.TotalSize != 0)
                         {
-                            diskStats[i] = diskPerf;
+                            diskStats[i] = new DiskStats(
+                                availableDiskSpace: BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace),
+                                diskPerformance: perf);
                         }
                     }
                     catch (ObjectDisposedException)
                     {
                         // Occasionally the handle is disposed even though it's checked against being closed and valid
-                        // above. In those cases, just catch the failure and continue on to avoid crashes
+                        // above. In those cases, just catch the failure and continue on to avoid crashes.
                     }
                 }
             }
 
             return diskStats;
+        }
+
+        private DiskStats[] GetDiskCountersMacOS()
+        {
+            DiskStats[] stats = new DiskStats[m_drives.Length];
+            for (int i = 0; i < m_drives.Length; i++)
+            {
+                try
+                {
+                    stats[i] = new DiskStats(availableDiskSpace: BytesToGigaBytes(m_drives[i].driveInfo.AvailableFreeSpace));
+                }
+                catch (IOException)
+                {
+                    // No stats for DriveNotFoundException. Leave the struct as uninitialized and it will be marked as invalid.
+                }
+            }
+            return stats;
         }
 
         private double? GetProcessCpu(Process currentProcess)
@@ -456,24 +573,6 @@ namespace BuildXL.Utilities
             return machineCpu;
         }
 
-        private double? GetAvailablePhysicalBytesMacOS(ulong totalPhysicalBytes)
-        {
-            double? availableAvailablePhysicalBytes = null;
-            RamUsageInfo ramUsageInfo = new RamUsageInfo();
-
-            // The 'free' portion of GetRamUsageInfo() indicates how many physical RAM is still available,
-            // we have to look at VM statistics to calculate the actual available RAM though
-            if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
-            {
-                availableAvailablePhysicalBytes = totalPhysicalBytes
-                    - ramUsageInfo.AppMemory
-                    - ramUsageInfo.Wired
-                    - ramUsageInfo.Compressed;
-            }
-
-            return availableAvailablePhysicalBytes;
-        }
-
         #endregion
 
         /// <summary>
@@ -496,6 +595,11 @@ namespace BuildXL.Utilities
             /// Queue depths for each disk
             /// </summary>
             public int[] DiskQueueDepths;
+
+            /// <summary>
+            /// Available Disk Space in GigaBytes for each disk
+            /// </summary>
+            public int[] DiskAvailableSpaceGb;
 
             /// <summary>
             /// Resource summary to show on the console
@@ -530,7 +634,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// Total committed memory in MB. This is not an indication of physical memory usage.
             /// </summary>
-            public int? CommitTotalMb;
+            public int? CommitUsedMb;
 
             /// <summary>
             /// Maximum memory that can be committed in MB. If the page file can be extended, this is a soft limit.
@@ -561,6 +665,40 @@ namespace BuildXL.Utilities
             /// Working Set for just this process
             /// </summary>
             public int ProcessWorkingSetMB;
+
+            /// <summary>
+            /// Modified pagelist that is a part of used RAM
+            /// </summary>
+            /// <remarks>
+            /// Pages in the modified pagelist are dirty and waiting to be written to the pagefile.
+            /// </remarks>
+            internal int? ModifiedPagelistMb;
+
+            /// <summary>
+            /// Free pagelist that is a part of available RAM
+            /// </summary>
+            internal int? FreePagelistMb;
+
+            /// <summary>
+            /// Standby pagelist that is a part of used RAM
+            /// </summary>
+            /// <remarks>
+            /// Pages in the standby pagelist are clean and they can be reused for the same process or used as free pages for other processes.
+            /// </remarks>
+            internal int? StandbyPagelistMb;
+
+            /// <summary>
+            /// Effective Available RAM = Modified pagelist + Available RAM
+            /// </summary>
+            /// <remarks>
+            /// When modified pagelist is not available, EffectiveAvailableRAM equals to AvailableRAM.
+            /// </remarks>
+            public int? EffectiveAvailableRamMb;
+
+            /// <summary>
+            /// Effective RAM usage percentage = (TotalRam - Effective Available RAM) / TotalRAM
+            /// </summary>
+            public int? EffectiveRamUsagePercentage;
         }
 
         /// <summary>
@@ -611,7 +749,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// The total megabytes of memory current committed by the system
             /// </summary>
-            public readonly Aggregation CommitTotalMB;
+            public readonly Aggregation CommitUsedMB;
 
             /// <summary>
             /// The total megabytes of memory current that can be committed by the system without extending the page
@@ -639,6 +777,15 @@ namespace BuildXL.Utilities
             /// </summary>
             public readonly Aggregation MachineKbitsPerSecReceived;
 
+            /// <nodoc />
+            public readonly Aggregation ModifiedPagelistMB;
+
+            /// <nodoc />
+            public readonly Aggregation FreePagelistMB;
+
+            /// <nodoc />
+            public readonly Aggregation StandbyPagelistMB;
+
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -665,6 +812,9 @@ namespace BuildXL.Utilities
 
                 /// <nodoc/>
                 public Aggregation WriteTime = new Aggregation();
+
+                /// <nodoc/>
+                public Aggregation AvailableSpaceGb = new Aggregation();
 
                 /// <summary>
                 /// Calculates the disk active time
@@ -707,14 +857,18 @@ namespace BuildXL.Utilities
                 MachineAvailablePhysicalMB = new Aggregation();
                 MachineTotalPhysicalMB = new Aggregation();
                 CommitLimitMB = new Aggregation();
-                CommitTotalMB = new Aggregation();
+                CommitUsedMB = new Aggregation();
 
                 MachineBandwidth = new Aggregation();
                 MachineKbitsPerSecSent = new Aggregation();
                 MachineKbitsPerSecReceived = new Aggregation();
+                ModifiedPagelistMB = new Aggregation();
+                StandbyPagelistMB = new Aggregation();
+                FreePagelistMB = new Aggregation();
 
                 List<Tuple<string, Aggregation>> aggs = new List<Tuple<string, Aggregation>>();
                 List<DiskStatistics> diskStats = new List<DiskStatistics>();
+
                 foreach (var drive in collector.GetDrives())
                 {
                     aggs.Add(new Tuple<string, Aggregation>(drive, new Aggregation()));
@@ -762,14 +916,35 @@ namespace BuildXL.Utilities
                         logFileSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
                     }
 
+                    if (ModifiedPagelistMB.Latest > 0)
+                    {
+                        perfInfo.ModifiedPagelistMb = SafeConvert.ToInt32(ModifiedPagelistMB.Latest);
+                    }
+
+                    if (FreePagelistMB.Latest > 0)
+                    {
+                        perfInfo.FreePagelistMb = SafeConvert.ToInt32(FreePagelistMB.Latest);
+                    }
+
+                    if (StandbyPagelistMB.Latest > 0)
+                    {
+                        perfInfo.StandbyPagelistMb = SafeConvert.ToInt32(StandbyPagelistMB.Latest);
+                    }
+
+                    if (perfInfo.TotalRamMb.HasValue)
+                    {
+                        perfInfo.EffectiveAvailableRamMb = perfInfo.AvailableRamMb.Value + (perfInfo.ModifiedPagelistMb ?? 0);
+                        perfInfo.EffectiveRamUsagePercentage = SafeConvert.ToInt32(100.0 * (perfInfo.TotalRamMb.Value - perfInfo.EffectiveAvailableRamMb.Value) / perfInfo.TotalRamMb.Value);
+                    }
+
                     if (CommitLimitMB.Latest > 0)
                     {
-                        var commitTotal = SafeConvert.ToInt32(CommitTotalMB.Latest);
+                        var commitUsed = SafeConvert.ToInt32(CommitUsedMB.Latest);
                         var commitLimit = SafeConvert.ToInt32(CommitLimitMB.Latest);
-                        var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitTotal) / commitLimit));
+                        var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitUsed) / commitLimit));
 
                         perfInfo.CommitUsagePercentage = commitUsagePercentage;
-                        perfInfo.CommitTotalMb = commitTotal;
+                        perfInfo.CommitUsedMb = commitUsed;
                         perfInfo.CommitLimitMb = commitLimit;
                     }
 
@@ -780,7 +955,16 @@ namespace BuildXL.Utilities
                         perfInfo.MachineKbitsPerSecReceived = MachineKbitsPerSecReceived.Latest;
                     }
 
-                    if (DiskStats != null)
+                    int diskIndex = 0;
+                    perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
+                    foreach (var disk in DiskStats)
+                    {
+                        var availableSpaceGb = SafeConvert.ToInt32(disk.AvailableSpaceGb.Latest);
+                        perfInfo.DiskAvailableSpaceGb[diskIndex] = availableSpaceGb;
+                        diskIndex++;
+                    }
+
+                    if (!OperatingSystemHelper.IsUnixOS)
                     {
                         perfInfo.DiskUsagePercentages = new int[DiskStats.Count];
                         perfInfo.DiskQueueDepths = new int[DiskStats.Count];
@@ -790,7 +974,7 @@ namespace BuildXL.Utilities
                         int highestQueueDepth = 0;
 
                         // Loop through and find the worst looking disk
-                        int diskIndex = 0;
+                        diskIndex = 0;
                         foreach (var disk in DiskStats)
                         {
                             if (disk.ReadTime.Maximum == 0)
@@ -853,13 +1037,16 @@ namespace BuildXL.Utilities
                 double? machineCpu,
                 double? machineAvailablePhysicalBytes,
                 double? machineTotalPhysicalBytes,
-                double? commitTotalBytes,
+                double? commitUsedBytes,
                 double? commitLimitBytes,
                 long? machineBandwidth,
                 double? machineKbitsPerSecSent,
                 double? machineKbitsPerSecReceived,
-                DISK_PERFORMANCE[] diskPerformance,
-                double? gcHeldBytes)
+                DiskStats[] diskStats,
+                double? gcHeldBytes,
+                double? modifiedPagelistBytes,
+                double? freePagelistBytes,
+                double? standbyPagelistBytes)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -870,24 +1057,26 @@ namespace BuildXL.Utilities
                 MachineCpu.RegisterSample(machineCpu);
                 MachineAvailablePhysicalMB.RegisterSample(BytesToMB(machineAvailablePhysicalBytes));
                 MachineTotalPhysicalMB.RegisterSample(BytesToMB(machineTotalPhysicalBytes));
-                CommitTotalMB.RegisterSample(BytesToMB(commitTotalBytes));
+                CommitUsedMB.RegisterSample(BytesToMB(commitUsedBytes));
                 CommitLimitMB.RegisterSample(BytesToMB(commitLimitBytes));
                 ProcessHeldMB.RegisterSample(BytesToMB(gcHeldBytes));
                 MachineBandwidth.RegisterSample(machineBandwidth);
                 MachineKbitsPerSecSent.RegisterSample(machineKbitsPerSecSent);
                 MachineKbitsPerSecReceived.RegisterSample(machineKbitsPerSecReceived);
-                if (diskPerformance != null)
+                ModifiedPagelistMB.RegisterSample(BytesToMB(modifiedPagelistBytes));
+                FreePagelistMB.RegisterSample(BytesToMB(freePagelistBytes));
+                StandbyPagelistMB.RegisterSample(BytesToMB(standbyPagelistBytes));
+
+                Contract.Assert(m_diskStats.Length == diskStats.Length);
+                for (int i = 0; i < diskStats.Length; i++)
                 {
-                    Contract.Assert(m_diskStats.Length == diskPerformance.Length);
-                    for (int i = 0; i < diskPerformance.Length; i++)
+                    if (m_diskStats[i] != null && diskStats[i].IsValid)
                     {
-                        if (m_diskStats[i] != null)
-                        {
-                            m_diskStats[i].ReadTime.RegisterSample(diskPerformance[i].ReadTime);
-                            m_diskStats[i].WriteTime.RegisterSample(diskPerformance[i].WriteTime);
-                            m_diskStats[i].IdleTime.RegisterSample(diskPerformance[i].IdleTime);
-                            m_diskStats[i].QueueDepth.RegisterSample(diskPerformance[i].QueueDepth);
-                        }
+                        m_diskStats[i].AvailableSpaceGb.RegisterSample(diskStats[i].AvailableSpaceGb);
+                        m_diskStats[i].ReadTime.RegisterSample(diskStats[i].DiskPerformance.ReadTime);
+                        m_diskStats[i].WriteTime.RegisterSample(diskStats[i].DiskPerformance.WriteTime);
+                        m_diskStats[i].IdleTime.RegisterSample(diskStats[i].DiskPerformance.IdleTime);
+                        m_diskStats[i].QueueDepth.RegisterSample(diskStats[i].DiskPerformance.QueueDepth);
                     }
                 }
             }
@@ -978,7 +1167,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// The average value of all samples collected
             /// </summary>
-            public double Average => Total / Count;
+            public double Average => Count == 0 ? 0 : Total / Count;
 
             /// <summary>
             /// Registers a new sample

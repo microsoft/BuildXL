@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
-using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
 #nullable enable
@@ -184,6 +183,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             SelfCheckState selfCheckState,
             SelfCheckStatus status)
         {
+            // Detaching from the current thread to run this method asynhronously.
+            // This is important, because directory enumeration that happens in ReadSnapshotFromDisk can take
+            // tens of minutes on a machine with HDD drives.
+            await Task.Yield();
+
             _tracer.Always(context, "Starting self check.");
             // Self checking procedure validates that in-memory content directory
             // is valid in respect to the state on disk.
@@ -496,7 +500,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             public bool Equals(SelfCheckState other) => string.Equals(Epoch, other.Epoch) && LastReconcileTime == other.LastReconcileTime && LastPosition.Equals(other.LastPosition);
 
             /// <inheritdoc />
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (obj is null)
                 {

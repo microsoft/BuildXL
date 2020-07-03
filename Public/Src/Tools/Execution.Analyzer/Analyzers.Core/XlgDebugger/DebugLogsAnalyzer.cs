@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,7 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
@@ -26,7 +27,8 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeDebugLogsAnalyzer()
         {
             int port = XlgDebuggerPort;
-            bool enableCaching = true;
+            bool enableCaching = false;
+            bool ensureOrdering = true;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("port", StringComparison.OrdinalIgnoreCase) ||
@@ -36,9 +38,17 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else if (
                     opt.Name.Equals("evalCache-", StringComparison.OrdinalIgnoreCase) ||
-                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase))
+                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("evalCache", StringComparison.OrdinalIgnoreCase))
                 {
                     enableCaching = ParseBooleanOption(opt);
+                }
+                else if (
+                    opt.Name.Equals("ordered-", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("ordered+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("ordered", StringComparison.OrdinalIgnoreCase))
+                {
+                    ensureOrdering = ParseBooleanOption(opt);
                 }
                 else
                 {
@@ -46,7 +56,7 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching);
+            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching, ensureOrdering);
         }
 
         private static void WriteDebugLogsAnalyzerHelp(HelpWriter writer)
@@ -63,6 +73,8 @@ namespace BuildXL.Execution.Analyzer
         private readonly IList<PipExecutionPerformanceEventData> m_writeExecutionEntries = new List<PipExecutionPerformanceEventData>();
         private readonly Dictionary<FileArtifact, FileContentInfo> m_fileContentMap = new Dictionary<FileArtifact, FileContentInfo>(capacity: 10 * 1000);
         private readonly Dictionary<PipId, ProcessExecutionMonitoringReportedEventData> m_processMonitoringData = new Dictionary<PipId, ProcessExecutionMonitoringReportedEventData>();
+        private readonly Dictionary<PipId, Dictionary<FingerprintComputationKind, ProcessFingerprintComputationEventData>> m_processFingerprintData = new Dictionary<PipId, Dictionary<FingerprintComputationKind, ProcessFingerprintComputationEventData>>();
+        private readonly Dictionary<DirectoryArtifact, ReadOnlyArray<FileArtifact>> m_sharedOpaqueOutputs = new Dictionary<DirectoryArtifact, ReadOnlyArray<FileArtifact>>();
 
         private readonly Lazy<Dictionary<PipId, PipExecutionPerformance>> m_lazyPipPerfDict;
         private readonly Lazy<Dictionary<long, PipId>> m_lazyPipsBySemiStableHash;
@@ -88,11 +100,15 @@ namespace BuildXL.Execution.Analyzer
         public bool EnableEvalCaching { get; }
 
         /// <nodoc />
-        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching)
+        public bool EnsureOrdering { get; }
+
+        /// <nodoc />
+        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching, bool ensureOrdering, bool preHydrateProcessPips = true)
             : base(input)
         {
             m_port = port;
             EnableEvalCaching = enableCaching;
+            EnsureOrdering = ensureOrdering;
             XlgState = new XlgDebuggerState(this);
             m_dirData = new MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData>();
             m_criticalPathAnalyzer = new CriticalPathAnalyzer(input, outputFilePath: null);
@@ -115,6 +131,23 @@ namespace BuildXL.Execution.Analyzer
                 }
                 return result;
             });
+            
+            if (preHydrateProcessPips)
+            {
+                Task
+                    .Run(() =>
+                    {
+                        var start = DateTime.UtcNow;
+                        Console.WriteLine("=== Started hydrating process pips");
+                        Analysis.IgnoreResult(PipGraph.RetrievePipsOfType(Pips.Operations.PipType.Process).ToArray());
+                        Console.WriteLine("=== Done hydrating process pips in " + DateTime.UtcNow.Subtract(start));
+                    })
+                    .Forget(ex => 
+                    {
+                        Console.WriteLine("=== Prehydrating pips failed: " + ex);
+                    });
+            }
+
         }
 
         /// <inheritdoc />
@@ -181,14 +214,13 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public ProcessExecutionMonitoringReportedEventData? TryGetProcessMonitoringData(PipId pipId)
         {
-            if (m_processMonitoringData.TryGetValue(pipId, out var result))
-            {
-                return result;
-            }
-            else
-            {
-                return null;
-            }
+            return m_processMonitoringData.TryGetValue(pipId, out var result) ? result : default;
+        }
+
+        /// <nodoc />
+        public object TryGetProcessFingerprintData(PipId pipId)
+        {
+            return m_processFingerprintData.TryGetValue(pipId, out var result) ? result.ToArray() : null;
         }
 
         /// <nodoc />
@@ -198,16 +230,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public IEnumerable<AbsolutePath> GetDirMembers(DirectoryArtifact dir, PipId dirProducer)
+        public IEnumerable<FileArtifact> GetDirMembers(DirectoryArtifact dir)
         {
-            if (!m_dirData.TryGetValue(dir.Path, out var data))
-            {
-                return CollectionUtilities.EmptyArray<AbsolutePath>();
-            }
-
-            return data
-                .Where(d => d.PipId == dirProducer)
-                .SelectMany(d => d.Members);
+            return m_sharedOpaqueOutputs.TryGetValue(dir, out var members) 
+                ? (IEnumerable<FileArtifact>)members
+                : CollectionUtilities.EmptyArray<FileArtifact>();
         }
 
         /// <nodoc />
@@ -216,7 +243,7 @@ namespace BuildXL.Execution.Analyzer
             return new PipReference(PipTable, pipId, PipQueryContext.ViewerAnalyzer);
         }
 
-        #region Log processing        
+        #region Log processing
 
         public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
         {
@@ -227,6 +254,21 @@ namespace BuildXL.Execution.Analyzer
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
         {
             m_processMonitoringData[data.PipId] = data;
+        }
+
+        /// <inheritdoc />
+        public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
+        {
+            m_processFingerprintData.GetOrAdd(data.PipId, (_) => new Dictionary<FingerprintComputationKind, ProcessFingerprintComputationEventData>()).Add(data.Kind, data);
+        }
+
+        /// <inheritdoc />
+        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            foreach (var item in data.DirectoryOutputs)
+            {
+                m_sharedOpaqueOutputs[item.directoryArtifact] = item.fileArtifactArray;
+            }
         }
 
         /// <inheritdoc />

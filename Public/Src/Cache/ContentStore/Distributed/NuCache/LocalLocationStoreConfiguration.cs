@@ -1,17 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Utilities.Collections;
 
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
@@ -31,32 +33,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
-    /// Defines a mode of <see cref="TransitioningContentLocationStore"/>.
-    /// </summary>
-    [Flags]
-    public enum ContentLocationMode
-    {
-        /// <summary>
-        /// Specifies that only <see cref="RedisContentLocationStore"/> be used.
-        /// </summary>
-        Redis = 1 << 0,
-
-        /// <summary>
-        /// Specifies that only <see cref="NuCache.LocalLocationStore"/> should be used
-        /// </summary>
-        LocalLocationStore = 1 << 1,
-
-        /// <summary>
-        /// Specifies that both stores should be used
-        /// </summary>
-        Both = Redis | LocalLocationStore
-    }
-
-    /// <summary>
     /// Configuration properties for <see cref="LocalLocationStore"/>
     /// </summary>
     public class LocalLocationStoreConfiguration
     {
+        /// <summary>
+        /// The machine location for the primary CAS folder on the machine.
+        /// NOTE: LLS database is assumed to be stored on the same disk as this CAS instance.
+        /// </summary>
+        public MachineLocation PrimaryMachineLocation { get; set; }
+
+        /// <summary>
+        /// The machine locations for other CAS folders on the machine (i.e. other than <see cref="PrimaryMachineLocation"/>)
+        /// </summary>
+        public MachineLocation[] AdditionalMachineLocations { get; set; } = CollectionUtilities.EmptyArray<MachineLocation>();
+
         /// <summary>
         /// The default for <see cref="LocationEntryExpiry"/>
         /// </summary>
@@ -65,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Interval between cluster state recomputations.
         /// </summary>
-        public TimeSpan RecomputeInactiveMachinesExpiry { get; set; } = TimeSpan.FromMinutes(1);
+        public TimeSpan MachineStateRecomputeInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
         /// The TTL on entries in RedisGlobalStore
@@ -76,42 +67,91 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Configuration object for a local content location database.
         /// </summary>
-        public ContentLocationDatabaseConfiguration Database { get; set; }
+        public ContentLocationDatabaseConfiguration? Database { get; set; }
 
         /// <summary>
         /// Configuration object for a content location event store.
         /// </summary>
-        public ContentLocationEventStoreConfiguration EventStore { get; set; } = null;
+        public ContentLocationEventStoreConfiguration? EventStore { get; set; } = null;
 
         /// <summary>
         /// Configuration for NuCache checkpointing logic.
         /// </summary>
-        public CheckpointConfiguration Checkpoint { get; set; } = null;
+        public CheckpointConfiguration? Checkpoint { get; set; } = null;
 
         /// <summary>
         /// Configuration of the central store.
         /// </summary>
-        public CentralStoreConfiguration CentralStore { get; set; } = null;
+        public CentralStoreConfiguration? CentralStore { get; set; } = null;
 
         /// <summary>
         /// Configuration of the distributed central store
         /// </summary>
-        public DistributedCentralStoreConfiguration DistributedCentralStore { get; set; } = null;
+        public DistributedCentralStoreConfiguration? DistributedCentralStore { get; set; } = null;
 
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
-        public string RedisGlobalStoreConnectionString { get; set; }
+        public string? RedisGlobalStoreConnectionString { get; set; }
 
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
-        public string RedisGlobalStoreSecondaryConnectionString { get; set; }
+        public string? RedisGlobalStoreSecondaryConnectionString { get; set; }
+
+        /// <summary>
+        /// The Redis.StackExchange library performs its own internal logging. If the flag is not null, we pipe the
+        /// library's logging out through our own logger, at the specified severity.
+        /// </summary>
+        public Severity? RedisInternalLogSeverity { get; set; }
 
         /// <summary>
         /// Configuration of reputation tracker.
         /// </summary>
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();
+
+        /// <summary>
+        /// Specifies whether tiered eviction comparison should be used when ordering content for eviction
+        /// </summary>
+        public bool UseTieredDistributedEviction { get; set; }
+
+        /// <summary>
+        /// Specifies the time period over which throttled eviction is used where last remaining replicas are
+        /// only allowed to be deleted in a throttled fashion
+        /// </summary>
+        public TimeSpan ThrottledEvictionInterval { get; set; }
+
+        /// <summary>
+        /// The number of buckets to offset by for important replicas. This effectively makes important replicas look younger.
+        /// </summary>
+        public int ImportantReplicaBucketOffset { get; set; } = 2;
+
+        /// <summary>
+        /// Indicates whether important replicas should be preserved.
+        /// </summary>
+        public bool PreserveImportantReplicas { get; set; } = true;
+
+        /// <summary>
+        /// Age buckets for use with tiered eviction
+        /// </summary>
+        public IReadOnlyList<TimeSpan> AgeBuckets { get; set; } =
+            new TimeSpan[]
+            {
+                // Roughly 30 min + 3h^i
+                TimeSpan.FromMinutes(30),
+                TimeSpan.FromHours(2),
+                TimeSpan.FromHours(4),
+                TimeSpan.FromHours(10),
+                TimeSpan.FromDays(1),
+                TimeSpan.FromDays(3),
+                TimeSpan.FromDays(10),
+                TimeSpan.FromDays(30),
+            };
+
+        /// <summary>
+        /// Controls the desired number of replicas to retain.
+        /// </summary>
+        public int DesiredReplicaRetention { get; set; } = 3;
 
         /// <summary>
         /// Estimated decay time for content re-use.
@@ -163,16 +203,133 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan ReconciliationCycleFrequency { get; set; } = TimeSpan.FromMinutes(30);
 
         /// <summary>
+        /// Allows skipping reconciliation if the latest reconcile is sufficiently recent.
+        /// </summary>
+        public bool AllowSkipReconciliation { get; set; } = true;
+
+        /// <summary>
+        /// Diagnostic purposes only (extremely verbose). Gets or sets whether to log hashes which are added/removed in reconcile events.
+        /// </summary>
+        public bool LogReconciliationHashes { get; set; } = false;
+
+        /// <summary>
         /// The amount of events that should be sent per reconciliation cycle.
         /// </summary>
         public int ReconciliationMaxCycleSize { get; set; } = 100000;
 
         /// <summary>
+        /// The amount of events that should be sent per reconciliation cycle if the reconciliation cycle consists only
+        /// of at most <see cref="ReconciliationMaxRemoveHashesAddPercentage"/>
+        /// </summary>
+        public int? ReconciliationMaxRemoveHashesCycleSize { get; set; } = null;
+
+        /// <summary>
+        /// Maximum percentage of adds in a reconciliation cycle to use
+        /// <see cref="ReconciliationMaxRemoveHashesCycleSize"/> as the batch size.
+        ///
+        /// Defaults to 0 if <see cref="ReconciliationMaxRemoveHashesCycleSize"/> is enabled but this isn't
+        /// </summary>
+        public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
+
+        /// <summary>
+        /// Threshold under which proactive replication will be activated.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 3;
+
+        /// <summary>
+        /// Expiry time for preferred locations after being replaced or removed.
+        /// </summary>
+        public TimeSpan PreferredLocationsExpiryTime { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
+        /// Whether to initialize and use the BinManager
+        /// </summary>
+        public bool UseBinManager { get; set; } = false;
+
+        /// <summary>
+        /// Indicates whether full sort algorithm should be used for getting hashes in eviction order
+        /// </summary>
+        public bool UseFullEvictionSort { get; set; } = false;
+
+        /// <summary>
+        /// Indicates whether local last access times should be updated if out of date with respect to distributed last access times
+        /// </summary>
+        public bool UpdateStaleLocalLastAccessTimes { get; set; } = false;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
+        /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
+        /// to produce candidates.
+        /// </summary>
+        public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// Two pools are kept in memory at the same time, so we effectively keep double the amount of data in memory.
+        /// </remarks>
+        public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// Fraction of the pool considered trusted to be in the accurate order.
+        /// </summary>
+        /// <remarks>
+        /// Estimated by looking into the percentage of files we remove of the total content store. Means we remove
+        /// at most 76 entries per iteration when we stabilize.
+        /// </remarks>
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
+
+        /// <summary>
+        /// Fraction of the pool that can be trusted to be spurious at each iteration
+        /// </summary>
+        public float EvictionDiscardFraction { get; set; } = 0;
+
+        /// <summary>
+        /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
+        /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
+        /// with such a younge age.
+        /// <remarks>
+        /// Default to zero time to allow all candidates to pass, when we want to test for eviction min age we can configure for it.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
+        /// <remarks>
+        /// Default value will be set to null, and both redis instances need to be completed before moving forward.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; }
+
+        /// <summary>
+        /// For testing purposes only. This is used for testing to prevent machine registration when
+        /// using from production resources. Primary usage is for consuming checkpoints from production.
+        /// </summary>
+        public bool DisallowRegisterMachine { get; set; }
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
-        internal string GetCheckpointPrefix() => CentralStore.CentralStateKeyBase + EventStore.Epoch;
+        internal string? GetCheckpointPrefix() => CentralStore?.CentralStateKeyBase + EventStore?.Epoch;
 
+        /// <summary>
+        /// Whether to randomize elements in machine list, while still respecting reputation and other priorizations.
+        /// </summary>
+        public bool RandomizeMachineList { get; set; }
+
+        /// <summary>
+        /// Whether to prioritize designated locations in machine lists, so that they are the first elements.
+        /// </summary>
+        public bool MachineListPrioritizeDesignatedLocations { get; set; }
+
+        /// <summary>
+        /// Whether to deprioritize the master in machine lists, so that it is the last element.
+        /// </summary>
+        public bool MachineListDeprioritizeMaster { get; set; }
     }
 
     /// <summary>
@@ -195,10 +352,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class DistributedCentralStoreConfiguration
     {
         /// <nodoc />
-        public DistributedCentralStoreConfiguration(AbsolutePath cacheRoot)
-        {
-            CacheRoot = cacheRoot;
-        }
+        public DistributedCentralStoreConfiguration(AbsolutePath cacheRoot) => CacheRoot = cacheRoot;
 
         /// <summary>
         /// The working directory used by central store for storing 'uploaded' checkpoints.
@@ -216,6 +370,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int PropagationIterations { get; set; } = 3;
 
         /// <summary>
+        /// See <see cref="BuildXL.Cache.ContentStore.Stores.ContentStoreSettings.TraceFileSystemContentStoreDiagnosticMessages"/>
+        /// </summary>
+        public bool TraceFileSystemContentStoreDiagnosticMessages = false;
+
+        /// <summary>
         /// The maximum number of gigabytes to retain in CAS
         /// </summary>
         public int MaxRetentionGb { get; set; } = 20;
@@ -224,74 +383,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Defines the target maximum number of simultaneous copies
         /// </summary>
         public int MaxSimultaneousCopies { get; set; } = 10;
-    }
-
-    /// <summary>
-    /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
-    /// </summary>
-    public class AzureBlobStorageCredentials
-    {
-        /// <nodoc />
-        private string ConnectionString { get; }
 
         /// <summary>
-        /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
-        /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
-        /// mode.
+        /// Maximum time to wait for a P2P copy to finish. When this times out, we will attempt to copy from the
+        /// fallback storage.
         /// </summary>
-        private StorageCredentials StorageCredentials { get; }
-
-        /// <nodoc />
-        private string AccountName { get; }
-
-        /// <nodoc />
-        private string EndpointSuffix { get; }
+        public TimeSpan PeerToPeerCopyTimeout { get; set; } = Timeout.InfiniteTimeSpan;
 
         /// <summary>
-        /// Creates a fixed credential; this is our default mode of authentication.
+        /// Optional settings for validating CAS consistency used by DistributedCentralStorage.
         /// </summary>
-        public AzureBlobStorageCredentials(string connectionString)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(connectionString));
-            ConnectionString = connectionString;
-        }
-
-        /// <summary>
-        /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
-        /// without restarting the service.
-        /// </summary>
-        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix = null)
-        {
-            // Unfortunately, even though you can't generate a storage credentials without an account name, it isn't
-            // stored inside object unless a shared secret is being used. Hence, we are forced to keep it here.
-            Contract.Requires(storageCredentials != null);
-            Contract.Requires(!string.IsNullOrEmpty(accountName));
-            StorageCredentials = storageCredentials;
-            AccountName = accountName;
-            EndpointSuffix = endpointSuffix;
-        }
-
-        /// <nodoc />
-        private CloudStorageAccount CreateCloudStorageAccount()
-        {
-            if (!string.IsNullOrEmpty(ConnectionString))
-            {
-                return CloudStorageAccount.Parse(ConnectionString);
-            }
-
-            if (StorageCredentials != null)
-            {
-                return new CloudStorageAccount(StorageCredentials, AccountName, EndpointSuffix, useHttps: true);
-            }
-
-            throw new ArgumentException("Invalid credentials");
-        }
-
-        /// <nodoc />
-        public CloudBlobClient CreateCloudBlobClient()
-        {
-            return CreateCloudStorageAccount().CreateCloudBlobClient();
-        }
+        public SelfCheckSettings? SelfCheckSettings { get; set; }
     }
 
     /// <summary>
@@ -331,6 +433,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The retention time for checkpoint blobs.
         /// </summary>
         public TimeSpan RetentionTime { get; set; } = TimeSpan.FromHours(5);
+
+        /// <summary>
+        /// Indicates whether garbage collection of blobs is triggered after <see cref="RetentionTime"/>
+        /// </summary>
+        public bool EnableGarbageCollect { get; set; } = true;
 
         /// <nodoc />
         public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(10);
@@ -405,7 +512,27 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Age threshold after which we should eagerly restore checkpoint blocking the caller.
         /// </summary>
-        public TimeSpan RestoreCheckpointAgeThreshold { get; set; } = TimeSpan.FromMinutes(LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.TotalMinutes / 2);
+        public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
+
+        /// <summary>
+        /// The interval by which LLS' heartbeat will update the cluster state. Default is to do it on every heartbeat.
+        /// </summary>
+        public TimeSpan? UpdateClusterStateInterval { get; set; }
+
+        /// <summary>
+        /// Whether to enable the ability of machines to restore at a given interval.
+        /// </summary>
+        public bool PacemakerEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Exact number of buckets to use. Allows us to skew the distribution.
+        /// </summary>
+        public uint? PacemakerNumberOfBuckets { get; set; } = null;
+
+        /// <summary>
+        /// Whether to use a random identifier at every heartbeat, or to use a deterministic identifier per checkpoint.
+        /// </summary>
+        public bool PacemakerUseRandomIdentifier { get; set; } = false;
 
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;

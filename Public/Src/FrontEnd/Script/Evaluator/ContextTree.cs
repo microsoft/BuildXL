@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
@@ -75,17 +75,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// </summary>
         public ConcurrentDictionary<ObjectLiteral, CachedToolDefinition> ToolDefinitionCache { get; private set; }
 
-        /// <summary>
-        /// DScript exposes a value cache. This is the backing store. Values from this cache should never directly be returned
-        /// They should always be cloned to or else there is an observable side effect which affects all forms of DScript caching and incrementality.
-        /// </summary>
-        /// <remarks>
-        /// This will hopefully be a temporary solution untill we get a proper design. It is only exposed from Sdk.ValueCache modulde that we've educated
-        /// office for mac about.
-        /// Storing the cache here will also make it only availalbe to DScript and not the other frontends.
-        /// </remarks>
-        public ConcurrentDictionary<Fingerprint, EvaluationResult> ValueCache { get; private set; }
-
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public ContextTree(
@@ -119,7 +108,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             EvaluationScheduler = evaluationScheduler;
             QualifierValueCache = qualifierValueCache;
             ToolDefinitionCache = new ConcurrentDictionary<ObjectLiteral, CachedToolDefinition>();
-            ValueCache = new ConcurrentDictionary<Fingerprint, EvaluationResult>();
             CommonConstants = new CommonConstants(frontEndContext.StringTable);
 
             RootContext =
@@ -154,7 +142,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                 Statistics = null;
                 Decorator = null;
                 ToolDefinitionCache = null;
-                ValueCache = null;
             }
         }
     }

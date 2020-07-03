@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -107,6 +107,12 @@ namespace BuildXL.FrontEnd.Sdk
 
             string message = I($"File '{path.ToString(m_pathTable)}' is not found");
             return new Possible<FileContent, RecoverableExceptionFailure>(new RecoverableExceptionFailure(new BuildXLException(message, new FileNotFoundException(message))));
+        }
+
+        /// <inheritdoc />
+        public override Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path)
+        {
+            return File.ReadAllText(path.ToString(m_pathTable));
         }
 
         /// <inheritdoc />

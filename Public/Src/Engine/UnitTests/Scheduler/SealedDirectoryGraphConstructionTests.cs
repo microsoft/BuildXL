@@ -1,17 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -30,6 +29,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]
@@ -69,7 +69,7 @@ namespace Test.BuildXL.Scheduler
                 FileArtifact elsewhere = FileArtifact.CreateSourceFile(env.Paths.CreateAbsolutePath(env.SourceRoot, "elsewhere"));
 
                 AssertCannotScheduleSealDirectory(env, directoryPath, a, elsewhere);
-                AssertErrorEventLogged(EventId.InvalidSealDirectoryContentSinceNotUnderRoot);
+                AssertErrorEventLogged(LogEventId.InvalidSealDirectoryContentSinceNotUnderRoot);
 
                 ScheduleSealDirectory(env, directoryPath, a);
             }
@@ -119,7 +119,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, a, b);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceFullySealedDirectoryIncomplete, 2);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncomplete, 2);
             }
         }
 
@@ -136,7 +136,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, a2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceFullySealedDirectoryIncomplete);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncomplete);
             }
         }
 
@@ -151,7 +151,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSourceSealDirectory(env, directoryPath, allDirectories: false);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
             }
         }
 
@@ -166,7 +166,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSourceSealDirectory(env, directoryPath, allDirectories: true);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
             }
         }
 
@@ -190,7 +190,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
             }
         }
 
@@ -214,7 +214,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip1);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
             }
         }
 
@@ -237,7 +237,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesOutputFile);
             }
         }
 
@@ -259,7 +259,7 @@ namespace Test.BuildXL.Scheduler
                 pip1.AddOutputFile(path);
                 XAssert.IsFalse(env.PipConstructionHelper.TryAddProcess(pip1));
 
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 
@@ -274,9 +274,9 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, existing);
 
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, directoryPath, "existing");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, directoryPath, "new");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 
@@ -332,7 +332,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealPartialDirectory(env, directoryPath, a, b);
 
                 AssertCannotScheduleRewrite(env, a, b);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceFileHasBeenPartiallySealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceFileHasBeenPartiallySealed);
             }
         }
 
@@ -350,74 +350,179 @@ namespace Test.BuildXL.Scheduler
 
                 // Can't write partiallySealedFile
                 AssertCannotScheduleRewrite(env, nextFile, partiallySealedFile);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceFileHasBeenPartiallySealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceFileHasBeenPartiallySealed);
 
                 // But can do the reverse (haven't sealed the sibling)
                 FileArtifact rewrittenNextFile = ScheduleRewrite(env, partiallySealedFile, nextFile);
 
                 AssertCannotScheduleSealDirectory(env, outerPath, partiallySealedFile, nextFile);
-                AssertErrorEventLogged(EventId.InvalidInputSinceInputIsRewritten);
+                AssertErrorEventLogged(LogEventId.InvalidInputSinceInputIsRewritten);
                 ScheduleSealDirectory(env, outerPath, partiallySealedFile, rewrittenNextFile);
 
                 // Now both are sealed, and no new files can be added.
 
                 AssertCannotScheduleRewrite(env, partiallySealedFile, rewrittenNextFile);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
 
                 // What would be a double-write normally is now a seal-related error.
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, innerPath, "newer");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
 
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, innerPath, "newest");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 
-        private static void ScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ScheduleFullSealDirectoryWithOpaqueAsContentBehavior(bool includeOpaqueAsContent)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents);
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath sod = env.Paths.CreateAbsolutePath(directoryPath, "sod");
+
+                // A pip that produces an output directory under the seal root
+                var pip = CreatePipBuilderWithTag(env, "test");
+                pip.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+                var pipResult = env.PipConstructionHelper.AddProcess(pip);
+                var sharedOpaqueArtifact = pipResult.GetOpaqueDirectory(sod);
+
+                FileArtifact a = ScheduleWriteOutputFileUnderDirectory(env, directoryPath, "a");
+
+                // We should be able to schedule a seal directory with the produced file and optionally the opaque as content
+                DirectoryArtifact sealDirectory = ScheduleSealDirectory(
+                    env, 
+                    directoryPath, 
+                    new[] { a }, 
+                    includeOpaqueAsContent? new[] { sharedOpaqueArtifact } : new DirectoryArtifact[] { });
+
+                var graph = env.PipGraph.Build();
+                if (includeOpaqueAsContent)
+                {
+                    // Everything should be good in this case
+                    Assert.NotNull(graph);
+
+                    // The fully seal directory should have a dependency on the opaque
+                    Assert.True(graph.DataflowGraph.IsReachableFrom(graph.GetSealedDirectoryNode(sharedOpaqueArtifact), graph.GetSealedDirectoryNode(sealDirectory)));
+                }
+                else
+                {
+                    // We should fail at scheduling the graph because of a missing output directory
+                    Assert.Null(graph);
+                    AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories);
+                }
+            }
+        }
+
+        [Fact]
+        public void TestFailedScheduleFullSealDirectoryWithOpaqueAsContentOutsideRoot()
+        {
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath sod = env.Paths.CreateAbsolutePath(env.ObjectRoot, "sod");
+
+                // A pip that produces an output directory
+                var pip = CreatePipBuilderWithTag(env, "test");
+                pip.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+                var pipResult = env.PipConstructionHelper.AddProcess(pip);
+                var sharedOpaqueArtifact = pipResult.GetOpaqueDirectory(sod);
+
+                FileArtifact a = ScheduleWriteOutputFileUnderDirectory(env, directoryPath, "a");
+
+                // We shouldn't be able to schedule a seal directory with an opaque outside its root
+                var result = TryScheduleSealDirectory(env, directoryPath, SealDirectoryKind.Full, new[] { a }, new[] { sharedOpaqueArtifact }, out _);
+                Assert.False(result);
+                AssertErrorEventLogged(LogEventId.InvalidSealDirectoryDirectoryOutputContentSinceNotUnderRoot);
+            }
+        }
+
+        [Fact]
+        public void TestFailedScheduleFullSealDirectoryWithNonOpaqueAsContent()
+        {
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath nestedDirectoryPath = env.Paths.CreateAbsolutePath(directoryPath, "another-seal");
+
+                FileArtifact write = ScheduleWriteOutputFileUnderDirectory(env, nestedDirectoryPath, "file");
+
+                DirectoryArtifact nestedSealDirectory = ScheduleSealDirectory(env, nestedDirectoryPath, write);
+                
+                // We shouldn't be able to schedule a seal directory with a directory as content that is not an output directory
+                var result = TryScheduleSealDirectory(env, directoryPath, SealDirectoryKind.Full, new[] { write }, new[] { nestedSealDirectory }, out _);
+                Assert.False(result);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput);
+            }
+        }
+
+        private static DirectoryArtifact ScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        {
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents,
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
             XAssert.IsTrue(result, "Unexpectedly failed to seal the directory at " + env.Paths.Expand(path));
+            
+            return directoryArtifact;
         }
 
-        private static void ScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        private static DirectoryArtifact ScheduleSealDirectory(TestEnv env, AbsolutePath path, FileArtifact[] contents, DirectoryArtifact[] outputDirectoryContent)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents);
-            XAssert.IsTrue(result, "Unexpectedly failed to seal a partial directory at " + env.Paths.Expand(path));
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents,
+                outputDirectoryContents: outputDirectoryContent, out var directoryArtifact);
+            XAssert.IsTrue(result, "Unexpectedly failed to seal the directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
         }
 
-        private static void ScheduleSourceSealDirectory(TestEnv env, AbsolutePath path, bool allDirectories)
+        private static DirectoryArtifact ScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        {
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents, 
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
+            XAssert.IsTrue(result, "Unexpectedly failed to seal a partial directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
+        }
+
+        private static DirectoryArtifact ScheduleSourceSealDirectory(TestEnv env, AbsolutePath path, bool allDirectories)
         {
             bool result = TryScheduleSealDirectory(
                 env,
                 path,
                 allDirectories ? SealDirectoryKind.SourceAllDirectories : SealDirectoryKind.SourceTopDirectoryOnly,
-                contents: new FileArtifact[0]);
+                contents: new FileArtifact[0],
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
             XAssert.IsTrue(result, "Unexpectedly failed to seal a source directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
         }
 
         private static void AssertCannotScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents);
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents, 
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out _);
             XAssert.IsFalse(result, "Unexpectedly succedeeded at sealing the directory " + env.Paths.Expand(path));
         }
 
         private static void AssertCannotScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents);
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents, outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out _);
             XAssert.IsFalse(result, "Unexpectedly succedeeded at sealing a partial directory at " + env.Paths.Expand(path));
         }
 
-        private static bool TryScheduleSealDirectory(TestEnv env, AbsolutePath path, SealDirectoryKind partial, FileArtifact[] contents)
+        private static bool TryScheduleSealDirectory(TestEnv env, AbsolutePath path, SealDirectoryKind partial, FileArtifact[] contents, DirectoryArtifact[] outputDirectoryContents, out DirectoryArtifact artifact)
         {
             var pip = new SealDirectory(
                 path,
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents, OrdinalFileArtifactComparer.Instance),
+                SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.CloneAndSort(outputDirectoryContents, OrdinalDirectoryArtifactComparer.Instance),
                 kind: partial,
                 provenance: env.CreatePipProvenance(StringId.Invalid),
                 tags: ReadOnlyArray<StringId>.Empty,
                 patterns: ReadOnlyArray<StringId>.Empty);
 
-            DirectoryArtifact artifact = env.PipGraph.AddSealDirectory(pip, PipId.Invalid);
+            artifact = env.PipGraph.AddSealDirectory(pip, PipId.Invalid);
             bool succeeded = artifact.IsValid;
 
             if (succeeded)

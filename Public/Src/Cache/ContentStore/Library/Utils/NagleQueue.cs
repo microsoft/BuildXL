@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Adds items for asynchronous processing.
         /// </summary>
-        public void EnqueueAll(IReadOnlyList<T> items)
+        public void EnqueueAll(IEnumerable<T> items)
         {
             Contract.Requires(items != null);
 

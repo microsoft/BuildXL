@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -46,7 +46,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Class constructor
         /// </summary>
-        protected ScopedReferenceMap(IEqualityComparer<TKey> keyComparer = null)
+        protected ScopedReferenceMap(IEqualityComparer<TKey>? keyComparer = null)
         {
             m_keyComparer = keyComparer ?? EqualityComparer<TKey>.Default;
             m_backingSet = new ConcurrentBigSet<ScopedReferenceEntry>();
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.Collections
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
         public struct Scope : IDisposable
         {
-            private ScopedReferenceMap<TKey, TValue> m_map;
+            private ScopedReferenceMap<TKey, TValue>? m_map;
 
             /// <summary>
             /// The key for the scope
@@ -175,7 +175,7 @@ namespace BuildXL.Utilities.Collections
                 m_dereference = dereference;
             }
 
-            public int HashCode => m_map.m_keyComparer.GetHashCode(Key);
+            public int HashCode => m_map.m_keyComparer.GetHashCode(Key!);
 
             public bool Equals(ScopedReferenceEntry other)
             {

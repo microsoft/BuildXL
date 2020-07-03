@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -44,8 +44,8 @@ namespace BuildXL.Utilities.CLI
         /// </remarks>
         public static Config ParseCommandLineArgs(IEnumerable<Option> confOptions, Queue<string> args, IParser parser = null, bool caseInsensitive = false, bool ignoreInvalidOptions = false)
         {
-            Contract.Requires(confOptions != null);
-            Contract.Requires(args != null);
+            Contract.RequiresNotNull(confOptions);
+            Contract.RequiresNotNull(args);
             Contract.Requires(args.All(a => !string.IsNullOrWhiteSpace(a)));
 
             parser = parser ?? DefaultParser;
@@ -291,7 +291,7 @@ namespace BuildXL.Utilities.CLI
         /// </summary>
         public static void EnqueueAll<T>(this Queue<T> queue, IEnumerable<T> elements)
         {
-            Contract.Requires(elements != null);
+            Contract.RequiresNotNull(elements);
 
             foreach (var element in elements)
             {

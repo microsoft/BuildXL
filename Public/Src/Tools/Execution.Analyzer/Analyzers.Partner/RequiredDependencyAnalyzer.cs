@@ -1,10 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Engine;
@@ -12,9 +11,10 @@ using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.Simulator;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -178,7 +178,7 @@ namespace BuildXL.Execution.Analyzer
 
             Console.WriteLine("Creating nodes");
 
-            foreach (var node in DataflowGraph.Nodes)
+            foreach (var node in DirectedGraph.Nodes)
             {
                 m_mutableGraph.CreateNode();
             }
@@ -259,7 +259,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     using (var scope = m_mutableGraph.AcquireExclusiveIncomingEdgeScope(nodeId))
                     {
-                        foreach (var edge in DataflowGraph.GetIncomingEdges(nodeId))
+                        foreach (var edge in DirectedGraph.GetIncomingEdges(nodeId))
                         {
                             scope.AddEdge(edge.OtherNode, edge.IsLight);
                         }
@@ -293,7 +293,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Simulating [Reading]");
             var simulator = new BuildSimulatorAnalyzer(Input);
             simulator.Increment = SimulatorIncrement ?? simulator.Increment;
-            simulator.ExecutionData.DataflowGraph = m_mutableGraph;
+            simulator.ExecutionData.DirectedGraph = m_mutableGraph;
 
             simulator.OutputDirectory = OutputFilePath;
             if (!simulator.ReadExecutionLog())
@@ -348,7 +348,7 @@ namespace BuildXL.Execution.Analyzer
                     var entry = GetEntry(seal.Directory);
                     (PipId node, ulong cost) maxDependency = default;
 
-                    foreach (var dep in DataflowGraph.GetIncomingEdges(pipId.ToNodeId()))
+                    foreach (var dep in DirectedGraph.GetIncomingEdges(pipId.ToNodeId()))
                     {
                         var cost = simulator.ExecutionData.BottomUpAggregateCosts[dep.OtherNode];
                         if (!maxDependency.node.IsValid || cost > maxDependency.cost)

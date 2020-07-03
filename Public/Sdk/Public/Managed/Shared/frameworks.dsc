@@ -39,10 +39,30 @@ export interface Framework {
     runtimeConfigVersion?: string;
 
     /** Whether applications should be deployed framework-dependent or self-contained */
-    applicationDeploymentStyle?: ApplicationDeploymentStyle;
+    defaultApplicationDeploymentStyle?: ApplicationDeploymentStyle;
 
     /** When ApplicationDeploymentStyle is selfContained, runtime files have to be provided for the application execution environment */
     runtimeContentProvider?: (version: RuntimeVersion) => File[];
+
+    /** Framework-specific files for crossgen tool. Only available for netcore app frameworks.*/
+    crossgenProvider?: (version: RuntimeVersion) => CrossgenFiles;
+
+}
+
+/** Whether the given framework supports crossgen */
+@@public 
+export function supportsCrossgen(deploymentStyle: ApplicationDeploymentStyle, framework: Framework): boolean {
+    // crossgen is supported when the underlying framework sets a provider for it and the application deployment style is
+    // self-contained
+    return deploymentStyle === "selfContained" && framework.crossgenProvider !== undefined;
+}
+
+
+/** Path to crossgen tool and its corresponding JIT compiler. */
+@@public
+export interface CrossgenFiles {
+    crossgenExe: File;
+    JITPath: File;
 }
 
 export type RuntimeConfigStyle = "appConfig" | "runtimeJson" | "none";
@@ -55,17 +75,21 @@ export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
 
 namespace TargetFrameworks {
     @@public
-    export type DesktopTargetFrameworks = "net451" | "net461" | "net472";
+    export type DesktopTargetFrameworks = "net451" | "net461" | "net462" | "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.0";
+    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";
 
     @@public
-    export interface BaseQualifier {
-        configuration: "debug" | "release";
+    export interface ConfigurationQualifier extends Qualifier {
+        configuration: "debug" | "release"
+    }
+
+    @@public
+    export interface BaseQualifier extends ConfigurationQualifier, Qualifier {
         targetRuntime: RuntimeVersion;
     }
 
@@ -84,18 +108,25 @@ namespace TargetFrameworks {
         targetFramework: DesktopTargetFrameworks | CoreClrTargetFrameworks | StandardTargetFrameworks;
     }
 
-    @@public
-    export interface CurrentMachineQualifier extends Qualifier {
-        configuration: "debug" | "release";
-        // TODO: Netstandard should handle its application deploy in the framework itself and not rely on BuildXLSdk specifics
-        targetFramework: "net472" | "netcoreapp3.0",
-        targetRuntime: "win-x64" | "osx-x64",
-    }
+    /** Current Machine qualifier that respect current configuration */
+    namespace MachineQualifier {
+        export declare const qualifier: {configuration: "debug" | "release" };
 
-    @@public
-    export const currentMachineQualifier : CurrentMachineQualifier = {
-        configuration: "release",
-        targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
-        targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
-    };
+        @@public
+        export interface Current extends Qualifier {
+            configuration: "debug" | "release";
+            targetFramework: "netcoreapp3.1",
+            targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
+        }
+
+        @@public
+        export const current : Current = {
+            configuration: qualifier.configuration,
+            targetFramework: "netcoreapp3.1",
+            targetRuntime: 
+                Context.getCurrentHost().os === "win"   ? "win-x64" : 
+                Context.getCurrentHost().os === "macOS" ? "osx-x64" :
+                "linux-x64",
+        };
+    }
 }

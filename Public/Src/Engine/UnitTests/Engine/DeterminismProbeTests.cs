@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
@@ -10,6 +10,8 @@ using System.IO;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using SchedulerLogEventId=BuildXL.Scheduler.Tracing.LogEventId;
+using ProcessesLogEventId=BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Engine
 {
@@ -17,7 +19,7 @@ namespace Test.BuildXL.Engine
     /// Incremental build tests for <see cref="DirectoryArtifact" /> dependencies.
     /// </summary>
     [Trait("Category", "DeterminismProbeTests")]
-    [Trait("Category", "WindowsOSOnly")] // heavily depends on cmd.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // heavily depends on cmd.exe
     public sealed class DeterminismProbeTests : IncrementalBuildTestBase
     {
         public DeterminismProbeTests(ITestOutputHelper output)
@@ -41,10 +43,10 @@ namespace Test.BuildXL.Engine
             EagerCleanBuild("Build #1");
 
             // Ensure no determinism probe events for first build where determinism probe is not enabled
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredNondeterministicOutput, snapshot));
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, snapshot));
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, snapshot));
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeDetectedUnexpectedMismatch, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredNondeterministicOutput, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeDetectedUnexpectedMismatch, snapshot));
 
             // Write the indicator file so the second execution will probe an additional file path
             // thereby adding an absent path probe and changing the strong fingerprint
@@ -61,10 +63,10 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(3, counters.GetCounterValue(PipExecutorCounter.ProcessPipDeterminismProbeSameFiles));
 
             // Verify determinism events were logged
-            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredNondeterministicOutput, snapshot));
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, snapshot));
-            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, snapshot));
-            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeDetectedUnexpectedMismatch, snapshot));
+            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredNondeterministicOutput, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, snapshot));
+            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, snapshot));
+            XAssert.AreEqual(0, EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.DeterminismProbeDetectedUnexpectedMismatch, snapshot));
 
 
             // Now perform a build where the pip is uncacheable
@@ -72,11 +74,11 @@ namespace Test.BuildXL.Engine
             Build("Build #3");
             File.Delete(undeclaredFilePath);
             // Warnings for the file access violation, uncacheable pip, and dependency analyzer
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+            AssertWarningEventLogged(SchedulerLogEventId.FileMonitoringWarning);
+            AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
 
             // Determinism validation cannot be performed
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip);
+            AssertInformationalEventLogged(SchedulerLogEventId.DeterminismProbeEncounteredUncacheablePip);
 
             // Perform a build where the pip fails
             
@@ -88,12 +90,12 @@ namespace Test.BuildXL.Engine
             Configuration.Cache.DeterminismProbe = true;
 
             FailedBuild("Build #4");
-            AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             // Verify DeterminismProbeEncounteredPipFailure was logged
-            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot(EventId.DeterminismProbeEncounteredPipFailure, snapshot));
+            XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot((int)global::BuildXL.Scheduler.Tracing.LogEventId.DeterminismProbeEncounteredPipFailure, snapshot));
         }
 
         protected override string GetSpecContents()

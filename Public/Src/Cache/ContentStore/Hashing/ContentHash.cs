@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// ContentHash is a structure whose default initial state is invalid.
         /// </remarks>
         [Pure]
-        public bool IsValid => HashType != HashType.Unknown && _bytes != null && _bytes.Length != 0;
+        public bool IsValid => HashType != HashType.Unknown && _bytes.Length != 0;
 
         /// <summary>
         ///     Gets hashType
@@ -191,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

@@ -5,7 +5,7 @@ import * as GrpcSdk from "Sdk.Protocols.Grpc";
 import {VSCode} from "BuildXL.Ide";
 
 namespace Execution.Analyzer {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlanalyzer",
@@ -16,18 +16,17 @@ namespace Execution.Analyzer {
         sources: globR(d`.`, "*.cs"),
         
         references: [
-            ...addIfLazy(
-                BuildXLSdk.isFullFramework, () => [
-                    NetFx.System.IO.dll,
-                    NetFx.System.Web.dll,
-                    NetFx.System.Xml.dll,
-                    NetFx.System.Xml.Linq.dll,
-                    NetFx.System.IO.Compression.dll,
-                    NetFx.System.Net.Http.dll,
-                    NetFx.System.Runtime.Serialization.dll,
-                    ContentPlacement.Core.dll
-                ]
-            ),
+            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+                NetFx.Netstandard.dll,
+                NetFx.System.IO.dll,
+                NetFx.System.Web.dll,
+                NetFx.System.Xml.dll,
+                NetFx.System.Xml.Linq.dll,
+                NetFx.System.IO.Compression.dll,
+                NetFx.System.Net.Http.dll,
+                NetFx.System.Runtime.Serialization.dll,
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
+            ]),
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,
             importFrom("Antlr4.Runtime.Standard").pkg,

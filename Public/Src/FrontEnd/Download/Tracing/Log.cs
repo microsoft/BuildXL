@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 // Suppress missing XML comments on publicly visible types or members
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.FrontEnd.Download.Tracing
 {
@@ -16,6 +16,7 @@ namespace BuildXL.FrontEnd.Download.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DownloadLogger")]
     public abstract partial class Logger
     {
         private const string ResolverSettingsPrefix = "Error processing download resolver settings: ";

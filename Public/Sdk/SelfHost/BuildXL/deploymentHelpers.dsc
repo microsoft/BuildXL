@@ -27,7 +27,10 @@ namespace DeploymentHelpers {
             definition: args.definition,
             deploymentOptions: deploymentOptions,
             targetDirectory: d`${Context.getMount("DeploymentRoot").path}/${args.targetLocation}`, 
-            tags: ['deployment']
+            tags: [
+                'deployment',
+                ...(deploymentOptions ? (deploymentOptions.tags || []) : [])
+            ]
         });
 
         if (Drop.enabled) {

@@ -1,17 +1,21 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using BuildXL.Pips.Operations;
+using BuildXL.Processes.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
+using JetBrains.Annotations;
 
 namespace BuildXL
 {
@@ -28,7 +32,11 @@ namespace BuildXL
     /// </remarks>
     public sealed class AzureDevOpsListener : FormattingEventListener
     {
-        private static readonly char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
+
+        /// <summary>
+        /// The maximum number of AzureDevOps issues to log. Builds with too many issues can cause the UI to bog down.
+        /// </summary>
+        public int MaxIssuesToLog = 500;
 
         private readonly IConsole m_console;
 
@@ -39,17 +47,21 @@ namespace BuildXL
 
         private readonly BuildViewModel m_buildViewModel;
 
+        private int m_warningCount;
+        private int m_errorCount;
+
         /// <nodoc />
         public AzureDevOpsListener(
             Events eventSource,
             IConsole console,
             DateTime baseTime,
             BuildViewModel buildViewModel,
-            bool useCustomPipDescription)
-            : base(eventSource, baseTime, warningMapper: null, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
+            bool useCustomPipDescription,
+            [CanBeNull] WarningMapper warningMapper)
+            : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
-            Contract.Requires(console != null);
-            Contract.Requires(buildViewModel != null);
+            Contract.RequiresNotNull(console);
+            Contract.RequiresNotNull(buildViewModel);
 
             m_console = console;
             m_buildViewModel = buildViewModel;
@@ -69,7 +81,7 @@ namespace BuildXL
         {
             switch (eventData.EventId)
             {
-                case (int)EventId.PipStatus:
+                case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
                     {
                         var payload = eventData.Payload;
@@ -108,7 +120,7 @@ namespace BuildXL
         {
             switch (eventData.EventId)
             {
-                case (int)EventId.CacheMissAnalysis:
+                case (int)SharedLogEventId.CacheMissAnalysis:
                     {
                         var payload = eventData.Payload;
 
@@ -118,11 +130,15 @@ namespace BuildXL
                                 PipDescription = (string)payload[0],
                                 Reason = (string)payload[1],
                                 FromCacheLookup = (bool)payload[2],
-
                             }
                         );
                     }
                     break;
+                case (int)SharedLogEventId.CacheMissAnalysisBatchResults:
+                {
+                    m_buildViewModel.BuildSummary.CacheSummary.BatchEntries.Add((string)eventData.Payload[0]);
+                }
+                break;
             }
         }
 
@@ -135,87 +151,131 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnError(EventWrittenEventArgs eventData)
         {
-            LogAzureDevOpsIssue(eventData, "error");
+            LogIssueWithLimit(ref m_errorCount, eventData, "error");
 
             switch (eventData.EventId)
             {
-                case (int)EventId.PipProcessError:
+                case (int)LogEventId.PipProcessError:
+                {
+                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false));
+                }
+                break;
+                case (int)SharedLogEventId.DistributionWorkerForwardedError:
+                {
+                    var actualEventId = (int)eventData.Payload[1];
+                    if (actualEventId == (int)LogEventId.PipProcessError)
                     {
-                        var payload = eventData.Payload;
-
-                        m_buildViewModel.BuildSummary.PipErrors.Add(new BuildSummaryPipDiagnostic
-                        {
-                            SemiStablePipId = $"Pip{((long)eventData.Payload[0]):X16}",
-                            PipDescription = (string)eventData.Payload[1],
-                            SpecPath = (string)eventData.Payload[2],
-                            ToolName = (string)eventData.Payload[4],
-                            ExitCode = (int)eventData.Payload[7],
-                            Output = (string)eventData.Payload[5],
-                        }); 
+                        addPipErrors(new PipProcessErrorEventFields(eventData.Payload, true));
                     }
-                    break;
+                }
+                break;
+            }
+
+            void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields)
+            {
+                m_buildViewModel.BuildSummary.PipErrors.Add(new BuildSummaryPipDiagnostic
+                {
+                    SemiStablePipId = $"Pip{(pipProcessErrorEventFields.PipSemiStableHash):X16}",
+                    PipDescription = pipProcessErrorEventFields.PipDescription,
+                    SpecPath = pipProcessErrorEventFields.PipSpecPath,
+                    ToolName = pipProcessErrorEventFields.PipExe,
+                    ExitCode = pipProcessErrorEventFields.ExitCode,
+                    Output = pipProcessErrorEventFields.OutputToLog,
+                });
             }
         }
+
 
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
-            LogAzureDevOpsIssue(eventData, "warning");
+            LogIssueWithLimit(ref m_warningCount, eventData, "warning");
         }
 
         /// <inheritdoc />
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
         }
 
         private void LogAzureDevOpsIssue(EventWrittenEventArgs eventData, string eventType)
         {
-            var builder = new StringBuilder();
-            builder.Append("##vso[task.logIssue type=");
-            builder.Append(eventType);
-
-            var message = eventData.Message;
-            var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
-            string body;
-
-            // see if this event provides provenance info
-            if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
+            using (var pooledInstance = Pools.StringBuilderPool.GetInstance())
             {
-                Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
+                var builder = pooledInstance.Instance;
+                builder.Append("##vso[task.logIssue type=");
+                builder.Append(eventType);
 
-                // file
-                builder.Append(";sourcepath=");
-                builder.Append(args[0]);
+                var message = eventData.Message;
+                var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
+                string body;
 
-                //line
-                builder.Append(";linenumber=");
-                builder.Append(args[1]);
+                // see if this event provides provenance info
+                if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
+                {
+                    Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
 
-                //column
-                builder.Append(";columnnumber=");
-                builder.Append(args[2]);
+                    // file
+                    builder.Append(";sourcepath=");
+                    builder.Append(args[0]);
 
-                //code
-                builder.Append(";code=DX");
-                builder.Append(eventData.EventId.ToString("D4"));
+                    //line
+                    builder.Append(";linenumber=");
+                    builder.Append(args[1]);
+
+                    //column
+                    builder.Append(";columnnumber=");
+                    builder.Append(args[2]);
+
+                    //code
+                    builder.Append(";code=DX");
+                    builder.Append(eventData.EventId.ToString("D4"));
+                }
+
+                var newArgs = args;
+                // construct a short message for ADO console
+                if ((eventData.EventId == (int)LogEventId.PipProcessError)
+                    || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
+                {
+                    var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
+                    args[0] = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
+                    args[1] = pipProcessError.ShortPipDescription;
+                    args[2] = pipProcessError.PipSpecPath;
+                    args[3] = pipProcessError.ExitCode;
+                    args[4] = pipProcessError.OptionalMessage;
+                    args[5] = pipProcessError.OutputToLog;
+                    args[6] = pipProcessError.MessageAboutPathsToLog;
+                    args[7] = pipProcessError.PathsToLog;
+                    message = "[{0}, {1}, {2}] - failed with exit code {3}, {4}\r\n{5}\r\n{6}\r\n{7}";
+                }
+                else if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError || eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
+                {
+                    message = "{0}";
+                }
+
+                body = string.Format(CultureInfo.CurrentCulture, message, args);
+                builder.Append(";]");
+
+                // substitute newlines in the message
+                var encodedBody = body.Replace("\r\n", $"%0D%0A##[{eventType}]")
+                                      .Replace("\r", $"%0D##[{eventType}]")
+                                      .Replace("\n", $"%0A##[{eventType}]");
+                builder.Append(encodedBody);
+
+                m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
             }
+        }
 
-            // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
-            body = string.Format(CultureInfo.CurrentCulture, message, args);
-
-            // process pip description for PipProcessError event
-            if (eventData.EventId == (int)EventId.PipProcessError)
+        private void LogIssueWithLimit(ref int counter, EventWrittenEventArgs eventData, string level)
+        {
+            int errorCount = Interlocked.Increment(ref m_errorCount);
+            if (errorCount < MaxIssuesToLog + 1)
             {
-                ProcessCustomPipDescription(ref body, UseCustomPipDescription);
+                LogAzureDevOpsIssue(eventData, level);
             }
-
-            builder.Append(";]");
-
-            // substitute newlines in the message
-            var encodedBody = body.Replace("\r", "%0D").Replace("\n", "%0A");
-            builder.Append(encodedBody);
-
-            m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
+            else if (errorCount == MaxIssuesToLog + 1)
+            {
+                m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.logIssue type={level};] Future messages of this level are truncated");
+            }
         }
     }
 }

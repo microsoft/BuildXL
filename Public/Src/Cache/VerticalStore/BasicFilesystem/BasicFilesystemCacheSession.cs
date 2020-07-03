@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
@@ -234,7 +235,8 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 using (var hasher = ContentHashingUtilities.HashInfo.CreateContentHasher())
                 {
-                    using (var hashingStream = hasher.CreateReadHashingStream(filestream))
+                    long length = filestream.CanSeek ? filestream.Length : -1;
+                    using (var hashingStream = hasher.CreateReadHashingStream(length, filestream))
                     {
                         hashingStream.CopyTo(output);
                         return new CasHash(hashingStream.GetContentHash());
@@ -245,7 +247,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
         #region ICacheReadOnlySession methods
 
-        public string CacheId => m_cache.CacheId;
+        public CacheId CacheId => m_cache.CacheId;
 
         public string CacheSessionId => m_sessionId;
 
@@ -413,7 +415,7 @@ namespace BuildXL.Cache.BasicFilesystem
                             counter.PinDup();
                         }
 
-                        return eventing.Returns(m_cache.CacheId);
+                        return eventing.Returns(m_cache.CacheId.ToString());
                     }
                 }
             });
@@ -480,7 +482,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             Contract.Requires(!IsClosed);
 
@@ -492,13 +494,13 @@ namespace BuildXL.Cache.BasicFilesystem
 
                     try
                     {
-                        Stream result =
+                        StreamWithLength result =
                             CasHash.NoItem.Equals(hash) ?
-                            Stream.Null :
+                            Stream.Null.AssertHasLength() :
                             await m_cache.ContendedOpenStreamAsync(m_cache.ToPath(hash), FileMode.Open, FileAccess.Read, FileShare.Read, useAsync: true, handlePendingDelete: true);
 
                         counter.FileSize(result.Length);
-                        return eventing.Returns(result);
+                        return eventing.Returns<StreamWithLength>(result);
                     }
                     catch (Exception e)
                     {
@@ -546,7 +548,7 @@ namespace BuildXL.Cache.BasicFilesystem
                         // and we want to have FileShare.Delete in case we need to delete this entry
                         // due to it being corrupt.  This way there is no race as to which file is
                         // being deleted - it will be the one that was just determined to be corrupt.
-                        using (Stream fileData = await m_cache.ContendedOpenStreamAsync(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, useAsync: true, handlePendingDelete: true))
+                        using (FileStream fileData = await m_cache.ContendedOpenStreamAsync(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, useAsync: true, handlePendingDelete: true))
                         {
                             // Size of the file
                             counter.FileSize(fileData.Length);

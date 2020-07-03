@@ -1,28 +1,31 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
+using BuildXL.Execution.Analyzer;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Execution.Analyzer;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using static Test.Tool.Analyzers.AnalyzerTestBase;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
-using System;
-using static BuildXL.Scheduler.Tracing.FingerprintStore;
-using System.Linq;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+
 
 namespace Test.Tool.Analyzers
 {
@@ -37,6 +40,9 @@ namespace Test.Tool.Analyzers
         {
             Configuration.Logging.CacheMissAnalysisOption = BuildXLConfiguration.CacheMissAnalysisOption.LocalMode();
             Configuration.Logging.StoreFingerprints = true;
+            Configuration.Logging.SaveFingerprintStoreToLogs = true;
+            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
+
             AnalysisMode = AnalysisMode.CacheMiss;
 
             string outputDirectory = Path.Combine(TemporaryDirectory, "cachemiss");
@@ -112,7 +118,9 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.FileContentRead);
+                ObservedInputConstants.FileContentRead,
+                build1.Session.Id,
+                build1.Session.RelatedId);
         }
 
         [Fact]
@@ -138,7 +146,7 @@ namespace Test.Tool.Analyzers
             ScheduleRunResult buildB = RunScheduler().AssertCacheMiss(pip.PipId);
 
             messages = new string[] { ArtifactToPrint(dir), ObservedInputType.AbsentPathProbe.ToString(), ObservedInputType.DirectoryEnumeration.ToString() };
-            
+
             RunAnalyzer(buildA, buildB).AssertPipMiss(pip, PipCacheMissType.MissForDescriptorsDueToStrongFingerprints, messages);
 
             // Strong fingerprint miss: Added new files to enumerated directory
@@ -147,13 +155,8 @@ namespace Test.Tool.Analyzers
             ScheduleRunResult buildC = RunScheduler().AssertCacheMiss(pip.PipId);
 
             messages = new string[] { ArtifactToPrint(dir), Path.GetFileName(ArtifactToPrint(addedFile)), Path.GetFileName(ArtifactToPrint(victimFile)) };
-            
-            RunAnalyzer(buildB, buildC).AssertPipMiss(
-                pip,
-                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
-                ArtifactToPrint(dir),
-                Path.GetFileName(ArtifactToPrint(addedFile)),
-                Path.GetFileName(ArtifactToPrint(victimFile)));
+
+            RunAnalyzer(buildB, buildC).AssertPipMiss(pip, PipCacheMissType.MissForDescriptorsDueToStrongFingerprints, messages);
 
             // Strong fingerprint miss: Deleted file in enumerated directory
             File.Delete(ArtifactToPrint(victimFile));
@@ -168,19 +171,19 @@ namespace Test.Tool.Analyzers
         }
 
         [Fact]
-        public void NonCacheableWhitelistPipMiss()
+        public void NonCacheableAllowlistPipMiss()
         {
-            FileArtifact whitelistFile = CreateSourceFile();
-            var entry = new BuildXLConfiguration.Mutable.FileAccessWhitelistEntry()
+            FileArtifact allowlistFile = CreateSourceFile();
+            var entry = new BuildXLConfiguration.Mutable.FileAccessAllowlistEntry()
             {
                 Value = "testValue",
-                PathFragment = ArtifactToString(whitelistFile),
+                PathFragment = ArtifactToString(allowlistFile),
             };
-            Configuration.FileAccessWhiteList.Add(entry);
+            Configuration.FileAccessAllowList.Add(entry);
 
             Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
-                Operation.ReadFile(whitelistFile, doNotInfer: true),
+                Operation.ReadFile(allowlistFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
@@ -360,7 +363,7 @@ namespace Test.Tool.Analyzers
             // Reset the graph and re-schedule the same pip but with an added command line arg
             ResetPipGraphBuilder();
 
-            var mismatchingPipBuilder = this.CreatePipBuilder(new Operation[]
+            var mismatchingPipBuilder = CreatePipBuilder(new Operation[]
             {
                 outOp
             });
@@ -420,42 +423,12 @@ namespace Test.Tool.Analyzers
                 cacheLookupStore.RemoveContentHashForTesting(directoryMembershipFingerprint);
             }
 
-            var result = RunAnalyzer(buildA, buildB).AssertPipMiss(
+            RunAnalyzer(buildA, buildB).AssertPipMiss(
                 pip,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(dir),
                 ObservedInputType.AbsentPathProbe.ToString(),
                 ObservedInputType.DirectoryEnumeration.ToString());
-
-            result.AssertAnalyzerOutput(CacheMissAnalysisUtilities.RepeatedStrings.MissingDirectoryMembershipFingerprint);
-        }
-
-        /// <summary>
-        /// If pip can have a fingerprint cache hit, but still need to be executed due to failures in the previous build (or any
-        /// other settings that might prevent caching the pip's outputs). There will be no difference in fingerprint content,
-        /// but the cache miss analyzer should still print something for the miss analysis.
-        /// </summary>
-        [Fact]
-        public void MissDueToFailedPipInPreviousBuildHasAnalysisOutput()
-        {
-            // Failed pips still report their full fingerprint content and observed inputs to the fingerprint store (and XLG in general)
-            var failPip = CreateAndSchedulePipBuilder(new Operation[]
-            {
-                Operation.WriteFile(CreateOutputFileArtifact()),
-                Operation.Fail(),
-            }).Process;
-
-            // Both builds will fail to cache any output to the cache due to the pip failure
-            var buildA = RunScheduler().AssertFailure();
-            var buildB = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError, 2);
-
-            // buildB has a cache miss for failPip due to no content being stored in buildA,
-            // however their fingerprints match since they are the same pip and fail after the same set of filesystem operations in both runs
-            RunAnalyzer(buildA, buildB).AssertPipMiss(
-                failPip,
-                PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
-                CacheMissAnalysisUtilities.RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching);
         }
 
         /// <summary>
@@ -670,25 +643,48 @@ namespace Test.Tool.Analyzers
         public void TestUnsafeConfigurationDiffsCorrectly()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = !UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
-
-            var pip = CreateAndSchedulePipBuilder(new Operation[]
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = !UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
+            var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact())
-            }).Process;
+            });
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            var pip = SchedulePipBuilder(builder).Process;
 
+            // First build with UnexpectedFileAccessesAreErrors = false, IgnorePreloadedDlls = false, PreserveOutputs = disable
             var build1 = RunScheduler().AssertCacheMiss(pip.PipId);
 
-            // Go from unsafe -> safe to cause cache miss (it's possible to get a hit on different, but safer configurations)
+
+            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = false, PreserveOutputs = enable with PreserveOutputsTrustLevel = 1
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
-
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             var build2 = RunScheduler().AssertCacheMiss(pip.PipId);
-
             var result = RunAnalyzer(build1, build2);
 
+            // Difference between build1 and build2 will has UnexpectedFileAccessesAreErrors, PreserveOutputInfo with PreserveOutputTrustLevel in it
             result.AssertPipMiss(
                 pip,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
-                "UnsafeOptions");
+                ObservedPathSet.Labels.UnsafeOptions,
+                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors),
+                nameof(PreserveOutputsInfo),
+                nameof(PreserveOutputsInfo.PreserveOutputTrustLevel));
+
+            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = true, PreserveOutputs = enable with PreserveOutputsTrustLevel = 0
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 0;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
+            var build3 = RunScheduler().AssertCacheMiss(pip.PipId);
+            result = RunAnalyzer(build2, build3);
+
+            // Difference between build1 and build2 will has IgnorePreloadedDlls, PreserveOutputInfo with PreserveOutputTrustLevel in it
+            result.AssertPipMiss(
+                pip,
+                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
+                ObservedPathSet.Labels.UnsafeOptions,
+                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls),
+                nameof(PreserveOutputsInfo),
+                nameof(PreserveOutputsInfo.PreserveOutputTrustLevel));
         }
 
         /// <summary>
@@ -777,6 +773,73 @@ namespace Test.Tool.Analyzers
                 ArtifactToPrint(srcB)).FileOutput;
 
             XAssert.AreNotEqual(correctOut2, incorrectOut);
+        }
+
+        [Fact]
+        public void OutputMissingTest()
+        {
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
+            FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            FileArtifact stdOut = CreateOutputFileArtifact(root: dirPath, prefix: "stdOut-file");
+            FileArtifact stdErr = CreateOutputFileArtifact(root: dirPath, prefix: "stdErr-file");
+            var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            pipBuilder.SetStandardOutputFile(stdOut.Path);
+            pipBuilder.SetStandardErrorFile(stdErr.Path);
+            
+            var pip = SchedulePipBuilder(pipBuilder);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            DiscardFileContentInArtifactCacheIfExists(output);
+            DiscardFileContentInArtifactCacheIfExists(stdOut);
+            DiscardFileContentInArtifactCacheIfExists(stdErr);
+            File.Delete(ArtifactToString(output));
+            File.Delete(ArtifactToString(stdOut));
+            File.Delete(ArtifactToString(stdErr));
+            ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            string[] messages = { ArtifactToPrint(output), ArtifactToPrint(stdOut), ArtifactToPrint(stdErr) };
+
+            RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForProcessOutputContent, messages);
+        }
+
+        [Fact]
+        public void ExtraFingerprintSaltsTest()
+        {
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
+            FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            var pip = SchedulePipBuilder(pipBuilder);
+
+            SetExtraSalts("FirstSalt", true);
+            ScheduleRunResult initialbuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            var oldSessionId = initialbuild.Session.Id;
+            var oldRelatedSessionId = initialbuild.Session.RelatedId;
+
+            ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            SetExtraSalts("SecondSalt", false);
+            ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            string[] messages = 
+            { 
+                nameof(ExtraFingerprintSalts.FingerprintSalt),
+                nameof(ExtraFingerprintSalts.MaskUntrackedAccesses),
+                nameof(ExtraFingerprintSalts.NormalizeReadTimestamps),
+                nameof(ExtraFingerprintSalts.PipWarningsPromotedToErrors),
+                nameof(ExtraFingerprintSalts.ValidateDistribution),
+                oldSessionId,
+                oldRelatedSessionId
+            };
+
+            RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
         }
 
         /// <summary>
@@ -897,7 +960,7 @@ namespace Test.Tool.Analyzers
         {
             foreach (var message in messages)
             {
-                XAssert.IsTrue(result.FileOutput.Contains(ObservedInputConstants.ToExpandedString(message)), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", ObservedInputConstants.ToExpandedString(message), result.FileOutput);
+                XAssert.IsTrue(result.FileOutput.ToUpperInvariant().Contains(ObservedInputConstants.ToExpandedString(message).ToUpperInvariant()), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", ObservedInputConstants.ToExpandedString(message), result.FileOutput);
             }
 
             return result;

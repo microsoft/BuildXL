@@ -6,6 +6,4 @@
     <!-- On Visual Studio 2017, the preview version is not supported, so fallback to using latest as language version  -->
     <LangVersion Condition="'$(LangVersion)' == 'preview' AND '$(VisualStudioVersion)' == '15.0'">latest</LangVersion>
   </PropertyGroup>
-
-  <Import Project="Common.targets" />
 </Project>

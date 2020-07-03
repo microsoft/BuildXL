@@ -4,10 +4,10 @@
 import * as Deployment from "Sdk.Deployment";
 import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
-import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.0";
+import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.1";
 
 namespace Interfaces {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -18,18 +18,21 @@ namespace Interfaces {
             UtilitiesCore.dll,
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
+                NetFx.System.Linq.dll,
                 NetFx.System.Xml.dll,
             ]),
-            ...(qualifier.targetFramework !== "netstandard2.0" ? [] :
-            [
-                importFrom("System.Threading.Tasks.Dataflow").pkg,
-            ]),
-            importFrom("System.Interactive.Async").pkg,
+            ...addIf(qualifier.targetFramework === "netstandard2.0",
+                importFrom("System.Threading.Tasks.Dataflow").pkg
+            ),
+            ...BuildXLSdk.bclAsyncPackages,
+            importFrom("WindowsAzure.Storage").pkg,
         ],
+        nullable: true,
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore",
             "BuildXL.Cache.ContentStore.Distributed",
+            "BuildXL.Cache.ContentStore.Distributed.Test",
             "BuildXL.Cache.ContentStore.Interfaces.Test",
         ]
     });

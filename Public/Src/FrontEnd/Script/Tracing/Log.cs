@@ -1,20 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Threading;
-using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
+#nullable enable
 
 namespace BuildXL.FrontEnd.Script.Tracing
 {
@@ -23,110 +17,12 @@ namespace BuildXL.FrontEnd.Script.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptLogger")]
     public abstract partial class Logger : LoggerBase
     {
-        private bool m_preserveLogEvents;
-        private Logger m_forwardDiagnosticsTo;
-        private int m_errorCount;
-
-        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
-        private readonly ConcurrentBag<ILogMessageObserver> m_messageObservers = new ConcurrentBag<ILogMessageObserver>();
-
         // Internal logger will prevent public users from creating an instance of the logger
         internal Logger()
         { }
-
-        /// <summary>
-        /// True when at least one error occurred.
-        /// </summary>
-        public bool HasErrors => ErrorCount != 0;
-
-        /// <summary>
-        /// Returns number of errors.
-        /// </summary>
-        public int ErrorCount => m_errorCount;
-
-        /// <summary>
-        /// Whether the logger preserves log events
-        /// </summary>
-        public bool PreserveLogEvents { get; }
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
-        /// <param name="forwardDiagnosticsTo">Logger to forward diagnostics to.</param>
-        /// <param name="notifyContextWhenErrorsAreLogged">Whether to notify the logging context that errors are logged.</param>
-        public static Logger CreateLogger(bool preserveLogEvents = false, Logger forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
-        {
-            return new LoggerImpl()
-            {
-                m_preserveLogEvents = preserveLogEvents,
-                m_forwardDiagnosticsTo = forwardDiagnosticsTo,
-                m_notifyContextWhenErrorsAreLogged = notifyContextWhenErrorsAreLogged,
-            };
-        }
-
-        /// <summary>
-        /// Provides diagnostics captured by the logger.
-        /// Would be non-empty only when preserveLogEvents flag was specified in the <see cref="Logger.CreateLogger"/> factory method.
-        /// </summary>
-        public IReadOnlyList<Diagnostic> CapturedDiagnostics => m_capturedDiagnostics.ToList();
-
-        /// <inheritdoc />
-        public override bool InspectMessageEnabled => true;
-
-        /// <inheritdoc />
-        protected override void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
-        {
-            m_forwardDiagnosticsTo?.InspectMessage(logEventId, level, message, location);
-
-            var diagnostic = new Diagnostic(logEventId, level, message, location);
-            if (m_preserveLogEvents)
-            {
-                m_capturedDiagnostics.Enqueue(diagnostic);
-            }
-
-            foreach (var observer in m_messageObservers)
-            {
-                observer.OnMessage(diagnostic);
-            }
-
-            if (level.IsError())
-            {
-                Interlocked.Increment(ref m_errorCount);
-            }
-        }
-
-        /// <summary>
-        /// Tries to empty the collection of diagnostics.
-        /// </summary>
-        /// <returns>Whether it succeeded emptying the diagnostics</returns>
-        public bool TryClearCapturedDiagnostics()
-        {
-            while (!m_capturedDiagnostics.IsEmpty)
-            {
-                if (!m_capturedDiagnostics.TryDequeue(out Diagnostic result))
-                {
-                    return false;
-                }
-
-                if (result.Level.IsError())
-                {
-                    Interlocked.Decrement(ref m_errorCount);
-                }
-            }
-
-            return true;
-        }
-
-        public void AddObserver(ILogMessageObserver observer)
-        {
-            if (observer != null && !m_messageObservers.Contains(observer))
-            {
-                m_messageObservers.Add(observer);
-            }
-        }
 
         [GeneratedEvent(
             (ushort)LogEventId.ScriptDebugLog,
@@ -359,6 +255,11 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void EvaluationCanceled(LoggingContext loggingContext);
 
+        /// <summary>
+        /// Marker to make sure multiple threads don't all log the EvaluationCanceled event at once
+        /// </summary>
+        public int EvaluationCancelledFirstLogged = 0;
+
         [GeneratedEvent(
             (ushort)LogEventId.ExplicitSemanticsDoesNotAdmitAllowedModuleDependencies,
             EventGenerators = EventGenerators.LocalOnly,
@@ -459,12 +360,6 @@ namespace BuildXL.FrontEnd.Script.Tracing
         /// The set of legal values
         /// </summary>
         public string LegalValues { get; set; }
-    }
-
-    /// <nodoc />
-    public interface ILogMessageObserver
-    {
-        void OnMessage(Diagnostic diagnostic);
     }
 }
 

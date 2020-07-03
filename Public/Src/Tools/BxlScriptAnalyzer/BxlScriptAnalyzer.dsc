@@ -5,17 +5,17 @@ import * as Managed from "Sdk.Managed";
 
 namespace BxlScriptAnalyzer {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlScriptAnalyzer",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
         references: [
-            importFrom("BuildXL.App").Main.exe,
+            importFrom("BuildXL.App").ConsoleLogger.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
@@ -27,6 +27,7 @@ namespace BxlScriptAnalyzer {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
+            importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Download.dll,
             importFrom("BuildXL.FrontEnd").Nuget.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
@@ -35,6 +36,7 @@ namespace BxlScriptAnalyzer {
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Collections.Immutable").pkg
             ),
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.Tool.BxlScriptAnalyzer",

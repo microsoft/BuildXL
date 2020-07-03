@@ -45,6 +45,8 @@ export const defaultArgs: Arguments = {
     ],
 };
 
+const isCurrentHostOsWindows = Context.getCurrentHost().os === "win";
+
 /**
  * Evaluate (i.e. schedule) C# compiler invocation using specified arguments.
  */
@@ -60,10 +62,13 @@ export function compile(inputArgs: Arguments) : Result {
         : undefined;
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
+    const dirSep = Context.getCurrentHost().os === "win" ? "\\" : "/";
 
     let cscArguments: Argument[] = [
         Cmd.flag("/nologo",         args.noLogo),
         Cmd.flag("/noconfig",       args.noConfig),
+        // the /shared option is not supported as part of the response file
+        Cmd.flag("/shared", args.shared),
 
         Cmd.startUsingResponseFile(),
 
@@ -76,10 +81,7 @@ export function compile(inputArgs: Arguments) : Result {
 
         Cmd.option("/langversion:", args.languageVersion),
 
-        // TODO: uncoment the following line and delete the line after it once a new LKG is published
-        // Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined),
-        ...addIf((args.defines || []).length > 0, Cmd.rawArgument(`/define:"${args.defines.join(';')}"`)),
-
+        Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined),
         Cmd.option("/nowarn:",       args.noWarnings ? args.noWarnings.map(n => n.toString()).join(",") : undefined),
         Cmd.flag("/warnaserror",     args.treatWarningsAsErrors),
         Cmd.option("/warnaserror-:", (args.treatWarningsAsErrors && args.warningsNotAsErrors) ? args.warningsNotAsErrors.join(",") : undefined),
@@ -143,7 +145,7 @@ export function compile(inputArgs: Arguments) : Result {
             Cmd.option("/resource:", Cmd.join(",", [Artifact.input(lr.file), lr.logicalName, lr.isPublic ? "public" : "private"]))),
 
         ...(args.sourceFolders || []).map(sourceFolder =>
-            Cmd.option("/recurse:",  Cmd.join("", [Artifact.input(sourceFolder), "\\*"]))
+            Cmd.option("/recurse:",  Cmd.join("", [Artifact.input(sourceFolder), dirSep, "*"]))
         ),
 
         Cmd.files(args.sources),
@@ -158,11 +160,44 @@ export function compile(inputArgs: Arguments) : Result {
         arguments: cscArguments,
         workingDirectory: outputDirectory,
         dependencies: additionalDependencies.filter(f => f !== undefined), //TODO: or additionalInputs???
-        tags: ["compile"],
+        tags: ["compile", "telemetry:csc", ...args.tags],
+        errorRegex: "error.*",
+        // If shared compilation is enabled, then we need to allow the compiler service to breakaway. 
+        // Additionally, and since this is a trusted process, we use the statically declared accesses to
+        // compensate for the unobserved ones.
+        unsafe: args.shared ?
+            {
+                childProcessesToBreakawayFromSandbox: isCurrentHostOsWindows
+                    ? [ a`VBCSCompiler.exe` ]
+                    : [ a`dotnet` ],
+                trustStaticallyDeclaredAccesses: true,
+            } : undefined,
     };
 
-    if (Context.getCurrentHost().os !== "win") {
+    if (!isCurrentHostOsWindows) {
         cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(cscExecuteArgs);
+        cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
+            tool: { 
+                // Conceptually, we want to set 'dependsOnCurrentHostOSDirectories' to true and not specify 'untrackedDirectoryScopes' here;
+                // when shared compilation is used, however, setting 'dependsOnCurrentHostOSDirectories' causes the engine to create
+                // sealed source directories from some system folders (e.g., /Library, /Applications, etc.) and add them as dependencies,
+                // which, unfortunately, is not allowed for pips declaring 'trustStaticallyDeclaredAccesses'.
+                dependsOnCurrentHostOSDirectories: !args.shared,
+                untrackedDirectoryScopes: addIf(args.shared === true, 
+                    d`/usr`,
+                    d`/var`,
+                    d`/bin`,
+                    d`/tmp`,
+                    d`/dev`,
+                    d`/etc`,
+                    d`/private`,
+                    d`/System`,
+                    d`/Library`,
+                    d`/proc`,
+                    d`/sys`,
+                    ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`))
+            }
+        });
     }
     let executeResult = Transformer.execute(cscExecuteArgs);
 
@@ -342,6 +377,8 @@ export interface Arguments extends Transformer.RunnerArguments{
     deterministic?: boolean;
     /** Specify a mapping for source path names output by the compiler to substitute the paths in the output PDBs*/
     pathMap?: PathMapEntry[];
+    /** Enables shared compilation via VBCSCompiler service. This is an experimental flag.*/
+    shared?: boolean;
 }
 
 @@public

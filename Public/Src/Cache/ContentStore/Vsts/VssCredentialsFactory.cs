@@ -1,18 +1,18 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-#if NET_CORE
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
-#endif
-using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
+#if NET_CORE
+using Microsoft.VisualStudio.Services.Client;
+#endif
 #else
 using BuildXL.Cache.ContentStore.Exceptions;
 #endif
@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return CreateVssCredentialsForUserName(baseUri);
             }
 #endif // NET_CORE
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
+            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null)
                 .ConfigureAwait(false);
         }
 #else

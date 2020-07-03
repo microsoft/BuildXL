@@ -5,17 +5,11 @@ import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
+export declare const qualifier: Managed.TargetFrameworks.MachineQualifier.Current;
 
-const NetFx = qualifier.targetFramework === "net472" ? importFrom("Sdk.Managed.Frameworks.Net472").NetFx : undefined;
-
-const exe = BuildXLSdk.nativeExecutable({
+const exe = BuildXLSdk.executable({
     assemblyName: "ResXPreProcessor",
     sources: globR(d`.`,"*.cs"),
-    references: qualifier.targetFramework !== "net472" ? [] : [
-        NetFx.System.Xml.dll,
-        NetFx.System.Xml.Linq.dll,
-    ]
 });
 
 const tool = Managed.deployManagedTool({
@@ -40,7 +34,7 @@ export function preProcess(args: Arguments) : Result {
     let result = Transformer.execute({
         tool: tool,
         arguments: arguments,
-        workingDirectory: outputDir
+        workingDirectory: outputDir,
     });
 
     return {

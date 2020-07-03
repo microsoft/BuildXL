@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,8 +10,8 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 
@@ -168,7 +168,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 var pipIdx = pipId.Value;
 
-                int incommingCount = CachedGraph.DataflowGraph.GetIncomingEdgesCount(pipId.ToNodeId());
+                int incommingCount = CachedGraph.DirectedGraph.GetIncomingEdgesCount(pipId.ToNodeId());
                 refCounts[pipIdx] = incommingCount;
 
                 if (incommingCount == 0)

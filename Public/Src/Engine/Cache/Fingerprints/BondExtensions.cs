@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
@@ -143,8 +144,12 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 case ReparsePointType.None:
                     return BondReparsePointType.None;
-                case ReparsePointType.SymLink:
-                    return BondReparsePointType.SymLink;
+                case ReparsePointType.FileSymlink:
+                    return BondReparsePointType.FileSymlink;
+                case ReparsePointType.DirectorySymlink:
+                    return BondReparsePointType.DirectorySymlink;
+                case ReparsePointType.UnixSymlink:
+                    return BondReparsePointType.UnixSymlink;
                 case ReparsePointType.MountPoint:
                     return BondReparsePointType.MountPoint;
                 case ReparsePointType.NonActionable:
@@ -161,8 +166,12 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 case BondReparsePointType.None:
                     return ReparsePointType.None;
-                case BondReparsePointType.SymLink:
-                    return ReparsePointType.SymLink;
+                case BondReparsePointType.FileSymlink:
+                    return ReparsePointType.FileSymlink;
+                case BondReparsePointType.DirectorySymlink:
+                    return ReparsePointType.DirectorySymlink;
+                case BondReparsePointType.UnixSymlink:
+                    return ReparsePointType.UnixSymlink;
                 case BondReparsePointType.MountPoint:
                     return ReparsePointType.MountPoint;
                 case BondReparsePointType.NonActionable:

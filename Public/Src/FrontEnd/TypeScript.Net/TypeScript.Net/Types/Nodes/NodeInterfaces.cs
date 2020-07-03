@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -2099,5 +2099,15 @@ namespace TypeScript.Net.Types
         /// Computes a binding symbols and keeps it in the file.
         /// </summary>
         void ComputeBindingFingerprint([NotNull]BuildXL.Utilities.SymbolTable symbolTable);
+
+        /// <summary>
+        /// DScript-specific. Whether to override if the file is a DScript file. 
+        /// </summary>
+        /// <remarks>
+        /// Under normal circumstances, a DScript file is determined by its extension. However, some
+        /// resolvers might decide to expose DScript values to other resolvers in files whose extensions are not DScript-specific.
+        /// For those cases, they can decide to override the extension based decision by setting this to true.
+        /// </remarks>
+        bool OverrideIsScriptFile { get; }
     }
 }

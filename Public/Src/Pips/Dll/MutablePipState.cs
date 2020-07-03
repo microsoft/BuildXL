@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -85,7 +85,7 @@ namespace BuildXL.Pips
                         scrub = seal.Scrub;
                     }
 
-                    mutable = new SealDirectoryMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), sealDirectoryKind, seal.Patterns, seal.IsComposite, scrub);
+                    mutable = new SealDirectoryMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), sealDirectoryKind, seal.Patterns, seal.IsComposite, scrub, seal.ContentFilter);
                     break;
                 default:
                     mutable = new MutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId));
@@ -160,10 +160,10 @@ namespace BuildXL.Pips
         public virtual bool IsIncrementalTool() => false;
 
         /// <summary>
-        /// Checks if pip using a non-empty preserveOutputWhitelist
+        /// Checks if pip using a non-empty preserveOutputAllowlist
         /// </summary>
         /// <returns></returns>
-        public virtual bool HasPreserveOutputWhitelist() => false;
+        public virtual bool HasPreserveOutputAllowlist() => false;
 
         /// <summary>
         /// Get pip preserve outputs trust level
@@ -266,7 +266,7 @@ namespace BuildXL.Pips
 
         public override bool IsIncrementalTool() => (ProcessOptions & Process.Options.IncrementalTool) == Process.Options.IncrementalTool;
 
-        public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
+        public override bool HasPreserveOutputAllowlist() => (ProcessOptions & Process.Options.HasPreserveOutputAllowlist) != 0;
 
         public override bool MustOutputsRemainWritable() => (ProcessOptions & Process.Options.OutputsMustRemainWritable) != 0;
 
@@ -311,14 +311,16 @@ namespace BuildXL.Pips
         internal readonly ReadOnlyArray<StringId> Patterns;
         internal readonly bool IsComposite;
         internal readonly bool Scrub;
+        internal readonly SealDirectoryContentFilter? ContentFilter;
 
-        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub)
+        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub, SealDirectoryContentFilter? contentFilter)
             : base(piptype, semiStableHash, storeId)
         {
             SealDirectoryKind = sealDirectoryKind;
             Patterns = patterns;
             IsComposite = isComposite;
             Scrub = scrub;
+            ContentFilter = contentFilter;
         }
 
         protected override void SpecializedSerialize(BuildXLWriter writer)
@@ -327,6 +329,17 @@ namespace BuildXL.Pips
             writer.Write(Patterns, (w, v) => w.Write(v));
             writer.Write(IsComposite);
             writer.Write(Scrub);
+            if (ContentFilter != null)
+            {
+                writer.Write(true);
+                writer.Write((byte)ContentFilter.Value.Kind);
+                writer.Write(ContentFilter.Value.Regex);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
@@ -335,8 +348,13 @@ namespace BuildXL.Pips
             var patterns = reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId());
             var isComposite = reader.ReadBoolean();
             var scrub = reader.ReadBoolean();
+            SealDirectoryContentFilter? contentFilter = null;
+            if (reader.ReadBoolean())
+            {
+                contentFilter = new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString());
+            }
 
-            return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub);
+            return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub, contentFilter);
         }
     }
 }

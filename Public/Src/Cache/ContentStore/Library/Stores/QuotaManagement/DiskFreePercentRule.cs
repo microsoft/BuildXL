@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -30,14 +30,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public DiskFreePercentRule(
             DiskFreePercentQuota quota,
-            EvictAsync evictAsync,
             IAbsFileSystem fileSystem,
-            AbsolutePath rootPath,
-            DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(evictAsync, OnlyUnlinkedValue, distributedEvictionSettings)
+            AbsolutePath rootPath)
+            : base(OnlyUnlinkedValue)
         {
             Contract.Requires(quota != null);
-            Contract.Requires(evictAsync != null);
             Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 

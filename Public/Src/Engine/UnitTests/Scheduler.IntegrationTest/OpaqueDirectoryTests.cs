@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -18,7 +18,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -29,7 +28,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public OpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
             // TODO: remove when the default changes
-            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreDynamicWritesOnAbsentProbes = false;
+            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing;
         }
 
         /// <summary>
@@ -79,8 +78,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var builder = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFile(CreateOutputFileArtifact())
+                Operation.WriteFile(producedOutput, doNotInfer: true)
             });
+            builder.AddOutputDirectory(AbsolutePath.Create(Context.PathTable, opaqueDir));
 
             var pip = SchedulePipBuilder(builder);
 
@@ -94,15 +94,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // The pip should be a cache hit
             RunScheduler().AssertCacheHit(pip.Process.PipId);
 
-            // If running with Incremental scheduling the stray file will still exist, otherwise it will not.
-            if (Configuration.Schedule.IncrementalScheduling || Configuration.Schedule.GraphAgnosticIncrementalScheduling)
-            {
-                XAssert.IsTrue(File.Exists(externallyProducedOutput), "Expected {0} to exist when using incremental scheduling", externallyProducedOutput);
-            }
-            else
-            {
-                XAssert.IsFalse(File.Exists(externallyProducedOutput), "Did not expect {0} to exist when using incremental scheduling", externallyProducedOutput);
-            }
+            // The addition of external file makes the pip dirty. Thus, the pip will be replayed from the cache. This replay deletes
+            // the externally contributed file.
+            XAssert.IsFalse(File.Exists(externallyProducedOutput), "Did not expect {0} to exist", externallyProducedOutput);
 
             // Now delete the opaque directory. In both scheduling algorithms the stray file should no longer exist after replay.
             FileUtilities.DeleteDirectoryContents(opaqueDir, deleteRootDirectory: true);
@@ -231,7 +225,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 // We are expecting a write after an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -290,7 +284,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 secondResult.AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
             }
         }
 
@@ -380,7 +374,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 result.AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory);
             }
         }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,22 +14,23 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution;
-using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Performance;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -49,7 +50,7 @@ namespace BuildXL.Engine
     /// </summary>
     public sealed class EngineSchedule : IDisposable
     {
-        private const string PreserveOutputsFileName = "PreserveOutputsSalt.txt";
+        private const string PreserveOutputsFileName = "PreserveOutputsInfo.txt";
 
         /// <nodoc />
         public readonly EngineContext Context;
@@ -115,6 +116,8 @@ namespace BuildXL.Engine
         private readonly int m_maxDegreeOfParallelism;
 
         private CancellableTimedAction m_updateStatusAction;
+
+        private const int UpdateStatusIntervalMs = 2000;
 
         private EngineSchedule(
             EngineContext context,
@@ -184,16 +187,16 @@ namespace BuildXL.Engine
             PerformanceCollector performanceCollector,
             DirectoryTranslator directoryTranslator,
             int maxDegreeOfParallelism,
-            SymlinkDefinitions symlinkDefinitions,
             TempCleaner tempCleaner,
-            string buildEngineFingerprint)
+            string buildEngineFingerprint,
+            IDetoursEventListener detoursListener = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
             Contract.Requires(cacheInitializer != null);
             Contract.Requires(pipGraph != null);
 
-            var pipQueue = new PipQueue(configuration.Schedule);
+            var pipQueue = new PipQueue(loggingContext, configuration.Schedule);
 
             if (configuration.Schedule.IncrementalScheduling &&
                 (configuration.Distribution.BuildRole != DistributedBuildRoles.None ||
@@ -212,7 +215,7 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: pipGraph.SemistableFingerprint,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            AsyncLazy<PipRuntimeTimeTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
+            AsyncLazy<HistoricPerfDataTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
                 loggingContext,
                 context,
                 configuration,
@@ -227,14 +230,14 @@ namespace BuildXL.Engine
                 performanceDataFingerprint: performanceDataFingerprint,
                 pathExpander: mountPathExpander);
 
-            var whiteList = new FileAccessWhitelist(context);
+            var allowList = new FileAccessAllowlist(context);
             try
             {
-                whiteList.Initialize(configuration);
+                allowList.Initialize(configuration);
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedToInitializeFileAccessWhitelist(loggingContext, ex.Message);
+                Logger.Log.FailedToInitializeFileAccessAllowlist(loggingContext, ex.Message);
                 return null;
             }
 
@@ -242,13 +245,13 @@ namespace BuildXL.Engine
             moduleConfigurations.AddRange(configuration.ModulePolicies.Values);
 
             ConfigFileState configFileState = new ConfigFileState(
-                                                    whiteList,
+                                                    allowList,
                                                     configuration.Engine.DefaultFilter,
                                                     configuration.Cache.CacheSalt,
                                                     directoryMembershipFingerprinterRules,
                                                     moduleConfigurations);
 
-            ContentHash? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, context.PathTable, configuration);
+            PreserveOutputsInfo? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, context.PathTable, configuration);
             if (!previousOutputsSalt.HasValue)
             {
                 Contract.Assume(loggingContext.ErrorWasLogged, "Failed to prepare previous output salt, but no error was logged.");
@@ -259,6 +262,13 @@ namespace BuildXL.Engine
 
             try
             {
+                // If a detours listener was specified, propagate it as art of the scheduler test hook
+                SchedulerTestHooks testHooks = null;
+                if (detoursListener != null)
+                {
+                    testHooks = new SchedulerTestHooks { DetoursListener = detoursListener };
+                }
+
                 scheduler = new Scheduler.Scheduler(
                     pipGraph,
                     pipQueue,
@@ -269,7 +279,7 @@ namespace BuildXL.Engine
                     tempCleaner: tempCleaner,
                     loggingContext: loggingContext,
                     runningTimeTable: runtimeTable,
-                    fileAccessWhitelist: whiteList,
+                    fileAccessAllowlist: allowList,
                     directoryMembershipFingerprinterRules: directoryMembershipFingerprinterRules,
                     journalState: journalState,
                     performanceCollector: performanceCollector,
@@ -277,14 +287,21 @@ namespace BuildXL.Engine
                     previousInputsSalt: previousOutputsSalt.Value,
                     directoryTranslator: directoryTranslator,
                     pipTwoPhaseCache: twoPhaseCache,
-                    symlinkDefinitions: symlinkDefinitions,
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        configuration.Layout.ExternalSandboxedProcessDirectory.ToString(context.PathTable),
                         vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
+                        subst: configuration.Logging.SubstSource.IsValid && configuration.Logging.SubstTarget.IsValid
+                            ? FileUtilities.GetSubstDriveAndPath(
+                                configuration.Logging.SubstSource.ToString(context.PathTable),
+                                configuration.Logging.SubstTarget.ToString(context.PathTable))
+                            : default,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
-                        message => Logger.Log.InitializingVm(loggingContext, message)));
+                        message => Logger.Log.InitializingVm(loggingContext, message)),
+                    testHooks: testHooks);
+
             }
             catch (BuildXLException e)
             {
@@ -335,16 +352,16 @@ namespace BuildXL.Engine
 
             foreach (var moduleEntry in configFileState.ModuleConfigurations)
             {
-                var fileAccessWhitelist = configFileState.FileAccessWhitelist.GetModuleWhitelist(moduleEntry.ModuleId);
+                var fileAccessAllowlist = configFileState.FileAccessAllowlist.GetModuleAllowlist(moduleEntry.ModuleId);
 
-                // Only log the global module and module's which actually have whitelist entries
-                if (!moduleEntry.ModuleId.IsValid || fileAccessWhitelist != configFileState.FileAccessWhitelist)
+                // Only log the global module and module's which actually have allowlist entries
+                if (!moduleEntry.ModuleId.IsValid || fileAccessAllowlist != configFileState.FileAccessAllowlist)
                 {
                     Logger.Log.FileAccessManifestSummary(
                         loggingContext,
                         moduleEntry.Name,
-                        fileAccessWhitelist.CacheableEntryCount - configFileState.FileAccessWhitelist.CacheableEntryCount,
-                        fileAccessWhitelist.UncacheableEntryCount - configFileState.FileAccessWhitelist.UncacheableEntryCount);
+                        fileAccessAllowlist.CacheableEntryCount - configFileState.FileAccessAllowlist.CacheableEntryCount,
+                        fileAccessAllowlist.UncacheableEntryCount - configFileState.FileAccessAllowlist.UncacheableEntryCount);
                 }
             }
 
@@ -571,7 +588,7 @@ namespace BuildXL.Engine
             IConfiguration configuration)
         {
             // Save the fingerprint store to cache if the cache miss analysis is requested with remote mode.
-            if (configuration.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Remote)
+            if (configuration.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Remote && configuration.FingerprintStoreEnabled())
             {
                 // Use the first key as a store key.
                 var storeKey = configuration.Logging.CacheMissAnalysisOption.Keys.FirstOrDefault();
@@ -590,7 +607,7 @@ namespace BuildXL.Engine
                 {
                     var storeResult = await m_cache.TrySaveFingerprintStoreAsync(
                         loggingContext,
-                        configuration.Logging.ExecutionFingerprintStoreLogDirectory,
+                        configuration.Layout.FingerprintStoreDirectory, // This is where the original execution fingerprint store locates. Save this to cache.
                         Context.PathTable,
                         storeKey,
                         configuration.Schedule.EnvironmentFingerprint);
@@ -619,7 +636,7 @@ namespace BuildXL.Engine
         /// Failure to load does not result in an error event, just possibly a warning.
         /// Note that this respects IEngineConfiguration.UseHistoricalPerformanceInfo and returns null if disabled.
         /// </remarks>
-        private static async Task<PipRuntimeTimeTable> TryLoadRunningTimeTable(
+        private static async Task<HistoricPerfDataTable> TryLoadRunningTimeTable(
             LoggingContext loggingContext,
             EngineContext context,
             IConfiguration configuration,
@@ -633,8 +650,8 @@ namespace BuildXL.Engine
             {
                 using (var pm = PerformanceMeasurement.StartWithoutStatistic(
                     loggingContext,
-                    Logger.Log.StartLoadingRunningTimes,
-                    Logger.Log.EndLoadingRunningTimes))
+                    Logger.Log.StartLoadingHistoricPerfData,
+                    Logger.Log.EndLoadingHistoricPerfData))
                 {
                     bool fromCache = false;
                     var filePath = GetRunningTimeTableFilePath(context.PathTable, configuration.Layout, pm.LoggingContext);
@@ -646,16 +663,16 @@ namespace BuildXL.Engine
 
                     if (configuration.Schedule.ForceUseEngineInfoFromCache || !File.Exists(filePath))
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
-                            I($"No performance data at: '{filePath}'. Attempting to load from cache."));
+                            I($"No historic perf data at: '{filePath}'. Attempting to load from cache."));
 
                         var possibleEngineCache = await cacheTask;
                         if (possibleEngineCache.Succeeded)
                         {
                             var cache = possibleEngineCache.Result;
                             Possible<bool> result;
-                            using (context.EngineCounters.StartStopwatch(EngineCounter.PerformanceDataRetrievalDuration))
+                            using (context.EngineCounters.StartStopwatch(EngineCounter.HistoricPerfDataRetrievalDuration))
                             {
                                 result =
                                     await cache.TryRetrieveRunningTimeTableAsync(
@@ -667,41 +684,41 @@ namespace BuildXL.Engine
 
                             if (!result.Succeeded || !result.Result)
                             {
-                                SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Could not load performance data from cache"));
+                                SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Could not load historic perf data from cache"));
                                 return null;
                             }
 
                             fromCache = true;
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataRetrievedFromCache);
-                            SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Loaded performance data from cache"));
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataRetrievedFromCache);
+                            SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Loaded historic perf data from cache"));
                         }
                     }
                     else
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
-                            I($"Performance data found at: '{filePath}'. Skipping loading from cache."));
+                            I($"Historic perf data found at: '{filePath}'. Skipping loading from cache."));
                     }
 
                     if (File.Exists(filePath))
                     {
                         if (!fromCache)
                         {
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataRetrievedFromDisk);
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataRetrievedFromDisk);
                         }
 
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Loading performance data at: '{filePath}'."));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Loading historic perf data at: '{filePath}'."));
 
                         try
                         {
-                            PipRuntimeTimeTable table = PipRuntimeTimeTable.Load(filePath);
-                            Logger.Log.RunningTimesLoaded(pm.LoggingContext, table.Count);
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataSuccessfullyLoaded);
+                            HistoricPerfDataTable table = HistoricPerfDataTable.Load(pm.LoggingContext, filePath);
+                            Logger.Log.HistoricPerfDataLoaded(pm.LoggingContext, table.Count);
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataSuccessfullyLoaded);
                             return table;
                         }
                         catch (BuildXLException ex)
                         {
-                            Logger.Log.LoadingRunningTimesFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
+                            Logger.Log.LoadingHistoricPerfDataFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
                             return null;
                         }
                     }
@@ -740,7 +757,8 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            ITempCleaner tempCleaner)
+            ITempCleaner tempCleaner,
+            RootFilter filter)
         {
             var pathsToScrub = new List<string>();
             if (configuration.Engine.Scrub && mountPathExpander != null)
@@ -779,25 +797,36 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
-            var sharedOpaqueSidebandFiles = SharedOpaqueOutputLogger.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
-            var distinctRecordedWrites = sharedOpaqueSidebandFiles
-                .AsParallel()
-                .WithDegreeOfParallelism(Environment.ProcessorCount)
-                .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile)
-                .ToArray();
-
-            if (distinctRecordedWrites.Any())
+            var sidebandExaminer = new SidebandExaminer(loggingContext, scheduler, configuration, filter);
+            var computeExtraneousSidebandFiles = true; // TODO: no need to do it if we got graph cache hit
+            var sidebandExaminationResult = sidebandExaminer.Examine(computeExtraneousSidebandFiles);
+            if (sidebandExaminationResult.ShouldPostponeDeletion)
             {
-                Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(distinctRecordedWrites);
+                Logger.Log.PostponingDeletionOfSharedOpaqueOutputs(loggingContext);
+                scheduler.SetLazyDeletionOfSharedOpaqueOutputsEnabled();
+
+                // must still delete all files recorded in all extraneous sideband files though
+                if (sidebandExaminationResult.ExtraneousSidebandFiles.Count > 0)
+                {
+                    Logger.Log.DeletingOutputsFromExtraneousSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(sidebandExaminer.TryReadAllRecordedWrites(sidebandExaminationResult.ExtraneousSidebandFiles));
+                    scrubber.DeleteFiles(sidebandExaminationResult.ExtraneousSidebandFiles, logDeletedFiles: false);
+                }
             }
-
-            if (sharedOpaqueSidebandFiles.Any())
+            else
             {
-                Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(sharedOpaqueSidebandFiles);
+                var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+                var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+                var distinctRecordedWrites = sidebandExaminer.TryReadAllRecordedWrites(sharedOpaqueSidebandFiles);
+
+                if (distinctRecordedWrites.Any())
+                {
+                    Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(distinctRecordedWrites);
+
+                    Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
+                }
             }
 
             if (pathsToScrub.Count > 0)
@@ -808,10 +837,16 @@ namespace BuildXL.Engine
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: mountPathExpander);
+                    mountPathExpander: mountPathExpander,
+                    statisticIdentifier: "Scrubbing");
             }
 
-            // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
+            // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says.
+            //
+            // The shared opaque content is deleted either now (eagerly), or, when certain conditions are met 
+            // (see SidebandExaminationResult.ShouldPostponeDeletion), lazily right before the corresponding pips are executed
+            // (see SandboxedProcessPipExecutor.PrepareOutputsAsync).
+            //
             // We need to delete shared opaques because otherwise hardlinks can't be used (content will remain readonly, which will
             // block the next build from modifying them) and to increase consistency in tool behavior and make them more agnostic to
             // the state of the disk that past builds could have produced.
@@ -820,8 +855,13 @@ namespace BuildXL.Engine
             // TODO: we can consider conflating these two scrubbing passes (first one is optional) into one call to DirectoryScrubber to
             // avoid enumerating the disk twice. But this involves some refactoring of the scrubber, where each path to scrub needs its own
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
-            if (sharedOpaqueDirectories.Count() > 0)
+            if (!sidebandExaminationResult.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
             {
+                // Add the set of exclusion to the collection of non-scrubbable paths: it is safe to not scrub under those since there are no
+                // shared opaque outputs produced under exclusions by construction
+                nonScrubbablePaths = nonScrubbablePaths.Union(
+                    scheduler.PipGraph.OutputDirectoryExclusions.UnsafeGetList().Select(exclusion => exclusion.ToString(scheduler.Context.PathTable)));
+
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
                 Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
@@ -834,7 +874,8 @@ namespace BuildXL.Engine
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
-                    mountPathExpander: null);
+                    mountPathExpander: null,
+                    statisticIdentifier: "SharedOpaqueScrubbing");
             }
         }
 
@@ -909,7 +950,8 @@ namespace BuildXL.Engine
         private void ScrubExtraneousFilesAndDirectories(
             LoggingContext loggingContext,
             IConfiguration configuration,
-            IEnumerable<string> nonScrubbablePaths)
+            IEnumerable<string> nonScrubbablePaths,
+            RootFilter filter)
         {
             ScrubExtraneousFilesAndDirectories(
                 MountPathExpander,
@@ -917,7 +959,8 @@ namespace BuildXL.Engine
                 loggingContext,
                 configuration,
                 nonScrubbablePaths,
-                m_tempCleaner);
+                m_tempCleaner,
+                filter);
         }
 
         /// <summary>
@@ -944,18 +987,6 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            // Do scrub before init (Scheduler.Init() and Scheduler.InitForWorker()) because init captures and tracks
-            // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
-            // incorrect if they were to be interleaved.
-            var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths);
-            enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
-
-            if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
-            {
-                return Scheduler.InitForWorker(loggingContext);
-            }
-
             // The filter may or may not have already been computed depending on whether there was a graph hit or not.
             if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
             {
@@ -964,6 +995,18 @@ namespace BuildXL.Engine
 
             LogPipFilter(loggingContext, filter);
             Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
+
+            // Do scrub before init (Scheduler.Init() and Scheduler.InitForWorker()) because init captures and tracks
+            // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
+            // incorrect if they were to be interleaved.
+            var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter);
+            enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
+
+            if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
+            {
+                return Scheduler.InitForWorker(loggingContext);
+            }
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool initResult = Scheduler.InitForMaster(loggingContext, filter, schedulerState);
@@ -1094,7 +1137,12 @@ namespace BuildXL.Engine
                         // If the implicit filter doesn't start with a '*' wildcard, we specify a wildcard
                         // with a directory separator to make sure the filename prefix is not wildcarded, only the
                         // directory containing the file
-                        sb.AppendFormat(@"output='*{0}{1}' or spec='*{0}{1}'", Path.DirectorySeparatorChar, implicitFilter);
+                        sb.AppendFormat(@"output='*{0}{1}' or spec='*{0}{1}' or tag='{1}'", Path.DirectorySeparatorChar, implicitFilter);
+                    }
+                    
+                    if (FilterParser.TryParsePipId(implicitFilter, out var pipId))
+                    {
+                        sb.AppendFormat(I($" or id='{implicitFilter}'"));
                     }
                 }
 
@@ -1152,7 +1200,7 @@ namespace BuildXL.Engine
             return true;
         }
 
-        internal static ContentHash? PreparePreviousOutputsSalt(LoggingContext loggingContext, PathTable pathTable, IConfiguration config)
+        internal static PreserveOutputsInfo? PreparePreviousOutputsSalt(LoggingContext loggingContext, PathTable pathTable, IConfiguration config)
         {
             if (config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)
             {
@@ -1189,7 +1237,7 @@ namespace BuildXL.Engine
                     return null;
                 }
 
-                return ContentHashingUtilities.HashString(guid + config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
+                return new PreserveOutputsInfo(ContentHashingUtilities.HashString(guid), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             return UnsafeOptions.PreserveOutputsNotUsed;
@@ -1258,13 +1306,13 @@ namespace BuildXL.Engine
 
                 using (var pm = PerformanceMeasurement.StartWithoutStatistic(
                     loggingContext,
-                    Logger.Log.StartSavingRunningTimes,
-                    Logger.Log.EndSavingRunningTimes))
+                    Logger.Log.StartSavingHistoricPerfData,
+                    Logger.Log.EndSavingHistoricPerfData))
                 {
-                    PipRuntimeTimeTable table = Scheduler.RunningTimeTable;
+                    HistoricPerfDataTable table = Scheduler.HistoricPerfDataTable;
                     Contract.Assume(table != null);
                     var filePath = GetRunningTimeTableFilePath(context.PathTable, configuration.Layout, pm.LoggingContext);
-                    SchedulerLogger.Log.PerformanceDataCacheTrace(
+                    SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                         pm.LoggingContext,
                         I($"Saving historic perf data to path '{filePath ?? string.Empty}'"));
 
@@ -1273,29 +1321,29 @@ namespace BuildXL.Engine
                         Contract.Assume(pm.LoggingContext.WarningWasLogged);
 
                         // Not using an error message, since we don't have one, the error is described by the file name (which wasn't resolved in this case).
-                        Logger.Log.SavingRunningTimesFailed(pm.LoggingContext, "file path is not resolved", string.Empty);
+                        Logger.Log.SavingHistoricPerfDataFailed(pm.LoggingContext, "file path is not resolved", string.Empty);
                         return false;
                     }
 
                     try
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Start"));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Start"));
 
                         FileUtilities.DeleteFile(filePath, tempDirectoryCleaner: m_tempCleaner);
                         table.Save(filePath);
 
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Done"));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Done"));
 
-                        Logger.Log.RunningTimesSaved(pm.LoggingContext, table.Count);
+                        Logger.Log.HistoricPerfDataSaved(pm.LoggingContext, table.Count);
                     }
                     catch (BuildXLException ex)
                     {
-                        Logger.Log.SavingRunningTimesFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
+                        Logger.Log.SavingHistoricPerfDataFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
                         return false;
                     }
 
                     Possible<Unit> storeResult;
-                    using (Context.EngineCounters.StartStopwatch(EngineCounter.PerformanceDataSavingDuration))
+                    using (Context.EngineCounters.StartStopwatch(EngineCounter.HistoricPerfDataSavingDuration))
                     {
                         var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
                             loggingContext,
@@ -1307,13 +1355,13 @@ namespace BuildXL.Engine
 
                     if (!storeResult.Succeeded)
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
                             I($"Saving historic perf data to cache failed: {storeResult.Failure.DescribeIncludingInnerFailures()}"));
                     }
                     else
                     {
-                        Context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataStoredToCache);
+                        Context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataStoredToCache);
                     }
                 }
             }
@@ -1360,20 +1408,19 @@ namespace BuildXL.Engine
             Justification = "Dispose is indeed being called on the Timer object, not just the Dispose method FxCop expects")]
         internal bool ExecuteScheduledPips(
             LoggingContext loggingContext,
-            WorkerService workerService,
-            ILoggingConfiguration loggingConfiguration)
+            WorkerService workerService)
         {
             LogDiskFreeSpace(loggingContext, executionStart: true);
 
             m_schedulerStartTime = TimestampUtilities.Timestamp;
+            workerService?.Start(this);
             Scheduler.Start(loggingContext);
 
             bool success = true;
-            int timerPeriodMs = GetTimerPeriodInMsForExecutionStatus(loggingConfiguration);
 
             m_updateStatusAction = new CancellableTimedAction(
-                () => Scheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: timerPeriodMs),
-                timerPeriodMs,
+                () => Scheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: UpdateStatusIntervalMs),
+                UpdateStatusIntervalMs,
                 "SchedulerUpdateStatus");
 
             m_updateStatusAction.Start();
@@ -1381,7 +1428,7 @@ namespace BuildXL.Engine
             if (workerService != null)
             {
                 // Remote worker node in a distributed build
-                success &= workerService.ConnectToMasterAsync(this).GetAwaiter().GetResult();
+                success &= workerService.WhenDoneAsync().GetAwaiter().GetResult();
                 Contract.Assert(success || loggingContext.ErrorWasLogged, "WorkerService encountered errors, but none were logged.");
             }
 
@@ -1400,14 +1447,6 @@ namespace BuildXL.Engine
             PipTable.WhenDone().Wait();
 
             return success;
-        }
-
-        private static int GetTimerPeriodInMsForExecutionStatus(ILoggingConfiguration loggingConfiguration)
-        {
-            // If ResourceSamplingFrequencyMs is passed by the user, use it as timer period.
-            return loggingConfiguration.StatusFrequencyMs != 0
-                ? loggingConfiguration.StatusFrequencyMs
-                : BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfiguration);
         }
 
         private static void LogDiskFreeSpace(LoggingContext loggingContext, bool executionStart)
@@ -1459,10 +1498,10 @@ namespace BuildXL.Engine
 
             var schedulerPerformance = Scheduler.LogStats(loggingContext, buildSummary);
 
-            // Log whitelist file statistics
-            if (m_configFileState.FileAccessWhitelist != null && m_configFileState.FileAccessWhitelist.MatchedEntryCounts.Count > 0)
+            // Log allowlist file statistics
+            if (m_configFileState.FileAccessAllowlist != null && m_configFileState.FileAccessAllowlist.MatchedEntryCounts.Count > 0)
             {
-                Logger.Log.WhitelistFileAccess(loggingContext, m_configFileState.FileAccessWhitelist.MatchedEntryCounts);
+                Logger.Log.AllowlistFileAccess(loggingContext, m_configFileState.FileAccessAllowlist.MatchedEntryCounts);
             }
 
             return schedulerPerformance;
@@ -1491,7 +1530,6 @@ namespace BuildXL.Engine
             PerformanceCollector performanceCollector,
             DirectoryTranslator directoryTranslator,
             EngineState engineState,
-            AbsolutePath symlinkDefinitionFile,
             TempCleaner tempCleaner,
             string buildEngineFingerprint)
         {
@@ -1518,32 +1556,7 @@ namespace BuildXL.Engine
             // DeserializeFromFile() performs all exception handling so accessing Result is safe and will either return a valid object or null
             var configFileStateTask = serializer.DeserializeFromFileAsync<ConfigFileState>(
                 GraphCacheFile.ConfigState,
-                reader => ConfigFileState.DeserializeAsync(reader, pipExecutionContextTask));
-
-            Task<SymlinkDefinitions> symlinkDefinitionsTask = Task.Run(
-                async () =>
-                      {
-                          if (symlinkDefinitionFile.IsValid)
-                          {
-                              var pathTable = await pathTableTask;
-                              var symlinkFilePath = symlinkDefinitionFile.ToString(oldContext.PathTable);
-
-                              SchedulerLogger.Log.SymlinkFileTraceMessage(loggingContext, I($"Loading symlink file from location '{symlinkFilePath}' with reused pip graph."));
-
-                              // Scheduler needs symlink map to create symlinks lazily.
-                              var symlinkDefinitionsResult = await SymlinkDefinitions.TryLoadAsync(loggingContext, pathTable, symlinkFilePath,
-                                  symlinksDebugPath: configuration.Logging.LogsDirectory.Combine(oldContext.PathTable, "DebugSymlinksDefinitions.log").ToString(oldContext.PathTable),
-                                  tempDirectoryCleaner: tempCleaner);
-                              if (!symlinkDefinitionsResult.Succeeded)
-                              {
-                                  symlinkDefinitionsResult.Failure.Throw();
-                              }
-
-                              return symlinkDefinitionsResult.Result;
-                          }
-
-                          return null;
-                      });
+                reader => ConfigFileState.DeserializeAsync(reader, loggingContext, pipExecutionContextTask));
 
             EngineContext newContext;
 
@@ -1591,7 +1604,7 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: semistableFingerprintOfGraphToReload,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            AsyncLazy<PipRuntimeTimeTable> runningTimeTable = Lazy.CreateAsync(
+            AsyncLazy<HistoricPerfDataTable> runningTimeTable = Lazy.CreateAsync(
                 () =>
                     TryLoadRunningTimeTable(
                         loggingContext,
@@ -1633,11 +1646,11 @@ namespace BuildXL.Engine
                 await pipExecutionContextTask != null &&
                 await pipGraphTask != null)
             {
-                var pipQueue = new PipQueue(newConfiguration.Schedule);
+                var pipQueue = new PipQueue(loggingContext, newConfiguration.Schedule);
 
                 var pathTable = await pathTableTask;
 
-                ContentHash? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, pathTable, newConfiguration);
+                PreserveOutputsInfo? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, pathTable, newConfiguration);
                 if (!previousOutputsSalt.HasValue)
                 {
                     Contract.Assume(loggingContext.ErrorWasLogged);
@@ -1657,7 +1670,7 @@ namespace BuildXL.Engine
                         configuration: newConfiguration,
                         journalState: journalState,
                         loggingContext: loggingContext,
-                        fileAccessWhitelist: configFileState.FileAccessWhitelist,
+                        fileAccessAllowlist: configFileState.FileAccessAllowlist,
                         directoryMembershipFingerprinterRules: configFileState.DirectoryMembershipFingerprinterRules,
                         runningTimeTable: runningTimeTable,
                         tempCleaner: tempCleaner,
@@ -1666,11 +1679,16 @@ namespace BuildXL.Engine
                         fingerprintSalt: configFileState.CacheSalt,
                         directoryTranslator: directoryTranslator,
                         pipTwoPhaseCache: pipTwoPhaseCache,
-                        symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            newConfiguration.Layout.ExternalSandboxedProcessDirectory.ToString(newContext.PathTable),
                             vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
+                            newConfiguration.Logging.SubstSource.IsValid && newConfiguration.Logging.SubstTarget.IsValid
+                                ? FileUtilities.GetSubstDriveAndPath(
+                                    newConfiguration.Logging.SubstSource.ToString(newContext.PathTable),
+                                    newConfiguration.Logging.SubstTarget.ToString(newContext.PathTable))
+                                : default,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -1872,7 +1890,7 @@ namespace BuildXL.Engine
                     serializer.SerializeToFileAsync(GraphCacheFile.PipTable, writer => pipTable.Serialize(writer, PipTableMaxDegreeOfParallelismDuringSerialization)),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraph, pipGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraphId, pipGraph.SerializeGraphId),
-                    serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DataflowGraph.Serialize),
+                    serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DirectedGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.MountPathExpander, mountPathExpander.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.HistoricTableSizes, historicTableSizes.Serialize),
                 };

@@ -3,6 +3,5 @@
 
 module({
     name: "BuildXL.FrontEnd.SdkTesting",
-    projects: globR(d`.`, "*.dsc"),
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences
+	projects: globR(d`.`, "*.dsc"),
 });

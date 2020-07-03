@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -71,8 +71,8 @@ namespace BuildXL.Utilities
         /// <returns>Return false if the input path is not in a valid format.</returns>
         public static bool TryCreate(PathTable table, string absolutePath, out AbsolutePath result)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(absolutePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(absolutePath);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)absolutePath, out result);
@@ -84,7 +84,7 @@ namespace BuildXL.Utilities
         /// <returns>Return false if the input path is not in a valid format.</returns>
         public static bool TryCreate(PathTable table, StringSegment absolutePath, out AbsolutePath result)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, absolutePath, out result, out _);
@@ -97,8 +97,8 @@ namespace BuildXL.Utilities
         /// <returns>Returns the parser result indicating success, or what was wrong with the parsing.</returns>
         public static ParseResult TryCreate(PathTable table, string absolutePath, out AbsolutePath result, out int characterWithError)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(absolutePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(absolutePath);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment) absolutePath, out result, out characterWithError);
@@ -110,7 +110,7 @@ namespace BuildXL.Utilities
         /// <returns>Returns the parser result indicating success, or what was wrong with the parsing.</returns>
         public static ParseResult TryCreate(PathTable table, StringSegment absolutePath, out AbsolutePath result, out int characterWithError)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             // First we check to see if the path has previously been created and is cached
@@ -146,7 +146,7 @@ namespace BuildXL.Utilities
         /// </summary>
         private static ParseResult TryGetComponents(PathTable table, StringSegment absolutePath, out StringId[] components, out int characterWithError)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == (Contract.ValueAtReturn(out components) != null));
 
             // Win32Nt: \\?\ or \??\ prefix
@@ -167,7 +167,7 @@ namespace BuildXL.Utilities
                 // TODO: But in the case of \\?\C:\foo\..\bar or \\?\C:\foo\\\bar we need to consider preserving the semantics that GetFullPathNameW canonicalization does not apply.
                 //       Otherwise, we could (a) lose this information in round-trips and (b) consider two paths equivalent when they do not give equivalent behavior (when handed to the kernel).
                 //       or (c) consider two paths not equivalent when they point to the same place (\\?\C:\foo\..\bar and \\?\C:\bar might be equivalent - are .. and . reified in the directory?)
-                //       (c) is perhaps the same issue as symlinks - when we ask the disk, it is always possible that two unequal paths point to the same final location.
+                //       (d) is perhaps the same issue as symlinks - when we ask the disk, it is always possible that two unequal paths point to the same final location.
                 AbsolutePathType pathTypeIgnoringPrefix = ClassifyPath(CharSpan.Skip(absolutePath, prefixLength), out int secondPrefixLength);
                 if (pathTypeIgnoringPrefix == AbsolutePathType.LocalDriveLetter)
                 {
@@ -266,8 +266,8 @@ namespace BuildXL.Utilities
         /// <returns>AbsolutePath of the path just added.</returns>
         private static AbsolutePath AddPathComponents(PathTable table, AbsolutePath parentPath, params StringId[] components)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(components);
             Contract.RequiresForAll(components, id => id.IsValid);
 
             return new AbsolutePath(table.AddComponents(parentPath.Value, components));
@@ -279,7 +279,7 @@ namespace BuildXL.Utilities
         /// <returns>AbsolutePath of the path just added.</returns>
         private static AbsolutePath AddPathComponent(PathTable table, AbsolutePath parentPath, StringId component)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(component.IsValid);
 
             return new AbsolutePath(table.AddComponent(parentPath.Value, component));
@@ -293,8 +293,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static AbsolutePath Create(PathTable table, string absolutePath)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(absolutePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(absolutePath);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return Create(table, (StringSegment)absolutePath);
@@ -308,7 +308,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static AbsolutePath Create(PathTable table, StringSegment absolutePath)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             if (!TryCreate(table, absolutePath, out AbsolutePath file))
@@ -425,8 +425,8 @@ namespace BuildXL.Utilities
         /// <returns>Final resulting absolute path.</returns>
         public AbsolutePath CreateRelative(PathTable table, string relativeOrAbsolutePath)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(relativeOrAbsolutePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(relativeOrAbsolutePath);
             Contract.Ensures(Contract.Result<AbsolutePath>() != AbsolutePath.Invalid);
 
             return CreateRelative(table, (StringSegment)relativeOrAbsolutePath);
@@ -443,7 +443,7 @@ namespace BuildXL.Utilities
         /// <returns>Final resulting absolute path.</returns>
         public AbsolutePath CreateRelative(PathTable table, StringSegment relativeOrAbsolutePath)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<AbsolutePath>() != AbsolutePath.Invalid);
 
             if (IsAbsolutePath(relativeOrAbsolutePath))
@@ -467,7 +467,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public static bool TryGet(PathTable table, StringSegment absolutePath, out AbsolutePath result)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != AbsolutePath.Invalid));
 
             // First we check to see if the path has previously been created and is cached
@@ -507,7 +507,7 @@ namespace BuildXL.Utilities
         [Pure]
         public bool TryGetRelative(PathTable table, AbsolutePath proposedRelativePath, out RelativePath result)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(proposedRelativePath.IsValid);
 
             bool b = table.TryExpandNameRelativeToAnother(Value, proposedRelativePath.Value, out string str);
@@ -524,7 +524,7 @@ namespace BuildXL.Utilities
         [Pure]
         public string ExpandRelative(PathTable table, AbsolutePath descendantPath)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(descendantPath.IsValid);
 
             bool succeeded = table.TryExpandNameRelativeToAnother(Value, descendantPath.Value, out string str);
@@ -541,7 +541,7 @@ namespace BuildXL.Utilities
         [Pure]
         public AbsolutePath Combine(PathTable table, RelativePath path)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(path.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
@@ -555,7 +555,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath Combine(PathTable table, PathAtom atom)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(atom.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
@@ -569,9 +569,9 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath Combine(PathTable table, string atom)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
-            Contract.Requires(!string.IsNullOrEmpty(atom));
+            Contract.RequiresNotNullOrEmpty(atom);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return Combine(table, PathAtom.Create(table.StringTable, atom));
@@ -583,7 +583,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath Combine(PathTable table, PathAtom atom1, PathAtom atom2)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
@@ -599,9 +599,9 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath Combine(PathTable table, params PathAtom[] atoms)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
@@ -619,7 +619,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public AbsolutePath Concat(PathTable table, PathAtom addition)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
@@ -635,7 +635,7 @@ namespace BuildXL.Utilities
         /// <returns>A new absolute path with the applied extension.</returns>
         public AbsolutePath ChangeExtension(PathTable table, PathAtom extension)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
@@ -649,7 +649,7 @@ namespace BuildXL.Utilities
         /// <returns>A new absolute path without the final extension.</returns>
         public AbsolutePath RemoveExtension(PathTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
@@ -664,7 +664,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public PathAtom GetExtension(PathTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
 
             return GetName(table).GetExtension(table.StringTable);
@@ -677,7 +677,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath GetRoot(PathTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
 
             // loop until we hit a root
@@ -704,7 +704,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public AbsolutePath GetParent(PathTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
 
             return new AbsolutePath(table.GetContainer(Value));
@@ -716,7 +716,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public PathAtom GetName(PathTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
@@ -753,7 +753,7 @@ namespace BuildXL.Utilities
             AbsolutePath destination,
             PathAtom newExtension)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
@@ -858,7 +858,7 @@ namespace BuildXL.Utilities
             AbsolutePath source,
             AbsolutePath destination)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
@@ -927,7 +927,7 @@ namespace BuildXL.Utilities
             AbsolutePath destination,
             PathAtom newExtension)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(destination.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
@@ -958,7 +958,7 @@ namespace BuildXL.Utilities
             PathTable table,
             AbsolutePath destination)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(destination.IsValid);
             Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
@@ -979,7 +979,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public bool IsWithin(PathTable table, AbsolutePath potentialContainer)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(potentialContainer.IsValid);
 
@@ -1124,8 +1124,7 @@ namespace BuildXL.Utilities
         [Pure]
         public string ToString(PathTable table, PathFormat pathFormat = PathFormat.HostOs, NameExpander nameExpander = null)
         {
-            Contract.Requires(table != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(table);
 
             if (!IsValid)
             {

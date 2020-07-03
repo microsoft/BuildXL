@@ -4,10 +4,9 @@
 #ifndef AccessHandler_hpp
 #define AccessHandler_hpp
 
-#include "ESSandbox.h"
-#include "SandboxedPip.hpp"
+#include "Sandbox.hpp"
 #include "Checkers.hpp"
-#include "OpNames.hpp"
+#include "IOEvent.hpp"
 
 enum ReportResult
 {
@@ -20,30 +19,27 @@ typedef bool (Handler)(void *data);
 
 struct AccessHandler
 {
+    
 private:
 
     const char *IgnoreDataPartitionPrefix(const char* path);
     const char *kDataPartitionPrefix = "/System/Volumes/Data/";
     const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
     
-    ESSandbox *sandbox_;
+    Sandbox *sandbox_;
 
-    SandboxedProcess *process_;
-
-    uint64_t creationTimestamp_;
+    std::shared_ptr<SandboxedProcess> process_;
 
     ReportResult ReportFileOpAccess(FileOperation operation,
                                     PolicyResult policy,
                                     AccessCheckResult accessCheckResult,
                                     pid_t processID);
 
-    inline void SetProcess(SandboxedProcess *process) { process_ = process; }
-
 protected:
 
-    ESSandbox* GetSandbox()   const { return sandbox_; }
-    SandboxedProcess* GetProcess() const { return process_; }
-    SandboxedPip* GetPip()         const { return process_->getPip(); }
+    inline Sandbox* GetSandbox()                                const { return sandbox_; }
+    inline const std::shared_ptr<SandboxedProcess> GetProcess() const { return process_; }
+    inline const std::shared_ptr<SandboxedPip> GetPip()         const { return process_->GetPip(); }
 
     PolicySearchCursor FindManifestRecord(const char *absolutePath, size_t pathLength = -1);
     
@@ -55,44 +51,36 @@ protected:
     /*!
      * Template for checking and reporting file accesses.
      *
-     * Adds caching around the existing checking ('CheckAccess') and reporting ('ReportFileOpAccess') methods.
-     *
      * The key used for looking up if the operation was already reported is "<operation>,<path>".
-     *
-     * If the operation has already been reported (cache hit w.r.t. the aforementioned key), an AccessCheckResult
-     * object is returned that indicates that the operation is allowed (@result.ShouldDenyAccess() returns false)
-     * and that it should not be reported (@result.ShouldReport() returns false).
-     *
-     * If the operation has not been reported, 'CheckAccess' and 'ReportFileOpAccess' are called and the result
-     * is added to the cache if the returned AccessCheckResult object indicates that the operation should not be denied.
      *
      * @param operation Operation to be executed
      * @param path Absolute path against which the operation is to be executed
      * @param checker Checker function to apply to policy
-     * @param msg The EndpointSecurity message containing all necessary details about the observed event
+     * @param pid The id of the process belonging to this I/O obsevation
      * @param isDir Indicates if the report is being generated for a directory or file
      */
     AccessCheckResult CheckAndReportInternal(FileOperation operation,
                                      const char *path,
                                      CheckFunc checker,
-                                     const es_message_t *msg,
+                                     const pid_t pid,
                                      bool isDir);
 
-    AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid)
     {
-        return CheckAndReportInternal(operation, path, checker, msg, false);
+        return CheckAndReportInternal(operation, path, checker, pid, false);
     }
 
-    AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg, bool isDir)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid, bool isDir)
     {
-        return CheckAndReportInternal(operation, path, checker, msg, isDir);
+        return CheckAndReportInternal(operation, path, checker, pid, isDir);
     }
 
 public:
-
-    AccessHandler(ESSandbox *sandbox)
+    
+    AccessHandler() = delete;
+    
+    AccessHandler(Sandbox *sandbox)
     {
-        creationTimestamp_ = mach_absolute_time();
         sandbox_           = sandbox;
         process_           = nullptr;
     }
@@ -115,11 +103,13 @@ public:
      */
     bool TryInitializeWithTrackedProcess(pid_t pid);
 
+    inline void SetProcess(std::shared_ptr<SandboxedProcess> process) { process_ = process; }
+
     inline bool HasTrackedProcess()             const { return process_ != nullptr; }
-    inline pid_t GetProcessId()                 const { return GetPip()->getProcessId(); }
-    inline pipid_t GetPipId()                   const { return GetPip()->getPipId(); }
-    inline int GetProcessTreeSize()             const { return GetPip()->getTreeSize(); }
-    inline FileAccessManifestFlag GetFamFlags() const { return GetPip()->getFamFlags(); }
+    inline pid_t GetProcessId()                 const { return GetPip()->GetProcessId(); }
+    inline pipid_t GetPipId()                   const { return GetPip()->GetPipId(); }
+    inline int GetProcessTreeSize()             const { return GetPip()->GetTreeSize(); }
+    inline FileAccessManifestFlag GetFamFlags() const { return GetPip()->GetFamFlags(); }
 
     PolicyResult PolicyForPath(const char *absolutePath);
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -72,17 +72,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         public ElasticSizeRule(
             int? historyWindowSize,
             MaxSizeQuota initialElasticSize,
-            EvictAsync evictAsync,
             Func<long> getCurrentSizeFunc,
             Func<int, PinSizeHistory.ReadHistoryResult> getPinnedSizeHistoryFunc,
             IAbsFileSystem fileSystem,
             AbsolutePath rootPath,
-            double? calibrationCoefficient = default(double?),
-            DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(evictAsync, OnlyUnlinkedValue, distributedEvictionSettings)
+            double? calibrationCoefficient = default(double?))
+            : base(OnlyUnlinkedValue)
         {
             Contract.Requires(!historyWindowSize.HasValue || historyWindowSize.Value >= 0);
-            Contract.Requires(evictAsync != null);
             Contract.Requires(getCurrentSizeFunc != null);
             Contract.Requires(getPinnedSizeHistoryFunc != null);
             Contract.Requires(fileSystem != null);

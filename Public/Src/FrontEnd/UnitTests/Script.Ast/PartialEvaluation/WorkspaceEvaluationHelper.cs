@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -53,7 +55,7 @@ namespace Test.DScript.Ast.PartialEvaluation
 
         public WorkspaceEvaluationHelper(string testOutputDirectory, FrontEndContext context = null, bool forTesting = false)
         {
-            AstLogger = global::BuildXL.FrontEnd.Script.Tracing.Logger.CreateLogger(preserveLogEvents: true);
+            AstLogger = global::BuildXL.FrontEnd.Script.Tracing.Logger.CreateLoggerWithTracking(preserveLogEvents: true);
             FrontEndLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(preserveLogEvents: true);
 
             var pathTable = new PathTable();
@@ -164,14 +166,14 @@ namespace Test.DScript.Ast.PartialEvaluation
             var graphBuilder = new PipGraph.Builder(
                 new PipTable(PathTable, SymbolTable, initialBufferSize: 16, maxDegreeOfParallelism: Environment.ProcessorCount, debug: false),
                 new EngineContext(CancellationToken.None, PathTable, SymbolTable, new QualifierTable(PathTable.StringTable), FrontEndContext.FileSystem, new TokenTextTable()),
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 FrontEndContext.LoggingContext,
                 new ConfigurationImpl(),
                 new MountPathExpander(PathTable));
 
-            IPipGraph pipGraph = oldPipGraph != null
+            IMutablePipGraph pipGraph = oldPipGraph != null
                 ? new PatchablePipGraph(oldPipGraph.DataflowGraph, oldPipGraph.PipTable, graphBuilder, maxDegreeOfParallelism: Environment.ProcessorCount)
-                : (IPipGraph)graphBuilder;
+                : (IMutablePipGraph)graphBuilder;
 
             frontEndHost.SetState(Engine, pipGraph, configuration);
 

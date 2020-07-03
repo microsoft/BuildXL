@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
@@ -162,6 +163,48 @@ namespace BuildXL.Processes
             Path = path;
             EnumeratePattern = enumeratePatttern;
             Method = fileAccessStatusMethod;
+        }
+
+        /// <nodoc/>
+        public ReportedFileAccess CreateWithStatus(FileAccessStatus status)
+        {
+            return new ReportedFileAccess(
+                Operation, 
+                Process, 
+                RequestedAccess, 
+                status, 
+                ExplicitlyReported, 
+                Error, 
+                Usn, 
+                DesiredAccess, 
+                ShareMode, 
+                CreationDisposition, 
+                FlagsAndAttributes, 
+                ManifestPath, 
+                Path, 
+                EnumeratePattern, 
+                Method);
+        }
+
+        /// <nodoc/>
+        public ReportedFileAccess CreateWithPath(string path, AbsolutePath manifestPath)
+        {
+            return new ReportedFileAccess(
+                Operation,
+                Process,
+                RequestedAccess,
+                Status,
+                ExplicitlyReported,
+                Error,
+                Usn,
+                DesiredAccess,
+                ShareMode,
+                CreationDisposition,
+                FlagsAndAttributes,
+                manifestPath,
+                path,
+                EnumeratePattern,
+                Method);
         }
 
         /// <summary>
@@ -400,6 +443,25 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Whether this access represents a directory creation
+        /// </summary>
+        public bool IsDirectoryCreation() => 
+            Operation == ReportedFileOperation.CreateDirectory || 
+            Operation == ReportedFileOperation.KAuthCreateDir;
+
+        /// <summary>
+        /// Whether this access represents a directory removal
+        /// </summary>
+        public bool IsDirectoryRemoval() => 
+            Operation == ReportedFileOperation.RemoveDirectory || 
+            Operation == ReportedFileOperation.KAuthDeleteDir;
+
+        /// <summary>
+        /// Whether this access represents a directory creation or removal
+        /// </summary>
+        public bool IsDirectoryCreationOrRemoval() => IsDirectoryCreation() || IsDirectoryRemoval();
+
+        /// <summary>
         /// Checks if this is a special device type of path for which we should not report a warning.
         /// Make it a verbose message, so it appears in the log (for diagnosability if there are problems with such access).
         /// </summary>
@@ -461,7 +523,7 @@ namespace BuildXL.Processes
         /// an event is logged to attribute the unknown path to the reporting <paramref name="pip"/>.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public bool TryParseAbsolutePath(PipExecutionContext context, Process pip, out AbsolutePath parsedPath)
+        public bool TryParseAbsolutePath(PipExecutionContext context, LoggingContext loggingContext, Process pip, out AbsolutePath parsedPath)
         {
             Contract.Requires(context != null);
             Contract.Requires(pip != null);
@@ -487,7 +549,7 @@ namespace BuildXL.Processes
                         if (IsSpecialDevicePath())
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathOfSpecialDeviceFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),
@@ -496,7 +558,7 @@ namespace BuildXL.Processes
                         else if (DoesPathContainsWildcards(Path))
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathWithWildcardsFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),
@@ -505,7 +567,7 @@ namespace BuildXL.Processes
                         else
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessFailedToParsePathOfFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),

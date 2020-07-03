@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Qualifier
 
         private QualifierTable(StringTable stringTable, QualifierId emptyQualifierId, QualifierSpaceId emptyQualifierSpaceId)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             StringTable = stringTable;
             EmptyQualifierId = emptyQualifierId;
@@ -65,7 +65,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierTable(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             StringTable = stringTable;
             EmptyQualifierId = m_qualifiers.GetOrAdd(Qualifier.Empty);
@@ -94,8 +94,8 @@ namespace BuildXL.Utilities.Qualifier
         public QualifierId CreateQualifierWithValue(QualifierId qualifierId, string key, string value)
         {
             Contract.Requires(IsValidQualifierId(qualifierId));
-            Contract.Requires(key != null);
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(key);
+            Contract.RequiresNotNull(value);
             Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             return CreateQualifierWithValue(qualifierId, StringId.Create(StringTable, key), StringId.Create(StringTable, value));
@@ -121,7 +121,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierId CreateQualifier(params Tuple<string, string>[] keyValuePairs)
         {
-            Contract.Requires(keyValuePairs != null);
+            Contract.RequiresNotNull(keyValuePairs);
             Contract.RequiresForAll(keyValuePairs, pair => pair.Item1 != null && pair.Item2 != null);
             Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
@@ -136,7 +136,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierId CreateQualifier(params Tuple<StringId, StringId>[] keyValuePairs)
         {
-            Contract.Requires(keyValuePairs != null);
+            Contract.RequiresNotNull(keyValuePairs);
             Contract.RequiresForAll(keyValuePairs, pair => pair.Item1.IsValid && pair.Item2.IsValid);
             Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
@@ -159,7 +159,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierId CreateQualifier(IReadOnlyDictionary<string, string> keyValueMap)
         {
-            Contract.Requires(keyValueMap != null);
+            Contract.RequiresNotNull(keyValueMap);
             Contract.RequiresForAll(keyValueMap, kvp => kvp.Key != null && kvp.Value != null);
             Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
@@ -193,7 +193,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierSpaceId CreateQualifierSpace(params Tuple<string, string[]>[] keyValuesPairs)
         {
-            Contract.Requires(keyValuesPairs != null);
+            Contract.RequiresNotNull(keyValuesPairs);
             Contract.Requires(
                 Contract.ForAll(
                     keyValuesPairs,
@@ -223,7 +223,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierSpaceId CreateQualifierSpace(IReadOnlyDictionary<string, IReadOnlyList<string>> keyValuesMap)
         {
-            Contract.Requires(keyValuesMap != null);
+            Contract.RequiresNotNull(keyValuesMap);
             Contract.Requires(
                 Contract.ForAll(
                     keyValuesMap,
@@ -255,7 +255,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public QualifierSpaceId CreateQualifierSpace(params QualifierSpaceEntry[] keyValuesPairs)
         {
-            Contract.Requires(keyValuesPairs != null);
+            Contract.RequiresNotNull(keyValuesPairs);
 #if DEBUG
             Contract.RequiresForAll(keyValuesPairs, e => e.IsValid);
 #endif
@@ -280,8 +280,8 @@ namespace BuildXL.Utilities.Qualifier
             out QualifierId resultingQualifierId,
             out UnsupportedQualifierValue error)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(loggingContext != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(loggingContext);
 #if DEBUG
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.Requires(qualifierSpaceId.IsValid);
@@ -377,8 +377,8 @@ namespace BuildXL.Utilities.Qualifier
         /// <nodoc />
         public static async Task<QualifierTable> DeserializeAsync(BuildXLReader reader, Task<StringTable> stringTableTask)
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(stringTableTask);
 
             var stringTable = await stringTableTask;
 

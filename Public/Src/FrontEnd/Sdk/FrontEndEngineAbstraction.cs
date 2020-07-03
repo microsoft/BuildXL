@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -83,6 +83,11 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract Task<Possible<FileContent, RecoverableExceptionFailure>> GetFileContentAsync(AbsolutePath path);
 
         /// <summary>
+        /// Reads file in a synchronously. Only use in cases where really needed.
+        /// </summary>
+        public abstract Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path);
+
+        /// <summary>
         /// Determines whether the specified file exists
         /// </summary>
         public abstract bool FileExists(AbsolutePath path);
@@ -123,7 +128,7 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract TryGetMountResult TryGetMount(string name, string frontEnd, ModuleId moduleId, out IMount mount);
 
         /// <summary>
-        /// After config parsing we'll have a list of build parameters that are white-listed.
+        /// After config parsing we'll have a list of build parameters that are allowlisted.
         /// This method informs the engine of this.
         /// </summary>
         public abstract void RestrictBuildParameters(IEnumerable<string> buildParameterNames);

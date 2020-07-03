@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ReplaceExistingFileOnMaterialization = false;
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
+            MonitorAugmentedPathSets = 0;
         }
 
         /// <nodoc />
@@ -44,7 +45,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CachedGraphIdToLoad = template.CachedGraphIdToLoad;
             CachedGraphLastBuildLoad = template.CachedGraphLastBuildLoad;
             CacheSpecs = template.CacheSpecs;
-            CacheMemoryUsage = template.CacheMemoryUsage;
             CacheSessionName = template.CacheSessionName;
             ArtificialCacheMissOptions = template.ArtificialCacheMissOptions == null ? null : new ArtificialCacheMissConfig(template.ArtificialCacheMissOptions);
             CacheSalt = template.CacheSalt;
@@ -61,6 +61,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
+            MonitorAugmentedPathSets = template.MonitorAugmentedPathSets;
         }
 
         /// <nodoc />
@@ -81,7 +82,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool AllowFetchingCachedGraphFromContentCache { get; set; }
-
+        
         /// <inheritdoc />
         public bool CacheGraph { get; set; }
 
@@ -96,9 +97,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public SpecCachingOption CacheSpecs { get; set; }
-
-        /// <inheritdoc />
-        public MemoryUsageOption CacheMemoryUsage { get; set; }
 
         /// <inheritdoc />
         public string CacheSessionName { get; set; }
@@ -155,5 +153,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; set; }
+
+        /// <inheritdoc />
+        public int MonitorAugmentedPathSets { get; set; }
     }
 }

@@ -10,6 +10,7 @@ import "tools/google/protobuf/duration.proto";
 import "Enums/CreationDisposition.proto";
 import "Enums/DesiredAccess.proto";
 import "Enums/DoubleWritePolicy.proto";
+import "Enums/DynamicWriteOnAbsentProbePolicy.proto";
 import "Enums/FileAccessStatus.proto";
 import "Enums/FlagsAndAttributes.proto";
 import "Enums/FileAccessStatusMethod.proto";
@@ -108,8 +109,8 @@ message ProcessPipExecutionPerformance{
     // Kernel-mode execution time. Note that this counter increases as threads in the process tree execute (it is not equivalent to wall clock time)
     google.protobuf.Duration KernelTime = 6;
 
-    // Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree)
-    uint64 PeakMemoryUsage = 7;
+    // Peak memory usage (in MB) considering all processes (highest point-in-time sum of the memory usage of the process tree)
+    int32 PeakMemoryUsageMb = 7;
     
     // Number of processes that executed as part of the pip (the entry-point process may start children)
     uint32 NumberOfProcesses = 8;
@@ -126,14 +127,14 @@ message ProcessPipExecutionPerformance{
 
 // FileMonitoringViolationCounters message for the classification of file monitoring violations encountered during process execution
 message FileMonitoringViolationCounters{
-    // Count of accesses such that the access was whitelisted, but was not in the cache-friendly part of the whitelist. The pip should not be cached
-    int32 NumFileAccessesWhitelistedButNotCacheable = 1;
+    // Count of accesses such that the access was allowlisted, but was not in the cache-friendly part of the allowlist. The pip should not be cached
+    int32 NumFileAccessesAllowlistedButNotCacheable = 1;
 
-    // Count of accesses such that the access was whitelisted, via the cache-friendly part of the whitelist. The pip may be cached
-    int32 NumFileAccessesWhitelistedAndCacheable = 2;
+    // Count of accesses such that the access was allowlisted, via the cache-friendly part of the allowlist. The pip may be cached
+    int32 NumFileAccessesAllowlistedAndCacheable = 2;
 
-    // Count of accesses such that the access was not whitelisted at all, and should be reported as a violation
-    int32 NumFileAccessViolationsNotWhitelisted = 3;
+    // Count of accesses such that the access was not allowlisted at all, and should be reported as a violation
+    int32 NumFileAccessViolationsNotAllowlisted = 3;
 }
 
 // Fingerprint message. A binary fingerprint with 33 bytes storage.
@@ -283,6 +284,18 @@ message ProcessDetouringStatusData{
 
     // Status returned from the the detoured CreateProcess function.
     uint32 CreateProcessStatusReturn = 12;
+
+    // Whether current process is 64 bit.
+    bool IsCurrent64BitProcess = 13;
+
+    // Whether current process is Wow64
+    bool IsCurrentWow64Process = 14;
+
+    // Whether injected process is Wow64.
+    bool isProcessWow64 = 15;
+
+    // Needs remote injections.
+    bool NeedsRemoteInjection = 16;
 }
 
 // WeakContentFingerprint message
@@ -370,23 +383,40 @@ message UnsafeSandboxConfiguration{
     // If getting the final path name by handle was ignored
     bool IgnoreGetFinalPathNameByHandle = 14;
 
-    // If dynamic writes on absent probes was ignored
-    bool IgnoreDynamicWritesOnAbsentProbes = 15;
+    // was: bool IgnoreDynamicWritesOnAbsentProbes = 15;
 
     // The Double Write Policy
     DoubleWritePolicy DoubleWritePolicy = 16;
 
     // If the undeclared accesses under shared opaques was ignored
     bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
+
+    // If dynamic writes on absent probes was ignored
+    DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes = 18;
+    
+    // If full symlink resolving was ignored
+    bool IgnoreFullSymlinkResolving = 19;
+}
+
+message PreserveOutputsInfo {
+    // Preserve output salt.
+    ContentHash Salt = 1;
+
+    // Trust level.
+    int32 PreserveOutputTrustLevel = 2;
 }
 
 // UnsafeOptions message. Become part of strong fingerprint
 message UnsafeOptions{
-    // Preserve output salt as hash
-    ContentHash PreserveOutputsSalt = 1;
+    
+    // was ContentHash PreserveOutputsSalt = 1;
+    reserved 1;
 
     // Unsafe configuration
     UnsafeSandboxConfiguration UnsafeConfiguration = 2;
+
+    // Preserve output info.
+    PreserveOutputsInfo PreserveOutputsInfo = 3;
 }
 
 // ObservedInput message.
@@ -468,6 +498,12 @@ message ProcessStrongFingerprintComputationData{
 
     // The observed inputs
     repeated ObservedInput ObservedInputs = 10;
+
+    // Indicates that this instance of ProcessStrongFingerprintComputationData is the result of publishing a new augmented weak fingerprint.
+    bool IsNewlyPublishedAugmentedWeakFingerprint = 11;
+
+    // Associated augmented weak fingerprint if any.
+    WeakContentFingerprint AugmentedWeakFingerprint = 12;
 }
 
 // DirectoryFingerprint message for the membership of a directory.
@@ -600,13 +636,16 @@ message ProcessPip{
     ServiceInfo ServiceInfo = 21;
 
     // File/directory output paths that are preserved if AllowPreserveOutputs is enabled. 
-    repeated AbsolutePath PreserveOutputWhitelist = 22;
+    repeated AbsolutePath PreserveOutputAllowlist = 22;
 
     // Tags of the pip
     repeated string Tags = 23;
 
     // Pip Provenance
     PipProvenance Provenance = 24;
+
+    // Directory cones that will be excluded from opaque directories
+    repeated AbsolutePath OutputDirectoryExclusions = 25;
 }
 
 // WriteFile pip message

@@ -144,6 +144,9 @@ message PipGraph{
 
     // All PipId values issued so far.
     repeated uint32 StableKeys = 11;
+
+    // The set of all output directory exclusions
+    repeated AbsolutePath OutputDirectoryExclusions = 12;
 }
 
 // MountPathExpander data message

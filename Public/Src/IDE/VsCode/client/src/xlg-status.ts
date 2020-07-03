@@ -6,10 +6,10 @@
 import * as vscode from "vscode";
 import { DocumentColorParams } from "vscode-languageserver-protocol/lib/protocol.colorProvider.proposed";
 
-export const BxlStatusCsvFileNameSuffix = ".status.csv";
+export const BxlStatusCsvFileNameSuffix = ".csv";
 export const CmdRenderStatus = "XLG.Render.Status";
 export const DefaultColumnsOfInterest = [ "*" ];
-export const DefaultColumnsToRender = [ "Cpu Percent", "Mem Percent", "Process Running" ];
+export const DefaultColumnsToRender = [ "Cpu Percent", "Ram Percent", "Process Running" ];
 
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand(CmdRenderStatus, () => {

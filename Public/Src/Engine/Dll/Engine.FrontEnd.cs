@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,8 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Tracing;
@@ -124,22 +126,23 @@ namespace BuildXL.Engine
             MountsTable mountsTable,
             [CanBeNull] GraphReuseResult reuseResult)
         {
+            var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
             var builder = new PipGraph.Builder(
                 EngineSchedule.CreateEmptyPipTable(Context),
                 Context,
-                Scheduler.Tracing.Logger.Log,
+                BuildXL.Pips.Tracing.Logger.Log,
                 loggingContext,
                 Configuration,
                 mountsTable.MountPathExpander,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable));
+                searchPathToolsHash: searchPathToolsHash);
 
             PatchablePipGraph patchableGraph = null;
             if (Configuration.FrontEnd.UseGraphPatching() && reuseResult?.IsPartialReuse == true)
             {
                 Logger.Log.UsingPatchableGraphBuilder(loggingContext);
                 patchableGraph = new PatchablePipGraph(
-                    oldPipGraph: reuseResult.PipGraph.DataflowGraph,
+                    oldPipGraph: reuseResult.PipGraph.DirectedGraph,
                     oldPipTable: reuseResult.PipGraph.PipTable,
                     graphBuilder: builder,
                     maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency());
@@ -192,7 +195,7 @@ namespace BuildXL.Engine
                 () => cacheGraphStats))
             {
                 var loggingContext = timeBlock.LoggingContext;
-                var effectiveEnvironmentVariables = FrontEndEngineImplementation.PopulateFromEnvironmentAndApplyOverrides(properties);
+                var effectiveEnvironmentVariables = FrontEndEngineImplementation.PopulateFromEnvironmentAndApplyOverrides(loggingContext, properties);
                 var availableMounts = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
 
                 if (!AddConfigurationMountsAndCompleteInitialization(loggingContext, availableMounts))
@@ -354,22 +357,6 @@ namespace BuildXL.Engine
                             return cacheGraphStats;
                         }
 
-                        AsyncOut<AbsolutePath> symlinkFileLocation = new AsyncOut<AbsolutePath>();
-                        if (!SymlinkDefinitionFileProvider.TryFetchWorkerSymlinkFileAsync(
-                            outerLoggingContext,
-                            Context.PathTable,
-                            cacheForWorker,
-                            Configuration.Layout,
-                            m_workerService,
-                            symlinkFileLocation).Result)
-                        {
-                            cacheGraphStats.CacheMissReason = GraphCacheMissReason.NoFingerprintFromMaster;
-                            cacheGraphStats.MissReason = cacheGraphStats.CacheMissReason;
-                            return cacheGraphStats;
-                        }
-
-                        m_workerSymlinkDefinitionFile = symlinkFileLocation.Value;
-
                         // Success. Populate the stats
                         cacheGraphStats.WasHit = true;
                         cacheGraphStats.WorkerHit = true;
@@ -484,12 +471,20 @@ namespace BuildXL.Engine
             EngineState engineState,
             InputTracker.InputChanges inputChanges)
         {
-            Tuple<PipGraph, EngineContext> t = EngineSchedule.LoadPipGraphAsync(
-                Context,
-                serializer,
-                Configuration,
-                loggingContext,
-                engineState).GetAwaiter().GetResult();
+            Tuple<PipGraph, EngineContext> t = null;
+            try
+            {
+                t = EngineSchedule.LoadPipGraphAsync(
+                    Context,
+                    serializer,
+                    Configuration,
+                    loggingContext,
+                    engineState).GetAwaiter().GetResult();
+            }
+            catch (BuildXLException e)
+            {
+                Logger.Log.FailedReloadPipGraph(loggingContext, e.ToString());
+            }
 
             if (t == null)
             {
@@ -568,22 +563,28 @@ namespace BuildXL.Engine
             InputTracker.InputChanges inputChanges,
             string buildEngineFingerprint)
         {
-            Tuple<EngineSchedule, EngineContext, IConfiguration> t = EngineSchedule.LoadAsync(
-                Context,
-                serializer,
-                cacheInitializationTask,
-                FileContentTable,
-                journalState,
-                Configuration,
-                loggingContext,
-                m_collector,
-                m_directoryTranslator,
-                engineState,
-                symlinkDefinitionFile: IsDistributedWorker ? 
-                    m_workerSymlinkDefinitionFile.Value :
-                    Configuration.Layout.SymlinkDefinitionFile,
-                tempCleaner: m_tempCleaner,
-                buildEngineFingerprint).GetAwaiter().GetResult();
+            Tuple<EngineSchedule, EngineContext, IConfiguration> t = null;
+
+            try
+            {
+                t = EngineSchedule.LoadAsync(
+                    Context,
+                    serializer,
+                    cacheInitializationTask,
+                    FileContentTable,
+                    journalState,
+                    Configuration,
+                    loggingContext,
+                    m_collector,
+                    m_directoryTranslator,
+                    engineState,
+                    tempCleaner: m_tempCleaner,
+                    buildEngineFingerprint).GetAwaiter().GetResult();
+            }
+            catch (BuildXLException e)
+            {
+                Logger.Log.FailedReloadPipGraph(loggingContext, e.ToString());
+            }
 
             if (t == null)
             {
@@ -599,8 +600,12 @@ namespace BuildXL.Engine
             Configuration = t.Item3;
 
             // Copy the graph files to the session output
-            m_executionLogGraphCopy = TryCreateHardlinksToScheduleFilesInSessionFolder(loggingContext, serializer);
-            m_previousInputFilesCopy = TryCreateHardlinksToPreviousInputFilesInSessionFolder(loggingContext, serializer);
+            if (Configuration.Distribution.BuildRole != DistributedBuildRoles.Worker)
+            {
+                // No need to link these files to the logs directory on workers since they are redundant with what's on the master
+                m_executionLogGraphCopy = TryCreateHardlinksToScheduleFilesInSessionFolder(loggingContext, serializer);
+                m_previousInputFilesCopy = TryCreateHardlinksToPreviousInputFilesInSessionFolder(loggingContext, serializer);
+            }
 
             return GraphReuseResult.CreateForFullReuse(t.Item1, inputChanges);
         }

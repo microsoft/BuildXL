@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using BuildXL.Pips.Operations;
@@ -36,7 +36,7 @@ namespace Test.DScript.Ast.DScriptV2
         [InlineData(ConfigTemplateWithProjects)]
         public void TestNonFilteredLegacyEvaluation(string configTemplate)
         {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: false).RootSpec("config.dsc");
+            var builder = CreateBuilder(configTemplate).RootSpec("config.dsc");
             builder.EvaluateWithNoErrors();
 
             var pips = GetPipsWithoutModuleAndSpec();

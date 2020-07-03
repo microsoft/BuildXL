@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Utilities;
@@ -32,14 +32,27 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCacheLookupSlots = new WorkerResource(nameof(AvailableCacheLookupSlots), Precedence.AvailableCacheLookupSlots);
 
         /// <summary>
-        /// See <see cref="Worker.TotalMemoryMb"/>
+        /// See <see cref="Worker.AcquiredMaterializeInputSlots"/>
+        /// </summary>
+        public static readonly WorkerResource AvailableMaterializeInputSlots = new WorkerResource(nameof(AvailableMaterializeInputSlots), Precedence.AvailableMaterializeInputSlots);
+
+        /// <summary>
+        /// See <see cref="Worker.TotalRamMb"/>
         /// </summary>
         public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.AvailableMemoryMb);
 
         /// <summary>
-        /// See <see cref="Worker.ResourcesAvailable"/>
+        /// See <see cref="Worker.TotalCommitMb"/>
         /// </summary>
-        public static readonly WorkerResource ResourcesAvailable = new WorkerResource(nameof(ResourcesAvailable), Precedence.ResourcesAvailable);
+        public static readonly WorkerResource AvailableCommitMb = new WorkerResource(nameof(AvailableCommitMb), Precedence.AvailableCommitMb);
+
+        /// <summary>
+        /// See <see cref="Worker.MemoryResourceAvailable"/>
+        /// </summary>
+        public static readonly WorkerResource MemoryResourceAvailable = new WorkerResource(nameof(MemoryResourceAvailable), Precedence.MemoryResourceAvailable);
+
+        /// <nodoc/>
+        public static readonly WorkerResource DisableLoadBalance = new WorkerResource(nameof(DisableLoadBalance), Precedence.DisableLoadBalance);
 
         /// <summary>
         /// See <see cref="Worker.Status"/>
@@ -113,7 +126,10 @@ namespace BuildXL.Scheduler.Distribution
             AvailableCacheLookupSlots,
             AvailableProcessSlots,
             AvailableMemoryMb,
-            ResourcesAvailable,
+            AvailableCommitMb,
+            MemoryResourceAvailable,
+            AvailableMaterializeInputSlots,
+            DisableLoadBalance,
             SemaphorePrecedence,
         }
     }

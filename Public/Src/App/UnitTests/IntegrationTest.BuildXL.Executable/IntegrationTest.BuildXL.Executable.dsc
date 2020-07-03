@@ -11,16 +11,19 @@ namespace IntegrationTest.BuildXL.Executable {
 
     export declare const qualifier : {
         configuration: "debug" | "release",
-        targetFramework: "net472" | "netcoreapp3.0" | "netstandard2.0",
+        targetFramework: "netcoreapp3.1",
         targetRuntime: "win-x64"
     };
 
     const exampleMountPath = Context.getMount("Example").path;
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
+        runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "IntegrationTest.BuildXL.Executable",
         sources: globR(d`.`, "*.cs").filter(file =>
         {
@@ -58,10 +61,4 @@ namespace IntegrationTest.BuildXL.Executable {
     });
 
     const testsDeployment = dll.testDeployment.deployedDefinition;
-
-    @@public
-    export const deployed = BuildXLSdk.StandaloneTestUtils.shouldDeployStandaloneTest ? BuildXLSdk.DeploymentHelpers.deploy({
-        definition: testsDeployment,
-        targetLocation: r`tests/standaloneTest/executabletests/${qualifier.configuration}/${BuildXLSdk.dotNetFramework}/IntegrationTest.BuildXL.Executable`,
-    }) : undefined;
 }

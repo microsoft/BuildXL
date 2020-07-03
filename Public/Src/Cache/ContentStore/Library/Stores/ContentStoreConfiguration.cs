@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -19,6 +19,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     SingleInstanceTimeoutSeconds dDefault value if not specified.
         /// </summary>
         public const int DefaultSingleInstanceTimeoutSeconds = 60 * 30;
+
+        /// <nodoc />
+        public const bool DefaultApplyDenyWriteAttributesOnContent = false;
 
         /// <summary>
         ///     Convenience factory method for creating configuration with hard limit in megabytes.

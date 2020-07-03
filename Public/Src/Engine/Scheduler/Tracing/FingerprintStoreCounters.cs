@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities.Tracing;
 
@@ -155,10 +155,68 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreLoggingTime,
 
         /// <summary>
+        /// The number of ms spent serializing and storing to the fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FingerprintStoreAwaitingEventProcessorTime,
+
+        /// <summary>
         /// The number of ms spent serializing fingerprint store entries to JSON.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         JsonSerializationTime,
+
+        /// <summary>
+        /// The number of ms spent serializing weak fingerprint to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationWeakFingerprintTime,
+
+        /// <summary>
+        /// The number of serializing weak fingerprint to JSON.
+        /// </summary>
+        JsonSerializationWeakFingerprintCount,
+
+        /// <summary>
+        /// The number of ms spent serializing strong fingerprint content to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationStrongFingerprintContentTime,
+
+        /// <summary>
+        /// The number of ms spent serializing strong fingerprint input to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationStrongFingerprintInputTime,
+
+        /// <summary>
+        /// The number of ms spent serializing input collection to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationInputCollectionTime,
+
+        /// <summary>
+        /// The number of ms spent updating or storing pip unique's output hash into fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        UpdateOrStorePipUniqueOutputHashEntryTime,
+
+        /// <summary>
+        /// The number of ms spent creating fingerpring store entry.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CreateFingerprintStoreEntryTime,
+
+        /// <summary>
+        /// The number of creating fingerprint store entries.
+        /// </summary>
+        CreateFingerprintStoreEntryCount,
+
+        /// <summary>
+        /// The number of ms spent putting fingerprint store entry into fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PutFingerprintStoreEntryTime,
 
         /// <summary>
         /// The number of ms spent serializing the cache miss list.
@@ -229,13 +287,57 @@ namespace BuildXL.Scheduler.Tracing
         InitializeCacheMissAnalysisDuration,
 
         /// <summary>
-        /// How many pips cache miss analysis is performed on.
+        /// How many pips cache miss analysis from cache look-up is performed on.
         /// </summary>
-        CacheMissAnalysisAnalyzeCount,
+        CacheMissAnalysisAnalyzeCacheLookUpCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis from execution is performed on.
+        /// </summary>
+        CacheMissAnalysisAnalyzeExecutionCount,
 
         /// <summary>
         /// How many pips cache miss analysis is performed on during cache-lookup.
         /// </summary>
-        CacheMissAnalysisCacheLookupAnalyzeCount
+        CacheMissAnalysisCacheLookupAnalyzeCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis can't be performed due to max number reach.
+        /// </summary>
+        CacheMissAnalysisExceedMaxNumAndCannotPerformCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis results are enqueued for batching.
+        /// </summary>
+        CacheMissBatchingEnqueueCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis results are dequeued for batching.
+        /// </summary>
+        CacheMissBatchingDequeueCount,
+
+        /// <summary>
+        /// The number of ms spent for analyzing (e.g., diff-ing fingerprints) cache misses.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CacheMissAnalysisAnalyzeDuration,
+
+        /// <summary>
+        /// The number of ms spent for analysis result batch logging 
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CacheMissBatchLoggingTime,
+
+        /// <summary>
+        /// The number of ms spent for disposing analysis result batch logging queue
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RuntimeCacheMissBatchLoggingQueueDisposeDuration,
+
+        /// <summary>
+        /// The number of ms spent for disposing PreviousFingerprintStore
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PreviousFingerprintStoreDisposeDuration
     }
 }

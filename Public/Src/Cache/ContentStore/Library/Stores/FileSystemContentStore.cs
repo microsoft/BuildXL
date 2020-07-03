@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     ///     An <see cref="IContentStore"/> implemented over <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
-    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore
+    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, ILocalContentStore, IStreamStore, IPushFileHandler
     {
         private const string Component = nameof(FileSystemContentStore);
 
@@ -35,11 +35,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Gets the underlying store implementation.
         /// </summary>
         internal readonly FileSystemContentStoreInternal Store;
-
-        /// <summary>
-        ///     Removes provided cache content snapshot from the content location store.
-        /// </summary>
-        private readonly TrimBulkAsync _trimBulkAsync;
 
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
@@ -71,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="FileSystemContentStore" /> class.
+        /// Backward-compat constructor.
         /// </summary>
         public FileSystemContentStore(
             IAbsFileSystem fileSystem,
@@ -82,6 +77,20 @@ namespace BuildXL.Cache.ContentStore.Stores
             DistributedEvictionSettings distributedEvictionSettings = null,
             TrimBulkAsync trimBulkAsync = null,
             ContentStoreSettings settings = null)
+        : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings)
+        {
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="FileSystemContentStore" /> class.
+        /// </summary>
+        public FileSystemContentStore(
+            IAbsFileSystem fileSystem,
+            IClock clock,
+            AbsolutePath rootPath,
+            ConfigurationModel configurationModel,
+            IDistributedLocationStore distributedStore,
+            ContentStoreSettings settings)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -103,11 +112,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 clock,
                 rootPath,
                 configurationModel,
-                nagleQueue,
-                distributedEvictionSettings,
-                settings);
-
-            _trimBulkAsync = trimBulkAsync;
+                settings,
+                distributedStore);
         }
 
         /// <inheritdoc />
@@ -181,21 +187,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
-        {
-            return RemoveFromTrackerCall<ContentStoreTracer>.RunAsync(_tracer, OperationContext(context), async () =>
-            {
-                if (_trimBulkAsync == null)
-                {
-                    return new StructResult<long>("Repair handling not enabled.");
-                }
-
-                var contentHashes = await Store.EnumerateContentHashesAsync();
-                return await _trimBulkAsync(context, contentHashes, CancellationToken.None, UrgencyHint.Nominal);
-            });
-        }
-
-        /// <inheritdoc />
         public Task<IReadOnlyList<ContentInfo>> GetContentInfoAsync(CancellationToken token)
         {
             // TODO: add cancellation support for EnumerateContentInfoAsync
@@ -206,6 +197,30 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool Contains(ContentHash hash)
         {
             return Store.Contains(hash);
+        }
+
+        /// <inheritdoc />
+        public bool TryGetContentInfo(ContentHash hash, out ContentInfo info)
+        {
+            if (Store.TryGetFileInfo(hash, out var fileInfo))
+            {
+                info = new ContentInfo(hash, fileInfo.FileSize, fileInfo.LastAccessedTimeUtc);
+                return true;
+            }
+            else
+            {
+                info = default;
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public void UpdateLastAccessTimeIfNewer(ContentHash hash, DateTime newLastAccessTime)
+        {
+            if (Store.TryGetFileInfo(hash, out var fileInfo))
+            {
+                fileInfo.UpdateLastAccessed(newLastAccessTime);
+            }
         }
 
         /// <inheritdoc />
@@ -228,12 +243,33 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
-        {
-            return Store.DeleteAsync(context, contentHash);
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
+        { 
+            return Store.DeleteAsync(context, contentHash, deleteOptions);
         }
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }
+
+        /// <inheritdoc />
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        {
+            // TODO(jubayard): this can be optimized to move in some cases (i.e. GrpcContentServer creates a file just
+            // for this, no need to copy it)
+            return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
+        }
+
+        /// <inheritdoc />
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
+        {
+            if (Store.Contains(hash))
+            {
+                rejectionReason = RejectionReason.ContentAvailableLocally;
+                return false;
+            }
+
+            rejectionReason = RejectionReason.Accepted;
+            return true;
+        }
     }
 }

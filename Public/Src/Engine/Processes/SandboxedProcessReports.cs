@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -9,9 +9,10 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
-using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -42,7 +43,7 @@ namespace BuildXL.Processes
         private readonly IDetoursEventListener m_detoursEventListener;
 
         [CanBeNull]
-        private readonly SharedOpaqueOutputLogger m_sharedOpaqueOutputLogger;
+        private readonly SidebandWriter m_sharedOpaqueOutputLogger;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
@@ -50,7 +51,7 @@ namespace BuildXL.Processes
         public readonly HashSet<ReportedFileAccess> ExplicitlyReportedFileAccesses = new HashSet<ReportedFileAccess>();
 
         public readonly List<ProcessDetouringStatusData> ProcessDetoursStatuses = new List<ProcessDetouringStatusData>();
-
+        
         /// <summary>
         /// The last message count in the semaphore.
         /// </summary>
@@ -60,6 +61,16 @@ namespace BuildXL.Processes
         }
 
         private bool m_isFrozen;
+        
+        /// <summary>
+        /// A denied access based on existence is not actually final until we have processed all accesses. This is because augmented file accesses coming from trusted tools
+        /// always override file existence denials. When accesses come in order, we can always count for trusted tools accesses to prevent the creation of file extistence denials.
+        /// But many times trusted tool accesses come out of order, since approaches like the VBCSCompilerLogger sends them all together when the project is done building. This forces
+        /// us to reconsider denials we have already created. This is fine since all reported file access collections this class manages are considered in flux until the instance is frozen
+        /// <see cref="Freeze"/>.
+        /// In this dictionary we store the aforementioned denials to be able to 'retract' them if needed.
+        /// </summary>
+        private readonly MultiValueDictionary<AbsolutePath, ReportedFileAccess> m_deniedAccessesBasedOnExistence = new MultiValueDictionary<AbsolutePath, ReportedFileAccess>();
 
         /// <summary>
         /// Gets whether the report is frozen for modification
@@ -104,11 +115,12 @@ namespace BuildXL.Processes
             string pipDescription,
             LoggingContext loggingContext,
             [CanBeNull] IDetoursEventListener detoursEventListener,
-            [CanBeNull] SharedOpaqueOutputLogger sharedOpaqueOutputLogger)
+            [CanBeNull] SidebandWriter sharedOpaqueOutputLogger)
         {
-            Contract.Requires(manifest != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(pipDescription != null);
+            Contract.RequiresNotNull(manifest);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(pipDescription);
+            Contract.RequiresNotNull(loggingContext);
 
             PipSemiStableHash = pipSemiStableHash;
             PipDescription = pipDescription;
@@ -118,9 +130,7 @@ namespace BuildXL.Processes
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
             m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
-
-            // For tests we need the StaticContext
-            m_loggingContext = loggingContext ?? BuildXL.Utilities.Tracing.Events.StaticContext;
+            m_loggingContext = loggingContext;
         }
 
         /// <summary>
@@ -168,7 +178,7 @@ namespace BuildXL.Processes
         /// </summary>
         public bool ReportFileAccess<T>(ref T accessReport, FileAccessReportProvider<T> parser)
         {
-            var result = FileAccessReportLineReceived(ref accessReport, parser, out var errorMessage);
+            var result = FileAccessReportLineReceived(ref accessReport, parser, isAnAugmentedFileAccess: false, out var errorMessage);
             if (!result)
             {
                 MessageProcessingFailure = CreateMessageProcessingFailure(errorMessage);
@@ -239,39 +249,46 @@ namespace BuildXL.Processes
             switch (reportType)
             {
                 case ReportType.FileAccess:
-                    if (!FileAccessReportLineReceived(ref data, FileAccessReportLine.TryParse, out errorMessage))
-                    {
-                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                        return false;
-                    }
-                    break;
+                if (!FileAccessReportLineReceived(ref data, FileAccessReportLine.TryParse, isAnAugmentedFileAccess: false, out errorMessage))
+                {
+                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                    return false;
+                }
+                break;
                 case ReportType.DebugMessage:
-                    if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
-                    {
-                        m_detoursEventListener.HandleDebugMessage(PipSemiStableHash, PipDescription, data);
-                    }
+                if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
+                {
+                    m_detoursEventListener.HandleDebugMessage(PipSemiStableHash, PipDescription, data);
+                }
 
-                    Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, PipDescription, data);
-                    break;
+                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
+                break;
                 case ReportType.WindowsCall:
-                    throw new NotImplementedException(I($"{ReportType.WindowsCall.ToString()} report type is not supported."));
+                throw new NotImplementedException(I($"{ReportType.WindowsCall.ToString()} report type is not supported."));
                 case ReportType.ProcessData:
-                    if (!ProcessDataReportLineReceived(data, out errorMessage))
-                    {
-                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                        return false;
-                    }
-                    break;
+                if (!ProcessDataReportLineReceived(data, out errorMessage))
+                {
+                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                    return false;
+                }
+                break;
                 case ReportType.ProcessDetouringStatus:
-                    if (!ProcessDetouringStatusReceived(data, out errorMessage))
-                    {
-                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                        return false;
-                    }
-                    break;
+                if (!ProcessDetouringStatusReceived(data, out errorMessage))
+                {
+                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                    return false;
+                }
+                break;
+                case ReportType.AugmentedFileAccess:
+                if (!FileAccessReportLineReceived(ref data, TryParseAugmentedFileAccess, isAnAugmentedFileAccess: true, out errorMessage))
+                {
+                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                    return false;
+                }
+                break;
                 default:
-                    Contract.Assume(false);
-                    break;
+                Contract.Assume(false);
+                break;
             }
 
             return true;
@@ -290,6 +307,10 @@ namespace BuildXL.Processes
                 out var startApplicationName,
                 out var startCommandLine,
                 out var needsInjection,
+                out var isCurrent64BitProcess,
+                out var isCurrentWow64Process,
+                out var isProcessWow64,
+                out var needsRemoteInjection,
                 out var hJob,
                 out var disableDetours,
                 out var creationFlags,
@@ -301,22 +322,28 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            // If there is a listener registered and not a process message and notifications allowed, notify over the interface.
-            if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.ProcessDetoursStatusNotify) != 0)
-            {
-                m_detoursEventListener.HandleProcessDetouringStatus(
+            var detouringStatusData = new ProcessDetouringStatusData(
                 processId,
                 reportStatus,
                 processName,
                 startApplicationName,
                 startCommandLine,
                 needsInjection,
+                isCurrent64BitProcess,
+                isCurrentWow64Process,
+                isProcessWow64,
+                needsRemoteInjection,
                 hJob,
                 disableDetours,
                 creationFlags,
                 detoured,
                 error,
                 createProcessStatusReturn);
+
+            // If there is a listener registered and not a process message and notifications allowed, notify over the interface.
+            if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.ProcessDetoursStatusNotify) != 0)
+            {
+                m_detoursEventListener.HandleProcessDetouringStatus(detouringStatusData);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.
@@ -325,19 +352,7 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            ProcessDetoursStatuses.Add(new ProcessDetouringStatusData(
-                processId,
-                reportStatus,
-                processName,
-                startApplicationName,
-                startCommandLine,
-                needsInjection,
-                hJob,
-                disableDetours,
-                creationFlags,
-                detoured,
-                error,
-                createProcessStatusReturn));
+            ProcessDetoursStatuses.Add(detouringStatusData);
 
             return true;
         }
@@ -352,6 +367,10 @@ namespace BuildXL.Processes
                 out string startApplicationName,
                 out string startCommandLine,
                 out bool needsInjection,
+                out bool isCurrent64BitProcess,
+                out bool isCurrentWow64Process,
+                out bool isProcessWow64,
+                out bool needsRemoteInjection,
                 out ulong hJob,
                 out bool disableDetours,
                 out uint creationFlags,
@@ -362,6 +381,10 @@ namespace BuildXL.Processes
             {
                 reportStatus = 0;
                 needsInjection = false;
+                isCurrent64BitProcess = false;
+                isCurrentWow64Process = false;
+                isProcessWow64 = false;
+                needsRemoteInjection = false;
                 disableDetours = false;
                 detoured = false;
                 createProcessStatusReturn = 0;
@@ -382,22 +405,22 @@ namespace BuildXL.Processes
                 // If this assert fires, it indicates that we could not successfully parse (split) the data being
                 // sent from the detour (SendReport.cpp).
                 // Make sure the strings are formatted only when the condition is false.
-                if (items.Length < 12)
+                if (items.Length < 16)
                 {
                     errorMessage = I($"Unexpected message items (potentially due to pipe corruption). Message '{line}'. Expected >= 12 items, Received {items.Length} items");
                     return false;
                 }
 
-                if (items.Length == 12)
+                if (items.Length == 16)
                 {
-                    startCommandLine = items[11];
+                    startCommandLine = items[15];
                 }
                 else
                 {
                     System.Text.StringBuilder builder = Pools.GetStringBuilder().Instance;
-                    for (int i = 11; i < items.Length; i++)
+                    for (int i = 15; i < items.Length; i++)
                     {
-                        if (i > 11)
+                        if (i > 15)
                         {
                             builder.Append("|");
                         }
@@ -412,22 +435,34 @@ namespace BuildXL.Processes
                 startApplicationName = items[3];
 
                 uint uintNeedsInjection;
+                uint uintIsCurrent64BitProcess;
+                uint uintIsCurrentWow64Process;
+                uint uintIsProcessWow64;
+                uint uintNeedsRemoteInjection;
                 uint uintDisableDetours;
                 uint uintDetoured;
 
                 if (ulong.TryParse(items[0], NumberStyles.None, CultureInfo.InvariantCulture, out processId) &&
                     uint.TryParse(items[1], NumberStyles.None, CultureInfo.InvariantCulture, out reportStatus) &&
                     uint.TryParse(items[4], NumberStyles.None, CultureInfo.InvariantCulture, out uintNeedsInjection) &&
-                    ulong.TryParse(items[5], NumberStyles.None, CultureInfo.InvariantCulture, out hJob) &&
-                    uint.TryParse(items[6], NumberStyles.None, CultureInfo.InvariantCulture, out uintDisableDetours) &&
-                    uint.TryParse(items[7], NumberStyles.None, CultureInfo.InvariantCulture, out creationFlags) &&
-                    uint.TryParse(items[8], NumberStyles.None, CultureInfo.InvariantCulture, out uintDetoured) &&
-                    uint.TryParse(items[9], NumberStyles.None, CultureInfo.InvariantCulture, out error) &&
-                    uint.TryParse(items[10], NumberStyles.None, CultureInfo.InvariantCulture, out createProcessStatusReturn))
+                    uint.TryParse(items[5], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsCurrent64BitProcess) &&
+                    uint.TryParse(items[6], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsCurrentWow64Process) &&
+                    uint.TryParse(items[7], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsProcessWow64) &&
+                    uint.TryParse(items[8], NumberStyles.None, CultureInfo.InvariantCulture, out uintNeedsRemoteInjection) &&
+                    ulong.TryParse(items[9], NumberStyles.None, CultureInfo.InvariantCulture, out hJob) &&
+                    uint.TryParse(items[10], NumberStyles.None, CultureInfo.InvariantCulture, out uintDisableDetours) &&
+                    uint.TryParse(items[11], NumberStyles.None, CultureInfo.InvariantCulture, out creationFlags) &&
+                    uint.TryParse(items[12], NumberStyles.None, CultureInfo.InvariantCulture, out uintDetoured) &&
+                    uint.TryParse(items[13], NumberStyles.None, CultureInfo.InvariantCulture, out error) &&
+                    uint.TryParse(items[14], NumberStyles.None, CultureInfo.InvariantCulture, out createProcessStatusReturn))
                 {
-                    needsInjection = uintNeedsInjection == 0 ? false : true;
-                    disableDetours = uintDisableDetours == 0 ? false : true;
-                    detoured = uintDetoured == 0 ? false : true;
+                    needsInjection = uintNeedsInjection != 0;
+                    isCurrent64BitProcess = uintIsCurrent64BitProcess != 0;
+                    isCurrentWow64Process = uintIsCurrentWow64Process != 0;
+                    isProcessWow64 = uintIsProcessWow64 != 0;
+                    needsRemoteInjection = uintNeedsRemoteInjection != 0;
+                    disableDetours = uintDisableDetours != 0;
+                    detoured = uintDetoured != 0;
                     return true;
                 }
 
@@ -521,7 +556,81 @@ namespace BuildXL.Processes
             m_processesExits[processId] = reportedProcess;
         }
 
-        private bool FileAccessReportLineReceived<T>(ref T data, FileAccessReportProvider<T> parser, out string errorMessage)
+        private bool TryParseAugmentedFileAccess(
+            ref string data,
+            out uint processId,
+            out ReportedFileOperation operation,
+            out RequestedAccess requestedAccess,
+            out FileAccessStatus status,
+            out bool explicitlyReported,
+            out uint error,
+            out Usn usn,
+            out DesiredAccess desiredAccess,
+            out ShareMode shareMode,
+            out CreationDisposition creationDisposition,
+            out FlagsAndAttributes flagsAndAttributes,
+            out AbsolutePath manifestPath,
+            out string path,
+            out string enumeratePattern,
+            out string processArgs,
+            out string errorMessage)
+        {
+            // An augmented file access has the same structure as a regular one, so let's call
+            // the usual parser
+            var result = FileAccessReportLine.TryParse(
+                ref data, 
+                out processId, 
+                out operation, 
+                out requestedAccess, 
+                out status, 
+                out explicitlyReported, 
+                out error, 
+                out usn, 
+                out desiredAccess, 
+                out shareMode, 
+                out creationDisposition, 
+                out flagsAndAttributes, 
+                out manifestPath, 
+                out path, 
+                out enumeratePattern, 
+                out processArgs, 
+                out errorMessage);
+
+            // Augmented file accesses never have the manifest path set, since there is no easy access to the manifest for 
+            // processes to use.
+            // Let's recreate the manifest path based on the current path and manifest
+            // The manifest may have its own path table after deserialization, so make sure we use the right one
+            if (string.IsNullOrEmpty(path) || !AbsolutePath.TryCreate(m_manifest.PathTable, path, out var absolutePath))
+            {
+                return result;
+            }
+            
+            var success = m_manifest.TryFindManifestPathFor(absolutePath, out AbsolutePath computedManifestPath, out FileAccessPolicy policy);
+
+            // If there is no explicit policy for this path, just keep the manifest path and explicitlyReported flag as it came from the report
+            if (!success)
+            {
+                return result;
+            }
+
+            manifestPath = computedManifestPath;
+
+            // We override the explicitly reported flag according to the manifest policy.
+            // We could impose trusted tools the responsibility of knowing this, but this type of coordination is hard to achieve
+            explicitlyReported = (policy & FileAccessPolicy.ReportAccess) != 0;
+
+            // If the access is not explicitly reported, and the global manifest flag is not asking for all accesses to be reported, we ignore
+            // this line
+            if (!explicitlyReported && !m_manifest.ReportFileAccesses)
+            {
+                path = null;
+                return true;
+            }
+            
+            return result;
+        }
+
+        private bool FileAccessReportLineReceived<T>(ref T data, FileAccessReportProvider<T> parser, bool isAnAugmentedFileAccess, out string errorMessage)
         {
             Contract.Assume(!IsFrozen, "FileAccessReportLineReceived: !IsFrozen");
 
@@ -570,7 +679,8 @@ namespace BuildXL.Processes
                     creationDisposition,
                     flagsAndAttributes,
                     path,
-                    processArgs);
+                    processArgs,
+                    isAnAugmentedFileAccess);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.
@@ -642,15 +752,16 @@ namespace BuildXL.Processes
                 path = null;
             }
 
-            var pathAsAbsolutePath = finalPath;
-            if (!pathAsAbsolutePath.IsValid)
+            if (!finalPath.IsValid)
             {
-                AbsolutePath.TryCreate(m_pathTable, path, out pathAsAbsolutePath);
+                AbsolutePath.TryCreate(m_pathTable, path, out finalPath);
             }
 
-            if (pathAsAbsolutePath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
+            if (finalPath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
             {
-                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
+                // flushing immediately to ensure the write is recorded as soon as possible
+                // (and so that we are more likely to have a record of it if bxl crashes)
+                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, finalPath, flushImmediately: true);
             }
 
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));
@@ -680,31 +791,46 @@ namespace BuildXL.Processes
                 // non-deterministically deny the access
                 // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\
                 // are not canonicalized in detours
-                if (path != null && pathAsAbsolutePath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
+                if (path != null && finalPath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(finalPath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
-                    m_overrideAllowedWritePaths[pathAsAbsolutePath] = (status == FileAccessStatus.Denied);
+                    m_overrideAllowedWritePaths[finalPath] = (status == FileAccessStatus.Denied);
                 }
 
                 return true;
             }
 
-            FileAccessStatusMethod method = FileAccessStatusMethod.PolicyBased;
+            if (operation == ReportedFileOperation.CreateProcess)
+            {
+                // Ensure that when the operation is CreateProcess, the desire access includes execute.
+                // This will prevent CreateProcess from being collapsed into Process operation because
+                // reported file access does not include operation type in the hash code.
+                desiredAccess = desiredAccess | DesiredAccess.GENERIC_EXECUTE;
+            }
+
+            // If this is an augmented file access, the method was not based on policy, but a trusted tool reported the access
+            FileAccessStatusMethod method = isAnAugmentedFileAccess
+                ? FileAccessStatusMethod.TrustedTool
+                : FileAccessStatusMethod.PolicyBased;
 
             // If we are processing an allowed write, but this should be overridden based on file existence,
             // we change the status here
-            if (path != null &&
-                (requestedAccess & RequestedAccess.Write) != 0 &&
-                status == FileAccessStatus.Allowed &&
-                m_overrideAllowedWritePaths.Count > 0 && // Avoid creating the absolute path if the override allowed writes flag is off
-                pathAsAbsolutePath.IsValid &&
-                m_overrideAllowedWritePaths.TryGetValue(pathAsAbsolutePath, out bool shouldOverrideAllowedAccess) &&
-                shouldOverrideAllowedAccess)
+            // Observe that if the access is coming from a trusted tool, that trumps file existence and we don't deny the access
+            if (method != FileAccessStatusMethod.TrustedTool
+                && path != null
+                && (requestedAccess & RequestedAccess.Write) != 0
+                && status == FileAccessStatus.Allowed
+                && m_overrideAllowedWritePaths.Count > 0 // Avoid creating the absolute path if the override allowed writes flag is off
+                && finalPath.IsValid
+                && m_overrideAllowedWritePaths.TryGetValue(finalPath, out bool shouldOverrideAllowedAccess)
+                && shouldOverrideAllowedAccess)
             {
                 status = FileAccessStatus.Denied;
                 method = FileAccessStatusMethod.FileExistenceBased;
             }
 
+            // Note that when the operation is Process, then the reported process <code>process</code> is the process itself.
+            // This can be interpreted as follows: the process starts and it's accessing the file path of the executable.
             var reportedAccess =
                 new ReportedFileAccess(
                     operation,
@@ -723,13 +849,42 @@ namespace BuildXL.Processes
                     enumeratePattern,
                     method);
 
-            HandleReportedAccess(reportedAccess);
+            // The access was denied based on file existence. Store it since we can change our minds later if
+            // a trusted access arrives for the same path
+            if (status == FileAccessStatus.Denied && method == FileAccessStatusMethod.FileExistenceBased)
+            {
+                Contract.Assert(finalPath.IsValid);
+                m_deniedAccessesBasedOnExistence.Add(finalPath, reportedAccess);
+            }
+
+            HandleReportedAccess(finalPath, reportedAccess);
+
             return true;
         }
 
-        private void HandleReportedAccess(ReportedFileAccess access)
+        private void HandleReportedAccess(AbsolutePath finalPath, ReportedFileAccess access)
         {
             Contract.Assume(!IsFrozen, "HandleReportedAccess: !IsFrozen");
+
+            // If there is an allowed trusted tool access, it overrides any denials based on file existence that we may have found so far 
+            // for that path. We remove those accesses and replace them with allowed ones.
+            if (access.Method == FileAccessStatusMethod.TrustedTool && 
+                access.Status == FileAccessStatus.Allowed && 
+                finalPath.IsValid &&
+                m_deniedAccessesBasedOnExistence.TryGetValue(finalPath, out IReadOnlyList<ReportedFileAccess> deniedAccesses))
+            {
+                foreach (var deniedAccess in deniedAccesses)
+                {
+                    // Remove the denied access and add the corresponding allowed ones
+                    FileUnexpectedAccesses.Remove(deniedAccess);
+                    FileAccesses?.Remove(deniedAccess);
+                    HandleReportedAccess(finalPath, deniedAccess.CreateWithStatus(FileAccessStatus.Allowed));
+                    // Remove the denied accesses from the dictionary
+                    m_deniedAccessesBasedOnExistence.Remove(finalPath);
+                    // Block further file existence based denials on that path
+                    m_overrideAllowedWritePaths[finalPath] = false;
+                }
+            }
 
             if (access.Status == FileAccessStatus.Allowed)
             {
@@ -857,223 +1012,6 @@ namespace BuildXL.Processes
                         new IOTypeCounters(writeOperationCount, writeTransferCount),
                         new IOTypeCounters(otherOperationCount, otherTransferCount));
                     return true;
-                }
-
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Low-level parser for file access report lines
-        /// </summary>
-        internal class FileAccessReportLine
-        {
-            /// <summary>
-            /// Mapping of "operation name" to <see cref="ReportedFileOperation"/>
-            /// </summary>
-            internal static readonly Dictionary<string, ReportedFileOperation> Operations =
-                new Dictionary<string, ReportedFileOperation>(StringComparer.Ordinal)
-                {
-                    { "CreateFile", ReportedFileOperation.CreateFile },
-                    { "CreateDirectory", ReportedFileOperation.CreateDirectory },
-                    { "RemoveDirectory", ReportedFileOperation.RemoveDirectory },
-                    { "GetFileAttributes", ReportedFileOperation.GetFileAttributes },
-                    { "GetFileAttributesEx", ReportedFileOperation.GetFileAttributesEx },
-                    { "FindFirstFileEx", ReportedFileOperation.FindFirstFileEx },
-                    { "FindNextFile", ReportedFileOperation.FindNextFile },
-                    { "CopyFile_Source", ReportedFileOperation.CopyFileSource },
-                    { "CopyFile_Dest", ReportedFileOperation.CopyFileDestination },
-                    { "CreateHardLink_Source", ReportedFileOperation.CreateHardLinkSource },
-                    { "CreateHardLink_Dest", ReportedFileOperation.CreateHardLinkDestination },
-                    { "MoveFile_Source", ReportedFileOperation.MoveFileSource },
-                    { "MoveFile_Dest", ReportedFileOperation.MoveFileDestination },
-                    { "ZwSetRenameInformationFile_Source", ReportedFileOperation.ZwSetRenameInformationFileSource },
-                    { "ZwSetRenameInformationFile_Dest", ReportedFileOperation.ZwSetRenameInformationFileDest },
-                    { "ZwSetLinkInformationFile", ReportedFileOperation.ZwSetLinkInformationFile },
-                    { "ZwSetDispositionInformationFile", ReportedFileOperation.ZwSetDispositionInformationFile },
-                    { "ZwSetModeInformationFile", ReportedFileOperation.ZwSetModeInformationFile },
-                    { "ZwSetFileNameInformationFile_Source", ReportedFileOperation.ZwSetFileNameInformationFileSource },
-                    { "ZwSetFileNameInformationFile_Dest", ReportedFileOperation.ZwSetFileNameInformationFileDest },
-                    { "SetFileInformationByHandle_Source", ReportedFileOperation.SetFileInformationByHandleSource },
-                    { "SetFileInformationByHandle_Dest", ReportedFileOperation.SetFileInformationByHandleDest },
-                    { "DeleteFile", ReportedFileOperation.DeleteFile },
-                    { "Process", ReportedFileOperation.Process },
-                    { "ProcessExit", ReportedFileOperation.ProcessExit },
-                    { "NtQueryDirectoryFile", ReportedFileOperation.NtQueryDirectoryFile },
-                    { "ZwQueryDirectoryFile", ReportedFileOperation.ZwQueryDirectoryFile },
-                    { "NtCreateFile", ReportedFileOperation.NtCreateFile },
-                    { "ZwCreateFile", ReportedFileOperation.ZwCreateFile },
-                    { "ZwOpenFile", ReportedFileOperation.ZwOpenFile },
-                    { "CreateSymbolicLink_Source", ReportedFileOperation.CreateSymbolicLinkSource },
-                    { "ReparsePointTarget", ReportedFileOperation.ReparsePointTarget },
-                    { "ChangedReadWriteToReadAccess", ReportedFileOperation.ChangedReadWriteToReadAccess },
-                    { "FirstAllowWriteCheckInProcess", ReportedFileOperation.FirstAllowWriteCheckInProcess },
-                    { "MoveFileWithProgress_Source", ReportedFileOperation.MoveFileWithProgressSource },
-                    { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
-                    { "MultipleOperations", ReportedFileOperation.MultipleOperations },
-                    { FileOperation.OpMacLookup.GetName(), ReportedFileOperation.MacLookup },
-                    { FileOperation.OpMacReadlink.GetName(), ReportedFileOperation.MacReadlink },
-                    { FileOperation.OpMacVNodeCreate.GetName(), ReportedFileOperation.MacVNodeCreate },
-                    { FileOperation.OpMacVNodeWrite.GetName(), ReportedFileOperation.MacVNodeWrite },
-                    { FileOperation.OpMacVNodeCloneSource.GetName(), ReportedFileOperation.MacVNodeCloneSource },
-                    { FileOperation.OpMacVNodeCloneDest.GetName(), ReportedFileOperation.MacVNodeCloneDest },
-                    { FileOperation.OpKAuthMoveSource.GetName(), ReportedFileOperation.KAuthMoveSource },
-                    { FileOperation.OpKAuthMoveDest.GetName(), ReportedFileOperation.KAuthMoveDest },
-                    { FileOperation.OpKAuthCreateHardlinkSource.GetName(), ReportedFileOperation.KAuthCreateHardlinkSource },
-                    { FileOperation.OpKAuthCreateHardlinkDest.GetName(), ReportedFileOperation.KAuthCreateHardlinkDest },
-                    { FileOperation.OpKAuthCopySource.GetName(), ReportedFileOperation.KAuthCopySource },
-                    { FileOperation.OpKAuthCopyDest.GetName(), ReportedFileOperation.KAuthCopyDest },
-                    { FileOperation.OpKAuthDeleteDir.GetName(), ReportedFileOperation.KAuthDeleteDir },
-                    { FileOperation.OpKAuthDeleteFile.GetName(), ReportedFileOperation.KAuthDeleteFile },
-                    { FileOperation.OpKAuthOpenDir.GetName(), ReportedFileOperation.KAuthOpenDir },
-                    { FileOperation.OpKAuthReadFile.GetName(), ReportedFileOperation.KAuthReadFile },
-                    { FileOperation.OpKAuthCreateDir.GetName(), ReportedFileOperation.KAuthCreateDir },
-                    { FileOperation.OpKAuthWriteFile.GetName(), ReportedFileOperation.KAuthWriteFile },
-                    { FileOperation.OpKAuthClose.GetName(), ReportedFileOperation.KAuthClose },
-                    { FileOperation.OpKAuthCloseModified.GetName(), ReportedFileOperation.KAuthCloseModified },
-                    { FileOperation.OpKAuthVNodeExecute.GetName(), ReportedFileOperation.KAuthVNodeExecute },
-                    { FileOperation.OpKAuthVNodeWrite.GetName(), ReportedFileOperation.KAuthVNodeWrite },
-                    { FileOperation.OpKAuthVNodeRead.GetName(), ReportedFileOperation.KAuthVNodeRead },
-                    { FileOperation.OpKAuthVNodeProbe.GetName(), ReportedFileOperation.KAuthVNodeProbe },
-                };
-
-            [SuppressMessage("Microsoft.Globalization", "CA1305:CultureInfo.InvariantCulture")]
-            public static bool TryParse(
-                ref string line,
-                out uint processId,
-                out ReportedFileOperation operation,
-                out RequestedAccess requestedAccess,
-                out FileAccessStatus status,
-                out bool explicitlyReported,
-                out uint error,
-                out Usn usn,
-                out DesiredAccess desiredAccess,
-                out ShareMode shareMode,
-                out CreationDisposition creationDisposition,
-                out FlagsAndAttributes flagsAndAttributes,
-                out AbsolutePath absolutePath,
-                out string path,
-                out string enumeratePattern,
-                out string processArgs,
-                out string errorMessage)
-            {
-                // TODO: Task 138817: Refactor passing and parsing of report data from native to managed code
-
-                operation = ReportedFileOperation.Unknown;
-                requestedAccess = RequestedAccess.None;
-                status = FileAccessStatus.None;
-                processId = error = 0;
-                usn = default;
-                explicitlyReported = false;
-                desiredAccess = 0;
-                shareMode = ShareMode.FILE_SHARE_NONE;
-                creationDisposition = 0;
-                flagsAndAttributes = 0;
-                absolutePath = AbsolutePath.Invalid;
-                path = null;
-                enumeratePattern = null;
-                processArgs = null;
-                errorMessage = string.Empty;
-
-                var i = line.IndexOf(':');
-                var index = 0;
-
-                if (i > 0)
-                {
-                    var items = line.Substring(i + 1).Split('|');
-
-                    if (!Operations.TryGetValue(line.Substring(0, i), out operation))
-                    {
-                        // We could consider the report line malformed in this case; but in practice it is easy to forget to update this parser
-                        // after adding a new call. So let's be conservative about throwing the line out so long as we can parse the important bits to follow.
-                        operation = ReportedFileOperation.Unknown;
-                    }
-
-                    // When the command line arguments of the process are not reported there will be 12 fields
-                    // When command line arguments are included, everything after the 12th field is the command line argument
-                    // Command line arguments are only reported when the reported file operation is Process
-                    if (operation == ReportedFileOperation.Process)
-                    {
-                        // Make sure the formatting happens only if the condition is false.
-                        if (items.Length < 12)
-                        {
-                            errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= 12 items, Received {items.Length} items");
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        // An ill behaved tool can try to do GetFileAttribute on a file with '|' char. This will result in a failure of the API, but we get a report for the access.
-                        // Allow that by handling such case.
-                        // In Office build there is a call to GetFileAttribute with a small xml document as a file name.
-                        if (items.Length < 12)
-                        {
-                            errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= 12 items, Received {items.Length} items");
-                            return false;
-                        }
-                    }
-
-                    if (
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out processId) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var requestedAccessValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var statusValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var explicitlyReportedValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out error) &&
-                        ulong.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var usnValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var desiredAccessValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var shareModeValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var creationDispositionValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var flagsAndAttributesValue) &&
-                        uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var absolutePathValue))
-                    {
-                        if (statusValue > (uint)FileAccessStatus.CannotDeterminePolicy)
-                        {
-                            errorMessage = I($"Unknown file access status '{statusValue}'");
-                            return false;
-                        }
-
-                        if (requestedAccessValue > (uint)RequestedAccess.All)
-                        {
-                            errorMessage = I($"Unknown requested access '{requestedAccessValue}'");
-                            return false;
-                        }
-
-                        requestedAccess = (RequestedAccess)requestedAccessValue;
-                        status = (FileAccessStatus)statusValue;
-                        explicitlyReported = explicitlyReportedValue != 0;
-                        desiredAccess = (DesiredAccess)desiredAccessValue;
-                        shareMode = (ShareMode)shareModeValue;
-                        creationDisposition = (CreationDisposition)creationDispositionValue;
-                        flagsAndAttributes = (FlagsAndAttributes)flagsAndAttributesValue;
-                        absolutePath = new AbsolutePath(unchecked((int)absolutePathValue));
-                        path = items[index++];
-                        // Detours is only guaranteed to sent at least 12 items, so here (since we are at index 12), we must check if this item is included
-                        enumeratePattern = index < items.Length ? items[index++] : null;
-
-                        if (requestedAccess != RequestedAccess.Enumerate)
-                        {
-                            // If the requested access is not enumeration, enumeratePattern does not matter.
-                            enumeratePattern = null;
-                        }
-
-                        if ((operation == ReportedFileOperation.Process) && (items.Length > index))
-                        {
-                            processArgs = items[index++];
-                            while (index < items.Length)
-                            {
-                                processArgs += "|";
-                                processArgs += items[index++];
-                            }
-                        }
-                        else
-                        {
-                            processArgs = string.Empty;
-                        }
-
-                        usn = new Usn(usnValue);
-                        Contract.Assert(index <= items.Length);
-                        return true;
-                    }
                 }
 
                 return false;

@@ -18,17 +18,13 @@ namespace VsCode.Client {
 
     const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
 
-    const copiedPackageLock = Transformer.copyFile(
-        f`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
-        p`${clientCopy}/package-lock.json`);
-
     @public
-    export const npmInstallResult = Npm.npmInstall(clientCopy, copiedPackageLock);
+    export const npmInstall = Npm.npmInstall(clientCopy, []);
 
     @@public
     export const compileOutDir: OpaqueDirectory = Node.tscCompile(
         clientCopy.root, 
-        [ clientCopy, npmInstallResult.installDir, npmInstallResult.newPackageLock ]);
+        [ clientCopy, npmInstall ]);
 }
 
 namespace LanguageService.Server {
@@ -47,14 +43,25 @@ namespace LanguageService.Server {
         const vsixDeployment = Deployment.deployToDisk({
             definition: vsixDeploymentDefinition,
             targetDirectory: targetDirectory,
+            deploymentOptions: <Deployment.DeploymentOptions>({
+                skipXml: true, 
+                skipPdb: true,
+                // CODESYNC: \Public\Src\FrontEnd\MsBuild\BuildXL.FrontEnd.MsBuild.dsc
+                // The vscode vsix does not need to have the vbcscompiler from the msbuild frontend since that is only used during build, 
+                // not during graph construction. This saves a lot of Mb's to keep us under the size limmit of the marketplace
+                excludedDeployableItems: [
+                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net472" }).dll,
+                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "netcoreapp3.1" }).dll,
+                ]
+            }),
         });
 
         // Zip and return
-        const vsix = VSIntegration.Tool.CreateZipPackage.run({
+        const vsix = VSIntegration.CreateZipPackage.zip({
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,
-            fixUnixPermissions: qualifier.targetRuntime === "osx-x64",
+            fixUnixPermissions: [ "osx-x64", "linux-x64" ].indexOf(qualifier.targetRuntime) !== -1 ,
             additionalDependencies: vsixDeployment.targetOpaques
         });
 
@@ -111,7 +118,7 @@ namespace LanguageService.Server {
                         },
                         {
                             subfolder: a`node_modules`,
-                            contents: [ Deployment.createDeployableOpaqueSubDirectory(VsCode.Client.npmInstallResult.installDir, r`node_modules`) ]
+                            contents: [ Deployment.createDeployableOpaqueSubDirectory(VsCode.Client.npmInstall, r`node_modules`) ]
                         },
                         {
                             subfolder: a`out`,

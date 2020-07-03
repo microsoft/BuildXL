@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -10,20 +10,19 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
-using static BuildXL.Scheduler.Graph.PipGraph;
 
 namespace BuildXL.Scheduler.Graph
 {
     /// <summary>
     /// Class for building graph fragments.
     /// </summary>
-    public class PipGraphFragmentBuilder : IPipGraph
+    public class PipGraphFragmentBuilder : IMutablePipGraph, IPipScheduleTraversal
     {
         /// <summary>
         /// Seal directory table
@@ -49,9 +48,10 @@ namespace BuildXL.Scheduler.Graph
         
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
+        private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
-        private WindowsOsDefaults m_windowsOsDefaults;
-        private MacOsDefaults m_macOsDefaults;
+        private PipGraph.WindowsOsDefaults m_windowsOsDefaults;
+        private PipGraph.MacOsDefaults m_macOsDefaults;
         private readonly object m_osDefaultLock = new object();
         private int m_nextPipId = 0;
 
@@ -99,6 +99,11 @@ namespace BuildXL.Scheduler.Graph
         {
             m_pips.Enqueue(pip);
             pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
+            
+            if (pip.PipType == PipType.SealDirectory)
+            {
+                m_sealDirectoryPips.TryAdd(pip.PipId, ((SealDirectory)pip).Kind);
+            }
         }
 
         /// <inheritdoc />
@@ -214,7 +219,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         if (m_macOsDefaults == null)
                         {
-                            m_macOsDefaults = new MacOsDefaults(m_pipExecutionContext.PathTable, this);
+                            m_macOsDefaults = new PipGraph.MacOsDefaults(m_pipExecutionContext.PathTable, this);
                         }
                     }
                 }
@@ -229,7 +234,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         if (m_windowsOsDefaults == null)
                         {
-                            m_windowsOsDefaults = new WindowsOsDefaults(m_pipExecutionContext.PathTable);
+                            m_windowsOsDefaults = new PipGraph.WindowsOsDefaults(m_pipExecutionContext.PathTable);
                         }
                     }
                 }
@@ -267,6 +272,28 @@ namespace BuildXL.Scheduler.Graph
             {
                 pip.IndependentStaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
             }
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+        {
+            Contract.Requires(directoryArtifact.IsValid);
+
+            kind = default(SealDirectoryKind);
+            if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out var pipId))
+            {
+                return false;
+            }
+
+            var result = m_sealDirectoryPips.TryGet(pipId);
+
+            if (result.IsFound)
+            {
+                kind = result.Item.Value;
+                return true;
+            }
+
+            return false;
         }
     }
 }

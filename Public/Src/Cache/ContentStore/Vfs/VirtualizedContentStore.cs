@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -22,24 +23,24 @@ namespace BuildXL.Cache.ContentStore.Vfs
     public class VirtualizedContentStore : StartupShutdownBase, IContentStore
     {
         private readonly IContentStore _innerStore;
-        private readonly VfsCasConfiguration _configuration;
-        private readonly Logger _logger;
-        internal VfsTree Tree { get; }
+        internal VfsCasConfiguration Configuration { get; }
+        private readonly ILogger _logger;
 
-        private VfsProvider _provider;
+        /// <summary>
+        /// Internal for testing purposes only.
+        /// </summary>
+        internal VfsProvider Provider => _contentManager?.Provider;
         private VfsContentManager _contentManager;
-        private IContentSession _vfsContentSession;
+        private IContentSession _backingContentSession;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentStore));
 
         /// <nodoc />
-        public VirtualizedContentStore(IContentStore innerStore, Logger logger, VfsCasConfiguration configuration)
+        public VirtualizedContentStore(IContentStore innerStore, ILogger logger, VfsCasConfiguration configuration)
         {
             _logger = logger;
             _innerStore = innerStore;
-            _configuration = configuration;
-
-            Tree = new VfsTree(_configuration);
+            Configuration = configuration;        
         }
 
         /// <inheritdoc />
@@ -94,35 +95,32 @@ namespace BuildXL.Cache.ContentStore.Vfs
             await _innerStore.StartupAsync(context).ThrowIfFailure();
 
             // Create long-lived session to be used with overlay (ImplicitPin=None (i.e false) to avoid cache full errors)
-            _vfsContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
-            await _vfsContentSession.StartupAsync(context).ThrowIfFailure();
+            _backingContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
+            await _backingContentSession.StartupAsync(context).ThrowIfFailure();
 
-            _contentManager = new VfsContentManager(_logger, _configuration, Tree, _vfsContentSession);
-            _provider = new VfsProvider(_logger, _configuration, _contentManager, Tree);
+            _contentManager = new VfsContentManager(_logger, Configuration, new ContentSessionVfsFilePlacer(_backingContentSession));
 
-            if (!_provider.StartVirtualization())
-            {
-                return new BoolResult("Unable to start virtualizing");
-            }
-
-            return await base.StartupCoreAsync(context);
+            return await _contentManager.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            // Close all sessions?
-            var result = await base.ShutdownCoreAsync(context);
+            BoolResult result = BoolResult.Success;
+            if (_contentManager != null)
+            {
+                result = await _contentManager.ShutdownAsync(context);
+            }
 
-            result &= await _vfsContentSession.ShutdownAsync(context);
+            result &= await _backingContentSession.ShutdownAsync(context);
 
             result &= await _innerStore.ShutdownAsync(context);
 
             return result;
         }
-
+        
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash) => _innerStore.DeleteAsync(context, contentHash);
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null) => _innerStore.DeleteAsync(context, contentHash, deleteOptions);
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) => _innerStore.PostInitializationCompleted(context, result);

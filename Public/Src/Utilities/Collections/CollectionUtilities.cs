@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -56,7 +56,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Returns a cached instance of an empty dictionary, without any allocations.
         /// </summary>
-        public static IReadOnlyDictionary<TKey, TValue> EmptyDictionary<TKey, TValue>()
+        public static IReadOnlyDictionary<TKey, TValue> EmptyDictionary<TKey, TValue>() where TKey : notnull
         {
             return Empty.Dictionary<TKey, TValue>.Instance;
         }
@@ -66,9 +66,11 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<T> AsReadOnlyList<T>(this IEnumerable<T> items)
         {
-            if (items is IReadOnlyList<T>)
+            Contract.RequiresNotNull(items);
+
+            if (items is IReadOnlyList<T> list)
             {
-                return (IReadOnlyList<T>)items;
+                return list;
             }
             else
             {
@@ -81,9 +83,11 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyCollection<T> AsReadOnlyCollection<T>(this IEnumerable<T> items)
         {
-            if (items is IReadOnlyCollection<T>)
+            Contract.RequiresNotNull(items);
+
+            if (items is IReadOnlyCollection<T> collection)
             {
-                return (IReadOnlyCollection<T>)items;
+                return collection;
             }
             else
             {
@@ -99,8 +103,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an read only array instance containing the elements in the collection.</returns>
         public static ReadOnlyArray<T> ToReadOnlyArray<T>(this IEnumerable<T> collection)
         {
-            Contract.Requires(collection != null);
-            Contract.Ensures(Contract.Result<ReadOnlyArray<T>>().IsValid);
+            Contract.RequiresNotNull(collection);
 
             return ReadOnlyArray<T>.From(collection);
         }
@@ -113,8 +116,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>a read only set instance containing the elements in the collection.</returns>
         public static ReadOnlyHashSet<T> ToReadOnlySet<T>(this IEnumerable<T> collection)
         {
-            Contract.Requires(collection != null);
-            Contract.Ensures(Contract.Result<IReadOnlySet<T>>() != null);
+            Contract.RequiresNotNull(collection);
 
             return new ReadOnlyHashSet<T>(collection);
         }
@@ -127,8 +129,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         public static T[] AsArray<T>(this IReadOnlyCollection<T> collection)
         {
-            Contract.Requires(collection != null);
-            Contract.Ensures(Contract.Result<T[]>() != null);
+            Contract.RequiresNotNull(collection);
 
             int count = collection.Count;
             return AsArray<T>(collection, count);
@@ -137,8 +138,10 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Creates a sorted list from the enumerable.
         /// </summary>
-        public static List<T> ToListSorted<T>(this IEnumerable<T> enumerable, IComparer<T> comparer = null)
+        public static List<T> ToListSorted<T>(this IEnumerable<T> enumerable, IComparer<T>? comparer = null)
         {
+            Contract.RequiresNotNull(enumerable);
+
             var list = enumerable.ToList();
             list.Sort(comparer);
             return list;
@@ -154,8 +157,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         public static TResult[] SelectArray<T, TResult>(this IReadOnlyList<T> list, Func<T, TResult> select)
         {
-            Contract.Requires(list != null);
-            Contract.Ensures(Contract.Result<TResult[]>() != null);
+            Contract.RequiresNotNull(list);
 
             int count = list.Count;
             var array = NewOrEmptyArray<TResult>(count);
@@ -170,17 +172,17 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Converts the dictionary to an array. Uses a cache array instance for empty arrays.
         /// </summary>
-        public static TResult[] SelectArray<TKey, TValue, TResult>(this Dictionary<TKey, TValue> map, Func<KeyValuePair<TKey, TValue>, TResult> select)
+        public static TResult[] SelectArray<TKey, TValue, TResult>(this Dictionary<TKey, TValue> map, Func<KeyValuePair<TKey, TValue>, TResult> selector) where TKey : notnull
         {
-            Contract.Requires(map != null);
-            Contract.Ensures(Contract.Result<TResult[]>() != null);
+            Contract.RequiresNotNull(map);
+            Contract.RequiresNotNull(selector);
 
             int count = map.Count;
             var array = NewOrEmptyArray<TResult>(count);
             int idx = 0;
             foreach (var kvp in map)
             {
-                array[idx] = select(kvp);
+                array[idx] = selector(kvp);
                 idx++;
             }
 
@@ -190,8 +192,10 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Clones the existing dictionary with no enumerator allocations.
         /// </summary>
-        public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this Dictionary<TKey, TValue> map)
+        public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this Dictionary<TKey, TValue> map) where TKey : notnull
         {
+            Contract.RequiresNotNull(map);
+
             var result = new Dictionary<TKey, TValue>(map.Count);
 
             foreach (KeyValuePair<TKey, TValue> pair in map)
@@ -211,9 +215,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collections.</returns>
         public static T[] ConcatAsArray<T>(this IReadOnlyCollection<T> collection1, IReadOnlyCollection<T> collection2)
         {
-            Contract.Requires(collection1 != null);
-            Contract.Requires(collection2 != null);
-            Contract.Ensures(Contract.Result<T[]>() != null);
+            Contract.RequiresNotNull(collection1);
+            Contract.RequiresNotNull(collection2);
 
             int count1 = collection1.Count;
             int count2 = collection2.Count;
@@ -245,9 +248,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>an array instance containing the elements in the collection.</returns>
         private static T[] AsArray<T>(IEnumerable<T> enumerable, int count)
         {
-            Contract.Requires(enumerable != null);
+            Contract.RequiresNotNull(enumerable);
             Contract.Requires(count >= 0);
-            Contract.Ensures(Contract.Result<T[]>() != null);
 
             if (count == 0)
             {
@@ -256,8 +258,7 @@ namespace BuildXL.Utilities.Collections
 
             T[] array = new T[count];
 
-            ICollection<T> collection = enumerable as ICollection<T>;
-            if (collection != null)
+            if (enumerable is ICollection<T> collection)
             {
                 collection.CopyTo(array, 0);
             }
@@ -281,9 +282,10 @@ namespace BuildXL.Utilities.Collections
         /// <param name="dictionary">the dictionary</param>
         /// <param name="key">the key</param>
         /// <param name="value">the value</param>
-        public static void Add<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, TValue value)
+        public static void Add<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, TValue value) where TKey : notnull
         {
-            Contract.Requires(dictionary != null);
+            Contract.RequiresNotNull(dictionary);
+
             ((IDictionary<TKey, TValue>)dictionary).Add(key, value);
         }
 
@@ -296,9 +298,11 @@ namespace BuildXL.Utilities.Collections
         /// <param name="key">the key</param>
         /// <param name="addValueFactory">function which produces the element to add</param>
         /// <returns>the value retrieved or added to the dictionary</returns>
-        public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TValue> addValueFactory)
+        public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TValue> addValueFactory) where TKey : notnull
         {
-            Contract.Requires(dictionary != null);
+            Contract.RequiresNotNull(dictionary);
+            Contract.RequiresNotNull(addValueFactory);
+
             if (!dictionary.TryGetValue(key, out TValue result))
             {
                 result = addValueFactory(key);
@@ -317,9 +321,10 @@ namespace BuildXL.Utilities.Collections
         /// <param name="key">the key of the value to find</param>
         /// <param name="defaultValue">the default value if the key is not present</param>
         /// <returns>the value matching the key in the read-only dictionary, or the default value for TValue if no key is found</returns>
-        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue = default(TValue))
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue = default(TValue)) where TKey : notnull
         {
-            Contract.Requires(dictionary != null);
+            Contract.RequiresNotNull(dictionary);
+
             if (!dictionary.TryGetValue(key, out TValue value))
             {
                 value = defaultValue;
@@ -333,6 +338,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<TResult> SelectList<T, TResult>(this IReadOnlyList<T> list, Func<T, TResult> selector)
         {
+            Contract.RequiresNotNull(list);
+
             return new SelectList<T, TResult>(list, selector);
         }
 
@@ -341,6 +348,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static IReadOnlyList<TResult> SelectList<T, TResult>(this IReadOnlyList<T> list, Func<T, int, TResult> selector)
         {
+            Contract.RequiresNotNull(list);
+
             return new SelectList<T, TResult>(list, selector);
         }
 
@@ -353,8 +362,8 @@ namespace BuildXL.Utilities.Collections
             out ArrayView<TValue> trueValues,
             out ArrayView<TValue> falseValues)
         {
-            Contract.Requires(values != null);
-            Contract.Requires(predicate != null);
+            Contract.RequiresNotNull(values);
+            Contract.RequiresNotNull(predicate);
 
             if (values.Length == 0)
             {
@@ -430,9 +439,10 @@ namespace BuildXL.Utilities.Collections
             this ConcurrentDictionary<TKey, TValue> dictionary,
             TState state,
             TKey key,
-            Func<TState, TKey, TValue> valueFactory)
+            Func<TState, TKey, TValue> valueFactory) where TKey : notnull
         {
-            Contract.Requires(dictionary != null, "dictionary != null");
+            Contract.RequiresNotNull(dictionary, "dictionary != null");
+            Contract.RequiresNotNull(valueFactory);
 
             if (dictionary.TryGetValue(key, out TValue resultingValue))
             {
@@ -456,6 +466,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static void GrowArrayIfNecessary<T>(ref T[] array, int requiredLength)
         {
+            Contract.RequiresNotNull(array);
+
             var newLength = array.Length;
             while (requiredLength > newLength)
             {
@@ -473,6 +485,8 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public static ReadOnlyListEnumerable<T> AsStructEnumerable<T>(this IReadOnlyList<T> @this)
         {
+            Contract.RequiresNotNull(@this);
+
             return new ReadOnlyListEnumerable<T>(@this);
         }
 

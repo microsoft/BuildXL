@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -66,21 +66,57 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// <summary>
         /// Property indicating if a process is running in VM.
         /// </summary>
-        public static bool IsRunningInVm => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(IsInVm));
+        public static bool IsRunningInVm => GetFlag(IsInVm);
 
         /// <summary>
         /// Property indicating if the process in VM has relocated temporary folder.
         /// </summary>
-        public static bool HasRelocatedTemp => IsRunningInVm && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(VmTemp));
+        public static bool HasRelocatedTemp => IsRunningInVm && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(VmTemp));
+
+        /// <summary>
+        /// Environment variable containing path to the host's user profile, or a redirected one.
+        /// </summary>
+        public const string HostUserProfile = "[BUILDXL]VM_HOST_USERPROFILE";
+
+        /// <summary>
+        /// Environment variable indicating if the host's user profile is a redirected one.
+        /// </summary>
+        public const string HostHasRedirectedUserProfile = "[BUILDXL]IS_VM_HOST_REDIRECTED_USERPROFILE";
+
+        /// <summary>
+        /// Checks if host's user profile has been redirected.
+        /// </summary>
+        public static bool IsHostUserProfileRedirected => GetFlag(HostHasRedirectedUserProfile);
+
+        private static bool GetFlag(string environmentVariable)
+        {
+            string value = Environment.GetEnvironmentVariable(environmentVariable);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            switch (value.ToLowerInvariant())
+            {
+                case "0":
+                case "false":
+                    return false;
+                case "1":
+                case "true":
+                    return true;
+                default:
+                    return false;
+            }
+        }
     }
 
     /// <summary>
-    /// Constants for IO in Vm.
+    /// Constants Vm.
     /// </summary>
     /// <remarks>
     /// These constants constitute a kind of contract between BuildXL and VmCommandProxy.
     /// </remarks>
-    public static class VmIOConstants
+    public static class VmConstants
     {
         /// <summary>
         /// IO for temporary folder.
@@ -95,7 +131,7 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// <summary>
             /// Root for temporary folder.
             /// </summary>
-            public static readonly string Root = $@"{Drive}:\BxlInt\Temp";
+            public static readonly string Root = $@"{Drive}:\BxlTemp";
         }
 
         /// <summary>
@@ -112,6 +148,22 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// Host IP address.
             /// </summary>
             public const string IpAddress = "192.168.0.1";
+        }
+
+        /// <summary>
+        /// User that runs pips in VM.
+        /// </summary>
+        public static class UserProfile
+        {
+            /// <summary>
+            /// The user that runs the pip in the VM is 'Administrator'.
+            /// </summary>
+            public const string Name = "Administrator";
+
+            /// <summary>
+            /// User profile path.
+            /// </summary>
+            public readonly static string Path = $@"C:\Users\{Name}";
         }
     }
 }

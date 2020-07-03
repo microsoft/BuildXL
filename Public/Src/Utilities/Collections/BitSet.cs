@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -54,7 +54,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         private BitSet(long[] entries)
         {
-            Contract.Requires(entries != null);
+            Contract.RequiresNotNull(entries);
             m_lengthInEntries = entries.Length;
             m_entries = entries;
         }
@@ -100,11 +100,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(int index)
         {
-            if (index < 0 || index >= Length)
-            {
-                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
-            }            
-
+            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
             ulong newEntry = GetEntry(index) | (1UL << (index % 64));
             SetEntry(index, newEntry);
         }
@@ -115,11 +111,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void AddAtomic(int index)
         {
-            if (index < 0 || index >= Length)
-            {
-                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
-            }
-
+            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
             int entryIndex = index / 64;
             ulong targetEntry;
             ulong currentEntry;
@@ -137,11 +129,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Remove(int index)
         {
-            if (index < 0 || index >= Length)
-            {
-                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
-            }
-
+            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
             ulong newEntry = GetEntry(index) & ~(1UL << (index % 64));
             SetEntry(index, newEntry);
         }
@@ -151,11 +139,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public bool Contains(int index)
         {
-            if (index < 0 || index >= Length)
-            {
-                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
-            }
-
+            Contract.Check(index >= 0 && index < Length)?.Assert($"index={index} must be within [0, {Length}) range.");
             return (GetEntry(index) & 1UL << (index % 64)) != 0;
         }
 
@@ -320,7 +304,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public struct Enumerator : IEnumerator<int>
         {
-            private long[] m_entries;
+            private long[]? m_entries;
             private readonly int m_lengthInEntries;
 
             private int m_entryIndexPlusOne; // PlusOne so that zero (default) is invalid.
@@ -329,7 +313,7 @@ namespace BuildXL.Utilities.Collections
 
             internal Enumerator(long[] entries, int lengthInEntries)
             {
-                Contract.Requires(entries != null);
+                Contract.RequiresNotNull(entries);
                 Contract.Requires(lengthInEntries >= 0);
 
                 m_entries = entries;
@@ -436,7 +420,7 @@ namespace BuildXL.Utilities.Collections
 
                 for (; m_entryIndexPlusOne <= m_lengthInEntries; m_entryIndexPlusOne++)
                 {
-                    ulong entry = unchecked((ulong)m_entries[m_entryIndexPlusOne - 1]);
+                    ulong entry = unchecked((ulong)m_entries![m_entryIndexPlusOne - 1]);
 
                     // Here we reap the benefits of 64-bit entries; we can skip empty entries very quickly (good for sparse sets).
                     if (entry != 0)
@@ -453,7 +437,7 @@ namespace BuildXL.Utilities.Collections
             /// <inheritdoc />
             public void Reset()
             {
-                this = new Enumerator(m_entries, m_lengthInEntries);
+                this = new Enumerator(m_entries!, m_lengthInEntries);
             }
         }
     }

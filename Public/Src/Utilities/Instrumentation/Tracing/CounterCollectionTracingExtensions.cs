@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -17,7 +17,7 @@ namespace BuildXL.Tracing
         public static void LogAsStatistics<TEnum>(
             this CounterCollection<TEnum> counterCollection,
             string namePrefix,
-            LoggingContext context) where TEnum : struct
+            LoggingContext context) where TEnum : System.Enum
         {
             Logger.Log.BulkStatistic(context, counterCollection.AsStatistics(namePrefix));
         }

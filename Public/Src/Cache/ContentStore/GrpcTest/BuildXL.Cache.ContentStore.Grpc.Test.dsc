@@ -8,6 +8,7 @@ namespace GrpcTest {
         sources: globR(d`.`,"*.cs"),
         runTestArgs: {
             parallelGroups: [ "Integration" ],
+            untrackTestDirectory: true // GRPC server may create memory-mapped files in this directory
         },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
@@ -26,6 +27,7 @@ namespace GrpcTest {
             InterfacesTest.dll,
 
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],

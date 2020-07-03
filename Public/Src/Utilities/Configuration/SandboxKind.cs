@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -36,6 +36,21 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// macOs-specifc: Using the EndpointSecurity subsystem for sandboxing (available from 10.15+)
         /// </summary>
-        MacOsEndpointSecurity
+        MacOsEndpointSecurity,
+
+        /// <summary>
+        /// macOs-specifc: Using DYLD interposing for sandboxing
+        /// </summary>
+        MacOsDetours,
+
+        /// <summary>
+        /// macOs-specifc: Using the EndpointSecurity subsystem (available from 10.15+) and DYLD interposing together for sandboxing
+        /// </summary>
+        MacOsHybrid,
+
+        /// <summary>
+        /// Linux-specific: using LD_PRELOAD interposing
+        /// </summary>
+        LinuxDetours,
     }
 }

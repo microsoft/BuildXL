@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -61,7 +61,8 @@ namespace BuildXL.Utilities.Collections
             m_entriesPerBufferBitWidth = entriesPerBufferBitWidth;
             m_entriesPerBuffer = 1 << m_entriesPerBufferBitWidth;
             m_entriesPerBufferMask = m_entriesPerBuffer - 1;
-            Resize(initialBufferSlotCount);
+
+            m_entryBuffers = Resize(initialBufferSlotCount);
             m_accessor = new Accessor(this);
         }
 
@@ -101,7 +102,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="initializer">Optional initializer for new buffers</param>
         /// <param name="initializeSequentially">Whether the initializer needs to run sequentially</param>
         /// <returns>Actual new capacity</returns>
-        public int Initialize(int minimumCapacity, BufferInitializer initializer = null, bool initializeSequentially = false)
+        public int Initialize(int minimumCapacity, BufferInitializer? initializer = null, bool initializeSequentially = false)
         {
             if (m_capacity < minimumCapacity)
             {
@@ -122,7 +123,7 @@ namespace BuildXL.Utilities.Collections
             return m_capacity;
         }
 
-        private void InternalInitializeToNewCapacity(int newCapacity, BufferInitializer initializer, bool initializeSequentially)
+        private void InternalInitializeToNewCapacity(int newCapacity, BufferInitializer? initializer, bool initializeSequentially)
         {
             Resize(newCapacity / m_entriesPerBuffer);
 
@@ -154,11 +155,12 @@ namespace BuildXL.Utilities.Collections
             m_capacity = newCapacity;
         }
 
-        private void Resize(int newSize)
+        private TEntry[][] Resize(int newSize)
         {
             var newEntryBuffers = m_entryBuffers;
             Array.Resize(ref newEntryBuffers, newSize);
             m_entryBuffers = newEntryBuffers;
+            return m_entryBuffers;
         }
 
         /// <summary>
@@ -224,7 +226,7 @@ namespace BuildXL.Utilities.Collections
             /// <summary>
             /// The last entry buffer requested for the accessor
             /// </summary>
-            private TEntry[] m_lastBuffer;
+            private TEntry[]? m_lastBuffer;
 
             /// <summary>
             /// Constructor
@@ -264,9 +266,8 @@ namespace BuildXL.Utilities.Collections
             /// <param name="entryBuffer">the index in the entry buffer which corresponds to the given index</param>
             public void GetEntryBuffer(int index, out int entryIndex, out TEntry[] entryBuffer)
             {
-
                 Buffer.GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out entryIndex);
-                entryBuffer = m_lastBuffer;
+                entryBuffer = m_lastBuffer!;
                 if (bufferNumber != m_lastBufferNumber)
                 {
                     entryBuffer = Buffer.m_entryBuffers[bufferNumber];

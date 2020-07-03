@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
                 _clock.Increment();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(CancellationToken.None);
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(CancellationToken.None);
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -104,7 +104,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                 await ((SQLiteMemoizationStore)store).SyncAsync();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList();
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         private async Task CorruptSqliteDbAtPathAsync(AbsolutePath dbPath)
         {
-            using (var corruptedDb = await FileSystem.OpenAsync(dbPath, FileAccess.Write, FileMode.Create, FileShare.Delete))
+            using (Stream corruptedDb = await FileSystem.OpenAsync(dbPath, FileAccess.Write, FileMode.Create, FileShare.Delete))
             {
                 var corruptedDbContent = System.Text.Encoding.ASCII.GetBytes("Corrupted SqlLite DB for testing");
                 await corruptedDb.WriteAsync(corruptedDbContent, 0, corruptedDbContent.Length);
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var offsetToCorrupt = minimumDbSizeForCorruptionRepro - corruptedDbBytes.Length - 100;
             Assert.True(offsetToCorrupt > assumedMaxSqliteDbPageSizeInBytes);
 
-            using (var corruptedDb = await FileSystem.OpenAsync(dbPath, FileAccess.Write, FileMode.Open, FileShare.Delete))
+            using (Stream corruptedDb = await FileSystem.OpenAsync(dbPath, FileAccess.Write, FileMode.Open, FileShare.Delete))
             {
                 Assert.True(corruptedDb.Length > minimumDbSizeForCorruptionRepro);
                 corruptedDb.Position = offsetToCorrupt;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="replaceExistingOnPlaceFile">When true, replace existing file when placing file.</param>
         /// <param name="implicitPin">ImplicitPin to be used when creating sessions.</param>
         public MemoizationStoreAdapterCache(
-            string cacheId,
+            CacheId cacheId,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache innerCache,
             ILogger logger,
             AbsolutePath statsFile,
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 if (shutdownResult.Succeeded)
                 {
-                    return CacheId;
+                    return CacheId.ToString();
                 }
 
                 return new CacheFailure(shutdownResult.ErrorMessage);
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public string CacheId { get; }
+        public CacheId CacheId { get; }
 
         /// <inheritdoc />
         public bool StrictMetadataCasCoupling => false;

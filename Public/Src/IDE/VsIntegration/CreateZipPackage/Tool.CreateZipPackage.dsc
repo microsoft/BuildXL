@@ -4,33 +4,36 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 
-namespace Tool.CreateZipPackage {
+namespace CreateZipPackage
+{
+    export declare const qualifier: BuildXLSdk.TargetFrameworks.ConfigurationQualifier;
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    namespace Tool 
+    {
+        export declare const qualifier: BuildXLSdk.TargetFrameworks.MachineQualifier.Current;
 
-    export const exe = BuildXLSdk.executable({
-        assemblyName: "CreateZipPackage",
-        rootNamespace: "BuildXL.IDE.CreateZipPackage",
-        sources: globR(d`.`, "*.cs"),
-        references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                NetFx.System.IO.Compression.dll,
-                NetFx.System.IO.Compression.FileSystem.dll,
-            ]),
-            importFrom("BuildXL.Utilities").ToolSupport.dll,
-        ],
-        defineConstants: [
-            ...addIf(qualifier.targetFramework === "net472" || BuildXLSdk.isDotNetCoreBuild, "FEATURE_EXTENDED_ATTR")
-        ]
-    });
+        const exe = BuildXLSdk.executable({
+            assemblyName: "CreateZipPackage",
+            rootNamespace: "BuildXL.IDE.CreateZipPackage",
+            sources: globR(d`.`, "*.cs"),
+            references: [
+                ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+                    NetFx.System.IO.Compression.dll,
+                    NetFx.System.IO.Compression.FileSystem.dll,
+                ]),
+                importFrom("BuildXL.Utilities").ToolSupport.dll,
+            ],
+        });
 
-    export const deployed = BuildXLSdk.deployManagedTool({
-        tool: exe,
-        options: {
-            prepareTempDirectory: true
-        },
-    });
+        export const deployed = BuildXLSdk.deployManagedTool({
+            tool: exe,
+            options: {
+                prepareTempDirectory: true
+            },
+        });
+    }
 
+    @@public
     export interface Arguments {
         inputDirectory: StaticDirectory;
         outputFileName: string;
@@ -40,7 +43,7 @@ namespace Tool.CreateZipPackage {
     }
 
     @@public
-    export function run(args: Arguments): DerivedFile {
+    export function zip(args: Arguments): DerivedFile {
         const wd = Context.getNewOutputDirectory("zip");
         const outFile = wd.combine(args.outputFileName);
 
@@ -51,13 +54,14 @@ namespace Tool.CreateZipPackage {
             Cmd.sign("/fixUnixPermissions", args.fixUnixPermissions),
         ];
 
-        const tool = CreateZipPackage.withQualifier(BuildXLSdk.TargetFrameworks.currentMachineQualifier).deployed;
+        const tool = Tool.withQualifier(BuildXLSdk.TargetFrameworks.MachineQualifier.current).deployed;
 
         const result = Transformer.execute({
             tool: tool, 
             workingDirectory: wd, 
             arguments: cmdLineArguments,
-            dependencies: args.additionalDependencies
+            dependencies: args.additionalDependencies,
+            tags: ["zip"]
         });
 
         return result.getOutputFile(outFile);

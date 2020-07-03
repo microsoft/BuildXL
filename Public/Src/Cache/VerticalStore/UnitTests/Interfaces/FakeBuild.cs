@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -7,8 +7,10 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Storage;
+using BuildXL.Native.IO;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -29,7 +31,7 @@ namespace BuildXL.Cache.Tests
         /// <summary>
         /// The streams that represent the outputs generated.
         /// </summary>
-        public readonly Stream[] Outputs;
+        public readonly StreamWithLength[] Outputs;
 
         /// <summary>
         /// The hash of the contents of the input list
@@ -67,7 +69,7 @@ namespace BuildXL.Cache.Tests
             StringBuilder inputList = new StringBuilder();
             Guid unique = Guid.NewGuid();
 
-            Outputs = new Stream[outputCount];
+            Outputs = new StreamWithLength[outputCount];
             OutputHashes = new Hash[outputCount];
 
             for (int i = 0; i < outputCount; i++)
@@ -81,7 +83,7 @@ namespace BuildXL.Cache.Tests
                 }
 
                 Outputs[i] = contents.AsStream();
-                OutputHashes[i] = Outputs[i].AsHash();
+                OutputHashes[i] = Outputs[i].Stream.AsHash();
             }
 
             OutputList = inputList.AsStream();
@@ -102,14 +104,14 @@ namespace BuildXL.Cache.Tests
         public static async Task CheckContentsAsync(ICacheReadOnlySession session, CasHash index, CasEntries entries, CasAccessMethod accessMethod = CasAccessMethod.Stream)
         {
             string cacheId = await session.PinToCasAsync(index).SuccessAsync("Cannot pin entry {0} to cache {1}", index.ToString(), session.CacheId);
-            string[] expected = (await GetStreamAsync(index, accessMethod, session)).Success().AsString().Split(s_splitLines, StringSplitOptions.RemoveEmptyEntries);
+            string[] expected = (await GetStreamAsync(index, accessMethod, session)).Success().Stream.AsString().Split(s_splitLines, StringSplitOptions.RemoveEmptyEntries);
 
             XAssert.AreEqual(expected.Length, entries.Count, "Counts did not match from cache {0}: {1} != {2}", cacheId, expected.Length, entries.Count);
 
             for (int i = 0; i < expected.Length; i++)
             {
                 string casCacheId = await session.PinToCasAsync(entries[i]).SuccessAsync();
-                string entry = (await GetStreamAsync(entries[i], accessMethod, session)).Success().AsString();
+                string entry = (await GetStreamAsync(entries[i], accessMethod, session)).Success().Stream.AsString();
 
                 XAssert.AreEqual(expected[i], entry, "CasEntry {0} mismatch from cache {1}:  [{2}] != [{3}]", i, casCacheId, expected[i], entry);
             }
@@ -122,7 +124,7 @@ namespace BuildXL.Cache.Tests
         /// <param name="method">Method used to access CAS</param>
         /// <param name="session">Cache session</param>
         /// <returns>A stream pointing to the file contents, or a failure.</returns>
-        private static async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, CasAccessMethod method, ICacheReadOnlySession session)
+        private static async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, CasAccessMethod method, ICacheReadOnlySession session)
         {
             switch (method)
             {
@@ -139,7 +141,7 @@ namespace BuildXL.Cache.Tests
 
                     File.Delete(placedFilePath);
 
-                    return fs;
+                    return fs.HasLength();
                 default:
                     throw new NotImplementedException();
             }
@@ -346,7 +348,7 @@ namespace BuildXL.Cache.Tests
                     return await session.AddToCasAsync(fileStream);
 
                 case CasAccessMethod.FileSystem:
-                    string filePath = Path.GetTempFileName();
+                    string filePath = FileUtilities.GetTempFileName();
 
                     using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Write, FileShare.Delete))
                     {

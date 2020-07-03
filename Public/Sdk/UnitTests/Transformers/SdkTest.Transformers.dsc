@@ -4,7 +4,9 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace StandardSdk.Transformers {
-    export const transformersTest = BuildXLSdk.sdkTest({
+    // skipping this test when running on a non-Windows platform because there are simply too many
+    // differences in corresponding LKG files for Windows and Unix platforms.
+    export const transformersTest = Context.getCurrentHost().os === "win" && BuildXLSdk.sdkTest({
         testFiles: glob(d`.`, "Test.*.dsc"),
         // autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
     });

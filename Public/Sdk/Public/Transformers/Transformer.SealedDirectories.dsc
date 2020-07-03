@@ -22,11 +22,31 @@ namespace Transformer {
 
     /** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The root can be any arbitrary directory that is a common ancestor to all the provided directories.
+     * If a filter is provided, the resulting directory contains only those files that satisfy that filter.
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[]): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories);
+    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: (string | ComposedSharedOpaqueDirectoryContentFilter)): SharedOpaqueDirectory {
+        let filter: ComposedSharedOpaqueDirectoryContentFilter = undefined;
+
+        if (contentFilter !== undefined) {
+            if (typeof contentFilter === "string") {
+                filter = {kind: "Include", regex: contentFilter};
+            }
+            else {
+                filter = contentFilter;
+            }
+        }
+
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, filter);
+    }
+
+    /** Creates a new shared opaque directory whose content satisfies the specified filter.
+     * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.     
+    */
+    @@public
+    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, contentFilter: ComposedSharedOpaqueDirectoryContentFilter): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory.root, [directory], contentFilter);
     }
 
     /** Options for sealing source directory. */
@@ -57,6 +77,11 @@ namespace Transformer {
 
         /** Whether the directory should be scrubbed of files present on disk that are not part of the sealed directory */
         scrub?: boolean;
+
+        /** The output directories that are part of the fully seal directory. Files contained under them will be still opaque
+         * and therefore not visible from the seal directory.
+        */
+        outputDirectories?: OpaqueDirectory[]
     }
 
     @@public
@@ -93,5 +118,37 @@ namespace Transformer {
 
         /** The directories to compose */
         directories: SharedOpaqueDirectory[],
+
+        /** A regular expression defining the files to be included in the resulting directory. */
+        contentFilter?: ComposedSharedOpaqueDirectoryContentFilter,
+    }
+
+    @@public
+    export interface ComposedSharedOpaqueDirectoryContentFilter {
+        /** Whether this is an include or exclude filter. */
+        kind : "Include" | "Exclude",
+
+        /** A regular expression defining the files to be included/excluded in the resulting directory. */
+        regex : string,
+    }
+
+    /**
+     * Returns whether the given item is a static directory or any of its subclasses
+     */
+    @@public
+    export function isStaticDirectory(item) : item is StaticDirectory {
+        const itemType = typeof item;
+        switch (itemType) {
+            case "FullStaticContentDirectory":
+            case "PartialStaticContentDirectory":
+            case "SourceAllDirectory":
+            case "SourceTopDirectory":
+            case "SharedOpaqueDirectory":
+            case "ExclusiveOpaqueDirectory":
+            case "StaticDirectory":
+                return true;
+            default:
+                false;
+        }
     }
 }

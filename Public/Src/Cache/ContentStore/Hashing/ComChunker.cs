@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.DataDeduplication.Interop;
@@ -15,58 +16,109 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <remarks>
     /// Windows Server Deduplication: https://technet.microsoft.com/en-us/library/hh831602(v=ws.11).aspx
     /// </remarks>
-    public class ComChunker : IChunker, IDisposable
+    public sealed class ComChunker : IChunker
     {
-        /// <summary>
-        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
-        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
-        /// </summary>
-        /// TODO: use object pool here. Bug #1331905
-        public const uint MinPushBufferSize = 1024 * 1024;
+        internal const int SupportedAvgChunkSize = 64 * 1024;
 
+        private readonly DeterministicChunker _inner;
+
+        /// <summary>
+        /// Creates a chunker that uses the Windows native COM library
+        /// </summary>
+        /// <param name="configuration"></param>
+        public ComChunker(ChunkerConfiguration configuration)
+        {
+            _inner = new DeterministicChunker(
+                configuration,
+                new ComChunkerNonDeterministic(configuration));
+        }
+
+        /// <inheritdoc/>
+        public ChunkerConfiguration Configuration => _inner.Configuration;
+
+        /// <inheritdoc/>
+        public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
+        {
+            return _inner.BeginChunking(chunkCallback);
+        }
+
+        /// <inheritdoc/>
+        public Pool<byte[]>.PoolHandle GetBufferFromPool()
+        {
+            return _inner.GetBufferFromPool();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            _inner.Dispose();
+        }
+    }
+
+    internal class ComChunkerNonDeterministic : INonDeterministicChunker
+    {
         private static readonly Guid IteratorComGuid = new Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8");
-        private readonly byte[] _pushBuffer = new byte[MinPushBufferSize];
         private readonly IDedupIterateChunksHash32 _chunkHashIterator;
         private IDedupChunkLibrary _chunkLibrary;
-        private long _totalBytes;
-        private uint _bytesInPushBuffer;
-
-        /// <summary>
-        /// Gets total number of bytes chunked.
-        /// </summary>
-        public long TotalBytes => _totalBytes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Chunker"/> class.
         /// </summary>
-        public ComChunker()
+        public ComChunkerNonDeterministic(ChunkerConfiguration config)
         {
-            _bytesInPushBuffer = 0;
-            _totalBytes = 0;
+            Contract.Assert(
+                Thread.CurrentThread.GetApartmentState() == ApartmentState.MTA,
+                "Thread must be in MTA ApartmentState");
+
+            Contract.Assert(
+                config.AvgChunkSize == ComChunker.SupportedAvgChunkSize,
+                "ComChunker only supports average chunk size of 64KB"
+            );
+                
             _chunkLibrary = NativeMethods.CreateChunkLibrary();
             _chunkLibrary.InitializeForPushBuffers();
+
+            Action[] configures = new Action[]
+            {
+                () =>
+                {
+                    var max = (object)(config.MaxChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_MaxChunkSizeBytes, ref max);
+                },
+                () =>
+                {
+                    // THIS IS NOT HONORED 
+                    var avg = (object)(config.AvgChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_AvgChunkSizeBytes, ref avg);
+                },
+                () =>
+                {
+                    var min = (object)(config.MinChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_MinChunkSizeBytes, ref min);
+                },
+            };
+
+            // The order in which these need to be set depends on whether we are going bigger or smaller
+            // than the default.
+            if (config.MaxChunkSize < ChunkerConfiguration.Default.MaxChunkSize)
+            {
+                Array.Reverse(configures);
+            }
+
+            foreach (Action configure in configures)
+            {
+                configure();
+            }
 
             object chunksEnum;
             _chunkLibrary.StartChunking(IteratorComGuid, out chunksEnum);
             _chunkHashIterator = (IDedupIterateChunksHash32)chunksEnum;
         }
 
-        /// <summary>
-        /// Creates a session for chunking a stream from a series of buffers.
-        /// </summary>
+        /// <inheritdoc/>
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
-            Reset();
             return new Session(this, chunkCallback);
-        }
-
-        /// <summary>
-        /// Reinitializes this instance for reuse.
-        /// </summary>
-        private void Reset()
-        {
-            _totalBytes = 0;
-            _chunkHashIterator.Reset();
         }
 
         /// <summary>
@@ -79,7 +131,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return;
             }
 
-            if (startOffset < 0 || count < 0)
+            if (count < 0)
+            {
+                throw new IndexOutOfRangeException();
+            }
+
+            if (startOffset < 0)
             {
                 throw new IndexOutOfRangeException();
             }
@@ -89,34 +146,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new IndexOutOfRangeException();
             }
 
-            fixed (byte* incomingBuffer = &buffer[startOffset])
-            fixed (byte* pushBuffer = _pushBuffer)
+            fixed (byte* ptr = &buffer[startOffset])
             {
-                byte* incomingBufferHead = incomingBuffer;
-                byte* pushBufferTail = pushBuffer + _bytesInPushBuffer;
-                while (count > 0)
-                {
-                    while (count > 0 && _bytesInPushBuffer < MinPushBufferSize)
-                    {
-                        *pushBufferTail = *incomingBufferHead;
-                        incomingBufferHead++;
-                        pushBufferTail++;
-                        _bytesInPushBuffer++;
-                        count--;
-                    }
-
-                    if (_bytesInPushBuffer == MinPushBufferSize)
-                    {
-                        _chunkHashIterator.PushBuffer(_pushBuffer, _bytesInPushBuffer);
-                        _totalBytes += _bytesInPushBuffer;
-
-                        _bytesInPushBuffer = 0;
-                        pushBufferTail = pushBuffer;
-
-                        ProcessChunks(chunkCallback);
-                    }
-                }
+                _chunkHashIterator.PushBuffer(ptr, (uint)count);
             }
+
+            ProcessChunks(chunkCallback);
         }
 
         /// <summary>
@@ -124,46 +159,25 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private unsafe void DonePushing(Action<ChunkInfo> chunkCallback)
         {
-            if (_bytesInPushBuffer > 0)
-            {
-                _chunkHashIterator.PushBuffer(_pushBuffer, _bytesInPushBuffer);
-                _totalBytes += _bytesInPushBuffer;
-
-                _bytesInPushBuffer = 0;
-
-                ProcessChunks(chunkCallback);
-            }
-
-            if (TotalBytes == 0)
-            {
-                return;
-            }
-
             _chunkHashIterator.Drain();
             ProcessChunks(chunkCallback);
+            _chunkHashIterator.Reset();
         }
 
-        /// <summary>
-        /// Disposes this instance.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
-            if (_chunkLibrary == null)
+            if (_chunkLibrary != null)
             {
-                throw new ObjectDisposedException(nameof(_chunkLibrary));
+                _chunkLibrary.Uninitialize();
+                // This may look wrong, but the invariant for the fully functioning instance is more important:
+                // and for a fully initialized and not destroyed instance _chunkLibrary is not null.
+                _chunkLibrary = null!;
             }
-
-            _chunkLibrary.Uninitialize();
-            _chunkLibrary = null;
         }
 
         private void ProcessChunks(Action<ChunkInfo> chunkCallback)
         {
-            if (TotalBytes == 0)
-            {
-                return;
-            }
-
             uint ulFetchedChunks;
             do
             {
@@ -194,26 +208,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
             while (ulFetchedChunks > 0);
         }
 
-        /// <summary>
-        /// A session for chunking a stream from a series of buffers
-        /// </summary>
-        public readonly struct Session : IChunkerSession, IDisposable
+        /// <inheritdoc/>
+        private sealed class Session : IChunkerSession, IDisposable
         {
-            private readonly ComChunker _chunker;
+            private readonly ComChunkerNonDeterministic _chunker;
             private readonly Action<ChunkInfo> _chunkCallback;
 
-            /// <summary>
-            /// Initializes a new instance of the <see cref="Session"/> struct.
-            /// </summary>
-            public Session(ComChunker chunker, Action<ChunkInfo> chunkCallback)
+            /// <inheritdoc/>
+            public Session(ComChunkerNonDeterministic chunker, Action<ChunkInfo> chunkCallback)
             {
                 _chunker = chunker;
                 _chunkCallback = chunkCallback;
             }
 
-            /// <summary>
-            /// Chunks the buffer, calling back when chunks complete.
-            /// </summary>
+            /// <inheritdoc/>
             public void PushBuffer(byte[] buffer, int startOffset, int count)
             {
                 _chunker.PushBuffer(buffer, startOffset, count, _chunkCallback);
@@ -222,38 +230,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc/>
             public void Dispose()
             {
-                try
-                {
-                    _chunker.DonePushing(_chunkCallback);
-                }
-                catch (COMException e) when ((uint)e.ErrorCode == 0x80565319)
-                {
-                    // Maybe in in an "invalid state"
-                }
-            }
-
-            /// <inheritdoc/>
-            public override bool Equals(object obj)
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <inheritdoc/>
-            public override int GetHashCode()
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <nodoc />
-            public static bool operator ==(Session left, Session right)
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <nodoc />
-            public static bool operator !=(Session left, Session right)
-            {
-                throw new InvalidOperationException();
+                _chunker.DonePushing(_chunkCallback);
             }
         }
 
@@ -262,27 +239,52 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #pragma warning disable SA1310 // Field names must not contain underscore
             // ReSharper disable once InconsistentNaming
             public const int DDP_E_MORE_BUFFERS = unchecked((int)0x8056531b);
+
+            public const int DEDUP_PT_MinChunkSizeBytes = 1;
+            public const int DEDUP_PT_MaxChunkSizeBytes = 2;
+            public const int DEDUP_PT_AvgChunkSizeBytes = 3;
+            public const int DEDUP_PT_InvariantChunking = 4;
+            public const int DEDUP_PT_DisableStrongHashComputation = 5;
 #pragma warning restore SA1310 // Field names must not contain underscore
+
+            private static IntPtr LoadNativeLibrary(string libraryName)
+            {
+                // First, try to load from the system directory or the folder this library is in.
+                // See https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order
+                IntPtr hLib = LoadLibrary(libraryName);
+                if (hLib == IntPtr.Zero)
+                {
+                    // If not there, we carry a copy with us in the x64 folder.
+                    hLib = LoadLibrary($"x64\\{libraryName}");
+                    if (hLib == IntPtr.Zero)
+                    {
+                        throw new Win32Exception($"Could not load {libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
+                    }
+                }
+
+                return hLib;
+            }
 
             private static readonly Lazy<IClassFactory> ClassFactory = new Lazy<IClassFactory>(
                 () =>
                 {
-                    IntPtr hDdpTraceLib = LoadLibrary("ddptrace.dll");
-                    if (hDdpTraceLib == IntPtr.Zero)
+                    if (!Environment.Is64BitOperatingSystem)
                     {
-                        throw new Win32Exception($"Could not load 'ddptrace.dll': {Marshal.GetLastWin32Error()}");
+                        throw new NotSupportedException("Azure DevOps chunker requires a 64-bit operating system.");
                     }
 
-                    IntPtr hDdpChunkLib = LoadLibrary("ddpchunk.dll");
-                    if (hDdpChunkLib == IntPtr.Zero)
+                    if (!Environment.Is64BitProcess)
                     {
-                        throw new Win32Exception($"Could not load 'ddpchunk.dll': {Marshal.GetLastWin32Error()}");
+                        throw new NotSupportedException("Azure DevOps chunker must be run as a 64-bit process.");
                     }
+
+                    IntPtr hDdpTraceLib = LoadNativeLibrary("ddptrace.dll");
+                    IntPtr hDdpChunkLib = LoadNativeLibrary("ddpchunk.dll");
 
                     IntPtr pDllGetClassObject = GetProcAddress(hDdpChunkLib, "DllGetClassObject");
                     if (pDllGetClassObject == IntPtr.Zero)
                     {
-                        throw new Win32Exception($"Could not find 'DllGetClassObject': {Marshal.GetLastWin32Error()}");
+                        throw new Win32Exception($"Could not find 'DllGetClassObject' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
                     }
 
                     var dllGetClassObject = Marshal.GetDelegateForFunctionPointer<DllGetClassObjectDelegate>(pDllGetClassObject);
@@ -294,7 +296,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         out callFactoryObj);
                     if (hresult < 0)
                     {
-                        throw new Win32Exception($"Failed to get class factory for '{ChunkLibraryClsId}': {hresult}");
+                        throw new Win32Exception($"Failed to get class factory for '{ChunkLibraryClsId}' on {Environment.OSVersion}: {hresult}");
                     }
 
                     return (IClassFactory)callFactoryObj;
@@ -339,7 +341,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 /// </summary>
                 [return: MarshalAs(UnmanagedType.IUnknown, IidParameterIndex = 1)]
                 object CreateInstance(
-                    [MarshalAs(UnmanagedType.IUnknown)] object pUnkOuter,
+                    [MarshalAs(UnmanagedType.IUnknown)] object? pUnkOuter,
                     [In] ref Guid riid);
 
                 /// <summary>
@@ -393,16 +395,15 @@ namespace Microsoft.DataDeduplication.Interop
         /// <nodoc />
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
         public byte[] Hash; // 32-byte chunk hash value
-    } 
-    
+    }
+
     /// <nodoc />
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8")]
-    public interface IDedupIterateChunksHash32
+    unsafe public interface IDedupIterateChunksHash32
     {
         /// <nodoc />
         void PushBuffer(
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)]
-            byte[] data,
+            byte* data,
             uint dataLength);
 
         /// <nodoc />

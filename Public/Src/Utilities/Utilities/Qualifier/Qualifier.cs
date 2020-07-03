@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -46,8 +46,8 @@ namespace BuildXL.Utilities.Qualifier
         /// </remarks>
         internal Qualifier(StringId[] keys, StringId[] values)
         {
-            Contract.Requires(keys != null);
-            Contract.Requires(values != null);
+            Contract.RequiresNotNull(keys);
+            Contract.RequiresNotNull(values);
             Contract.Requires(keys.Length == values.Length);
             Contract.RequiresForAll(keys, key => key.IsValid);
             Contract.RequiresForAll(values, value => value.IsValid);
@@ -73,7 +73,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </remarks>
         internal Qualifier CreateQualifierWithValue(StringTable stringTable, StringId key, StringId value)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
             Contract.Requires(key.IsValid);
             Contract.Requires(value.IsValid);
 
@@ -124,7 +124,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </remarks>
         internal static Qualifier CreateQualifier(StringTable stringTable, Tuple<StringId, StringId>[] keyValuePairs)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
             Contract.RequiresForAll(keyValuePairs, pair => pair.Item1.IsValid && pair.Item2.IsValid);
 
             Array.Sort(keyValuePairs, new QualifierKeyComparer(stringTable));
@@ -159,7 +159,7 @@ namespace BuildXL.Utilities.Qualifier
 
         private static TItem[] InsertIntoArray<TItem>(TItem[] list, int insertIndex, TItem value)
         {
-            Contract.Requires(list != null);
+            Contract.RequiresNotNull(list);
 
             var newList = new TItem[list.Length + 1];
 
@@ -234,7 +234,7 @@ namespace BuildXL.Utilities.Qualifier
         /// </summary>
         public string ToDisplayString(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             var builder = new StringBuilder();
             builder.Append("{");
@@ -301,7 +301,7 @@ namespace BuildXL.Utilities.Qualifier
             /// </summary>
             public QualifierKeyComparer(StringTable stringTable)
             {
-                Contract.Requires(stringTable != null);
+                Contract.RequiresNotNull(stringTable);
                 m_stringTable = stringTable;
             }
 
@@ -315,7 +315,7 @@ namespace BuildXL.Utilities.Qualifier
         /// <nodoc />
         public static Qualifier Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             var keys = reader.ReadArray(r => r.ReadStringId());
             var values = reader.ReadArray(r => r.ReadStringId());

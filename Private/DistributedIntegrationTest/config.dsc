@@ -20,6 +20,6 @@ config({
             trackSourceFileChanges: true,
             isWritable: false,
             isReadable: true,
-        },
+        }
     ],
 });

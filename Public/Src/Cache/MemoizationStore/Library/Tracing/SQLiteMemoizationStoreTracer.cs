@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -34,7 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         /// <param name="logger">Logger</param>
         /// <param name="name">Tracer Name</param>
         public SQLiteMemoizationStoreTracer(ILogger logger, string name)
-            : base(logger, name)
+            : base(name)
         {
             Counters.Add(_masterDbCorruptionCount = new Counter("MasterDbCorruptionCount"));
             Counters.Add(_backupDbCorruptionCount = new Counter("BackupDbCorruptionCount"));
@@ -125,10 +125,6 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         public void SQLiteIntegrityCheckStart(Context context)
         {
             _sqliteIntegrityCheckCallCounter.Started();
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.{SQLiteIntegrityCheckCallName} start");
-            }
         }
 
         /// <inheritdoc />

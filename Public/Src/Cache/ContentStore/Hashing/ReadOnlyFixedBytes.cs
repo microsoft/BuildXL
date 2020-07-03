@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -207,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -291,10 +291,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(length >= 0);
             Contract.Requires(length + offset <= MaxLength);
 
-            char* buffer = stackalloc char[(2 * length) + 1];
+            int bufferLength = (2 * (length - offset)) + 1;
+            char* buffer = stackalloc char[bufferLength];
             FillBuffer(buffer, offset, length);
 
-            builder.AppendCharStar(length, buffer);
+            // FillBuffer writes a trailing '\0'. But for this case the last character is not needed.
+            builder.AppendCharStar(bufferLength - 1, buffer);
         }
 
         /// <summary>

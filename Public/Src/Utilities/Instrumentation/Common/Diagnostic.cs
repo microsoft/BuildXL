@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Diagnostics.Tracing;
+using System.Globalization;
 
 namespace BuildXL.Utilities.Instrumentation.Common
 {
@@ -39,6 +39,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public string FullMessage => ToString();
 
         /// <nodoc />
+        public bool IsError => Level == EventLevel.Error || Level == EventLevel.Critical;
+
+        /// <nodoc />
         public Diagnostic(int errorCode, EventLevel level, string message, Location? location)
         {
             ErrorCode = errorCode;
@@ -65,7 +68,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null)
             {

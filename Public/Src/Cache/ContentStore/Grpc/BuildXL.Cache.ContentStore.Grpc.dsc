@@ -9,7 +9,7 @@ namespace Grpc {
         assemblyName: "BuildXL.Cache.ContentStore.Grpc",
         sources: [
             ...globR(d`.`, "*.cs"),
-            ...GrpcSdk.generate({rpc: [f`ContentStore.proto`]}).sources,
+            ...GrpcSdk.generateCSharp({rpc: [f`ContentStore.proto`]}).sources,
         ],
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
@@ -17,8 +17,9 @@ namespace Grpc {
             ),
             
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         tools: {
             csc: {

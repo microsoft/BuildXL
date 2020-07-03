@@ -1,0 +1,8 @@
+﻿cachemissanalysisbatchresults
+| where EventInfo_Time >= ago(1day)
+| join (dominoinvocation) on SessionId
+| where BuildInfo_Build contains "[0.1.0-20200115.5]"
+| where CommandLine contains "OfficeDevmain_Retail_X64_CacheMiss" // QueueName
+| extend parsed = parse_json(CacheMissAnalysisResults)
+| mv-expand PerPipCacheMissAnalysis = parsed["CacheMissAnalysisResults"]
+| project SessionId, RelatedSessionId, EventInfo_Time, PerPipCacheMissAnalysis

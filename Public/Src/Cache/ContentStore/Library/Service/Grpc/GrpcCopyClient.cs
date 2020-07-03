@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -15,7 +15,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using ContentStore.Grpc;
+using Google.Protobuf;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -35,6 +37,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         internal GrpcCopyClientKey Key { get; }
 
+        /// <inheritdoc />
+        protected override Func<BoolResult, string> ExtraStartupMessageFactory => _ => Key.ToString();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
@@ -50,7 +55,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            await _channel.ShutdownAsync();
+            // We had seen case, when the following call was blocked effectively forever.
+            // Adding external timeout to force a failure instead of waiting forever.
+            await _channel.ShutdownAsync().WithTimeoutAsync(TimeSpan.FromSeconds(30));
             return BoolResult.Success;
         }
 
@@ -111,7 +118,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             using (var operationContext = TrackShutdown(context, ct))
             {
-                return await CopyToCoreAsync(operationContext, hash, () => stream);
+                // If a stream is passed from the outside this operation should not be closing it.
+                return await CopyToCoreAsync(operationContext, hash, () => stream, closeStream: false);
             }
         }
 
@@ -130,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory)
+        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, bool closeStream = true)
         {
             try
             {
@@ -143,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
 
-                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
+                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, cancellationToken: context.Token);
 
                 Metadata headers = await response.ResponseHeadersAsync;
 
@@ -201,9 +209,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
 
                 // Copy the content to the target stream.
-                using (targetStream)
+                try
                 {
-                    switch(compression)
+                    switch (compression)
                     {
                         case CopyCompression.None:
                             await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
@@ -213,6 +221,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             break;
                         default:
                             throw new NotSupportedException($"CopyCompression {compression} is not supported.");
+                    }
+                }
+                finally
+                {
+                    if (closeStream)
+                    {
+#pragma warning disable AsyncFixer02 // A disposable object used in a fire & forget async call
+                        targetStream.Dispose();
+#pragma warning restore AsyncFixer02 // A disposable object used in a fire & forget async call
                     }
                 }
 
@@ -255,6 +272,122 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 return new BoolResult(r);
             }
+        }
+
+        /// <summary>
+        /// Pushes content to another machine.
+        /// </summary>
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream)
+        {
+            try
+            {
+                var pushRequest = new PushRequest(hash, context.TracingContext.Id);
+                var headers = pushRequest.GetMetadata();
+
+                using var call = _client.PushFile(headers, cancellationToken: context.Token);
+                var requestStream = call.RequestStream;
+
+                var responseHeaders = await call.ResponseHeadersAsync;
+
+                // If the remote machine couldn't be contacted, GRPC returns an empty
+                // header collection. To avoid an exception, exit early instead.
+                if (responseHeaders.Count == 0)
+                {
+                    return PushFileResult.ServerUnavailable();
+                }
+
+                var pushResponse = PushResponse.FromMetadata(responseHeaders);
+                if (!pushResponse.ShouldCopy)
+                {
+                    context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
+                    return PushFileResult.Rejected();
+                }
+
+                // If we get a response before we finish streaming, it must be that the server cancelled the operation.
+                using var serverIsDoneSource = new CancellationTokenSource();
+                var pushCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(serverIsDoneSource.Token, context.Token).Token;
+
+                var responseStream = call.ResponseStream;
+                var responseMoveNext = responseStream.MoveNext(context.Token);
+
+                var responseCompletedTask = responseMoveNext.ContinueWith(
+                    t =>
+                    {
+                        // It is possible that the next operation in this method will fail
+                        // causing stack unwinding that will dispose serverIsDoneSource.
+                        //
+                        // Then when responseMoveNext is done serverIsDoneSource is already disposed and
+                        // serverIsDoneSource.Cancel will throw ObjectDisposedException.
+                        // This exception is not observed because the stack could've been unwound before
+                        // the result of this method is awaited.
+                        IgnoreObjectDisposedException(() => serverIsDoneSource.Cancel());
+                    });
+
+                await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
+
+                context.Token.ThrowIfCancellationRequested();
+
+                await requestStream.CompleteAsync();
+
+                await responseCompletedTask;
+
+                // Make sure that we only attempt to read response when it is available.
+                var responseIsAvailable = await responseMoveNext;
+                if (!responseIsAvailable)
+                {
+                    return new PushFileResult("Failed to get final response.");
+                }
+
+                var response = responseStream.Current;
+
+                return response.Header.Succeeded
+                    ? PushFileResult.PushSucceeded()
+                    : new PushFileResult(response.Header.ErrorMessage);
+            }
+            catch (RpcException r)
+            {
+                return new PushFileResult(r);
+            }
+        }
+
+        private static void IgnoreObjectDisposedException(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private async Task StreamContentAsync(Stream input, byte[] buffer, IClientStreamWriter<PushFileRequest> requestStream, CancellationToken ct)
+        {
+            Contract.Requires(!(input is null));
+            Contract.Requires(!(requestStream is null));
+
+            int chunkSize = 0;
+
+            // Pre-fill buffer with the file's first chunk
+            await readNextChunk();
+
+            while (true)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (chunkSize == 0) { break; }
+
+                ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
+                var request = new PushFileRequest() { Content = content };
+
+                // Read the next chunk while waiting for the response
+                await Task.WhenAll(readNextChunk(), requestStream.WriteAsync(request));
+            }
+
+            async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
         private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct)

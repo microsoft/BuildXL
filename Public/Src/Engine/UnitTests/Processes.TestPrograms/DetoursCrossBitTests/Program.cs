@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -19,10 +20,10 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities;
 
@@ -191,8 +192,9 @@ namespace DetoursCrossBitTests
             using (var fileAccessListener = new FileAccessListener(Events.Log))
             {
                 fileAccessListener.RegisterEventSource(BuildXL.Processes.ETWLogger.Log);
-
-                var fileContentTable = FileContentTable.CreateNew();
+                
+                var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+                var fileContentTable = FileContentTable.CreateNew(loggingContext);
                 var config = ConfigurationHelpers.GetDefaultForTesting(context.PathTable, AbsolutePath.Create(context.PathTable, Path.Combine(tempDirectory, "config.dc")));
                 config.Sandbox.LogObservedFileAccesses = true;
 
@@ -211,7 +213,14 @@ namespace DetoursCrossBitTests
                 }
 
                 Contract.Assume(pip != null);
-                PipResult executeResult = await Execute(context, fileContentTable, config, pip);
+                PipResult executeResult = await Execute(
+                    context, 
+                    fileContentTable, 
+                    config, 
+                    pip, 
+                    FileUtilities.TryGetSubstSourceAndTarget(tempDirectory, out var substSource, out var substTarget) 
+                    ? (substSource, substTarget) 
+                    : default((string, string)?));
 
                 bool valid = false;
 
@@ -233,7 +242,7 @@ namespace DetoursCrossBitTests
             }
         }
 
-        private static async Task<PipResult> Execute(BuildXLContext context, FileContentTable fileContentTable, IConfiguration config, Pip pip)
+        private static async Task<PipResult> Execute(BuildXLContext context, FileContentTable fileContentTable, IConfiguration config, Pip pip, (string substSource, string substTarget)? subst)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -243,7 +252,7 @@ namespace DetoursCrossBitTests
             var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
             var operationTracker = new OperationTracker(loggingContext);
 
-            using (var env = new Test.BuildXL.Scheduler.Utils.DummyPipExecutionEnvironment(loggingContext, context, config, fileContentTable))
+            using (var env = new Test.BuildXL.Scheduler.Utils.DummyPipExecutionEnvironment(loggingContext, context, config, fileContentTable, subst: subst))
             using (var operationContext = operationTracker.StartOperation(PipExecutorCounter.PipRunningStateDuration, pip.PipId, pip.PipType, env.LoggingContext))
             {
                 return await Test.BuildXL.Scheduler.TestPipExecutor.ExecuteAsync(operationContext, env, pip);
@@ -451,7 +460,7 @@ namespace DetoursCrossBitTests
                 }
 
                 if (selfChild != null
-#if !NET_COREAPP_30
+#if !NET_COREAPP
                     && fileAccessDescription.Description.IndexOf("CreateFile(...", selfPrefix.Length, StringComparison.Ordinal) != -1
 #else                    
                     && fileAccessDescription.Description.IndexOf("GetFileAttributesEx(...", selfPrefix.Length, StringComparison.Ordinal) != -1
@@ -540,7 +549,7 @@ namespace DetoursCrossBitTests
             {
                 switch (eventData.EventId)
                 {
-                    case (int)EventId.PipProcessFileAccess:
+                    case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessFileAccess:
                         object[] args = eventData.Payload.ToArray();
                         var fileAccess = new FileAccessDescription((string)args[2], (string)args[3]);
                         m_fileAccesses.GetOrAdd(fileAccess, Unit.Void);

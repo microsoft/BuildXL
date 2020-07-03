@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,8 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
@@ -101,7 +103,7 @@ namespace BuildXL.Engine
                 catch (Exception ex)
                 {
                     ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(ex);
-                    BuildXL.Tracing.Logger.Log.UnexpectedCondition(LoggingContext, ex.ToStringDemystified()  + Environment.NewLine + rootCause);
+                    BuildXL.Tracing.UnexpectedCondition.Log(LoggingContext, ex.ToStringDemystified()  + Environment.NewLine + rootCause);
                     throw new BuildXLException("Unable to create engine serializer cache directory: ", ex);
                 }
             }
@@ -291,7 +293,7 @@ namespace BuildXL.Engine
                         // Since the malformed file will always cause a crash until someone removes the file from the cache, allow BuildXL to recover
                         // by eating the exception. However remember to log it in order to keep track of bugs.
                         ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(ex);
-                        BuildXL.Tracing.Logger.Log.UnexpectedCondition(LoggingContext, ex.ToStringDemystified() + Environment.NewLine + rootCause);
+                        BuildXL.Tracing.UnexpectedCondition.Log(LoggingContext, ex.ToStringDemystified() + Environment.NewLine + rootCause);
                         Tracing.Logger.Log.FailedToDeserializePipGraph(LoggingContext, path, ex.Message);
                         return result;
                     }

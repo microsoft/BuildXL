@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,13 +14,28 @@ namespace BuildXL.Cache.ContentStore.Service
     public sealed class LocalServerConfiguration
     {
         /// <nodoc />
-        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
+        public LocalServerConfiguration(
+            AbsolutePath dataRootPath,
+            IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots,
+            int grpcPort,
+            IAbsFileSystem fileSystem,
+            int? bufferSizeForGrpcCopies = null,
+            int? gzipBarrierSizeForGrpcCopies = null,
+            int? proactivePushCountLimit = null,
+            TimeSpan? logIncrementalStatsInterval = null,
+            TimeSpan? logMachineStatsInterval = null
+        )
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = proactivePushCountLimit;
+            FileSystem = fileSystem;
+
+            LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
         }
 
         /// <nodoc />
@@ -44,6 +59,9 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
+            LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
+            LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             return this;
         }
 
@@ -57,10 +75,21 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public IReadOnlyDictionary<string, AbsolutePath> NamedCacheRoots { get; private set; }
 
+        /// <nodoc />
+        public static TimeSpan DefaultLogIncrementalStatsInterval { get; } = TimeSpan.FromHours(2);
+
         /// <summary>
         /// Gets or sets the time period between logging incremental stats
         /// </summary>
-        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromDays(15); // Effectively disabling incremental statistics.
+        public TimeSpan LogIncrementalStatsInterval { get; set; } = DefaultLogIncrementalStatsInterval;
+
+        /// <nodoc />
+        public static TimeSpan DefaultLogMachineStatsInterval { get; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Gets or sets the time period between logging machine-specific performance statistics.
+        /// </summary>
+        public TimeSpan LogMachineStatsInterval { get; set; } = DefaultLogMachineStatsInterval;
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.
@@ -97,6 +126,19 @@ namespace BuildXL.Cache.ContentStore.Service
         public int? BufferSizeForGrpcCopies { get; private set; }
 
         /// <summary>
+        /// If true, then the unsafe version of ByteString construction is used that avoids extra copy of the byte[].
+        /// </summary>
+        public bool UseUnsafeByteStringConstruction { get; set; }
+
+        /// <nodoc />
+        public const int DefaultProactivePushCountLimit = 128;
+
+        /// <summary>
+        /// The max number of proactive pushes that can happen at the same time.
+        /// </summary>
+        public int? ProactivePushCountLimit { get; private set; }
+
+        /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.
         /// </summary>
         public int? GzipBarrierSizeForGrpcCopies { get; private set; }
@@ -109,6 +151,14 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public int? GrpcThreadPoolSize { get; set; }
+
+        /// <nodoc />
+        public IAbsFileSystem FileSystem { get; set; }
+
+        /// <summary>
+        /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
+        /// </summary>
+        public bool ShutdownEvictionBeforeHibernation { get; set; }
 
         /// <inheritdoc />
         public override string ToString()

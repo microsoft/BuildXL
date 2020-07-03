@@ -1,7 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System.Diagnostics.CodeAnalysis;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Storage.Tracing
 {
@@ -114,5 +112,9 @@ namespace BuildXL.Storage.Tracing
         InvalidChangeKindsOfInputChange = 8204,
         InvalidInputChange = 8205,
         InputChangeListFileNotFound = 8206,
+
+        ComChunkerFailulre = 8207,
+        ChunkerType = 8208,
+        TrackChangesToGvfsProjectionFailed = 8209,
     }
 }

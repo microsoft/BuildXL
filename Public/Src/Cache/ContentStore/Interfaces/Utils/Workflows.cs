@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
             GetIndexedResults<TSource, TResult> initialFunc,
             GetIndexedResults<TSource, TResult> fallbackFunc,
             Func<TResult, bool> isSuccessFunc,
-            Func<IReadOnlyList<Indexed<TResult>>, Task> initialSuccessTaskFunc = null
+            Func<IReadOnlyList<Indexed<TResult>>, Task>? initialSuccessTaskFunc = null
             )
         {
             // Get results from first method

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.FrontEnd.Workspaces;
 
@@ -41,6 +41,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// Duration and number of regenerated specs.
         /// </summary>
         Counter SpecGeneration { get; }
+
+        /// <summary>
+        /// Number of generated empty package stubs.
+        /// </summary>
+        Counter PackageGenStubs { get; }
     }
 
     /// <summary>

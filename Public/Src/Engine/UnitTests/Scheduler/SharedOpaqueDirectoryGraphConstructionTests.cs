@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using BuildXL.Pips.Builders;
@@ -130,8 +130,8 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
-        public void SharedOpaqueDirectoriesCannotOverlapInSamePip()
-        {
+        public void SharedOpaqueDirectoriesCanOverlapInSamePip()
+        {            
             using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
             {
                 AbsolutePath sodPath1 = env.Paths.CreateAbsolutePath(@"\\dummyPath\SharedOpaqueDir1");
@@ -142,7 +142,8 @@ namespace Test.BuildXL.Scheduler
                 pip1.AddOutputDirectory(sodPath2, SealDirectoryKind.SharedOpaque);
 
                 var success = env.PipConstructionHelper.TryAddProcess(pip1);
-                Assert.False(success, "Finish should fail, since overlapping shared opaques in the same pip is not allowed.");
+                Assert.True(success, "TryAddProcess should succeed, since the nested shared opaques are allowed.");
+                AssertSuccessGraphBuilding(env);
             }
         }
 

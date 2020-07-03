@@ -2,6 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Private.Wdg.ExecutionLogSdk", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences
+    name: "Private.Wdg.ExecutionLogSdk"
 });

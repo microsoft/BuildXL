@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace BuildXL.Execution.Analyzer
     /// Displays a table with aligned text
     /// </summary>
     internal sealed class DisplayTable<TEnum>
-        where TEnum : struct
+        where TEnum : System.Enum
     {
         private readonly int[] m_maxColumnLengths;
         private readonly List<string[]> m_rows = new List<string[]>();

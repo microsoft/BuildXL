@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using BuildXL.Engine;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -35,9 +35,37 @@ namespace Test.BuildXL.EngineTests
         public void ImplicitPathTrumpsDefault()
         {
             RootFilter filter = ParseFilter(values: new string[] { "myPath" }, commandLineFilter: null, defaultFilter: NegatedTagFilter, out _, out _);
-            XAssert.IsTrue(filter.PipFilter is BinaryFilter);
-            XAssert.IsTrue(((BinaryFilter)filter.PipFilter).Left is OutputFileFilter);
-            XAssert.IsTrue(((BinaryFilter)filter.PipFilter).Right is SpecFileFilter);
+            XAssert.IsTrue(filter.PipFilter is BinaryFilter, "Main is binary filter");
+ 
+            var binaryFilter1 = (BinaryFilter)filter.PipFilter;
+            XAssert.IsTrue(binaryFilter1.Left is OutputFileFilter, "Left is OutputFile");
+            XAssert.IsTrue(binaryFilter1.Right is BinaryFilter, "Right is again binary filter");
+ 
+            var binaryFilter2 = (BinaryFilter)binaryFilter1.Right;
+            XAssert.IsTrue(binaryFilter2.Left is SpecFileFilter, "Left of right binary filter is SpecFile");
+            XAssert.IsTrue(binaryFilter2.Right is TagFilter, "Right  of right binary filter is Tag");
+        }
+
+
+        [Theory]
+        [InlineData("Pip3F8F204D436AE98A")]
+        [InlineData("3F8F204D436AE98A")]
+        public void ImplicitWithPipIdAddsIdFilter(string implicitFilter)
+        {
+            RootFilter filter = ParseFilter(values: new string[] { implicitFilter }, commandLineFilter: null, defaultFilter: NegatedTagFilter, out _, out _);
+            XAssert.IsTrue(filter.PipFilter is BinaryFilter, "Main is binary filter");
+ 
+            var binaryFilter1 = (BinaryFilter)filter.PipFilter;
+            XAssert.IsTrue(binaryFilter1.Left is OutputFileFilter, "Left is OutputFile");
+            XAssert.IsTrue(binaryFilter1.Right is BinaryFilter, "Right is again binary filter");
+ 
+            var binaryFilter2 = (BinaryFilter)binaryFilter1.Right;
+            XAssert.IsTrue(binaryFilter2.Left is SpecFileFilter, "Left of right binary filter is SpecFile");
+            XAssert.IsTrue(binaryFilter2.Right is BinaryFilter, "Right of right binary filter is Again Binary Filter");
+
+            var binaryFilter3 = (BinaryFilter)binaryFilter2.Right;
+            XAssert.IsTrue(binaryFilter3.Left is TagFilter, "Left of right,right binary filter is Tag");
+            XAssert.IsTrue(binaryFilter3.Right is PipIdFilter, "Right  of right,right binary filter is Id");
         }
 
         [Fact]

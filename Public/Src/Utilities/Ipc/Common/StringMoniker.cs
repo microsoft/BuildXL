@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -43,11 +43,5 @@ namespace BuildXL.Ipc.Common
         bool IEquatable<StringMoniker>.Equals(StringMoniker other) => Equals(other);
 
         bool IEquatable<IIpcMoniker>.Equals(IIpcMoniker other) => Equals(other);
-
-        /// <nodoc />
-        public static bool operator ==(StringMoniker a, StringMoniker b) => a.Equals(b);
-
-        /// <nodoc />
-        public static bool operator !=(StringMoniker a, StringMoniker b) => !(a == b);
     }
 }

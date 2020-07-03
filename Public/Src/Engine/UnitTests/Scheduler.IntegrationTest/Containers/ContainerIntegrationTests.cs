@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
@@ -23,7 +23,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler.Containers
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class ContainerIntegrationTests : SchedulerIntegrationTestBase
     {
         public ContainerIntegrationTests(ITestOutputHelper output)
@@ -76,7 +76,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
                     result.AssertCacheHit(firstProducer.Process.PipId);
                     result.AssertCacheMiss(secondProducer.Process.PipId);
 
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
                 }
 
                 // We are expecting a double write as a verbose message (twice, one for each run)
@@ -86,12 +86,12 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             // The violation is either an error or a warning depending on expectations
             if (expectViolationIsError)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertErrorEventLogged(ProcessesLogEventId.DisallowedDoubleWriteOnMerge);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning, 2);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning, 2);
             }
         }
 
@@ -110,7 +110,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
 
             // Given the policy and isolation level, both producers should get cached
             RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             string doubleWritePath = doubleWriteArtifact.Path.ToString(Context.PathTable);
 

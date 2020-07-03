@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -67,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Entries for the direct children of this node.
         /// </summary>
-        public readonly IReadOnlyList<DedupNode> ChildNodes;
+        public readonly IReadOnlyList<DedupNode>? ChildNodes;
 
         /// <summary>
         /// If known, the height of the node in the tree.
@@ -100,6 +101,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static DedupNode Deserialize(ArraySegment<byte> serialized)
         {
+            Contract.Requires(serialized.Array != null);
             using (var ms = new MemoryStream(serialized.Array, serialized.Offset, serialized.Count, writable: false))
             {
                 return Deserialize(ms);
@@ -250,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             ChildNodes = childNodes.ToList();
             AssertDirectChildrenCount(ChildNodes.Count);
             TransitiveContentBytes = 0;
-            Hash = null;
+            Hash = null!; // Need to convince the compiler that all the fields are initialized.
             Type = NodeType.InnerNode;
             Height = 0;
 
@@ -323,6 +325,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 throw new InvalidOperationException();
             }
+
+            Contract.Requires(ChildNodes != null);
 
             writer.Write((ushort)0); // magic/version number
             writer.Write((ushort)(ChildNodes.Count - 1)); // 1-512 nodes -> 0-511
@@ -426,7 +430,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is DedupNode))
             {

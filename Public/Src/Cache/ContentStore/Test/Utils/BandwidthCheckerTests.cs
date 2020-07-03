@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -57,6 +57,72 @@ namespace ContentStoreTest.Utils
         }
 
         [Fact]
+        public async Task CancellationShouldNotCauseTaskUnobservedException()
+        {
+            // This test checks that the bandwidth checker won't cause task unobserved exception
+            // for the task provided via 'copyTaskFactory' if the CheckBandwidthAtIntervalAsync
+            // is called and the operation is immediately cancelled.
+
+            var checker = new BandwidthChecker(GetConfiguration());
+            using var cts = new CancellationTokenSource();
+
+            OperationContext context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+            int numberOfUnobservedExceptions = 0;
+
+            EventHandler<UnobservedTaskExceptionEventArgs> taskSchedulerOnUnobservedTaskException = (o, args) => { numberOfUnobservedExceptions++; };
+            try
+            {
+                TaskScheduler.UnobservedTaskException += taskSchedulerOnUnobservedTaskException;
+
+                // Cancelling the operation even before starting it.
+                cts.Cancel();
+
+                // Using task completion source as an event to force the task completion in a specific time.
+                var tcs = new TaskCompletionSource<object>();
+
+                using var stream = new MemoryStream();
+                var resultTask = checker.CheckBandwidthAtIntervalAsync(
+                    context,
+                    copyTaskFactory: token => Task.Run<CopyFileResult>(
+                        async () =>
+                        {
+                            await tcs.Task;
+
+                            throw new Exception("1");
+                        }),
+                    destinationStream: stream);
+
+                await Task.Delay(10);
+                try
+                {
+                    (await resultTask).IgnoreFailure();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                // Triggering a failure
+                tcs.SetResult(null);
+
+                // Forcing a full GC cycle that will call all the finalizers.
+                // This is important because the finalizer thread will detect tasks with unobserved exceptions.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+            finally
+            {
+                // It is important to unsubscribe from the global event to prevent a memory leak when a test instance will stay
+                // in memory indefinitely.
+                TaskScheduler.UnobservedTaskException -= taskSchedulerOnUnobservedTaskException;
+            }
+            
+            // This test is not 100% bullet proof, and it is possible that the test will pass even when the issue is still in the code.
+            // But the original issue was very consistent and the test was failing even from the IDE in Debug mode all the time.
+            numberOfUnobservedExceptions.Should().Be(0);
+        }
+
+        [Fact]
         public async Task BandwidthCheckDoesNotAffectGoodCopies()
         {
             var checkInterval = TimeSpan.FromSeconds(1);
@@ -90,6 +156,15 @@ namespace ContentStoreTest.Utils
                 var result = await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream);
                 Assert.Equal(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, result.Code);
             }
+        }
+
+        private static BandwidthChecker.Configuration GetConfiguration()
+        {
+            var checkInterval = TimeSpan.FromSeconds(1);
+            var actualBandwidthBytesPerSec = 1024;
+            var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec / 2); // Lower limit is half actual bandwidth
+            var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
+            return checkerConfig;
         }
     }
 }

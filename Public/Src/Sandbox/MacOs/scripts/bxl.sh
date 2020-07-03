@@ -23,16 +23,15 @@ declare arg_loadKext=""
 
 declare g_bxlCmdArgs=()
 
-# Allow for up to 1MB of thread stack size
-export COMPlus_DefaultStackSize=100000
+# Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
+# which is PTHREAD_STACK_MIN for the CLR running on Unix systems
+export COMPlus_DefaultStackSize=200000
 
 # Clears and then populates the 'g_bxlArgs' array with arguments to be passed to 'bxl'.
 # The arguments are decided based on sensible defaults as well as the current values of the 'arg_*' variables.
 function setBxlCmdArgs {
     g_bxlCmdArgs=(
         # some defaults
-        /sandboxKind:none
-        /remoteTelemetry+
         /enableIncrementalFrontEnd-
         /useHardLinks-
         # some environment variables
@@ -45,6 +44,19 @@ function setBxlCmdArgs {
         # all other user-specified args
         "${arg_Positional[@]}"
     )
+
+    # TODO: all these should be eventually removed
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        g_bxlCmdArgs+=(
+            /server-
+            /remoteTelemetry-
+            /enableEvaluationThrottling
+            # setting up core dump creation failed
+            /noWarn:460
+            # adding system mount failed
+            /noWarn:2823
+        )
+    fi
 }
 
 # Greps system log for messages from BuildXLSandbox kext.

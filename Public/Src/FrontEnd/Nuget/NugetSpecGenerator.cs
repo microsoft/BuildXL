@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -26,10 +26,13 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PackageOnDisk m_packageOnDisk;
         private readonly NugetAnalyzedPackage m_analyzedPackage;
 
-        private readonly  NugetFrameworkMonikers m_nugetFrameworkMonikers;
+        private readonly NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
         private readonly PathAtom m_xmlExtension;
         private readonly PathAtom m_pdbExtension;
+
+        /// <summary>Current spec generation format version</summary>
+        public const int SpecGenerationFormatVersion = 7;
 
         /// <nodoc />
         public NugetSpecGenerator(PathTable pathTable, NugetAnalyzedPackage analyzedPackage)
@@ -50,7 +53,7 @@ namespace BuildXL.FrontEnd.Nuget
         /// The generated format is:
         /// [optional] import of managed sdk core
         /// [optional] qualifier declaration
-        /// const packageRoot = d`absoulte path to the package roo`;
+        /// const packageRoot = d`absolute path to the package roo`;
         /// @@public
         /// export const contents: StaticDirectory = Transformer.sealDirectory(
         ///    packageRoot,
@@ -258,7 +261,8 @@ namespace BuildXL.FrontEnd.Nuget
                 pkgType = new TypeReferenceNode("NugetPackage");
                 pkgExpression = ObjectLiteral(
                     (name: "contents", PropertyAccess("Contents", "all")),
-                    (name: "dependencies", Array(package.Dependencies.Select(CreateImportFromForDependency).ToArray())));
+                    (name: "dependencies", Array(package.Dependencies.Select(CreateImportFromForDependency).ToArray())),
+                    (name: "version", new LiteralExpression(package.Version)));
             }
 
             return
@@ -342,7 +346,10 @@ namespace BuildXL.FrontEnd.Nuget
             if (compatibleTfms.Count > 0)
             {
                 // { targetFramework: 'tf1' | 'tf2' | ... }
-                var qualifierType = UnionType(propertyName: "targetFramework", literalTypes: compatibleTfms.Select(m => m.ToString(m_pathTable.StringTable)).ToArray());
+                var qualifierType = UnionType(
+                    (propertyName: "targetFramework", literalTypes: compatibleTfms.Select(m => m.ToString(m_pathTable.StringTable))),
+                    (propertyName: "targetRuntime", literalTypes: m_nugetFrameworkMonikers.SupportedTargetRuntimes)
+                );
                 statement = Qualifier(qualifierType);
                 return true;
             }

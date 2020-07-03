@@ -49,6 +49,7 @@ export function compile(args: Arguments): Result {
         arguments: tscArguments,
         workingDirectory: workingDir,
         dependencies: implicitInputDependencies,
+        tags: ["compile"]
     });
 
     return {

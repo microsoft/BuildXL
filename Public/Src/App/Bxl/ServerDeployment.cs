@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -147,7 +147,7 @@ namespace BuildXL
             // Check if the main root process (likely bxl.exe) is in use before attempting to delete, so we avoid partially deleting files
             // Not completely bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
             Assembly rootAssembly = Assembly.GetEntryAssembly();
-            Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
+            Contract.AssertNotNull(rootAssembly, "Could not look up entry assembly");
 
             string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetThisProgramExeLocation()).Name);
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -15,9 +15,9 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Reads an array of 32-bit integers
         /// </summary>
-        public static int[] ReadInt32Array(this BinaryReader reader, ref byte[] buffer, int count)
+        public static int[] ReadInt32Array(this BinaryReader reader, ref byte[]? buffer, int count)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Contract.Requires(count >= 0);
             Array.Resize(ref buffer, count * sizeof(int));
 

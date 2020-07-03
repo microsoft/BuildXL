@@ -209,6 +209,19 @@ namespace Transformer {
          * File to write the change affected input list of the pip before it execute.
          */
         changeAffectedInputListWrittenFile?: Path;
+
+        /**
+         * When this option is set to true bxl cannot cancel the pip due to correctness reasons.
+         * Defaults to false. 
+         */
+        uncancellable?: boolean;
+
+        /**
+         * Defines a collection of directory scopes that will be excluded from being part of opaque directory outputs
+         * Any artifact produced under these directories won't be considered part of any opaque (shared or exclusive) directory
+         * produced by this process
+         */
+        outputDirectoryExclusions?: Directory[];
     }
 
     @@public
@@ -248,13 +261,35 @@ namespace Transformer {
          * If the list is empty, all file and directory outputs are preserved. 
          * If the list is not empty, only given paths are preserved and the rest is deleted
          */
-        preserveOutputWhitelist?: (File | Directory)[];
+		preserveOutputAllowlist?: (File | Directory)[];
+        preserveOutputWhitelist?: (File | Directory)[]; // compatibility
         incrementalTool?: boolean;
 
         /**
          * Pull unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process.
          */
         requireGlobalDependencies?: boolean;
+
+        /**
+         * Process names that will break away from the sandbox when spawned by the main process
+         * The accesses of processes that break away from the sandbox won't be observed.
+         * Processes that breakaway can survive the lifespan of the sandbox.
+         * Only add to this list processes that are trusted and whose accesses can be safely predicted
+         * by some other means.
+         */
+        childProcessesToBreakawayFromSandbox?: PathAtom[];
+
+        /**
+         * This option makes all statically declared artifacts on this process (inputs and outputs) to be automatically
+         * added to the sandbox access report, as if the process actually produced those accesses.
+         * Useful for automatically augmenting the sandbox access report on trusted process breakaway.
+         * Default is false. 
+         * Should only be used on trusted process, where the statically declared inputs and outputs are guaranteed to
+         * match the process actual behavior.
+         * Only takes effect if 'childProcessesToBreakawayFromSandbox' is non-empty. Otherwise it is ignored.
+         * This option is only supported for pips with no output directories nor source sealed dependencies.
+         */
+        trustStaticallyDeclaredAccesses?: boolean;
     }
 
     /**

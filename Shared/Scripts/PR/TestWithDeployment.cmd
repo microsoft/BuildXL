@@ -71,7 +71,7 @@ echo Success: Administrative permissions confirmed. Running symlink tests...
 set start=%time%
 set stepName=Running SymLink Tests
 call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
-    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /viewer:disable /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
+    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /viewer:disable /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
     rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
     if %ERRORLEVEL% NEQ 0 (exit /b 1)
 call :RecordStep "%stepName%" %start%

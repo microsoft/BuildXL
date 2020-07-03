@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,13 +8,12 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -106,7 +105,7 @@ namespace BuildXL.Execution.Analyzer
             List<PipReference> orderedPips = CachedGraph.PipGraph
                 .RetrievePipReferencesOfType(PipType.Process)
                 .Where(lazyPip => m_completedPips.Contains(lazyPip.PipId))
-                .OrderBy(lazyPip => CachedGraph.DataflowGraph.GetNodeHeight(lazyPip.PipId.ToNodeId()))
+                .OrderBy(lazyPip => CachedGraph.DirectedGraph.GetNodeHeight(lazyPip.PipId.ToNodeId()))
                 .ThenBy(lazyPip => lazyPip.SemiStableHash)
                 .ToList();
 
@@ -156,7 +155,7 @@ namespace BuildXL.Execution.Analyzer
                                 writer.WriteLine("PipStableId: Pip{0:X16}", pip.SemiStableHash);
                                 writer.WriteLine(
                                     "Pip Dependency Chain Length: {0}",
-                                    CachedGraph.DataflowGraph.GetNodeHeight(pip.PipId.ToNodeId()));
+                                    CachedGraph.DirectedGraph.GetNodeHeight(pip.PipId.ToNodeId()));
                                 writer.WriteLine(pip.GetDescription(CachedGraph.Context));
                                 writer.WriteLine("Fingerprint: {0}", fingerprint);
                                 writer.WriteLine();

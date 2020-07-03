@@ -16,12 +16,12 @@ namespace RuntimeConfigFiles {
     @@public
     export function createFiles(
         framework: Shared.Framework,
+        deploymentStyle: Shared.ApplicationDeploymentStyle,
         assemblyName: string,
-        runtimeBinary: Shared.Binary,
+        runtimeBinaryName: string | PathAtom,
         references: Shared.Reference[],
         runtimeContentToSkip: Deployment.DeployableItem[],
-        appConfig: File,
-        testRunnerDeployment?: boolean
+        appConfig: File
         ) : File[] {
 
         const runtimeConfigFolder = Context.getNewOutputDirectory("runtimeConfigFolder");
@@ -33,21 +33,21 @@ namespace RuntimeConfigFiles {
                 }
 
                 return [
-                    createAppConfig(assemblyName, appConfig, runtimeConfigFolder, "exe"),
+                    createAppConfig(runtimeBinaryName, appConfig, runtimeConfigFolder),
                 ];
 
             case "runtimeJson":
                 Contract.requires(!String.isUndefinedOrEmpty(framework.runtimeConfigVersion), "Frameworks with runtimeConfigStyle of runtimeJson must specify runtimeConfigVersion");
                 Contract.requires(!String.isUndefinedOrEmpty(framework.runtimeFrameworkName), "Frameworks with runtimeConfigStyle of runtimeJson must specify runtimeFrameworkName");
 
-                if (framework.applicationDeploymentStyle === "selfContained" && !testRunnerDeployment) {
+                if (deploymentStyle === "frameworkDependent") {
                     Contract.requires(qualifier.targetRuntime !== undefined, "Frameworks with applicationDeploymentStyle set to 'selfContained', must know the target runtime to deploy for");
                     Contract.requires(framework.runtimeContentProvider !== undefined, "Frameworks with applicationDeploymentStyle set to 'selfContained', must provide a selfContainedRuntimeContent provider");
                 }
 
                 return [
-                    createDependenciesJson(framework, assemblyName, runtimeBinary, references, runtimeContentToSkip, testRunnerDeployment),
-                    createRuntimeConfigJson(framework, assemblyName, runtimeConfigFolder, testRunnerDeployment),
+                    createDependenciesJson(framework, deploymentStyle, assemblyName, runtimeBinaryName, references, runtimeContentToSkip),
+                    createRuntimeConfigJson(framework, deploymentStyle, assemblyName, runtimeConfigFolder),
                 ];
             case "none":
                 return [];
@@ -57,8 +57,8 @@ namespace RuntimeConfigFiles {
         }
     }
 
-    function createAppConfig(assemblyName: string, appConfig: File, runtimeConfigFolder: Directory, configBaseName: string) : File {
-        return Transformer.copyFile(appConfig, p`${runtimeConfigFolder}/${assemblyName + "." + configBaseName + ".config"}`);
+    function createAppConfig(runtimeBinaryName: string | PathAtom, appConfig: File, runtimeConfigFolder: Directory) : File {
+        return Transformer.copyFile(appConfig, p`${runtimeConfigFolder}/${runtimeBinaryName + ".config"}`);
     }
 
     /**
@@ -67,16 +67,15 @@ namespace RuntimeConfigFiles {
      */
     function createDependenciesJson(
         framework: Shared.Framework,
+        deploymentStyle: Shared.ApplicationDeploymentStyle,
         assemblyName: string,
-        runtimeBinary: Shared.Binary,
+        runtimeBinaryName: string | PathAtom,
         references: Shared.Reference[],
-        runtimeContentToSkip: Deployment.DeployableItem[],
-        testRunnerDeployment?: boolean
-        ): File {
+        runtimeContentToSkip: Deployment.DeployableItem[]
+    ): File {
 
         const specFileOutput = Context.getNewOutputDirectory("DotNetSpecFiles");
         const runtimeReferences = Helpers.computeTransitiveReferenceClosure(framework, references, runtimeContentToSkip, false);
-
         const dependencySpecExtension = `${assemblyName}.deps.json`;
         const dependencySpecPath = p`${specFileOutput}/${dependencySpecExtension}`;
 
@@ -85,7 +84,7 @@ namespace RuntimeConfigFiles {
         // we seed the target and libraries with the current assembly being compiled
         let targetsSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, <Object>{
             dependencies: createDependencies(references).overrideKey(runtimeName, framework.runtimeConfigVersion),
-            runtime: {}.overrideKey(runtimeBinary.binary.name.toString(), {})
+            runtime: {}.overrideKey(runtimeBinaryName.toString(), {})
         });
 
         let librariesSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, {
@@ -119,7 +118,7 @@ namespace RuntimeConfigFiles {
         }
 
         // In the case of self-contained deployment, we need to inject the runtime information provided by the framework
-        if (framework.applicationDeploymentStyle === "selfContained" && !testRunnerDeployment)
+        if (deploymentStyle === "selfContained")
         {
             const fullyQualifiedRuntimeDescription = runtimeName + "/" + framework.runtimeConfigVersion;
 
@@ -201,9 +200,14 @@ namespace RuntimeConfigFiles {
      * runtimeconfig.json parametrized on the passed assembly and runtime version number
      */
     @@public
-    export function createRuntimeConfigJson(framework: Shared.Framework, assemblyName: string, runtimeConfigFolder: Directory, testRunnerDeployment?: boolean): File {
-        const useRuntimeOptions = testRunnerDeployment || framework.applicationDeploymentStyle !== "selfContained";
-        const frameworkRuntimeOptions = useRuntimeOptions ? {
+    export function createRuntimeConfigJson(
+        framework: Shared.Framework, 
+        deploymentStyle: Shared.ApplicationDeploymentStyle, 
+        assemblyName: string, 
+        runtimeConfigFolder: Directory
+    ): File {
+
+        const frameworkRuntimeOptions = deploymentStyle === "frameworkDependent" ? {
             tfm: framework.targetFramework,
             framework: {
                 name: framework.runtimeFrameworkName,
@@ -224,17 +228,5 @@ namespace RuntimeConfigFiles {
         };
 
         return Json.write(p`${runtimeConfigFolder}/${assemblyName + ".runtimeconfig.json"}`, options, '"');
-    }
-
-    @@public
-    export function createDllAppConfig(framework: Shared.Framework, assemblyName: string, appConfig: File) : File[] {
-        if (framework.runtimeConfigStyle === "appConfig" && appConfig) {
-            const runtimeConfigFolder = Context.getNewOutputDirectory("runtimeConfigFolder");
-            return [
-                createAppConfig(assemblyName, appConfig, runtimeConfigFolder, "dll"),
-            ];
-        }
-
-        return undefined;
     }
 }

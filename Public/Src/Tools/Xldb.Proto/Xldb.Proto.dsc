@@ -9,7 +9,7 @@ namespace Xldb.Proto {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Xldb.Proto",
         skipDocumentationGeneration: true,
-        sources: GrpcSdk.generate({
+        sources: GrpcSdk.generateCSharp({
             proto: globR(d`.`, "*.proto"), 
             includes: [importFrom("Google.Protobuf.Tools").Contents.all]
         }).sources,

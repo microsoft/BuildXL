@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Native.IO
 {
@@ -221,5 +221,10 @@ namespace BuildXL.Native.IO
         /// ERROR_BAD_PATHNAME
         /// </summary>
         public const int ErrorBadPathname = 0xA1;
+
+        /// <summary>
+        /// ERROR_INVALID_NAME
+        /// </summary>
+        public const int ErrorInvalidName = 0x7B;
     }
 }

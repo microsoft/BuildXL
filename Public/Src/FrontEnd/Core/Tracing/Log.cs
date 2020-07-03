@@ -1,18 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
-using System.Linq;
-//using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
+
+#nullable enable
 
 namespace BuildXL.FrontEnd.Core.Tracing
 {
@@ -21,39 +19,12 @@ namespace BuildXL.FrontEnd.Core.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("FrontEndLogger")]
     public abstract partial class Logger : LoggerBase
     {
-        private bool m_preserveLogEvents;
-
-        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
-
         // Internal logger will prevent public users from creating an instance of the logger
         internal Logger()
         {
-        }
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
-        public static Logger CreateLogger(bool preserveLogEvents = false)
-        {
-            return new LoggerImpl { m_preserveLogEvents = preserveLogEvents };
-        }
-
-        /// <summary>
-        /// Provides diagnostics captured by the logger.
-        /// Would be non-empty only when preserveLogEvents flag was specified in the <see cref="Logger.CreateLogger" /> factory method.
-        /// </summary>
-        public IReadOnlyList<Diagnostic> CapturedDiagnostics => m_capturedDiagnostics.ToList();
-
-        /// <inheritdoc />
-        public override bool InspectMessageEnabled => m_preserveLogEvents;
-
-        /// <inheritdoc />
-        protected override void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
-        {
-            m_capturedDiagnostics.Enqueue(new Diagnostic(logEventId, level, message, location));
         }
 
         [GeneratedEvent(
@@ -643,7 +614,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' will be downloaded again because there was an invalid entry in the cache.{additionalInfo}")]
-        public abstract void DownloadPackageFailedDueToInvalidCacheContents(LoggingContext loggingContext, string friendlyPackageName, string additionalInfo = null);
+        public abstract void DownloadPackageFailedDueToInvalidCacheContents(LoggingContext loggingContext, string friendlyPackageName, string? additionalInfo = null);
 
         [GeneratedEvent(
             (ushort)LogEventId.DownloadPackageCannotCacheError,
@@ -1080,6 +1051,9 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         /// <nodoc />
         public long ResolverCount { get; set; }
+
+        /// <nodoc />
+        public string ResolverKinds { get; set; }
     }
 
     /// <summary>

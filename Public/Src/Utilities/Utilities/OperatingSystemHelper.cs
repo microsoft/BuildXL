@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
+using BuildXL.Interop.Unix;
 using static BuildXL.Interop.Windows.Memory;
 
 #pragma warning disable IDE1006 // Naming rule violation
@@ -51,9 +52,19 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Indicates if BuildXL is running on macOS
         /// </summary>
-        public static readonly bool IsMacOS = 
-#if PLATFORM_OSX
-            true;
+        public static readonly bool IsMacOS =
+#if NET_CORE
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+#else
+            false;
+#endif
+
+        /// <summary>
+        /// Indicates if BuildXL is running on macOS
+        /// </summary>
+        public static readonly bool IsLinuxOS =
+#if NET_CORE
+            RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 #else
             false;
 #endif
@@ -93,6 +104,14 @@ namespace BuildXL.Utilities
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
+        /// Comparer to use when comparing paths as strings.
+        /// On Linux, a case-sensitive string comparer is returned; elsewhere, a case-insensitive comparer is returned.
+        /// </summary>
+        public static StringComparer PathComparer { get; } = IsLinuxOS
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+
+        /// <summary>
         /// Gets the current OS description e.g. "Windows 10 Enterprise 10.0.10240"
         /// </summary>
         public static string GetOSVersion()
@@ -104,6 +123,10 @@ namespace BuildXL.Utilities
             else if (IsMacOS)
             {
                 return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Value.Major, CurrentMacOSVersion.Value.Minor, CurrentMacOSVersion.Value.Build);
+            }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetOSVersion();
             }
 
             // Extend this once we start supporting Linux etc.
@@ -123,6 +146,10 @@ namespace BuildXL.Utilities
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
             }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetProcessorName();
+            }
 
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU name is not supported on this platform!");
@@ -141,13 +168,17 @@ namespace BuildXL.Utilities
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
             }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetProcessorIdentifier();
+            }
 
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU identifier is not supported on this platform!");
         }
 
         /// <summary>
-        /// Gets the current physical memory size in MB
+        /// Gets the current physical memory size
         /// </summary>
         public static FileSize GetPhysicalMemorySize()
         {
@@ -155,9 +186,33 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-            else if (IsMacOS)
+            else
             {
-                return GetPhysicalMemorySizeMacOS();
+                var buf = new Memory.RamUsageInfo();
+                return BuildXL.Interop.Unix.Memory.GetRamUsageInfo(ref buf) == 0
+                    ? new FileSize(buf.TotalBytes)
+                    : new FileSize(0);
+            }
+
+            // Extend this once we start supporting Linux etc.
+            throw new NotImplementedException("Getting physical memory size is not supported on this platform!");
+        }
+
+        /// <summary>
+        /// Gets the currently available physical memory size
+        /// </summary>
+        public static FileSize GetAvailablePhysicalMemorySize()
+        {
+            if (!IsUnixOS)
+            {
+                return GetAvailablePhysicalMemorySizeWindows();
+            }
+            else
+            {
+                var buf = new Memory.RamUsageInfo();
+                return Memory.GetRamUsageInfo(ref buf) == 0 
+                    ? new FileSize(buf.FreeBytes)
+                    : new FileSize(0);
             }
 
             // Extend this once we start supporting Linux etc.
@@ -242,6 +297,16 @@ namespace BuildXL.Utilities
             return new FileSize(bytes);
         }
 
+        private static FileSize GetAvailablePhysicalMemorySizeWindows()
+        {
+            MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+
+            ulong bytes = GlobalMemoryStatusEx(memoryStatusEx)
+                ? memoryStatusEx.ullAvailPhys
+                : 0;
+            return new FileSize(bytes);
+        }       
+
         /// <summary>
         /// Gets .NET Framework version installed on the machine in a human readable form.
         /// </summary>
@@ -264,9 +329,13 @@ namespace BuildXL.Utilities
         /// </summary>
         public static string GetRuntimeFrameworkNameAndVersion()
         {
+#if NET_STANDARD_20
+            return ".NETStandard,Version=v2.0";
+#else
             return IsDotNetCore
                 ? Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName ?? ".NETCoreApp"
                 : AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
+#endif
         }
 
         /// <summary>
@@ -394,7 +463,7 @@ namespace BuildXL.Utilities
         {
             try
             {
-                var process = new Process()
+                var process = new System.Diagnostics.Process()
                 {
                     StartInfo = new ProcessStartInfo()
                     {
@@ -430,19 +499,6 @@ namespace BuildXL.Utilities
 #pragma warning restore ERP022
         }
 
-        [DllImport("libc", SetLastError = true)]
-        private static extern long sysconf(int name);
-        private const int _SC_PAGESIZE_OSX = 29;
-        private const int _SC_PHYS_PAGES_OSX = 200;
-
-        private static FileSize GetPhysicalMemorySizeMacOS()
-        {
-            long physicalPages = sysconf(_SC_PHYS_PAGES_OSX);
-            long pageSize = sysconf(_SC_PAGESIZE_OSX);
-
-            return new FileSize(physicalPages * pageSize);
-        }
-
-#endregion
+        #endregion
     }
 }

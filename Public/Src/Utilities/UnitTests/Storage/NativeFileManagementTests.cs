@@ -1,15 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Unix;
+using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using BuildXL.Utilities;
 
 namespace Test.BuildXL.Storage
 {
@@ -52,8 +52,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSuccess()
         {
             string path = Path.Combine(TemporaryDirectory, "file");
@@ -85,8 +84,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSharingViolation()
         {
             string path = Path.Combine(TemporaryDirectory, "file");
@@ -180,8 +178,8 @@ namespace Test.BuildXL.Storage
             string path = Path.Combine(TemporaryDirectory, "dir");
             Directory.CreateDirectory(path);
 
-            Directory.CreateDirectory(GetFullPath(PathGeneratorUtilities.GetRelativePath("dir","childDir")));
-            Directory.CreateDirectory(GetFullPath(PathGeneratorUtilities.GetRelativePath("dir","childDir2")));
+            Directory.CreateDirectory(GetFullPath(R("dir","childDir")));
+            Directory.CreateDirectory(GetFullPath(R("dir","childDir2")));
 
             var names = new List<string>();
             EnumerateDirectoryResult result = FileUtilities.EnumerateDirectoryEntries(
@@ -194,7 +192,7 @@ namespace Test.BuildXL.Storage
 
             XAssert.IsTrue(result.Succeeded);
             XAssert.AreEqual(EnumerateDirectoryStatus.Success, result.Status);
-            Assert.Equal(new[] { "childDir", "childDir2" }, names);
+            XAssert.SetEqual(new[] { "childDir", "childDir2" }, names);
         }
 
         [Fact]
@@ -203,8 +201,8 @@ namespace Test.BuildXL.Storage
             string path = Path.Combine(TemporaryDirectory, "dir");
             Directory.CreateDirectory(path);
 
-            WriteFile(PathGeneratorUtilities.GetRelativePath("dir","fileA"), string.Empty);
-            WriteFile(PathGeneratorUtilities.GetRelativePath("dir","fileB"), string.Empty);
+            WriteFile(R("dir", "fileA"), string.Empty);
+            WriteFile(R("dir", "fileB"), string.Empty);
 
             var names = new List<string>();
             EnumerateDirectoryResult result = FileUtilities.EnumerateDirectoryEntries(
@@ -216,7 +214,6 @@ namespace Test.BuildXL.Storage
                 });
             XAssert.IsTrue(result.Succeeded);
             XAssert.AreEqual(EnumerateDirectoryStatus.Success, result.Status);
-
             XAssert.SetEqual(new[] { "fileA", "fileB" }, names);
         }
 
@@ -242,7 +239,6 @@ namespace Test.BuildXL.Storage
 
             XAssert.IsTrue(result.Succeeded);
             XAssert.AreEqual(EnumerateDirectoryStatus.Success, result.Status);
-
             XAssert.SetEqual(new[] { "someFile" }, names);
         }
 

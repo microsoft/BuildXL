@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -140,14 +139,14 @@ namespace BuildXL.Cache.Analyzer
                 return;
             }
 
-            Possible<Stream, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(originalCasHash);
+            Possible<StreamWithLength, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(originalCasHash);
             if (!possibleStream.Succeeded)
             {
                 errors.TryAdd(new CacheError(CacheErrorType.CasHashError, "CasHash " + originalCasHash + " not found in CAS"), 0);
                 return;
             }
 
-            using (Stream stream = possibleStream.Result)
+            using (StreamWithLength stream = possibleStream.Result)
             {
                 ContentHash contentHash = await ContentHashingUtilities.HashContentStreamAsync(stream);
                 Hash newHash = new Hash(contentHash);

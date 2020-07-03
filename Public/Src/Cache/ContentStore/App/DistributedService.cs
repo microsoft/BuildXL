@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,9 +10,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
@@ -45,7 +45,10 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
             [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies,
-            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies
+            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies,
+            [DefaultValue(null), Description("nLog configuration path. If empty, it is disabled")] string nLogConfigurationPath,
+            [DefaultValue(null), Description("Whether to use Azure Blob logging or not")] string nLogToBlobStorageSecretName,
+            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath
             )
         {
             Initialize();
@@ -68,17 +71,31 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
                 }
 
+                // We don't have to dispose the copier here. RunAsync will take care of that.
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
                             grpcPort: grpcPort,
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
-                            grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
                             useCompression: useCompressionForCopies);
 
                 var copier = useDistributedGrpc
                         ? grpcCopier
                         : (IAbsolutePathFileCopier)new DistributedCopier();
+
+                LoggingSettings loggingSettings = null;
+                if (!string.IsNullOrEmpty(nLogConfigurationPath))
+                {
+                    loggingSettings = new LoggingSettings()
+                    {
+                        NLogConfigurationPath = nLogConfigurationPath,
+                        Configuration = new AzureBlobStorageLogPublicConfiguration()
+                        {
+                            SecretName = nLogToBlobStorageSecretName,
+                            WorkspaceFolderPath = nLogToBlobStorageWorkspacePath,
+                        }
+                    };
+                }
 
                 var arguments = CreateDistributedCacheServiceArguments(
                     copier: copier,
@@ -93,7 +110,9 @@ namespace BuildXL.Cache.ContentStore.App
                     dataRootPath: dataRootPath,
                     ct: _cancellationToken,
                     bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
-                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
+                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
+                    loggingSettings: loggingSettings,
+                    telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId));
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }
@@ -104,8 +123,41 @@ namespace BuildXL.Cache.ContentStore.App
             }
         }
 
+        private class TelemetryFieldsProvider : ITelemetryFieldsProvider
+        {
+            public string BuildId => "Unknown";
+
+            public string ServiceName => "DistributedService";
+
+            public string APEnvironment => "None";
+
+            public string APCluster => "None";
+
+            public string APMachineFunction => "None";
+
+            public string MachineName => Environment.MachineName;
+
+            public string ServiceVersion => "None";
+
+            public string Stamp { get; }
+
+            public string Ring { get; }
+
+            public string ConfigurationId => "None";
+
+            public TelemetryFieldsProvider(string ring, string stamp)
+            {
+                Ring = ring;
+                Stamp = stamp;
+            }
+        }
+
         private class EnvironmentVariableHost : IDistributedCacheServiceHost
         {
+            public void RequestTeardown(string reason)
+            {
+            }
+
             public string GetSecretStoreValue(string key)
             {
                 return Environment.GetEnvironmentVariable(key);

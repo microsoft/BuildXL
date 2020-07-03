@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,8 +14,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Utilities.Tracing
 {
     // Using has to be inside namespace due to BuildXL.Utilities.Tasks;
-    using Tasks = BuildXL.Utilities.Instrumentation.Common.Tasks;
-
     /// <summary>
     /// The BuildXL event source
     /// </summary>
@@ -231,9 +229,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance(LoggingContext loggingContext, Action<LoggingContext, string, int, int> eventAction, PathTable pathTable, LocationData token)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position);
         }
 
@@ -242,9 +239,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0> eventAction, PathTable pathTable, LocationData token, T0 arg0)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0);
         }
 
@@ -253,9 +249,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0, T1>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0, T1> eventAction, PathTable pathTable, LocationData token, T0 arg0, T1 arg1)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0, arg1);
         }
 
@@ -264,9 +259,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0, T1, T2>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0, T1, T2> eventAction, PathTable pathTable, LocationData token, T0 arg0, T1 arg1, T2 arg2)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0, arg1, arg2);
         }
 
@@ -280,10 +274,8 @@ namespace BuildXL.Utilities.Tracing
             LocationData relatedLocation,
             LocationData alreadyReportedLocation)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(relatedLocation != null);
-            Contract.Requires(alreadyReportedLocation != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, relatedLocation.Path.ToString(pathTable), relatedLocation.Line, relatedLocation.Position, alreadyReportedLocation.Path.ToString(pathTable), alreadyReportedLocation.Line, alreadyReportedLocation.Position);
         }
 
@@ -314,174 +306,15 @@ namespace BuildXL.Utilities.Tracing
             }
         }
 
-#region Testing
-
-        /////////////////////////
-        //
-        // The remaining events are for testing purposes, they are produced and consumed by the unit tests.
-        //
-        /////////////////////////
-
         [Event(
-            (int)EventId.VerboseEvent,
+            (int)10000,
             Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
-        public void VerboseEvent(string message)
+        public void VerboseEvent_RemoveMe(string message)
         {
-            WriteEvent((int)EventId.VerboseEvent, message);
-        }
-
-        [Event(
-            (int)EventId.DiagnosticEvent,
-            Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.Diagnostics,
-            Message = "{0}")]
-        public void DiagnosticEvent(string message)
-        {
-            WriteEvent((int)EventId.DiagnosticEvent, message);
-        }
-
-        [Event(
-            (int)EventId.DiagnosticEventInOtherTask,
-            Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest2,
-            Keywords = Keywords.Diagnostics,
-            Message = "{0}")]
-        public void DiagnosticEventInOtherTask(string message)
-        {
-            WriteEvent((int)EventId.DiagnosticEventInOtherTask, message);
-        }
-
-        [Event(
-            (int)EventId.InfoEvent,
-            Level = EventLevel.Informational,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void InfoEvent(string message)
-        {
-            WriteEvent((int)EventId.InfoEvent, message);
-        }
-
-        [Event(
-            (int)EventId.WarningEvent,
-            Level = EventLevel.Warning,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void WarningEvent(string message)
-        {
-            WriteEvent((int)EventId.WarningEvent, message);
-        }
-
-        [Event(
-            (int)EventId.ErrorEvent,
-            Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void ErrorEvent(string message)
-        {
-            WriteEvent((int)EventId.ErrorEvent, message);
-        }
-
-        [Event(
-            (int)EventId.InfrastructureErrorEvent,
-            Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage | Keywords.InfrastructureError,
-            Message = "{0}")]
-        public void InfrastructureErrorEvent(string message)
-        {
-            WriteEvent((int)EventId.InfrastructureErrorEvent, message);
-        }
-
-        [Event(
-            (int)EventId.UserErrorEvent,
-            Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage | Keywords.UserError,
-            Message = "{0}")]
-        public void UserErrorEvent(string message)
-        {
-            WriteEvent((int)EventId.UserErrorEvent, message);
-        }
-
-        [Event(
-            (int)EventId.CriticalEvent,
-            Level = EventLevel.Critical,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void CriticalEvent(string message)
-        {
-            WriteEvent((int)EventId.CriticalEvent, message);
-        }
-
-        [Event(
-            (int)EventId.AlwaysEvent,
-            Level = EventLevel.LogAlways,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void AlwaysEvent(string message)
-        {
-            WriteEvent((int)EventId.AlwaysEvent, message);
-        }
-
-        [Event(
-            (int)EventId.VerboseEventWithProvenance,
-            Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = EventConstants.ProvenancePrefix + "{3}")]
-        public void VerboseEventWithProvenance(string file, int line, int column, string message)
-        {
-            WriteEvent((int)EventId.VerboseEventWithProvenance, file, line, column, message);
-        }
-
-#endregion
-
-        [Event(
-            (int)EventId.StartViewer,
-            Level = EventLevel.Informational,
-            Keywords = Keywords.Performance | Keywords.UserMessage,
-            Task= Tasks.Viewer,
-            Message = EventConstants.PhasePrefix + "Starting viewer @ {0} (async)")]
-        public void StartViewer(string address)
-        {
-            WriteEvent(
-                (int)EventId.StartViewer,
-                address);
-        }
-
-        [Event(
-            (int)EventId.UnableToStartViewer,
-            Level = EventLevel.Warning,
-            Keywords = Keywords.UserMessage,
-            Task = Tasks.Viewer,
-            Message = "Unable to start viewer: {0}")]
-        public void UnableToStartViewer(string message)
-        {
-            WriteEvent(
-                (int)EventId.UnableToStartViewer,
-                message);
-        }
-
-        [Event(
-            (int)EventId.UnableToLaunchViewer,
-            Level = EventLevel.Warning,
-            Keywords = Keywords.UserMessage,
-            Task = Tasks.Viewer,
-            Message = "Unable to launch viewer: {0}")]
-        public void UnableToLaunchViewer(string message)
-        {
-            WriteEvent(
-                (int)EventId.UnableToLaunchViewer,
-                message);
+            WriteEvent(10000, message);
         }
     }
 }

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStore.Grpc;
-using static global::ContentStore.Grpc.ContentServer;
 using static BuildXL.Cache.MemoizationStore.Service.GrpcDataConverter;
 
 namespace BuildXL.Cache.MemoizationStore.Service
@@ -113,33 +112,29 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// </summary>
         public async Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
         {
-            using (var enumerator = strongFingerprints.ToResultsAsyncEnumerable().Buffer(BatchSize).GetEnumerator())
+            await foreach (var sfBatch in strongFingerprints.ToResultsAsyncEnumerable().Buffer(BatchSize).WithCancellation(context.Token))
             {
-                while (await enumerator.MoveNext(context.Token))
+                var result = await PerformOperationAsync(
+                    context,
+                    async sessionContext =>
                 {
-                    var sfBatch = enumerator.Current;
-                    var result = await PerformOperationAsync(
-                        context,
-                        async sessionContext =>
+                    var request = new IncorporateStrongFingerprintsRequest()
                     {
-                        var request = new IncorporateStrongFingerprintsRequest()
-                        {
-                            Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
-                        };
+                        Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
+                    };
 
-                        request.StrongFingerprints.AddRange(sfBatch.Select(sf => sf.ToGrpc()));
+                    request.StrongFingerprints.AddRange(sfBatch.Select(sf => sf.ToGrpc()));
 
-                        var response = await SendGrpcRequestAndThrowIfFailedAsync(
-                            sessionContext,
-                            async () => await Client.IncorporateStrongFingerprintsAsync(request));
+                    var response = await SendGrpcRequestAndThrowIfFailedAsync(
+                        sessionContext,
+                        async () => await Client.IncorporateStrongFingerprintsAsync(request));
 
-                        return BoolResult.Success;
-                    });
+                    return BoolResult.Success;
+                });
 
-                    if (!result)
-                    {
-                        return result;
-                    }
+                if (!result)
+                {
+                    return result;
                 }
             }
 

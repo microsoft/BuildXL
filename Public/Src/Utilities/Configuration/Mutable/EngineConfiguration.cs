@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -28,12 +28,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
             BuildLockWaitTimeoutMins = 0;
             DirectoriesToTranslate = new List<TranslateDirectoryData>();
             ScrubDirectories = new List<AbsolutePath>();
-            PopulateSymlinkDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
+            TrackGvfsProjections = false;
             UseFileContentTable = default;
+            AllowDuplicateTemporaryDirectory = false;
         }
 
         /// <nodoc />
@@ -66,12 +67,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 template.DirectoriesToTranslate.Select(
                     d => new TranslateDirectoryData(d.RawUserOption, pathRemapper.Remap(d.FromPath), pathRemapper.Remap(d.ToPath))).ToList();
             ScrubDirectories = pathRemapper.Remap(template.ScrubDirectories);
-            PopulateSymlinkDirectories = pathRemapper.Remap(template.PopulateSymlinkDirectories);
             CompressGraphFiles = template.CompressGraphFiles;
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
             LogStatistics = template.LogStatistics;
             TrackBuildsInUserFolder = template.TrackBuildsInUserFolder;
+            TrackGvfsProjections = template.TrackGvfsProjections;
             UseFileContentTable = template.UseFileContentTable;
+            AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
         }
 
         /// <inheritdoc />
@@ -122,6 +124,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool ReuseEngineState { get; set; }
 
         /// <inheritdoc />
+        public bool? AllowDuplicateTemporaryDirectory { get; set; }
+
+        /// <inheritdoc />
         public int BuildLockPollingIntervalSec { get; set; }
 
         /// <inheritdoc />
@@ -137,13 +142,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         IReadOnlyList<TranslateDirectoryData> IEngineConfiguration.DirectoriesToTranslate => DirectoriesToTranslate;
 
-        /// <nodoc />
-        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<AbsolutePath> PopulateSymlinkDirectories { get; set; }
-
-        /// <inheritdoc />
-        IReadOnlyList<AbsolutePath> IEngineConfiguration.PopulateSymlinkDirectories => PopulateSymlinkDirectories;
-
         /// <inheritdoc />
         public bool CompressGraphFiles { get; set; }
 
@@ -155,6 +153,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool TrackBuildsInUserFolder { get; set; }
+
+        /// <inheritdoc />
+        public bool TrackGvfsProjections { get; set; }
 
         /// <inheritdoc />
         public bool? UseFileContentTable { get; set; }

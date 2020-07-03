@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 // ReSharper disable All
@@ -60,17 +61,32 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
-    /// Requests another machine to copy from the current machine.
+    /// Copies files to another machine.
     /// </summary>
-    public interface ICopyRequester
+    public interface IContentCommunicationManager
     {
         /// <summary>
         /// Requests another machine to copy a file.
         /// </summary>
-        /// <param name="context">The context of the operation</param>
-        /// <param name="hash">The hash of the file to be copied.</param>
-        /// <param name="targetMachine">The machine that should copy the file</param>
+        /// <remarks>
+        /// This version is not used in Test/Prod environment but please, don't remove it, because we may use it in the future
+        /// for other scenarios, for instance, during pin operaiton.
+        /// </remarks>
         Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
+
+        /// <summary>
+        /// Pushes content to a target machine.
+        /// </summary>
+        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine);
+
+        /// <summary>
+        /// Deletes content from a target machine
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="hash"></param>
+        /// <param name="targetMachine"></param>
+        /// <returns></returns>
+        Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
     }
 
     /// <summary>

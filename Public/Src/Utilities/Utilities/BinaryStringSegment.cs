@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -31,10 +31,8 @@ namespace BuildXL.Utilities
         /// Creates a segment from a range of an array.
         /// </summary>
         public BinaryStringSegment(byte[] value, int byteIndex, int byteLength, bool isAscii)
+            : this(new ArrayView<byte>(value, byteIndex, byteLength), isAscii)
         {
-            Contract.Assert(isAscii || (value.Length % 2) == 0, "UTF-16 must have even number of bytes");
-            m_value = new ArrayView<byte>(value, byteIndex, byteLength);
-            m_isAscii = isAscii;
         }
 
         /// <summary>

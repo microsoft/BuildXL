@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,9 @@ using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Processes
 {
@@ -42,21 +44,38 @@ namespace BuildXL.Processes
 
         private readonly IBuildParameters m_baseEnvironmentVariables;
 
+        private LoggingContext m_loggingContext;
+
         /// <summary>
         /// Constructor
         /// </summary>
-        public PipEnvironment()
+        public PipEnvironment(LoggingContext loggingContext)
         {
-            FullEnvironmentVariables = GetFactory(ReportDuplicateVariable).PopulateFromEnvironment();
+            m_loggingContext = loggingContext;
 
+            FullEnvironmentVariables = 
+                GetFactory(ReportDuplicateVariable)
+                .PopulateFromEnvironment();
+
+#if PLATFORM_WIN
             var comspec = Path.Combine(SpecialFolderUtilities.SystemDirectory, "cmd.exe");
+            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+#endif
+
             var path =
                 string.Join(
-                    ";",
+                    OperatingSystemHelper.IsUnixOS ? ":" : ";",
                     SpecialFolderUtilities.SystemDirectory,
+#if PLATFORM_WIN
                     SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows),
-                    Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem"));
-            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+                    Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem")
+#else
+                    MacPaths.UsrBin,
+                    MacPaths.UsrSbin,
+                    MacPaths.Bin,
+                    MacPaths.Sbin
+#endif
+                );
 
             // the environment variable names below should use the casing appropriate for the target OS
             // (on Windows it won't matter, but on Unix-like systems, including Cygwin environment on Windows,
@@ -76,9 +95,11 @@ namespace BuildXL.Processes
                 })
                 .Override(new Dictionary<string, string>()
                 {
-                    { "ComSpec", comspec },
                     { "PATH", path },
+#if PLATFORM_WIN
+                    { "ComSpec", comspec },
                     { "PATHEXT", pathExt }
+#endif
                 })
                 .Override(DisallowedTempVariables
                     .Select(tmp => new KeyValuePair<string, string>(tmp, RestrictedTemp)));
@@ -126,13 +147,19 @@ namespace BuildXL.Processes
             return GetEffectiveEnvironmentVariables(pip, new PipFragmentRenderer(pathTable));
         }
 
+
+        private void ReportDuplicateVariable(string key, string existingValue, string ignoredValue)
+        {
+            ReportDuplicateVariable(m_loggingContext, key, existingValue, ignoredValue);
+        }
+
         /// <summary>
         /// Logs a message saying that a duplicate environment variable was encountered.
         /// </summary>
-        public static void ReportDuplicateVariable(string key, string existingValue, string ignoredValue)
+        public static void ReportDuplicateVariable(LoggingContext loggingContext, string key, string existingValue, string ignoredValue)
         {
             Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
-                BuildXL.Utilities.Tracing.Events.StaticContext,
+                loggingContext,
                 key,
                 existingValue,
                 ignoredValue);

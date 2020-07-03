@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
@@ -8,7 +8,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     Read-only cache session.
     /// </summary>
-    public interface IReadOnlyCacheSession : IReadOnlyMemoizationSession, IReadOnlyContentSession
+    public interface IReadOnlyCacheSession : IReadOnlyMemoizationSession, IReadOnlyContentSession, IConfigurablePin
     {
     }
 

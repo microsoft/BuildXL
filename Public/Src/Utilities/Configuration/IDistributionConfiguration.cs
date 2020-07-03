@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
@@ -63,5 +63,16 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the capacity multiplier when we start releasing the workers.
         /// </summary>
         double EarlyWorkerReleaseMultiplier { get; }
+
+        /// <summary>
+        /// Indicates whether the master should wait for the results of materializeoutput step on remote workers.
+        /// </summary>
+        bool FireForgetMaterializeOutput { get; }
+
+        /// <summary>
+        /// Indicates number of times the master should retry failing pips on a different worker.
+        /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
+        /// </summary>
+        int? NumRetryFailedPipsOnAnotherWorker { get; }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -13,21 +13,28 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     public sealed class CompositeSharedOpaqueSealDirectory : SealDirectory
     {
+        private readonly SealDirectoryContentFilter? m_contentFilter;
+
         /// <inheritdoc/>
         public override IReadOnlyList<DirectoryArtifact> ComposedDirectories { get; }
 
         /// <inheritdoc/>
         public override bool IsComposite => true;
-        
+
+        /// <inheritdoc/>
+        public override SealDirectoryContentFilter? ContentFilter => m_contentFilter;
+
         /// <nodoc/>
         public CompositeSharedOpaqueSealDirectory(
             AbsolutePath directoryRoot,
             IReadOnlyList<DirectoryArtifact> composedDirectories,
             PipProvenance provenance,
-            ReadOnlyArray<StringId> tags) 
+            ReadOnlyArray<StringId> tags,
+            SealDirectoryContentFilter? contentFilter) 
                 : base(
                     directoryRoot, 
-                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance), 
+                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
+                    CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                     SealDirectoryKind.SharedOpaque, 
                     provenance, 
                     tags, 
@@ -36,6 +43,7 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(composedDirectories != null);
 
             ComposedDirectories = composedDirectories;
+            m_contentFilter = contentFilter;
         }
 
         internal static CompositeSharedOpaqueSealDirectory InternalDeserializeCompositeSharedOpaqueSealDirectory(PipReader reader)
@@ -45,7 +53,10 @@ namespace BuildXL.Pips.Operations
                 artifact.Path,
                 reader.ReadArray(reader1 => reader1.ReadDirectoryArtifact()),
                 reader.ReadPipProvenance(),
-                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()));
+                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
+                reader.ReadBoolean()
+                    ? new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString())
+                    : (SealDirectoryContentFilter?)null);
 
             directory.SetDirectoryArtifact(artifact);
             Contract.Assume(directory.IsInitialized && directory.Directory == artifact);
@@ -62,6 +73,16 @@ namespace BuildXL.Pips.Operations
             writer.WriteReadOnlyList(ComposedDirectories, (w, v) => w.Write(v));
             writer.Write(Provenance);
             writer.Write(Tags, (w, v) => w.Write(v));
+            if(m_contentFilter != null)
+            {
+                writer.Write(true);
+                writer.Write((byte)m_contentFilter.Value.Kind);
+                writer.Write(m_contentFilter.Value.Regex);
+            }           
+            else
+            {
+                writer.Write(false);
+            }
         }
     }
 }

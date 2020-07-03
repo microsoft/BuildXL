@@ -1,7 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -11,7 +13,9 @@ namespace BuildXL.Cache.Host.Service
     public class HostInfo
     {
         public string StampId { get; }
+
         public string RingId { get; }
+
         public IEnumerable<string> Capabilities { get; }
 
         public HostInfo(string stampId, string ringId, IEnumerable<string> capabilities)
@@ -19,6 +23,38 @@ namespace BuildXL.Cache.Host.Service
             StampId = stampId;
             RingId = ringId;
             Capabilities = new List<string>(capabilities);
+        }
+
+        internal string AppendRingSpecifierIfNeeded(string s, bool useRingIsolation)
+        {
+            if (useRingIsolation)
+            {
+                s += CreateRingSuffix();
+            }
+
+            return s;
+        }
+
+        /// <summary>
+        /// Creates a ring suffix which is compliant in an Azure blob container name
+        /// </summary>
+        private string CreateRingSuffix()
+        {
+            IEnumerable<char> getChars()
+            {
+                // Start with a hyphen
+                yield return '-';
+
+                foreach (var c in RingId)
+                {
+                    if (char.IsLetterOrDigit(c))
+                    {
+                        yield return char.ToLowerInvariant(c);
+                    }
+                }
+            }
+
+            return new string(getChars().ToArray());
         }
     }
 }

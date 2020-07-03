@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -147,12 +147,20 @@ namespace ContentStoreTest.Stores
                             return (pathToContent, iterations);
                         }).ToArray();
 
+                        int nonDuplicatedPuts = 0;
+
                         await ParallelAlgorithms.WhenDoneAsync(24, CancellationToken.None, async (scheduleItem, item) =>
                         {
                             // Put the content into the store w/ hard link
                             var r = await store.PutFileAsync(
                                     context, item.pathToContent, FileRealizationMode.Any, ContentHashType, new PinRequest(pinContext));
                             hashFromPut = r.ContentHash;
+
+                            if (!r.ContentAlreadyExistsInCache)
+                            {
+                                Interlocked.Increment(ref nonDuplicatedPuts);
+                            }
+
                             Clock.Increment();
                             Assert.True(pinContext.Contains(hashFromPut));
 
@@ -162,6 +170,8 @@ namespace ContentStoreTest.Stores
                             }
                         },
                         items);
+
+                        Assert.Equal(1, nonDuplicatedPuts);
                     }
                 }
             });
@@ -223,6 +233,7 @@ namespace ContentStoreTest.Stores
 
                     // Put the content into the store w/ hard link
                     var r = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, null);
+                    Assert.False(r.ContentAlreadyExistsInCache);
                     ContentHash hashFromPut = r.ContentHash;
 
                     byte[] newBytes = ThreadSafeRandom.GetBytes(10);
@@ -296,10 +307,10 @@ namespace ContentStoreTest.Stores
 
                     var result = await store.PutFileAsync(context, sourcePath2, FileRealizationMode.HardLink, contentHash, null);
                     result.ContentHash.Should().Be(contentHash);
-                    using (Stream stream = await FileSystem.OpenAsync(
+                    using (StreamWithLength? stream = await FileSystem.OpenAsync(
                         sourcePath2, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
-                        (await stream.CalculateHashAsync(ContentHashType)).Should().Be(contentHash);
+                        (await stream.Value.CalculateHashAsync(ContentHashType)).Should().Be(contentHash);
                     }
                 }
             });

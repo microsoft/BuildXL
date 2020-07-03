@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -292,7 +292,7 @@ namespace BuildXL.Utilities
 
         internal static FileArtifactWithAttributes Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             return new FileArtifactWithAttributes(
                 reader.ReadAbsolutePath(),
@@ -301,7 +301,7 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
 
             writer.Write(m_path);
             writer.Write(m_rewriteCountAndFileExistence);

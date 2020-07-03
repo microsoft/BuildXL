@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
-using BuildXL.Pips;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
@@ -42,7 +43,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// </remarks>
         bool PopulateGraph(
             [NotNull]Task<Possible<EngineCache>> cache,
-            [CanBeNull]IPipGraph graph,
+            [CanBeNull]IMutablePipGraph graph,
             [NotNull]FrontEndEngineAbstraction engineAbstraction,
             [NotNull]EvaluationFilter evaluationFilter,
             [NotNull]IConfiguration configuration,
@@ -59,6 +60,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>This method is assumed to be called after InitializeHost and ParseConfig</remarks>
         [NotNull]
         IReadOnlyList<string> GetNonScrubbablePaths();
+
+        /// <summary>
+        /// The collection of frontends that are registered with the controller.
+        /// </summary>
+        IEnumerable<IFrontEnd> RegisteredFrontEnds { get; }
     }
 
     /// <summary>

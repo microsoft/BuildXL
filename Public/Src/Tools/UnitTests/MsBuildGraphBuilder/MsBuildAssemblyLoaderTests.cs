@@ -1,8 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Linq;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
@@ -34,7 +33,7 @@ namespace Test.ProjectGraphBuilder
                 Assert.True(succeed);
 
                 // All located assemblies (and MSBuild.exe) should be the ones in the deployment directory
-                Assert.All(locatedAssemblyPaths.Values, locatedAssemblyPath => locatedAssemblyPath.StartsWith(TestDeploymentDir));
+                XAssert.All(locatedAssemblyPaths.Values, locatedAssemblyPath => locatedAssemblyPath.StartsWith(TestDeploymentDir));
                 Assert.True(locatedMsBuildExePath.StartsWith(TestDeploymentDir));
             }
         }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -54,7 +54,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                 }
 
                 listOfSymbolInformation.AddRange(
-                    GetSymbolInformationForNode(new Uri(documentSymbolParams.TextDocument.Uri), nameAndSymbol.Key, firstDeclaration));
+                    GetSymbolInformationForNode(documentSymbolParams.TextDocument.Uri, nameAndSymbol.Key, firstDeclaration));
             }
 
             return listOfSymbolInformation;
@@ -79,7 +79,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                             Kind = GetSymbolKind(declaration),
                             Location = new Location()
                             {
-                                Uri = uri.ToString(),
+                                Uri = uri,
                                 Range = declaration.ToRange(),
                             },
                         },
@@ -102,7 +102,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                     Kind = GetSymbolKind(childNode),
                     Location = new Location()
                     {
-                        Uri = uri.ToString(),
+                        Uri = uri,
                         Range = childNode.ToRange(),
                     },
                 });

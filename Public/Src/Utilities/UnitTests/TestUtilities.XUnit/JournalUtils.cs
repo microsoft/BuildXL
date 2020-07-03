@@ -1,9 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
@@ -25,7 +24,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <returns>An instance of <see cref="IChangeJournalAccessor"/>.</returns>
         public static Possible<IChangeJournalAccessor> TryGetJournalAccessorForTest(VolumeMap volumeMap)
         {
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
 
             var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(volumeMap, path);
 
@@ -39,7 +38,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// </summary>
         public static VolumeMap TryCreateMapOfAllLocalVolumes(LoggingContext loggingContext, IReadOnlyList<string> junctionRoots = null)
         {
-            var volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
+            var volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
 
             // We want to skip volumes that are not local to VM.
             volumeMap.SkipTrackingJournalIncapableVolume = HasRelocatedTempInVm;

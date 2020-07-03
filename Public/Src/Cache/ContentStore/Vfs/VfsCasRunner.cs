@@ -1,29 +1,25 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Native.IO;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Threading.Tasks;
-    using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-    using BuildXL.Cache.ContentStore.Interfaces.Logging;
-    using BuildXL.Cache.ContentStore.Interfaces.Results;
-    using BuildXL.Cache.ContentStore.Interfaces.Stores;
-    using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-    using BuildXL.Cache.ContentStore.Tracing;
-    using BuildXL.Cache.ContentStore.Tracing.Internal;
-    using BuildXL.Native.IO;
-    using static Placeholder;
-
     /// <summary>
     ///     Entry point of the application.
     /// </summary>
@@ -31,19 +27,19 @@ namespace BuildXL.Cache.ContentStore.Vfs
     {
         private Tracer Tracer { get; } = new Tracer(nameof(VfsCasRunner));
 
-        public async Task RunAsync(VfsCasConfiguration configuration)
+        public async Task RunAsync(VfsServiceConfiguration configuration)
         {
             // Create VFS root
-            using (var fileLog = new FileLog((configuration.RootPath / "Bvfs.log").Path))
+            using (var fileLog = new FileLog((configuration.CasConfiguration.RootPath / "Bvfs.log").Path))
             using (var logger = new Logger(fileLog))
             {
                 var fileSystem = new PassThroughFileSystem(logger);
                 var context = new OperationContext(new Context(logger));
 
                 // Map junctions into VFS root
-                foreach (var mount in configuration.VirtualizationMounts)
+                foreach (var mount in configuration.CasConfiguration.VirtualizationMounts)
                 {
-                    CreateJunction(context, source: mount.Value, target: configuration.VfsMountRootPath / mount.Key);
+                    CreateJunction(context, source: mount.Value, target: configuration.CasConfiguration.VfsMountRootPath / mount.Key);
                 }
 
                 var clientContentStore = new ServiceClientContentStore(
@@ -61,14 +57,15 @@ namespace BuildXL.Cache.ContentStore.Vfs
                     fileSystem,
                     logger,
                     scenario: "bvfs" + configuration.ServerGrpcPort,
-                    path => new VirtualizedContentStore(clientContentStore, logger, configuration),
+                    path => new VirtualizedContentStore(clientContentStore, logger, configuration.CasConfiguration),
                     new LocalServerConfiguration(
-                        configuration.DataRootPath,
+                        configuration.CasConfiguration.DataRootPath,
                         new Dictionary<string, AbsolutePath>()
                         {
                             { configuration.CacheName, configuration.ServerRootPath }
                         },
-                        configuration.ServerGrpcPort)))
+                        configuration.ServerGrpcPort,
+                        fileSystem)))
                 {
                     await server.StartupAsync(context).ThrowIfFailure();
 

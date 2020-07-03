@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.IO;
@@ -23,12 +23,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Gets the writable content session.
         /// </summary>
-        private IContentSession ContentSession => (IContentSession)_contentReadOnlySession;
+        public IContentSession ContentSession => (IContentSession)_contentReadOnlySession;
 
         /// <summary>
         ///     Gets the writable memoization session.
         /// </summary>
-        private IMemoizationSession MemoizationSession => (IMemoizationSession)_memoizationReadOnlySession;
+        public IMemoizationSession MemoizationSession => (IMemoizationSession)_memoizationReadOnlySession;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="OneLevelCacheSession" /> class.

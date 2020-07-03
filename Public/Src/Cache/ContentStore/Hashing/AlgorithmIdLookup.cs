@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.DedupNode, NodeDedupIdentifier.NodeAlgorithmId},
 
                 // DedupNodeOrChunk will always end with DedupChunk or DedupNode algorithm IDs. Default to DedupChunk.
-                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId}
+                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
+                {HashType.Murmur,  MurmurHashInfo.MurmurAlgorithmId}
             };
 
         /// <summary>
@@ -38,22 +39,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public static bool IsHashTagValid(ContentHash contentHash)
         {
-            bool isValid = true;
             var hashTag = contentHash[contentHash.ByteLength-1];
 
-            switch (contentHash.HashType)
+            return contentHash.HashType switch
             {
-                case HashType.Vso0:
-                    isValid = hashTag == AlgorithmIdLookup.Find(HashType.Vso0);
-                    break;
-                case HashType.DedupNodeOrChunk:
-                    isValid = hashTag == AlgorithmIdLookup.Find(HashType.DedupNode) || hashTag == AlgorithmIdLookup.Find(HashType.DedupChunk);
-                    break;
-                default:
-                    throw new ArgumentException($"{contentHash.HashType} is not a tagged hash.");
-            }
-
-            return isValid;
+                HashType.Vso0 => hashTag == AlgorithmIdLookup.Find(HashType.Vso0),
+                HashType.DedupNodeOrChunk => hashTag == AlgorithmIdLookup.Find(HashType.DedupNode) ||
+                                             hashTag == AlgorithmIdLookup.Find(HashType.DedupChunk),
+                HashType.Murmur => hashTag == AlgorithmIdLookup.Find(HashType.Murmur),
+                _ => throw new ArgumentException($"{contentHash.HashType} is not a tagged hash.")
+            };
         }
     }
 }

@@ -1,19 +1,72 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
 export {BuildXLSdk};
 
 export const NetFx = BuildXLSdk.NetFx;
 
+@@public
+export const redisPackages = [
+    importFrom("StackExchange.Redis").pkg,
+    ...(BuildXLSdk.isFullFramework 
+        ? [ 
+            // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
+            importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+          ] 
+        : [
+            importFrom("System.IO.Pipelines").pkg,
+            importFrom("System.Threading.Channels").pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            importFrom("Pipelines.Sockets.Unofficial").pkg,
+          ]),
+    ...BuildXLSdk.bclAsyncPackages,
+    // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
+    importFrom("System.Threading.Tasks.Extensions").pkg,
+];
+
+@@public
+export const kustoPackages = [
+    ...(BuildXLSdk.isDotNetCoreBuild ? [
+        importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
+        importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
+        importFrom("Microsoft.IO.RecyclableMemoryStream").pkg,
+    ] : [
+        importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+    ]),
+    importFrom("Microsoft.Azure.Management.Kusto").pkg,
+    importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
+    importFrom("WindowsAzure.Storage").pkg
+];
+
+// Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
+@@public
+export function getSerializationPackages(includeNetStandard: boolean) {
+    return [
+        ...(includeNetStandard && BuildXLSdk.isFullFramework ? [
+            BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+        ] : [
+        ]),
+        importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    ];
+}
+
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const deployment: Deployment.Definition =
@@ -113,6 +166,7 @@ export const deploymentForBuildXL: Deployment.Definition = {
         App.exe,
 
         importFrom("Grpc.Core").pkg,
+        importFrom("Grpc.Core.Api").pkg,
         importFrom("Google.Protobuf").pkg,
 
         ...addIf(qualifier.targetRuntime === "win-x64",

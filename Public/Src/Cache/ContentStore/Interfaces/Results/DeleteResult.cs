@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -26,6 +26,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     throw new ArgumentException($"{code} is an unrecognized value of {nameof(DeleteResult)}.{nameof(ResultCode)}");
             }
         }
+
+        /// <inheritdoc />
+        public override bool Succeeded => IsSuccessfulResult(Code);
 
         /// <summary>
         /// A code that helps caller to make decisions.
@@ -63,19 +66,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, ContentHash contentHash, long evictedSize, long pinnedSize)
+        public DeleteResult(ResultCode resultCode, ContentHash contentHash, long contentSize)
             : base(IsSuccessfulResult(resultCode))
         {
             Code = resultCode;
             ContentHash = contentHash;
-            EvictedSize = evictedSize;
-            PinnedSize = pinnedSize;
+            ContentSize = contentSize;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, string errorMessage, string diagnostics = null)
+        public DeleteResult(ResultCode resultCode, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Code = resultCode;
@@ -84,10 +86,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, Exception exception, string message = null)
+        public DeleteResult(ResultCode resultCode, Exception exception, string? message = null)
             : base(exception, message)
         {
             Code = resultCode;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
+        /// </summary>
+        public DeleteResult(ContentHash contentHash, long contentSize)
+            : this(ResultCode.Success, contentHash, contentSize)
+        {
         }
 
         /// <nodoc />
@@ -110,18 +120,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Gets number of bytes evicted.
         /// </summary>
-        public long EvictedSize { get; }
-
-        /// <summary>
-        ///     Gets byte count remaining pinned across all replicas for associated content hash.
-        /// </summary>
-        public long PinnedSize { get; }
+        public long ContentSize { get; }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Code={Code} Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize}"
+                ? $"Status={Code}"
                 : GetErrorString();
         }
     }

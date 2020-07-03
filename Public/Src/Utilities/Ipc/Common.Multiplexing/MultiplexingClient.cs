@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -51,7 +51,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
 
         private bool m_disconnectRequestedByServer;
 
-        private ILogger Logger { get; }
+        private IIpcLogger Logger { get; }
 
         /// <inheritdoc />
         public IClientConfig Config { get; }
@@ -177,9 +177,9 @@ namespace BuildXL.Ipc.Common.Multiplexing
         private async Task SendRequestAsync(Request request)
         {
             request.Operation.Timestamp.Request_BeforeSendTime = DateTime.UtcNow;
-            Logger.Verbose("Sending request...");
+            Logger.Verbose($"Sending request #{request.Id}");
             await request.SerializeAsync(m_stream);
-            Logger.Verbose("Request sent: " + request);
+            Logger.Verbose($"Sent request #{request.Id}");
             request.Operation.Timestamp.Request_AfterSendTime = DateTime.UtcNow;
 
             if (!request.Operation.ShouldWaitForServerAck)
@@ -193,9 +193,9 @@ namespace BuildXL.Ipc.Common.Multiplexing
         private async Task<Response> ReceiveResponseAsync(CancellationToken token)
         {
             DateTime beforeDeserialize = DateTime.UtcNow;
-            Logger.Verbose("Deserializing response...");
             var response = await Response.DeserializeAsync(m_stream, token);
-            Logger.Verbose("Response received: " + response);
+            Logger.Verbose($"Received response #{response.RequestId}");
+
             response.Result.Timestamp.Response_BeforeDeserializeTime = beforeDeserialize;
             response.Result.Timestamp.Response_AfterDeserializeTime = DateTime.UtcNow;
 

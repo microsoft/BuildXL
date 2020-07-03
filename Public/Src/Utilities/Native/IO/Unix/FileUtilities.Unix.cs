@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,9 +11,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
@@ -24,7 +24,7 @@ namespace BuildXL.Native.IO.Unix
         /// <summary>
         /// A concrete native FileSystem implementation based on Unix APIs
         /// </summary>
-        private static readonly FileSystemUnix s_fileSystem = new FileSystemUnix();
+        private readonly FileSystemUnix m_fileSystem;
 
         /// <inheritdoc />
         public PosixDeleteMode PosixDeleteMode { get; set; }
@@ -34,8 +34,12 @@ namespace BuildXL.Native.IO.Unix
         /// </summary>
         public FileUtilitiesUnix()
         {
+            m_fileSystem = new Unix.FileSystemUnix();
             PosixDeleteMode = PosixDeleteMode.RunFirst;
         }
+
+        /// <inheritdoc />
+        internal IFileSystem FileSystem => m_fileSystem;
 
         /// <inheritdoc />
         public bool? DoesLogicalDriveHaveSeekPenalty(char driveLetter) => false;
@@ -67,7 +71,7 @@ namespace BuildXL.Native.IO.Unix
 
             shouldDelete = shouldDelete ?? (p => true);
 
-            EnumerateDirectoryResult result = s_fileSystem.EnumerateDirectoryEntries(
+            EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
                 path,
                 (name, attributes) =>
                 {
@@ -106,9 +110,7 @@ namespace BuildXL.Native.IO.Unix
 
             if (deleteRootDirectory && remainingChildCount == 0)
             {
-                bool success = false;
-
-                success = Helpers.RetryOnFailure(
+                bool success = Helpers.RetryOnFailure(
                     finalRound =>
                     {
                         // An exception will be thrown on failure, which will trigger a retry, this deletes the path itself
@@ -119,9 +121,10 @@ namespace BuildXL.Native.IO.Unix
                         return true;
                     });
 
-                if (!success)
+                if (!success && Directory.Exists(path))
                 {
-                    throw new BuildXLException(path);
+                    var code = (int)Tracing.LogEventId.RetryOnFailureException;
+                    throw new BuildXLException($"Failed to delete directory: {path}.  Search for DX{code:0000} log messages to see why.");
                 }
             }
 
@@ -132,7 +135,7 @@ namespace BuildXL.Native.IO.Unix
         public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(
+        public Possible<string, DeletionFailure> TryDeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
             ITempCleaner tempDirectoryCleaner = null)
@@ -140,18 +143,18 @@ namespace BuildXL.Native.IO.Unix
             try
             {
                 DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
-                return Unit.Void;
+                return path;
             }
             catch (BuildXLException ex)
             {
-                return new RecoverableExceptionFailure(ex);
+                return new DeletionFailure(path, ex);
             }
         }
 
         /// <inheritdoc />
         public bool Exists(string path)
         {
-            var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: false);
+            var maybeExistence = m_fileSystem.TryProbePathExistence(path, followSymlink: false);
             return maybeExistence.Succeeded && maybeExistence.Result != PathExistence.Nonexistent;
         }
 
@@ -237,31 +240,28 @@ namespace BuildXL.Native.IO.Unix
 
             var statBuffer = new StatBuffer();
 
-            unsafe
+            Timespec creationTime = Timespec.CreateFromUtcDateTime(timestamps.CreationTime);
+            Timespec lastAccessTime = Timespec.CreateFromUtcDateTime(timestamps.AccessTime);
+            Timespec lastModificationTime = Timespec.CreateFromUtcDateTime(timestamps.LastWriteTime);
+            Timespec lastStatusChangeTime = Timespec.CreateFromUtcDateTime(timestamps.LastChangeTime);
+
+            statBuffer.TimeCreation = creationTime.Tv_sec;
+            statBuffer.TimeNSecCreation = creationTime.Tv_nsec;
+
+            statBuffer.TimeLastAccess = lastAccessTime.Tv_sec;
+            statBuffer.TimeNSecLastAccess = lastAccessTime.Tv_nsec;
+
+            statBuffer.TimeLastModification = lastModificationTime.Tv_sec;
+            statBuffer.TimeNSecLastModification = lastModificationTime.Tv_nsec;
+
+            statBuffer.TimeLastStatusChange = lastStatusChangeTime.Tv_sec;
+            statBuffer.TimeNSecLastStatusChange = lastStatusChangeTime.Tv_nsec;
+
+            int result = SetTimeStampsForFilePath(path, followSymlink, statBuffer);
+
+            if (result != 0)
             {
-                Timespec creationTime = Timespec.CreateFromUtcDateTime(timestamps.CreationTime);
-                Timespec lastAccessTime = Timespec.CreateFromUtcDateTime(timestamps.AccessTime);
-                Timespec lastModificationTime = Timespec.CreateFromUtcDateTime(timestamps.LastWriteTime);
-                Timespec lastStatusChangeTime = Timespec.CreateFromUtcDateTime(timestamps.LastChangeTime);
-
-                statBuffer.TimeCreation = creationTime.Tv_sec;
-                statBuffer.TimeNSecCreation = creationTime.Tv_nsec;
-
-                statBuffer.TimeLastAccess = lastAccessTime.Tv_sec;
-                statBuffer.TimeNSecLastAccess = lastAccessTime.Tv_nsec;
-
-                statBuffer.TimeLastModification = lastModificationTime.Tv_sec;
-                statBuffer.TimeNSecLastModification = lastModificationTime.Tv_nsec;
-
-                statBuffer.TimeLastStatusChange = lastStatusChangeTime.Tv_sec;
-                statBuffer.TimeNSecLastStatusChange = lastStatusChangeTime.Tv_nsec;
-
-                int result = SetTimeStampsForFilePath(path, followSymlink, statBuffer);
-
-                if (result != 0)
-                {
-                    throw new BuildXLException("Failed to open a file to set its timestamps - error: " + Marshal.GetLastWin32Error());
-                }
+                throw new BuildXLException("Failed to open a file to set its timestamps - error: " + Marshal.GetLastWin32Error());
             }
         }
 
@@ -270,12 +270,9 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFile(path, followSymlink, ref statBuffer) != 0)
             {
-                if (StatFile(path, followSymlink, ref statBuffer) != 0)
-                {
-                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its timestamps - error: {Marshal.GetLastWin32Error()}"));
-                }
+                throw new BuildXLException(I($"Failed to stat file '{path}' to get its timestamps - error: {Marshal.GetLastWin32Error()}"));
             }
 
             var creationTime = new Timespec() { Tv_sec = statBuffer.TimeCreation, Tv_nsec = statBuffer.TimeNSecCreation };
@@ -297,15 +294,12 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
-            {
-                int result = StatFile(path, followSymlink, ref statBuffer);
+            int result = StatFile(path, followSymlink, ref statBuffer);
 
-                device = unchecked((ulong) statBuffer.DeviceID);
-                inode = unchecked((ulong) statBuffer.InodeNumber);
+            device = unchecked((ulong) statBuffer.DeviceID);
+            inode = unchecked((ulong) statBuffer.InodeNumber);
 
-                return result;
-            }
+            return result;
         }
 
         /// <inheritdoc />
@@ -338,7 +332,7 @@ namespace BuildXL.Native.IO.Unix
                     if (predicate != null)
                     {
                         SafeFileHandle destinationHandle;
-                        OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                        OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                             filePath,
                             FileDesiredAccess.GenericRead,
                             FileShare.Read | FileShare.Delete,
@@ -364,8 +358,14 @@ namespace BuildXL.Native.IO.Unix
                     using (FileStream stream = CreateReplacementFile(filePath, FileShare.Delete, openAsync: true))
                     {
                         await stream.WriteAsync(bytes, 0, bytes.Length);
+                    }
 
-                        onCompletion?.Invoke(stream.SafeFileHandle);
+                    if (onCompletion != null)
+                    {
+                        using (var file = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Delete))
+                        {
+                            onCompletion(file.SafeFileHandle);
+                        }
                     }
 
                     return true;
@@ -395,7 +395,7 @@ namespace BuildXL.Native.IO.Unix
                         if (predicate != null)
                         {
                             SafeFileHandle destinationHandle;
-                            OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                            OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                                 destination,
                                 FileDesiredAccess.GenericRead,
                                 FileShare.Read | FileShare.Delete,
@@ -418,20 +418,33 @@ namespace BuildXL.Native.IO.Unix
                             }
                         }
 
-                        using (FileStream destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
+                        using (var destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
                         {
                             await sourceStream.CopyToAsync(destinationStream);
-                            onCompletion?.Invoke(sourceStream.SafeFileHandle, destinationStream.SafeFileHandle);
+                            var mode = GetFilePermissionsForFilePath(source, followSymlink: false);
+                            var result = SetFilePermissionsForFilePath(destination, checked((FilePermissions)mode), followSymlink: false);
+                            if (result < 0)
+                            {
+                                throw new BuildXLException($"Failed to set permissions for file copy at '{destination}' - error: {Marshal.GetLastWin32Error()}");
+                            }
+                        }
+
+                        if (onCompletion != null)
+                        {
+                            using (var dest = File.Open(destination, FileMode.Open, FileAccess.Read, FileShare.Delete))
+                            {
+                                onCompletion(sourceStream.SafeFileHandle, dest.SafeFileHandle);
+                            }
                         }
                     }
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -439,7 +452,7 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
+            return Task.Run(
                 () => ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     {
@@ -448,25 +461,20 @@ namespace BuildXL.Native.IO.Unix
                             DeleteFile(destination);
                         }
 
+                        m_fileSystem.CreateDirectory(Path.GetDirectoryName(destination));
                         File.Move(source, destination);
-                        return true;
                     },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+                    ex => { throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex); }));
         }
 
         /// <inheritdoc />
         public void CloneFile(string source, string destination, bool followSymlink)
         {
             var flags = followSymlink ? CloneFileFlags.CLONE_NONE : CloneFileFlags.CLONE_NOFOLLOW;
-
-            unsafe
+            int result = Interop.Unix.IO.CloneFile(source, destination, flags);
+            if (result != 0)
             {
-                int result = Interop.MacOS.IO.CloneFile(source, destination, flags);
-
-                if (result != 0)
-                {
-                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
-                }
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
             }
         }
 
@@ -480,7 +488,7 @@ namespace BuildXL.Native.IO.Unix
             Func<SafeFileHandle, long, TResult> handleStream)
         {
             SafeFileHandle handle;
-            var openResult = s_fileSystem.TryCreateOrOpenFile(
+            var openResult = m_fileSystem.TryCreateOrOpenFile(
                        path,
                        desiredAccess,
                        shareMode,
@@ -492,14 +500,14 @@ namespace BuildXL.Native.IO.Unix
             {
                 openResult
                     .CreateFailureForError()
-                    .Annotate($"{nameof(s_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
+                    .Annotate($"{nameof(m_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
                     .Throw();
             }
 
             using (handle)
             {
                 Contract.Assert(handle != null && !handle.IsInvalid);
-                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(path);
+                var maybeTarget = m_fileSystem.TryGetReparsePointTarget(path);
                 var length = maybeTarget.Succeeded ? maybeTarget.Result.Length : new FileInfo(path).Length;
                 return handleStream(handle, length);
             }
@@ -515,19 +523,23 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
             Contract.Requires(path != null);
 
-            // We are immediately re-creating this path, therefore it is vital to ensure the delete is totally done
-            // (otherwise, we may transiently fail to recreate the path with ERROR_ACCESS_DENIED; see DeleteFile remarks)
+            // doing this create/delete/move dance to ensure that the replacement file at location 'path' gets
+            // a new inode and thus have a different identity from the old one (on EXT4 filesystems, a simple
+            // "rm file && touch file" is very likely to result in 'file' getting the same inode as it had before)
+            var tempFile = FileUtilities.GetTempFileName();
             DeleteFile(path, waitUntilDeletionFinished: true);
+            MoveFileAsync(tempFile, path).GetAwaiter().GetResult();
+
             return openAsync
-                ? CreateAsyncFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete)
-                : CreateFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete);
+                ? CreateAsyncFileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete)
+                : CreateFileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete);
         }
 
         /// <inheritdoc />
         public Possible<string> GetFileName(string path) => Path.GetFileName(path);
 
-        /// <inheritdoc />
-        public string GetKnownFolderPath(Guid knownFolder) => throw new NotImplementedException();
+        /// <summary>Doesn't know any known folders, i.e., always returns <c>null</c>.</summary>
+        public string GetKnownFolderPath(Guid knownFolder) => null;
 
         /// <inheritdoc />
         public string GetUserSettingsFolder(string appName)
@@ -541,8 +553,7 @@ namespace BuildXL.Native.IO.Unix
             }
 
             var settingsFolder = Path.Combine(homeFolder, "." + ToCamelCase(appName));
-
-            s_fileSystem.CreateDirectory(settingsFolder);
+            m_fileSystem.CreateDirectory(settingsFolder);
             return settingsFolder;
         }
 
@@ -560,17 +571,13 @@ namespace BuildXL.Native.IO.Unix
         public uint GetHardLinkCount(string path)
         {
             var statBuffer = new StatBuffer();
-
-            unsafe
+            if (StatFile(path, true, ref statBuffer) != 0)
             {
-                if (StatFile(path, true, ref statBuffer) != 0)
-                {
-                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its hardlink count - error: {Marshal.GetLastWin32Error()}"));
-                }
-
-                // TODO: Change hardlink count return type to ulong.
-                return unchecked((uint) statBuffer.HardLinks);
+                throw new BuildXLException(I($"Failed to stat file '{path}' to get its hardlink count - error: {Marshal.GetLastWin32Error()}"));
             }
+
+            // TODO: Change hardlink count return type to ulong.
+            return unchecked((uint) statBuffer.HardLinks);
         }
 
         /// <inheritdoc />
@@ -610,7 +617,7 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
             Contract.EnsuresOnThrow<BuildXLException>(true);
 
-            return s_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
+            return m_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
         }
 
         /// <inheritdoc />
@@ -618,7 +625,7 @@ namespace BuildXL.Native.IO.Unix
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
-            int result = s_fileSystem.GetFilePermission(path, false, true);
+            int result = m_fileSystem.GetFilePermission(path, false, true);
 
             FilePermissions permissions = checked((FilePermissions) result);
             return permissions.HasFlag(FilePermissions.S_IWUSR)
@@ -655,7 +662,7 @@ namespace BuildXL.Native.IO.Unix
                 permissions |= FilePermissions.S_IXGRP | FilePermissions.S_IXOTH;
             }
 
-            int result = s_fileSystem.GetFilePermission(path, false, true);
+            int result = m_fileSystem.GetFilePermission(path, false, true);
 
             FilePermissions currentPermissions = checked((FilePermissions) result);
 

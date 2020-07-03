@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -13,6 +13,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Enqueues an asynchronous log action for the given event
         /// </summary>
-        void EnqueueLogAction(int eventId, Action logAction, string eventName);
+        void EnqueueLogAction(int eventId, Action logAction, string? eventName);
     }
 }

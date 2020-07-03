@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Utilities.Tracing;
 
@@ -28,7 +28,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        DispatchReconcile,
+        DispatchBlob,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        DispatchUpdateMetadata,
 
         /// <nodoc />
         DispatchAddLocationsHashes,
@@ -68,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        GetAndDeserializeReconcileData,
+        GetAndDeserializeEventData,
 
         //
         // Send events counters
@@ -77,6 +81,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         PublishAddLocations,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        PublishUpdateContentHashList,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -89,6 +97,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         PublishReconcile,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        PublishLargeEvent,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -117,6 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         SentAddLocationsEvents,
+
         /// <nodoc />
         SentAddLocationsHashes,
 
@@ -133,6 +146,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         SentTouchLocationsHashes,
 
         /// <nodoc />
-        SentReconcileEvents,
+        SentStoredEvents,
+
+        /// <nodoc />
+        SentUpdateMetadataEntryEvents,
     }
 }

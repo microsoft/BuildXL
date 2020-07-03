@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,9 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
     /// <summary>
     /// MsBuild global properties: a readonly case insensitive string dictionary
     /// </summary>
+    /// <remarks>
+    /// MSBuild expects property values to be non-null. Any null value passed at construction time will be swaped by an empty string
+    /// </remarks>
     public class GlobalProperties : ReadOnlyDictionary<string, string>
     {
         /// <nodoc/>
@@ -21,7 +24,8 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         }
 
         /// <nodoc/>
-        public GlobalProperties(IEnumerable<KeyValuePair<string, string>> dictionary): base(dictionary.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase))
+        public GlobalProperties(IEnumerable<KeyValuePair<string, string>> dictionary): 
+            base(dictionary.ToDictionary(kvp => kvp.Key, kvp => kvp.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase))
         { }
 
         /// <inheritdoc/>

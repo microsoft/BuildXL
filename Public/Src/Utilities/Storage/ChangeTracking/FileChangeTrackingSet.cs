@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -2001,7 +2001,8 @@ namespace BuildXL.Storage.ChangeTracking
 
                             // For annotating path table, we essentially follow the symlink for checking existence, so that we can mark 
                             // directory symlink, if a path is a directory symlink, as a possible container in the path table.
-                            pathExistence = (FileUtilities.GetFileAttributesByHandle(currentPathHandle) & FileAttributes.Directory) != 0
+                            var attributes = FileUtilities.GetFileAttributesByHandle(currentPathHandle);
+                            pathExistence = ((attributes & FileAttributes.ReparsePoint) == 0 && (attributes & FileAttributes.Directory) != 0)
                                     ? PathExistence.ExistsAsDirectory
                                     : PathExistence.ExistsAsFile;
 

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -23,6 +23,27 @@ namespace BuildXL.Scheduler.Fingerprints
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     public readonly struct ObservedPathSet
     {
+        /// <summary>
+        /// Constants used for labeling.
+        /// </summary>
+        public readonly struct Labels
+        {
+            /// <summary>
+            /// Label for <see cref="ObservedPathSet.UnsafeOptions"/>.
+            /// </summary>
+            public const string UnsafeOptions = nameof(ObservedPathSet.UnsafeOptions);
+
+            /// <summary>
+            /// Label for <see cref="ObservedPathSet.ObservedAccessedFileNames"/>.
+            /// </summary>
+            public const string ObservedAccessedFileNames = nameof(ObservedPathSet.ObservedAccessedFileNames);
+
+            /// <summary>
+            /// Label for <see cref="Paths"/>.
+            /// </summary>
+            public const string Paths = nameof(ObservedPathSet.Paths);
+        }
+
         /// <summary>
         /// Failure describing why deserialization of a path set failed (<see cref="ObservedPathSet.TryDeserialize"/>).
         /// </summary>
@@ -90,12 +111,12 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Computes content hash of this object (by serializing it and hashing the serialized bytes).
         /// </summary>
-        public async Task<ContentHash> ToContentHash(PathTable pathTable, PathExpander pathExpander)
+        public async Task<ContentHash> ToContentHash(PathTable pathTable, PathExpander pathExpander, bool preservePathCasing)
         {
             using (var pathSetBuffer = new System.IO.MemoryStream())
             using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
             {
-                Serialize(pathTable, writer, pathExpander);
+                Serialize(pathTable, writer, preservePathCasing, pathExpander);
                 return await ContentHashingUtilities.HashContentStreamAsync(pathSetBuffer);
             }
         }
@@ -107,6 +128,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public void Serialize(
             PathTable pathTable,
             BuildXLWriter writer,
+            bool preservePathCasing,
             PathExpander pathExpander = null,
             Action<BuildXLWriter, AbsolutePath> pathWriter = null,
             Action<BuildXLWriter, StringId> stringWriter = null)
@@ -147,7 +169,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     // Try to tokenize the path if the pathExpander is given.
                     string expanded =  pathExpander?.ExpandPath(pathTable, entry.Path) ?? entry.Path.ToString(pathTable);
-                    if (!OperatingSystemHelper.IsUnixOS)
+                    if (!OperatingSystemHelper.IsUnixOS && !preservePathCasing)
                     {
                         expanded = expanded.ToUpperInvariant();
                     }

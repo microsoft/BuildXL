@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -106,6 +106,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
                 var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session);
                 Assert.True(v1.Equals(v2));
             }
+        }
+
+        [Fact]
+        public void EqualsTrueForInvalidSessions()
+        {
+            var v1 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
+            var v2 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
+            Assert.True(v1.Equals(v2));
         }
 
         [Fact]

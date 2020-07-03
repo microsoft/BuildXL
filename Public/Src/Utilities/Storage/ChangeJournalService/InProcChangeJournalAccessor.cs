@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -15,7 +15,6 @@ namespace BuildXL.Storage.ChangeJournalService
 {
     /// <summary>
     /// Change journal accessor that directly operates upon a local volume's change journal.
-    /// Since accessing a volume is a privileged operation, this accessor only works in an elevated process.
     /// </summary>
     public sealed class InProcChangeJournalAccessor : IChangeJournalAccessor
     {

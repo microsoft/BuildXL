@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -12,19 +12,27 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
     /// <summary>
     /// Provides facilities to run tests on the engine with Ninja specs
     /// </summary>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class NinjaPipExecutionTestBase : DsTestWithCacheBase
     {
         // Default Ninja build file and its location (which we imply to be the project root)
         protected const string DefaultSpecFileName = "build.ninja";
         protected const string DefaultProjectRoot = "ninjabuild";
         private string DefaultSpecFileLocation => $"{DefaultProjectRoot}/{DefaultSpecFileName}";
+
+        /// <summary>
+        /// <see cref="CmdHelper.CmdX64"/>
+        /// </summary>
+        protected string CMD => CmdHelper.CmdX64;
 
         /// <summary>
         /// Root to the source enlistment root
@@ -34,11 +42,14 @@ namespace Test.BuildXL.FrontEnd.Ninja
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
+        protected override bool DisableDefaultSourceResolver => true;
+
         protected NinjaPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Nuget.ETWLogger.Log);
@@ -84,7 +95,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         {
             var content =
 $@"rule r
-    command = cmd /C ""echo Hello World > $out""
+    command = {CMD} /C ""echo Hello World > $out""
 build {outputFileName}: r
 build all: phony {outputFileName}
 ";
@@ -95,10 +106,10 @@ build all: phony {outputFileName}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo r > $out""
+    command = {CMD} /C ""echo r > $out""
 
 rule ruleB
-    command = cmd /C ""COPY $in {secondOutput}""
+    command = {CMD} /C ""COPY $in {secondOutput}""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB {firstOutput}
@@ -112,10 +123,10 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo r > $out""
+    command = {CMD} /C ""echo r > $out""
 
 rule ruleB
-    command = cmd /C ""COPY $in {secondOutput} && DEL /f $in""
+    command = {CMD} /C ""COPY $in {secondOutput} && DEL /f $in""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB {firstOutput}
@@ -129,10 +140,10 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo hola > {firstOutput}""
+    command = {CMD} /C ""echo hola > {firstOutput}""
 
 rule ruleB
-    command = cmd /C ""COPY {firstOutput} $out""
+    command = {CMD} /C ""COPY {firstOutput} $out""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB || {firstOutput}
@@ -147,7 +158,7 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule copy_respfile
-  command = cmd.exe /C ""COPY {responseFile} {output}""
+  command = {CMD} /C ""COPY {responseFile} {output}""
   rspfile = {responseFile}
   rspfile_content = {responseFileContent}
 
@@ -166,7 +177,7 @@ build all: phony {output}
   description = $DESC
 
 rule WRITE_TEST
-    command = cmd /C ""echo test > $out""
+    command = {CMD} /C ""echo test > $out""
 
 build {phonyOutputFile1}: WRITE_TEST
 
@@ -175,7 +186,7 @@ build {phonyOutputFile2}: WRITE_TEST
 build all: phony {phonyOutputFile1} {phonyOutputFile2}
 
 build {dummyFile}: CUSTOM_COMMAND all
-  COMMAND = cmd.exe /C ""echo works > {effectiveFile}""
+  COMMAND = {CMD} /C ""echo works > {effectiveFile}""
   DESC = Install the project...
   pool = console
   restat = 1
@@ -193,7 +204,6 @@ build install: phony {dummyFile}
             bool includeProjectRoot = true,
             bool includeSpecFile = true) => $@"
 config({{
-    disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'Ninja',

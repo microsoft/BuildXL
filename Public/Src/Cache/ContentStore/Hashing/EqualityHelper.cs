@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
-
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Gets a hash code for a given sequence.
         /// </summary>
-        public static int SequenceHashCode<TSource>(this IEnumerable<TSource> sequence, IEqualityComparer<TSource> comparer = null)
+        public static int SequenceHashCode<TSource>(this IEnumerable<TSource>? sequence, IEqualityComparer<TSource>? comparer = null)
         {
             if (sequence == null)
             {
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             // Looking for the first 4 elements only for performance reasons.
             foreach (var e in sequence.Take(4))
             {
-                result = (result * 397) ^ comparer.GetHashCode(e);
+                result = (result * 397) ^ comparer.GetHashCode(e!);
             }
 
             return result;
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Returns true if two sequences are equal.
         /// </summary>
-        public static bool SequenceEqual<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer = null)
+        public static bool SequenceEqual<TSource>(this IEnumerable<TSource>? first, IEnumerable<TSource>? second, IEqualityComparer<TSource>? comparer = null)
         {
             if (comparer == null)
             {

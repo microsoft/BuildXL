@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -35,9 +35,9 @@ namespace BuildXL.Utilities.Collections
         /// However, in practice many sets are small, and thus we can reduce an order of magnitude in memory consumption by avoiding HashSet.
         /// </remarks>
         private const int MaxArrayLength = 4;
-        private readonly object m_value;
+        private readonly object? m_value;
 
-        private CompactSet(object value)
+        private CompactSet(object? value)
         {
             Contract.Requires(value == null || value is T[] || value is HashSet<T> || value is T);
             m_value = value;
@@ -48,7 +48,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static CompactSet<T> FromArray(T[] array)
         {
-            Contract.Requires(array != null);
+            Contract.RequiresNotNull(array);
 
             if (array.Length == 0)
             {
@@ -235,11 +235,11 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public struct Enumerator : IEnumerator<T>
         {
-            private readonly object m_value;
+            private readonly object? m_value;
             private int m_index;
             private HashSet<T>.Enumerator m_hashSetEnumerator;
 
-            internal Enumerator(object value)
+            internal Enumerator(object? value)
             {
                 m_value = value;
                 m_index = -1;
@@ -262,7 +262,7 @@ namespace BuildXL.Utilities.Collections
                         return m_hashSetEnumerator.Current;
                     }
 
-                    return (T)m_value;
+                    return (T)m_value!;
                 }
             }
 

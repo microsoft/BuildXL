@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.LogGen.Generators;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Diagnostic = Microsoft.CodeAnalysis.Diagnostic;
@@ -44,9 +43,9 @@ namespace BuildXL.LogGen
             m_errorReport = errorReport;
         }
 
-        public bool DiscoverLoggingSites(out List<LoggingSite> loggingSites)
+        public bool DiscoverLoggingSites(out List<LoggingClass> loggingClasses)
         {
-            loggingSites = new List<LoggingSite>();
+            loggingClasses = new List<LoggingClass>();
 
             // First create a compilation to act upon values and run codegen
             var syntaxTrees = new ConcurrentBag<SyntaxTree>();
@@ -115,43 +114,39 @@ namespace BuildXL.LogGen
 
             foreach (var symbol in symbols)
             {
-                foreach (var member in symbol.GetMembers())
+                if (GetAttribute(symbol, errorsByFile, nameof(LoggingDetailsAttribute), out var loggingDetailsData))
                 {
-                    IMethodSymbol method = member as IMethodSymbol;
-                    if (method != null)
+                    if (!TryParseLoggingDetailsAttribute(symbol, loggingDetailsData, out var loggingDetails))
                     {
-                        AttributeData attributeData;
-                        if (GetGeneratedEventAttribute(method, out attributeData))
+                        return false;
+                    }
+
+                    var loggingClass = new LoggingClass(loggingDetails, symbol);
+
+                    foreach (var member in symbol.GetMembers())
+                    {
+                        if (member is IMethodSymbol method)
                         {
-                            // Check the errors we stashed off to see if any pretain to this event. If so, display them
-                            // as they may cause us to generate the event incorrectly
-                            bool eventHasErrors = false;
-                            IReadOnlyList<Diagnostic> diagnostics;
-                            if (errorsByFile.TryGetValue(method.Locations[0].SourceTree.FilePath, out diagnostics))
+                            if (!method.IsAbstract && 
+                                method.MethodKind != MethodKind.Constructor && method.MethodKind != MethodKind.StaticConstructor &&  // okay to have constructores
+                                method.MethodKind != MethodKind.PropertyGet && method.MethodKind != MethodKind.PropertySet)  // okay to have properties (for now).
                             {
-                                foreach (Diagnostic d in diagnostics)
-                                {
-                                    if (d.Location.SourceSpan.OverlapsWith(method.Locations[0].SourceSpan) ||
-                                        d.Location.SourceSpan.OverlapsWith(attributeData.ApplicationSyntaxReference.Span))
-                                    {
-                                        m_errorReport.ReportError(d.ToString());
-                                        eventHasErrors = true;
-                                    }
-                                }
+                                m_errorReport.ReportError(member, $"All methods must be abstract. Invalid method: {method.Name}");
                             }
 
-                            if (!eventHasErrors)
+                            if (GetAttribute(method, errorsByFile, nameof(GeneratedEventAttribute), out var generatedEventData))
                             {
-                                LoggingSite site;
-                                if (!ParseAndValidateLogSite(method, attributeData, out site))
+                                if (!ParseAndValidateLogSite(method, generatedEventData, out var site))
                                 {
                                     return false;
                                 }
 
-                                loggingSites.Add(site);
+                                loggingClass.Sites.Add(site);
                             }
                         }
                     }
+
+                    loggingClasses.Add(loggingClass);
                 }
             }
 
@@ -174,10 +169,10 @@ namespace BuildXL.LogGen
             {
                 switch (argument.Key)
                 {
-                    case "EventLevel":
+                    case nameof(GeneratedEventAttribute.EventLevel):
                         if (argument.Value.Value.GetType() != typeof(int))
                         {
-                            m_errorReport.ReportError(method, "Unsupported EventLevel value '{0}'", argument.Value.Value.ToString());
+                            m_errorReport.ReportError(method, $"Unsupported {nameof(GeneratedEventAttribute.EventLevel)} value '{argument.Value.Value.ToString()}'");
                             return false;
                         }
 
@@ -203,24 +198,24 @@ namespace BuildXL.LogGen
                                 loggingSite.Level = Level.Verbose;
                                 break;
                             default:
-                                m_errorReport.ReportError(method, "Unsupported EventLevel value '{0}'", value);
+                                m_errorReport.ReportError(method, $"Unsupported {nameof(GeneratedEventAttribute.EventLevel)} value '{value}'");
                                 break;
                         }
 
                         break;
-                    case "EventGenerators":
+                    case nameof(GeneratedEventAttribute.EventGenerators):
                         loggingSite.EventGenerators = (EventGenerators)argument.Value.Value;
                         break;
-                    case "Message":
+                    case nameof(GeneratedEventAttribute.Message):
                         loggingSite.SpecifiedMessageFormat = EscapeMessageString((string)argument.Value.Value);
                         break;
-                    case "EventOpcode":
+                    case nameof(GeneratedEventAttribute.EventOpcode):
                         loggingSite.EventOpcode = (byte)argument.Value.Value;
                         break;
-                    case "Keywords":
+                    case nameof(GeneratedEventAttribute.Keywords):
                         loggingSite.EventKeywords = (int)argument.Value.Value;
                         break;
-                    case "EventTask":
+                    case nameof(GeneratedEventAttribute.EventTask):
                         loggingSite.EventTask = (ushort)argument.Value.Value;
                         break;
                 }
@@ -228,13 +223,13 @@ namespace BuildXL.LogGen
 
             if (string.IsNullOrWhiteSpace(loggingSite.SpecifiedMessageFormat))
             {
-                m_errorReport.ReportError(method, "Message is required");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} is required");
                 return false;
             }
 
             if (loggingSite.SpecifiedMessageFormat.StartsWith(EventConstants.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
             {
-                m_errorReport.ReportError(method, "Message is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the LoggingContext. This method declares '{0}' as that parameter", method.Parameters[1].Name);
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the {nameof(LoggingContext)}. This method declares '{method.Parameters[1].Name}' as that parameter");
                 return false;
             }
 
@@ -249,7 +244,7 @@ namespace BuildXL.LogGen
                 {
                     if (normalizedMessageFormat[curlyBracketPos] == '}')
                     {
-                        m_errorReport.ReportError(method, "Message format error: Found '}}' without matching '{{'");
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found '}}' without matching '{{'");
                         return false;
                     }
 
@@ -259,7 +254,7 @@ namespace BuildXL.LogGen
                 {
                     if (normalizedMessageFormat[curlyBracketPos] == '{')
                     {
-                        m_errorReport.ReportError(method, "Message format error: Found too many nested '{{'");
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found too many nested '{{'");
                         return false;
                     }
 
@@ -267,13 +262,13 @@ namespace BuildXL.LogGen
                     int idx;
                     if (!int.TryParse(format.Split(':')[0], out idx))
                     {
-                        m_errorReport.ReportError(method, "Message format error: Unknown parameter: {{{0}}}", format);
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Unknown parameter: {{{format}}}");
                         return false;
                     }
 
                     if (idx < 0 || idx >= loggingSite.FlattenedPayload.Count)
                     {
-                        m_errorReport.ReportError(method, "Message format error: Index out of range: {{{0}}}", format);
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Index out of range: {{{format}}}");
                         return false;
                     }
 
@@ -285,7 +280,7 @@ namespace BuildXL.LogGen
 
             if (openBracketPos >= 0)
             {
-                m_errorReport.ReportError(method, "Message format error: Found '{{' without matching '}}'");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found '{{' without matching '}}'");
                 return false;
             }
 
@@ -293,7 +288,7 @@ namespace BuildXL.LogGen
             // trigger the error
             if (loggingSite.EventGenerators == EventGenerators.None)
             {
-                m_errorReport.ReportError(method, "EventGenerators not specified");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.EventGenerators)}  not specified");
                 return false;
             }
 
@@ -313,7 +308,7 @@ namespace BuildXL.LogGen
             }
             else
             {
-                m_errorReport.ReportError(method, "First method argument must be a LoggingContext");
+                m_errorReport.ReportError(method, $"First method argument must be a {nameof(LoggingContext)}");
                 return false;
             }
 
@@ -321,12 +316,114 @@ namespace BuildXL.LogGen
             {
                 switch (attribute.AttributeClass.Name)
                 {
-                    case "EventKeywordsTypeAttribute":
+                    case nameof(EventKeywordsTypeAttribute):
                         loggingSite.KeywordsType = (INamedTypeSymbol)attribute.ConstructorArguments[0].Value;
                         break;
-                    case "EventTasksTypeAttribute":
+                    case nameof(EventTasksTypeAttribute):
                         loggingSite.TasksType = (INamedTypeSymbol)attribute.ConstructorArguments[0].Value;
                         break;
+                }
+            }
+
+            return true;
+        }
+
+        public bool TryParseLoggingDetailsAttribute(ISymbol symbolForError, AttributeData attributeData, out LoggingDetailsAttribute result)
+        {
+            if (attributeData.ConstructorArguments.Length > 0 && attributeData.ConstructorArguments[0].Value is string)
+            {
+                var name = (string)attributeData.ConstructorArguments[0].Value;
+                if (string.IsNullOrEmpty(name))
+                {
+                    m_errorReport.ReportError(symbolForError, $"Unsupported constructor argument value {nameof(LoggingDetailsAttribute.Name)}: Cannot be null or empty.");
+                    result = null;
+                    return false;
+                }
+                result = new LoggingDetailsAttribute(name);
+            }
+            else
+            {
+                m_errorReport.ReportError(symbolForError, "First constructor argument should be a string");
+                result = null;
+                return false;
+            }
+
+            // Pull the data out of the GeneratedEventAttribute
+            foreach (var argument in attributeData.NamedArguments)
+            {
+                switch (argument.Key)
+                {
+                    case nameof(LoggingDetailsAttribute.Name):
+                        if (!ParseValue<string>(
+                            argument.Value, 
+                            symbolForError,
+                            value => string.IsNullOrEmpty(value) ? $"'{nameof(LoggingDetailsAttribute.Name)}' cannot be null or empty." : null,
+                            out var name))
+                        {
+                            result = null;
+                            return false;
+                        }
+
+                        result.Name = name;
+
+                        break;
+                    case nameof(LoggingDetailsAttribute.InstanceBasedLogging):
+                        if (!ParseValue<bool>(
+                            argument.Value,
+                            symbolForError,
+                            _ => null,
+                            out var instanceBasedLogging))
+                        {
+                            result = null;
+                            return false;
+                        }
+
+                        result.InstanceBasedLogging = instanceBasedLogging;
+                        break;
+
+                    case nameof(LoggingDetailsAttribute.EmitDebuggingInfo):
+                        if (!ParseValue<bool>(
+                            argument.Value,
+                            symbolForError,
+                            _ => null,
+                            out var emitDebuggingInfo))
+                        {
+                            result = null;
+                            return false;
+                        }
+
+                        result.EmitDebuggingInfo = emitDebuggingInfo;
+                        break;
+
+                    default:
+                        m_errorReport.ReportError(symbolForError, $"Unsupported attribute property '{argument.Key}' with value '{argument.Value.Value.ToString()}'");
+                        result = null;
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool ParseValue<TResult>(TypedConstant argument, ISymbol symbolForError, Func<TResult, string> validate, out TResult result)
+        {
+            var value = argument.Value;
+            if (value.GetType() != typeof(TResult))
+            {
+                m_errorReport.ReportError(symbolForError, $"Unsupported argument '{value.ToString()}'. Argument is of  type: '{value.GetType().FullName}', expected: '{typeof(TResult).FullName}'.");
+                result = default(TResult);
+                return false;
+            }
+
+            result = (TResult)value;
+
+            if (validate != null)
+            {
+                var errorMessage = validate(result);
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    m_errorReport.ReportError(symbolForError, $"Unsupported argument. Invalid value: '{errorMessage}'.");
+                    return false;
                 }
             }
 
@@ -353,14 +450,32 @@ namespace BuildXL.LogGen
             { "\r", @"\r" },
         };
 
-        private static bool GetGeneratedEventAttribute(IMethodSymbol symbol, out AttributeData attributeData)
+        private bool GetAttribute(ISymbol symbol, MultiValueDictionary<string, Diagnostic> errorsByFile, string attributeClassName, out AttributeData attributeData)
         {
             foreach (var attribute in symbol.GetAttributes())
             {
-                if (attribute.AttributeClass.Name == "GeneratedEventAttribute")
+                if (attribute.AttributeClass.Name == attributeClassName)
                 {
                     attributeData = attribute;
-                    return true;
+
+                    // Check the errors we stashed off to see if any pertain to this event. If so, display them
+                    // as they may cause us to generate the event incorrectly
+                    bool eventHasErrors = false;
+                    IReadOnlyList<Diagnostic> diagnostics;
+                    if (errorsByFile.TryGetValue(symbol.Locations[0].SourceTree.FilePath, out diagnostics))
+                    {
+                        foreach (var d in diagnostics)
+                        {
+                            if (d.Location.SourceSpan.OverlapsWith(symbol.Locations[0].SourceSpan) ||
+                                d.Location.SourceSpan.OverlapsWith(attributeData.ApplicationSyntaxReference.Span))
+                            {
+                                m_errorReport.ReportError(d.ToString());
+                                eventHasErrors = true;
+                            }
+                        }
+                    }
+
+                    return !eventHasErrors;
                 }
             }
 

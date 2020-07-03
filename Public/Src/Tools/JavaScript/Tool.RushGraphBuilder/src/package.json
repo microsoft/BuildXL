@@ -1,0 +1,16 @@
+{
+  "name": "@microsoft/rush-graph-builder",
+  "version": "1.0.0",
+  "description": "Builds a graph by inspecting a rush-based repo.",
+  "license": "MIT",
+  "author": "Microsoft Build Accelerator",
+  "homepage": "https://github.com/Microsoft/BuildXL",
+  "main": "out/main.js",
+  "dependencies": {
+    "typescript": "3.4.3",
+    "semver": "7.2.1",
+    "path": "0.12.7",
+    "fs": "0.0.2",
+    "@types/node": "13.11.1"
+  }
+}

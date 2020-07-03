@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -68,6 +68,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new NinjaResolverSettings(ninjaResolver, pathRemapper);
                 case ICMakeResolverSettings cmakeResolver:
                     return new CMakeResolverSettings(cmakeResolver, pathRemapper);
+                case IRushResolverSettings rushResolver:
+                    return new RushResolverSettings(rushResolver, pathRemapper);
+                case IYarnResolverSettings yarnResolver:
+                    return new YarnResolverSettings(yarnResolver, pathRemapper);
                 default:
                     Contract.Assume(false, "Unexpected type of resolver settings.");
                     return null;

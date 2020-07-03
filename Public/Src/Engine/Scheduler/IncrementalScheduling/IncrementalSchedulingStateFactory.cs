@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -44,7 +44,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt)
+            PreserveOutputsInfo preserveOutputSalt)
         {
             Contract.Requires(atomicSaveToken.IsValid);
             Contract.Requires(pipGraph != null);
@@ -66,7 +66,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {
@@ -83,7 +83,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public IIncrementalSchedulingState LoadOrReuseIgnoringFileEnvelope(
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {
@@ -91,12 +91,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             return LoadOrReuseInternal(FileEnvelopeId.Invalid, pipGraph, configuration, preserveOutputSalt, incrementalSchedulingStatePath, schedulerState);
         }
 
-
         private IIncrementalSchedulingState LoadOrReuseInternal(
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {
@@ -106,7 +105,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             if (!m_analysisMode && schedulerState != null && schedulerState.IncrementalSchedulingState != null)
             {
-                IIncrementalSchedulingState reusedState = schedulerState.IncrementalSchedulingState.Reuse(m_loggingContext, pipGraph, configuration, preserveOutputSalt, m_tempDirectoryCleaner);
+                IIncrementalSchedulingState reusedState = schedulerState.IncrementalSchedulingState.ReuseFromEngineState(
+                    m_loggingContext,
+                    pipGraph,
+                    configuration,
+                    preserveOutputSalt,
+                    incrementalSchedulingStatePath,
+                    m_tempDirectoryCleaner);
 
                 if (reusedState != null)
                 {

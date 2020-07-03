@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -647,7 +648,7 @@ namespace BuildXL.Execution.Analyzer
                 m_writer.WritePropertyName("exe");
                 m_writer.WriteValue(process.GetToolName(context.PathTable).ToString(context.StringTable));
 
-                if (process.Semaphores != null && process.Semaphores.Length > 0)
+                if (process.Semaphores.Length > 0)
                 {
                     m_writer.WritePropertyName("semaphores");
                     m_writer.WriteStartArray();
@@ -731,10 +732,10 @@ namespace BuildXL.Execution.Analyzer
                         m_writer.WriteValue(processPerformance.KernelTime.Ticks);
                     }
 
-                    if (processPerformance.PeakMemoryUsage != 0)
+                    if (processPerformance.MemoryCounters.PeakWorkingSetMb != 0)
                     {
-                        m_writer.WritePropertyName("peakMemory");
-                        m_writer.WriteValue(processPerformance.PeakMemoryUsage);
+                        m_writer.WritePropertyName("peakMemoryMb");
+                        m_writer.WriteValue(processPerformance.MemoryCounters.PeakWorkingSetMb);
                     }
 
                     if (processPerformance.IO.GetAggregateIO().TransferCount > 0)
@@ -780,16 +781,16 @@ namespace BuildXL.Execution.Analyzer
                             m_writer.WritePropertyName("total");
                             m_writer.WriteValue(monitoring.Total);
 
-                            if (monitoring.TotalWhitelisted > 0)
+                            if (monitoring.TotalAllowlisted > 0)
                             {
-                                m_writer.WritePropertyName("whitelisted");
-                                m_writer.WriteValue(monitoring.TotalWhitelisted);
+                                m_writer.WritePropertyName("allowlisted");
+                                m_writer.WriteValue(monitoring.TotalAllowlisted);
                             }
 
-                            if (monitoring.NumFileAccessesWhitelistedButNotCacheable > 0)
+                            if (monitoring.NumFileAccessesAllowlistedButNotCacheable > 0)
                             {
-                                m_writer.WritePropertyName("whitelistedButNotCacheable");
-                                m_writer.WriteValue(monitoring.NumFileAccessesWhitelistedButNotCacheable);
+                                m_writer.WritePropertyName("allowlistedButNotCacheable");
+                                m_writer.WriteValue(monitoring.NumFileAccessesAllowlistedButNotCacheable);
                             }
                         }
 

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Utilities
                 var atom = allAtoms[j];
                 char firstChar = atom[0];
 
-                builder.Append(!SymbolAtom.IsValidIdentifierAtomStartChar(firstChar) ? '$' : firstChar);
+                builder.Append(!SymbolAtom.IsValidIdentifierAtomStartChar(firstChar) ? '_' : firstChar);
                 // If the character is not valid as a first character, but valid as a second one, we add it as well
                 // This is useful for things like package.1.2, so we don't drop the version numbers completely
                 if (!SymbolAtom.IsValidIdentifierAtomStartChar(firstChar) && SymbolAtom.IsValidIdentifierAtomChar(firstChar))
@@ -54,7 +54,7 @@ namespace BuildXL.FrontEnd.Utilities
                 for (int i = 1; i < atom.Length; i++)
                 {
                     var aChar = atom[i];
-                    builder.Append(!SymbolAtom.IsValidIdentifierAtomChar(aChar) ? '$' : aChar);
+                    builder.Append(!SymbolAtom.IsValidIdentifierAtomChar(aChar) ? '_' : aChar);
                 }
 
                 if (j != allAtoms.Length - 1)

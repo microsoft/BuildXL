@@ -85,7 +85,7 @@ namespace BuildXLVsPackage {
     };
     
     @@public
-    export const vsix = Tool.CreateZipPackage.run({
+    export const vsix = CreateZipPackage.zip({
         outputFileName: "BuildXL.vs.vsix",
         useUriEncoding: true,
         inputDirectory: Deployment.deployToDisk({

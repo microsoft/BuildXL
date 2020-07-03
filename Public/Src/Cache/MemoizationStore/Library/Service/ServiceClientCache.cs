@@ -1,10 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-extern alias Async;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -71,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <nodoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
         }
@@ -95,7 +92,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
+        System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
         {
             return EnumerateStrongFingerprints(context);
         }

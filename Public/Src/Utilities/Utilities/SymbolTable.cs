@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
@@ -35,7 +35,7 @@ namespace BuildXL.Utilities
         public SymbolTable(StringTable stringTable)
             : base(stringTable, false, IdentifierDelimiter)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
         }
 
         /// <summary>
@@ -54,8 +54,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static async Task<SymbolTable> DeserializeAsync(BuildXLReader reader, Task<StringTable> stringTableTask)
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(stringTableTask);
 
             var state = await ReadSerializationStateAsync(reader, stringTableTask);
             var stringTable = await stringTableTask;

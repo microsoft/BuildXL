@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -83,7 +83,7 @@ namespace BuildXL.Utilities
         /// <param name="valueFactory">the value factory for creating the value</param>
         public LazyEx(Func<T> valueFactory)
         {
-            Contract.Requires(valueFactory != null);
+            Contract.RequiresNotNull(valueFactory);
 
             m_value = valueFactory;
         }

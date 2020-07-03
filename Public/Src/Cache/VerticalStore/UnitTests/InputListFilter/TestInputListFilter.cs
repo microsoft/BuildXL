@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -93,7 +93,7 @@ namespace BuildXL.Cache.Tests
             {
                 using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
                 {
-                    pathSet.Serialize(pathTable, writer);
+                    pathSet.Serialize(pathTable, writer, preservePathCasing: false);
                 }
 
                 pathSetBuffer.Seek(0, SeekOrigin.Begin);

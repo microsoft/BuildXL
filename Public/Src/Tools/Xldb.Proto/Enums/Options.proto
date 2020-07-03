@@ -23,11 +23,12 @@ enum Options{
     DependsOnWindowsAppData = 1024;
     DependsOnWindowsProgramData = 2048;
     RequiresAdmin = 4096;
-    HasPreserveOutputWhitelist = 8192;
-
+    HasPreserveOutputAllowlist = 8192;
     // (1 << 14) | AllowPreserveOutputs
     IncrementalTool = 16400;
     RequireGlobalDependencies = 32768;
-
     EnforceWeakFingerprintAugmentation = 65536;
+    TrustStaticallyDeclaredAccesses = 131072;
+    Uncancellable = 262144;
+    PreservePathSetCasing = 524288;
 }

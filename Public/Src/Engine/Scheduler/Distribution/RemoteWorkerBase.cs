@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 
@@ -17,6 +17,19 @@ namespace BuildXL.Scheduler.Distribution
             : base(workerId, name)
         {
             Contract.Ensures(IsRemote);
+        }
+
+        private int m_effectiveTotalProcessSlots;
+
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => m_effectiveTotalProcessSlots;
+
+        /// <summary>
+        /// Set effective total process slots based on the StatusReported event came from the remote worker
+        /// </summary>
+        public void SetEffectiveTotalProcessSlots(int newEffectiveProcessSlots)
+        {
+            m_effectiveTotalProcessSlots = newEffectiveProcessSlots;
         }
     }
 }

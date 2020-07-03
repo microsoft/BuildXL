@@ -2,26 +2,25 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "SandboxedProcess.hpp"
-#include <execinfo.h>
-#include <errno.h>
 
-SandboxedProcess::SandboxedProcess(pid_t processId, SandboxedPip *pip)
+#pragma mark SandboxedProcess Implementation
+
+SandboxedProcess::SandboxedProcess(pid_t processId, std::shared_ptr<SandboxedPip> pip)
 {
     assert(pip != nullptr);
+    log_debug("Initializing with pid (%d) and pip (%#llX) from: %{public}s", processId, pip->GetPipId(), __FUNCTION__);
+    
     pip_ = pip;
     id_  = processId;
-
     bzero(path_, sizeof(path_));
     pathLength_ = 0;
-
-    if (pip_ == nullptr)
-    {
-        throw "No valid SandboxedPip provided on SandboxedProcess construction!";
-    }
 }
 
 SandboxedProcess::~SandboxedProcess()
 {
-    log("Releasing process object %d (%#llX) - freed from %{public}s", id_, pip_->getPipId(),  __FUNCTION__);
-    if (pip_ != nullptr) delete pip_;
+    log_debug("Releasing process object %d (%#llX) - freed from %{public}s", id_, pip_->GetPipId(),  __FUNCTION__);
+    if (pip_ != nullptr)
+    {
+        pip_.reset();
+    }
 }

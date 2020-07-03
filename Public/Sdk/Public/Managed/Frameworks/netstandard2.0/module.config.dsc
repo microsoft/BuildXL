@@ -3,7 +3,6 @@
 
 module({
     name: "Sdk.Managed.Frameworks.NetStandard2.0",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
         f`netstandard2.0.dsc`,
     ]

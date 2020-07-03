@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -15,8 +14,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stats;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tasks;
+
+#nullable enable
 
 // disable 'Missing XML comment for publicly visible type' warnings.
 #pragma warning disable 1591
@@ -73,8 +72,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly Counter _reconstructCallExceptionCounter;
 
         private readonly bool _traceDiagnosticEvents;
+        private readonly TimeSpan _longOperationDurationThreshold;
 
-        public ContentStoreInternalTracer(bool traceDiagnosticEvents = false)
+        public ContentStoreInternalTracer(ContentStoreSettings? settings)
+            : this(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? true, settings.GetLongOperationDurationThreshold())
+        { }
+
+        public ContentStoreInternalTracer(bool traceDiagnosticEvents, TimeSpan longOperationDurationThreshold)
             : base(FileSystemContentStoreInternal.Component)
         {
             CallCounters.Add(_createHardLinkCallCounter = new CallCounter(CreateHardLinkCallName));
@@ -99,6 +103,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _counters.Add(_reconstructCallExceptionCounter = new Counter(ReconstructCallExceptionName));
 
             _traceDiagnosticEvents = traceDiagnosticEvents;
+            _longOperationDurationThreshold = longOperationDurationThreshold;
         }
 
         public override CounterSet GetCounters()
@@ -220,14 +225,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.OpenStreamStart(context, contentHash);
         }
 
-        public override void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result)
+        public override void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.OpenStreamStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.OpenStreamStop(context, contentHash, result);
+            base.OpenStreamStop(context, contentHash, result, successSeverity: DiagnosticLevelSeverity(result.Duration));
         }
 
         public void PinStart(Context context, ContentHash contentHash)
@@ -247,6 +252,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 _eventSource.PinStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
+            // Unlike PlaceFile, PutFile and OpenStream
+            // pin operations are traced by this tracer all the time because it is very important to understand
+            // whether a local pin was successful or not.
             base.PinStop(context, input, result);
         }
 
@@ -267,14 +275,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PlaceFileStart(context, contentHash, path, accessMode, replacementMode, realizationMode);
         }
 
-        public override void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode)
+        public override void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PlaceFileStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode);
+            base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode, successSeverity: DiagnosticLevelSeverity(result.Duration));
         }
 
         public override void PutFileStart(Context context, AbsolutePath path, FileRealizationMode mode, HashType hashType, bool trusted)
@@ -297,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PutFileStart(context, path, mode, contentHash, trusted);
         }
 
-        public override void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode)
+        public override void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
@@ -305,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
-            base.PutFileStop(context, result, trusted, path, mode);
+            base.PutFileStop(context, result, trusted, path, mode, successSeverity: DiagnosticLevelSeverity(result.Duration));
         }
 
         public override void PutStreamStart(Context context, HashType hashType)
@@ -328,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PutStreamStart(context, contentHash);
         }
 
-        public override void PutStreamStop(Context context, PutResult result)
+        public override void PutStreamStop(Context context, PutResult result, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
@@ -336,7 +344,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
-            base.PutStreamStop(context, result);
+            base.PutStreamStop(context, result, DiagnosticLevelSeverity(result.Duration));
         }
 
         public void CreateHardLink(
@@ -361,7 +369,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            DebugCore(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms");
+            TraceDiagnostic(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms", TimeSpan.FromMilliseconds(ms));
         }
 
         public void PlaceFileCopy(Context context, AbsolutePath path, ContentHash contentHash, TimeSpan duration)
@@ -379,7 +387,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            DebugCore(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
+            TraceDiagnostic(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms", TimeSpan.FromMilliseconds(ms));
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)
@@ -398,6 +406,29 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             var ms = (long)duration.TotalMilliseconds;
             Debug(context, $"{Name}.ReconstructDirectory() {ms}ms ContentCount=[{contentCount}] ContentSize=[{contentSize}]");
+        }
+
+        public (ContentDirectorySnapshot<ContentFileInfo> contentInfo, long contentCount, long contentSize) Reconstruct(
+            Context context,
+            Func<Stopwatch, (ContentDirectorySnapshot<ContentFileInfo> contentInfo, long contentCount, long contentSize)> callback)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            (ContentDirectorySnapshot<ContentFileInfo> contentInfo, long contentCount, long contentSize) result = default;
+            try
+            {
+                result = callback(stopwatch);
+                return result;
+            }
+            catch (Exception exception)
+            {
+                ReconstructDirectoryException(context, exception);
+                throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                ReconstructDirectory(context, stopwatch.Elapsed, result.contentCount, result.contentSize);
+            }
         }
 
         public void ReconstructDirectoryException(Context context, Exception exception)
@@ -431,13 +462,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _evictBytesCount.Add(result.EvictedSize);
             _evictFilesCount.Add(result.EvictedFiles);
 
+            // Eviction messages are not "diagnostic"-level messages and we should trace them all the time
+            // regardless of _traceDiagnosticEvents flag.
             if (context.IsEnabled)
             {
                 TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms Hash={input.ToShortString()} Size={result.EvictedSize} Replicas={result.ReplicaCount} Age={AgeAsString(result.Age)} EffAge={AgeAsString(result.EffectiveAge)}");
             }
         }
 
-        private string AgeAsString(TimeSpan? timeSpan)
+        private string? AgeAsString(TimeSpan? timeSpan)
         {
             if (timeSpan == null)
             {
@@ -511,15 +544,29 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                DebugCore(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
+                TraceDiagnostic(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms", duration);
             }
 
             _hashContentFileCallCounter.Completed(duration.Ticks);
         }
 
-        private void DebugCore(Context context, string message)
+        /// <summary>
+        /// Gets severity level for potentially diagnostic messages that could be promoted to 'Debug' level if
+        /// configured.
+        /// </summary>
+        private Severity DiagnosticLevelSeverity(TimeSpan operationDuration)
         {
-            Trace(_traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic, context, message);
+            if (operationDuration > _longOperationDurationThreshold)
+            {
+                return Severity.Debug;
+            }
+
+            return _traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic;
+        }
+
+        private void TraceDiagnostic(Context context, string message, TimeSpan operationDuration)
+        {
+            Trace(DiagnosticLevelSeverity(operationDuration), context, message);
         }
 
         public void PutFileExistingHardLinkStart()

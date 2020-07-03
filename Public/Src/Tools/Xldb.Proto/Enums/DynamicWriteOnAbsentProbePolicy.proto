@@ -1,0 +1,19 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum DynamicWriteOnAbsentProbePolicy {
+    option allow_alias = true;
+
+    DynamicWriteOnAbsentProbePolicy_UNSPECIFIED = 0;
+
+    IgnoreNothing = 0;
+    IgnoreDirectoryProbes = 1;
+    IgnoreFileProbes = 2;
+    IgnoreAll = 4;
+}

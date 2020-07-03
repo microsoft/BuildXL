@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         public static void SerializeToJSON<T>(this T obj, Stream stream)
         {
             Contract.Requires(obj != null);
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
 
             var settings = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
             var serializer = new DataContractJsonSerializer(typeof(T), settings);
@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// </summary>
         public static T DeserializeFromJSON<T>(this Stream stream)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
 
             var settings = new DataContractJsonSerializerSettings {UseSimpleDictionaryFormat = true};
             var serializer = new DataContractJsonSerializer(typeof(T), settings);
@@ -47,8 +47,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <param name="count">Number of bytes to read.</param>
         public static async Task<int> ReadBytes(this Stream stream, byte[] buffer, int count)
         {
-            Contract.Requires(stream != null);
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(stream);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(count <= buffer.Length);
 
             int bytesRead;
@@ -77,8 +77,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <param name="bufferSize">Size of the buffer to fill for writes</param>
         public static async Task CopyToWithFullBufferAsync(this Stream stream, Stream destination, int bufferSize)
         {
-            Contract.Requires(stream != null);           
-            Contract.Requires(destination != null);
+            Contract.RequiresNotNull(stream);           
+            Contract.RequiresNotNull(destination);
             Contract.Requires(stream.CanRead);
             Contract.Requires(destination.CanWrite);
             Contract.Requires(bufferSize > 0);

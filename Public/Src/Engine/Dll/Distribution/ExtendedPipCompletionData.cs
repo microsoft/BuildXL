@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Pips;
@@ -42,5 +42,7 @@ namespace BuildXL.Engine.Distribution
         internal TaskSourceSlim<ExecutionResult> StepExecutionCompleted { get; set; } = TaskSourceSlim.Create<ExecutionResult>();
 
         internal ExecutionResult ExecutionResult { get; set; }
+
+        internal bool PreservePathSetCasing { get; set; }
     }
 }

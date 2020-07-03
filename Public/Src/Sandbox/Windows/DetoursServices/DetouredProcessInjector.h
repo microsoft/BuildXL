@@ -75,23 +75,6 @@ private:
         }
     }
 
-#pragma warning( push )
-#pragma warning( disable: 4302 4310 4311 4826 )
-    // Convert a handle to uint64_t
-    static inline uint64_t HandleToUint64(HANDLE value)
-    {
-        if (s_is64BitProcess)
-        {
-            return static_cast<uint64_t>(reinterpret_cast<int64_t>(value));
-        }
-        else {
-            // Generally we don't want to sign extend the handle, only in case of the INVALID_HANDLE_VALUE. The compiler
-            // helpfully provides a warning when sign-extending pointers, therefore disable above warnings
-            return value == INVALID_HANDLE_VALUE ? (uint64_t)(int64_t)(int32_t)INVALID_HANDLE_VALUE : (uint64_t)value;
-        }
-    }
-#pragma warning( pop )
-
     // Duplicate handle for the specified process and convert the new handle to uint64
     static inline uint64_t DuplicateHandleToUint64(HANDLE processHandle, HANDLE value)
     {
@@ -201,5 +184,35 @@ public:
     DetouredProcessInjector() = delete;
     DetouredProcessInjector(const DetouredProcessInjector &) = delete;
     DetouredProcessInjector& operator=(DetouredProcessInjector const &) = delete;
+
+#pragma warning( push )
+#pragma warning( disable: 4302 4310 4311 4826 )
+    // Convert a handle to uint64_t
+    static inline uint64_t HandleToUint64(HANDLE value)
+    {
+        if (s_is64BitProcess)
+        {
+            return static_cast<uint64_t>(reinterpret_cast<int64_t>(value));
+        }
+        else {
+            // Generally we don't want to sign extend the handle, only in case of the INVALID_HANDLE_VALUE. The compiler
+            // helpfully provides a warning when sign-extending pointers, therefore disable above warnings
+            return value == INVALID_HANDLE_VALUE ? (uint64_t)(int64_t)(int32_t)INVALID_HANDLE_VALUE : (uint64_t)value;
+        }
+    }
+#pragma warning( pop )
+
+    inline void GetInjectionData(
+        HANDLE processHandle,
+        bool& isCurrent64BitProcess,
+        bool& isCurrentWow64Process,
+        bool& isProcessWow64,
+        bool& needsRemoteInjection)
+    {
+        isCurrent64BitProcess = s_is64BitProcess;
+        isCurrentWow64Process = s_isWow64Process;
+        isProcessWow64 = isWow64Process(processHandle);
+        needsRemoteInjection = NeedRemoteInjection(processHandle);
+    }
 };
 

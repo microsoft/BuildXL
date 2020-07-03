@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = 1;
 
             EarlyWorkerReleaseMultiplier = 0.5;
+            EarlyWorkerRelease = true;
         }
 
         /// <nodoc />
@@ -37,6 +38,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = template.MinimumWorkers;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
+            FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
+            NumRetryFailedPipsOnAnotherWorker = template.NumRetryFailedPipsOnAnotherWorker;
         }
 
         /// <inhertidoc />
@@ -72,5 +75,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double EarlyWorkerReleaseMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public bool FireForgetMaterializeOutput { get; set; }
+
+        /// <inheritdoc />
+        public int? NumRetryFailedPipsOnAnotherWorker { get; set; }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -26,26 +26,26 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Initializes a new instance of the <see cref="BoolResult"/> class.
         /// </summary>
         [Obsolete("Please use BoolResult(string, string) instead.")]
-        protected BoolResult(bool succeeded, string errorMessage, string diagnostics = null)
+        protected BoolResult(bool succeeded, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.RequiresNotNullOrEmpty(errorMessage);
             _succeeded = succeeded;
         }
 
         /// <summary>
         /// Creates a new instance of a failed result.
         /// </summary>
-        public BoolResult(string errorMessage, string diagnostics = null)
+        public BoolResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.RequiresNotNullOrEmpty(errorMessage);
         }
 
         /// <summary>
         /// Creates a new instance of a failed result.
         /// </summary>
-        public BoolResult(Exception exception, string message = null)
+        public BoolResult(Exception exception, string? message = null)
             : base(exception, message)
         {
         }
@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="BoolResult" /> class.
         /// </summary>
-        public BoolResult(ResultBase other, string message = null)
+        public BoolResult(ResultBase other, string? message = null)
             : base(other, message)
         {
         }
@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is BoolResult other && Equals(other);
         }
@@ -104,13 +104,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Overloads | operator to behave as OR operator.
         /// </summary>
-        public static BoolResult operator |(BoolResult result1, BoolResult result2)
+        public static BoolResult operator |(BoolResult? result1, BoolResult? result2)
         {
+            // One of the arguments may be null but not both.
+
+            if (result1 == null)
+            {
+                Contract.AssertNotNull(result2);
+                return result2;
+            }
+
+            if (result2 == null)
+            {
+                Contract.AssertNotNull(result1);
+                return result1;
+            }
+
             if (result1.Succeeded)
             {
                 return result1;
             }
-            else if (result2.Succeeded)
+
+            if (result2.Succeeded)
             {
                 return result2;
             }
@@ -124,25 +139,5 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Implicit conversion operator from <see cref="BoolResult"/> to <see cref="bool"/>.
         /// </summary>
         public static implicit operator bool(BoolResult result) => result.Succeeded;
-
-        /// <summary>
-        /// Merges two strings.
-        /// </summary>
-        private static string Merge(string s1, string s2, string separator)
-        {
-            if (s1 == null)
-            {
-                return s2;
-            }
-
-            if (s2 == null)
-            {
-                return s1;
-            }
-
-            separator = separator ?? string.Empty;
-
-            return $"{s1}{separator}{s2}";
-        }
     }
 }

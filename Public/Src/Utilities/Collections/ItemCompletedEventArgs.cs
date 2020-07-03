@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -18,7 +18,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public ItemCompletedEventArgs(TItem item, TTask task)
         {
-            Contract.Requires(task != null);
+            Contract.RequiresNotNull(task);
             Contract.Requires(task.IsCompleted);
             Item = item;
             Task = task;

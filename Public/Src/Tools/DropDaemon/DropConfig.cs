@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 
@@ -38,12 +38,12 @@ namespace Tool.DropDaemon
         public TimeSpan NagleTime = DefaultNagleTimeForAssociate;
 
         /// <summary>
-        ///     Used to compute drop expiration date (<see cref="Microsoft.VisualStudio.Services.Drop.App.Core.IDropServiceClient.CreateAsync"/>).
+        ///     Used to compute drop expiration date (<see cref="Microsoft.VisualStudio.Services.Drop.App.Core.IDropServiceClient.CreateAsync(string, bool, DateTime?, bool, System.Threading.CancellationToken)"/>).
         /// </summary>
         public TimeSpan Retention { get; }
 
         /// <summary>
-        ///     Timeout for http requests (<see cref="Microsoft.VisualStudio.Services.Content.Common.ArtifactHttpClientFactory.ArtifactHttpClientFactory"/>).
+        ///     Timeout for http requests (<see cref="Microsoft.VisualStudio.Services.Content.Common.ArtifactHttpClientFactory.ArtifactHttpClientFactory(Microsoft.VisualStudio.Services.Common.VssCredentials, TimeSpan?, Microsoft.VisualStudio.Services.Content.Common.Tracing.IAppTraceSource, System.Threading.CancellationToken)"/>).
         /// </summary>
         public TimeSpan HttpSendTimeout { get; }
 
@@ -66,6 +66,11 @@ namespace Tool.DropDaemon
         ///     Log directory.
         /// </summary>
         public string LogDir { get; }
+
+        /// <summary>
+        ///     File name for artifact-side logs
+        /// </summary>
+        public string ArtifactLogName { get; }
 
         #endregion
 
@@ -113,7 +118,9 @@ namespace Tool.DropDaemon
             bool? verbose = null,
             bool? enableTelemetry = null,
             bool? enableChunkDedup = null,
-            string logDir = null)
+            string logDir = null,
+            string artifactLogName = null,
+            int? batchSize = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -124,6 +131,8 @@ namespace Tool.DropDaemon
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             EnableChunkDedup = enableChunkDedup ?? DefaultEnableChunkDedup;
             LogDir = logDir;
+            ArtifactLogName = artifactLogName;
+            BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
         }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -21,7 +21,6 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         public Process Process => (Process)Pip;
 
-       
         /// <summary>
         /// Process weight
         /// </summary>
@@ -29,7 +28,7 @@ namespace BuildXL.Scheduler
         /// If process weight is defined as greater than the minimum weight in the specs, use it. 
         /// Otherwise, use the weight based on historic cpu usage.
         /// </remarks>
-        public int Weight => Process.Weight > Process.MinWeight ? Process.Weight : m_weightBasedOnHistoricCpuUsage;
+        public int Weight => Math.Max(Process.Weight, m_weightBasedOnHistoricCpuUsage);
 
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }
@@ -43,9 +42,14 @@ namespace BuildXL.Scheduler
         public bool Executed { get; set; }
 
         /// <summary>
-        /// The expected RAM utilization of the pip
+        /// The expected memory usage for the pip
         /// </summary>
-        public int? ExpectedRamUsageMb;
+        public ProcessMemoryCounters? ExpectedMemoryCounters;
+
+        /// <summary>
+        /// Historic perf data
+        /// </summary>
+        public ProcessPipHistoricPerfData? HistoricPerfData;
 
         /// <summary>
         /// SemaphoreResources
@@ -62,7 +66,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
 
-    private readonly int m_weightBasedOnHistoricCpuUsage;
+        private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,
@@ -70,9 +74,10 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
+            int maxRetryLimitForStoppedWorker = 0,
             ushort cpuUsageInPercents = 0,
             Pip pip = null)
-            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, pip)
+            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip)
         {
             if (cpuUsageInPercents > 100)
             {

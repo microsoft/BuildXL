@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return new ObjectResult<ContentStoreConfiguration>($"ContentStoreConfiguration not present at path=[{jsonPath}]");
             }
 
-            using (var stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
             {
                 configuration = stream.DeserializeFromJSON<ContentStoreConfiguration>();
             }

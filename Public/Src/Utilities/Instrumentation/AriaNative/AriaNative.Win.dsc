@@ -14,17 +14,14 @@ namespace AriaNative {
     };
 
     const needNativeAria = Context.getCurrentHost().os === "win" && BuildXLSdk.Flags.isMicrosoftInternal;
-
-    const platform: "x86" | "x64" = "x64";
-    const AriaPkg = importFrom("Aria.Cpp.SDK").withQualifier({targetFramework: "netcoreapp3.0"}).pkg;
+    
+    const platform = "x64";
+    const AriaPkgContents = importFrom("Aria.Cpp.SDK.win-x64").Contents.all;
     const WindowsSdk = importFrom("WindowsSdk").withQualifier({platform: platform});
     const VisualCpp = importFrom("VisualCpp").withQualifier({platform: platform});
+    const native = importFrom("Sdk.Native").withQualifier({platform: platform});
 
-    const ariaWinIncludeDir = Transformer.sealDirectory(
-        d`${AriaPkg.contents.root}/win-x64/tools/include`,
-        globR(d`${AriaPkg.contents.root}/win-x64/tools/include`));
-
-    const native = importFrom("Sdk.Native").withQualifier({platform: platform, configuration: qualifier.configuration});
+    const ariaWinIncludeDir = Transformer.reSealPartialDirectory(AriaPkgContents, r`win-x64/tools/include`, "win");
 
     export const clRunnerDefaultValue = native.Templates.nativeBuildersClRunnerTemplate.merge({
         preprocessorSymbols: [],
@@ -75,8 +72,8 @@ namespace AriaNative {
         ],
 
         libraries: [
-            AriaPkg.contents,
-            f`${AriaPkg.contents.root}/win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`,
+            AriaPkgContents,
+            AriaPkgContents.getFile(r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`),
             VisualCpp.lib,
             WindowsSdk.Ucrt.lib,
             ...WindowsSdk.UM.standardLibs,
@@ -91,9 +88,11 @@ namespace AriaNative {
                 contents: [
                     dll.binaryFile,
                     dll.debugFile,
-                    f`${AriaPkg.contents.root}/win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`,
-                    f`${AriaPkg.contents.root}/win-x64/tools/${qualifier.configuration}/ClientTelemetry.dll`,
-                    f`${AriaPkg.contents.root}/win-x64/tools/${qualifier.configuration}/ClientTelemetry.pdb`,
+                    ...AriaPkgContents.getFiles([
+                        r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`,
+                        r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.dll`,
+                        r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.pdb`,
+                    ])
                 ]
             }
         ],

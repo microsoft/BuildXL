@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,6 @@ using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
@@ -18,7 +17,6 @@ using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 #pragma warning disable AsyncFixer02
 
@@ -29,6 +27,24 @@ namespace Test.BuildXL.Storage
         public FileUtilitiesTests()
         {
             RegisterEventSource(global::BuildXL.Native.ETWLogger.Log);
+            m_testFileSystem = OperatingSystemHelper.IsUnixOS
+                ? (IFileSystem)new global::BuildXL.Native.IO.Unix.FileSystemUnix()
+                : (IFileSystem)new global::BuildXL.Native.IO.Windows.FileSystemWin(LoggingContext);
+        }
+
+        private IFileSystem m_testFileSystem;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Why clean up the temp directory:
+                //   - these tests leave all kinds of files in there (junctions, symlinks, broken junctions, etc.)
+                //   - qtest might attempt to robocopy that folder, and robocopy will fail if it encounters any of those
+                FileUtilities.DeleteDirectoryContents(TemporaryDirectory);
+            }
+
+            base.Dispose(disposing);
         }
 
         [Fact]
@@ -40,21 +56,21 @@ namespace Test.BuildXL.Storage
 
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), "my text");
 
-            var entries = FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub*", recursive: true);
+            var entries = m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub*", recursive: true);
             XAssert.SetEqual(new []{"sub1", "sub2", "sub3", "sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
 
             // Enumerate directory does not provide the size.
             XAssert.AreEqual(0, entries.First(e => e.FileName == "sub_file.txt").Size);
 
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
 
             // Non recursive case
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
             
             // Pattern with 0 matches
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "foo", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
         [Fact]
@@ -67,25 +83,24 @@ namespace Test.BuildXL.Storage
             const string Content = "my text";
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), Content);
 
-            var entries = FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub*", recursive: true);
+            var entries = m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub*", recursive: true);
             XAssert.SetEqual(new []{"sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
 
             // Checking the size of the file.
             XAssert.AreEqual(Content.Length, entries.First(e => e.FileName == "sub_file.txt").Size);
 
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
             
             // Non recursive case
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
             
             // Pattern with 0 matches
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
         public void GetFileNameCasing()
         {
             const string UppercaseFileName = @"UPPERCASE.txt";
@@ -243,8 +258,7 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(Contents, File.ReadAllText(GetFullPath(Target)));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // written from WriteAllByeAsync is true... fails XAssert
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // written from WriteAllByeAsync is true... fails XAssert
         public async Task WriteAllBytesPredicate()
         {
             const string Target = "target";
@@ -286,8 +300,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(written);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task WriteAllBytesCallback()
         {
             const string Target = "target";
@@ -349,8 +362,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void CreateReplacementFileReplacesFileEvenIfTruncationWasPossible()
         {
             const string Target = @"Target";
@@ -414,8 +426,7 @@ namespace Test.BuildXL.Storage
         }
 
         // HandleSearcher is Windows dependent
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void FindOpenHandle()
         {
             string directory = Path.Combine(TemporaryDirectory, "directoryToDelete");
@@ -469,8 +480,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void GetChainOfJunctions()
         {
             string targetDirectory = GetFullPath("target");
@@ -495,8 +505,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        [Trait("Category", "WindowsOSOnly")] // TODO: Fix for non Windows
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)] // TODO: Fix for non Windows
         public void GetChainOfSymlinksWithDirectorySymlink()
         {
             // File and directory layout:
@@ -547,7 +556,7 @@ namespace Test.BuildXL.Storage
             string symlinkPath = GetFullPath("symlink");
             // the length of the target path must be at least 128 chars, so we could properly test the parsing
             // of the struct returned from DeviceIoControl.
-            string symlinkTarget = PathGeneratorUtilities.GetAbsolutePath("Z", Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), $"{Guid.NewGuid().ToString()}.txt");
+            string symlinkTarget = PathGeneratorUtilities.GetAbsolutePath(TemporaryDirectory, Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), $"{Guid.NewGuid().ToString()}.txt");
 
             XAssert.IsTrue(symlinkTarget.Length >= 128);
 
@@ -555,7 +564,7 @@ namespace Test.BuildXL.Storage
 
             Possible<ReparsePointType> reparsePointType = FileUtilities.TryGetReparsePointType(symlinkPath);
             XAssert.IsTrue(reparsePointType.Succeeded);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
+            XAssert.IsTrue(FileUtilities.IsReparsePointActionable(reparsePointType.Result));
 
             using (var symlinkHandle = OpenHandleForReparsePoint(symlinkPath))
             {
@@ -617,8 +626,8 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void TestResolveSymlinkWithDirectorySymlinkOrJunction(bool useJunction, bool oneDotDot)
         {
@@ -679,8 +688,8 @@ namespace Test.BuildXL.Storage
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void TestResolveSymlinkWithMixedDirectorySymlinkAndJunction()
         {
             // File and directory layout:
@@ -729,8 +738,8 @@ namespace Test.BuildXL.Storage
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void TestResolveRelativeSymlinks()
         {
             VerifyResolveRelativeSymlink(
@@ -768,7 +777,7 @@ namespace Test.BuildXL.Storage
         {
             expected = GetFullPath(expected);
             link = FL(link, target);
-            var maybeActual = FileUtilities.FileSystem.TryResolveReparsePointRelativeTarget(link, target);
+            var maybeActual = m_testFileSystem.TryResolveReparsePointRelativeTarget(link, target);
             XAssert.IsTrue(maybeActual.Succeeded, maybeActual.Succeeded ? string.Empty : maybeActual.Failure.Describe());
             XAssert.AreEqual(expected.ToUpperInvariant(), maybeActual.Result.ToUpperInvariant());
         }
@@ -784,10 +793,15 @@ namespace Test.BuildXL.Storage
 
             var timestamps = FileUtilities.GetFileTimestamps(targetFile);
 
-            // We dont look at last changed and access time as the test process touches the permissions of the output file and
+            // We don't look at last changed and access time as the test process touches the permissions of the output file and
             // the system indexes the files so the access time changes too!
-            XAssert.AreEqual(test, timestamps.CreationTime);
             XAssert.AreEqual(test, timestamps.LastWriteTime);
+
+            // can't change birth timestamp on Linux
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                XAssert.AreEqual(test, timestamps.CreationTime);
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -805,13 +819,17 @@ namespace Test.BuildXL.Storage
             var originalTimestamps = FileUtilities.GetFileTimestamps(originalFile);
             var symlinkTimestamps = FileUtilities.GetFileTimestamps(intermediateLink);
 
-            // We dont look at last changed and access time as the test process touches the permissions of the output file and
+            // We don't look at last changed and access time as the test process touches the permissions of the output file and
             // the system indexes the files so the access time changes too!
-            XAssert.AreEqual(test, symlinkTimestamps.CreationTime);
             XAssert.AreEqual(test, symlinkTimestamps.LastWriteTime);
-
-            XAssert.AreNotEqual(originalTimestamps.CreationTime, symlinkTimestamps.CreationTime);
             XAssert.AreNotEqual(originalTimestamps.LastWriteTime, symlinkTimestamps.LastWriteTime);
+
+            // Cannot change birth timestamp on Linux
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                XAssert.AreNotEqual(originalTimestamps.CreationTime, symlinkTimestamps.CreationTime);
+                XAssert.AreEqual(test, symlinkTimestamps.CreationTime);
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -968,14 +986,13 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Trait("Category", "WindowsOSOnly")]
         [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void TestDeleteDirectorySymlink(bool useFileDelete)
         {
             string directoryPath = GetFullPath(nameof(TestDeleteDirectorySymlink));
-            string fileInDirectoryPath = Path.Combine(directoryPath, "file");
+            string fileInDirectoryPath = Path.Combine(directoryPath, "ffile");
             string directorySymlinkPath = directoryPath + ".lnk";
 
             FileUtilities.CreateDirectory(directoryPath);
@@ -1073,12 +1090,12 @@ namespace Test.BuildXL.Storage
 
         private string J(string path, string target)
         {
-            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            if (!m_testFileSystem.IsPathRooted(path))
             {
                 path = GetFullPath(path);
             }
 
-            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            if (!m_testFileSystem.IsPathRooted(target))
             {
                 target = GetFullPath(target);
             }
@@ -1097,7 +1114,7 @@ namespace Test.BuildXL.Storage
 
         private string DL(string path, string target)
         {
-            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            if (!m_testFileSystem.IsPathRooted(path))
             {
                 path = GetFullPath(path);
             }
@@ -1107,7 +1124,7 @@ namespace Test.BuildXL.Storage
             var maybeSymlink = FileUtilities.TryCreateSymbolicLink(path, target, isTargetFile: false);
             XAssert.IsTrue(maybeSymlink.Succeeded, maybeSymlink.Succeeded ? string.Empty : maybeSymlink.Failure.Describe());
 
-            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            if (!m_testFileSystem.IsPathRooted(target))
             {
                 FileUtilities.CreateDirectory(Path.GetFullPath(Path.Combine(parentPath, target)));
             }
@@ -1140,7 +1157,7 @@ namespace Test.BuildXL.Storage
         }
 
         private string C(string path, string relative) 
-            => FileUtilities.FileSystem.IsPathRooted(path) 
+            => m_testFileSystem.IsPathRooted(path) 
             ? Path.Combine(path, relative) 
             : Path.Combine(GetFullPath(path), relative);
 

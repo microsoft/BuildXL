@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -96,7 +96,7 @@ namespace BuildXL.Utilities.Collections
             /// <summary>
             /// Class constructor
             /// </summary>
-            public Buckets(int capacity, int ratio, BigBuffer<int>.BufferInitializer bucketsBufferInitializer = null, bool initializeSequentially = false)
+            public Buckets(int capacity, int ratio, BigBuffer<int>.BufferInitializer? bucketsBufferInitializer = null, bool initializeSequentially = false)
             {
                 Contract.Requires(capacity > 0);
                 var buckets = new BigBuffer<int>(ItemsPerEntryBufferBitWidth, 1);
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.Collections
 
             private Buckets(BigBuffer<int>.BufferInitializer bucketsBufferInitializer, int capacity, int lastBucketIndex, int pendingSplitBucketCount, int preSplitBucketsLength, int isSplitting, int splitThreshold, int splitBucketCursor)
             {
-                Contract.Requires(bucketsBufferInitializer != null);
+                Contract.RequiresNotNull(bucketsBufferInitializer);
 
                 var buckets = new BigBuffer<int>(ItemsPerEntryBufferBitWidth, 1);
                 buckets.Initialize(capacity, bucketsBufferInitializer, initializeSequentially: true);
@@ -143,7 +143,7 @@ namespace BuildXL.Utilities.Collections
             /// </remarks>
             public void Serialize(BinaryWriter writer)
             {
-                Contract.Requires(writer != null);
+                Contract.RequiresNotNull(writer);
                 int capacity = m_buckets.Capacity;
                 int lastBucketIndex = m_lastBucketIndex;
                 int pendingSplitBucketCount = m_pendingSplitBucketCount;
@@ -172,7 +172,7 @@ namespace BuildXL.Utilities.Collections
             /// </summary>
             public static Buckets Deserialize(BinaryReader reader)
             {
-                Contract.Requires(reader != null);
+                Contract.RequiresNotNull(reader);
 
                 int capacity = reader.ReadInt32();
                 int lastBucketIndex = reader.ReadInt32();
@@ -182,7 +182,7 @@ namespace BuildXL.Utilities.Collections
                 int splitThreshold = reader.ReadInt32();
                 int splitBucketCursor = reader.ReadInt32();
 
-                byte[] buffer = null;
+                byte[]? buffer = null;
                 var buckets = new Buckets(
                     bucketsBufferInitializer:
                         (bufferStart, bufferCount) =>

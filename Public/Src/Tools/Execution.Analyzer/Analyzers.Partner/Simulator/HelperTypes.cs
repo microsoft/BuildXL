@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 {

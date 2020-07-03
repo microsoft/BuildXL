@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -71,16 +71,18 @@ namespace Test.BuildXL.Processes
                     string dumpPath = Path.Combine(TemporaryDirectory, "dumps" + i);
                     Directory.CreateDirectory(dumpPath);
                     var cmd = CmdHelper.CmdX64;
+                    var ping = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.SystemX86), "ping.exe");
                     Process p = null;
                     bool success;
                     Exception failure;
                     try
                     {
-                        p = Process.Start(new ProcessStartInfo(cmd, string.Format(@" /K {0} /K {0} /K ping localhost -t", cmd))
+                        p = Process.Start(new ProcessStartInfo(cmd, string.Format(@$" /K {cmd} /K {cmd} /K {ping} localhost -t"))
                         {
                             CreateNoWindow = true,
                             WindowStyle = ProcessWindowStyle.Hidden,
                             RedirectStandardOutput = true,
+                            RedirectStandardError = true,
                             UseShellExecute = false,
                         });
 
@@ -91,11 +93,14 @@ namespace Test.BuildXL.Processes
                         while (sw.Elapsed.TotalSeconds < 30)
                         {
                             string line = p.StandardOutput.ReadLine();
-                            output.AppendLine(line);
-                            if (line.Contains("Pinging"))
+                            if (line != null)
                             {
-                                found = true;
-                                break;
+                                output.AppendLine(line);
+                                if (line.Contains("Pinging"))
+                                {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
 
@@ -174,11 +179,11 @@ namespace Test.BuildXL.Processes
         [DllImport("libc", SetLastError = true, EntryPoint = "kill")]
         private static extern unsafe int SendSignal(int pid, int signal);
 
-        private const int SIG_ABRT = 6;
+        private const int SIG_ILL = 4;
 
-        // TODO: Expand this test to also require super user privilages and and make sure the core dump utilities wrote both,
+        // TODO: Expand this test to also require super user privileges and and make sure the core dump utilities wrote both,
         //       the thread tid mappings and the core dump file to the system location specified
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [FactIfSupported(requiresMacOperatingSystem: true)]
         public void CoreDumpTest()
         {
             string dumpPath = Path.Combine(TemporaryDirectory, "core_dumps");
@@ -205,7 +210,7 @@ namespace Test.BuildXL.Processes
                     var p = (Process)sendingProcess;
                     p.CancelOutputRead();
 
-                    SendSignal(process.Id, SIG_ABRT);
+                    SendSignal(process.Id, SIG_ILL);
                 });
 
                 process.BeginOutputReadLine();

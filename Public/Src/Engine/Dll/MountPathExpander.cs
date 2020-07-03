@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -29,7 +29,7 @@ namespace BuildXL.Engine
         private readonly List<SemanticPathInfo> m_alternativeRoots;
 
         /// <summary>
-        /// The parent whitelist
+        /// The parent allowlist
         /// If this is a module specific mount path expander, parent is the root mount path expander
         /// Otherwise, if this is the root mount path expander, this is null
         /// This field is mutually exclusive with the <see cref="m_moduleExpanders"/> field.
@@ -37,7 +37,7 @@ namespace BuildXL.Engine
         private readonly MountPathExpander m_parent;
 
         /// <summary>
-        /// The module specific mount path expanders (null if this is a module whitelist)
+        /// The module specific mount path expanders (null if this is a module allowlist)
         /// This field is mutually exclusive with the <see cref="m_parent"/> field.
         /// </summary>
         private readonly Dictionary<ModuleId, MountPathExpander> m_moduleExpanders;

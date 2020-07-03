@@ -1,15 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Access to file names needed by sandboxed process
+    /// Access to file names needed by sandboxed process stdout and stderr redirection.
     /// </summary>
     public interface ISandboxedProcessFileStorage
     {
         /// <summary>
-        /// Get file name needed by sandboxed process
+        /// Get a file path for a sandboxed process's stdout or stderr stream to copy into.
         /// </summary>
         /// <remarks>
         /// After the sandboxed process calls this method, it will attempt to create a file with the returned name.

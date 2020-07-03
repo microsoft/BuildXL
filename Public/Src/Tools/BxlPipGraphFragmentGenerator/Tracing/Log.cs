@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
+#nullable enable
 
 namespace BuildXL.PipGraphFragmentGenerator.Tracing
 {
@@ -14,6 +15,7 @@ namespace BuildXL.PipGraphFragmentGenerator.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("FragementGeneratorLogger")]
     public abstract partial class Logger : LoggerBase
     {
         /// <summary>

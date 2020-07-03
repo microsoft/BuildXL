@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
@@ -23,6 +23,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// The column family to use.
         /// </param>
         void Put(TKey key, TValue value, string columnFamilyName = null);
+
+        /// <summary>
+        /// Adds (or overwrite) multiple entries in a batch.
+        /// </summary>
+        /// <param name="entries">Entries, where each entry is a tuple of key, value, and column family name.</param>
+        void PutMultiple(IEnumerable<(TKey key, TValue value, string columnFamilyName)> entries);
 
         /// <summary>
         /// Removes an entry.
@@ -124,6 +130,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Set both start and limit to null to force compaction of the entire key space.
         /// 
         /// Compaction may happen in parallel with other operations, no exclusive usage is required.
+        /// 
+        /// Compaction will run in the background, and can not corrupt the database if the process crashes.
+        /// 
+        /// Start and Limit parameters are prefixes to the key range. A few examples:
+        ///     - start="a" end="b" will match all files that have keys starting with those values. For example, 
+        ///       anything overlapping with the range ["aa", "bz"] will be covered.
+        ///     - start="z" end="null" will match all keys starting with "z" (from the left) until the end of the 
+        ///       family. For example, "za", "zz", "zzfffff".
+        ///  For details, see: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/534147
         /// </remarks>
         void CompactRange(TKey start, TKey limit, string columnFamilyName = null);
     }

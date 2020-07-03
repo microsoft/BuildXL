@@ -1,0 +1,652 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3C44029C24336AEB008CACDD /* SystemExtensionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C44029B24336AEB008CACDD /* SystemExtensionManager.m */; };
+		3C4402A424336AEC008CACDD /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402A324336AEC008CACDD /* main.mm */; };
+		3C4402BA24336C43008CACDD /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402B924336C3F008CACDD /* libbsm.tbd */; };
+		3C4402BC24336C4B008CACDD /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */; };
+		3C4402C924336E6F008CACDD /* Sandbox in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3C4402AF24336B34008CACDD /* Sandbox */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		3C4402CB24336EE1008CACDD /* com.microsoft.buildxl.sandbox.systemextension in Embed System Extension */ = {isa = PBXBuildFile; fileRef = 3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3C4402CE243378EE008CACDD /* coreruncommon.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402CD243378EE008CACDD /* coreruncommon.mm */; };
+		3C794F542448993200EF72E5 /* ESClient.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C794F522448993200EF72E5 /* ESClient.mm */; };
+		3C794F552448993200EF72E5 /* ESClient.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C794F532448993200EF72E5 /* ESClient.hpp */; };
+		3C7EC2A0244880240033DE6C /* IOEvent.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CB3E17124486C26004D2734 /* IOEvent.hpp */; };
+		3C9991A52449CBFC00CEB33E /* XPCTester.h in Sources */ = {isa = PBXBuildFile; fileRef = 3C9991A42449CBFC00CEB33E /* XPCTester.h */; };
+		3CB3E16524475CF4004D2734 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16424475CF4004D2734 /* main.mm */; };
+		3CB3E16724477115004D2734 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CB3E16624477115004D2734 /* Foundation.framework */; };
+		3CB3E17324486C26004D2734 /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E17224486C26004D2734 /* IOEvent.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3C4402E62434C6F7008CACDD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3C44028F24336AEB008CACDD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C4402C024336D71008CACDD;
+			remoteInfo = SystemExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3C4402AD24336B34008CACDD /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		3C4402C824336E6A008CACDD /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				3C4402C924336E6F008CACDD /* Sandbox in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402CA24336ED0008CACDD /* Embed System Extension */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				3C4402CB24336EE1008CACDD /* com.microsoft.buildxl.sandbox.systemextension in Embed System Extension */,
+			);
+			name = "Embed System Extension";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		3C44029724336AEB008CACDD /* BuildXL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuildXL.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C44029A24336AEB008CACDD /* SystemExtensionManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SystemExtensionManager.h; sourceTree = "<group>"; };
+		3C44029B24336AEB008CACDD /* SystemExtensionManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SystemExtensionManager.m; sourceTree = "<group>"; };
+		3C4402A224336AEC008CACDD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3C4402A324336AEC008CACDD /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		3C4402A524336AEC008CACDD /* BuildXL.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BuildXL.entitlements; sourceTree = "<group>"; };
+		3C4402AF24336B34008CACDD /* Sandbox */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Sandbox; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C4402B624336B7B008CACDD /* com.microsoft.buildxl.sandbox.systemextension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = com.microsoft.buildxl.sandbox.systemextension.entitlements; sourceTree = "<group>"; };
+		3C4402B724336B7B008CACDD /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3C4402B924336C3F008CACDD /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
+		3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libEndpointSecurity.tbd; path = usr/lib/libEndpointSecurity.tbd; sourceTree = SDKROOT; };
+		3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = com.microsoft.buildxl.sandbox.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C4402CC2433788D008CACDD /* coreruncommon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = coreruncommon.h; sourceTree = "<group>"; };
+		3C4402CD243378EE008CACDD /* coreruncommon.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = coreruncommon.mm; sourceTree = "<group>"; };
+		3C4402CF24337A3B008CACDD /* coreclrhost.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coreclrhost.h; sourceTree = "<group>"; };
+		3C794F522448993200EF72E5 /* ESClient.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ESClient.mm; sourceTree = "<group>"; };
+		3C794F532448993200EF72E5 /* ESClient.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESClient.hpp; sourceTree = "<group>"; };
+		3C9991A42449CBFC00CEB33E /* XPCTester.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCTester.h; sourceTree = "<group>"; };
+		3CB3E14C24475736004D2734 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = XPCConstants.hpp; sourceTree = "<group>"; };
+		3CB3E159244758DB004D2734 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		3CB3E16024475B96004D2734 /* ESConstants.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESConstants.hpp; sourceTree = "<group>"; };
+		3CB3E16424475CF4004D2734 /* main.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		3CB3E16624477115004D2734 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		3CB3E16A24486A9F004D2734 /* MemoryStreams.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = MemoryStreams.hpp; path = ../../Interop/Sandbox/Data/MemoryStreams.hpp; sourceTree = "<group>"; };
+		3CB3E16B24486AB0004D2734 /* PathExtractor.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathExtractor.hpp; path = ../../Interop/Sandbox/Data/PathExtractor.hpp; sourceTree = "<group>"; };
+		3CB3E16C24486AD3004D2734 /* BuildXLException.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = BuildXLException.hpp; path = ../../Interop/Sandbox/Data/BuildXLException.hpp; sourceTree = "<group>"; };
+		3CB3E17124486C26004D2734 /* IOEvent.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = IOEvent.hpp; path = ../../Interop/Sandbox/Data/IOEvent.hpp; sourceTree = "<group>"; };
+		3CB3E17224486C26004D2734 /* IOEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IOEvent.cpp; path = ../../Interop/Sandbox/Data/IOEvent.cpp; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3C44029424336AEB008CACDD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402AC24336B34008CACDD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C4402BA24336C43008CACDD /* libbsm.tbd in Frameworks */,
+				3CB3E16724477115004D2734 /* Foundation.framework in Frameworks */,
+				3C4402BC24336C4B008CACDD /* libEndpointSecurity.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402BE24336D71008CACDD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3C44028E24336AEB008CACDD = {
+			isa = PBXGroup;
+			children = (
+				3C44029924336AEB008CACDD /* BuildXL */,
+				3C4402B024336B34008CACDD /* Sandbox */,
+				3C44029824336AEB008CACDD /* Products */,
+				3C4402B824336C3F008CACDD /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		3C44029824336AEB008CACDD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3C44029724336AEB008CACDD /* BuildXL.app */,
+				3C4402AF24336B34008CACDD /* Sandbox */,
+				3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3C44029924336AEB008CACDD /* BuildXL */ = {
+			isa = PBXGroup;
+			children = (
+				3C4402D024337A4A008CACDD /* CoreCLR */,
+				3C4402A524336AEC008CACDD /* BuildXL.entitlements */,
+				3C4402A224336AEC008CACDD /* Info.plist */,
+				3C4402A324336AEC008CACDD /* main.mm */,
+				3C44029A24336AEB008CACDD /* SystemExtensionManager.h */,
+				3C44029B24336AEB008CACDD /* SystemExtensionManager.m */,
+				3C9991A42449CBFC00CEB33E /* XPCTester.h */,
+			);
+			path = BuildXL;
+			sourceTree = "<group>";
+		};
+		3C4402B024336B34008CACDD /* Sandbox */ = {
+			isa = PBXGroup;
+			children = (
+				3CB3E16924486A2B004D2734 /* External */,
+				3C4402B624336B7B008CACDD /* com.microsoft.buildxl.sandbox.systemextension.entitlements */,
+				3C794F522448993200EF72E5 /* ESClient.mm */,
+				3C794F532448993200EF72E5 /* ESClient.hpp */,
+				3CB3E16024475B96004D2734 /* ESConstants.hpp */,
+				3C4402B724336B7B008CACDD /* Info.plist */,
+				3CB3E16424475CF4004D2734 /* main.mm */,
+				3CB3E14C24475736004D2734 /* XPCConstants.hpp */,
+			);
+			path = Sandbox;
+			sourceTree = "<group>";
+		};
+		3C4402B824336C3F008CACDD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3CB3E16624477115004D2734 /* Foundation.framework */,
+				3CB3E159244758DB004D2734 /* Cocoa.framework */,
+				3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */,
+				3C4402B924336C3F008CACDD /* libbsm.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3C4402D024337A4A008CACDD /* CoreCLR */ = {
+			isa = PBXGroup;
+			children = (
+				3C4402CF24337A3B008CACDD /* coreclrhost.h */,
+				3C4402CC2433788D008CACDD /* coreruncommon.h */,
+				3C4402CD243378EE008CACDD /* coreruncommon.mm */,
+			);
+			path = CoreCLR;
+			sourceTree = "<group>";
+		};
+		3CB3E16924486A2B004D2734 /* External */ = {
+			isa = PBXGroup;
+			children = (
+				3CB3E16C24486AD3004D2734 /* BuildXLException.hpp */,
+				3CB3E17224486C26004D2734 /* IOEvent.cpp */,
+				3CB3E17124486C26004D2734 /* IOEvent.hpp */,
+				3CB3E16A24486A9F004D2734 /* MemoryStreams.hpp */,
+				3CB3E16B24486AB0004D2734 /* PathExtractor.hpp */,
+			);
+			name = External;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		3C7EC29F2448801E0033DE6C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C7EC2A0244880240033DE6C /* IOEvent.hpp in Headers */,
+				3C794F552448993200EF72E5 /* ESClient.hpp in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		3C44029624336AEB008CACDD /* BuildXL */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C4402A824336AEC008CACDD /* Build configuration list for PBXNativeTarget "BuildXL" */;
+			buildPhases = (
+				3C44029324336AEB008CACDD /* Sources */,
+				3C44029424336AEB008CACDD /* Frameworks */,
+				3C44029524336AEB008CACDD /* Resources */,
+				3C4402CA24336ED0008CACDD /* Embed System Extension */,
+				3C4402D124339126008CACDD /* Create CoreCLR Folders */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3C4402E72434C6F7008CACDD /* PBXTargetDependency */,
+			);
+			name = BuildXL;
+			productName = BuildXL;
+			productReference = 3C44029724336AEB008CACDD /* BuildXL.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3C4402AE24336B34008CACDD /* Sandbox */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C4402B324336B34008CACDD /* Build configuration list for PBXNativeTarget "Sandbox" */;
+			buildPhases = (
+				3C7EC29F2448801E0033DE6C /* Headers */,
+				3C4402AB24336B34008CACDD /* Sources */,
+				3C4402AC24336B34008CACDD /* Frameworks */,
+				3C4402AD24336B34008CACDD /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Sandbox;
+			productName = sandbox;
+			productReference = 3C4402AF24336B34008CACDD /* Sandbox */;
+			productType = "com.apple.product-type.tool";
+		};
+		3C4402C024336D71008CACDD /* SystemExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C4402C424336D71008CACDD /* Build configuration list for PBXNativeTarget "SystemExtension" */;
+			buildPhases = (
+				3C4402BD24336D71008CACDD /* Sources */,
+				3C4402BE24336D71008CACDD /* Frameworks */,
+				3C4402BF24336D71008CACDD /* Resources */,
+				3C4402C824336E6A008CACDD /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SystemExtension;
+			productName = SystemExtension;
+			productReference = 3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3C44028F24336AEB008CACDD /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1140;
+				ORGANIZATIONNAME = Microsoft;
+				TargetAttributes = {
+					3C44029624336AEB008CACDD = {
+						CreatedOnToolsVersion = 11.4;
+					};
+					3C4402AE24336B34008CACDD = {
+						CreatedOnToolsVersion = 11.4;
+					};
+					3C4402C024336D71008CACDD = {
+						CreatedOnToolsVersion = 11.4;
+					};
+				};
+			};
+			buildConfigurationList = 3C44029224336AEB008CACDD /* Build configuration list for PBXProject "BuildXL" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3C44028E24336AEB008CACDD;
+			productRefGroup = 3C44029824336AEB008CACDD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3C44029624336AEB008CACDD /* BuildXL */,
+				3C4402C024336D71008CACDD /* SystemExtension */,
+				3C4402AE24336B34008CACDD /* Sandbox */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3C44029524336AEB008CACDD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402BF24336D71008CACDD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3C4402D124339126008CACDD /* Create CoreCLR Folders */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Create CoreCLR Folders";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ ! -d \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" ]]; then\n    mkdir \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\"\n    ln -s \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3C44029324336AEB008CACDD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C4402CE243378EE008CACDD /* coreruncommon.mm in Sources */,
+				3C4402A424336AEC008CACDD /* main.mm in Sources */,
+				3C44029C24336AEB008CACDD /* SystemExtensionManager.m in Sources */,
+				3C9991A52449CBFC00CEB33E /* XPCTester.h in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402AB24336B34008CACDD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3CB3E17324486C26004D2734 /* IOEvent.cpp in Sources */,
+				3CB3E16524475CF4004D2734 /* main.mm in Sources */,
+				3C794F542448993200EF72E5 /* ESClient.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C4402BD24336D71008CACDD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3C4402E72434C6F7008CACDD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C4402C024336D71008CACDD /* SystemExtension */;
+			targetProxy = 3C4402E62434C6F7008CACDD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3C4402A624336AEC008CACDD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		3C4402A724336AEC008CACDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		3C4402A924336AEC008CACDD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BuildXL/BuildXL.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = BuildXL/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		3C4402AA24336AEC008CACDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BuildXL/BuildXL.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = BuildXL/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		3C4402B424336B34008CACDD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
+			};
+			name = Debug;
+		};
+		3C4402B524336B34008CACDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
+			};
+			name = Release;
+		};
+		3C4402C524336D71008CACDD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = com.microsoft.buildxl.sandbox;
+				SKIP_INSTALL = YES;
+				WRAPPER_EXTENSION = systemextension;
+			};
+			name = Debug;
+		};
+		3C4402C624336D71008CACDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UBF8T346G9;
+				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = com.microsoft.buildxl.sandbox;
+				SKIP_INSTALL = YES;
+				WRAPPER_EXTENSION = systemextension;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3C44029224336AEB008CACDD /* Build configuration list for PBXProject "BuildXL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C4402A624336AEC008CACDD /* Debug */,
+				3C4402A724336AEC008CACDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C4402A824336AEC008CACDD /* Build configuration list for PBXNativeTarget "BuildXL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C4402A924336AEC008CACDD /* Debug */,
+				3C4402AA24336AEC008CACDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C4402B324336B34008CACDD /* Build configuration list for PBXNativeTarget "Sandbox" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C4402B424336B34008CACDD /* Debug */,
+				3C4402B524336B34008CACDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C4402C424336D71008CACDD /* Build configuration list for PBXNativeTarget "SystemExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C4402C524336D71008CACDD /* Debug */,
+				3C4402C624336D71008CACDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3C44028F24336AEB008CACDD /* Project object */;
+}

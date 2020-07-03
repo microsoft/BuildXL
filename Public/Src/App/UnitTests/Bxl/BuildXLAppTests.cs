@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Xml;
 using BuildXL;
 using BuildXL.App.Tracing;
+using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -20,30 +21,6 @@ namespace Test.BuildXL
     public class BuildXLAppTests
     {
         [Fact]
-        public void ErrorPrecedence()
-        {
-            using (var listener = new TrackingEventListener(Events.Log))
-            {
-                Events.Log.UserErrorEvent("1");
-                var userErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.UserError, userErrorClassification.ExitKind);
-                XAssert.AreEqual("UserErrorEvent", userErrorClassification.ErrorBucket);
-
-                // Now add an infrasctructure error. This should take prescedence
-                Events.Log.InfrastructureErrorEvent("1");
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
-                XAssert.AreEqual("InfrastructureErrorEvent", infrastructureErrorClassification.ErrorBucket);
-
-                // Finally add an internal error. Again, this takes highest prescedence
-                Events.Log.ErrorEvent("1");
-                var internalErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.InternalError, internalErrorClassification.ExitKind);
-                XAssert.AreEqual("ErrorEvent", internalErrorClassification.ErrorBucket);
-            }
-        }
-
-        [Fact]
         public void DistributedBuildConnectivityIssueTrumpsOtherErrors()
         {
             var loggingContext = XunitBuildXLTest.CreateLoggingContextForTest();
@@ -52,11 +29,12 @@ namespace Test.BuildXL
             {
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep", "ArbitraryCaller");
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
 
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
+                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(loggingContext, listener);
                 XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
                 XAssert.AreEqual(global::BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), infrastructureErrorClassification.ErrorBucket);
             }
@@ -73,7 +51,7 @@ namespace Test.BuildXL
                 const string ErrorName = "MyTestEvent";
                 const string ErrorText = "Event logged from worker";
                 LoggingContext loggingContext = BuildXL.TestUtilities.Xunit.XunitBuildXLTest.CreateLoggingContextForTest();
-                global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(loggingContext, new global::BuildXL.Engine.Tracing.WorkerForwardedEvent()
+                global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(loggingContext, new WorkerForwardedEvent()
                 {
                     EventId = 100,
                     EventName = ErrorName,
@@ -102,13 +80,13 @@ namespace Test.BuildXL
         [Fact]
         public void TestScrubbingCommandLine()
         {
-            XAssert.AreEqual($"{Branding.ProductExecutableName} /first [...] /tenth", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /third /fourth /fifth /sixth /seventh /eight /ninth /tenth", 20, 10));
-            XAssert.AreEqual($"{Branding.ProductExecutableName} /first [...]nth", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 20, 3));
-            XAssert.AreEqual("bxl.[...]nth", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 4, 3));
-            XAssert.AreEqual($"{Branding.ProductExecutableName} /first /second /tenth", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 4, 332));
-            XAssert.AreEqual($"{Branding.ProductExecutableName} /first /second /tenth", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 432, 2));
-            XAssert.AreEqual("[...]", Logger.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 0, 0));
-            XAssert.AreEqual("", Logger.ScrubCommandLine("", 1, 1));
+            XAssert.AreEqual($"{Branding.ProductExecutableName} /first [...] /tenth", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /third /fourth /fifth /sixth /seventh /eight /ninth /tenth", 20, 10));
+            XAssert.AreEqual($"{Branding.ProductExecutableName} /first [...]nth", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 20, 3));
+            XAssert.AreEqual("bxl.[...]nth", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 4, 3));
+            XAssert.AreEqual($"{Branding.ProductExecutableName} /first /second /tenth", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 4, 332));
+            XAssert.AreEqual($"{Branding.ProductExecutableName} /first /second /tenth", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 432, 2));
+            XAssert.AreEqual("[...]", BuildXLApp.ScrubCommandLine($"{Branding.ProductExecutableName} /first /second /tenth", 0, 0));
+            XAssert.AreEqual("", BuildXLApp.ScrubCommandLine("", 1, 1));
         }
 
         /// <summary>

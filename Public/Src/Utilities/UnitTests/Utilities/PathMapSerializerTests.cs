@@ -1,25 +1,30 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
     public sealed class PathMapSerializerTests : TemporaryStorageTestBase
     {
+        public PathMapSerializerTests(ITestOutputHelper output)
+            : base(output) { }
+
         [Fact]
         public void BasicTest()
         {
             var symlinkMap = new Dictionary<string, string>
-                             {
-                                 [A("X","symlink1.lnk")] = A("X","target1"),
-                                 [A("X","symlink2.lnk")] = A("X","target2")
-                             };
-            var file = GetFullPath("SymlinkDefinition");
+            {
+                [A("X","file1_cpy.txt")] = A("X","file1.txt"),
+                [A("X","file2_cpy.txt")] = A("X","file2.txt")
+            };
+            
+            var file = GetFullPath("SomeFileMappingDefinition");
             var pathMapSerializer = new PathMapSerializer(file);
 
             foreach (var mapping in symlinkMap)

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -56,15 +56,14 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <inheritdoc/>
-        public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
+        public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
-            if (!base.TryInitialize(host, context, configuration, resolverSettings, requestedQualifiers))
+            if (!base.TryInitialize(host, context, configuration, resolverSettings))
             {
                 return false;
             }

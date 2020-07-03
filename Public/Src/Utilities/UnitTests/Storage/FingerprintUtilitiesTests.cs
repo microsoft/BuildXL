@@ -1,7 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using BuildXL.Storage;
+using System;
+using BuildXL.Storage.Fingerprints;
 using Xunit;
 
 namespace Test.BuildXL.Storage
@@ -80,6 +81,29 @@ namespace Test.BuildXL.Storage
         public void TestRealHash()
         {
             Test("krowdnr1bev4bdr92x69dgkm9rhz3oto", "ComputeSha1OfThisOne");
+        }
+
+        [Theory]
+        [InlineData((uint)uint.MinValue)]
+        [InlineData((uint)uint.MaxValue)]
+        public void TestFirstBitsAlwaysALetter(uint value)
+        {
+            var identifier = FingerprintUtilities.ToIdentifier(value);
+            Assert.True(Char.IsLetter(identifier[0]));
+
+            var identifierWithExtraBits = FingerprintUtilities.ToIdentifier(value, 7);
+            Assert.True(Char.IsLetter(identifierWithExtraBits[0]));
+        }
+
+        [Theory]
+        [InlineData(uint.MinValue, "aaaaaa")]
+        [InlineData(uint.MaxValue, "d_____")]
+        [InlineData((uint)(uint.MaxValue >> 2), "a_____")]
+        [InlineData(42u, "aaaaaQ")]
+        [InlineData(123442u, "aaaEiY")]
+        public void TestSomeValues(uint value, string expected)
+        {
+            Assert.Equal(expected, FingerprintUtilities.ToIdentifier(value));
         }
     }
 }

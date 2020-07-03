@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
@@ -15,7 +16,6 @@ using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Cache.ContentStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -68,6 +68,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         ///     "RetryIntervalSeconds":{24},
         ///     "RetryCount":{25},
         ///     "ReplaceExistingOnPlaceFile":{26},
+        ///     "VfsCasRoot": "{27}",
+        ///     "UseVfsSymlinks": "{28}",
         /// }
         /// </remarks>
         public sealed class Config : CasConfig
@@ -75,8 +77,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <summary>
             /// The Id of the cache instance
             /// </summary>
-            [DefaultValue("FileSystemCache")]
-            public string CacheId { get; set; }
+            [DefaultValue(typeof(CacheId))]
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Max number of CasEntries entries.
@@ -87,6 +89,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// Path to the log file for the cache.
             /// </summary>
             public string CacheLogPath { get; set; }
+
+            /// <summary>
+            /// Path to the root of VFS cas
+            /// </summary>
+            [DefaultValue(null)]
+            public string VfsCasRoot { get; set; }
+
+            /// <summary>
+            /// Indicates whether symlinks should be used to specify VFS files
+            /// </summary>
+            [DefaultValue(true)]
+            public bool UseVfsSymlinks { get; set; } = true;
 
             /// <summary>
             /// If true, use a different CAS for streams, specified by <see cref="StreamCAS"/>.
@@ -199,7 +213,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             public Config()
             {
-                CacheId = "FileSystemCache";
+                CacheId = new CacheId("FileSystemCache");
                 MaxStrongFingerprints = 500000;
                 CacheLogPath = null;
 
@@ -207,7 +221,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 DiskFreePercent = 0;
                 CacheRootPath = null;
                 SingleInstanceTimeoutInSeconds = ContentStoreConfiguration.DefaultSingleInstanceTimeoutSeconds;
-                ApplyDenyWriteAttributesOnContent = FileSystemContentStoreInternal.DefaultApplyDenyWriteAttributesOnContent;
+                ApplyDenyWriteAttributesOnContent = ContentStoreConfiguration.DefaultApplyDenyWriteAttributesOnContent;
                 UseStreamCAS = false;
                 StreamCAS = null;
                 ReplaceExistingOnPlaceFile = false;
@@ -275,7 +289,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 // Setting it to empty to support conversion by CacheFactory.
                 CacheRootPath = string.Empty;
                 SingleInstanceTimeoutInSeconds = ContentStoreConfiguration.DefaultSingleInstanceTimeoutSeconds;
-                ApplyDenyWriteAttributesOnContent = FileSystemContentStoreInternal.DefaultApplyDenyWriteAttributesOnContent;
+                ApplyDenyWriteAttributesOnContent = ContentStoreConfiguration.DefaultApplyDenyWriteAttributesOnContent;
 
                 // Elasticity.
                 EnableElasticity = false;
@@ -298,6 +312,16 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             Config cacheConfig = possibleCacheConfig.Result;
 
+            return await InitializeCacheAsync(cacheConfig, activityId);
+        }
+
+        /// <summary>
+        /// Create cache using configuration
+        /// </summary>
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config cacheConfig, Guid activityId)
+        {
+            Contract.Requires(cacheConfig != null);
+
             try
             {
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
@@ -308,6 +332,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     : CreateLocalCacheWithSingleCas(cacheConfig, logger);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
+                if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
+                {
+                    localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
+                            {
+                                RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
+                                UseSymlinks = cacheConfig.UseVfsSymlinks
+                            }.Build());
+                }
+
                 var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
 
                 var startupResult = await cache.StartupAsync();
@@ -382,6 +415,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         MetadataGarbageCollectionEnabled = true,
                         MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
                         OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = false,
                     },
                 };
             }
@@ -447,8 +481,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     localCacheConfiguration,
                     configurationModel: CreateConfigurationModel(GetCasConfig(config)),
                     clock: null,
-                    checkLocalFiles: config.CheckLocalFiles,
-                    emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
+                    checkLocalFiles: config.CheckLocalFiles);
             }
 
         }

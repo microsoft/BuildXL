@@ -1,18 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Server.Utilities;
-using LanguageServer;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
+using Range = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -35,7 +37,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         public Result<CodeLens[], ResponseError> CodeLens(CodeLensParams @params, CancellationToken token)
         {
             // TODO: support cancellation
-            var fileUri = new Uri(@params.TextDocument.Uri);
+            var fileUri = @params.TextDocument.Uri;
 
             var pathToFile = fileUri.ToAbsolutePath(PathTable);
 
@@ -55,10 +57,41 @@ namespace BuildXL.Ide.LanguageServer.Providers
                     return Result<CodeLens[], ResponseError>.Success(codeLensObjs.ToArray());
                 }
 
+                codeLensObjs.Add(GetModuleReference(module, spec));
                 codeLensObjs.AddRange(GetQualifierTypeForModulesAndTopLevelDeclarations(spec));
             }
 
             return Result<CodeLens[], ResponseError>.Success(codeLensObjs.ToArray());
+        }
+
+        private CodeLens GetModuleReference(ParsedModule module, ISourceFile spec)
+        {
+            var moduleVersion = string.IsNullOrEmpty(module.Descriptor.Version) ? null : $" (version: {module.Descriptor.Version})";
+
+            // Ideally we want to navigate to the module declaration, but unfortunately we don't keep proper track of that.
+            // Therefore we do a quick file existence check, try to find the common name and then fall back to the current spec file.
+            var moduleConfigFile = module.Definition.ModuleConfigFile.ToString(PathTable);
+            if (!File.Exists(moduleConfigFile))
+            {
+                moduleConfigFile = Path.Combine(Path.GetDirectoryName(moduleConfigFile), "module.config.dsc");
+            }
+            else if (!File.Exists(moduleConfigFile))
+            {
+                // Fall back to the current spec....
+                moduleConfigFile = spec.FileName;
+            }
+
+            return
+                new CodeLens
+                {
+                    Range = spec.ToRange(),
+                    Command = new Command
+                              {
+                                  Title = FormattableStringEx.I($"Module: {module.Descriptor.Name}{moduleVersion} - {module.Definition.Root.ToString(PathTable)}"),
+                                  CommandIdentifier = "DScript.openDocument",
+                                  Arguments = new object[] { UriExtensions.GetUriFromPath(moduleConfigFile) },
+                              },
+                };
         }
 
         /// <summary>

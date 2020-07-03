@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
@@ -10,6 +12,11 @@ namespace BuildXL.Cache.ContentStore.Vfs
     {
         PlaceHydratedFileUnknownSizeCount,
         PlaceHydratedFileBytes,
+
+        [CounterType(CounterType.Stopwatch)]
         PlaceHydratedFile,
+
+        [CounterType(CounterType.Stopwatch)]
+        TryCreateSymlink,
     }
 }

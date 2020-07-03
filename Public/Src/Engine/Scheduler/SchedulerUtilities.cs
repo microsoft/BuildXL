@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -38,6 +38,15 @@ namespace BuildXL.Scheduler
         /// </param>
         public static bool TryLogAndMaybeRemoveCorruptFile(string corruptFile, IConfiguration configuration, PathTable pathTable, LoggingContext loggingContext, bool removeFile = false)
         {
+            if (!FileUtilities.FileExistsNoFollow(corruptFile))
+            {
+                // If file does not exist, then this method should return true.
+                // If file does not exist, move file or copy file below will throw an exception.
+                // The exception is logged in the catch clause, but the log is a warning log.
+                // Customer may treat that warning as an error.
+                return true;
+            }
+
             // Build the destination path
             var destFolder = configuration.Logging.EngineCacheCorruptFilesLogDirectory.ToString(pathTable);
             var possibleFileName = FileUtilities.GetFileName(corruptFile);
@@ -62,7 +71,7 @@ namespace BuildXL.Scheduler
 
                 return true;
             }
-            catch (Exception moveException)
+            catch (BuildXLException moveException)
             {
                 Logger.Log.FailedToMoveCorruptFile(loggingContext, corruptFile, destination, moveException.ToStringDemystified());
             }

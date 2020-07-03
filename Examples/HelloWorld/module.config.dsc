@@ -1,6 +1,5 @@
 module({
-        name: 'HelloWorld',
-        nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+        name: 'HelloWorld',   
         projects: [
             f`./Hello.World.Project.dsc`
         ]

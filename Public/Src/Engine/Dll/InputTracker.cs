@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -14,12 +14,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.Native.IO;
-using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -49,7 +48,10 @@ namespace BuildXL.Engine
         /// <summary>
         /// Envelope for serialization
         /// </summary>
-        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "InputTracker", version: 5);
+        /// <remarks>
+        /// 6: Add top-level hash in composite graph fingerprint structure.
+        /// </remarks>
+        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "InputTracker", version: 6);
 
         /// <summary>
         /// If set this will cause there to always be a graph cache miss. This is an operational escape hatch in case
@@ -105,9 +107,14 @@ namespace BuildXL.Engine
         /// </summary>
         public IDictionary<string, DirectoryMembershipTrackingFingerprint> DirectoryFingerprints => m_directoryFingerprints;
 
+        /// <summary>
+        /// This dictionary is not readonly because we can invalidate it (<see cref="InvalidateUnchangedPaths"/>)
+        /// if we detect that some paths changed unexpectedly in the middle of running a build.
+        /// </summary>
+        private ConcurrentDictionary<string, ContentHash> m_unchangedPaths;
+
         private readonly FileContentTable m_fileContentTable;
         private readonly ConcurrentDictionary<string, ContentHash> m_inputHashes = new ConcurrentDictionary<string, ContentHash>(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, ContentHash> m_unchangedPaths;
         private readonly ConcurrentQueue<string> m_changedPaths;
         private readonly bool m_isChangePathSetComplete;
 
@@ -464,6 +471,22 @@ namespace BuildXL.Engine
             RegisterFile(path, hash);
         }
 
+        /// <summary>
+        /// Registers access to a file and trakcs the access.
+        /// </summary>
+        public void RegisterAccessAndTrackFile(SafeFileHandle handle, string path, ContentHash hash)
+        {
+            Analysis.IgnoreResult(FileChangeTracker.TryTrackChangesToFile(handle, path));
+            RegisterFile(path, hash);
+        }
+
+        private void InvalidateUnchangedPaths()
+        {
+            // setting this dictionary to null because the rest of the code already knows how to handle it
+            // (e.g., when change journal is disabled this dictionary is already being set to null)
+            m_unchangedPaths = null;
+        }
+
         private void RegisterFile(string path, ContentHash hash)
         {
             if (IsEnabled)
@@ -485,7 +508,7 @@ namespace BuildXL.Engine
                             // The path cannot be registered first as present and later as absent
                             if (hash == WellKnownContentHashes.AbsentFile)
                             {
-                                Contract.Assert(false, I($"Input file '{path}' is registered multiple times with inconsistent presence on disk. It is being registered as an absent file, but it was previously registered as a probe to a present file"));
+                                throw new BuildXLException(I($"Input file '{path}' is registered multiple times with inconsistent presence on disk. It is being registered as an absent file, but it was previously registered as a probe to a present file"));
                             }
 
                             // This is the case where the new hash is either ExistentFileProbe (and nothing really changed) or the path is now actually being read. For the latter, observe that we replace the marker for 'present file was probed'
@@ -514,9 +537,13 @@ namespace BuildXL.Engine
                             if (TryGetHashForUnchangedFile(path, out ContentHash specCacheHash))
                             {
                                 specCacheHashString = specCacheHash.ToString();
+                                if (specCacheHash != existingHash)
+                                {
+                                    InvalidateUnchangedPaths();
+                                }
                             }
 
-                            Contract.Assert(false, I($"Input file '{path}' is encountered multiple times with different hashes: Existing hash: {existingHash} | New hash: {hash} | Actual hash: {actualHashString} | Spec cache hash: {specCacheHashString}"));
+                            throw new BuildXLException(I($"Input file '{path}' is encountered multiple times with different hashes: Existing hash: {existingHash} | New hash: {hash} | Actual hash: {actualHashString} | Spec cache hash: {specCacheHashString}"));
                         }
 
                         return existingHash;
@@ -989,7 +1016,7 @@ namespace BuildXL.Engine
                 // Loading the file change tracker succeeded, and the loaded file change tracker is in the tracking mode.
                 if (atomicSaveToken == fileChangeTracker.FileEnvelopeId)
                 {
-                    graphInputArtifactChanges = new GraphInputArtifactChanges(loggingContext);
+                    graphInputArtifactChanges = new GraphInputArtifactChanges(loggingContext, journalState.VolumeMap.GvfsProjections);
                 }
                 else
                 {
@@ -1201,8 +1228,8 @@ namespace BuildXL.Engine
                     Logger.Log.CheckingForPipGraphReuseStatus(loggingContext, numFilesToCheck - filesToCheck.Count, filesToCheck.Count);
                 },
                 null,
-                BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfig),
-                BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfig)))
+                loggingConfig.GetTimerUpdatePeriodInMs(),
+                loggingConfig.GetTimerUpdatePeriodInMs()))
             {
                 foreach (var t in threads)
                 {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,8 +12,11 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
@@ -36,7 +39,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initial length to get active processes.
         /// </summary>
-        public const int InitialProcessIdListLength = 256; // arbitrary number
+        public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB. 
 
         /// <summary>
         /// Nested jobs are only supported on Win8/Server2012 or higher.
@@ -109,9 +112,9 @@ namespace BuildXL.Processes
             public TimeSpan KernelTime;
 
             /// <summary>
-            /// Peak memory usage considering all processes (highest point-in-time sum of the memory usage of all job processes).
+            /// Memory counters
             /// </summary>
-            public ulong PeakMemoryUsage;
+            public ProcessMemoryCounters MemoryCounters; 
 
             /// <summary>
             /// Number of processes started within or added to the job. This includes both running and already-terminated processes, if any.
@@ -124,7 +127,7 @@ namespace BuildXL.Processes
                 IO.Serialize(writer);
                 writer.Write(UserTime);
                 writer.Write(KernelTime);
-                writer.Write(PeakMemoryUsage);
+                MemoryCounters.Serialize(writer);
                 writer.Write(NumberOfProcesses);
             }
 
@@ -136,7 +139,7 @@ namespace BuildXL.Processes
                     IO = IOCounters.Deserialize(reader),
                     UserTime = reader.ReadTimeSpan(),
                     KernelTime = reader.ReadTimeSpan(),
-                    PeakMemoryUsage = reader.ReadUInt64(),
+                    MemoryCounters = ProcessMemoryCounters.Deserialize(reader),
                     NumberOfProcesses = reader.ReadUInt32()
                 };
             }
@@ -193,7 +196,9 @@ namespace BuildXL.Processes
         /// <param name="terminateOnClose">If set, the job and all children will be terminated when the last handle to the job closes.</param>
         /// <param name="priorityClass">Forces a priority class onto all child processes in the job.</param>
         /// <param name="failCriticalErrors">If set, applies the effects of <c>SEM_NOGPFAULTERRORBOX</c> to all child processes in the job.</param>
-        internal void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false)
+        /// <param name="allowProcessesToBreakAway">Whether to apply <c>JOB_OBJECT_LIMIT_BREAKAWAY_OK</c> to the job object, so processes can escape from the job
+        /// by setting <c>CREATE_BREAKAWAY_FROM_JOB</c> on process creation</param>
+        internal void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false, bool allowProcessesToBreakAway = false)
         {
             // There is a race in here; but that shouldn't matter in the way we use JobObjects in BuildXL.
             var limitInfo = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
@@ -230,6 +235,11 @@ namespace BuildXL.Processes
                 limitInfo.LimitFlags |= JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
             }
 
+            if (allowProcessesToBreakAway)
+            {
+                limitInfo.LimitFlags |= JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_BREAKAWAY_OK;
+            }
+
             if (!Native.Processes.ProcessUtilities.SetInformationJobObject(
                 handle,
                 JOBOBJECTINFOCLASS.ExtendedLimitInformation,
@@ -259,16 +269,16 @@ namespace BuildXL.Processes
         /// Checks whether there are any active processes for this job
         /// </summary>
         /// <remarks>If in doubt, it returns <code>true</code>.</remarks>
-        internal bool HasAnyProcesses() => !TryGetProcessIds(out uint[] processIds) || processIds.Length > 0;
+        internal bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[] processIds) || processIds.Length > 0;
 
-        internal bool TryGetProcessIds(out uint[] processIds)
+        internal bool TryGetProcessIds(LoggingContext loggingContext, out uint[] processIds)
         {
-            if (!TryGetProcessIds(InitialProcessIdListLength, out processIds, out uint requiredLength))
+            if (!TryGetProcessIds(loggingContext, InitialProcessIdListLength, out processIds, out uint requiredLength))
             {
                 if (requiredLength > 0)
                 {
                     // Try again with a bigger buffer.
-                    return TryGetProcessIds(requiredLength, out processIds, out _);
+                    return TryGetProcessIds(loggingContext, requiredLength, out processIds, out _);
                 }
                 else
                 {
@@ -284,7 +294,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Tries to retrieve the list of active process ids for this job.
         /// </summary>
-        private bool TryGetProcessIds(uint length, out uint[] processIds, out uint requiredLength)
+        private bool TryGetProcessIds(LoggingContext loggingContext, uint length, out uint[] processIds, out uint requiredLength)
         {
             Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn(out processIds) != null);
 
@@ -298,7 +308,7 @@ namespace BuildXL.Processes
             fixed (ulong* bufferPtr = buffer)
             {
                 var processIdListPtr = (JOBOBJECT_BASIC_PROCESS_ID_LIST*)bufferPtr;
-                Contract.Assert(processIdListPtr != null);
+                Contract.Assert(processIdListPtr != null, "ProcessIdListPtr is null");
 
                 uint bytesWritten;
                 if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
@@ -313,7 +323,26 @@ namespace BuildXL.Processes
                     return false;
                 }
 
-                Contract.Assume(bytesWritten <= bufferSizeInBytes);
+                if (bytesWritten > bufferSizeInBytes)
+                {
+                    long numAssignedProcesses = 0;
+                    long numProcessIdsInList = 0;
+                    if (processIdListPtr != null)
+                    {
+                        numAssignedProcesses = processIdListPtr->NumberOfAssignedProcesses;
+                        numProcessIdsInList = processIdListPtr->NumberOfProcessIdsInList;
+                    }
+
+                    Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
+                        loggingContext,
+                        bytesWritten,
+                        bufferSizeInBytes,
+                        numAssignedProcesses,
+                        numProcessIdsInList);
+
+                    processIds = null;
+                    return false;
+                }
 
                 if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)
                 {
@@ -359,35 +388,8 @@ namespace BuildXL.Processes
                        IO = new IOCounters(info.IOCounters),
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
-                       NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       PeakMemoryUsage = GetPeakMemoryUsage(),
-                   };
-        }
-
-        /// <summary>
-        /// Gets the peak aggregate memory usage of this job (sum of memory usage of all processes).
-        /// </summary>
-        /// <remarks>
-        /// Corresponds to PeakJobMemoryUsed on the job's extended limit information.
-        /// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms684156(v=vs.85).aspx
-        /// </remarks>
-        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public ulong GetPeakMemoryUsage()
-        {
-            var info = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
-
-            uint bytesWritten;
-            if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
-                handle,
-                JOBOBJECTINFOCLASS.ExtendedLimitInformation,
-                &info,
-                (uint)Marshal.SizeOf(info),
-                out bytesWritten))
-            {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get extended limit information.");
-            }
-
-            return info.PeakJobMemoryUsed.ToUInt64();
+                       NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses
+                    };
         }
 
         /// <summary>
@@ -558,7 +560,7 @@ namespace BuildXL.Processes
         /// This function may safely be invoked concurrently / multiple times.
         /// </remarks>
         /// <returns>Boolean indicating whether all processes have terminated (false indicates that a timeout occurred instead)</returns>
-        public Task<bool> WaitAsync(TimeSpan timeout)
+        public Task<bool> WaitAsync(LoggingContext loggingContext, TimeSpan timeout)
         {
             Contract.Requires(timeout >= TimeSpan.Zero);
             Contract.Requires(timeout.TotalMilliseconds < uint.MaxValue);
@@ -571,7 +573,7 @@ namespace BuildXL.Processes
 
                 doneEvent = m_doneEvent;
 
-                if (m_done || !HasAnyProcesses())
+                if (m_done || !HasAnyProcesses(loggingContext))
                 {
                     // Fast path: no need to wait
                     // Note that we check HasAnyProcesses() in addition to m_done so as to more likely avoid pathological behavior in which calls to WaitAsync

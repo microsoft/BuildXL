@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -20,6 +20,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
     {
         private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents 
             = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
+        private static readonly SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> s_emptyOutputDirectoryContents
+            = CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance);
 
         internal const string SealDirectoryFunctionName = "sealDirectory";
         internal const string SealSourceDirectoryFunctionName = "sealSourceDirectory";
@@ -39,6 +41,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_sealInclude;
         private SymbolAtom m_sealPatterns;
         private SymbolAtom m_sealScrub;
+        private SymbolAtom m_sealOutputDirectories;
+        private SymbolAtom m_sealDirectories;
+        private SymbolAtom m_sealDirectoryContentFilter;
+        private SymbolAtom m_sealDirectoryContentFilterRegex;
+        private SymbolAtom m_sealDirectoryContentFilterKind;
 
         private void InitializeSealDirectoryNames()
         {
@@ -49,13 +56,18 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_sealInclude = Symbol("include");
             m_sealPatterns = Symbol("patterns");
             m_sealScrub = Symbol("scrub");
+            m_sealOutputDirectories = Symbol("outputDirectories");
+            m_sealDirectories = Symbol("directories");
+            m_sealDirectoryContentFilter = Symbol("contentFilter");
+            m_sealDirectoryContentFilterRegex = Symbol("regex");
+            m_sealDirectoryContentFilterKind = Symbol("kind");
         }
 
         private CallSignature SealPartialDirectorySignature => SealDirectorySignature;
 
         private CallSignature SealDirectorySignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.PathType, new ArrayType(AmbientTypes.FileType)),
-            optional: OptionalParameters(new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType, AmbientTypes.BooleanType),
+            optional: OptionalParameters(new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType, AmbientTypes.BooleanType, new ArrayType(AmbientTypes.StaticDirectoryType)),
             returnType: AmbientTypes.StaticDirectoryType);
 
         private CallSignature SealSourceDirectorySignature => CreateSignature(
@@ -65,7 +77,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private CallSignature ComposeSharedOpaqueDirectoriesSignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.PathType, new ArrayType(AmbientTypes.ObjectType)),
-            optional: OptionalParameters(new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType),
+            optional: OptionalParameters(AmbientTypes.ObjectType),
             returnType: AmbientTypes.StaticDirectoryType);
 
         private EvaluationResult SealDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
@@ -78,12 +90,28 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             return SealDirectoryHelper(context, env, args, SealDirectoryKind.Partial);
         }
 
-        private static EvaluationResult ComposeSharedOpaqueDirectories(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult ComposeSharedOpaqueDirectories(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
-            AbsolutePath root = Args.AsPath(args, 0, false);
-            ArrayLiteral contents = Args.AsArrayLiteral(args, 1);
-            var tags = Args.AsStringArrayOptional(args, 2);
-            var description = Args.AsStringOptional(args, 3);
+            AbsolutePath root;
+            ArrayLiteral contents;
+            SealDirectoryContentFilter? contentFilter;
+
+            if (args.Length > 0 && args[0].Value is ObjectLiteral)
+            {
+                var obj = Args.AsObjectLiteral(args, 0);
+                var directory = Converter.ExtractDirectory(obj, m_sealRoot, allowUndefined: false);
+                root = directory.Path;
+                contents = Converter.ExtractArrayLiteral(obj, m_sealDirectories, allowUndefined: false);
+                var filterObj = Converter.ExtractObjectLiteral(obj, m_sealDirectoryContentFilter, allowUndefined: true);
+                extractContentFilter(filterObj, out contentFilter);
+            }
+            else
+            {
+                root = Args.AsPath(args, 0, false);
+                contents = Args.AsArrayLiteral(args, 1);
+                var filterObj = Args.AsObjectLiteralOptional(args, 2);
+                extractContentFilter(filterObj, out contentFilter);
+            }
 
             var directories = new DirectoryArtifact[contents.Length];
 
@@ -92,7 +120,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 directories[i] = Converter.ExpectSharedOpaqueDirectory(contents[i], context: new ConversionContext(pos: i, objectCtx: contents)).Root;
             }
 
-            if (!context.GetPipConstructionHelper().TryComposeSharedOpaqueDirectory(root, directories, description, tags, out var compositeSharedOpaque))
+            if (!context.GetPipConstructionHelper().TryComposeSharedOpaqueDirectory(root, directories, contentFilter, description: null, tags: null, out var compositeSharedOpaque))
             {
                 // Error should have been logged
                 return EvaluationResult.Error;
@@ -101,8 +129,22 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             var result = new StaticDirectory(compositeSharedOpaque, SealDirectoryKind.SharedOpaque, s_emptySealContents.WithCompatibleComparer(OrdinalPathOnlyFileArtifactComparer.Instance));
 
             return new EvaluationResult(result);
+
+            void extractContentFilter(ObjectLiteral obj, out SealDirectoryContentFilter? filter)
+            {
+                filter = null;
+
+                if (obj != null)
+                {
+                    var regex = Converter.ExtractRegex(obj, m_sealDirectoryContentFilterRegex, allowUndefined: false);
+                    var kindAsString = Converter.ExtractString(obj, m_sealDirectoryContentFilterKind, allowUndefined: false);
+
+                    filter = new SealDirectoryContentFilter(
+                        (SealDirectoryContentFilter.ContentFilterKind)Enum.Parse(typeof(SealDirectoryContentFilter.ContentFilterKind), kindAsString),
+                        regex.ToString());
+                }
+            }
         }
-        
 
         private EvaluationResult SealSourceDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
@@ -139,7 +181,15 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             DirectoryArtifact sealedDirectoryArtifact;
-            if (!context.GetPipConstructionHelper().TrySealDirectory(path, s_emptySealContents, sealDirectoryKind, tags, description, patterns, out sealedDirectoryArtifact))
+            if (!context.GetPipConstructionHelper().TrySealDirectory(
+                directoryRoot: path,
+                contents: s_emptySealContents,
+                outputDirectorycontents: s_emptyOutputDirectoryContents,
+                kind: sealDirectoryKind,
+                tags: tags,
+                description: description,
+                patterns: patterns,
+                sealedDirectory: out sealedDirectoryArtifact))
             {
                 // Error has been logged
                 return EvaluationResult.Error;
@@ -153,6 +203,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         {
             AbsolutePath path;
             ArrayLiteral contents;
+            ArrayLiteral outputDirectoryContents;
             string[] tags;
             string description;
             bool scrub;
@@ -168,6 +219,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 scrub = sealDirectoryKind.IsFull() 
                     ? Converter.ExtractOptionalBoolean(obj, m_sealScrub) ?? false
                     : false;
+                outputDirectoryContents = sealDirectoryKind.IsFull()
+                    ? Converter.ExtractOptionalArrayLiteral(obj, m_sealOutputDirectories, allowUndefined: false)
+                    : null;
             }
             else
             {
@@ -177,6 +231,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 description = Args.AsStringOptional(args, 3);
                 // Only do scrub for fully seal directory
                 scrub = sealDirectoryKind.IsFull() ? Args.AsBoolOptional(args, 4) : false;
+                outputDirectoryContents = sealDirectoryKind.IsFull() ? Args.AsArrayLiteralOptional(args, 5) : null;
             }
 
             var fileContents = new FileArtifact[contents.Length];
@@ -186,10 +241,23 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 fileContents[i] = Converter.ExpectFile(contents[i], strict: false, context: new ConversionContext(pos: i, objectCtx: contents));
             }
 
+            var outputDirectoryArtifactContents = new DirectoryArtifact[outputDirectoryContents?.Count ?? 0];
+            for (int i = 0; i < outputDirectoryArtifactContents.Length; ++i)
+            {
+                outputDirectoryArtifactContents[i] = Converter.ExpectStaticDirectory(outputDirectoryContents[i], context: new ConversionContext(pos: i, objectCtx: contents)).Root;
+            }
+
             var sortedFileContents = SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(fileContents, OrdinalFileArtifactComparer.Instance);
 
+            var sortedDirectoryContents = SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.CloneAndSort(
+                outputDirectoryArtifactContents, 
+                OrdinalDirectoryArtifactComparer.Instance);
+
             DirectoryArtifact sealedDirectoryArtifact;
-            if (!context.GetPipConstructionHelper().TrySealDirectory(path, sortedFileContents, sealDirectoryKind, tags, description, null, out sealedDirectoryArtifact, scrub))
+            if (!context.GetPipConstructionHelper().TrySealDirectory(
+                directoryRoot: path, contents: sortedFileContents, outputDirectorycontents: sortedDirectoryContents,
+                kind: sealDirectoryKind, tags: tags, description: description, patterns: null,
+                sealedDirectory: out sealedDirectoryArtifact, scrub: scrub))
             {
                 // Error has been logged
                 return EvaluationResult.Error;

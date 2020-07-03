@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -25,19 +25,19 @@ using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
-using BuildXL.ViewModel;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
-using BuildXL.Scheduler.Filter;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
-using BuildXL.Storage.ChangeJournalService;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -46,9 +46,9 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Scheduler.ExecutionSampler;
 using static BuildXL.Utilities.BuildParameters;
 using static BuildXL.Utilities.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
@@ -246,8 +246,6 @@ namespace BuildXL.Engine
         [CanBeNull]
         private readonly string m_buildVersion;
 
-        private AbsolutePath? m_workerSymlinkDefinitionFile = null;
-
         private bool IsDistributedMaster => Configuration.Distribution.BuildRole == DistributedBuildRoles.Master;
 
         private bool IsDistributedWorker => Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker;
@@ -316,8 +314,7 @@ namespace BuildXL.Engine
             {
                 m_workerService = new WorkerService(
                     loggingContext,
-                    Configuration.Schedule.MaxProcesses,
-                    Configuration.Distribution,
+                    Configuration,
                     distributedBuildId);
                 m_distributionService = m_workerService;
             }
@@ -671,6 +668,11 @@ namespace BuildXL.Engine
                 layout.SharedOpaqueSidebandDirectory = layout.EngineCacheDirectory.Combine(pathTable, Scheduler.Scheduler.SharedOpaqueSidebandDirectory);
             }
 
+            if (!layout.ExternalSandboxedProcessDirectory.IsValid)
+            {
+                layout.ExternalSandboxedProcessDirectory = layout.ObjectDirectory.Combine(pathTable, nameof(ExternalSandboxedProcess));
+            }
+
             // Logging
             if (string.IsNullOrEmpty(logging.LogPrefix))
             {
@@ -709,6 +711,7 @@ namespace BuildXL.Engine
             if (logging.LogStats)
             {
                 logging.StatsLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Stats);
+                logging.StatsPrfLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.StatsPrf);
             }
 
             if (logging.LogStatus)
@@ -890,9 +893,9 @@ namespace BuildXL.Engine
                 mutableConfig.Cache.CacheConfigFile = defaultCacheConfigFile;
             }
 
-            // There is funny handling in the configuration for these two settings in conjuction with whitelist settings:
+            // There is funny handling in the configuration for these two settings in conjuction with allowlist settings:
             //  * Turning off UnexpectedFileAccessesAreErrors (this code), or
-            //  * Declaring a whitelist in config.
+            //  * Declaring a allowlist in config.
             // (story 169157) Tracks cleaning this up.
             mutableConfig.Sandbox.FailUnexpectedFileAccesses = mutableConfig.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors;
 
@@ -980,6 +983,18 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
             }
 
+            if (mutableConfig.Schedule.UnsafeLazySODeletion &&
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SandboxKind == SandboxKind.None)
+            {
+                mutableConfig.Schedule.UnsafeLazySODeletion = false;
+            }
+
+            if (mutableConfig.Schedule.UnsafeLazySODeletion)
+            {
+                // must compute static fingerprints when using lazy shared opaque output deletion
+                mutableConfig.Schedule.ComputePipStaticFingerprints = true;
+            }
+
             // Turn off incremental scheduling when incompatible features are enabled.
             if (mutableConfig.Schedule.IncrementalScheduling)
             {
@@ -1052,6 +1067,16 @@ namespace BuildXL.Engine
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {
+                if(mutableConfig.Schedule.MinimumDiskSpaceForPipsGb == null)
+                {
+                    mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
+                }
+
+                if (mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker == null)
+                {
+                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker = 3;
+                }
+
                 // Enable fail fast for null reference exceptions caught by
                 // ExceptionUtilities.IsUnexpectedException
                 EngineEnvironmentSettings.FailFastOnNullReferenceException.Value = true;
@@ -1059,6 +1084,9 @@ namespace BuildXL.Engine
 
                 mutableConfig.Engine.ScanChangeJournal = false;
                 mutableConfig.Schedule.IncrementalScheduling = false;
+
+                // lazy scrubbing is only meant for speeding up single-machine dev builds
+                mutableConfig.Schedule.UnsafeLazySODeletion = false;
 
                 // Disable viewer
                 mutableConfig.Viewer = ViewerMode.Disable;
@@ -1081,10 +1109,11 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.ForceUseEngineInfoFromCache = true;
                 mutableConfig.Distribution.DistributeCacheLookups = true;
                 mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
+                // The default outside CB is false, so make sure we flip that when in CB
+                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalCpuUsageInfo ?? true;
+                // In CB we don't actually want this to become a parameter that is actively used, so make it large enough
+                mutableConfig.Schedule.MinimumTotalAvailableRamMb = initialCommandLineConfiguration.Schedule.MinimumTotalAvailableRamMb ?? 100000000;
                 mutableConfig.Schedule.ScheduleMetaPips = false;
-
-                // Prefer to load data into memory
-                mutableConfig.Cache.CacheMemoryUsage = MemoryUsageOption.Liberal;
 
                 // In CloudBuild always place EngineCache under object directory
                 mutableConfig.Layout.EngineCacheDirectory = mutableConfig.Layout.ObjectDirectory.Combine(pathTable, Strings.Layout_DefaultEngineCacheFolderName);
@@ -1092,9 +1121,9 @@ namespace BuildXL.Engine
                 // Add additional context to environment fingerprint
                 foreach (var entry in mutableConfig.Logging.TraceInfo)
                 {
-                    if (entry.Key.Equals(TraceInfoExtensions.Branch, StringComparison.OrdinalIgnoreCase))
+                    if (entry.Key.Equals(TraceInfoExtensions.CustomFingerprint, StringComparison.OrdinalIgnoreCase))
                     {
-                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.Branch}:{entry.Value}");
+                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.CustomFingerprint}:{entry.Value}");
                     }
                     else if (entry.Key.Equals(TraceInfoExtensions.CloudBuildQueue, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1111,6 +1140,9 @@ namespace BuildXL.Engine
 
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
                 mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+                // Spec cache is disabled as most builds are happening on SSDs. 
+                mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
             }
             else
             {
@@ -1158,6 +1190,12 @@ namespace BuildXL.Engine
                 mutableConfig.Interactive = false;
             }
 
+            if (mutableConfig.Cache.VfsCasRoot.IsValid)
+            {
+                // VFS CAS root should be untracked for purposes of sandboxing.
+                mutableConfig.Sandbox.GlobalUnsafeUntrackedScopes.Add(mutableConfig.Cache.VfsCasRoot);
+            }
+
             // HACK HACK HACK
             // To deal with using Dedup hash while config still uses VSO hash
             // HACK HACK HACK
@@ -1175,6 +1213,10 @@ namespace BuildXL.Engine
                             { "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700","DEDUPNODEORCHUNK:565B91A12F72B94139F6D7DB21C04986C06CC3AE56FB43E6EDA8E6B496198F0B02" },
                             { "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900","DEDUPNODEORCHUNK:1D9CED63701BC0F2E5D3063BA7889F8687537CB78B155858FCB7EE56A78A6C8102" },
                             { "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600","DEDUPNODEORCHUNK:1A350CECC53CAE31EE3699BDA53270E91951A81E6353EABC878BA8D8B16F8E9202" },
+                            { "VSO0:EE359BDFFFED53EF3C5E76C1716AADD1567447B12A37292C075D6A26F1138C0700","DEDUPNODEORCHUNK:EEA76D4D9582AF60528262048E03F957FA7A91D166DE37D2C983A31583D8FE9F02" },
+                            { "VSO0:FCB44A9D07D3923DB197C05A710FEBBB060649555418A067E04EAE1A06CBCE4400","DEDUPNODEORCHUNK:17819CDB4B3658BC8A730DD1B1C6AFA427E3D5651789519309A7A32523F382B402" },
+                            { "VSO0:B65327703FB1775A7ABD637D44816CDE13DFE01BD98FF2B1B1DE8DAC46D1567800","DEDUPNODEORCHUNK:C4DFAA60F349EC7DADFB0BF53D0B278CFD41786FB276A25A2C94FE8724A6CF1202" },
+                            { "VSO0:B89DFFD762BEA6D94E11CEA1C430FDC620CE5407827360085B21963E5887E38300","DEDUPNODEORCHUNK:7358076CBF7C874C31B5599D0455209282539958F9F36FAF28155496442093CB02" },
                         };
 
                     foreach (var download in x.Downloads.Cast<DownloadFileSettings>())
@@ -1226,6 +1268,22 @@ namespace BuildXL.Engine
 
             // get the current user AppData directory path before we make any changes
             currentUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            if (string.IsNullOrWhiteSpace(currentUserProfile))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Environment.SpecialFolder.UserProfile returns empty value."));
+                currentUserProfile = null;
+                redirectedProfile = null;
+                return false;
+            }
+
+            if (!FileUtilities.DirectoryExistsNoFollow(currentUserProfile))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"currentUserProfile '{currentUserProfile}' does not exist."));
+                currentUserProfile = null;
+                redirectedProfile = null;
+                return false;
+            }
 
             // <root>\RedirectedUserName
             redirectedProfile = Path.Combine(rootPath, RedirectedUserName);
@@ -1336,6 +1394,8 @@ namespace BuildXL.Engine
             }
             catch (Exception e)
             {
+                // If we successfully create a directory and the junction creation fails, we need to delete that directory.
+                FileUtilities.TryRemoveDirectory(redirectedProfile, out var _);
                 Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create a junction from '{redirectedProfile}' to '{currentUserProfile}': {e.ToString()}"));
                 return false;
             }
@@ -1387,16 +1447,16 @@ namespace BuildXL.Engine
         {
             bool success = true;
 
-            // Engine settings for whitelists.
+            // Engine settings for allowlists.
             // NOTE: This is temporarily duplicated in the ConfigFileState.MergeIntoConfiguration for when the config is loaded from Cached Graph. This is scheduled for a later cleanup
-            if (moduleConfig.FileAccessWhiteList.Count > 0 || moduleConfig.CacheableFileAccessWhitelist.Count > 0)
+            if (moduleConfig.FileAccessAllowList.Count > 0 || moduleConfig.CacheableFileAccessAllowList.Count > 0)
             {
                 sandboxConfig.FailUnexpectedFileAccesses = false;
                 Logger.Log.FileAccessManifestSummary(
                     loggingContext,
                     moduleConfig.Name,
-                    moduleConfig.CacheableFileAccessWhitelist.Count,
-                    moduleConfig.FileAccessWhiteList.Count);
+                    moduleConfig.CacheableFileAccessAllowList.Count,
+                    moduleConfig.FileAccessAllowList.Count);
             }
 
             var allRules = new Dictionary<AbsolutePath, IDirectoryMembershipFingerprinterRule>();
@@ -1433,24 +1493,24 @@ namespace BuildXL.Engine
             }
 
             var symbolTableForValidation = new SymbolTable(pathTable.StringTable);
-            foreach (var whiteListEntry in moduleConfig.FileAccessWhiteList.Union(moduleConfig.CacheableFileAccessWhitelist))
+            foreach (var allowListEntry in moduleConfig.FileAccessAllowList.Union(moduleConfig.CacheableFileAccessAllowList))
             {
-                var location = whiteListEntry.Location.IsValid ? whiteListEntry.Location : moduleConfig.Location;
+                var location = allowListEntry.Location.IsValid ? allowListEntry.Location : moduleConfig.Location;
                 SerializableRegex pathRegex;
                 string error;
 
-                if (string.IsNullOrEmpty(whiteListEntry.PathRegex))
+                if (string.IsNullOrEmpty(allowListEntry.PathRegex))
                 {
-                    if (!FileAccessWhitelist.TryCreateWhitelistRegex(Regex.Escape(whiteListEntry.PathFragment), out pathRegex, out error))
+                    if (!FileAccessAllowlist.TryCreateAllowlistRegex(Regex.Escape(allowListEntry.PathFragment), out pathRegex, out error))
                     {
-                        throw Contract.AssertFailure("A whitelist regex should never fail to construct from an escaped pattern.");
+                        throw Contract.AssertFailure("An allowlist regex should never fail to construct from an escaped pattern.");
                     }
                 }
                 else
                 {
-                    if (!FileAccessWhitelist.TryCreateWhitelistRegex(whiteListEntry.PathRegex, out pathRegex, out error))
+                    if (!FileAccessAllowlist.TryCreateAllowlistRegex(allowListEntry.PathRegex, out pathRegex, out error))
                     {
-                        Logger.Log.FileAccessWhitelistEntryHasInvalidRegex(
+                        Logger.Log.FileAccessAllowlistEntryHasInvalidRegex(
                             loggingContext,
                             location.Path.ToString(pathTable),
                             location.Line,
@@ -1460,19 +1520,19 @@ namespace BuildXL.Engine
                     }
                 }
 
-                if (!string.IsNullOrEmpty(whiteListEntry.Value))
+                if (!string.IsNullOrEmpty(allowListEntry.Value))
                 {
                     FullSymbol symbol;
                     int characterWithError;
-                    if (FullSymbol.TryCreate(symbolTableForValidation, whiteListEntry.Value, out symbol, out characterWithError) !=
+                    if (FullSymbol.TryCreate(symbolTableForValidation, allowListEntry.Value, out symbol, out characterWithError) !=
                         FullSymbol.ParseResult.Success)
                     {
-                        Logger.Log.FileAccessWhitelistCouldNotCreateIdentifier(
+                        Logger.Log.FileAccessAllowlistCouldNotCreateIdentifier(
                             loggingContext,
                             location.Path.ToString(pathTable),
                             location.Line,
                             location.Position,
-                            whiteListEntry.Value);
+                            allowListEntry.Value);
                         success = false;
                     }
                 }
@@ -1517,7 +1577,7 @@ namespace BuildXL.Engine
             return DoRun(loggingContext, engineState, disposeFrontEnd: false);
         }
 
-        private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, LoggingContext loggingContext)
+        private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, MountsTable mountsTable, LoggingContext loggingContext)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -1525,7 +1585,10 @@ namespace BuildXL.Engine
             }
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
-            VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
+            IReadOnlyList<string> gvfsProjections = Configuration.Engine.TrackGvfsProjections
+                ? DiscoverGvfsProjectionFiles(mountsTable)
+                : CollectionUtilities.EmptyArray<string>();
+            VolumeMap volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(loggingContext, junctionRoots, gvfsProjections);
 
             if (volumeMap == null)
             {
@@ -1537,7 +1600,7 @@ namespace BuildXL.Engine
 
         private JournalState GetJournalStateWithVolumeMap(VolumeMap volumeMap, LoggingContext loggingContext)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            if (OperatingSystemHelper.IsUnixOS || !Configuration.Engine.ScanChangeJournal)
             {
                 return JournalState.DisabledJournal;
             }
@@ -1545,22 +1608,37 @@ namespace BuildXL.Engine
             Contract.Requires(volumeMap != null);
             Contract.Requires(loggingContext != null);
 
-            // Under some configurations, we access the change journal (i.e., actually scan the journal).
-            if (Configuration.Engine.ScanChangeJournal)
+            var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(
+                volumeMap,
+                m_initialCommandLineConfiguration.Startup.ConfigFile.ToString(Context.PathTable));
+
+            if (!maybeJournal.Succeeded)
             {
-                var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(
-                    volumeMap,
-                    m_initialCommandLineConfiguration.Startup.ConfigFile.ToString(Context.PathTable));
-
-                if (maybeJournal.Succeeded)
-                {
-                    return JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result);
-                }
-
                 Logger.Log.FailedToGetJournalAccessor(loggingContext, maybeJournal.Failure.Describe());
+                return JournalState.DisabledJournal;
             }
 
-            return JournalState.DisabledJournal;
+            return JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result);
+        }
+
+        private IReadOnlyList<string> DiscoverGvfsProjectionFiles(MountsTable mountsTable)
+        {
+            var result = new HashSet<string>(OperatingSystemHelper.PathComparer);
+            var readableMountRoots = mountsTable.AllMounts.Where(m => m.IsReadable).Select(m => m.Path);
+            foreach (var mountRoot in readableMountRoots)
+            {
+                for (var path = mountRoot; path.IsValid; path = path.GetParent(Context.PathTable))
+                {
+                    var gvfsProjectionFile = Path.Combine(path.ToString(Context.PathTable), ".gvfs", "GVFS_projection");
+                    if (File.Exists(gvfsProjectionFile))
+                    {
+                        result.Add(gvfsProjectionFile);
+                        break;
+                    }
+                }
+            }
+
+            return result.ToList();
         }
 
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
@@ -1615,8 +1693,13 @@ namespace BuildXL.Engine
                 // Make sure we are running on a case-insensitive file system in the macOS/Unix case for the time being
                 if (FileUtilities.IsFileSystemCaseSensitive())
                 {
-                    Logger.Log.ErrorCaseSensitiveFileSystemDetected(loggingContext);
-                    return BuildXLEngineResult.Failed(engineState);
+                    // The Linux version is still experimental so we are willing to run on a case-sensitive filesystem;
+                    // otherwise, be conservative and fail if the filesystem is case sensitive.
+                    if (!OperatingSystemHelper.IsLinuxOS)
+                    {
+                        Logger.Log.ErrorCaseSensitiveFileSystemDetected(loggingContext);
+                        return BuildXLEngineResult.Failed(engineState);
+                    }
                 }
             }
 
@@ -1632,55 +1715,57 @@ namespace BuildXL.Engine
                 Logger.Log.StartEngineRun,
                 Logger.Log.EndEngineRun))
             {
+                var engineLoggingContext = pm.LoggingContext;
                 bool directoryDeletionLockSuccess;
-                using (CreateOutputDirectories(Context.PathTable, pm.LoggingContext, out directoryDeletionLockSuccess))
+                using (CreateOutputDirectories(Context.PathTable, engineLoggingContext, out directoryDeletionLockSuccess))
                 {
                     if (!directoryDeletionLockSuccess)
                     {
-                        Contract.Assume(pm.LoggingContext.ErrorWasLogged, "An error should have been logged during output directory creation.");
+                        Contract.Assume(engineLoggingContext.ErrorWasLogged, "An error should have been logged during output directory creation.");
                         return BuildXLEngineResult.Failed(engineState);
                     }
 
                     // Once output directories including MoveDeleteTempDirectory have been created,
                     // create a TempCleaner for cleaning all temp directories
-                    m_tempCleaner = new TempCleaner(tempDirectory: m_moveDeleteTempDirectory);
+                    m_tempCleaner = new TempCleaner(engineLoggingContext, tempDirectory: m_moveDeleteTempDirectory);
 
                     using (
                         var objFolderLock = FolderLock.Take(
-                            pm.LoggingContext,
+                            engineLoggingContext,
                             Configuration.Layout.ObjectDirectory.ToString(Context.PathTable),
                             Configuration.Engine.BuildLockPollingIntervalSec,
                             Configuration.Engine.BuildLockWaitTimeoutMins))
                     {
                         if (!objFolderLock.SuccessfullyCreatedLock)
                         {
-                            Contract.Assume(pm.LoggingContext.ErrorWasLogged, "An error should have been logged during folder lock acquisition.");
+                            Contract.Assume(engineLoggingContext.ErrorWasLogged, "An error should have been logged during folder lock acquisition.");
                             return BuildXLEngineResult.Failed(engineState);
                         }
 
                         using (
                             var engineCacheLock = FolderLock.Take(
-                                pm.LoggingContext,
+                                engineLoggingContext,
                                 Configuration.Layout.EngineCacheDirectory.ToString(Context.PathTable),
                                 Configuration.Engine.BuildLockPollingIntervalSec,
                                 Configuration.Engine.BuildLockWaitTimeoutMins))
                         {
                             if (!engineCacheLock.SuccessfullyCreatedLock)
                             {
-                                Contract.Assume(pm.LoggingContext.ErrorWasLogged, "An error should have been logged during folder lock acquisition.");
+                                Contract.Assume(engineLoggingContext.ErrorWasLogged, "An error should have been logged during folder lock acquisition.");
                                 return BuildXLEngineResult.Failed(engineState);
                             }
 
-                            if (!LogAndValidateConfiguration(pm.LoggingContext))
+                            if (!LogAndValidateConfiguration(engineLoggingContext))
                             {
-                                Contract.Assume(pm.LoggingContext.ErrorWasLogged, "An error should have been logged during configuration validation.");
+                                Contract.Assume(engineLoggingContext.ErrorWasLogged, "An error should have been logged during configuration validation.");
                                 return BuildXLEngineResult.Failed(engineState);
                             }
 
-                            var recovery = FailureRecoveryFactory.Create(pm.LoggingContext, Context.PathTable, Configuration);
+                            var recovery = FailureRecoveryFactory.Create(engineLoggingContext, Context.PathTable, Configuration);
                             bool recoveryStatus = recovery.TryRecoverIfNeeded();
 
-                            var volumeMap = TryGetVolumeMapOfAllLocalVolumes(pm, loggingContext);
+                            var mountsTable = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
+                            var volumeMap = TryGetVolumeMapOfAllLocalVolumes(pm, mountsTable, loggingContext);
                             var journalState = GetJournalStateWithVolumeMap(volumeMap, loggingContext);
 
                             if (!OperatingSystemHelper.IsUnixOS)
@@ -1693,8 +1778,9 @@ namespace BuildXL.Engine
 
                             // Returns stub if explicitly not use file content table.
                             m_fileContentTask = Configuration.Engine.UseFileContentTable == false
-                                ? Task.FromResult(FileContentTable.CreateStub())
+                                ? Task.FromResult(FileContentTable.CreateStub(engineLoggingContext))
                                 : FileContentTable.LoadOrCreateAsync(
+                                    engineLoggingContext,
                                     Configuration.Layout.FileContentTableFile.ToString(Context.PathTable),
                                     Configuration.Cache.FileContentTableEntryTimeToLive ?? FileContentTable.DefaultTimeToLive);
 
@@ -1750,7 +1836,7 @@ namespace BuildXL.Engine
                                         // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker
                                         engineState?.Dispose();
                                         Contract.Assert(
-                                            pm.LoggingContext.ErrorWasLogged,
+                                            engineLoggingContext.ErrorWasLogged,
                                             "An error should have been logged during waiting for attaching to the master.");
                                         return BuildXLEngineResult.Create(success: false, perfInfo: null, previousState: engineState, newState: null);
                                     }
@@ -1778,7 +1864,7 @@ namespace BuildXL.Engine
                                     if (!possibleCacheInitializerForDistribution.Succeeded)
                                     {
                                         // StorageCacheStartupError has been logged by CacheInitializer
-                                        Logger.Log.ErrorCacheDisabledDistributedBuild(pm.LoggingContext);
+                                        Logger.Log.ErrorCacheDisabledDistributedBuild(engineLoggingContext);
                                         return BuildXLEngineResult.Failed(engineState);
                                     }
                                 }
@@ -1793,7 +1879,7 @@ namespace BuildXL.Engine
                                     out engineSchedule,
                                     out rootFilter);
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
-                                ValidateSuccessMatches(success, pm.LoggingContext);
+                                ValidateSuccessMatches(success, engineLoggingContext);
 
                                 var phase = Configuration.Engine.Phase;
 
@@ -1846,20 +1932,20 @@ namespace BuildXL.Engine
                                     };
 
                                     success &= OutputCleaner.DeleteOutputs(
-                                        pm.LoggingContext,
+                                        engineLoggingContext,
                                         isOutputDir,
                                         engineSchedule.Scheduler.PipGraph.FilterOutputsForClean(
                                             rootFilter).ToArray(),
                                         Context.PathTable,
                                         m_tempCleaner);
-                                    ValidateSuccessMatches(success, pm.LoggingContext);
+                                    ValidateSuccessMatches(success, engineLoggingContext);
                                 }
 
                                 // Keep this as close to the Execute phase as possible
                                 if (phase.HasFlag(EnginePhases.Schedule) && Configuration.Engine.LogStatistics)
                                 {
                                     BuildXL.Tracing.Logger.Log.Statistic(
-                                        pm.LoggingContext,
+                                        engineLoggingContext,
                                         new Statistic
                                         {
                                             Name = Statistics.TimeToFirstPipSyntheticMs,
@@ -1904,13 +1990,12 @@ namespace BuildXL.Engine
                                             executePhaseLoggingContext.GetRootContext() == loggingContext.GetRootContext(),
                                             "PhaseLoggingContext's root context doesn't match AppLoggingContext's root.");
                                         Contract.Assert(
-                                            executePhaseLoggingContext.GetRootContext() == pm.LoggingContext.GetRootContext(),
+                                            executePhaseLoggingContext.GetRootContext() == engineLoggingContext.GetRootContext(),
                                             "PhaseLoggingContext's root context doesn't match pm's root.");
                                         success &= engineSchedule.ExecuteScheduledPips(
                                             executePhaseLoggingContext,
-                                            workerservice,
-                                            Configuration.Logging);
-                                        ValidateSuccessMatches(success, pm.LoggingContext);
+                                            workerservice);
+                                        ValidateSuccessMatches(success, engineLoggingContext);
                                     }
                                 }
 
@@ -1939,12 +2024,12 @@ namespace BuildXL.Engine
 
                                 // Saving file content table and post execution tasks are happening in parallel.
                                 success &= postExecutionTasks.GetAwaiter().GetResult();
-                                ValidateSuccessMatches(success, pm.LoggingContext);
+                                ValidateSuccessMatches(success, engineLoggingContext);
 
                                 if (!savingFileContentTableTask.GetAwaiter().GetResult())
                                 {
                                     Contract.Assert(
-                                        pm.LoggingContext.ErrorWasLogged,
+                                        engineLoggingContext.ErrorWasLogged,
                                         "An error should have been logged during saving file content table.");
                                     return BuildXLEngineResult.Failed(engineState);
                                 }
@@ -1958,7 +2043,7 @@ namespace BuildXL.Engine
                                 }
                                 catch (Exception e)
                                 {
-                                    BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, e.ToString());
+                                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, e.ToString());
                                 }
 
                                 // Ensure the execution log supporting graph files have finished copying to the logs directory
@@ -2035,7 +2120,7 @@ namespace BuildXL.Engine
                                     using (Context.EngineCounters.StartStopwatch(EngineCounter.SnapshotCollectorPersistDuration))
                                     {
                                         success &= m_snapshotCollector.Persist(Configuration, Context.PathTable, Context.CancellationToken);
-                                        ValidateSuccessMatches(success, pm.LoggingContext);
+                                        ValidateSuccessMatches(success, engineLoggingContext);
                                     }
                                 }
 
@@ -2051,8 +2136,8 @@ namespace BuildXL.Engine
 
             if (ShouldUpgradeFileAccessWarningsToHighLevelError(Configuration) &&
                 m_trackingEventListener != null &&
-                ((m_trackingEventListener.CountsPerEventId(EventId.FileMonitoringWarning) != 0) ||
-                 (m_trackingEventListener.CountsPerEventId(EventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
+                ((m_trackingEventListener.CountsPerEventId((int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringWarning) != 0) ||
+                 (m_trackingEventListener.CountsPerEventId((int)BuildXL.Processes.Tracing.LogEventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
             {
                 Logger.Log.FileAccessErrorsExist(loggingContext);
                 success = false;
@@ -2244,10 +2329,12 @@ namespace BuildXL.Engine
                 { "unsafe_ForceSkipDeps", Logger.Log.ForceSkipDependenciesEnabled },
                 { "unsafe_GlobalPassthroughEnvVars",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_GlobalUntrackedScopes",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_IgnoreCreateProcessReport", Logger.Log.ConfigIgnoreCreateProcessReport },
                 { "unsafe_IgnoreGetFinalPathNameByHandle", Logger.Log.ConfigIgnoreGetFinalPathNameByHandle },
                 { "unsafe_IgnoreNonCreateFileReparsePoints", Logger.Log.ConfigIgnoreNonCreateFileReparsePoints },
                 { "unsafe_IgnoreNtCreateFile", Logger.Log.ConfigUnsafeMonitorNtCreateFileOff },
                 { "unsafe_IgnoreReparsePoints", Logger.Log.ConfigIgnoreReparsePoints },
+                { "unsafe_IgnoreFullSymlinkResolving", Logger.Log.ConfigIgnoreFullSymlinkResolving },
                 { "unsafe_IgnorePreloadedDlls", Logger.Log.ConfigIgnorePreloadedDlls },
                 { "unsafe_IgnoreDynamicWritesOnAbsentProbes", Logger.Log.ConfigIgnoreDynamicWritesOnAbsentProbes },
                 { "unsafe_IgnoreSetFileInformationByHandle", Logger.Log.ConfigIgnoreSetFileInformationByHandle },
@@ -2255,14 +2342,15 @@ namespace BuildXL.Engine
                 { "unsafe_IgnoreZwCreateOpenQueryFamily", Logger.Log.ConfigUnsafeMonitorZwCreateOpenQueryFileOff },
                 { "unsafe_IgnoreZwOtherFileInformation", Logger.Log.ConfigIgnoreZwOtherFileInformation },
                 { "unsafe_IgnoreZwRenameFileInformation", Logger.Log.ConfigIgnoreZwRenameFileInformation },
-                { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
                 { "unsafe_PreserveOutputsTrustLevel", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_ProbeDirectorySymlinkAsDirectory", Logger.Log.ConfigProbeDirectorySymlinkAsDirectory },
                 { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
                 { "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques", Logger.Log.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques },
                 { "unsafe_OptimizedAstConversion", Logger.Log.ConfigUnsafeOptimizedAstConversion },
+                { "unsafe_AllowDuplicateTemporaryDirectory", Logger.Log.ConfigUnsafeAllowDuplicateTemporaryDirectory },
             };
         }
 
@@ -2406,12 +2494,16 @@ namespace BuildXL.Engine
         {
             Contract.Requires(path.IsValid);
 
-            var translatedPath = m_translator?.Translate(Context.PathTable, path) ?? path;
-            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, translatedPath);
+            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, path, out AbsolutePath finalPath);
             if (!possiblyEnabled)
             {
-                var drive = translatedPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
-                Logger.Log.JournalRequiredOnVolumeError(loggingContext, drive, GetConfigureJournalCommand(drive));
+                var drive = finalPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
+                Logger.Log.JournalRequiredOnVolumeError(
+                    loggingContext,
+                    drive,
+                    path.ToString(Context.PathTable),
+                    finalPath.IsValid ? finalPath.ToString(Context.PathTable) : string.Empty,
+                    GetConfigureJournalCommand(drive));
             }
 
             return possiblyEnabled;
@@ -2430,15 +2522,21 @@ namespace BuildXL.Engine
         /// Low-risk check if a path is definitely on a volume with a disabled change journal. In some configurations, the journal is
         /// required and so we want to fail early if misconfiguration is apparent.
         /// </summary>
-        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path)
+        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path, out AbsolutePath finalPath)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(path.IsValid);
 
+            finalPath = path;
+
+            // We open the path without reparse point flag. This will returns the handle to the final path, if the original
+            // path is a junction or symlink. This means that we will check the journal availability of the volume where the final path
+            // resides.
             OpenFileResult result = FileUtilities.TryOpenDirectory(
                 path.ToString(pathTable),
                 FileShare.Delete | FileShare.ReadWrite,
                 out SafeFileHandle handle);
+
             using (handle)
             {
                 if (result.Succeeded)
@@ -2449,6 +2547,19 @@ namespace BuildXL.Engine
                     if (!possibleIdentity.Succeeded &&
                         possibleIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported)
                     {
+                        try
+                        {
+                            // For correct reporting, we try to get the final path, so that we know precisely which volume
+                            // that does not have the journal capability.
+                            string finalPathStr = FileUtilities.GetFinalPathNameByHandle(handle);
+                            finalPath = AbsolutePath.Create(pathTable, finalPathStr);
+                        }
+                        catch (NativeWin32Exception)
+                        {
+                            // GetFinalPathNameByHandle currently only throws NativeWin32Exception.
+                            finalPath = path;
+                        }
+
                         return false;
                     }
                 }
@@ -2654,16 +2765,6 @@ namespace BuildXL.Engine
                 m_enginePerformanceInfo.CacheInitializationDurationMs = (long)cacheInitializationTask.InitializationTime.TotalMilliseconds;
             }
 
-            Task<Possible<SymlinkDefinitions>> symlinkDefinitionsTask =
-                SymlinkDefinitionFileProvider.TryPrepareSymlinkDefinitionsAsync(
-                    loggingContext,
-                    reuseResult,
-                    Configuration,
-                    m_masterService,
-                    cacheInitializationTask,
-                    Context,
-                    m_tempCleaner);
-
             m_buildViewModel.SetContext(Context);
 
             var phase = Configuration.Engine.Phase;
@@ -2704,6 +2805,8 @@ namespace BuildXL.Engine
                         inputTrackerForGraphConstruction = InputTracker.CreateDisabledTracker(loggingContext);
                     }
 
+                    // must not use previously created 'mountsTable' (in 'DoRun') because the context
+                    // and its path table might have been invalidated/changed in the meantime
                     var mountsTable = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
 
                     using (var frontEndEngineAbstraction = new FrontEndEngineImplementation(
@@ -2716,8 +2819,9 @@ namespace BuildXL.Engine
                         m_snapshotCollector,
                         m_directoryTranslator,
                         () => FileContentTable,
-                        GetTimerUpdatePeriodInMs(Configuration.Logging),
-                        reuseResult?.IsPartialReuse == true))
+                        Configuration.Logging.GetTimerUpdatePeriodInMs(),
+                        reuseResult?.IsPartialReuse == true,
+                        FrontEndController.RegisteredFrontEnds))
                     {
                         PipGraph newlyEvaluatedGraph;
                         if (TestHooks?.FrontEndEngineAbstraction != null)
@@ -2725,7 +2829,7 @@ namespace BuildXL.Engine
                             TestHooks.FrontEndEngineAbstraction.Value = frontEndEngineAbstraction;
                         }
 
-                        Stopwatch sw = Stopwatch.StartNew();
+                        var sw = Stopwatch.StartNew();
                         // Create the evaluation filter
                         EvaluationFilter evaluationFilter;
                         if (enablePartialEvaluation)
@@ -2801,15 +2905,6 @@ namespace BuildXL.Engine
                             return ConstructScheduleResult.Failure;
                         }
 
-                        var maybeSymlinkDefinitions = symlinkDefinitionsTask.GetAwaiter().GetResult();
-                        if (!maybeSymlinkDefinitions.Succeeded)
-                        {
-                            Contract.Assert(
-                                loggingContext.ErrorWasLogged,
-                                "Failed to load symlink definitions file, but no error was logged.");
-                            return ConstructScheduleResult.Failure;
-                        }
-
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
 
                         engineSchedule = EngineSchedule.Create(
@@ -2825,9 +2920,9 @@ namespace BuildXL.Engine
                             performanceCollector: m_collector,
                             directoryTranslator: m_directoryTranslator,
                             maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
-                            symlinkDefinitions: maybeSymlinkDefinitions.Result,
                             tempCleaner: m_tempCleaner,
-                            buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString());
+                            buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
+                            detoursListener: TestHooks?.DetoursListener);
 
                         if (engineSchedule == null)
                         {
@@ -3068,6 +3163,8 @@ namespace BuildXL.Engine
                 {"PathTableBytes", pathTable.SizeInBytes },
                 {"SymbolTableBytes", symbolTable.SizeInBytes },
                 {"StringTableBytes", stringTable.SizeInBytes },
+                {"StringTableLargeStringBytes", stringTable.LargeStringSize },
+                {"StringTableLargeStringCount", stringTable.LargeStringCount },
                 {"TokenTextTableBytes", tokenTextTable.SizeInBytes },
             };
 
@@ -3302,27 +3399,6 @@ namespace BuildXL.Engine
         }
 
         #endregion
-
-        /// <summary>
-        /// Gets the update and delay time for status timers
-        /// </summary>
-        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig)
-        {
-            if (loggingConfig != null)
-            {
-                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
-                {
-                    return 10_000;
-                }
-
-                if (loggingConfig.FancyConsole)
-                {
-                    return 2_000;
-                }
-            }
-
-            return 5_000;
-        }
     }
 
     /// <summary>

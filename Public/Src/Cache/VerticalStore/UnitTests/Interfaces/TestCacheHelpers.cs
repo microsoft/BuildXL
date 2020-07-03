@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.Tests
         /// </summary>
         /// <param name="data">String to convert</param>
         /// <returns>An in-memory stream of the string contents in UTF-8 encoding</returns>
-        public static Stream AsStream(this string data)
+        public static StreamWithLength AsStream(this string data)
         {
             Contract.Requires(data != null);
 
@@ -35,7 +36,7 @@ namespace BuildXL.Cache.Tests
         /// </summary>
         /// <param name="data">StringBuilder to convert</param>
         /// <returns>An in-memory stream of the StringBuilder contents in UTF-8 encoding</returns>
-        public static Stream AsStream(this StringBuilder data)
+        public static StreamWithLength AsStream(this StringBuilder data)
         {
             Contract.Requires(data != null);
 

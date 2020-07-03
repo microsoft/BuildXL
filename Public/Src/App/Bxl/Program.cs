@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -12,6 +12,7 @@ using System.Net;
 using BuildXL.App.Tracing;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -31,7 +32,6 @@ namespace BuildXL
     {
         internal const string BuildXlAppServerConfigVariable = "BUILDXL_APP_SERVER_CONFIG";
 
-        [STAThread]
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public static int Main(string[] rawArgs)
         {
@@ -101,16 +101,9 @@ namespace BuildXL
 
             if (lightConfig.Help != HelpLevel.None)
             {
-                if (lightConfig.Help == HelpLevel.DxCode)
-                {
-                    System.Diagnostics.Process.Start(Strings.DX_Help_Link);
-                }
-                else
-                {
-                    // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
-                    // are manually kept in sync to avoid the additional dependency.
-                    HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
-                }
+                // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
+                // are manually kept in sync to avoid the additional dependency.
+                HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
 
                 return ExitCode.FromExitKind(ExitKind.BuildNotRequested);
             }
@@ -138,6 +131,7 @@ namespace BuildXL
                 var pathTable = new PathTable();
 
                 ICommandLineConfiguration configuration;
+                ContentHashingUtilities.SetContentHasherIdlePoolSize(10);
                 if (!args.TryParse(rawArgs.ToArray(), pathTable, out configuration))
                 {
                     return ExitKind.InvalidCommandLine;
@@ -187,7 +181,7 @@ namespace BuildXL
                 {
                     try
                     {
-                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf, lightConfig.ServerDeploymentDirectory);
+                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf);
                     }
                     catch (BuildXLException ex)
                     {

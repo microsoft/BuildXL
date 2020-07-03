@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+#if !NET_STANDARD_20
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -26,7 +27,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public RecursiveActionBlock(Func<TInput, Task> action, int maxDegreeOfParallelism)
         {
-            Contract.Requires(action != null);
+            Contract.RequiresNotNull(action);
             Contract.Requires(maxDegreeOfParallelism >= 1);
 
             m_actionBlock = new ActionBlock<TInput>(
@@ -80,3 +81,5 @@ namespace BuildXL.Utilities.Collections
         }
     }
 }
+
+#endif

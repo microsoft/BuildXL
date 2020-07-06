@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 
+#nullable disable
+
 namespace BuildXL.Cache.ContentStore.Pooling
 {
     /// <summary>
@@ -85,9 +87,7 @@ namespace BuildXL.Cache.ContentStore.Pooling
         /// </remarks>
         public PooledObjectWrapper<T> GetInstance()
         {
-            T instance;
-
-            if (!_bag.TryTake(out instance))
+            if (!_bag.TryTake(out T instance))
             {
                 instance = _creator();
             }
@@ -138,8 +138,7 @@ namespace BuildXL.Cache.ContentStore.Pooling
                 return;
             }
 
-            T instance;
-            while (_bag.TryTake(out instance))
+            while (_bag.TryTake(out T instance))
             {
                 var disposableInstance = instance as IDisposable;
                 if (disposableInstance == null)

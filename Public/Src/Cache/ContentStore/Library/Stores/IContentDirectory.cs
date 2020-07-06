@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -18,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </summary>
     /// <param name="info">The pre-existing info. Null if none.</param>
     /// <returns>The new info to be saved. Null if no save necessary.</returns>
-    public delegate Task<ContentFileInfo> UpdateFileInfo(ContentFileInfo info);
+    public delegate Task<ContentFileInfo?>? UpdateFileInfo(ContentFileInfo? info);
 
     /// <summary>
     /// Callbacks for host of <see cref="IContentDirectory"/>.
@@ -82,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         /// <param name="contentHash">The hash for which info should be removed.</param>
         /// <returns>The removed info.  Null if none removed.</returns>
-        Task<ContentFileInfo> RemoveAsync(ContentHash contentHash);
+        Task<ContentFileInfo?> RemoveAsync(ContentHash contentHash);
 
         /// <summary>
         ///     Accesses the info (if any) corresponding to a hash and calls the given action upon it.
@@ -102,7 +103,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Tries to get <see cref="ContentFileInfo"/> information for a given <paramref name="contentHash"/>.
         /// </summary>
         /// <returns>Task with null value if content hash is not registered in content directory.</returns>
-        bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo);
+        bool TryGetFileInfo(ContentHash contentHash, [NotNullWhen(true)]out ContentFileInfo? fileInfo);
 
         /// <summary>
         ///     Returns the list of content hashes in the content directory in the order by which they should be LRU-ed.

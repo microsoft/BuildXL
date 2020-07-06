@@ -72,11 +72,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             IAbsFileSystem fileSystem,
             IClock clock,
             AbsolutePath rootPath,
-            ConfigurationModel configurationModel = null,
-            NagleQueue<ContentHash> nagleQueue = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            TrimBulkAsync trimBulkAsync = null,
-            ContentStoreSettings settings = null)
+            ConfigurationModel? configurationModel = null,
+            NagleQueue<ContentHash>? nagleQueue = null,
+            DistributedEvictionSettings? distributedEvictionSettings = null,
+            TrimBulkAsync? trimBulkAsync = null,
+            ContentStoreSettings? settings = null)
         : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings)
         {
         }
@@ -88,9 +88,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             IAbsFileSystem fileSystem,
             IClock clock,
             AbsolutePath rootPath,
-            ConfigurationModel configurationModel,
-            IDistributedLocationStore distributedStore,
-            ContentStoreSettings settings)
+            ConfigurationModel? configurationModel,
+            IDistributedLocationStore? distributedStore,
+            ContentStoreSettings? settings)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -243,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         { 
             return Store.DeleteAsync(context, contentHash, deleteOptions);
         }

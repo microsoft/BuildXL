@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     /// Stream that is guaranteed to have a length.
     /// </summary>
-    public struct StreamWithLength : IDisposable
+    public readonly struct StreamWithLength : IDisposable
     {
         /// <summary>
         /// MemoryStream always has a length so it can be automatically wrapped.
@@ -22,7 +22,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static implicit operator StreamWithLength(FileStream s) => s.HasLength();
 
-#nullable enable annotations
         /// <summary>
         /// MemoryStream always has a length so it can be automatically wrapped.
         /// </summary>
@@ -32,7 +31,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// FileStream always has a length so it can be automatically wrapped.
         /// </summary>
         public static implicit operator StreamWithLength?(FileStream? s) => s?.HasLength();
-#nullable restore annotations
 
         /// <summary>
         /// Implicitly expose stream for all operations on it.

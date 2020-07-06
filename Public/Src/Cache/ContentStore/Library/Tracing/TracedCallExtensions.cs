@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             // and then to call PutFile or PlaceFile methods on FileSystemContentStoreInternal that will use disposed PinContext.
             // The following code sets the cancellation flag on the result if the operation failed with ObjectDisposedException because PinContext instance was disposed.
             var result = await tracer.RunAsync(runFunction);
-            if (result.HasException && result.Exception.IsPinContextObjectDisposedException())
+            if (result.Exception != null && result.Exception.IsPinContextObjectDisposedException())
             {
                 result.IsCancelled = true;
             }

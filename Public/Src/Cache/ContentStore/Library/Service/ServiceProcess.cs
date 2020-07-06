@@ -26,8 +26,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private readonly int _waitForServerReadyTimeoutMs;
         private readonly int _waitForExitTimeoutMs;
         private readonly bool _logAutoFlush;
-        private ProcessUtility _process;
-        private string _args;
+        private ProcessUtility? _process;
+        private string? _args;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ServiceProcess"/> class.
@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             await Task.Run(() =>
             {
-                AbsolutePath appExeDirPath = new AbsolutePath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                AbsolutePath appExeDirPath = new AbsolutePath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
                 var appExePath = appExeDirPath / (OperatingSystemHelper.IsUnixOS ? "ContentStoreApp" : "ContentStoreApp.exe");
 
                 _args = _configuration.GetCommandLineArgs(scenario: _scenario);
@@ -115,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             if (result.Succeeded && !LocalContentServer.EnsureRunning(context, _scenario, _waitForServerReadyTimeoutMs))
             {
-                result = new BoolResult($"Failed to detect server ready in separate process for scenario {_scenario}. Process has {(_process.HasExited ? string.Empty : "not")} exited.");
+                result = new BoolResult($"Failed to detect server ready in separate process for scenario {_scenario}. Process has {(_process!.HasExited ? string.Empty : "not")} exited.");
             }
 
             StartupCompleted = true;
@@ -126,7 +126,12 @@ namespace BuildXL.Cache.ContentStore.Service
         public async Task<BoolResult> ShutdownAsync(Context context)
         {
             ShutdownStarted = true;
-            context.Debug($"Stopping service process {_process.Id} for scenario {_scenario}");
+            context.Debug($"Stopping service process {_process?.Id} for scenario {_scenario}");
+
+            if (_process == null)
+            {
+                return BoolResult.Success;
+            }
 
             await Task.Run(() =>
             {
@@ -160,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// <see cref="ProcessUtility.GetLogs"/>
         /// </summary>
-        public string GetLogs()
+        public string? GetLogs()
         {
             return _process?.GetLogs();
         }

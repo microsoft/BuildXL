@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Simple number units are recognized. For instance, this can be "1GB".
         /// </remarks>
         [DataMember(Name = "Soft")]
-        protected readonly string SoftExpression;
+        protected readonly string? SoftExpression;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentStoreQuota"/> class.
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets or sets a descriptive error when IsValid gives false.
         /// </summary>
-        public string Error { get; protected set; }
+        public string? Error { get; protected set; }
 
         /// <summary>
         ///     Gets or sets absolute limit which blocks puts until space available.

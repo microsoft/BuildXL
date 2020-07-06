@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Write,
         }
 
-        private readonly byte[] _recordedBytes;
+        private readonly byte[]? _recordedBytes;
         private readonly Stream _inner;
         private readonly long? _capacity;
         private readonly MemoryStream _memoryStream;
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
 
                 Contract.Assert(!FixedSizeStream || _memoryStream.Position == _capacity, "RecordingStream should record the entire content of a stream.");
-                return FixedSizeStream ? _recordedBytes : _memoryStream.ToArray();
+                return FixedSizeStream ? _recordedBytes! : _memoryStream.ToArray();
             }
         }
 

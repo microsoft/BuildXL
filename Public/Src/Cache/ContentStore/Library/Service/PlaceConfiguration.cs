@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Service
             uint grpcPort,
             string cacheName,
             AbsolutePath cachePath)
-            : base(null, 5, grpcPort, null, null, cacheName, cachePath, null)
+            : base(dataRootPath: null, gracefulShutdownSeconds: 5, grpcPort: grpcPort, stampId: null, ringId: null, cacheName: cacheName, cachePath: cachePath, grpcPortFileName: null)
         {
             ContentHash = contentHash;
             DestinationPath = destinationPath;
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        public override string GetCommandLineArgs(LocalServerConfiguration localContentServerConfiguration = null, string scenario = null, bool logAutoFlush = false, bool passMaxConfigurations = false)
+        public override string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration = null, string? scenario = null, bool logAutoFlush = false, bool passMaxConfigurations = false)
         {
             var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush, false));
 

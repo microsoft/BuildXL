@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     public static class LifetimeManager
     {
-        private static ILifetimeManager _lifetimeManager;
+        private static ILifetimeManager? _lifetimeManager;
 
         /// <summary>
         /// Sets a given <paramref name="lifetimeManager"/> as a global instance controlling service's lifetime.

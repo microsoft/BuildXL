@@ -31,9 +31,9 @@ namespace BuildXL.Cache.ContentStore.Logging
     {
         private readonly bool _synchronous;
         private readonly List<ILog> _logs;
-        private readonly Task _writerTask;
-        private readonly IntervalTimer _flushTimer;
-        private BlockingCollection<Request> _requests;
+        private readonly Task? _writerTask;
+        private readonly IntervalTimer? _flushTimer;
+        private BlockingCollection<Request>? _requests;
         private int _errorCount;
         private bool _disposed;
 
@@ -286,6 +286,7 @@ namespace BuildXL.Cache.ContentStore.Logging
 
         private void Writer()
         {
+            Contract.Assert(_requests != null);
             try
             {
                 foreach (var request in _requests.GetConsumingEnumerable())
@@ -302,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Logging
 
                     if (request.Type == RequestType.LogString)
                     {
-                        LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message);
+                        LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message ?? string.Empty);
                     }
                 }
             }

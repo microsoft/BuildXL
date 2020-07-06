@@ -76,8 +76,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 var session = new StreamPathContentSession(
                     name,
-                    sessionForStream.Session,
-                    sessionForPath.Session);
+                    sessionForStream.Session!,
+                    sessionForPath.Session!);
 
                 return new CreateSessionResult<IReadOnlyContentSession>(session);
             });
@@ -102,8 +102,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 var session = new StreamPathContentSession(
                     name,
-                    sessionForStream.Session,
-                    sessionForPath.Session);
+                    sessionForStream.Session!,
+                    sessionForPath.Session!);
 
                 return new CreateSessionResult<IContentSession>(session);
             });

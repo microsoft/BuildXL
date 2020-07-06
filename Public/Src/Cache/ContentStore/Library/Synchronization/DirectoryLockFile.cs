@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         private readonly AbsolutePath _lockFilePath;
         private readonly IAbsFileSystem _fileSystem;
         private readonly TimeSpan _pollingInterval;
-        private Stream _lockFile;
+        private Stream? _lockFile;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DirectoryLockFile"/> class.
@@ -50,10 +50,10 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         {
             _tracer.Info(context, $"Acquiring lock file=[{_lockFilePath}]");
 
-            _fileSystem.CreateDirectory(_lockFilePath.Parent);
+            _fileSystem.CreateDirectory(_lockFilePath.GetParent());
 
             DateTime timeOutTime = DateTime.UtcNow + waitTimeout;
-            Exception lastException = null;
+            Exception? lastException = null;
             int? lastCompetingProcessId = null;
             while (DateTime.UtcNow < timeOutTime)
             {
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
 
                 try
                 {
-                    string contents = await _fileSystem.TryReadFileAsync(_lockFilePath);
+                    string? contents = await _fileSystem.TryReadFileAsync(_lockFilePath);
                     if (contents != null)
                     {
                         _tracer.Diagnostic(context, $"Lock file=[{_lockFilePath}] contains [{contents}]");
@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             return null;
         }
 
-        private static string TryGetProcessName(int? pid)
+        private static string? TryGetProcessName(int? pid)
         {
             try
             {

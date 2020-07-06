@@ -13,11 +13,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Gets or sets the session ID.
         /// </summary>
-        public int SessionId { get; set; }
+        public int SessionId { get; }
 
         /// <summary>
-        /// Gets or sets the assoicated temporary directory.
+        /// Gets or sets the associated temporary directory.
         /// </summary>
-        public DisposableDirectory TemporaryDirectory { get; set; }
+        public DisposableDirectory TemporaryDirectory { get; }
+
+        /// <nodoc />
+        public SessionData(int sessionId, DisposableDirectory temporaryDirectory)
+            => (SessionId, TemporaryDirectory) = (sessionId, temporaryDirectory);
     }
 }

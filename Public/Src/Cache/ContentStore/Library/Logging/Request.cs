@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         public readonly DateTime DateTime;
         public readonly int ThreadId;
         public readonly Severity Severity;
-        public readonly string Message;
+        public readonly string? Message;
 
         protected Request(RequestType type)
         {

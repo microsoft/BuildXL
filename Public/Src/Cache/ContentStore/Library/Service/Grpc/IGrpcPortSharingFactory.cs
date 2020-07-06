@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class PortReaderException : Exception
     {
         /// <nodoc />
-        public PortReaderException(string message, Exception innerException = null)
+        public PortReaderException(string message, Exception? innerException = null)
             : base(message, innerException)
         {
 

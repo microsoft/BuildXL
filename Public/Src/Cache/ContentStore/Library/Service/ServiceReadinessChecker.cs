@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private readonly Tracer _tracer;
 
         /// <nodoc />
-        public ServiceReadinessChecker(Tracer tracer, ILogger logger, string scenario)
+        public ServiceReadinessChecker(Tracer tracer, ILogger logger, string? scenario)
         {
             _tracer = tracer;
 
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Check if the service is running.
         /// </summary>
-        public static bool EnsureRunning(Context context, string scenario, int waitMs)
+        public static bool EnsureRunning(Context context, string? scenario, int waitMs)
         {
             var currentUser = UserUtilities.CurrentUserName();
 
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 try
                 {
-                    if (!IpcUtilities.TryOpenExistingReadyWaitHandle(scenario, out EventWaitHandle readyEvent, waitMs))
+                    if (!IpcUtilities.TryOpenExistingReadyWaitHandle(scenario, out var readyEvent, waitMs))
                     {
                         context.TraceMessage(Severity.Debug, "Ready event does not exist");
                         return false;
@@ -96,12 +96,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Attempt to open event that will signal an imminent service shutdown or restart.
         /// </summary>
-        public static EventWaitHandle OpenShutdownEvent(Context context, string scenario)
+        public static EventWaitHandle? OpenShutdownEvent(Context context, string? scenario)
         {
             var currentUser = UserUtilities.CurrentUserName();
             context.TraceMessage(Severity.Debug, $"Opening shutdown event name=[{scenario}] for user=[{currentUser}]");
 
-            EventWaitHandle handle = null;
+            EventWaitHandle? handle = null;
             try
             {
                 if (!IpcUtilities.TryOpenExistingShutdownWaitHandle(scenario, out handle))
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Service
             return handle;
         }
 
-        private static EventWaitHandle CreateReadyEvent(ILogger logger, string scenario)
+        private static EventWaitHandle CreateReadyEvent(ILogger logger, string? scenario)
         {
             var currentUser = UserUtilities.CurrentUserName();
 
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Service
             return readyEvent;
         }
 
-        private static EventWaitHandle CreateShutdownEvent(ILogger logger, string scenario)
+        private static EventWaitHandle CreateShutdownEvent(ILogger logger, string? scenario)
         {
             var currentUser = UserUtilities.CurrentUserName();
 

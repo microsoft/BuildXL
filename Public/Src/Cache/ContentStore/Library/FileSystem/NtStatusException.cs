@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <summary>
         ///     NT Status Name
         /// </summary>
-        private readonly string _statusName;
+        private readonly string? _statusName;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="NTStatusException" /> class.

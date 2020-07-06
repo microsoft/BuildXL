@@ -17,15 +17,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     internal class BufferedReadStream : Stream
     {
-        private readonly Func<Task<byte[]>> _reader;
+        private readonly Func<Task<byte[]?>> _reader;
 
-        private byte[] _storage; // buffer containing the next bytes to be read
+        private byte[]? _storage; // buffer containing the next bytes to be read
         private int _readPointer; // the next index to be read from the storage buffer
 
         private int _position; // total bytes that have been read
         private int _length; // total bytes that have been ingested
 
-        public BufferedReadStream(Func<Task<byte[]>> reader)
+        public BufferedReadStream(Func<Task<byte[]?>> reader)
         {
             Contract.Requires(reader != null);
             _reader = reader;
@@ -35,7 +35,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            Debug.Assert(!(buffer is null));
             Debug.Assert(offset >= 0);
             Debug.Assert(count >= 0);
             Debug.Assert(count <= buffer.Length - offset);
@@ -72,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     _length += _storage.Length;
                 }
 
-                Debug.Assert(!(_storage is null));
+                Contract.Assert(_storage != null);
 
                 // Copy as many bytes as we can to the caller's buffer
                 var copyCount = Math.Min(count - totalCount, _storage.Length - _readPointer);

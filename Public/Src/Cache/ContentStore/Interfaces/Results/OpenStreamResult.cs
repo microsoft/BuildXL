@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult"/> class.
         /// </summary>
-        public OpenStreamResult(ResultCode code, string errorMessage, string? diagnostics = null)
+        public OpenStreamResult(ResultCode code, string? errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Code = code;
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly StreamWithLength? StreamWithLength;
 
         /// <inheritdoc />
-        public bool Equals(OpenStreamResult other)
+        public bool Equals(OpenStreamResult? other)
         {
             return EqualsBase(other) && other != null && Code == other.Code;
         }

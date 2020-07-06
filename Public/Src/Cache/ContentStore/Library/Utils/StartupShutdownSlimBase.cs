@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         public virtual bool AllowMultipleStartupAndShutdowns => false;
 
         private int _refCount = 0;
-        private Lazy<Task<BoolResult>> _lazyStartupTask;
+        private Lazy<Task<BoolResult>>? _lazyStartupTask;
 
         /// <inheritdoc />
         public virtual bool StartupCompleted { get; private set; }
@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         public virtual bool ShutdownCompleted { get; private set; }
 
         /// <nodoc />
-        protected virtual Func<BoolResult, string> ExtraStartupMessageFactory => null;
+        protected virtual Func<BoolResult, string>? ExtraStartupMessageFactory => null;
 
         /// <inheritdoc />
         public bool ShutdownStarted => _shutdownStartedCancellationTokenSource.Token.IsCancellationRequested;
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     return result;
                 }));
 
-            return await _lazyStartupTask.Value;
+            return await _lazyStartupTask!.Value;
         }
 
         /// <inheritdoc />
@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         protected virtual Task<BoolResult> ShutdownCoreAsync(OperationContext context) => BoolResult.SuccessTask;
 
         /// <nodoc />
-        protected virtual void ThrowIfInvalid([CallerMemberName]string operation = null)
+        protected virtual void ThrowIfInvalid([CallerMemberName]string? operation = null)
         {
             if (!StartupCompleted)
             {

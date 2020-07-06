@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// GrpcClient for retrieving stats
         /// </summary>
-        private GrpcContentClient _grpcClient;
+        private GrpcContentClient? _grpcClient;
 
         /// <nodoc />
         protected readonly ServiceClientContentStoreConfiguration Configuration;
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             uint retryIntervalSeconds,
             uint retryCount,
             Sensitivity sensitivity, // Not used. Left for backward compatibility.
-            string scenario = null)
+            string? scenario = null)
             : this(
                   logger,
                   fileSystem,
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ServiceClientRpcConfiguration rpcConfiguration,
             uint retryIntervalSeconds,
             uint retryCount,
-            string scenario = null)
+            string? scenario = null)
             : this(
                   logger,
                   fileSystem,
@@ -244,7 +244,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         {
             throw new System.NotImplementedException();
         }

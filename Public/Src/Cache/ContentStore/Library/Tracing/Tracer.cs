@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        private void Trace(Severity severity, Context context, string message, string operationName = null)
+        private void Trace(Severity severity, Context context, string message, string? operationName = null)
         {
             if (!context.IsSeverityEnabled(severity))
             {
@@ -221,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             context.TraceMessage(severity, message, component: Name, operation: operationName);
         }
 
-        public void OperationStarted(Context context, string operationName, bool enabled = true, string additionalInfo = null)
+        public void OperationStarted(Context context, string operationName, bool enabled = true, string? additionalInfo = null)
         {
             if (LogOperationStarted && enabled)
             {
@@ -242,9 +242,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <remarks>
         /// Used only from legacy tracers.
         /// </remarks>
-        public void TraceOperationStarted(Context context, string additionalInfo, [CallerMemberName]string callerName = null)
+        public void TraceOperationStarted(Context context, string additionalInfo, [CallerMemberName]string? callerName = null)
         {
-            OperationStarted(context, operationName: callerName, enabled: true, additionalInfo);
+            OperationStarted(context, operationName: callerName!, enabled: true, additionalInfo);
         }
 
         /// <summary>
@@ -253,9 +253,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <remarks>
         /// Used only from legacy tracers.
         /// </remarks>
-        public void TracerOperationFinished(Context context, ResultBase result, string message, Severity successSeverity = Severity.Debug, [CallerMemberName]string callerName = null)
+        public void TracerOperationFinished(Context context, ResultBase result, string message, Severity successSeverity = Severity.Debug, [CallerMemberName]string? callerName = null)
         {
-            OperationFinishedCore(context, result, result.Duration, message, OperationKind.None, successSeverity, callerName);
+            OperationFinishedCore(context, result, result.Duration, message, OperationKind.None, successSeverity, callerName!);
         }
 
         /// <summary>
@@ -287,7 +287,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 message = $"Critical error occurred: {message}.";
                 RaiseCriticalError(result);
             }
-            else if (result.HasException)
+            else if (result.Exception != null)
             {
                 RaiseRecoverableError(result);
             }
@@ -304,26 +304,26 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <nodoc />
-        public void OperationDebug(Context context, string message, [CallerMemberName]string operationName = null)
+        public void OperationDebug(Context context, string message, [CallerMemberName]string? operationName = null)
         {
             Debug(context, $"{Name}.{operationName}: {message}");
         }
 
         /// <nodoc />
-        public void OperationFinished(OperationContext context, ResultBase result, TimeSpan duration, [CallerMemberName]string operationName = null, bool traceErrorsOnly = false)
+        public void OperationFinished(OperationContext context, ResultBase result, TimeSpan duration, [CallerMemberName]string? operationName = null, bool traceErrorsOnly = false)
         {
             OperationFinished(context.TracingContext, result, duration, message: string.Empty, operationName, traceErrorsOnly: traceErrorsOnly);
         }
 
         /// <nodoc />
-        public void OperationFinished(Context context, ResultBase result, TimeSpan duration, string message, [CallerMemberName]string operationName = null, bool traceErrorsOnly = false)
+        public void OperationFinished(Context context, ResultBase result, TimeSpan duration, string message, [CallerMemberName]string? operationName = null, bool traceErrorsOnly = false)
         {
             // Intentionally using a separate argument but not result.DurationMs, because result.DurationMs is mutable and not necessarily set.
             if (context.IsEnabled)
             {
-                var messageText = CreateMessageText(result, duration, message, operationName);
+                var messageText = CreateMessageText(result, duration, message, operationName!);
 
-                OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName);
+                OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName!);
             }
         }
 
@@ -333,7 +333,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Trace stats during component's shutdown.
         /// </summary>
-        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string prefix = null)
+        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string? prefix = null)
         {
             if (EnableTraceStatisticsAtShutdown)
             {

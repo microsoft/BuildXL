@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(context, $"Teardown is requested. Reason={reason}.");
         }
 
-        private static void Trace(Context context, string message, Severity severity = Severity.Info, [CallerMemberName]string operation = null)
+        private static void Trace(Context context, string message, Severity severity = Severity.Info, [CallerMemberName]string? operation = null)
         {
             context.TraceMessage(severity, message, ComponentName, operation);
         }

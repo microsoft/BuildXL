@@ -1152,7 +1152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (_buildIdHash.HasValue)
             {
                 // Update build ring machines with retrieved locations
-                _buildRingMachines = result.Last().Locations.AppendItem(LocalCacheRootMachineLocation).ToArray();
+                _buildRingMachines = result.Last().Locations?.AppendItem(LocalCacheRootMachineLocation).ToArray() ?? CollectionUtilities.EmptyArray<MachineLocation>();
                 return result.Take(originalLength).ToList();
             }
             else

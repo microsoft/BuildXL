@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
 
         private void ReaderRelease()
         {
-            TaskCompletionSource<Releaser> toWake = null;
+            TaskCompletionSource<Releaser>? toWake = null;
 
             lock (_waitingWriters)
             {
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
 
         private void WriterRelease()
         {
-            TaskCompletionSource<Releaser> toWake = null;
+            TaskCompletionSource<Releaser>? toWake = null;
             bool toWakeIsWriter = false;
 
             lock (_waitingWriters)

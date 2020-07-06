@@ -189,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             {
                                 if (antecedent.IsFaulted)
                                 {
-                                    return new GetStatsResult(antecedent.Exception);
+                                    return new GetStatsResult(antecedent.Exception!);
                                 }
 
                                 if (antecedent.IsCanceled)
@@ -290,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         {
             throw new NotImplementedException();
         }

@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static readonly Task<BoolResult> SuccessTask = Task.FromResult(Success);
 
         /// <inheritdoc />
-        public bool Equals(BoolResult other)
+        public bool Equals(BoolResult? other)
         {
             return EqualsBase(other) && other != null && Succeeded == other.Succeeded;
         }

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -26,13 +27,8 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// <remarks>
         ///     http://blogs.msdn.com/b/pfxteam/archive/2011/04/02/10149222.aspx
         /// </remarks>
-        public static bool TryRemoveSpecific<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, TValue value)
+        public static bool TryRemoveSpecific<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, TValue value) where TKey : notnull
         {
-            if (dictionary == null)
-            {
-                throw new ArgumentNullException(nameof(dictionary));
-            }
-
             return ((ICollection<KeyValuePair<TKey, TValue>>)dictionary).Remove(new KeyValuePair<TKey, TValue>(key, value));
         }
 
@@ -56,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// </summary>
         public static IEnumerable<List<T>> GetPages<T>(this IEnumerable<T> allItems, int pageSize)
         {
-            List<T> page = null;
+            List<T>? page = null;
 
             foreach (T item in allItems)
             {
@@ -91,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
                 yield break;
             }
 
-            List<T> page = null;
+            List<T>? page = null;
 
             foreach (T item in allItems)
             {
@@ -146,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         ///     Transform the items into a dictionary in parallel.
         /// </summary>
         public static Task<ConcurrentDictionary<TKey, TValue>> ParallelToConcurrentDictionaryAsync<TKey, TValue>(
-            this IEnumerable<TKey> items, Func<TKey, TValue> getValue)
+            this IEnumerable<TKey> items, Func<TKey, TValue> getValue) where TKey : notnull
         {
             return items.ParallelToConcurrentDictionaryAsync(item => item, getValue);
         }
@@ -155,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         ///     Transform the items into a dictionary in parallel.
         /// </summary>
         public static async Task<ConcurrentDictionary<TKey, TValue>> ParallelToConcurrentDictionaryAsync<T, TKey, TValue>(
-            this IEnumerable<T> items, Func<T, TKey> getKey, Func<T, TValue> getValue)
+            this IEnumerable<T> items, Func<T, TKey> getKey, Func<T, TValue> getValue) where TKey : notnull
         {
             var dict = new ConcurrentDictionary<TKey, TValue>();
             await items.ParallelAddToConcurrentDictionaryAsync(dict, getKey, getValue);
@@ -166,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         ///     Transform the items into dictionary entries and add them to the given dictionary.
         /// </summary>
         public static Task ParallelAddToConcurrentDictionaryAsync<T, TKey, TValue>(
-            this IEnumerable<T> items, ConcurrentDictionary<TKey, TValue> dictionary, Func<T, TKey> getKey, Func<T, TValue> getValue)
+            this IEnumerable<T> items, ConcurrentDictionary<TKey, TValue> dictionary, Func<T, TKey> getKey, Func<T, TValue> getValue) where TKey : notnull
         {
             var block = new ActionBlock<T>(item => { dictionary[getKey(item)] = getValue(item); }, AllProcessors);
             return block.PostAllAndComplete(items);

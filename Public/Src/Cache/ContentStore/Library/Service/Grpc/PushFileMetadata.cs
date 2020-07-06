@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using Grpc.Core;
 
@@ -26,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public static PushRequest FromMetadata(Metadata metadata)
         {
-            byte[] hashBytes = null;
+            byte[]? hashBytes = null;
             var hashType = HashType.Unknown;
             Guid traceId = default;
 
@@ -40,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
+            Contract.Check(hashBytes != null)?.Assert($"Can not create PushRequest instance from metadata because 'hash-bin' key is missing. Known keys: {string.Join(", ", metadata.Select(k => k.Key))}");
             var hash = new ContentHash(hashType, hashBytes);
 
             return new PushRequest(hash, traceId);

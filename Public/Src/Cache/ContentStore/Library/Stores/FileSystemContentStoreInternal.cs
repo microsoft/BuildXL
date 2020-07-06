@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
@@ -35,8 +36,6 @@ using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
-
-#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -933,21 +932,19 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
-                    using (var txn = await QuotaKeeper.ReserveAsync(contentSize))
+                    var txn = await QuotaKeeper.ReserveAsync(contentSize);
+                    FileSystem.CreateDirectory(primaryPath.GetParent());
+
+                    if (!await onContentNotInCache(primaryPath))
                     {
-                        FileSystem.CreateDirectory(primaryPath.GetParent());
-
-                        if (!await onContentNotInCache(primaryPath))
-                        {
-                            failed = true;
-                            return null;
-                        }
-
-                        txn.Commit();
-                        PinContentIfContext(contentHash, pinContext);
-                        addedContentSize = contentSize;
-                        return new ContentFileInfo(Clock, contentSize);
+                        failed = true;
+                        return null;
                     }
+
+                    txn.Commit();
+                    PinContentIfContext(contentHash, pinContext);
+                    addedContentSize = contentSize;
+                    return new ContentFileInfo(Clock, contentSize);
                 }
 
                 contentExistsInCache = await onContentAlreadyInCache(contentHash, primaryPath, fileInfo);
@@ -1383,7 +1380,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength));
         }
 
-        internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
+        internal bool TryGetFileInfo(ContentHash contentHash, [NotNullWhen(true)]out ContentFileInfo? fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
 
         internal ContentDirectorySnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
         {
@@ -2129,20 +2126,18 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
                 // Create a new replica
-                using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
-                {
-                    await RetryOnUnexpectedReplicaAsync(
+                var txn = await QuotaKeeper.ReserveAsync(info.FileSize);
+                await RetryOnUnexpectedReplicaAsync(
+                    context,
+                    () => SafeCopyFileAsync(
                         context,
-                        () => SafeCopyFileAsync(
-                                    context,
-                                    contentHash,
-                                    primaryPath,
-                                    replicaPath,
-                                    FileReplacementMode.FailIfExists),
+                        contentHash,
+                        primaryPath,
+                        replicaPath,
+                        FileReplacementMode.FailIfExists),
                     contentHash,
                     info.ReplicaCount);
-                    txn.Commit();
-                }
+                txn.Commit();
 
                 if (_announcer != null)
                 {
@@ -2374,6 +2369,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             Interlocked.Increment(ref _pinContextCount);
 
+            Contract.Assert(_taskTracker != null);
             // ReSharper disable once RedundantArgumentName
             return new PinContext(_taskTracker, unpinAsync: pairs => PinContextDisposeAsync(pairs));
         }

@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
@@ -29,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Get the shutdown handle for the given scenario.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static EventWaitHandle GetShutdownWaitHandle(string scenario)
+        public static EventWaitHandle GetShutdownWaitHandle(string? scenario)
         {
             try
             {
@@ -58,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Get the ready handle for the given scenario.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static EventWaitHandle GetReadyWaitHandle(string scenario)
+        public static EventWaitHandle GetReadyWaitHandle(string? scenario)
         {
             try
             {
@@ -87,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Try to get the ready handle for the given scenario.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static bool TryOpenExistingReadyWaitHandle(string scenario, out EventWaitHandle readyEvent)
+        public static bool TryOpenExistingReadyWaitHandle(string? scenario, [NotNullWhen(true)]out EventWaitHandle? readyEvent)
         {
             return TryOpenExistingReadyWaitHandle(scenario, out readyEvent, 0);
         }
@@ -96,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Try to get the ready handle for the given scenario within a given timeframe.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static bool TryOpenExistingReadyWaitHandle(string scenario, out EventWaitHandle readyEvent, int waitMs)
+        public static bool TryOpenExistingReadyWaitHandle(string? scenario, [NotNullWhen(true)]out EventWaitHandle? readyEvent, int waitMs)
         {
             var eventname = GetReadyEventName(scenario);
             var stopwatch = Stopwatch.StartNew();
@@ -125,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Try to get the shutdown handle for the given scenario.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static bool TryOpenExistingShutdownWaitHandle(string scenario, out EventWaitHandle handle)
+        public static bool TryOpenExistingShutdownWaitHandle(string? scenario, [NotNullWhen(true)]out EventWaitHandle? handle)
         {
             try
             {
@@ -140,13 +143,21 @@ namespace BuildXL.Cache.ContentStore.Utils
         [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
-        private static readonly ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
-            BindingFlags.NonPublic | BindingFlags.Instance,
-            null,
-            new[] { typeof(SafeWaitHandle) },
-            null);
+        private static readonly ConstructorInfo EventWaitHandleConstructor = GetEventWaitHandleConstructor();
 
-        private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
+        private static ConstructorInfo GetEventWaitHandleConstructor()
+        {
+            var result = typeof(EventWaitHandle).GetConstructor(
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new[] {typeof(SafeWaitHandle)},
+                null);
+
+            Contract.Assert(result != null, "Failed to get non-public instance constructor for SafeWaitHandle");
+            return result;
+        }
+
+        private static bool EventWaitHandleTryOpenExisting(string name, [NotNullWhen(true)]out EventWaitHandle? handle)
         {
             // In .NET Core, only EventWaitHandle.TryOpenExisting(name, out handle) is supported,
             // which requires both Synchronize and Modify rights on the handle
@@ -167,7 +178,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                     return false;
                 }
 
-                throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
+                var exception = Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()) ?? new Win32Exception(Marshal.GetLastWin32Error());
+                throw exception;
             }
 
             handle = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
@@ -179,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Get the shutdown handle, set it, and finally close it.
         /// </summary>
         /// <exception cref="CacheException"/>
-        public static bool SetShutdown(string scenario)
+        public static bool SetShutdown(string? scenario)
         {
             try
             {
@@ -194,14 +206,14 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private static string GetReadyEventName(string scenario)
+        private static string GetReadyEventName(string? scenario)
         {
             return string.IsNullOrEmpty(scenario)
                 ? DefaultReadyEventName
                 : DefaultReadyEventName + $"-{scenario}";
         }
 
-        private static string GetShutdownEventName(string scenario)
+        private static string GetShutdownEventName(string? scenario)
         {
             return string.IsNullOrEmpty(scenario)
                 ? DefaultShutdownEventName

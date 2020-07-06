@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Check if equal to another.
         /// </summary>
-        protected bool EqualsBase(ResultBase other)
+        protected bool EqualsBase(ResultBase? other)
         {
             return !(other is null) && ErrorMessage == other.ErrorMessage;
         }

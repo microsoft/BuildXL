@@ -4,7 +4,7 @@
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
-
+#nullable disable
 namespace BuildXL.Cache.ContentStore.Stores
 {
     /// <summary>

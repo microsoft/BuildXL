@@ -22,7 +22,9 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     /// <typeparam name="TKey">Identifier for a given resource.</typeparam>
     /// <typeparam name="TObject">Type of the pooled object.</typeparam>
-    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IStartupShutdownSlim
+    public class ResourcePool<TKey, TObject> : IDisposable
+        where TKey: notnull
+        where TObject : IStartupShutdownSlim
     {
         private readonly int _maxResourceCount;
         private readonly int _maximumAgeInMinutes;
@@ -45,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="maxAgeMinutes">Maximum age of cached clients.</param>
         /// <param name="resourceFactory">Constructor for a new resource.</param>
         /// <param name="clock">Clock to use for TTL</param>
-        public ResourcePool(Context context, int maxResourceCount, int maxAgeMinutes, Func<TKey, TObject> resourceFactory, IClock clock = null)
+        public ResourcePool(Context context, int maxResourceCount, int maxAgeMinutes, Func<TKey, TObject> resourceFactory, IClock? clock = null)
         {
             _context = context;
             _maxResourceCount = maxResourceCount;

@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     {
         private const double BytesInMb = 1024 * 1024;
 
-        private readonly HistoricalBandwidthLimitSource _historicalBandwidthLimitSource;
+        private readonly HistoricalBandwidthLimitSource? _historicalBandwidthLimitSource;
         private readonly IBandwidthLimitSource _bandwidthLimitSource;
         private readonly Configuration _config;
 

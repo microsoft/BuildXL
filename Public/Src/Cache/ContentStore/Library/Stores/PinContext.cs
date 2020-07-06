@@ -16,10 +16,10 @@ namespace BuildXL.Cache.ContentStore.Stores
     public sealed class PinContext : IDisposable
     {
         private readonly Dictionary<ContentHash, int> _pinnedHashes = new Dictionary<ContentHash, int>();
-        private readonly Action<IEnumerable<KeyValuePair<ContentHash, int>>> _unpinAction;
+        private readonly Action<IEnumerable<KeyValuePair<ContentHash, int>>>? _unpinAction;
         private readonly BackgroundTaskTracker _taskTracker;
         private readonly object _lock = new object();
-        private Func<IEnumerable<KeyValuePair<ContentHash, int>>, Task> _unpinAsync;
+        private Func<IEnumerable<KeyValuePair<ContentHash, int>>, Task>? _unpinAsync;
         private bool _disposed;
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public async Task DisposeAsync()
         {
-            Func<IEnumerable<KeyValuePair<ContentHash, int>>, Task> unpinAsync = null;
+            Func<IEnumerable<KeyValuePair<ContentHash, int>>, Task>? unpinAsync = null;
 
             lock (_lock)
             {
@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     The pin context to which content will be pinned.
         /// </summary>
-        public readonly PinContext PinContext;
+        public readonly PinContext? PinContext;
 
         /// <summary>
         ///     If true, will return an error if the content was not already pinned to any context.
@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     If provided, will return an error if the content was not already pinned to this context.
         /// </summary>
-        public readonly PinContext VerifyPinContext;
+        public readonly PinContext? VerifyPinContext;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PinRequest" /> struct.
@@ -173,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="pinContext">The pin context to which content will be pinned.</param>
         /// <param name="verifyAlreadyPinned">If true, will return an error if the content was not already pinned to any context.</param>
         /// <param name="verifyPinContext">If provided, will return an error if the content was not already pinned to this context.</param>
-        public PinRequest(PinContext pinContext, bool verifyAlreadyPinned = false, PinContext verifyPinContext = null)
+        public PinRequest(PinContext? pinContext, bool verifyAlreadyPinned = false, PinContext? verifyPinContext = null)
         {
             PinContext = pinContext;
             VerifyAlreadyPinned = verifyAlreadyPinned;

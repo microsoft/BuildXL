@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ILogger _logger;
 
         /// <nodoc />
-        public MemoryMappedFileGrpcPortSharingFactory(ILogger logger, string fileName = null)
+        public MemoryMappedFileGrpcPortSharingFactory(ILogger logger, string? fileName = null)
         {
             _fileName = fileName ?? LocalCasServiceSettings.DefaultFileName;
             _logger = logger;

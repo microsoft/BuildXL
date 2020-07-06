@@ -52,12 +52,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public ContentStoreConfiguration
             (
-            MaxSizeQuota maxSizeQuota = null,
-            DiskFreePercentQuota diskFreePercentQuota = null,
+            MaxSizeQuota? maxSizeQuota = null,
+            DiskFreePercentQuota? diskFreePercentQuota = null,
             DenyWriteAttributesOnContentSetting denyWriteAttributesOnContent = DenyWriteAttributesOnContentSetting.Disable,
             int singleInstanceTimeoutSeconds = DefaultSingleInstanceTimeoutSeconds,
             bool enableElasticity = false,
-            MaxSizeQuota initialElasticSize = null,
+            MaxSizeQuota? initialElasticSize = null,
             int? historyBufferSize = default(int?),
             int? historyWindowSize = default(int?)
             )
@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             DenyWriteAttributesOnContentSetting denyWriteAttributesOnContent = DenyWriteAttributesOnContentSetting.Disable,
             int singleInstanceTimeoutSeconds = DefaultSingleInstanceTimeoutSeconds,
             bool enableElasticity = false,
-            string initialElasticSizeExpression = null,
+            string? initialElasticSizeExpression = null,
             int? historyBufferSize = default(int?),
             int? historyWindowSize = default(int?)
             )
@@ -107,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             EnableElasticity = enableElasticity;
 
             InitialElasticSize = !string.IsNullOrEmpty(initialElasticSizeExpression)
-                ? new MaxSizeQuota(initialElasticSizeExpression)
+                ? new MaxSizeQuota(initialElasticSizeExpression!)
                 : null;
 
             HistoryBufferSize = historyBufferSize;
@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     linked content will be purged only after all unlinked content is purged.
         /// </remarks>
         [DataMember]
-        public MaxSizeQuota MaxSizeQuota { get; private set; }
+        public MaxSizeQuota? MaxSizeQuota { get; private set; }
 
         /// <summary>
         ///     Gets effective DiskFreePercent content quota or null if not in effect.
@@ -135,10 +135,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     free space remains below the configured limit.
         /// </remarks>
         [DataMember]
-        public DiskFreePercentQuota DiskFreePercentQuota { get; private set; }
+        public DiskFreePercentQuota? DiskFreePercentQuota { get; private set; }
 
         [DataMember(Name = "DenyWriteAttributesOnContent")]
-        private string _denyWriteAttributesOnContentSerialized;
+        private string? _denyWriteAttributesOnContentSerialized;
 
         private DenyWriteAttributesOnContentSetting _denyWriteAttributesOnContent;
 
@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Gets initial size for elasticity.
         /// </summary>
         [DataMember(Name = "InitialElasticSize")]
-        public MaxSizeQuota InitialElasticSize { get; private set; }
+        public MaxSizeQuota? InitialElasticSize { get; private set; }
 
         /// <summary>
         ///     Gets history buffer size for elasticity.

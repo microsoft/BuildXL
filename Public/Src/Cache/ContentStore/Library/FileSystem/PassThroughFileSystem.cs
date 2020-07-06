@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <remarks>
         /// The <paramref name="logger"/> is optional.
         /// </remarks>
-        public PassThroughFileSystem(ILogger logger)
+        public PassThroughFileSystem(ILogger? logger)
         {
             if (GetSequentialScanOnOpenStreamThresholdEnvVariable(out _sequentialScanOnOpenThreshold))
             {
@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     throw possiblyDeleteExistingDestination.Failure.CreateException();
                 }
 
-                CreateDirectory(destinationPath.Parent);
+                CreateDirectory(destinationPath.GetParent());
 
                 var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
 
@@ -417,7 +417,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     }
                 }
 
-                CreateDirectory(destinationPath.Parent);
+                CreateDirectory(destinationPath.GetParent());
 
                 var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
 
@@ -429,7 +429,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
-            using (Stream readStream = TryOpenFile(
+            using (Stream? readStream = TryOpenFile(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
@@ -438,13 +438,13 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     throw new FileNotFoundException(message, sourcePath.Path);
                 }
 
-                CreateDirectory(destinationPath.Parent);
+                CreateDirectory(destinationPath.GetParent());
 
                 // If asked to replace the file Create mode must be use to truncate the content of the file
                 // if the target file larger than the source.
                 var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
 
-                using (Stream writeStream = TryOpenFile(
+                using (Stream? writeStream = TryOpenFile(
                     destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     if (writeStream == null)
@@ -458,7 +458,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-#nullable enable annotations
         private StreamWithLength? TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             try
@@ -531,7 +530,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 {
                     case ERROR_FILE_NOT_FOUND:
                     case ERROR_PATH_NOT_FOUND:
-                        return (FileStream)null;
+                        return (FileStream?)null;
                     default:
                         throw ThrowLastWin32Error(
                             path.Path,
@@ -547,7 +546,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             return result;
 
-            (FileStream fileStream, Exception Exception) tryOpenFile()
+            (FileStream? fileStream, Exception? Exception) tryOpenFile()
             {
                 try
                 {
@@ -559,7 +558,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 }
             }
         }
-#nullable restore annotations
 
         private FileOptions GetOptions(AbsolutePath path, FileOptions options)
         {
@@ -1093,7 +1091,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             FileUtilities.SetFileAccessControl(path.Path, fileSystemRights, accessControlType == AccessControlType.Allow);
         }
 
-        private static Exception ThrowLastWin32Error(string path, string message, int? lastErrorArg = null)
+        private static Exception ThrowLastWin32Error(string? path, string message, int? lastErrorArg = null)
         {
             var lastError = lastErrorArg ?? Marshal.GetLastWin32Error();
             if (OperatingSystemHelper.IsUnixOS)

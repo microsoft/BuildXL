@@ -74,8 +74,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         public void Write(DateTime dateTime, int threadId, Severity severity, string message)
         {
             _entries.Enqueue(Tuple.Create(severity, message));
-            Tuple<Severity, string> oldEntry;
-            while (_entries.Count > EntryLimit && _entries.TryDequeue(out oldEntry))
+            while (_entries.Count > EntryLimit && _entries.TryDequeue(out _))
             {
             }
         }

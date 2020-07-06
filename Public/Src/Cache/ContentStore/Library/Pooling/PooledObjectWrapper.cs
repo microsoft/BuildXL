@@ -32,6 +32,11 @@ namespace BuildXL.Cache.ContentStore.Pooling
         {
             public ObjectPool<T> Pool;
             public int Disposed;
+
+            public Identity(ObjectPool<T> pool, int disposed) => (Pool, Disposed) = (pool, disposed);
+
+            public Identity(ObjectPool<T> pool)
+                : this(pool, 0) { }
         }
 
         private readonly Identity _identity;
@@ -48,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Pooling
             Contract.Requires(instance != null);
 
 #if DEBUG
-            _identity = new Identity {Pool = pool};
+            _identity = new Identity(pool);
 #else
             _pool = pool;
 #endif

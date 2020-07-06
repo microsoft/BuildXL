@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -530,7 +531,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             public DelegateBasedComparer(Func<T, T, int> comparer) => _comparer = comparer;
 
             /// <inheritdoc />
-            public int Compare(T x, T y) => _comparer(x, y);
+            public int Compare([AllowNull] T x, [AllowNull] T y) => _comparer(x!, y!);
         }
     }
 

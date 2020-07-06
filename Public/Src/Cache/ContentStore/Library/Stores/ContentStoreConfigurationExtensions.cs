@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Extract quota hard and soft limits from an expression.
         /// </summary>
-        public static Tuple<string, string> ExtractHardSoft(this string expression)
+        public static Tuple<string, string?> ExtractHardSoft(this string expression)
         {
             if (string.IsNullOrEmpty(expression))
             {

@@ -68,14 +68,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly IAbsFileSystem _fileSystem;
         private readonly AbsolutePath _filePath;
         private readonly AbsolutePath _backupFilePath;
-        private readonly IContentDirectoryHost _host;
+        private readonly IContentDirectoryHost? _host;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(MemoryContentDirectory));
         private string Name => Tracer.Name;
 
         private bool ContentDirectoryInitialized => _initializeContentDirectory?.IsCompleted == true;
-        private ContentMap _contentDirectory;
+        private ContentMap? _contentDirectory;
 
         /// <summary>
         ///     MemoryContentDirectory file is expensive to deserialize.
@@ -88,17 +88,17 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     In-memory mapping of all content hashes stored to their metadata
         /// </summary>
-        private ContentMap ContentDirectory => (_contentDirectory = _contentDirectory ?? _initializeContentDirectory?.GetAwaiter().GetResult());
+        private ContentMap ContentDirectory => (_contentDirectory ??= _initializeContentDirectory?.GetAwaiter().GetResult())!;
 
         /// <summary>
         /// Async task to deserialize ContentDirectory
         /// </summary>
-        private Task<ContentMap> _initializeContentDirectory;
+        private Task<ContentMap>? _initializeContentDirectory;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="MemoryContentDirectory" /> class.
         /// </summary>
-        public MemoryContentDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath, IContentDirectoryHost host = null)
+        public MemoryContentDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath, IContentDirectoryHost? host = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);
@@ -319,7 +319,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<ContentMap> InitializeContentDirectoryAsync(Context context, MemoryContentDirectoryHeader header, AbsolutePath path, bool isLoadingBackup)
+        private async Task<ContentMap> InitializeContentDirectoryAsync(Context context, MemoryContentDirectoryHeader header, AbsolutePath? path, bool isLoadingBackup)
         {
             var operationContext = new OperationContext(context);
 
@@ -332,8 +332,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // This will enforce the invariant that ContentDirectory property is not null.
                     await Task.Yield();
 
-                    bool canLoadContentDirectory = path != null && header.Version == BinaryFormatVersion;
-                    var loadedContentDirectory = canLoadContentDirectory
+                    var loadedContentDirectory = path != null && header.Version == BinaryFormatVersion
                         ? await DeserializeBodyAsync(context, header, path, isLoadingBackup)
                         : new ContentMap();
 
@@ -363,7 +362,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 },
                 _counters[MemoryContentDirectoryCounters.InitializeContentDirectory]).ThrowIfFailure();
 
-            return result.Value;
+            return result.Value!;
         }
 
         [SuppressMessage("AsyncUsage", "AsyncFixer02:Long running or blocking operations under an async method")]
@@ -511,10 +510,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<ContentFileInfo> RemoveAsync(ContentHash contentHash)
+        public Task<ContentFileInfo?> RemoveAsync(ContentHash contentHash)
         {
             ContentDirectory.TryRemove(contentHash, out var info);
-            return Task.FromResult(info);
+            return Task.FromResult<ContentFileInfo?>(info);
         }
 
         /// <inheritdoc />
@@ -540,7 +539,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             ContentDirectory.TryGetValue(contentHash, out var existingInfo);
 
-            ContentFileInfo cloneInfo = null;
+            ContentFileInfo? cloneInfo = null;
             if (existingInfo != null)
             {
                 cloneInfo = new ContentFileInfo(existingInfo.FileSize, existingInfo.LastAccessedFileTimeUtc, existingInfo.ReplicaCount);
@@ -570,7 +569,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo)
+        public bool TryGetFileInfo(ContentHash contentHash, [NotNullWhen(true)]out ContentFileInfo? fileInfo)
         {
             return ContentDirectory.TryGetValue(contentHash, out fileInfo);
         }

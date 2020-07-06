@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-
+#nullable disable
 namespace BuildXL.Cache.ContentStore.SQLite
 {
     /// <summary>

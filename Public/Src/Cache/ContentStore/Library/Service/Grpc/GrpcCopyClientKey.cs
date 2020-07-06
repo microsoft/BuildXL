@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is GrpcCopyClientKey key && Equals(key);
         }

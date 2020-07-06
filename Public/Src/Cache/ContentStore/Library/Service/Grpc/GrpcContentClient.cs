@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             int grpcPort,
-            string scenario,
+            string? scenario,
             TimeSpan? heartbeatInterval = null,
             Capabilities capabilities = Capabilities.ContentOnly)
             : this(tracer, fileSystem, new ServiceClientRpcConfiguration(grpcPort, heartbeatInterval), scenario, capabilities)
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
-            string scenario,
+            string? scenario,
             Capabilities capabilities = Capabilities.ContentOnly)
             : base(fileSystem, tracer, configuration, scenario, capabilities)
         {
@@ -457,7 +457,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (createDirectory)
                 {
-                    var parentDirectory = tempFile.Parent;
+                    var parentDirectory = tempFile.GetParent();
                     if (!FileSystem.DirectoryExists(parentDirectory))
                     {
                         FileSystem.CreateDirectory(parentDirectory);

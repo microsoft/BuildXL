@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Pooling
         public async Task<IPoolToken> GetAsync()
         {
             await _objectsAvailable.WaitAsync();
-            SemaphoreSlim semaphoreToBeReleased = _objectsAvailable;
+            SemaphoreSlim? semaphoreToBeReleased = _objectsAvailable;
             try
             {
                 T obj;
@@ -57,10 +57,9 @@ namespace BuildXL.Cache.ContentStore.Pooling
         /// <inheritdoc/>
         public void Dispose()
         {
-            T obj;
-            while (_objects.TryTake(out obj))
+            while (_objects.TryTake(out T obj))
             {
-                IDisposable disposable = obj as IDisposable;
+                IDisposable? disposable = obj as IDisposable;
                 disposable?.Dispose();
             }
 

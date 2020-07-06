@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public bool Equals(ContentFileInfo other)
+        public bool Equals(ContentFileInfo? other)
         {
             return other != null &&
                 FileSize == other.FileSize &&

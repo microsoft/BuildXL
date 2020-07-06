@@ -28,15 +28,15 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// <summary>
         /// Optional competing process name that has held the lock.
         /// </summary>
-        public string CompetingProcessName { get; }
+        public string? CompetingProcessName { get; }
 
         /// <summary>
         /// Optional exception that caused the operation to fail.
         /// </summary>
-        public Exception Exception { get; }
+        public Exception? Exception { get; }
 
         /// <nodoc />
-        private LockAcquisitionResult(bool lockAcquired, TimeSpan timeout, int? competingProcessId, string competingProcessName, Exception exception)
+        private LockAcquisitionResult(bool lockAcquired, TimeSpan timeout, int? competingProcessId, string? competingProcessName, Exception? exception)
         {
             LockAcquired = lockAcquired;
             Timeout = timeout;
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         public static LockAcquisitionResult Acquired() => new LockAcquisitionResult(true, TimeSpan.MinValue, competingProcessId: null, competingProcessName: null, exception: null);
 
         /// <nodoc />
-        public static LockAcquisitionResult Failed(TimeSpan timeout, int? competingProcessId = null, string competingProcessName = null, Exception exception = null) =>
+        public static LockAcquisitionResult Failed(TimeSpan timeout, int? competingProcessId = null, string? competingProcessName = null, Exception? exception = null) =>
             new LockAcquisitionResult(false, timeout, competingProcessId, competingProcessName, exception);
 
         /// <summary>

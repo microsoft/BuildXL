@@ -22,6 +22,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 
+#nullable disable
+
 namespace BuildXL.Cache.ContentStore.SQLite
 {
     /// <summary>

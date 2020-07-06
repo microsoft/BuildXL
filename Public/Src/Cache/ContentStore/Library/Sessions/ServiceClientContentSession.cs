@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration,
-            Func<IRpcClient> rpcClientFactory = null)
+            Func<IRpcClient>? rpcClientFactory = null)
             : base(name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory)
         {
         }
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             // We need a seekable stream, that can give its length. If the input stream is seekable, we can use it directly.
             // Otherwise, we need to create a temp file for this purpose.
             var putStream = stream;
-            Stream disposableStream = null;
+            Stream? disposableStream = null;
             if (!stream.CanSeek)
             {
                 putStream = TempFileStreamFactory.Create(operationContext, stream);

@@ -141,6 +141,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             }
             else
             {
+                Contract.Assert(queueItem.Task != null);
                 try
                 {
                     if (_logTasks)
@@ -215,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// <summary>
         ///     Adds a task to the collection of tasks that will complete by the time Dispose() returns.
         /// </summary>
-        public void Add(Func<Task> backgroundTaskFunc, string tag = null)
+        public void Add(Func<Task> backgroundTaskFunc, string? tag = null)
         {
             Contract.Requires(backgroundTaskFunc != null);
             Add(Task.Run(backgroundTaskFunc), tag);
@@ -224,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// <summary>
         ///     Adds a task to the collection of tasks that will complete by the time Dispose() returns.
         /// </summary>
-        public void Add(Task backgroundTask, string tag = null)
+        public void Add(Task backgroundTask, string? tag = null)
         {
             Contract.Requires(backgroundTask != null);
 
@@ -234,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// <summary>
         ///     Waits for all currently added background tasks to complete.
         /// </summary>
-        public Task Synchronize(string tag = null)
+        public Task Synchronize(string? tag = null)
         {
             var syncCompletion = TaskSourceSlim.Create<ValueUnit>();
 
@@ -250,7 +251,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// <param name="taskName">Name of the task for debugging purposes</param>
         /// <param name="taskId">Id of the task for debugging purposes</param>
         /// <param name="tag">Tag used for the task</param>
-        private void Enqueue(QueueItem qi, string taskName, int taskId, string tag)
+        private void Enqueue(QueueItem qi, string taskName, int taskId, string? tag)
         {
             // It is OK to enter this lock synchronously here, because the only time we will actually wait
             // is if write lock is taken by shutdown, so enqueue would have been wasted anyway.
@@ -287,10 +288,10 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         private readonly struct QueueItem
         {
             public readonly TaskSourceSlim<ValueUnit> SyncTask;
-            public readonly Task Task;
-            public readonly string Tag;
+            public readonly Task? Task;
+            public readonly string? Tag;
 
-            public QueueItem(Task task, string tag)
+            public QueueItem(Task task, string? tag)
                 : this()
             {
                 Task = task;
@@ -298,7 +299,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 Tag = tag;
             }
 
-            public QueueItem(TaskSourceSlim<ValueUnit> syncTask, string tag)
+            public QueueItem(TaskSourceSlim<ValueUnit> syncTask, string? tag)
                 : this()
             {
                 Task = null;

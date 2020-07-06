@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new CreateSessionResponse()
                 {
                     SessionId = sessionCreationResult.Value.sessionId,
-                    TempDirectory = sessionCreationResult.Value.tempDirectory.Path
+                    TempDirectory = sessionCreationResult.Value.tempDirectory?.Path
                 };
             }
             else

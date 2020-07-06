@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             TimeSpan duration,
             IReadOnlyList<ContentHash> contentHashes,
             IEnumerable<Indexed<PinResult>> results,
-            Exception error,
+            Exception? error,
             PinBulkOptions pinBulkOptions)
         {
             if (context.IsEnabled)

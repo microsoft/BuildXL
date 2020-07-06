@@ -165,8 +165,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
 
                 // Parse header collection.
-                string exception = null;
-                string message = null;
+                string? exception = null;
+                string? message = null;
                 CopyCompression compression = CopyCompression.None;
                 foreach (Metadata.Entry header in headers)
                 {

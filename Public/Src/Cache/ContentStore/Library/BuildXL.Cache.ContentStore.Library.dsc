@@ -41,6 +41,12 @@ namespace Library {
             importFrom("Sdk.Protocols.Grpc").runtimeContent,
         ],
         allowUnsafeBlocks: true,
+        
+        nullable: true,
+        // Should explicitly avoiding adding a file with non-nullable attributes,
+        // because this project has internals visibility into Interfaces.dll that already contains
+        // such attributes.
+        addNotNullAttributeFile: false,
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Test",
             "BuildXL.Cache.ContentStore.Distributed.Test",

@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public uint RetryCount { get; set; } = DefaultRetryCount;
 
         /// <nodoc />
-        public string Scenario { get; }
+        public string? Scenario { get; }
 
         /// <nodoc />
         public RetryPolicy RetryPolicy => _retryPolicy.Value;
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public ServiceClientContentStoreConfiguration(
             string cacheName,
             ServiceClientRpcConfiguration rpcConfiguration,
-            string scenario = null)
+            string? scenario = null)
         {
             Contract.Requires(cacheName != null);
             CacheName = cacheName;

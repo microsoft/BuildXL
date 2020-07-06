@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected virtual bool TraceErrorsOnly => false;
 
         /// <nodoc />
-        protected ContentSessionBase(string name, CounterTracker counterTracker = null)
+        protected ContentSessionBase(string name, CounterTracker? counterTracker = null)
         {
             Name = name;
             BaseCounters = CounterTracker.CreateCounterCollection<ContentSessionBaseCounters>(counterTracker);

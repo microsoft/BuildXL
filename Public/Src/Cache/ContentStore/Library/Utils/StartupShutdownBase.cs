@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        protected override void ThrowIfInvalid([CallerMemberName]string operation = null)
+        protected override void ThrowIfInvalid([CallerMemberName]string? operation = null)
         {
             base.ThrowIfInvalid(operation);
 

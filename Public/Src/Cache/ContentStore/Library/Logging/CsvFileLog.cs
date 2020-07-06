@@ -142,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                 .ToArray();
         }
 
-        private static TV GetValueOrDefault<TK, TV>(Dictionary<TK, TV> dict, TK key, TV defaultValue)
+        private static TV GetValueOrDefault<TK, TV>(Dictionary<TK, TV> dict, TK key, TV defaultValue) where TK : notnull
         {
             return dict.TryGetValue(key, out var value)
                 ? value
@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             bool renderConstColums = true,
             Severity severity = Severity.Diagnostic,
             long maxFileSize = 0,
-            string serviceName = null,
+            string? serviceName = null,
             Guid buildId = default
             )
             :

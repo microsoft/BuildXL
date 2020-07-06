@@ -2,13 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Reflection;
 using Google.Protobuf;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
-    /// Provides helper methods for contructing <see cref="ByteString"/> instances.
+    /// Provides helper methods for constructing <see cref="ByteString"/> instances.
     /// </summary>
     public static class ByteStringExtensions
     {
@@ -29,6 +30,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private static Func<byte[], ByteString> CreateUnsafeFromBytesFunc()
         {
             var internalType = typeof(ByteString).GetNestedType("Unsafe", BindingFlags.NonPublic);
+            Contract.Assert(internalType != null, "Can't find ByteString.Unsafe type.");
             var method = internalType.GetMethod("FromBytes", BindingFlags.Static | BindingFlags.NonPublic);
             if (method == null)
             {

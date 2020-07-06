@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
     /// This is a collection of per-key exclusive locks.
     /// Borrowed from the BuildXL code-base
     /// </summary>
-    public sealed class LockSet<TKey> where TKey : IEquatable<TKey>
+    public sealed class LockSet<TKey> where TKey : notnull, IEquatable<TKey>
     {
         // ReSharper disable once StaticFieldInGenericType
         private static long _currentHandleId = 1;
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             }
 
             /// <inheritdoc />
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (obj is LockHandle handle)
                 {

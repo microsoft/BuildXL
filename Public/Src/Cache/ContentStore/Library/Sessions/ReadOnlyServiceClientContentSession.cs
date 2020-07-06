@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration,
-            Func<IRpcClient> rpcClientFactory = null)
+            Func<IRpcClient>? rpcClientFactory = null)
             : base(name)
         {
             Contract.Requires(name != null);
@@ -241,8 +241,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <nodoc />
-        protected Task<T> PerformRetries<T>(OperationContext operationContext, Func<Task<T>> action, Action<int> onRetry = null, Counter? retryCounter = null, [CallerMemberName] string operationName = null)
+        protected Task<T> PerformRetries<T>(OperationContext operationContext, Func<Task<T>> action, Action<int>? onRetry = null, Counter? retryCounter = null, [CallerMemberName] string? operationName = null)
         {
+            Contract.Requires(operationName != null);
             var retry = 0;
 
             return RetryPolicy.ExecuteAsync(Wrapper, operationContext.Token);

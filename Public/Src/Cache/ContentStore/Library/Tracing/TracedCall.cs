@@ -9,6 +9,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
+#nullable disable // The design of this type is not null friendly.
+
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <summary>

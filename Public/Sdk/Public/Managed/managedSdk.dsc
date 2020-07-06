@@ -78,6 +78,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     // and bxl CompileWin will compile sources for two key qualifiers for Windows - for net472 and for .net core app.
     let helperTags = [
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netstandard2.0" && qualifier.configuration === "debug", "CompileNetStandard20", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileDebugNetCoreWin", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileOsx"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileLinux"),
@@ -423,6 +424,22 @@ export interface Arguments {
     /** Specify nullable context option enable|disable. */
     nullable?: boolean;
 
+    /**
+     * If false then the file with non-nullable attributes won't be added to the project even when nullable flag is set to true.
+     * 
+     * For non-dotnet-core project specifying nullable flag forces the SDK to automatically include a special file
+     * with non-nullable attributes like [MaybeNull], [NonNullWhen] etc.
+     * 
+     * This is a good default behavior but it causes compilation warnings in the following case:
+     * Project A specifies nullable flag and has internals visibility with Project B.
+     * It means that the Project B can access all the internal members in Project A including all the non-nullability attributes.
+     * Adding the same set of attributes in Project B will cause compilation warnings and to avoid them 
+     * Project B needs to specify addNotNullAttributeFile: false.
+     * 
+     * The default is true if 'nullable' is true.
+     */
+    addNotNullAttributeFile?: boolean;
+
     /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
     nullabilityContext?: Csc.NullabilityContext;
 
@@ -596,4 +613,3 @@ function getTargetRuntimeDefines() : string[] {
             Contract.fail("Unexpected targetRuntime");
     }
 }
-

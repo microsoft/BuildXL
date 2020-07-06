@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Initializes a new instance of the <see cref="ConfigurationModel"/> class.
         /// </summary>
         public ConfigurationModel(
-            ContentStoreConfiguration inProcessConfiguration = null,
+            ContentStoreConfiguration? inProcessConfiguration = null,
             ConfigurationSelection selection = ConfigurationSelection.UseFileAllowingInProcessFallback,
             MissingConfigurationFileOption missingFileOption = MissingConfigurationFileOption.DoNotWrite)
         {
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets optional in-process configuration.
         /// </summary>
-        public ContentStoreConfiguration InProcessConfiguration { get; }
+        public ContentStoreConfiguration? InProcessConfiguration { get; }
 
         /// <summary>
         ///     Gets configuration selection method.

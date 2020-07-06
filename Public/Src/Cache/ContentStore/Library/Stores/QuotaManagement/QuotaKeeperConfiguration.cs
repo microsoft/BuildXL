@@ -18,17 +18,17 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// <see cref="ContentStoreConfiguration.MaxSizeQuota"/>.
         /// </summary>
-        public MaxSizeQuota MaxSizeQuota { get; private set; }
+        public MaxSizeQuota? MaxSizeQuota { get; private set; }
 
         /// <summary>
         /// <see cref="ContentStoreConfiguration.DiskFreePercentQuota"/>.
         /// </summary>
-        public DiskFreePercentQuota DiskFreePercentQuota { get; private set; }
+        public DiskFreePercentQuota? DiskFreePercentQuota { get; private set; }
 
         /// <summary>
         /// <see cref="ContentStoreConfiguration.InitialElasticSize"/>.
         /// </summary>
-        public MaxSizeQuota InitialElasticSize { get; private set; }
+        public MaxSizeQuota? InitialElasticSize { get; private set; }
 
         /// <summary>
         /// <see cref="ContentStoreConfiguration.HistoryWindowSize"/>.

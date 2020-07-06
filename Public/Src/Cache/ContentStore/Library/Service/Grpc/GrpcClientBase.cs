@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected readonly IAbsFileSystem FileSystem;
 
         /// <nodoc />
-        protected readonly string Scenario;
+        protected readonly string? Scenario;
 
         /// <nodoc />
         protected readonly ServiceClientContentSessionTracer ServiceClientTracer;
@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer tracer,
             ServiceClientRpcConfiguration configuration,
-            string scenario,
+            string? scenario,
             Capabilities clientCapabilities)
         {
             FileSystem = fileSystem;
@@ -175,16 +175,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var sessionId= sessionContext.Value.SessionId;
             await operationContext.PerformOperationAsync(
                     Tracer,
-                    () => sendHeartbeatAsync().WithTimeoutAsync(HeartbeatHardTimeout),
+                    () => sendHeartbeatAsync(sessionContext.Value).WithTimeoutAsync(HeartbeatHardTimeout),
                     extraEndMessage: r => $"SessionId={sessionId}")
                 .IgnoreFailure(); // The error was already traced.
 
-            async Task<BoolResult> sendHeartbeatAsync()
+            async Task<BoolResult> sendHeartbeatAsync(SessionContext localSessionContext)
             {
                 using var timeoutCancellationSource = new CancellationTokenSource(_heartbeatTimeout);
                 try
                 {
-                    HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = sessionContext.Value.CreateHeader() }, timeoutCancellationSource.Token);
+                    HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = localSessionContext.CreateHeader() }, timeoutCancellationSource.Token);
 
                     // Check for null header here as a workaround to a known service bug, which returns null headers on successful heartbeats.
                     if (response?.Header != null && !response.Header.Succeeded)
@@ -231,7 +231,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             if (string.IsNullOrEmpty(response.ErrorMessage))
             {
                 var sessionId = response.SessionId;
-                SessionData data = new SessionData { SessionId = sessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)) };
+                SessionData data = new SessionData(sessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
                 SessionState = new SessionState(() => CreateSessionDataAsync(context, name, cacheName, implicitPin), data);
 
                 // Send a heartbeat iff both the service can receive one and the service was told to expect one.
@@ -320,7 +320,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
             if (string.IsNullOrEmpty(response.ErrorMessage))
             {
-                SessionData data = new SessionData() { SessionId = response.SessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)) };
+                SessionData data = new SessionData(response.SessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
                 return new ObjectResult<SessionData>(data);
             }
             else
@@ -384,7 +384,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             var startTime = DateTime.UtcNow;
-            return new SessionContext(context, startTime, result.Data, token);
+            return new SessionContext(context, startTime, result.Data!, token);
         }
 
         /// <summary>
@@ -543,6 +543,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (IsUnknownSessionError(header))
             {
+                Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
+
                 Tracer.Warning(context, $"Could not find session id {sessionId}. Resetting session state.");
                 await SessionState.ResetAsync(sessionId);
                 if (throwFailures)

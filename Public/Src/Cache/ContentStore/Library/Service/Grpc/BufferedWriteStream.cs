@@ -44,7 +44,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            Debug.Assert(!(buffer is null));
             Debug.Assert(offset >= 0);
             Debug.Assert(count >= 0);
             Debug.Assert(count <= buffer.Length - offset);

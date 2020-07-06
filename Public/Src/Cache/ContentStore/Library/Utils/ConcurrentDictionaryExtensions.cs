@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -14,9 +15,10 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <remarks>
         /// This extension method is used only when we target net451 because the similar api was added only net46.
         /// </remarks>
-        public static TValue GetOrAdd<TKey, TValue, TArg>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument)
+        [return: MaybeNull]
+        public static TValue GetOrAdd<TKey, TValue, TArg>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument) where TKey : notnull
         {
-            if (!dictionary.TryGetValue(key, out TValue value))
+            if (!dictionary.TryGetValue(key, out var value))
             {
                 dictionary.TryAdd(key, valueFactory(key, factoryArgument));
             }

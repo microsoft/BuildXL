@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -19,13 +17,6 @@ namespace ContentStoreTest.Extensions
         public EnumerableExtensionsTests()
             : base(TestGlobal.Logger)
         {
-        }
-
-        [Fact]
-        public void TryRemoveThrowsGiveNullDictionary()
-        {
-            Action a = () => ((ConcurrentDictionary<int, int>)null).TryRemoveSpecific(1, 1);
-            a.Should().Throw<ArgumentNullException>();
         }
 
         [Fact]

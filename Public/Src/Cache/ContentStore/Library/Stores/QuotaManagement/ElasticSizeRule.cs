@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public ElasticSizeRule(
             int? historyWindowSize,
-            MaxSizeQuota initialElasticSize,
+            MaxSizeQuota? initialElasticSize,
             Func<long> getCurrentSizeFunc,
             Func<int, PinSizeHistory.ReadHistoryResult> getPinnedSizeHistoryFunc,
             IAbsFileSystem fileSystem,
@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 var saveResult = await SaveQuotaAsync();
 
-                return !saveResult.Succeeded ? new CalibrateResult(saveResult.ErrorMessage) : new CalibrateResult(_quota.Hard);
+                return !saveResult.Succeeded ? new CalibrateResult(saveResult.ErrorMessage!) : new CalibrateResult(_quota.Hard);
             });
         }
 
@@ -323,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private Task<BoolResult> SaveQuotaAsync()
         {
-            return SaveQuotaAsync(_fileSystem, _rootPath, _quota as MaxSizeQuota, _historyTimestampInTick);
+            return SaveQuotaAsync(_fileSystem, _rootPath, (MaxSizeQuota)_quota, _historyTimestampInTick);
         }
 
         private BoolResult IsInsideHardLimit(long reserveSize, bool checkIfQuotaEnabled)

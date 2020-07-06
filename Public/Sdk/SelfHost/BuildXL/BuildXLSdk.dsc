@@ -395,6 +395,9 @@ export function test(args: TestArguments) : TestResult {
     return result;
 }
 
+@@public
+export const notNullAttributesFile = f`NotNullAttributes.cs`;
+
 /**
  * Builds and runs an xunit test
  */
@@ -561,9 +564,16 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         });
         
         args = args.merge({
-            sources: [
-                extraSourceFile
-            ],
+            sources: [extraSourceFile],
+        });
+    }
+
+    // Add the file with non-nullable attributes for non-dotnet core projects
+    // if nullable flag is set, but a special flag is false.
+    if (args.nullable && qualifier.targetFramework !== "netcoreapp3.1" && args.addNotNullAttributeFile !== false) {
+        
+        args = args.merge({
+            sources: [notNullAttributesFile],
         });
     }
     

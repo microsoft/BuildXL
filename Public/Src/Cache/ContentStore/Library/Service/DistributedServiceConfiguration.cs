@@ -18,14 +18,14 @@ namespace BuildXL.Cache.ContentStore.Service
         /// Constructor for DistributedServiceConfiguration
         /// </summary>
         public DistributedServiceConfiguration(
-            AbsolutePath dataRootPath,
+            AbsolutePath? dataRootPath,
             uint gracefulShutdownSeconds,
             uint grpcPort,
-            string stampId,
-            string ringId,
+            string? stampId,
+            string? ringId,
             string cacheName,
             AbsolutePath cachePath,
-            string grpcPortFileName = null)
+            string? grpcPortFileName = null)
             : base(new Dictionary<string, AbsolutePath>(), dataRootPath, 0, gracefulShutdownSeconds, (int)grpcPort, grpcPortFileName)
         {
             StampId = stampId;
@@ -38,13 +38,13 @@ namespace BuildXL.Cache.ContentStore.Service
         /// The stamp identifier for this service instance.
         /// </summary>
         [DataMember]
-        public string StampId { get; private set; }
+        public string? StampId { get; private set; }
 
         /// <summary>
         /// The ring identifier for this service instance.
         /// </summary>
         [DataMember]
-        public string RingId { get; private set; }
+        public string? RingId { get; private set; }
 
         /// <summary>
         /// Name of the cache behind this service instance.
@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        public override string GetCommandLineArgs(LocalServerConfiguration localContentServerConfiguration = null, string scenario = null, bool logAutoFlush = false, bool passMaxConnections = false)
+        public override string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration, string? scenario, bool logAutoFlush, bool passMaxConnections)
         {
             var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush, false));
 

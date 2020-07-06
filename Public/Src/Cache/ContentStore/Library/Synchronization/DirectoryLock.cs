@@ -21,12 +21,12 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         private readonly TimeSpan _waitTimeout;
         private readonly DirectoryLockFile _directoryLockFile;
         private readonly Tracer _tracer = new Tracer(nameof(DirectoryLock));
-        private Task<LockAcquisitionResult> _acquisitionTask;
+        private Task<LockAcquisitionResult>? _acquisitionTask;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DirectoryLock"/> class.
         /// </summary>
-        public DirectoryLock(AbsolutePath directoryPath, IAbsFileSystem fileSystem, TimeSpan waitTimeout, string component = null)
+        public DirectoryLock(AbsolutePath directoryPath, IAbsFileSystem fileSystem, TimeSpan waitTimeout, string? component = null)
         {
             Contract.Requires(directoryPath != null);
             Contract.Requires(fileSystem != null);
@@ -66,8 +66,6 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         {
             var componentDescription = string.IsNullOrEmpty(_component) ? string.Empty : $" component [{_component}]";
             _tracer.Info(context, $"Acquiring directory lock for [{_directoryPath}]{componentDescription}");
-            DateTime timeoutTime = DateTime.UtcNow + _waitTimeout;
-
             var acquired = await _directoryLockFile.AcquireAsync(context, _waitTimeout);
 
             if (!acquired.LockAcquired)

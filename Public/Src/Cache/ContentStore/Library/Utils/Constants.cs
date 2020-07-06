@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Attempts to extract build guid encoded in a session name (i.e. SessionName={Name}{BuildIdPrefix}{BuildId}
         /// </summary>
-        public static bool TryExtractBuildId(string sessionName, out string buildId)
+        public static bool TryExtractBuildId(string sessionName, [NotNullWhen(true)]out string? buildId)
         {
             if (sessionName?.Contains(BuildIdPrefix) == true)
             {

@@ -45,14 +45,14 @@ namespace BuildXL.Cache.ContentStore.Logging
         private readonly bool _autoFlush;
         private readonly int _fileNumberWidth;
         private readonly List<string> _paths;
-        private StreamWriter _textWriter;
+        private StreamWriter? _textWriter;
         private int _fileNumber;
         private int _fileCount;
 
         /// <summary>
         ///     Event that gets triggered whenever a log file is produced (i.e., written to disk, closed, and not further modified).
         /// </summary>
-        public event LogFileProduced OnLogFileProduced;
+        public event LogFileProduced? OnLogFileProduced;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileLog" /> class using the given directory path.
@@ -153,10 +153,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         {
             lock (_syncObject)
             {
-                if (_textWriter != null)
-                {
-                    _textWriter.Flush();
-                }
+                _textWriter?.Flush();
             }
         }
 
@@ -188,6 +185,8 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// </summary>
         protected void WriteLineInternal(Severity severity, string message)
         {
+            Contract.Assert(_textWriter != null);
+
             lock (_syncObject)
             {
                 if (_maxFileSize > 0 && _textWriter.BaseStream.Position > _maxFileSize)
@@ -267,6 +266,8 @@ namespace BuildXL.Cache.ContentStore.Logging
         {
             // ReSharper disable AssignNullToNotNullAttribute
             var directoryPath = Path.GetDirectoryName(logFilePath);
+            Contract.Assert(directoryPath != null);
+
             var currentBaseName = Path.GetFileNameWithoutExtension(logFilePath);
             var currentExtension = Path.GetExtension(logFilePath);
             var file = fileNumberWidth == 0

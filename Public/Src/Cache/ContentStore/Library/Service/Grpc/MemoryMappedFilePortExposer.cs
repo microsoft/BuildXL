@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class MemoryMappedFilePortExposer : IPortExposer
     {
         private static readonly long FileSize = 10;   // Only long enough to store the port number.
-        private MemoryMappedFile _file;
+        private MemoryMappedFile? _file;
 
         private readonly string _baseFileName;
         private readonly ILogger _logger;

@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="args">Arguments passed to the process.</param>
         /// <param name="createNoWindow">Whether the process shoudl not open a window.</param>
         /// <param name="workingDirectory">Working directory for the process</param>
-        public ProcessUtility(string fileName, string args, bool createNoWindow, string workingDirectory = null)
+        public ProcessUtility(string fileName, string args, bool createNoWindow, string? workingDirectory = null)
         {
             _createNoWindow = createNoWindow;
             _process = new Process();

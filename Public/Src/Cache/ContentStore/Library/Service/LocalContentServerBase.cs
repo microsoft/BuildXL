@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -59,17 +60,17 @@ namespace BuildXL.Cache.ContentStore.Service
         private const string CheckForExpiredSessionsName = "CheckUnusedSessions";
         private const int CheckForExpiredSessionsPeriodMinutes = 1;
 
-        private readonly IDisposable _portDisposer; // Null if port should not be exposed.
-        private Server _grpcServer;
+        private readonly IDisposable? _portDisposer; // Null if port should not be exposed.
+        private Server? _grpcServer;
 
         private readonly ServiceReadinessChecker _serviceReadinessChecker;
 
         private readonly ConcurrentDictionary<int, SessionHandle<TSession>> _sessionHandles;
-        private IntervalTimer _sessionExpirationCheckTimer;
-        private IntervalTimer _logIncrementalStatsTimer;
-        private IntervalTimer _logMachineStatsTimer;
+        private IntervalTimer? _sessionExpirationCheckTimer;
+        private IntervalTimer? _logIncrementalStatsTimer;
+        private IntervalTimer? _logMachineStatsTimer;
 
-        private Dictionary<string, long> _previousStatistics;
+        private Dictionary<string, long>? _previousStatistics;
 
         private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
 
@@ -343,7 +344,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 var stats = await GetStatsAsync(context);
                 if (stats.Succeeded)
                 {
-                    var counters = stats.Value.ToDictionaryIntegral();
+                    var counters = stats.Value!.ToDictionaryIntegral();
                     FillTrackingStreamStatistics(counters);
                     foreach (var counter in counters)
                     {
@@ -700,7 +701,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     var result = CreateSession(store, context, name, implicitPin).ThrowIfFailure();
 
-                    var session = result.Session;
+                    var session = result.Session!;
                     await session.StartupAsync(context).ThrowIfFailure();
 
                     var handle = new SessionHandle<TSession>(
@@ -740,6 +741,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Try gets a session by session id.
         /// </summary>
+        [return: MaybeNull]
         public TSession GetSession(int sessionId)
         {
             if (_sessionHandles.TryGetValue(sessionId, out var sessionHandle))
@@ -751,7 +753,7 @@ namespace BuildXL.Cache.ContentStore.Service
             return default;
         }
 
-        private async Task<Result<(TSession session, int sessionId, AbsolutePath tempDirectory)>> CreateTempDirectoryAndSessionAsync(
+        private async Task<Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>> CreateTempDirectoryAndSessionAsync(
             OperationContext context,
             int? sessionIdHint,
             string sessionName,
@@ -767,7 +769,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             if (!tempDirectoryCreationResult)
             {
-                return new Result<(TSession session, int sessionId, AbsolutePath tempDirectory)>(tempDirectoryCreationResult);
+                return new Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(tempDirectoryCreationResult);
             }
 
             var sessionResult = await CreateSessionAsync(
@@ -782,14 +784,15 @@ namespace BuildXL.Cache.ContentStore.Service
             if (!sessionResult)
             {
                 RemoveSessionTempDirectory(sessionId);
-                return Result.FromError<(TSession session, int sessionId, AbsolutePath tempDirectory)>(sessionResult);
+                return Result.FromError<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(sessionResult);
             }
 
-            return Result.Success((sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
+            return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
+                (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
         }
 
         /// <inheritdoc />
-        public async Task<Result<(int sessionId, AbsolutePath tempDirectory)>> CreateSessionAsync(
+        public async Task<Result<(int sessionId, AbsolutePath? tempDirectory)>> CreateSessionAsync(
             OperationContext context,
             string sessionName,
             string cacheName,
@@ -812,7 +815,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             if (!result)
             {
-                return new Result<(int sessionId, AbsolutePath tempDirectory)>(result);
+                return new Result<(int sessionId, AbsolutePath? tempDirectory)>(result);
             }
 
             return Result.Success((result.Value.sessionId, result.Value.tempDirectory));

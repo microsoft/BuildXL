@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
     /// </summary>
     public readonly struct CancellableOperationContext : IDisposable
     {
-        private readonly CancellationTokenSource _cts;
+        private readonly CancellationTokenSource? _cts;
 
         /// <nodoc />
         public OperationContext Context { get; }

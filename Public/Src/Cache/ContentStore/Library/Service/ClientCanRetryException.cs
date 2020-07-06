@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Creator's context that can be used for logging this exception in a context where this info is not available.
         /// </summary>
-        public readonly Context Context;
+        public readonly Context? Context;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ClientCanRetryException"/> class.

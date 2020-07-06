@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.StartupStop, Keywords = Keywords.Startup, Level = EventLevel.Verbose)]
-        public void StartupStop(string id, bool succeeded, string error)
+        public void StartupStop(string id, bool succeeded, string? error)
         {
             WriteEvent((int)EventId.StartupStop, id, succeeded, error ?? string.Empty);
         }
@@ -93,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.ShutdownStop, Keywords = Keywords.Shutdown, Level = EventLevel.Verbose)]
-        public void ShutdownStop(string id, bool succeeded, string error)
+        public void ShutdownStop(string id, bool succeeded, string? error)
         {
             WriteEvent((int)EventId.ShutdownStop, id, succeeded, error ?? string.Empty);
         }
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.GetStatsStop, Keywords = Keywords.GetStats, Level = EventLevel.Verbose)]
-        public void GetStatsStop(bool succeeded, string error)
+        public void GetStatsStop(bool succeeded, string? error)
         {
             WriteEvent((int)EventId.GetStatsStop, succeeded, error ?? string.Empty);
         }
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.OpenStreamStop, Keywords = Keywords.OpenStream, Level = EventLevel.Verbose)]
-        public void OpenStreamStop(string id, int code, string error)
+        public void OpenStreamStop(string id, int code, string? error)
         {
             WriteEvent((int)EventId.OpenStreamStop, id, code, error ?? string.Empty);
         }
@@ -129,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.PinStop, Keywords = Keywords.Pin, Level = EventLevel.Verbose)]
-        public void PinStop(string id, int code, string error)
+        public void PinStop(string id, int code, string? error)
         {
             WriteEvent((int)EventId.PinStop, id, code, error ?? string.Empty);
         }
@@ -141,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.PlaceFileStop, Keywords = Keywords.PlaceFile, Level = EventLevel.Verbose)]
-        public void PlaceFileStop(string id, int code, string error)
+        public void PlaceFileStop(string id, int code, string? error)
         {
             WriteEvent((int)EventId.PlaceFileStop, id, code, error ?? string.Empty);
         }
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.PutFileStop, Keywords = Keywords.PutFile, Level = EventLevel.Verbose)]
-        public void PutFileStop(string id, bool succeeded, string error, string hash)
+        public void PutFileStop(string id, bool succeeded, string? error, string hash)
         {
             WriteEvent((int)EventId.PutFileStop, id, succeeded, error ?? string.Empty, hash);
         }
@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.PutStreamStop, Keywords = Keywords.PutStream, Level = EventLevel.Verbose)]
-        public void PutStreamStop(string id, bool succeeded, string error, string hash)
+        public void PutStreamStop(string id, bool succeeded, string? error, string hash)
         {
             WriteEvent((int)EventId.PutStreamStop, id, succeeded, error ?? string.Empty, hash);
         }
@@ -177,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.PurgeStop, Keywords = Keywords.Purge, Level = EventLevel.Verbose)]
-        public void PurgeStop(bool succeeded, string error, long size, long files, long pinned)
+        public void PurgeStop(bool succeeded, string? error, long size, long files, long pinned)
         {
             WriteEvent((int)EventId.PurgeStop, succeeded, error ?? string.Empty, size, files, pinned);
         }
@@ -189,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         [Event((int)EventId.CalibrateStop, Keywords = Keywords.Calibrate, Level = EventLevel.Verbose)]
-        public void CalibrateStop(bool succeeded, string error, long newSize)
+        public void CalibrateStop(bool succeeded, string? error, long newSize)
         {
             WriteEvent((int)EventId.CalibrateStop, succeeded, error ?? string.Empty, newSize);
         }

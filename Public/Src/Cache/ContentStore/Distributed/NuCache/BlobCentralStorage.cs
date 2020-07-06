@@ -132,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new BoolResult($@"Recoverable error: Checkpoint blob '{_configuration.ContainerName}\{blobName}' does not exist in shard #{shardId}.");
                     }
 
-                    _fileSystem.CreateDirectory(targetCheckpointFile.Parent);
+                    _fileSystem.CreateDirectory(targetCheckpointFile.GetParent());
 
                     Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
 

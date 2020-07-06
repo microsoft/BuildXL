@@ -45,19 +45,19 @@ namespace BuildXL.Cache.ContentStore.Service
         private Dictionary<string, AbsolutePath> _namedCacheRoots;
 
         [DataMember(Name = "DataRootPath")]
-        private string _dataRootPathRaw;
-        private AbsolutePath _dataRootPath;
+        private string? _dataRootPathRaw;
+        private AbsolutePath? _dataRootPath;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ServiceConfiguration"/> class.
         /// </summary>
         public ServiceConfiguration(
             IDictionary<string, AbsolutePath> namedCacheRoots,
-            AbsolutePath dataRootPath,
+            AbsolutePath? dataRootPath,
             uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
-            string grpcPortFileName = null,
+            string? grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
             int? gzipBarrierSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
@@ -78,6 +78,7 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = proactivePushCountLimit;
             LogMachineStatsInterval = logMachineStatsInterval;
             LogIncrementalStatsInterval = logIncrementalStatsInterval;
+            _namedCacheRoots = new Dictionary<string, AbsolutePath>();
             Initialize();
         }
 
@@ -90,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Service
             uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
-            string grpcPortFileName = null)
+            string? grpcPortFileName = null)
             : this(namedCacheRootsRaw.ToDictionary(x => x.Key, v => new AbsolutePath(v.Value)), dataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName)
         {
             Contract.Requires(dataRootPath != null);
@@ -104,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Gets a descriptive error when IsValid gives false.
         /// </summary>
-        public string Error { get; private set; }
+        public string? Error { get; private set; }
 
         /// <summary>
         ///     Gets maximum number of concurrent IPC connections.
@@ -129,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// A default value will be used if none is provided. Should only override to allow for multiple instances of the service to run concurrently (not recommended).
         /// </summary>
         [DataMember]
-        public string GrpcPortFileName { get; private set; }
+        public string? GrpcPortFileName { get; private set; }
 
         /// <summary>
         /// Gets the buffer size used during streaming for GRPC copies.
@@ -167,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Gets the service data root directory path.
         /// </summary>
-        public AbsolutePath DataRootPath
+        public AbsolutePath? DataRootPath
         {
             get
             {
@@ -197,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Create the command line arguments to match this configuration.
         /// </summary>
-        public virtual string GetCommandLineArgs(LocalServerConfiguration localContentServerConfiguration = null, string scenario = null, bool logAutoFlush = false, bool passMaxConnections = true)
+        public virtual string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration = null, string? scenario = null, bool logAutoFlush = false, bool passMaxConnections = true)
         {
             var args = new StringBuilder(GetVerb());
 
@@ -313,7 +314,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 GracefulShutdownSeconds = DefaultGracefulShutdownSeconds;
             }
 
-            _namedCacheRoots = new Dictionary<string, AbsolutePath>();
+            _namedCacheRoots ??= new Dictionary<string, AbsolutePath>();
 
             if (_namedCacheRootsRaw == null)
             {

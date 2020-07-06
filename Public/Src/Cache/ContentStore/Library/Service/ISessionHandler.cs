@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -16,13 +17,13 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// A handler for sessions.
     /// </summary>
-    public interface ISessionHandler<out TSession> where TSession : IContentSession
+    public interface ISessionHandler<out TSession> where TSession : IContentSession?
     {
         /// <summary>
         /// Gets the session by <paramref name="sessionId"/>.
         /// Returns null if the session is not found.
         /// </summary>
-        TSession GetSession(int sessionId);
+        [return: MaybeNull] TSession GetSession(int sessionId);
 
         /// <summary>
         /// Releases the session with the specified session id
@@ -32,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Creates a session with the parameter specified.
         /// </summary>
-        Task<Result<(int sessionId, AbsolutePath tempDirectory)>> CreateSessionAsync(
+        Task<Result<(int sessionId, AbsolutePath? tempDirectory)>> CreateSessionAsync(
             OperationContext context,
             string sessionName,
             string cacheName,
@@ -54,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Service
     public static class SessionHandlerExtensions
     {
         /// <nodoc />
-        public static bool TryGetSession<TSession>(this ISessionHandler<TSession> sessionHandler, int sessionId, out TSession session) where TSession : IContentSession
+        public static bool TryGetSession<TSession>(this ISessionHandler<TSession> sessionHandler, int sessionId, [MaybeNull][NotNullWhen(true)]out TSession session) where TSession : IContentSession?
         {
             session = sessionHandler.GetSession(sessionId);
             return session != null;

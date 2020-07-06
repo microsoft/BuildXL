@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <returns>The GRPC port to use.</returns>
         public int ReadPort()
         {
-            string content = string.Empty;
+            string? content = string.Empty;
 
             try
             {

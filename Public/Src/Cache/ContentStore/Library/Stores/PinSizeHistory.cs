@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -178,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             private static readonly long[] EmptyEntries = new long[0];
 
-            private long[] _buffer;
+            private long[] _buffer = Array.Empty<long>();
             private int _next;
 
             /// <summary>

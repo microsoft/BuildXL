@@ -26,10 +26,14 @@ namespace ContentStoreTest.Grpc
     {
         private const int TimeoutSeconds = 3;
         private const int HeartbeatIntervalOverrideSeconds = 1;
-        private static readonly LocalServerConfiguration ServerConfiguration = new LocalServerConfiguration()
+        private static readonly LocalServerConfiguration ServerConfiguration = GetLocalServerConfiguration();
+
+        private static LocalServerConfiguration GetLocalServerConfiguration()
         {
-            UnusedSessionHeartbeatTimeout = TimeSpan.FromSeconds(TimeoutSeconds)
-        };
+            var configuration = TestConfigurationHelper.CreateLocalContentServerConfiguration();
+            configuration.UnusedSessionHeartbeatTimeout = TimeSpan.FromSeconds(TimeoutSeconds);
+            return configuration;
+        }
 
         protected HeartbeatServiceClientContentSessionExpirationTests(string scenario)
             : base(scenario)

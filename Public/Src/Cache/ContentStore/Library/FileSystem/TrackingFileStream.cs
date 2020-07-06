@@ -16,13 +16,13 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         public static long Constructed;
         public static long ProperlyClosed;
         public static long Leaked;
-        public static string LastLeakedFilePath;
+        public static string? LastLeakedFilePath;
 
-        private string _path;
+        private string? _path;
 
         private string Path
         {
-            get => _path;
+            get => _path!;
             set
             {
                 Interlocked.Increment(ref Constructed);
@@ -31,28 +31,28 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] string path, FileMode mode)
+        public TrackingFileStream(string path, FileMode mode)
             : base(path, mode)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access)
+        public TrackingFileStream(string path, FileMode mode, FileAccess access)
             : base(path, mode, access)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share)
+        public TrackingFileStream(string path, FileMode mode, FileAccess access, FileShare share)
             : base(path, mode, access, share)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize)
+        public TrackingFileStream(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize)
             : base(path, mode, access, share, bufferSize)
         {
             Path = path;
@@ -66,28 +66,28 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, bool useAsync)
+        public TrackingFileStream(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, bool useAsync)
             : base(path, mode, access, share, bufferSize, useAsync)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, string path)
+        public TrackingFileStream(SafeFileHandle handle, FileAccess access, string path)
             : base(handle, access)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, string path)
+        public TrackingFileStream(SafeFileHandle handle, FileAccess access, int bufferSize, string path)
             : base(handle, access, bufferSize)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync, string path)
+        public TrackingFileStream(SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync, string path)
             : base(handle, access, bufferSize, isAsync)
         {
             Path = path;

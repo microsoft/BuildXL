@@ -255,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             if (_eventProcessingBlocks != null)
             {
                 await context
-                    .CreateOperation(Tracer, () => sendToActionBlockAsync())
+                    .CreateOperation(Tracer, () => sendToActionBlockAsync(state))
                     .WithOptions(traceOperationStarted: false, endMessageFactory: r => $"TotalQueueSize={Interlocked.Read(ref _queueSize)}")
                     .RunAsync(caller: "SendToActionBlockAsync")
                     .TraceIfFailure(context);
@@ -265,7 +265,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages, actionBlockIndex: -1, store: this), EventDataSerializer);
             }
 
-            async Task<BoolResult> sendToActionBlockAsync()
+            async Task<BoolResult> sendToActionBlockAsync(SharedEventProcessingState localState)
             {
                 // This local function "sends" a message into an action block based on the sender's hash code to process events in parallel from different machines.
                 // (keep in mind, that the data from the same machine should be processed sequentially, because events order matters).
@@ -274,7 +274,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 {
                     int actionBlockIndex = messageGroup.Key;
                     var eventProcessingBlock = _eventProcessingBlocks![actionBlockIndex];
-                    var input = new ProcessEventsInput(state, messageGroup, actionBlockIndex, this);
+                    var input = new ProcessEventsInput(localState, messageGroup, actionBlockIndex, this);
 
                     var sendAsyncTask = eventProcessingBlock.SendAsync(input);
                     if (sendAsyncTask.Status == TaskStatus.WaitingForActivation)

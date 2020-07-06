@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
     {
         private long? _reserveSize;
         private int? _hashesToPurgeCount;
-        private string _quotaDescription;
+        private string? _quotaDescription;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PurgeResult"/> class.
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <nodoc />
-        public PurgeResult(long reserveSize, int hashesToPurgeCount, string quotaDescription)
+        public PurgeResult(long reserveSize, int hashesToPurgeCount, string? quotaDescription)
         {
             _reserveSize = reserveSize;
             _hashesToPurgeCount = hashesToPurgeCount;
@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="PurgeResult"/> class.
         /// </summary>
-        public PurgeResult(string errorMessage, string diagnostics = null)
+        public PurgeResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Contract.Requires(errorMessage != null);
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="PurgeResult"/> class.
         /// </summary>
-        public PurgeResult(ResultBase other, string message = null)
+        public PurgeResult(ResultBase other, string? message = null)
             : base(other, message)
         {
         }
@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// The reason why a successful eviction process has stopped.
         /// </summary>
-        public string StopReason { get; set; }
+        public string? StopReason { get; set; }
 
         /// <summary>
         ///     Gets number of bytes evicted.
@@ -98,8 +98,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
             EvictedFiles += result.EvictedFiles;
             PinnedSize += result.PinnedSize;
 
-            _quotaDescription = _quotaDescription ?? result._quotaDescription;
-            StopReason = StopReason ?? result.StopReason;
+            _quotaDescription ??= result._quotaDescription;
+            StopReason ??= result.StopReason;
 
             if (result._reserveSize != null)
             {

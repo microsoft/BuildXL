@@ -26,11 +26,16 @@ namespace ContentStoreTest.Grpc
         where T : ServiceClientContentStore, ITestServiceClientContentStore
     {
         private const int TimeoutSeconds = 3;
-        private static readonly LocalServerConfiguration ServerConfiguration = new LocalServerConfiguration()
+
+        private static readonly LocalServerConfiguration ServerConfiguration = GetLocalServerConfiguration();
+
+        private static LocalServerConfiguration GetLocalServerConfiguration()
         {
-            UnusedSessionTimeout = TimeSpan.FromSeconds(TimeoutSeconds),
-            UnusedSessionHeartbeatTimeout = TimeSpan.FromSeconds(1)
-        };
+            var configuration = TestConfigurationHelper.CreateLocalContentServerConfiguration();
+            configuration.UnusedSessionTimeout = TimeSpan.FromSeconds(TimeoutSeconds);
+            configuration.UnusedSessionHeartbeatTimeout = TimeSpan.FromSeconds(1);
+            return configuration;
+        }
 
         protected ServiceClientContentSessionExpirationTests(string scenario)
             : base(scenario)

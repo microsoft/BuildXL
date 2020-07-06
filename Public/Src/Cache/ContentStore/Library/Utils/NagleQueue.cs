@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     public class NagleQueue<T> : IDisposable
     {
         private bool _disposed;
-        private Func<T[], Task> _processBatch;
+        private Func<T[], Task>? _processBatch;
         private readonly TimeSpan _timerInterval;
         private readonly BatchBlock<T> _batchBlock;
         private readonly ActionBlock<T[]> _actionBlock;
@@ -185,6 +185,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             try
             {
                 SuspendTimer();
+
+                Contract.Assert(_processBatch != null);
                 await _processBatch(batch);
             }
             finally
@@ -193,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private void SendIncompleteBatch(object obj)
+        private void SendIncompleteBatch(object? obj)
         {
             // Even though the callback (ProcessBatchAsync) resets the timer,
             // we still need to reset the timer in the case when the batch is empty now.

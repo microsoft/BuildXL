@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!_fileSystem.FileExists(_valueFilePath))
             {
-                _fileSystem.CreateDirectory(_valueFilePath.Parent);
+                _fileSystem.CreateDirectory(_valueFilePath.GetParent());
                 WriteValueFile(initialValue);
             }
         }

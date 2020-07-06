@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <typeparam name="T"></typeparam>
     internal sealed class SynchronousNagleQueue<T> : NagleQueue<T>
     {
-        private  Func<T[], Task> _processBatch;
+        private  Func<T[], Task>? _processBatch;
 
         /// <nodoc />
         internal SynchronousNagleQueue(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)

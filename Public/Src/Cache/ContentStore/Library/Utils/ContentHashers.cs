@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </remarks>
         public static IContentHasher Get(HashType hashType)
         {
-            if (Hashers.TryGetValue(hashType, out IContentHasher hasher))
+            if (Hashers.TryGetValue(hashType, out var hasher))
             {
                 return hasher;
             }

@@ -91,7 +91,9 @@ namespace AriaNative {
                     ...AriaPkgContents.getFiles([
                         r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`,
                         r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.dll`,
-                        r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.pdb`,
+                        // Excluding PDB since it is large, never used, and this deployment gets copied
+                        // several times into final deployment/packages
+                        // r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.pdb`,
                     ])
                 ]
             }

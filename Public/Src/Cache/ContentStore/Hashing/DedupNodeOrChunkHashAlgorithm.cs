@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             if (SingleChunkHotPath)
             {
                 Contract.Assert(_chunks.Count == 0);
-                Contract.Assert(_bytesChunked == _sizeHint);
+                Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHin={_sizeHint}");
                 Contract.Assert(_session == null);
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
                 return new DedupNode(DedupNode.NodeType.ChunkLeaf, (ulong)_sizeHint, chunkHash, 0);

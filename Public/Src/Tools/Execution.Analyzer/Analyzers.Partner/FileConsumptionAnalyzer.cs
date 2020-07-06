@@ -289,7 +289,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             const int MaxConsumers = 10;
-            m_writerFiles.WriteLine($"Path,Size,Producer,Consumers(max {MaxConsumers})");
+            m_writerFiles.WriteLine($"Path,Size,Producer,Consumers");
             foreach (var path in m_producedFiles.Keys.ToListSorted(PathTable.ExpandedPathComparer))
             {
                 if (!m_producedFiles[path].Producer.IsValid)
@@ -299,7 +299,7 @@ namespace BuildXL.Execution.Analyzer
 
                 m_fileSizes.TryGetValue(path, out var size);
 
-                m_writerFiles.WriteLine("{0},{1},{2},{3}",
+                m_writerFiles.WriteLine("\"{0}\",{1},{2},{3}",
                     path.ToString(PathTable).ToUpperInvariant(),
                     size,
                     PipTable.GetFormattedSemiStableHash(m_producedFiles[path].Producer),

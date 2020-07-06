@@ -27,7 +27,7 @@ using FluentAssertions;
 
 namespace ContentStoreTest.Vfs.Sessions
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(TestRequirements.WindowsProjFs)]
     public class VfsContentSessionTests : ContentSessionTestsBase
     {
         private VirtualizedContentStore _vfsStore;

@@ -30,6 +30,9 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
+    const osxPackageQualifier = { targetFramework: "netstandard2.0", targetRuntime: "osx-x64" };
+    const linuxPackageQualifier = { targetFramework: "netstandard2.0", targetRuntime: "linux-x64" };
+
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
 
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
@@ -146,6 +149,26 @@ namespace NugetPackages {
             buildXLCacheHashingIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
+        additionalContent: [
+            {
+                subfolder: r`runtimes/win-x64/native/`,
+                contents: [
+                    ...importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.nativeWin,
+                ],
+            },
+            {
+                subfolder: r`runtimes/osx-x64/native/`,
+                contents: [
+                    ...importFrom("BuildXL.Utilities").withQualifier(osxPackageQualifier).Native.nativeMac,
+                ],
+            },
+            {
+                subfolder: r`runtimes/linux-x64/native/`,
+                contents: [
+                    ...importFrom("BuildXL.Utilities").withQualifier(linuxPackageQualifier).Native.nativeLinux,
+                ],
+            },
+        ]
     });
 
     const pips = packAssemblies({
@@ -379,6 +402,7 @@ namespace NugetPackages {
         assemblies: Managed.Assembly[],
         dependencies?: Nuget.Dependency[],
         deploymentOptions?: Managed.Deployment.FlattenOptions,
+        additionalContent?: Deployment.DeployableItem[],
     }) : File
     {
         let dependencies : Nuget.Dependency[] = args
@@ -425,6 +449,7 @@ namespace NugetPackages {
                 contents: [
                     ...args.assemblies.map(asm => Nuget.createAssemblyLayout(asm)),
                     ...contentFiles,
+                    ...args.additionalContent || [],
                 ]
             },
             deploymentOptions: args.deploymentOptions,

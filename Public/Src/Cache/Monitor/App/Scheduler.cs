@@ -17,7 +17,7 @@ using Newtonsoft.Json.Converters;
 
 namespace BuildXL.Cache.Monitor.App
 {
-    internal class Scheduler : IDisposable
+    internal class RuleScheduler : IDisposable
     {
         public class Configuration
         {
@@ -123,7 +123,7 @@ namespace BuildXL.Cache.Monitor.App
         private readonly SemaphoreSlim _runGate;
         private readonly INotifier<LogEntry>? _notifier;
 
-        public Scheduler(Configuration configuration, ILogger logger, IClock clock, INotifier<LogEntry>? notifier = null)
+        public RuleScheduler(Configuration configuration, ILogger logger, IClock clock, INotifier<LogEntry>? notifier = null)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);

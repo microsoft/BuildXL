@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.Monitor.App
                 KustoTableIngestionMappingName = "MonitorIngestionMapping",
             };
 
-            public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration()
+            public RuleScheduler.Configuration Scheduler { get; set; } = new RuleScheduler.Configuration()
             {
                 PersistStatePath = @"SchedulerState.json",
                 PersistClearFailedEntriesOnLoad = true,
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Monitor.App
             /// into Kusto. This is used to know when an event has passed (i.e. if a rule has been run again since
             /// the last check and didn't produce a notification, that means the event has passed).
             /// </summary>
-            public KustoWriter<Scheduler.LogEntry>.Configuration SchedulerKustoNotifier { get; set; } = new KustoWriter<Scheduler.LogEntry>.Configuration()
+            public KustoWriter<RuleScheduler.LogEntry>.Configuration SchedulerKustoNotifier { get; set; } = new KustoWriter<RuleScheduler.LogEntry>.Configuration()
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitorSchedulerLog",
@@ -77,9 +77,9 @@ namespace BuildXL.Cache.Monitor.App
         private CsvFileLog? _csvFileLog = null;
         private ConsoleLog? _consoleLog = null;
 
-        private readonly Scheduler _scheduler;
+        private readonly RuleScheduler _scheduler;
         private readonly KustoWriter<Notification> _alertNotifier;
-        private readonly KustoWriter<Scheduler.LogEntry> _schedulerLogWriter;
+        private readonly KustoWriter<RuleScheduler.LogEntry> _schedulerLogWriter;
 
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly ICslQueryProvider _cslQueryProvider;
@@ -107,9 +107,9 @@ namespace BuildXL.Cache.Monitor.App
             _alertNotifier = new KustoWriter<Notification>(_configuration.KustoNotifier, _logger, _kustoIngestClient);
 
             Contract.RequiresNotNull(_configuration.SchedulerKustoNotifier);
-            _schedulerLogWriter = new KustoWriter<Scheduler.LogEntry>(_configuration.SchedulerKustoNotifier, _logger, _kustoIngestClient);
+            _schedulerLogWriter = new KustoWriter<RuleScheduler.LogEntry>(_configuration.SchedulerKustoNotifier, _logger, _kustoIngestClient);
 
-            _scheduler = new Scheduler(_configuration.Scheduler, _logger, _clock, _schedulerLogWriter);
+            _scheduler = new RuleScheduler(_configuration.Scheduler, _logger, _clock, _schedulerLogWriter);
         }
 
         private Logger CreateLogger()

@@ -2810,7 +2810,7 @@ namespace ContentStoreTest.Distributed.Sessions
             // Disable cluster state storage in DB to ensure it doesn't interfere with testing
             // Redis cluster state resiliency
             _enableSecondaryRedis = true;
-            ConfigureWithOneMaster(s => s.StoreClusterStateInDatabase = false);
+            ConfigureWithOneMaster();
             int machineCount = 3;
 
             await RunTestAsync(
@@ -2955,52 +2955,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         GetBulkOrigin.Global).ShouldBeSuccess();
 
                     masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(1);
-                });
-        }
-
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task ClusterStateIsPersistedLocally(bool registerAdditionalLocation)
-        {
-            _registerAdditionalLocationPerMachine = registerAdditionalLocation;
-
-            ConfigureWithOneMaster();
-            int machineCount = 3;
-
-            await RunTestAsync(
-                new Context(Logger),
-                machineCount,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-
-                    var masterSession = sessions[context.GetMasterIndex()];
-                    var workerSession = sessions[context.GetFirstWorkerIndex()];
-                    var master = context.GetMaster();
-                    var worker = context.GetFirstWorker();
-
-                    // Heartbeat the master to ensure cluster state is written to local db
-                    TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
-
-                    var masterClusterState = master.LocalLocationStore.ClusterState;
-
-                    var clusterState = ClusterState.CreateForTest();
-
-                    // Try populating cluster state from local db
-                    master.LocalLocationStore.Database.UpdateClusterState(context, clusterState, write: false);
-
-                    var expectedMachineCount = registerAdditionalLocation ? machineCount * 2 : machineCount;
-                    clusterState.MaxMachineId.Should().Be(expectedMachineCount);
-
-                    for (int machineIndex = 1; machineIndex <= clusterState.MaxMachineId; machineIndex++)
-                    {
-                        var machineId = new MachineId(machineIndex);
-                        clusterState.TryResolve(machineId, out var machineLocation).Should().BeTrue();
-                        masterClusterState.TryResolve(machineId, out var masterResolvedMachineLocation).Should().BeTrue();
-                        machineLocation.Should().BeEquivalentTo(masterResolvedMachineLocation);
-                    }
                 });
         }
 

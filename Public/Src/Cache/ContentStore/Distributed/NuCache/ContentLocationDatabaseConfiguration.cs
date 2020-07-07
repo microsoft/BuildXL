@@ -25,11 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
-        /// Indicates whether reading/writing cluster state from local db is supported.
-        /// </summary>
-        public bool StoreClusterState { get; set; } = true;
-
-        /// <summary>
         /// Whether to enable garbage collection of metadata
         /// </summary>
         public bool MetadataGarbageCollectionEnabled { get; set; } = false;
@@ -122,6 +117,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets whether the database is cleared on initialization. (Defaults to true because the standard use case involves restoring from checkpoint after initialization)
         /// </summary>
         public bool CleanOnInitialize { get; set; } = true;
+
+        /// <summary>
+        /// Whether the database should be open in read only mode when it isn't supposed to be writable. This will
+        /// cause all write operations on the DB to fail.
+        /// </summary>
+        public bool OpenReadOnly { get; set; } = false;
 
         /// <summary>
         /// Specifies a opaque value which can be used to determine if database can be reused when <see cref="CleanOnInitialize"/> is false.

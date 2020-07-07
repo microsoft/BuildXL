@@ -503,9 +503,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]
-        public bool StoreClusterStateInDatabase { get; set; } = true;
-
-        [DataMember]
         public bool IsMachineReputationEnabled { get; set; } = true;
 
         [DataMember]
@@ -520,11 +517,10 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? ContentLocationDatabaseEntryTimeToLiveMinutes { get; set; }
+        public bool ContentLocationDatabaseLogsBackupEnabled { get; set; }
 
         [DataMember]
-        public bool ContentLocationDatabaseLogsBackupEnabled { get; set; }
+        public bool? ContentLocationDatabaseOpenReadOnly { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

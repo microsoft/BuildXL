@@ -501,30 +501,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Synchronizes machine location data between the database and the given cluster state instance
-        /// </summary>
-        public void UpdateClusterState(OperationContext context, ClusterState clusterState, bool write)
-        {
-            if (!_configuration.StoreClusterState)
-            {
-                return;
-            }
-
-            context.PerformOperation(
-                Tracer,
-                () =>
-                {
-                    // TODO: Handle setting inactive machines here
-                    UpdateClusterStateCore(context, clusterState, write);
-
-                    return BoolResult.Success;
-                }).IgnoreFailure();
-        }
-
-        /// <nodoc />
-        protected abstract void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write);
-
-        /// <summary>
         /// Gets whether the file in the database's checkpoint directory is immutable between checkpoints (i.e. files with the same name will have the same content)
         /// </summary>
         public abstract bool IsImmutable(AbsolutePath dbFile);

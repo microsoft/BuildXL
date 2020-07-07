@@ -649,20 +649,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    if (_configuration.Database.StoreClusterState)
-                    {
-                        Database.UpdateClusterState(context, ClusterState, write: false);
-                        postDbMaxMachineId = ClusterState.MaxMachineId;
-                    }
-
                     var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, machineState);
                     postGlobalMaxMachineId = ClusterState.MaxMachineId;
-
-                    // Update the local database with new machines if the cluster state was updated from the global store
-                    if (updateResult && (CurrentRole == Role.Master) && _configuration.Database.StoreClusterState)
-                    {
-                        Database.UpdateClusterState(context, ClusterState, write: true);
-                    }
 
                     if (CurrentRole == Role.Master && _configuration.UseBinManager)
                     {

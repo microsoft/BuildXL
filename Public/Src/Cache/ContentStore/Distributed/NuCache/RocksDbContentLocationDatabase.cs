@@ -85,7 +85,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private enum ClusterStateKeys
         {
-            MaxMachineId,
             StoredEpoch
         }
 
@@ -235,6 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
                         EnableStatistics = true,
                         FastOpen = true,
+                        ReadOnly = !IsDatabaseWriteable && _configuration.OpenReadOnly,
                         // The RocksDb database here is read-only from the perspective of the default column family,
                         // but read/write from the perspective of the ClusterState (which is rewritten on every
                         // heartbeat). This means that the database may perform background compactions on the column
@@ -498,75 +498,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }).ThrowOnError();
             return value != null;
-        }
-
-        /// <inheritdoc />
-        protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
-        {
-            _keyValueStore.Use(
-                    store =>
-                    {
-                        int maxMachineId = ClusterState.InvalidMachineId;
-                        if (!store.TryGetValue(nameof(ClusterStateKeys.MaxMachineId), out var maxMachinesString, nameof(Columns.ClusterState)) ||
-                            !int.TryParse(maxMachinesString, out maxMachineId))
-                        {
-                            Tracer.OperationDebug(context, $"Unable to load cluster state from db. MaxMachineId='{maxMachinesString}'");
-                            if (!write)
-                            {
-                                // No machine state in db. Return if we are not updating the db.
-                                return;
-                            }
-                        }
-
-                        void logSynchronize()
-                        {
-                            Tracer.OperationDebug(context, $"Synchronizing cluster state: MaxMachineId={clusterState.MaxMachineId}, Database.MaxMachineId={maxMachineId}]");
-                        }
-
-                        if (clusterState.MaxMachineId > maxMachineId && write)
-                        {
-                            logSynchronize();
-
-                            // Update db with values from cluster state
-                            for (int machineIndex = maxMachineId + 1; machineIndex <= clusterState.MaxMachineId; machineIndex++)
-                            {
-                                if (clusterState.TryResolve(new MachineId(machineIndex), out var machineLocation))
-                                {
-                                    Tracer.OperationDebug(context, $"Storing machine mapping ({machineIndex}={machineLocation})");
-                                    store.Put(machineIndex.ToString(), machineLocation.Path, nameof(Columns.ClusterState));
-                                }
-                                else
-                                {
-                                    throw Contract.AssertFailure($"Unabled to resolve machine location for machine id={machineIndex}");
-                                }
-                            }
-
-                            store.Put(nameof(ClusterStateKeys.MaxMachineId), clusterState.MaxMachineId.ToString(), nameof(Columns.ClusterState));
-                        }
-                        else if (maxMachineId > clusterState.MaxMachineId)
-                        {
-                            logSynchronize();
-
-                            // Update cluster state with values from db
-                            var unknownMachines = new Dictionary<MachineId, MachineLocation>();
-                            for (int machineIndex = clusterState.MaxMachineId + 1; machineIndex <= maxMachineId; machineIndex++)
-                            {
-                                if (store.TryGetValue(machineIndex.ToString(), out var machineLocationData, nameof(Columns.ClusterState)))
-                                {
-                                    var machineId = new MachineId(machineIndex);
-                                    var machineLocation = new MachineLocation(machineLocationData);
-                                    context.LogMachineMapping(Tracer, machineId, machineLocation);
-                                    unknownMachines[machineId] = machineLocation;
-                                }
-                                else
-                                {
-                                    throw Contract.AssertFailure($"Unabled to find machine location for machine id={machineIndex}");
-                                }
-                            }
-
-                            clusterState.AddUnknownMachines(maxMachineId, unknownMachines);
-                        }
-                    }).ThrowOnError();
         }
 
         /// <inheritdoc />

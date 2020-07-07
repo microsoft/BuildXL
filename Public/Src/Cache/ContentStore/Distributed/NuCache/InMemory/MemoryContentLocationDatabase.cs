@@ -157,11 +157,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
-        {
-        }
-
-        /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
             throw new NotImplementedException();

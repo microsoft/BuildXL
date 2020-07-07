@@ -285,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 context,
                                 contentInfo,
                                 tryBuildRing: false,
-                                reason: ProactiveCopyReason.Replication);
+                                reason: CopyReason.Replication);
 
                             wasPreviousCopyNeeded = true;
                             switch (result.Status)

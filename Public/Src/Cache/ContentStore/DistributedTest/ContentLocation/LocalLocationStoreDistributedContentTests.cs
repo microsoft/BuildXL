@@ -1092,7 +1092,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult2 = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
 
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
-                    var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication);
+                    var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication);
                     result.Succeeded.Should().BeFalse();
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
 
@@ -1105,7 +1105,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Copy should not be rejected.
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
-                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication).ShouldBeSuccessAsync();
+                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication).ShouldBeSuccessAsync();
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
                 });
         }
@@ -1162,7 +1162,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                               context,
                                               pr.ContentHash,
                                               tryBuildRing: false,
-                                              ProactiveCopyReason.Replication);
+                                              CopyReason.Replication);
                                           return result.OutsideRingCopyResult;
                                       });
 

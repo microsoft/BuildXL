@@ -24,6 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             OperationContext operationContext,
             IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
+            CopyReason reason,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync);
     }
 }

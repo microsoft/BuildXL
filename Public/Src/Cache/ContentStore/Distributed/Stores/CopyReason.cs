@@ -4,7 +4,7 @@
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <nodoc />
-    public enum ProactiveCopyReason
+    public enum CopyReason
     {
         /// <nodoc />
         None,
@@ -16,6 +16,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         Put,
 
         /// <nodoc />
-        Replication
+        Replication,
+
+        /// <nodoc />
+        Place,
+
+        /// <nodoc />
+        OpenStream,
+
+        /// <nodoc />
+        AsyncPin,
+
+        /// <nodoc />
+        CentralStorage,
     }
 }

@@ -271,6 +271,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     context,
                                     this,
                                     hashInfo,
+                                    CopyReason.CentralStorage,
                                     args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
 
                                 return putResult;

@@ -249,7 +249,7 @@ namespace ContentStoreTest.Distributed.Stores
 
         internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
-            return base.TryCopyAndPutAsync(operationContext, this, hashWithLocations, handleCopyAsync);
+            return base.TryCopyAndPutAsync(operationContext, this, hashWithLocations, CopyReason.None, handleCopyAsync);
         }
 
         public class NoOpPathTransformer : TestPathTransformer

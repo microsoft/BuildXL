@@ -90,6 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             OperationContext operationContext,
             IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
+            CopyReason reason,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             Contract.Requires(hashInfo.Locations != null);
@@ -134,6 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         attemptCount,
                         waitDelay,
                         maxReplicaCount,
+                        reason,
                         handleCopyAsync);
 
                     if (putResult || cts.IsCancellationRequested)
@@ -223,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 hash,
                 targetLocation,
                 isInsideRing,
-                ProactiveCopyReason.None,
+                CopyReason.None,
                 ProactiveCopyLocationSource.None);
         }
 
@@ -233,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHash hash,
             MachineLocation targetLocation,
             bool isInsideRing,
-            ProactiveCopyReason reason,
+            CopyReason reason,
             ProactiveCopyLocationSource source) where TResult : ResultBase
         {
             return _proactiveCopyIoGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
@@ -265,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Stream stream, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
+        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Stream stream, bool isInsideRing, CopyReason reason, ProactiveCopyLocationSource source)
         {
             return PerformProactiveCopyAsync(
                 context,
@@ -291,6 +293,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int attemptCount,
             TimeSpan waitDelay,
             int maxReplicaCount,
+            CopyReason reason,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             Contract.Requires(hashInfo.Locations != null);
@@ -382,6 +385,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
+                                $"reason={reason} " +
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +

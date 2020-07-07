@@ -119,8 +119,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool CleanOnInitialize { get; set; } = true;
 
         /// <summary>
-        /// Whether the database should be open in read only mode when it isn't supposed to be writable. This will
-        /// cause all write operations on the DB to fail.
+        /// Whether the database should be open in read only mode. This will cause all write operations on the DB to
+        /// fail.
         /// </summary>
         public bool OpenReadOnly { get; set; } = false;
 

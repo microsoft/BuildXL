@@ -213,7 +213,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 ApplyIfNotNull(
                     _distributedSettings.ContentLocationDatabaseOpenReadOnly,
-                    v => dbConfig.OpenReadOnly = v);
+                    v => dbConfig.OpenReadOnly = v && !_distributedSettings.IsMasterEligible);
 
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionIntervalMinutes,

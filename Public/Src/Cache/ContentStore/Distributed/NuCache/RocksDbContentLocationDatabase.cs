@@ -234,7 +234,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
                         EnableStatistics = true,
                         FastOpen = true,
-                        ReadOnly = !IsDatabaseWriteable && _configuration.OpenReadOnly,
+                        // We take the user's word here. This may be completely wrong, but we don't have enough
+                        // information at this point to take a decision here. If a machine is master and demoted to
+                        // worker, EventHub may continue to process events for a little while. If we set this to
+                        // read-only during that checkpoint, those last few events will fail with RocksDbException.
+                        ReadOnly = _configuration.OpenReadOnly,
                         // The RocksDb database here is read-only from the perspective of the default column family,
                         // but read/write from the perspective of the ClusterState (which is rewritten on every
                         // heartbeat). This means that the database may perform background compactions on the column

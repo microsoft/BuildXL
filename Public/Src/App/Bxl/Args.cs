@@ -701,7 +701,7 @@ namespace BuildXL
                             opt => schedulingConfiguration.MaxLightProcesses = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "maxNumPipTelemetryBatches",
-                            opt => loggingConfiguration.MaxNumPipTelemetryBatches = CommandLineUtilities.ParseInt32Option(opt, 1, 100)),
+                            opt => loggingConfiguration.MaxNumPipTelemetryBatches = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
                         OptionHandlerFactory.CreateOption(
                             "maxMaterialize",
                             opt => schedulingConfiguration.MaxMaterialize = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),

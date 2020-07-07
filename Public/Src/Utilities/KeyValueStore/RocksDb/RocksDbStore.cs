@@ -300,7 +300,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // Whether to use the whole key or a prefix of it (obtained through the prefix extractor below).
                     // Since the prefix extractor is a no-op, better performance is achieved by turning this off (i.e.
                     // setting it to true).
-                    .SetWholeKeyFiltering(true);
+                    .SetWholeKeyFiltering(true)
+                    // Changes the format of the sst files we produce to be smaller and more efficient (albeit 
+                    // backwards incompatible).
+                    // See: https://rocksdb.org/blog/2019/03/08/format-version-4.html
+                    // See: https://github.com/facebook/rocksdb/blob/master/include/rocksdb/table.h#L297
+                    .SetFormatVersion(4);
 
                 m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
 #if PLATFORM_OSX

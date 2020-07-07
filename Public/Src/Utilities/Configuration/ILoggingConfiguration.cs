@@ -278,9 +278,19 @@ namespace BuildXL.Utilities.Configuration
         bool LogStatus { get; }
 
         /// <summary>
+        /// Logs the tracer.
+        /// </summary>
+        bool LogTracer { get; }
+
+        /// <summary>
         /// Logs the usage of resources and queues to a file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file.
         /// </summary>
         AbsolutePath StatusLog { get; }
+
+        /// <summary>
+        /// Trace log
+        /// </summary>
+        AbsolutePath TraceLog { get; }
 
         /// <summary>
         /// Cache miss messages

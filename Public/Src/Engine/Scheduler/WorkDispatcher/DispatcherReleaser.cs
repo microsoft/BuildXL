@@ -8,7 +8,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// <summary>
     /// Dispatcher releaser
     /// </summary>
-    public class DispatcherReleaser : IDisposable
+    public class DispatcherReleaser
     {
         private DispatcherQueue m_queue;
 
@@ -34,12 +34,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
             m_queue.ReleaseResource();
             m_queue = null;
             return true;
-        }
-
-        /// <nodoc/>
-        public void Dispose()
-        {
-            Release();
         }
     }
 }

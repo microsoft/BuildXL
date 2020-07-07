@@ -138,6 +138,66 @@ namespace BuildXL.Tracing
             Keywords = (int)Keywords.Diagnostics)]
         public abstract void Status(LoggingContext context, string message);
 
+        /// <summary>
+        /// Tracer completed event
+        /// </summary>
+        [GeneratedEvent(
+            (ushort)LogEventId.TracerCompletedEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void TracerCompletedEvent(LoggingContext context, string semiStableHash, string step, string procName, int tid, long timeStamp, long durationMs, string description);
+
+        /// <summary>
+        /// Tracer completed event
+        /// </summary>
+        [GeneratedEvent(
+            (ushort)LogEventId.TracerCounterEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void TracerCounterEvent(LoggingContext context, string counterName, string machine, long timeStamp, long value);
+
+        /// <summary>
+        /// Tracer signal event
+        /// </summary>
+        [GeneratedEvent(
+            (ushort)LogEventId.TracerSignalEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void TracerSignalEvent(LoggingContext context, string name, long timeStamp);
+
+        /// <summary>
+        /// Tracer start event
+        /// </summary>
+        [GeneratedEvent(
+            (ushort)LogEventId.TracerStartEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void TracerStartEvent(LoggingContext context);
+
+        /// <summary>
+        /// Tracer stop event
+        /// </summary>
+        [GeneratedEvent(
+            (ushort)LogEventId.TracerStopEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void TracerStopEvent(LoggingContext context);
+
         [GeneratedEvent(
             (ushort)LogEventId.StatusCallbacksDelayed,
             EventGenerators = EventGenerators.LocalOnly,

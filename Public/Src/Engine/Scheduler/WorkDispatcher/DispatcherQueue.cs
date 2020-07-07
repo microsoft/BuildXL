@@ -2,10 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
 
 namespace BuildXL.Scheduler.WorkDispatcher
 {
@@ -61,7 +64,14 @@ namespace BuildXL.Scheduler.WorkDispatcher
             MaxParallelDegree = maxParallelDegree;
             m_numRunning = 0;
             m_processesQueued = 0;
+            m_stack = new ConcurrentStack<int>();
+            for (int i = MaxParallelDegree - 1; i >= 0; i--)
+            {
+                m_stack.Push(i);
+            }
         }
+
+        private readonly ConcurrentStack<int> m_stack;
 
         /// <summary>
         /// Enqueues the given runnable pip
@@ -143,6 +153,13 @@ namespace BuildXL.Scheduler.WorkDispatcher
         protected async Task RunCoreAsync(RunnablePip runnablePip)
         {
             DispatcherReleaser releaser = new DispatcherReleaser(this);
+            int tid = -1;
+            if (runnablePip.IncludeInTracer)
+            {
+                m_stack.TryPop(out tid);
+                runnablePip.ThreadId = tid;
+            }
+
             try
             {
                 // Unhandled exceptions (Catastrophic BuildXL Failures) during a pip's execution will be thrown here without an AggregateException.
@@ -150,6 +167,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
             }
             finally
             {
+                if (tid != -1)
+                {
+                    m_stack.Push(tid);
+                }
+               
                 releaser.Release();
                 m_pipQueue.DecrementRunningOrQueuedPips(); // Trigger dispatching loop in the PipQueue
             }

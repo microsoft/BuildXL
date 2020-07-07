@@ -1103,6 +1103,9 @@ namespace BuildXL.Engine.Distribution
                     pipCompletionData.ResultBlob,
                     WorkerId);
 
+                pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
+                pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
+                pipCompletionTask.RunnablePip.StepDuration = new TimeSpan(pipCompletionData.ExecuteStepTicks);
                 pipCompletionTask.TrySet(result);
             }
         }

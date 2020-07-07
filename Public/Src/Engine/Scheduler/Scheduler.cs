@@ -1050,7 +1050,7 @@ namespace BuildXL.Scheduler
             m_processStartTimeUtc = processStartTimeUtc;
         }
 
-#region Constructor
+        #region Constructor
 
         /// <summary>
         /// Constructs a scheduler for an immutable pip graph.
@@ -1096,7 +1096,6 @@ namespace BuildXL.Scheduler
             m_buildEngineFingerprint = buildEngineFingerprint;
 
             fingerprintSalt = fingerprintSalt ?? string.Empty;
-
             m_configuration = configuration;
             m_scheduleConfiguration = configuration.Schedule;
             PipFingerprintingVersion fingerprintVersion = PipFingerprintingVersion.TwoPhaseV2;
@@ -2343,7 +2342,7 @@ namespace BuildXL.Scheduler
                 }
             }
         }
- 
+
         /// <summary>
         /// We have 2 versions of this message for the sake of letting one be overwriteable and the other not.
         /// Other than they should always stay identical. So to enforce that we have them reference the same
@@ -3497,6 +3496,7 @@ namespace BuildXL.Scheduler
         private async Task ExecutePip(RunnablePip runnablePip)
         {
             var startTime = DateTime.UtcNow;
+            runnablePip.StepStartTime = startTime;
 
             // Execute the current step
             PipExecutionStep nextStep;
@@ -3515,12 +3515,32 @@ namespace BuildXL.Scheduler
             using (var operationContext = runnablePip.OperationContext.StartOperation(PipExecutorCounter.ExecutePipStepDuration))
             using (runnablePip.OperationContext.StartOperation(runnablePip.Step))
             {
-                runnablePip.Observer.StartStep(runnablePip, runnablePip.Step);
+                runnablePip.Observer.StartStep(runnablePip);
 
                 nextStep = await ExecutePipStep(runnablePip);
                 duration = operationContext.Duration.Value;
 
-                runnablePip.Observer.EndStep(runnablePip, runnablePip.Step, duration);
+                if (runnablePip.Worker?.IsLocal ?? true)
+                {
+                    // For the remote worker, the stepduration is set on the worker and sent it to the master via grpc message.
+                    runnablePip.StepDuration = duration;
+                }
+
+                // If the duration is larger than EngineEnvironmentSettings.MinStepDurationSecForTracer (30 seconds by default)
+                if (runnablePip.IncludeInTracer && (long)runnablePip.StepDuration.TotalSeconds > EngineEnvironmentSettings.MinStepDurationSecForTracer)
+                {
+                    var durationMs = (long)runnablePip.StepDuration.TotalMilliseconds;
+                    BuildXL.Tracing.Logger.Log.TracerCompletedEvent(runnablePip.OperationContext,
+                        runnablePip.Pip.FormattedSemiStableHash,
+                        runnablePip.Step.ToString(),
+                        runnablePip.Worker.Name + " - " + DecideDispatcherKind(runnablePip),
+                        runnablePip.ThreadId,
+                        runnablePip.StepStartTime.Ticks,
+                        durationMs,
+                        runnablePip.Pip.GetShortDescription(runnablePip.Environment.Context, withQualifer: false).Replace(@"\", @"\\").Replace("\"", "\\\""));
+                }
+
+                runnablePip.Observer.EndStep(runnablePip);
             }
 
             // Store the duration
@@ -4386,7 +4406,6 @@ namespace BuildXL.Scheduler
                         executionResult,
                         processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
                     LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
-
                     return processRunnable.SetPipResult(executionResult);
                 }
 

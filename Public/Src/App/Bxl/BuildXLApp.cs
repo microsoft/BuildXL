@@ -633,6 +633,13 @@ namespace BuildXL
                         appLoggers.ConfigureStatusLogFile(m_configuration.Logging.StatusLog);
                     }
 
+                    if (m_configuration.Logging.TraceLog.IsValid)
+                    {
+                        appLoggers.ConfigureTraceLogFile(m_configuration.Logging.TraceLog);
+                        Tracing.Logger.Log.TracerStartEvent(pm.LoggingContext);
+                        Tracing.Logger.Log.TracerSignalEvent(pm.LoggingContext, "Start", timeStamp: DateTime.UtcNow.Ticks);
+                    }
+
                     try
                     {
                         Contract.Assume(m_initialConfiguration == m_configuration, "Expect the initial configuration to still match the updatable configuration object.");
@@ -715,6 +722,12 @@ namespace BuildXL
                         {
                             // Reset the ExecutionState
                             NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
+                        }
+
+                        if (m_configuration.Logging.TraceLog.IsValid)
+                        {
+                            Tracing.Logger.Log.TracerSignalEvent(pm.LoggingContext, "Stop", timeStamp: DateTime.UtcNow.Ticks);
+                            Tracing.Logger.Log.TracerStopEvent(pm.LoggingContext);
                         }
                     }
                 }
@@ -1315,6 +1328,7 @@ namespace BuildXL
             private readonly bool m_displayWarningErrorTime;
             private TextWriterEventListener m_defaultFileListener;
             private TextWriterEventListener m_statusFileListener;
+            private TextWriterEventListener m_tracerFileListener;
 
             private readonly WarningManager m_warningManager;
             private readonly EventMask m_noLogMask;
@@ -1582,6 +1596,22 @@ namespace BuildXL
                     (writer) =>
                     {
                         var listener = new StatusEventListener(
+                            Events.Log,
+                            writer,
+                            m_baseTime,
+                            onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
+                        listener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
+                        return listener;
+                    });
+            }
+
+            public void ConfigureTraceLogFile(AbsolutePath logFilePath)
+            {
+                m_tracerFileListener = AddFileBasedListener(
+                    logFilePath,
+                    (writer) =>
+                    {
+                        var listener = new TracerEventListener(
                             Events.Log,
                             writer,
                             m_baseTime,

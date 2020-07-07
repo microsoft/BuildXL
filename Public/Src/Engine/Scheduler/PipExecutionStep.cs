@@ -229,6 +229,22 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         }
 
         /// <summary>
+        /// Indicates if the pip execution step is tracked for the pip running time displayed in critical path printout
+        /// </summary>
+        public static bool IncludeInTracer(this PipExecutionStep step)
+        {
+            switch (step)
+            {
+                case PipExecutionStep.ExecuteProcess:
+                case PipExecutionStep.MaterializeInputs:
+                case PipExecutionStep.CacheLookup:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
         /// Check whether it is valid to transition from one step to another pip execution step.
         /// </summary>
         public static bool CanTransitionTo(this PipExecutionStep fromStep, PipExecutionStep toStep)

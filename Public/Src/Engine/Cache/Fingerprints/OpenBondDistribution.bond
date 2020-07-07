@@ -98,14 +98,20 @@ struct PipCompletionData
     // Blob of data representing result for IPC or process pip
     2: blob ResultBlob;
 
-	// The elapsed time in ticks of ExecuteProcess or ExecuteIpc step
-	3: nullable<int64> ExecuteStepTicks;
+	// The elapsed time in ticks
+	3: int64 ExecuteStepTicks;
 
     // The elapsed time in ticks of queued duration
-	4: nullable<int64> QueueTicks;
+	4: int64 QueueTicks;
 
 	/// The execution step requested
 	5: int32 Step;
+
+    /// Thread id
+    6: int32 ThreadId;
+
+    /// Start time of the step
+    7: int64 StartTimeTicks;
 }
 
 struct PipProcessErrorEvent

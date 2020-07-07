@@ -220,6 +220,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
 
         /// <summary>
+        /// The minimum step duration for the tracer to log
+        /// </summary>
+        public static readonly Setting<int> MinStepDurationSecForTracer = CreateSetting("BuildXLMinStepDurationSecForTracer", value => ParseInt32(value, allowZero: true) ?? 30);
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)
@@ -235,10 +240,10 @@ namespace BuildXL.Utilities.Configuration
             SettingsEnvironment.Reset();
         }
 
-        private static int? ParseInt32(string valueString)
+        private static int? ParseInt32(string valueString, bool allowZero = false)
         {
             int result;
-            if (int.TryParse(valueString, out result) && result != 0)
+            if (int.TryParse(valueString, out result) && (result != 0 || allowZero))
             {
                 return result;
             }

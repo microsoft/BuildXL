@@ -41,6 +41,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FancyConsole = true;
             FancyConsoleMaxStatusPips = 5;
             LogStatus = true;
+            LogTracer = true;
             FailPipOnFileAccessError = true;
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
@@ -118,8 +119,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SubstTarget = pathRemapper.Remap(template.SubstTarget);
             DisableLoggedPathTranslation = template.DisableLoggedPathTranslation;
             LogStatus = template.LogStatus;
+            LogTracer = template.LogTracer;
             StatusFrequencyMs = template.StatusFrequencyMs;
             StatusLog = pathRemapper.Remap(template.StatusLog);
+            TraceLog = pathRemapper.Remap(template.TraceLog);
             CacheMissLog = pathRemapper.Remap(template.CacheMissLog);
             DevLog = pathRemapper.Remap(template.DevLog);
             RpcLog = pathRemapper.Remap(template.RpcLog);
@@ -303,7 +306,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool LogStatus { get; set; }
 
         /// <inheritdoc />
+        public bool LogTracer { get; set; }
+
+        /// <inheritdoc />
         public AbsolutePath StatusLog { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath TraceLog { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath CacheMissLog { get; set; }

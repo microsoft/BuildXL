@@ -419,7 +419,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Gets a short description of this pip
         /// </summary>
-        public string GetShortDescription(PipExecutionContext context)
+        public string GetShortDescription(PipExecutionContext context, bool withQualifer = true)
         {
             if (Provenance == null)
             {
@@ -441,6 +441,11 @@ namespace BuildXL.Pips.Operations
             if (this is Process process)
             {
                 toolName = " - " + process.GetToolName(context.PathTable).ToString(context.StringTable);
+            }
+
+            if (!withQualifer)
+            {
+                return $"{maybeModuleName}{valueName}{toolName}";
             }
 
             var qualifierName = context.QualifierTable.GetFriendlyUserString(Provenance.QualifierId);

@@ -66,6 +66,12 @@ message PipCompletionData
 
     // The execution step requested
     int32 Step = 5;
+
+    // Thread id
+    int32 ThreadId = 6;
+
+    // Start of the duration
+    int64 StartTimeTicks = 7;
 }
 
 // Events that have been logged on workers and are transited to the master. Any changes here may require changes

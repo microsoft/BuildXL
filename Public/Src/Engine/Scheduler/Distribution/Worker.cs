@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -351,6 +352,11 @@ namespace BuildXL.Scheduler.Distribution
         /// Gets the name of the worker
         /// </summary>
         public string Name { get; }
+
+        /// <summary>
+        /// Which counters are being logged for tracer
+        /// </summary>
+        public readonly ConcurrentDictionary<string, byte> InitializedTracerCounters = new ConcurrentDictionary<string, byte>();
 
         /// <summary>
         /// Snapshot of pip state counts for worker

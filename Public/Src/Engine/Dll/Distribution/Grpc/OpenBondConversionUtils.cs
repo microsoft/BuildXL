@@ -57,11 +57,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 workerNotificationArgs.CompletedPips.Add(new PipCompletionData()
                 {
-                    ExecuteStepTicks = i.ExecuteStepTicks ?? 0,
+                    ExecuteStepTicks = i.ExecuteStepTicks,
                     PipIdValue = i.PipIdValue,
-                    QueueTicks = i.QueueTicks ?? 0,
+                    QueueTicks = i.QueueTicks,
                     ResultBlob = i.ResultBlob.ToByteString(),
-                    Step = i.Step
+                    Step = i.Step,
+                    ThreadId = i.ThreadId,
+                    StartTimeTicks = i.StartTimeTicks
                 });
             }
 
@@ -112,7 +114,9 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PipIdValue = i.PipIdValue,
                     QueueTicks = i.QueueTicks,
                     ResultBlob = i.ResultBlob.ToArraySegmentByte(),
-                    Step = i.Step
+                    Step = i.Step,
+                    ThreadId = i.ThreadId,
+                    StartTimeTicks = i.StartTimeTicks
                 });
             }
 

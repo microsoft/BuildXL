@@ -36,6 +36,12 @@ namespace BuildXL.Tracing
         Status = 12400,
         StatusSnapshot = 12401,
         StatusHeader = 12402,
-         StatusCallbacksDelayed = 12403,
-   }
+        StatusCallbacksDelayed = 12403,
+        TracerStartEvent = 12404,
+        TracerStopEvent = 12405,
+        TracerSignalEvent = 12406,
+        TracerCompletedEvent = 12407,
+        TracerCounterEvent = 12408,
+
+    }
 }

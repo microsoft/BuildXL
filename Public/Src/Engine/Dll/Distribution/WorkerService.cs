@@ -586,7 +586,7 @@ namespace BuildXL.Engine.Distribution
             return new Guid(m_pendingBuildRequests[pipId].ActivityId);
         }
 
-        private void StartStep(RunnablePip runnablePip, PipExecutionStep step)
+        private void StartStep(RunnablePip runnablePip)
         {
             var pipId = runnablePip.PipId;
             var processRunnable = runnablePip as ProcessRunnablePip;
@@ -600,7 +600,7 @@ namespace BuildXL.Engine.Distribution
             var completionData = m_pendingPipCompletions[pipId];
             completionData.StepExecutionStarted.SetResult(true);
 
-            switch (step)
+            switch (runnablePip.Step)
             {
                 case PipExecutionStep.ExecuteProcess:
                     if (runnablePip.PipType == PipType.Process)
@@ -625,7 +625,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private void EndStep(RunnablePip runnablePip, PipExecutionStep step, TimeSpan duration)
+        private void EndStep(RunnablePip runnablePip)
         {
             var pipId = runnablePip.PipId;
             var loggingContext = runnablePip.LoggingContext;
@@ -634,9 +634,11 @@ namespace BuildXL.Engine.Distribution
             var executionResult = runnablePip.ExecutionResult;
 
             var completionData = m_pendingPipCompletions[pipId];
-            completionData.SerializedData.ExecuteStepTicks = duration.Ticks;
+            completionData.SerializedData.ExecuteStepTicks = runnablePip.StepDuration.Ticks;
+            completionData.SerializedData.ThreadId = runnablePip.ThreadId;
+            completionData.SerializedData.StartTimeTicks = runnablePip.StepStartTime.Ticks;
 
-            switch (step)
+            switch (runnablePip.Step)
             {
                 case PipExecutionStep.MaterializeInputs:
                     if (!runnablePip.Result.HasValue ||
@@ -868,9 +870,9 @@ namespace BuildXL.Engine.Distribution
                 return m_workerService.GetActivityId(pipId);
             }
 
-            public override void StartStep(RunnablePip runnablePip, PipExecutionStep step)
+            public override void StartStep(RunnablePip runnablePip)
             {
-                if (step == PipExecutionStep.PostProcess)
+                if (runnablePip.Step == PipExecutionStep.PostProcess)
                 {
                     ExecutionResult executionResult;
                     var removed = m_processExecutionResult.TryRemove(runnablePip.PipId, out executionResult);
@@ -878,12 +880,12 @@ namespace BuildXL.Engine.Distribution
                     runnablePip.SetExecutionResult(executionResult);
                 }
 
-                m_workerService.StartStep(runnablePip, step);
+                m_workerService.StartStep(runnablePip);
             }
 
-            public override void EndStep(RunnablePip runnablePip, PipExecutionStep step, TimeSpan duration)
+            public override void EndStep(RunnablePip runnablePip)
             {
-                if (step == PipExecutionStep.ExecuteProcess)
+                if (runnablePip.Step == PipExecutionStep.ExecuteProcess)
                 {
                     // For successful/unsuccessful results of ExecuteProcess, store so that when master calls worker for
                     // PostProcess it can reuse the result rather than sending it unnecessarily
@@ -892,7 +894,7 @@ namespace BuildXL.Engine.Distribution
                     m_processExecutionResult[runnablePip.PipId] = runnablePip.ExecutionResult;
                 }
 
-                m_workerService.EndStep(runnablePip, step, duration);
+                m_workerService.EndStep(runnablePip);
             }
         }
 

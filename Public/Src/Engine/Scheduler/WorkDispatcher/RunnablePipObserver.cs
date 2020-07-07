@@ -28,14 +28,14 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Notification that the given runnable pip has started a particular step
         /// </summary>
-        public virtual void StartStep(RunnablePip runnablePip, PipExecutionStep step)
+        public virtual void StartStep(RunnablePip runnablePip)
         {
         }
 
         /// <summary>
         /// Notification that the given runnable pip has ended the pip step with the duration taken by that step
         /// </summary>
-        public virtual void EndStep(RunnablePip runnablePip, PipExecutionStep step, TimeSpan duration)
+        public virtual void EndStep(RunnablePip runnablePip)
         {
         }
     }

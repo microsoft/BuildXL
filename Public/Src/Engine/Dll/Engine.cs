@@ -719,6 +719,11 @@ namespace BuildXL.Engine
                 logging.StatusLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Status);
             }
 
+            if (logging.LogTracer)
+            { 
+                logging.TraceLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Trace);
+            }
+
             if (logging.LogExecution)
             {
                 logging.ExecutionLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Execution);

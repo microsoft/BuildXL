@@ -653,6 +653,9 @@ namespace BuildXL
                             "logsToRetain",
                             opt => loggingConfiguration.LogsToRetain = CommandLineUtilities.ParseInt32Option(opt, 1, 1000)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "logTracer",
+                            sign => loggingConfiguration.LogTracer = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "lowPriority",
                             sign => schedulingConfiguration.LowPriority = sign),
                         OptionHandlerFactory.CreateOption(

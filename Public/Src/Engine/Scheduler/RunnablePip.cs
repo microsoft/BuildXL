@@ -177,6 +177,21 @@ namespace BuildXL.Scheduler
         /// </summary>
         public bool IsWaitingForWorker { get; set; }
 
+        /// <summary>
+        /// Thread id of the step
+        /// </summary>
+        public int ThreadId { get; internal set; }
+
+        /// <summary>
+        /// Start time of the step
+        /// </summary>
+        public DateTime StepStartTime { get; internal set; }
+
+        /// <summary>
+        /// Duration of the execution step
+        /// </summary>
+        public TimeSpan StepDuration { get; internal set; }
+
         internal RunnablePip(
             LoggingContext phaseLoggingContext,
             PipId pipId,
@@ -220,6 +235,14 @@ namespace BuildXL.Scheduler
                 End();
             }
         }
+
+        /// <summary>
+        /// Whether to include the pip in the tracer log
+        /// </summary>
+        public bool IncludeInTracer => Environment.Configuration.Logging.LogTracer
+            && Step.IncludeInTracer()
+            && PipType == PipType.Process
+            && Worker != null;
 
         /// <summary>
         /// Changes the priority of the pip

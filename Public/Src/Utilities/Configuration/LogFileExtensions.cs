@@ -54,6 +54,11 @@ namespace BuildXL.Utilities.Configuration
         public const string Status = ".status.csv";
 
         /// <summary>
+        /// A file containing the trace
+        /// </summary>
+        public const string Trace = ".trace";
+
+        /// <summary>
         /// A file contains cache miss logs
         /// </summary>
         public const string CacheMissLog = ".CacheMiss.log";

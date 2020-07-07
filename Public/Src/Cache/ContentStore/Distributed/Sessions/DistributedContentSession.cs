@@ -89,9 +89,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task<PutResult> PerformPutFileGatedOperationAsync(OperationContext operationContext, Func<Task<PutResult>> func)
         {
-            return PutAndPlaceFileGate.GatedOperationAsync(async (timeWaiting) =>
+            return PutAndPlaceFileGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
             {
-                var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - PutAndPlaceFileGate.CurrentCount;
+                var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - currentCount;
 
                 var result = await func();
                 result.MetaData = new ResultMetaData(timeWaiting, gateOccupiedCount);

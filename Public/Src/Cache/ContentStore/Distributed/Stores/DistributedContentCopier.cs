@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             try
             {
-                
+
                 PutResult? putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
@@ -112,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     lastFailureTimes[index] = _clock.UtcNow;
                 }
-                
+
                 // _retryIntervals controls how many cycles we go through of copying from a list of locations
                 // It also has the increasing wait times between cycles
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
@@ -167,7 +167,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         // Trace time remaining under trying to copy the first location of the next attempt.
                         TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
-                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay-waitedTime).TotalMilliseconds : 0)}ms...");
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -236,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ProactiveCopyReason reason,
             ProactiveCopyLocationSource source) where TResult : ResultBase
         {
-            return _proactiveCopyIoGate.GatedOperationAsync(async ts =>
+            return _proactiveCopyIoGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
                 {
                     using var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForProactiveCopies);
@@ -253,8 +253,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                              $"InsideRing={isInsideRing} " +
                              $"CopyReason={reason} " +
                              $"LocationSource={source} " +
-                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                             $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - currentCount} " +
+                             $"IOGate.Wait={timeWaiting.TotalMilliseconds}ms. " +
                              $"Timeout={_timeoutForProactiveCopies} " +
                              $"TimedOut={cts.Token.IsCancellationRequested}"
                     );
@@ -359,20 +359,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     CopyFileResult? copyFileResult = null;
                     try
                     {
-                        copyFileResult = await _ioGate.GatedOperationAsync(ts => context.PerformOperationAsync(
+                        double ioGateWait = 0;
+                        int ioGateCurrentCount = 0;
+
+                        copyFileResult = await context.PerformOperationAsync(
                             Tracer,
-                            async () =>
-                            {
-                                return await TaskUtilities.AwaitWithProgressReporting(
-                                    task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts),
-                                    period: TimeSpan.FromMinutes(5),
-                                    action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s."),
-                                    reportImmediately: false,
-                                    reportAtEnd: false);
-                            },
+                            async () => await _ioGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
+                                {
+                                    ioGateWait = timeWaiting.TotalMilliseconds;
+                                    ioGateCurrentCount = currentCount;
+
+                                    return await TaskUtilities.AwaitWithProgressReporting(
+                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts),
+                                        period: TimeSpan.FromMinutes(5),
+                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s."),
+                                        reportImmediately: false,
+                                        reportAtEnd: false);
+                                }, cts),
                             traceOperationStarted: false,
                             traceOperationFinished: true,
-                            // _ioGate.CurrentCount returns the number of free slots, but we need to print the number of occupied slots instead.
                             extraEndMessage: (result) =>
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
@@ -380,10 +385,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
-                                $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
-                                $"IOGate.Wait={ts.TotalMilliseconds}ms.",
+                                $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - ioGateCurrentCount} " +
+                                $"IOGate.Wait={ioGateWait}ms",
                             caller: "RemoteCopyFile",
-                            counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]), cts);
+                            counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]);
 
                         if (copyFileResult.TimeSpentHashing.HasValue)
                         {
@@ -757,7 +762,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Task<FileExistenceResult> GatedCheckFileExistenceAsync(T path, CancellationToken token)
         {
             return _ioGate.GatedOperationAsync(
-                (_) => _remoteFileExistenceChecker.CheckFileExistsAsync(path, Timeout.InfiniteTimeSpan, token),
+                (_, _) => _remoteFileExistenceChecker.CheckFileExistsAsync(path, Timeout.InfiniteTimeSpan, token),
                 token);
         }
 

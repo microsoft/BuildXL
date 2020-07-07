@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             var counterSet = new CounterSet();
             counterSet.Merge(GetCounters(), $"{Tracer.Name}.");
-            
+
             // Unregister from build machine location set
             if (_buildIdHash.HasValue)
             {
@@ -324,10 +324,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Check globally for existence, but do not copy locally and do not update content tracker.
                 pinResults = await Workflows.RunWithFallback(
                     contentHashes,
-                    async hashes => {
+                    async hashes =>
+                    {
                         intermediateResult = await Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint);
                         return intermediateResult;
-                        },
+                    },
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: true, urgencyHint),
                     result => result.Succeeded);
 
@@ -536,20 +537,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task<ResultWithMetaData<PlaceBulkResult>> PerformPlaceFileGatedOperationAsync(OperationContext operationContext, Func<Task<PlaceBulkResult>> func, bool bulkPlace = true)
         {
-            return PutAndPlaceFileGate.GatedOperationAsync( async(timeWaiting) =>
-            {
-                var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - PutAndPlaceFileGate.CurrentCount;
+            return PutAndPlaceFileGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
+           {
+               var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - currentCount;
 
-                var result = await func();
+               var result = await func();
 
-                return new ResultWithMetaData<PlaceBulkResult>(
-                    new ResultMetaData(timeWaiting, gateOccupiedCount),
-                    result);
-            }, operationContext.Token);
+               return new ResultWithMetaData<PlaceBulkResult>(
+                   new ResultMetaData(timeWaiting, gateOccupiedCount),
+                   result);
+           }, operationContext.Token);
         }
 
         private static bool IsPlaceFileSuccess(PlaceFileResult result)
-        { 
+        {
             return result.Code != PlaceFileResult.ResultCode.Error && result.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound;
         }
 
@@ -641,7 +642,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             if (contentHashWithSizeAndLocations.Locations == null)
                             {
                                 var message = $"No replicas ever registered for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}";
-                                
+
                                 if (isLocal)
                                 {
                                     // Trace only for locations obtained from the local store.
@@ -756,7 +757,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         using (var stream = new MemoryStream(smallFileResult.Blob))
                         {
                             return await Inner.PutStreamAsync(context, hashInfo.ContentHash, stream, cts, urgencyHint);
-                            
+
                         }
                     }
                 }
@@ -917,9 +918,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     {
                         Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
                         RemotePinning pinning = new RemotePinning(new ContentHashWithSizeAndLocations(hash, -1L))
-                                                {
-                                                    Result = new PinResult(pageLookup)
-                                                };
+                        {
+                            Result = new PinResult(pageLookup)
+                        };
                         pinnings.Add(pinning);
                     }
                 }
@@ -1172,9 +1173,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(
-            OperationContext context, 
-            ContentHashWithSizeAndLocations info, 
-            bool tryBuildRing, 
+            OperationContext context,
+            ContentHashWithSizeAndLocations info,
+            bool tryBuildRing,
             ProactiveCopyReason reason)
         {
             var hash = info.ContentHash;
@@ -1325,7 +1326,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     isInsideRing,
                     reason,
                     source);
-                }
+            }
             else
             {
                 var requestResult = await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing);

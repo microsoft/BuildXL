@@ -37,5 +37,10 @@ namespace BuildXL.Native.IO
         /// Generic failure.
         /// </summary>
         Failed,
+
+        /// <summary>
+        /// Destination already exists.
+        /// </summary>
+        FailedDestinationExists,
     }
 }

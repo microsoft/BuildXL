@@ -684,6 +684,8 @@ namespace BuildXL.Native.IO.Unix
                         return CreateHardLinkStatus.FailedDueToPerFileLinkLimit;
                     case (int)Errno.EPERM:
                         return CreateHardLinkStatus.FailedAccessDenied;
+                    case (int)Errno.EEXIST:
+                        return CreateHardLinkStatus.FailedDestinationExists;
                     default:
                         return CreateHardLinkStatus.Failed;
                 }

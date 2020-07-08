@@ -230,7 +230,7 @@ namespace Test.BuildXL.Engine
         [Fact]
         public void StaticOutputBecomingASharedOpaqueOutputIsProperlyMarkedAsSharedOpaqueOutput()
         {
-            var file = X("out/MyFile.txt");
+            var file = X($"out/MyFile.txt");
 
             var spec0 = ProduceFileStatically(file);
             AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);

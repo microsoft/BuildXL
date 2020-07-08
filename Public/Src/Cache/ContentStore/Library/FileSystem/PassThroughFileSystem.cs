@@ -777,63 +777,62 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
         private CreateHardLinkResult CreateHardLinkUnix(AbsolutePath sourceFileName, AbsolutePath destinationFileName, bool replaceExisting)
         {
-            var createOrOpenResult = FileUtilities.TryCreateOrOpenFile(sourceFileName.ToString(), 0,
-                            FileShare.ReadWrite | FileShare.Delete, FileMode.Open, FileFlagsAndAttributes.FileFlagOverlapped, out var sourceFileHandle);
-
-            using (sourceFileHandle)
+            var createHardLinkStatus = FileUtilities.TryCreateHardLink(destinationFileName.Path, sourceFileName.Path);
+            var createHardLinkResult = createHardLinkStatus switch
             {
-                if (!createOrOpenResult.Succeeded)
+                CreateHardLinkStatus.Success                                   => CreateHardLinkResult.Success,
+                CreateHardLinkStatus.FailedAccessDenied                        => CreateHardLinkResult.FailedAccessDenied,
+                CreateHardLinkStatus.FailedDueToPerFileLinkLimit               => CreateHardLinkResult.FailedMaxHardLinkLimitReached,
+                CreateHardLinkStatus.FailedSinceNotSupportedByFilesystem       => CreateHardLinkResult.FailedNotSupported,
+                CreateHardLinkStatus.FailedSinceDestinationIsOnDifferentVolume => CreateHardLinkResult.FailedSourceAndDestinationOnDifferentVolumes,
+                CreateHardLinkStatus.FailedDestinationExists                   => CreateHardLinkResult.FailedDestinationExists,
+                CreateHardLinkStatus.Failed                                    => CreateHardLinkResult.Unknown,
+                _                                                              => CreateHardLinkResult.Unknown
+            };
+
+            if (createHardLinkResult == CreateHardLinkResult.FailedDestinationExists)
+            {
+                if (!replaceExisting)
                 {
-                    switch (createOrOpenResult.Status)
-                    {
-                        case OpenFileStatus.Success:
-                            break;
-                        case OpenFileStatus.FileNotFound:
-                        case OpenFileStatus.PathNotFound:
-                            return CreateHardLinkResult.FailedSourceDoesNotExist;
-                        case OpenFileStatus.Timeout:
-                        case OpenFileStatus.AccessDenied:
-                        case OpenFileStatus.UnknownError:
-                        default:
-                            throw ThrowLastWin32Error(destinationFileName.Path, $"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
-                    }
+                    // this will indicate a hard failure
+                    return CreateHardLinkResult.FailedDestinationExists;
+                }
+                else
+                {
+                    // instead of deleting the destination file and trying again, return AccessDenied
+                    // which gets appropriately handled up the stack
+                    return CreateHardLinkResult.FailedAccessDenied;
                 }
             }
 
-            if (!replaceExisting && FileExists(destinationFileName))
+            // try to get more information if failed with unknown reason
+            if (createHardLinkResult == CreateHardLinkResult.Unknown)
             {
-                return CreateHardLinkResult.FailedDestinationExists;
+                var createOrOpenResult = FileUtilities.TryCreateOrOpenFile(
+                    sourceFileName.Path,
+                    FileDesiredAccess.None,
+                    FileShare.ReadWrite | FileShare.Delete,
+                    FileMode.Open,
+                    FileFlagsAndAttributes.FileFlagOverlapped,
+                    out var sourceFileHandle);
+                using (sourceFileHandle)
+                switch (createOrOpenResult.Status)
+                {
+                    case OpenFileStatus.Success:
+                        break;
+                    case OpenFileStatus.FileNotFound:
+                    case OpenFileStatus.PathNotFound:
+                        createHardLinkResult = CreateHardLinkResult.FailedSourceDoesNotExist;
+                        break;
+                    case OpenFileStatus.Timeout:
+                    case OpenFileStatus.AccessDenied:
+                    case OpenFileStatus.UnknownError:
+                    default:
+                        throw ThrowLastWin32Error(destinationFileName.Path, $"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
+                }
             }
 
-            var createHardLinkResult = FileUtilities.TryCreateHardLink(destinationFileName.ToString(), sourceFileName.ToString());
-            if (createHardLinkResult.HasFlag(CreateHardLinkStatus.FailedAccessDenied))
-            {
-                return CreateHardLinkResult.FailedAccessDenied;
-            }
-            else if (createHardLinkResult.HasFlag(CreateHardLinkStatus.FailedDueToPerFileLinkLimit))
-            {
-                return CreateHardLinkResult.FailedMaxHardLinkLimitReached;
-            }
-            else if (createHardLinkResult.HasFlag(CreateHardLinkStatus.FailedSinceDestinationIsOnDifferentVolume))
-            {
-                return CreateHardLinkResult.FailedSourceAndDestinationOnDifferentVolumes;
-            }
-            else if (createHardLinkResult.HasFlag(CreateHardLinkStatus.FailedSinceNotSupportedByFilesystem))
-            {
-                return CreateHardLinkResult.FailedNotSupported;
-            }
-            else if (createHardLinkResult.HasFlag(CreateHardLinkStatus.Failed))
-            {
-                return CreateHardLinkResult.Unknown;
-            }
-            else if (createHardLinkResult.HasFlag(CreateHardLinkStatus.Success))
-            {
-                return CreateHardLinkResult.Success;
-            }
-            else
-            {
-                throw ThrowLastWin32Error(sourceFileName.Path, $"Failed to create hard link for file {sourceFileName.Path} with unknown error: {createHardLinkResult.ToString()}");
-            }
+            return createHardLinkResult;
         }
 
         private CreateHardLinkResult CreateHardLinkWin(AbsolutePath sourceFileName, AbsolutePath destinationFileName, bool replaceExisting)

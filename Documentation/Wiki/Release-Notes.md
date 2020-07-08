@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200703.4.1 (Release [70555](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=70555)).  Released 7/8/2020
+- A new Yarn frontend
+- New counters for the size of materialized files
+- Minimum value of MaxNumPipTelemetryBatches is now 0
+- The default value of FingerprintStoreAnalysisMode is now Offline
+- Process cancellation messages are now verbose
+- Misc bug fixes
+
 # 0.1.0-20200628.1 (Release [69479](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=69479)).  Released 7/1/2020
 - Improvements for FileConsumption analyzer to help optimize materialization
 - DumpPip analyzer – filter by produced shared opaque directory

@@ -57,6 +57,9 @@ export const pkgs = isMicrosoftInternal ? [
     // Combined runtimes
     { id: "Dotnet-Runtime", version: "5.0.3", osSkip: [ "macOS", "unix" ] },
 
+    // Officially mantained CB package that contains Yarn. Used for Yarn tests.
+    { id: "Npm.OnCloudBuild", version: "3.1.0" },
+
 ] : [
 
     // Artifact packages and dependencies in OSS

@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -27,7 +26,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void InvalidRushExportsSettings(string rushExports)
         {
             var config = Build(rushExports: rushExports)
-                .AddRushProject("@ms/project-A", "src/A")
+                .AddJavaScriptProject("@ms/project-A", "src/A")
                 .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -44,7 +43,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void MissingPackageInExportsIsFlagged(string exports, LogEventId expectedError)
         {
             var config = Build(rushExports: exports)
-               .AddRushProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -60,7 +59,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void InvalidExportSymbolIsFlagged()
         {
             var config = Build(rushExports: "[{symbolName: 'invalid-symbol', content: []}]")
-               .AddRushProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -82,7 +81,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                     rushExports: "[{symbolName: 'exportSymbol', content: ['@ms/project-A']}]",
                     moduleName: "rushTest",
                     addDScriptResolver: true)
-               .AddRushProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
                .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
                // Consume 'exportSymbol' from DScript and make sure it is an array of shared opaques. 
                // Check as well the share opaque output is related to project A
@@ -116,8 +115,8 @@ const assertion2 = Contract.assert(firstOutput.root.isWithin(d`src/A`));")
                     rushExports: $"[{{symbolName: 'exportSymbol', content: [{exportContent}]}}]",
                     moduleName: "rushTest",
                     addDScriptResolver: true)
-               .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "call build"), ("test", "call test") })
-               .AddRushConfigurationFile("src/A", @"
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "call build"), ("test", "call test") })
+               .AddBxlConfigurationFile("src/A", @"
 {
     ""outputDirectories"": [
         {""path"": ""output/dir/for/build"", ""targetScripts"": [""build""]},
@@ -148,7 +147,7 @@ import {{exportSymbol}} from 'rushTest';
                 Build(
                     moduleName: "rushTest",
                     addDScriptResolver: true)
-               .AddRushProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
                .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
                // Consume 'all' from DScript
                .AddSpec("import {all} from 'rushTest';")
@@ -166,7 +165,7 @@ import {{exportSymbol}} from 'rushTest';
         {
             var config =
                 Build(rushExports: $"[{{symbolName: 'all', content: []}}]")
-               .AddRushProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {

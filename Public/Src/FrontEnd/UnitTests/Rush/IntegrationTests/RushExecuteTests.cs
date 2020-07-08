@@ -4,7 +4,7 @@
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -51,7 +51,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             // The script commands themselves are not important since nothing gets executed, just scheduled
 
             var config = Build(executeCommands: "['build', 'sign', 'test']")
-                .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A"), ("sign", "sign A"), ("test", "test A") })
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A"), ("sign", "sign A"), ("test", "test A") })
                 .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -77,9 +77,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             // The script commands themselves are not important since nothing gets executed, just scheduled
             // We should find B build depending on A build, and B test depending on B build
             var config = Build(executeCommands: "['build', 'test']")
-                .AddRushProject("@ms/project-A", "src/A", 
+                .AddJavaScriptProject("@ms/project-A", "src/A", 
                     scriptCommands: new[] { ("build", "build A"), ("test", "test A") })
-                .AddRushProject("@ms/project-B", "src/B", dependencies: new[] { "@ms/project-A" }, 
+                .AddJavaScriptProject("@ms/project-B", "src/B", dependencies: new[] { "@ms/project-A" }, 
                     scriptCommands: new[] { ("build", "build B"), ("test", "test B") })
                 .PersistSpecsAndGetConfiguration();
 
@@ -120,10 +120,10 @@ namespace Test.BuildXL.FrontEnd.Rush
 ]";
 
             var config = Build(executeCommands: commands)
-                .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "b A"), ("pre-build", "pr A") })
-                .AddRushProject("@ms/project-B", "src/B", scriptCommands: new[] { ("build", "b B"), ("pre-build", "pr B"), ("post-build", "ps B") },
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "b A"), ("pre-build", "pr A") })
+                .AddJavaScriptProject("@ms/project-B", "src/B", scriptCommands: new[] { ("build", "b B"), ("pre-build", "pr B"), ("post-build", "ps B") },
                     dependencies: new[] { "@ms/project-A" })
-                .AddRushProject("@ms/project-C", "src/C", scriptCommands: new[] { ("build", "b C"), ("pre-build", "pr C"), ("post-build", "ps C") },
+                .AddJavaScriptProject("@ms/project-C", "src/C", scriptCommands: new[] { ("build", "b C"), ("pre-build", "pr C"), ("post-build", "ps C") },
                     dependencies: new[] { "@ms/project-A" })
                 .PersistSpecsAndGetConfiguration();
 
@@ -182,7 +182,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         private BuildXLEngineResult BuildDummyWithCommands(string commands)
         {
             var config = Build(executeCommands: commands)
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             return RunRushProjects(config, new[] {

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.FrontEnd.JavaScript.Tracing;
 using BuildXL.Utilities.Configuration;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,7 +26,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
         public void ExplicitInvalidRushLibLocationIsHandled()
         {
             var config = Build(rushBaseLibLocation: "/path/to/foo")
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunRushProjects(config, new[] {
@@ -53,7 +54,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             };
 
             var config = Build(environment: environment, rushBaseLibLocation: null)
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunRushProjects(config, new[] {
@@ -69,7 +70,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             // Explicitly undefine the rush base lib location, but do not expose anything in PATH
             // that points to a valid Rush installation
             var config = Build(rushBaseLibLocation: null)
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunRushProjects(config, new[] {

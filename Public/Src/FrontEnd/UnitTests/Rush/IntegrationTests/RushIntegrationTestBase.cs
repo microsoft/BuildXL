@@ -223,13 +223,6 @@ namespace Test.BuildXL.FrontEnd.Rush
 ";
         }
 
-        protected static bool IsDependencyAndDependent(global::BuildXL.Pips.Operations.Process dependency, global::BuildXL.Pips.Operations.Process dependent)
-        {
-            // Unfortunately the test pip graph we are using doesn't keep track of dependencies/dependents. So we check there is a directory output of the dependency 
-            // that is a directory input for a dependent
-            return dependency.DirectoryOutputs.Any(directoryOutput => dependent.DirectoryDependencies.Any(directoryDependency => directoryDependency == directoryOutput));
-        }
-
         private string DefaultRushPrelude(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string executeCommands,

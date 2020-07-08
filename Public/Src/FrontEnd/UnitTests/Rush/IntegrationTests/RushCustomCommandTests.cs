@@ -3,7 +3,7 @@
 
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -30,7 +30,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void InvalidCustomRushCommands(string customCommands)
         {
             var config = Build(customRushCommands: customCommands)
-                .AddRushProject("@ms/project-A", "src/A")
+                .AddJavaScriptProject("@ms/project-A", "src/A")
                 .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -48,7 +48,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             // Schedule a rush project with a build command 'execute', and extend it to be
             // 'execute --test' via a custom command
             var config = Build(customRushCommands: "[{command: 'build', extraArguments: '--test'}]")
-               .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -67,8 +67,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             // Two projects, one with 'build', the other one with 'test'.
             // Extend 'build'to be 'execute --test' via a custom command
             var config = Build(customRushCommands: "[{command: 'build', extraArguments: '--test'}]", executeCommands: "['build', 'test']")
-               .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
-               .AddRushProject("@ms/project-B", "src/B", scriptCommands: new[] { ("test", "execute") })
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
+               .AddJavaScriptProject("@ms/project-B", "src/B", scriptCommands: new[] { ("test", "execute") })
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {
@@ -90,7 +90,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         {
             // Exercise custom commands with other types
             var config = Build(customRushCommands: "[{command: 'build', extraArguments: ['--test', a`atom`, r`relative/path`, p`C:/absolute/path`]}]")
-               .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "execute") })
                .PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {

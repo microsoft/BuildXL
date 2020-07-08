@@ -35,6 +35,8 @@ namespace JavaScript {
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Rush",
+            "Test.BuildXL.FrontEnd.Yarn",
+            "Test.BuildXL.FrontEnd.Core"
         ],
     });
 }

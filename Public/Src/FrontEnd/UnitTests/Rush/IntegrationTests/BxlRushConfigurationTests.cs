@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Linq;
-using BuildXL.Engine;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -27,8 +26,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void SimpleRushConfigurationFileIsHonored()
         {
             var config = Build()
-                .AddRushProject("@ms/project-A", "src/A")
-                .AddRushConfigurationFile("src/A", @"
+                .AddJavaScriptProject("@ms/project-A", "src/A")
+                .AddBxlConfigurationFile("src/A", @"
 {
     ""outputDirectories"": [""../output/dir""],
     ""sourceFiles"": [""input/file""]
@@ -53,8 +52,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void PathPatternsAreHonored(string outputDirectoriesJSON, string[] expectedOutputDirectories)
         {
             var config = Build()
-                .AddRushProject("@ms/project-A", "src/A")
-                .AddRushConfigurationFile("src/A", @$"
+                .AddJavaScriptProject("@ms/project-A", "src/A")
+                .AddBxlConfigurationFile("src/A", @$"
 {{
     ""outputDirectories"": {outputDirectoriesJSON}
 }}")
@@ -79,8 +78,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         {
             // Create a project and schedule its 'build' and 'test' script. Only define output directories for 'build'
             var config = Build(executeCommands: "['build', 'test']")
-                .AddRushProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A"), ("test", "test A")})
-                .AddRushConfigurationFile("src/A", @"
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A"), ("test", "test A")})
+                .AddBxlConfigurationFile("src/A", @"
 {
     ""outputDirectories"": [{""path"": ""../output/dir"", ""targetScripts"": [""build""]}]
 }")
@@ -107,8 +106,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void MalformedConfigurationFileIsHandled(string outputDirectories)
         {
             var config = Build()
-                .AddRushProject("@ms/project-A", "src/A")
-                .AddRushConfigurationFile("src/A", @$"
+                .AddJavaScriptProject("@ms/project-A", "src/A")
+                .AddBxlConfigurationFile("src/A", @$"
 {{
     ""outputDirectories"": [{outputDirectories}]
 }}")

@@ -13,7 +13,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.EngineTestUtilities;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -32,8 +32,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         {
             // Create two projects A and B such that A -> B.
             var config = Build()
-                .AddRushProject("@ms/project-A", "src/A", "module.exports = function A(){}")
-                .AddRushProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A"})
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A"})
                 .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunRushProjects(config, new[] {
@@ -60,7 +60,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             var testCache = new TestCache();
 
             var config = (CommandLineConfiguration)Build()
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             config.Cache.CacheGraph = true;
@@ -107,7 +107,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             };
 
             var config = (CommandLineConfiguration)Build(environment)
-                    .AddRushProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
             config.Cache.CacheGraph = true;
@@ -150,7 +150,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 ["Test"] = new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit) };
 
             var config = (CommandLineConfiguration)Build(environment)
-                .AddRushProject("@ms/project-A", "src/A")
+                .AddJavaScriptProject("@ms/project-A", "src/A")
                 .PersistSpecsAndGetConfiguration();
 
             config.Cache.CacheGraph = true;
@@ -187,8 +187,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         {
             // Create two projects with the same package name
             var config = Build()
-                    .AddRushProject("@ms/project-A", "src/A")
-                    .AddRushProject("@ms/project-A", "src/B")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .AddJavaScriptProject("@ms/project-A", "src/B")
                     .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunRushProjects(config, new[] {
@@ -209,7 +209,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             // Run a project that writes a file under a nested directory
             var config = (CommandLineConfiguration)Build()
-                    .AddRushProjectWithExplicitVersions(
+                    .AddJavaScriptProjectWithExplicitVersions(
                         "@ms/project-A", 
                         "src/A", 
                         "var fs = require('fs'); fs.mkdirSync('CamelCasedLib'); fs.writeFileSync('CamelCasedLib/out.txt', 'hello');",

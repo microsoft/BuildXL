@@ -55,6 +55,14 @@ namespace BuildXL.FrontEnd.Yarn
                         foundPath = pathToYarn;
                         break;
                     }
+
+                    // In some windows installations, only yarn.cmd exists
+                    pathToYarn = absolutePath.Combine(m_context.PathTable, "yarn.cmd");
+                    if (m_host.Engine.FileExists(pathToYarn))
+                    {
+                        foundPath = pathToYarn;
+                        break;
+                    }
                 }
             }
 

@@ -20,6 +20,7 @@ namespace Core {
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
+            importFrom("BuildXL.FrontEnd").JavaScript.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

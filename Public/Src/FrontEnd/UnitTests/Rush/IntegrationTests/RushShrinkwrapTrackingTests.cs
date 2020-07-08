@@ -3,14 +3,12 @@
 
 using System.IO;
 using System.Linq;
-using BuildXL.Engine;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
+using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using LogEventId = global::BuildXL.FrontEnd.Rush.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
@@ -31,7 +29,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             string commonTempFolder = Path.Combine(TestRoot, "CustomTempFolder").Replace("\\", "/"); ;
 
             var config = Build(commonTempFolder: commonTempFolder)
-                .AddRushProject("@ms/project-A", "src/A").
+                .AddJavaScriptProject("@ms/project-A", "src/A").
                 PersistSpecsAndGetConfiguration();
 
             var result = RunRushProjects(config, new[] {

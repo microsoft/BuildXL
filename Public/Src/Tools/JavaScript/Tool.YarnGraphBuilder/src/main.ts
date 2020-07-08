@@ -21,7 +21,7 @@ interface PackageJson {
 }
 
 if (process.argv.length < 5) {
-    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <path-to-yarn");
+    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <path-to-yarn>");
     process.exit(1);
 }
 

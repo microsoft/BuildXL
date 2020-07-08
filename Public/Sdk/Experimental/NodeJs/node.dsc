@@ -12,6 +12,14 @@ namespace Node {
     @@public
     export const npmCli = getNpmCli();
 
+    const nodeExecutablesDir : Directory = d`${getNodeTool().exe.parent}`;
+
+    /**
+     * Self-contained node executables. Platform dependent.
+     */
+    @@public
+    export const nodeExecutables : StaticDirectory = Transformer.sealDirectory(nodeExecutablesDir, globR(nodeExecutablesDir));
+
     @@public
     export function run(args: Transformer.ExecuteArguments) : Transformer.ExecuteResult {
         // Node code can access any of the following user specific environment variables.

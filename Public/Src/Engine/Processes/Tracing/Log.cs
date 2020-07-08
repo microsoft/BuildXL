@@ -734,7 +734,7 @@ namespace BuildXL.Processes.Tracing
             string outputToLog);
 
         [GeneratedEvent(
-            (ushort)LogEventId.PipTempDirectoryCleanupError,
+            (ushort)LogEventId.PipTempDirectoryCleanupWarning,
             EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
@@ -743,13 +743,13 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipTempDirectoryCleanupFailure(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.PipTempDirectorySetupError,
-            EventLevel = Level.Error,
+            (ushort)LogEventId.PipTempDirectorySetupWarning,
+            EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Failed to create temp directory at '{directory}'. {exceptionMessage}")]
-        public abstract void PipTempDirectorySetupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
+            Message = EventConstants.PipPrefix + "Failed to create temp directory at '{directory}'. Pip may be retried or failed. {exceptionMessage}")]
+        public abstract void PipTempDirectorySetupFailure(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipTempSymlinkRedirectionError,

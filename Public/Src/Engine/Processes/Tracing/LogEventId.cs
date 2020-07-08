@@ -104,8 +104,8 @@ namespace BuildXL.Processes.Tracing
         ResumeOrSuspendProcessError = 878,
 
         // Temp files/directory cleanup
-        PipTempDirectoryCleanupError = 2201,
-        PipTempDirectorySetupError = 2203,
+        PipTempDirectoryCleanupWarning = 2201,
+        PipTempDirectorySetupWarning = 2203,
         PipTempSymlinkRedirectionError = 2205,
         PipTempSymlinkRedirection = 2206,
 

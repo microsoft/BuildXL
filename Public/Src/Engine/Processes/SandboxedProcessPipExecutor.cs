@@ -2655,7 +2655,7 @@ namespace BuildXL.Processes
                 }
                 catch (BuildXLException ex)
                 {
-                    Tracing.Logger.Log.PipTempDirectorySetupError(
+                    Tracing.Logger.Log.PipTempDirectorySetupFailure(
                         m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pipDescription,
@@ -2742,7 +2742,7 @@ namespace BuildXL.Processes
             }
             catch (BuildXLException ex)
             {
-                Tracing.Logger.Log.PipTempDirectorySetupError(
+                Tracing.Logger.Log.PipTempDirectorySetupFailure(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pipDescription,

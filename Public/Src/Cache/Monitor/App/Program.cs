@@ -1,10 +1,19 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using CLAP;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using System.Diagnostics;
+using BuildXL.Cache.ContentStore.Logging;
+using System.Linq;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -16,11 +25,16 @@ namespace BuildXL.Cache.Monitor.App
         }
 
         [Verb(IsDefault = true)]
-        public static void Run(string configurationFilePath = null, string backupFilePath = null, int? refreshRateMinutes = null)
+        public static void Run(string? configurationFilePath = null, string? backupFilePath = null, string? logFilePath = null, int? refreshRateMinutes = null, bool debug = false)
         {
+            if (debug)
+            {
+                Debugger.Launch();
+            }
+
             // We reload the application every hour, for two reasons: to reload the stamp monitoring configuration from
             // Kusto, and to reload the configuration (if needed). It's mostly a hack, but it works!
-            var refreshRate = TimeSpan.FromHours(1);
+            TimeSpan? refreshRate = null;
             if (refreshRateMinutes.HasValue)
             {
                 refreshRate = TimeSpan.FromMinutes(refreshRateMinutes.Value);
@@ -36,14 +50,45 @@ namespace BuildXL.Cache.Monitor.App
             Console.CancelKeyPress += consoleCancelEventHandler;
             try
             {
-                WithPeriodicCancellationAsync(
-                    refreshRate: refreshRate,
-                    factory: cancellationToken => RunMonitorAsync(configurationFilePath, backupFilePath, cancellationToken),
-                    cancellationToken: programShutdownCancellationTokenSource.Token).Wait();
+                if (refreshRate != null)
+                {
+                    WithPeriodicCancellationAsync(
+                        refreshRate: refreshRate.Value,
+                        factory: cancellationToken => RunMonitorAsync(configurationFilePath, backupFilePath, logFilePath, cancellationTokenSource: null, cancellationToken: cancellationToken),
+                        cancellationToken: programShutdownCancellationTokenSource.Token).Wait();
+                }
+                else
+                {
+                    WithInternalCancellationAsync(
+                        factory: (cancellationTokenSource, cancellationToken) => RunMonitorAsync(configurationFilePath, backupFilePath, logFilePath, cancellationTokenSource, cancellationToken),
+                        cancellationToken: programShutdownCancellationTokenSource.Token).Wait();
+                }
             }
             finally
             {
                 Console.CancelKeyPress -= consoleCancelEventHandler;
+            }
+        }
+
+        private static async Task WithInternalCancellationAsync(Func<CancellationTokenSource, CancellationToken, Task> factory, CancellationToken cancellationToken = default)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                Console.WriteLine($"Starting application with internal refresh");
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                try
+                {
+                    await factory(cts, cts.Token);
+                    Console.WriteLine($"Application terminated successfully");
+                }
+#pragma warning disable CA1031 // Do not catch general exception types
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Exception found trying to restart the application: {e}");
+                    break;
+                }
+#pragma warning restore CA1031 // Do not catch general exception types
             }
         }
 
@@ -70,23 +115,81 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        private static async Task RunMonitorAsync(string configurationFilePath = null, string backupFilePath = null, CancellationToken cancellationToken = default)
+        private static async Task RunMonitorAsync(string? configurationFilePath, string? backupFilePath, string? logFilePath, CancellationTokenSource? cancellationTokenSource = null, CancellationToken cancellationToken = default)
         {
             var configuration = LoadConfiguration(configurationFilePath);
             if (!string.IsNullOrEmpty(backupFilePath))
             {
+                // Needed to satisfy the type checker
+                Contract.AssertNotNull(backupFilePath);
                 PersistConfiguration(configuration, backupFilePath, force: true);
             }
 
-            using (var monitor = new Monitor(configuration))
+            Action? onWatchlistUpdated = null;
+            if (cancellationTokenSource != null)
             {
-                await monitor.RunAsync(cancellationToken);
+                onWatchlistUpdated = () =>
+                {
+                    cancellationTokenSource.Cancel();
+                };
+            }
+
+            await WithLoggerAsync(async (logger) => {
+                using (var monitor = await Monitor.CreateAsync(configuration, logger).ThrowIfFailureAsync())
+                {
+                    await monitor.RunAsync(onWatchlistUpdated, cancellationToken);
+                }
+            }, logFilePath);
+        }
+
+        private static async Task WithLoggerAsync(Func<ILogger, Task> action, string? logFilePath)
+        {
+            CsvFileLog? csvFileLog = null;
+            ConsoleLog? consoleLog = null;
+            Logger? logger = null;
+
+            try
+            {
+                if (!string.IsNullOrEmpty(logFilePath))
+                {
+                    // Needed to satisfy the type checker
+                    Contract.AssertNotNull(logFilePath);
+
+                    if (string.IsNullOrEmpty(Path.GetDirectoryName(logFilePath)))
+                    {
+                        var cwd = Directory.GetCurrentDirectory();
+                        logFilePath = Path.Combine(cwd, logFilePath);
+                    }
+
+                    csvFileLog = new CsvFileLog(logFilePath, new List<CsvFileLog.ColumnKind>()
+                                {
+                                    CsvFileLog.ColumnKind.PreciseTimeStamp,
+                                    CsvFileLog.ColumnKind.ProcessId,
+                                    CsvFileLog.ColumnKind.ThreadId,
+                                    CsvFileLog.ColumnKind.LogLevel,
+                                    CsvFileLog.ColumnKind.LogLevelFriendly,
+                                    CsvFileLog.ColumnKind.Message,
+                                });
+                }
+
+                consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
+
+                var logs = new ILog?[] { csvFileLog, consoleLog };
+                logger = new Logger(logs.Where(log => log != null).Cast<ILog>().ToArray());
+
+                await action(logger);
+            }
+            finally
+            {
+                logger?.Dispose();
+                csvFileLog?.Dispose();
+                consoleLog?.Dispose();
             }
         }
 
-        private static Monitor.Configuration LoadConfiguration(string configurationFilePath = null)
+        private static Monitor.Configuration LoadConfiguration(string? configurationFilePath = null)
         {
-            Monitor.Configuration configuration = null;
+            Monitor.Configuration? configuration = null;
 
             if (string.IsNullOrEmpty(configurationFilePath))
             {
@@ -97,7 +200,7 @@ namespace BuildXL.Cache.Monitor.App
                 {
                     throw new ArgumentException($"Please specify a configuration file or set the `CACHE_MONITOR_APPLICATION_KEY` environment variable to your application key");
                 }
-                configuration.ApplicationKey = applicationKey;
+                configuration.AzureAppKey = applicationKey;
 
                 return configuration;
             }
@@ -113,7 +216,7 @@ namespace BuildXL.Cache.Monitor.App
 
             try
             {
-                configuration = (Monitor.Configuration)serializer.Deserialize(stream, typeof(Monitor.Configuration));
+                configuration = (Monitor.Configuration?)serializer.Deserialize(stream, typeof(Monitor.Configuration));
             }
             catch (JsonException exception)
             {
@@ -133,7 +236,6 @@ namespace BuildXL.Cache.Monitor.App
 
         private static void PersistConfiguration(Monitor.Configuration configuration, string configurationFilePath, bool force = false)
         {
-            Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNullOrEmpty(configurationFilePath);
 
             if (File.Exists(configurationFilePath) && !force)

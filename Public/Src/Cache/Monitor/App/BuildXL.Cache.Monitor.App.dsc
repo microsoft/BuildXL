@@ -3,8 +3,6 @@
 
 import * as ContentStore from "BuildXL.Cache.ContentStore";
 
-export const NetFx = BuildXLSdk.NetFx;
-
 namespace App {
     @@public
     export const exe = BuildXLSdk.executable({
@@ -15,19 +13,13 @@ namespace App {
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 importFrom("CLAP-DotNetCore").pkg,
             ] : [
-                NetFx.System.Data.dll,
                 importFrom("CLAP").pkg,
             ]
             ),
-            ...importFrom("BuildXL.Cache.ContentStore").kustoPackages,
-
-            importFrom("System.Collections.Immutable").pkg,
-            importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Native.dll,
-
+            
             ContentStore.Library.dll,
             ContentStore.Interfaces.dll,
-
+            Library.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],
         tools: {
@@ -35,5 +27,7 @@ namespace App {
                 keyFile: undefined, // This must be unsigned so it can consume CLAP
             },
         },
+        skipDocumentationGeneration: true,
+        nullable: true,
     });
 }

@@ -319,11 +319,7 @@ config({
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
                 { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
                 { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
-                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0",
-                    dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],
-                    dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
-                },
-                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
+
                 { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
 
                 // Kusto SDK (for full framework)
@@ -331,6 +327,45 @@ config({
                 { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
                 { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
                 { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
+
+                // Azure Communication
+                { id: "Microsoft.Rest.ClientRuntime", version: "2.3.21",
+                    dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],
+                    dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
+                },
+                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
+                { id: "Microsoft.Rest.ClientRuntime.Azure.Authentication", version: "2.4.0" },
+
+                // Azure Management SDK
+                { id: "Microsoft.Azure.Management.AppService.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.BatchAI.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Cdn.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Compute.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.ContainerInstance.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.ContainerRegistry.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.ContainerService.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.CosmosDB.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Dns.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.EventHub.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Graph.RBAC.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.KeyVault.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Locks.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Msi.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Network.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.PrivateDns.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Search.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.ServiceBus.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Sql.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Storage.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.TrafficManager.Fluent", version: "1.33.0" },
+
+                // These are the ones we actually care about
+                { id: "Microsoft.Azure.Management.Redis", version: "5.0.0" },
+                { id: "Microsoft.Azure.Management.Redis.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.ResourceManager.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Monitor.Fluent", version: "1.33.0" },
+                { id: "Microsoft.Azure.Management.Monitor", version: "0.25.0-preview" },
 
                 // ANTLR
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },

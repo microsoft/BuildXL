@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -154,6 +155,35 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var result = await task;
             result.ThrowIfFailure();
             return result;
+        }
+
+        /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> if result is not successful.
+        /// </summary>
+        public static void ThrowIfFailure<TResult>(this IEnumerable<TResult> results) where TResult : ResultBase
+        {
+            foreach (var result in results)
+            {
+                result.ThrowIfFailure();
+            }
+        }
+
+        /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> if result is not successful.
+        /// </summary>
+        public static async Task ThrowIfFailureAsync<TResult>(this Task<TResult> task) where TResult : ResultBase
+        {
+            var result = await task;
+            result.ThrowIfFailure();
+        }
+
+        /// <summary>
+        /// Throws <see cref="ResultPropagationException"/> if result is not successful.
+        /// </summary>
+        public static async Task ThrowIfFailureAsync<TResult>(this Task<TResult[]> task) where TResult : ResultBase
+        {
+            var result = await task;
+            result.ThrowIfFailure();
         }
 
         /// <summary>

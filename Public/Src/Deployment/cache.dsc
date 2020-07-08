@@ -26,7 +26,9 @@ namespace Cache {
             {
                 subfolder: r`Monitor`,
                 contents: [
-                    importFrom("BuildXL.Cache.Monitor").Default.deployment,
+                    ...addIfLazy(BuildXLSdk.isDotNetCoreBuild,
+                        () => [importFrom("BuildXL.Cache.Monitor").Default.deployment]
+                    ),
                 ]
             },
         ],

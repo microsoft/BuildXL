@@ -1,0 +1,12 @@
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
+{
+    public enum RedisPlan
+    {
+        Basic,
+        Standard,
+        Premium
+    }
+}

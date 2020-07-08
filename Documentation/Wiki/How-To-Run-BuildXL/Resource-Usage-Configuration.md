@@ -54,8 +54,17 @@ Historic perf information is used to speculatively limit the RAM utilization. If
                                 scheduler will stop scheduling more work to allow resources to be freed. Default is 500
                                 mb.
 
-By default, BuildXL will actively kill processes when (i) the maximum memory utilization is exceeded and (ii) there is less available memory than the specified minimum available machine RAM. 
+Despite throttling the scheduler based on the historical data, builds can still experience high RAM usage. BuildXL has three ways to manage memory when (i) the maximum memory utilization is exceeded and (ii) there is less available memory than the specified minimum available machine RAM. 
 
-    /disableProcessRetryOnResourceExhaustion[+|-]
-                                Specifies that BuildXL should not kill processes when the limits are exceeded. 
-                                Default to false (process killing and retrying is active)
+    /manageMemoryMode:CancellationRam
+                                This is the default mode. BuildXL cancels the processes (shortest running time first) when the limits are exceeded. This mode will be deactivated if /disableProcessRetryOnResourceExhaustion is passed. Retrying certain pips is sometimes unsafe due to several reasons. In those cases, developers might disable retrying temporarily to figure out the issue. 
+                                
+    /manageMemoryMode:EmptyWorkingSet
+                                BuildXL empties the working set of RAM when the limits are exceeded. The active pages of processes will be written to the page file. This mode is recommended for machines having large pagefiles. 
+                                
+    /manageMemoryMode:Suspend
+                                BuildXL suspends the processes (largest RAM usage first) when the limits are exceeded. When RAM usage is back to normal, the suspended processes will be resumed.
+
+Here is the detailed state machine showing how BuildXL manages memory during builds.
+
+![State machine for managing memory](manageMemoryStateMachine.png)

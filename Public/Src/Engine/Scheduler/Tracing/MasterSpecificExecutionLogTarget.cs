@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler.Tracing
         public override void CacheMaterializationError(CacheMaterializationErrorEventData data)
         {
             var pathTable = m_scheduler.Context.PathTable;
-            var process = (Process) m_scheduler.PipGraph.PipTable.HydratePip(data.PipId, Pips.PipQueryContext.CacheMaterializationError);
+            var pip = m_scheduler.PipGraph.PipTable.HydratePip(data.PipId, Pips.PipQueryContext.CacheMaterializationError);
 
             string descriptionFailure = string.Join(
                 Environment.NewLine,
@@ -69,7 +69,7 @@ namespace BuildXL.Scheduler.Tracing
 
             Logger.Log.DetailedPipMaterializeDependenciesFromCacheFailure(
                 m_loggingContext,
-                process.GetDescription(m_scheduler.Context),
+                pip.GetDescription(m_scheduler.Context),
                 descriptionFailure);
         }
 

@@ -680,9 +680,9 @@ namespace BuildXL.Engine.Distribution
                 OnConnectionTimeOutAsync(null, null);
             }
 
-            if (firstCompletedTask == m_attachCompletion.Task)
+            if (m_attachCompletion.Task.Status == TaskStatus.RanToCompletion)
             {
-                if (!await m_attachCompletion.Task)
+                if (!m_attachCompletion.Task.GetAwaiter().GetResult())
                 {
                     FailRemotePip(pipCompletionTask, "Worker did not attach.");
                     return;
@@ -690,9 +690,10 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                Contract.Assert(firstCompletedTask == m_schedulerCompletion.Task);
+                Contract.Assert(m_schedulerCompletion.Task.Status == TaskStatus.RanToCompletion);
                 // the scheduler is done with all pips except materializeoutput steps, then we fail to send the build request to the worker. 
-                FailRemotePip(pipCompletionTask, "Scheduler is done.");
+                FailRemotePip(pipCompletionTask, "Worker did not attach until scheduler has been completed.");
+                return;
             }
 
             var pipBuildRequest = new SinglePipBuildRequest

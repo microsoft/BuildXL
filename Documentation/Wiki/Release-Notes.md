@@ -1,6 +1,17 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200628.1 (Release [69479](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=69479)).  Released 7/1/2020
+- Improvements for FileConsumption analyzer to help optimize materialization
+- DumpPip analyzer – filter by produced shared opaque directory
+- Upgrade RocksDb to 6.10.2
+- Rename file access whitelist to allowlist
+- Take maximum of historical CPU usage and user-provided weight
+- Reduce number of per-pip runtime telemetry events sent by default
+- Update QTest to 20.6.233.220544
+- Retry PipProcessStartFailed and PipTempDirectoryCleanup errors no another machine
+- Misc bug fixes 
+
 # 0.1.0-20200619.6.2 (Release [68625](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=68625)).  Released 6/24/2020
 - [Rush] Various fixes on Rush frontend.
 - Retry Detours semaphore creation in VM

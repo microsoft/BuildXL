@@ -37,7 +37,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason);
     }
 
-    /// <nodoc />
+    /// <summary>
+    /// Reason why the server rejected a copy.
+    /// NOTE: Make sure that, when adding, we can also translate enum to a PushFileResultStatus (See PushFileResult.Rejected)
+    /// </summary>
     public enum RejectionReason
     {
         /// <nodoc />   
@@ -50,7 +53,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         OlderThanLastEvictedContent,
 
         /// <nodoc />
-        NotSupported
+        NotSupported,
+
+        /// <nodoc />
+        CopyLimitReached,
+
+        /// <nodoc />
+        OngoingCopy,
     }
 
     /// <summary>

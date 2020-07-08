@@ -226,7 +226,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 targetLocation,
                 isInsideRing,
                 CopyReason.None,
-                ProactiveCopyLocationSource.None);
+                ProactiveCopyLocationSource.None,
+                result => PushFileResultStatus.Error);
         }
 
         private Task<TResult> PerformProactiveCopyAsync<TResult>(
@@ -236,7 +237,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             MachineLocation targetLocation,
             bool isInsideRing,
             CopyReason reason,
-            ProactiveCopyLocationSource source) where TResult : ResultBase
+            ProactiveCopyLocationSource source,
+            Func<TResult, PushFileResultStatus> statusFunc) where TResult : ResultBase
         {
             return _proactiveCopyIoGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
                 {
@@ -250,6 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         operation: () => func(innerContext),
                         traceOperationStarted: false,
                         extraEndMessage: result =>
+                             $"Code={statusFunc(result)} " +
                              $"ContentHash={hash.ToShortString()} " +
                              $"TargetLocation=[{targetLocation}] " +
                              $"InsideRing={isInsideRing} " +
@@ -276,7 +279,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 targetLocation,
                 isInsideRing,
                 reason,
-                source);
+                source,
+                result => result.Status);
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

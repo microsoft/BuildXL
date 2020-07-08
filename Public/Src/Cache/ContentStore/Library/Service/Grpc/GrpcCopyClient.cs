@@ -299,8 +299,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var pushResponse = PushResponse.FromMetadata(responseHeaders);
                 if (!pushResponse.ShouldCopy)
                 {
-                    context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
-                    return PushFileResult.Rejected();
+                    return PushFileResult.Rejected(pushResponse.Rejection);
                 }
 
                 // If we get a response before we finish streaming, it must be that the server cancelled the operation.

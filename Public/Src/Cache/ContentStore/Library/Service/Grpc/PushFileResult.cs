@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 #nullable enable
@@ -25,9 +26,34 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         ServerUnavailable,
 
         /// <summary>
-        /// The server is available but can't process the request.
+        /// The server already has the content.
         /// </summary>
-        RejectedByServer,
+        Rejected_ContentAvailableLocally,
+
+        /// <summary>
+        /// The server is already handling a copy of the content.
+        /// </summary>
+        Rejected_OngoingCopy,
+
+        /// <summary>
+        /// The server is at the limit of concurrent copies.
+        /// </summary>
+        Rejected_CopyLimitReached,
+
+        /// <summary>
+        /// The server does not have any handlers which support the operation.
+        /// </summary>
+        Rejected_NotSupported,
+
+        /// <summary>
+        /// The server is already evicting older content than this
+        /// </summary>
+        Rejected_OlderThanLastEvictedContent,
+
+        /// <summary>
+        /// Rejected for unknown reasons.
+        /// </summary>
+        Rejected_Unknown,
 
         /// <summary>
         /// Push copy is disabled for a given space (in-ring or outside the ring).
@@ -72,8 +98,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             => new PushFileResult(PushFileResultStatus.Success);
 
         /// <nodoc />
-        public static PushFileResult Rejected()
-            => CreateUnsuccessful(PushFileResultStatus.RejectedByServer);
+        internal static PushFileResult Rejected(RejectionReason rejectionReason)
+            => CreateUnsuccessful(rejectionReason switch
+            {
+                RejectionReason.ContentAvailableLocally => PushFileResultStatus.Rejected_ContentAvailableLocally,
+                RejectionReason.CopyLimitReached => PushFileResultStatus.Rejected_CopyLimitReached,
+                RejectionReason.NotSupported => PushFileResultStatus.Rejected_NotSupported,
+                RejectionReason.OlderThanLastEvictedContent => PushFileResultStatus.Rejected_OlderThanLastEvictedContent,
+                RejectionReason.OngoingCopy => PushFileResultStatus.Rejected_OngoingCopy,
+                _ => PushFileResultStatus.Rejected_Unknown
+            });
 
         /// <nodoc />
         public static PushFileResult Disabled()
@@ -117,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Status == PushFileResultStatus.Success;
+        public override bool Succeeded => Status.IsSuccess();
 
         /// <inheritdoc />
         protected override string GetSuccessString() => Status.ToString();
@@ -129,5 +163,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public string GetStatusOrErrorMessage()
             => ErrorMessage ?? Status.ToString();
+    }
+
+    /// <nodoc />
+    public static class PushFileStatusExtensions
+    {
+        /// <nodoc />
+        public static bool IsSuccess(this PushFileResultStatus status)
+            => status == PushFileResultStatus.Success ||
+            status == PushFileResultStatus.Rejected_OngoingCopy ||
+            status == PushFileResultStatus.Rejected_ContentAvailableLocally;
+
+        /// <nodoc />
+        public static bool IsRejection(this PushFileResultStatus status)
+            => status == PushFileResultStatus.Rejected_ContentAvailableLocally ||
+            status == PushFileResultStatus.Rejected_CopyLimitReached ||
+            status == PushFileResultStatus.Rejected_NotSupported ||
+            status == PushFileResultStatus.Rejected_OlderThanLastEvictedContent ||
+            status == PushFileResultStatus.Rejected_OngoingCopy ||
+            status == PushFileResultStatus.Rejected_Unknown;
     }
 }

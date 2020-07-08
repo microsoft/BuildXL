@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -66,38 +68,67 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public bool ShouldCopy { get; }
 
+        public RejectionReason Rejection { get; }
+
         private readonly Lazy<Metadata> _metadata;
 
         /// <nodoc />
         public Metadata Metadata => _metadata.Value;
 
-        private PushResponse(bool shouldCopy)
+        private PushResponse(bool shouldCopy, RejectionReason rejection)
         {
             ShouldCopy = shouldCopy;
-            _metadata = new Lazy<Metadata>(() => new Metadata { { "should_copy", ShouldCopy.ToString() } });
+            Rejection = rejection;
+
+            _metadata = new Lazy<Metadata>(() => new Metadata
+            {
+                { "should_copy", ShouldCopy.ToString() },
+                { "rejection_reason", ((int)rejection).ToString() }
+            });
         }
 
         /// <nodoc />
-        public static PushResponse Copy { get; } = new PushResponse(shouldCopy: true);
+        public static PushResponse Copy { get; } = new PushResponse(shouldCopy: true, RejectionReason.Accepted);
 
         /// <nodoc />
-        public static PushResponse DoNotCopy { get; } = new PushResponse(shouldCopy: false);
+        public static PushResponse DoNotCopy(RejectionReason reason) => PushReasonseByRejection[reason];
+
+        private static readonly Dictionary<RejectionReason, PushResponse> PushReasonseByRejection;
+
+        static PushResponse()
+        {
+            PushReasonseByRejection = new Dictionary<RejectionReason, PushResponse>();
+            foreach (var rejection in Enum.GetValues(typeof(RejectionReason)).Cast<RejectionReason>())
+            {
+                PushReasonseByRejection[rejection] = new PushResponse(shouldCopy: false, rejection);
+            }
+        }
 
         /// <nodoc />
         public static PushResponse FromMetadata(Metadata metadata)
         {
+            var shouldCopy = true;
+            var rejection = RejectionReason.Accepted;
+
             foreach (var header in metadata)
             {
                 if (header.Key == "should_copy")
                 {
-                    if (bool.TryParse(header.Value, out var shouldCopy))
+                    bool.TryParse(header.Value, out shouldCopy);
+                }
+                else if (header.Key == "rejection_reason")
+                {
+                    if (int.TryParse(header.Value, out var rejectionInt))
                     {
-                        return shouldCopy ? Copy : DoNotCopy;
+                        if (Enum.IsDefined(typeof(RejectionReason), rejectionInt))
+                        {
+                            rejection = (RejectionReason)rejectionInt;
+                        }
                     }
                 }
             }
 
-            return Copy;
+            return shouldCopy ? Copy : DoNotCopy(rejection);
         }
     }
 }

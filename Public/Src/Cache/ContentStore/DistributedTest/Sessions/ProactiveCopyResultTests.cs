@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using FluentAssertions;
 using Xunit;
@@ -82,7 +83,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public void Reject_Succeeded_Is_Succeeded()
         {
-            var ringCopyResult = PushFileResult.Rejected();
+            var ringCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
             var outsideRingCopyResult = PushFileResult.PushSucceeded();
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
 
@@ -94,8 +95,8 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public void Reject_Reject_Is_Rejected()
         {
-            var ringCopyResult = PushFileResult.Rejected();
-            var outsideRingCopyResult = PushFileResult.Rejected();
+            var ringCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
+            var outsideRingCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
 
             result.Succeeded.Should().BeFalse();
@@ -110,7 +111,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             string error = "my error";
             var ringCopyResult = new PushFileResult(error);
-            var outsideRingCopyResult = PushFileResult.Rejected();
+            var outsideRingCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
 
             result.Succeeded.Should().BeFalse();

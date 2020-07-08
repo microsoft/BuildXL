@@ -369,7 +369,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
             return RunFuncNoSessionAsync(
-                request.TraceId, 
+                request.TraceId,
                 async (context) =>
                 {
                     // Iterate through all known stores, looking for content in each.
@@ -396,18 +396,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 cancellationToken);
         }
 
-        private bool CanHandlePushRequest(Context cacheContext, ContentHash hash, [NotNullWhen(true)]IPushFileHandler store)
+        private RejectionReason CanHandlePushRequest(Context cacheContext, ContentHash hash, IPushFileHandler store)
         {
             if (store == null)
             {
                 Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because no stores implement {nameof(IPushFileHandler)}.");
-                return false;
+                return RejectionReason.NotSupported;
             }
 
             if (!store.CanAcceptContent(cacheContext, hash, out var rejectionReason))
             {
                 Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped: {rejectionReason}");
-                return false;
+                return rejectionReason;
             }
 
             lock (_pushesLock)
@@ -415,17 +415,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (_ongoingPushes.Count >= _ongoingPushCountLimit)
                 {
                     Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because the max number of proactive pushes of '{_ongoingPushCountLimit}' is reached. OngoingPushes.Count={_ongoingPushes.Count}.");
-                    return false;
+                    return RejectionReason.CopyLimitReached;
                 }
 
                 if (!_ongoingPushes.Add(hash))
                 {
                     Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
-                    return false;
+                    return RejectionReason.OngoingCopy;
                 }
             }
 
-            return true;
+            return RejectionReason.Accepted;
         }
 
         /// <summary>
@@ -449,9 +449,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
 
-            if (!CanHandlePushRequest(cacheContext, hash, store))
+            var rejection = CanHandlePushRequest(cacheContext, hash, store);
+            if (rejection != RejectionReason.Accepted)
             {
-                await callContext.WriteResponseHeadersAsync(PushResponse.DoNotCopy.Metadata);
+                await callContext.WriteResponseHeadersAsync(PushResponse.DoNotCopy(rejection).Metadata);
                 return;
             }
 

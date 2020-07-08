@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 Status = ProactiveCopyStatus.Success;
             }
-            else if (results.Any(r => r.Status == RejectedByServer))
+            else if (results.Any(r => r.Status.IsRejection()))
             {
                 Status = ProactiveCopyStatus.Rejected;
             }

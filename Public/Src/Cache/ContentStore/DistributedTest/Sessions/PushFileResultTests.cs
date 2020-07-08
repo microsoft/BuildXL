@@ -19,16 +19,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public void Rejected()
-        {
-            var result = PushFileResult.Rejected();
-            result.Succeeded.Should().BeFalse();
-
-            result.ToString().Should().Contain("Rejected");
-        }
-
-
-        [Fact]
         public void Disabled()
         {
             var result = PushFileResult.Disabled();

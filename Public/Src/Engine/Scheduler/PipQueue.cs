@@ -392,9 +392,6 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            m_chooseWorkerCpuQueue?.Dispose();
-            m_chooseWorkerCacheLookupQueue?.Dispose();
-
             IsDisposed = true;
         }
 

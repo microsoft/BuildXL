@@ -56,24 +56,34 @@ namespace BuildXL.Scheduler.WorkDispatcher
         protected override async void StartRunTaskAsync(RunnablePip runnablePip)
         {
             // Run the pip on the custom dedicated thread task scheduler
-            await m_taskFactory.StartNew(async () =>
+            try
             {
-                var startTime = TimestampUtilities.Timestamp;
-
-                await RunCoreAsync(runnablePip);
-
-                Interlocked.Add(ref m_runTimeTicks, (TimestampUtilities.Timestamp - startTime).Ticks);
-
-                if (NumRunning < MaxRunning)
+                await m_taskFactory.StartNew(async () =>
                 {
-                    Interlocked.Increment(ref m_fastChooseNextCount);
+                    var startTime = TimestampUtilities.Timestamp;
 
-                    // Fast path for running more work which queues the task to
-                    // execute the next item before the task completes so the 
-                    // queue does not block waiting for work
-                    StartTasks();
-                }
-            }).Unwrap();
+                    await RunCoreAsync(runnablePip);
+
+                    Interlocked.Add(ref m_runTimeTicks, (TimestampUtilities.Timestamp - startTime).Ticks);
+
+                    if (NumRunning < MaxRunning)
+                    {
+                        Interlocked.Increment(ref m_fastChooseNextCount);
+
+                        // Fast path for running more work which queues the task to
+                        // execute the next item before the task completes so the 
+                        // queue does not block waiting for work
+                        StartTasks();
+                    }
+                }).Unwrap();
+            }
+            catch (InvalidOperationException)
+            { 
+                // If the scheduler is terminating due to ctrl-c, the pip queue might be still draining in very rare cases. 
+                // In those rare cases, m_taskFactory will be disposed before we start new items above. That's why, 
+                // we ignore InvalidOperationException instances here. It is safe to do because the scheduler is already being
+                // terminated.
+            }
         }
 
         /// <inheritdoc />

@@ -2679,7 +2679,11 @@ namespace BuildXL.Processes
                     string redirectedTempDirectoryPath = redirectedTempDirectory.ToString(m_pathTable);
                     var overridenEnvVars = DisallowedTempVariables
                         .Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectoryPath))
-                        .Append(new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmTemp, redirectedTempDirectoryPath));
+                        .Concat(new[]
+                        {
+                            new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmTemp, redirectedTempDirectoryPath),
+                            new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmOriginalTemp, m_pip.TempDirectory.ToString(m_pathTable)),
+                        });
 
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }

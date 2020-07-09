@@ -64,6 +64,12 @@ namespace BuildXL.Utilities.VmCommandProxy
         public const string VmTemp = "[BUILDXL]VM_TEMP";
 
         /// <summary>
+        /// Environment variable whose value is %TEMP% before it gets relocated, and its presence indicates that the process in VM has relocated temporary folder
+        /// whose new value is stored in <see cref="VmTemp"/>.
+        /// </summary>
+        public const string VmOriginalTemp = "[BUILDXL]VM_ORIGINAL_TEMP";
+
+        /// <summary>
         /// Property indicating if a process is running in VM.
         /// </summary>
         public static bool IsRunningInVm => GetFlag(IsInVm);

@@ -784,7 +784,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         protected ContentLocationEntry DeserializeContentLocationEntry(byte[] bytes)
         {
-            return DeserializeCore(bytes, ContentLocationEntry.Deserialize);
+            // Please do not convert the delegate to a method group, because this code is called many times
+            // and method group allocates a delegate on each conversion to a delegate.
+            return DeserializeCore(bytes, reader => ContentLocationEntry.Deserialize(reader));
         }
 
         /// <summary>

@@ -212,11 +212,25 @@ namespace Flags {
     export const enableCrossgen = Environment.getFlag("[Sdk.BuildXL]enableCrossgen");
 
     /**
-     * Whether to use the C# compiler's strict mode by default or not.
+     * Gets the default value for whether to use the C# compiler's strict mode by default or not.
      * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
      */
     @@public
     export const useCSharpCompilerStrictMode = Environment.getFlag("[Sdk.BuildXL]useStrictMode") || true;
+
+    /**
+     * Gets the default value for whether to embed pdbs into the final assemblies or not.
+     * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
+     */
+    @@public
+    export const embedPdbs = Environment.hasVariable("[Sdk.BuildXL]embedPdbs") ? Environment.getFlag("[Sdk.BuildXL]embedPdbs") : true;
+
+    /**
+     * Gets the default value for whether to embed sources into pdbs.
+     * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
+     */
+    @@public
+    export const embedSources = Environment.hasVariable("[Sdk.BuildXL]embedSources") ? Environment.getFlag("[Sdk.BuildXL]embedSources") : false;
 }
 
 @@public
@@ -459,6 +473,12 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         features = features.push('strict');
     }
 
+    if (args.embedPdbs !== false && Flags.embedPdbs === true) {
+        args = args.merge<Managed.Arguments>({embedPdbs: true});
+    }
+
+    let embedSources = args.embedSources !== false && Flags.embedSources === true;
+
     args = Object.merge<Arguments>(
         {
             framework: framework,
@@ -508,6 +528,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
                     shared: Flags.useManagedSharedCompilation,
+                    embed: embedSources,
                 }
             },
             runCrossgenIfSupported: Flags.enableCrossgen,

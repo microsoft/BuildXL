@@ -86,6 +86,8 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
     // csc
     let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);
+
+    let debugType: Csc.DebugType = args.embedPdbs ? "embedded" : (framework.requiresPortablePdb ? "portable" : "full");
     let cscArgs : Csc.Arguments = {
         sources: [
             assemblyInfo,
@@ -103,7 +105,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
         out: outputFileName,
         pdb: name + ".pdb",
-        debugType: framework.requiresPortablePdb ? "portable" : "full",
+        debugType: debugType,
         allowUnsafeBlocks: args.allowUnsafeBlocks || false,
         appConfig: appConfig,
         implicitSources: args.implicitSources,
@@ -425,6 +427,17 @@ export interface Arguments {
     nullable?: boolean;
 
     /**
+     * Whether to embed pdbs into the assemblies or not.
+     * True by default until the project opts out this feature.
+     */
+    embedPdbs?: boolean;
+
+    /**
+     * Whether to embed sources into pdbs.
+     */
+    embedSources?: boolean;
+    
+    /*
      * If false then the file with non-nullable attributes won't be added to the project even when nullable flag is set to true.
      * 
      * For non-dotnet-core project specifying nullable flag forces the SDK to automatically include a special file

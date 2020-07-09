@@ -255,7 +255,8 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
         const data = tuple[1];
 
         const targetPath = rootDir.combine(relativeTarget);
-
+        // data.file can be missing, for instance, if pdbs are embedded or pdb generation is skipped.
+        // So we ignore these entries completely.
         return Transformer.copyFile(data.file, targetPath, args.tags);
     });
 

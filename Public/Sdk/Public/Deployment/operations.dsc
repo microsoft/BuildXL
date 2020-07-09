@@ -156,8 +156,11 @@ function flattenItem(
 }
 
 @@public
-export function flattenFile(file: File, targetFile: RelativePath, handleDuplicateFile: HandleDuplicateFileDeployment, currentResult: FlattenedResult, provenance: Diagnostics.Provenance) : FlattenedResult
-{
+export function flattenFile(file: File, targetFile: RelativePath, handleDuplicateFile: HandleDuplicateFileDeployment, currentResult: FlattenedResult, provenance: Diagnostics.Provenance) : FlattenedResult {
+    if (file === undefined) {
+        return currentResult;
+    }
+
     let result = currentResult;
 
     // This could be more preformant if we had a getOrAdd operation.

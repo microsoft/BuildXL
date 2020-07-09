@@ -30,7 +30,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public const int InvalidMachineId = 0;
 
-        private ClusterStateInternal ClusterStateInternal { get; set; }
+        /// <summary>
+        /// A current cluster state value.
+        /// </summary>
+        /// <remarks>
+        /// Keeping the result of cluster state and not the cluster state instance itself to avoid extra allocations
+        /// from <see cref="Mutate"/> method.
+        /// That method returns a result of cluster state and creating a wrapper each time the method is called
+        /// generated hundreds of megabytes of traffic a minute.
+        ///
+        /// Intentionally using a property here instead of using a field for thread safety reasons:
+        /// <see cref="Read{T}"/> method uses this property value in a given callback and passes a copy of the
+        /// object reference.
+        /// </remarks>
+        private Result<ClusterStateInternal> ClusterStateInternal { get; set; }
 
         private readonly ReadWriteLock _lock = ReadWriteLock.Create();
 
@@ -54,25 +67,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// Mutates the current cluster state value and returns the new one produced by the callback.
+        /// </summary>
+        /// <remarks>
+        /// The cluster state field is changed only when the callback provides a successful result.
+        /// </remarks>
         private Result<ClusterStateInternal> Mutate(Func<ClusterStateInternal, Result<ClusterStateInternal>> mutation)
         {
             using var token = _lock.AcquireWriteLock();
 
-            var newClusterState = mutation(ClusterStateInternal);
+            var newClusterState = mutation(ClusterStateInternal.Value!);
             if (!newClusterState.Succeeded)
             {
                 return newClusterState;
             }
 
-            ClusterStateInternal = newClusterState.Value!;
+            ClusterStateInternal = newClusterState;
             return ClusterStateInternal;
         }
 
         /// <nodoc />
         private T Read<T>(Func<ClusterStateInternal, T> action)
         {
-            return action(ClusterStateInternal);
+            return action(ClusterStateInternal.Value!);
         }
 
         /// <summary>

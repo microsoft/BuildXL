@@ -51,6 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             PinUnverifiedCountSatisfied,
             StartCopyForPinWhenUnverifiedCountSatisfied,
             ProactiveCopy_OutsideRingFromPreferredLocations,
+            ProactiveCopyRetries,
         }
 
         internal CounterCollection<Counters> SessionCounters { get; } = new CounterCollection<Counters>();
@@ -1209,14 +1210,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         await Task.WhenAll(insideRingCopyTask, outsideRingCopyTask);
 
-                        return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask, info.Entry);
+                        var insideRingResult = await insideRingCopyTask;
+                        var outsideRingResult = await outsideRingCopyTask;
+
+                        var retries = 0;
+                        if (!insideRingResult.Succeeded)
+                        {
+                            while (outsideRingResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+                            {
+                                SessionCounters[Counters.ProactiveCopyRetries].Increment();
+                                retries++;
+                                outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);
+                            }
+                        }
+
+                        return new ProactiveCopyResult(insideRingResult, outsideRingResult, retries, info.Entry);
                     }
                     finally
                     {
                         _pendingProactivePuts.Remove(hash);
                     }
                 },
-                extraEndMessage: r => $"Hash={info.ContentHash}, Reason=[{reason}]");
+                extraEndMessage: r => $"Hash={info.ContentHash}, Retries={r.Retries}, Reason=[{reason}]");
         }
 
         private Task<PushFileResult> ProactiveCopyOutsideBuildRingAsync(

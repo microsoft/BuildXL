@@ -105,12 +105,12 @@ namespace ContentStoreTest.Distributed.Sessions
 
         /// <nodoc />
         protected bool EnableProactiveCopy { get; set; } = false;
-        protected bool PushProactiveCopies { get; set; } = false;
         protected int? ProactivePushCountLimit { get; set; }
         protected bool EnableProactiveReplication { get; set; } = false;
         protected bool ProactiveCopyOnPuts { get; set; } = true;
         protected bool ProactiveCopyOnPins { get; set; } = false;
         protected bool ProactiveCopyUsePreferredLocations { get; set; } = false;
+        protected int ProactiveCopyRetries { get; set; } = 0;
 
         protected bool UseRealStorage { get; set; } = false;
         protected bool UseRealEventHub { get; set; } = false;
@@ -275,13 +275,14 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 TraceProactiveCopy = true,
                 ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
-                PushProactiveCopies = PushProactiveCopies,
+                PushProactiveCopies = true,
                 EnableProactiveReplication = EnableProactiveReplication,
                 ProactiveCopyRejectOldContent = true,
                 ProactiveCopyOnPut = ProactiveCopyOnPuts,
                 ProactiveCopyOnPin = ProactiveCopyOnPins,
                 ProactiveCopyGetBulkBatchSize = 1,
-                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations
+                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
+                ProactiveCopyMaxRetries = ProactiveCopyRetries,
             };
 
             _overrideDistributed?.Invoke(settings);
@@ -689,10 +690,73 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task ProactiveCopyRetryTest()
+        {
+            EnableProactiveCopy = true;
+            ProactiveCopyRetries = 2;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 2;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+
+                    // Insert random file #1 into worker #1
+                    var putResult1 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash1 = putResult1.ContentHash;
+
+                    var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // Proactive copy should have replicated the content.
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                    var counters = sessions[0].GetCounters().ToDictionaryIntegral();
+                    counters["ProactiveCopyRetries.Count"].Should().Be(ProactiveCopyRetries);
+                },
+                testCopier: new ErrorReturningTestFileCopier(errorsToReturn: ProactiveCopyRetries, failingResult: PushFileResult.ServerUnavailable()),
+                implicitPin: ImplicitPin.None);
+        }
+
+        [Theory]
+        [InlineData(PushFileResultStatus.Disabled, false)]
+        [InlineData(PushFileResultStatus.Error, false)]
+        [InlineData(PushFileResultStatus.Rejected_ContentAvailableLocally, false)]
+        [InlineData(PushFileResultStatus.Rejected_OngoingCopy, false)]
+        [InlineData(PushFileResultStatus.SkipContentUnavailable, false)]
+        [InlineData(PushFileResultStatus.Success, false)]
+        [InlineData(PushFileResultStatus.Rejected_CopyLimitReached, true)]
+        [InlineData(PushFileResultStatus.Rejected_NotSupported, true)]
+        [InlineData(PushFileResultStatus.Rejected_OlderThanLastEvictedContent, true)]
+        [InlineData(PushFileResultStatus.Rejected_Unknown, true)]
+        [InlineData(PushFileResultStatus.ServerUnavailable, true)]
+        public void ProactiveCopyStatusQualifiesForRetryTest(PushFileResultStatus status, bool shouldSucceed)
+        {
+            if (shouldSucceed)
+            {
+                status.QualifiesForRetry().Should().BeTrue();
+            }
+            else
+            {
+                status.QualifiesForRetry().Should().BeFalse();
+            }
+        }
+
+        [Fact]
         public async Task ProactiveCopyForEmptyHash2TimesDistributedTest()
         {
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
 
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
@@ -727,7 +791,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task PushedProactiveCopyDistributedTest()
         {
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = true;
 
             // Use the same context in two sessions when checking for file existence
@@ -767,7 +830,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             EnableProactiveReplication = true;
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             ProactiveCopyOnPins = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
@@ -837,7 +899,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             EnableProactiveReplication = true;
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             ProactiveCopyOnPins = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
@@ -921,7 +982,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task ProactiveCopyOnPinTest(bool usePreferredLocations)
         {
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             ProactiveCopyOnPins = true;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
@@ -1007,7 +1067,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task ProactivePutTest(bool usePreferredLocations)
         {
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = true;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
 
@@ -1056,7 +1115,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             EnableProactiveReplication = false;
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             UseGrpcServer = true;
 
@@ -1119,7 +1177,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
             EnableProactiveReplication = false;
             EnableProactiveCopy = true;
-            PushProactiveCopies = true;
 
             ProactiveCopyOnPuts = false;
             UseGrpcServer = true;
@@ -4148,5 +4205,28 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         #endregion
+    }
+
+    public class ErrorReturningTestFileCopier : TestFileCopier
+    {
+        private int _errorsLeft;
+        private readonly PushFileResult _failingResult;
+
+        public ErrorReturningTestFileCopier(int errorsToReturn, PushFileResult failingResult)
+        {
+            _errorsLeft = errorsToReturn;
+            _failingResult = failingResult;
+        }
+
+        public override Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        {
+            if (_errorsLeft > 0)
+            {
+                _errorsLeft--;
+                return Task.FromResult(_failingResult);
+            }
+
+            return base.PushFileAsync(context, hash, stream, targetMachine);
+        }
     }
 }

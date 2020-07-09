@@ -63,6 +63,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public ContentLocationEntry? Entry { get; }
 
         /// <nodoc />
+        public int Retries { get; }
+
+        /// <nodoc />
         public static ProactiveCopyResult CopyNotRequiredResult { get; } = new ProactiveCopyResult();
 
         private ProactiveCopyResult()
@@ -71,11 +74,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, ContentLocationEntry? entry = null)
+        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, int retries, ContentLocationEntry? entry = null)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
             RingCopyResult = ringCopyResult;
             OutsideRingCopyResult = outsideRingCopyResult;
+            Retries = retries;
             Entry = entry ?? ContentLocationEntry.Missing;
 
             var results = new[] {ringCopyResult, outsideRingCopyResult};

@@ -219,6 +219,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;
 
         /// <summary>
+        /// Amount of times that a proactive copy is allowed to retry
+        /// </summary>
+        public int ProactiveCopyMaxRetries { get; set; } = 0;
+
+        /// <summary>
         /// Defines pinning behavior
         /// </summary>
         public PinConfiguration PinConfiguration { get; set; }

@@ -182,5 +182,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             status == PushFileResultStatus.Rejected_OlderThanLastEvictedContent ||
             status == PushFileResultStatus.Rejected_OngoingCopy ||
             status == PushFileResultStatus.Rejected_Unknown;
+
+        /// <nodoc />
+        public static bool QualifiesForRetry(this PushFileResultStatus status)
+            => !status.IsSuccess() && (status.IsRejection() || status == PushFileResultStatus.ServerUnavailable);
     }
 }

@@ -25,7 +25,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var ringCopyResult = PushFileResult.Disabled();
             var outsideRingCopyResult = PushFileResult.PushSucceeded();
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeTrue();
 
@@ -42,7 +42,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var myErrorMessage = "My error message";
             var ringCopyResult = new PushFileResult(myErrorMessage, myDiagnostics);
             var outsideRingCopyResult = PushFileResult.PushSucceeded();
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             // Even if one of the operations is successful, the overall operation is successful.
             result.Succeeded.Should().BeTrue();
@@ -56,7 +56,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var ringCopyResult = PushFileResult.ServerUnavailable();
             var outsideRingCopyResult = PushFileResult.PushSucceeded();
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeTrue();
             ringCopyResult.Succeeded.Should().BeFalse();
@@ -71,7 +71,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var ringCopyResult = PushFileResult.ServerUnavailable();
             var error = "my error";
             var outsideRingCopyResult = new PushFileResult(error);
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeFalse();
             result.Status.Should().Be(ProactiveCopyStatus.Error);
@@ -85,7 +85,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var ringCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
             var outsideRingCopyResult = PushFileResult.PushSucceeded();
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             // Even if one of the operations is successful, the overall operation is successful.
             result.Succeeded.Should().BeTrue();
@@ -97,7 +97,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var ringCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
             var outsideRingCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeFalse();
             result.Status.Should().Be(ProactiveCopyStatus.Rejected);
@@ -112,7 +112,7 @@ namespace ContentStoreTest.Distributed.Sessions
             string error = "my error";
             var ringCopyResult = new PushFileResult(error);
             var outsideRingCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
-            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult);
+            var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeFalse();
             result.Status.Should().Be(ProactiveCopyStatus.Rejected);

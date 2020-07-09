@@ -73,6 +73,10 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;
 
+        [DataMember]
+        [Validation.Range(0, int.MaxValue)]
+        public int ProactiveCopyMaxRetries { get; set; } = 0;
+
         /// <summary>
         /// Configurable Keyspace Prefixes
         /// </summary>

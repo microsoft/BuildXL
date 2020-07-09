@@ -742,7 +742,8 @@ namespace ContentStoreTest.Distributed.Sessions
             int iterations = 1,
             TestContext outerContext = null,
             bool ensureLiveness = true,
-            int? storeToStartupLast = null)
+            int? storeToStartupLast = null,
+            TestFileCopier testCopier = null)
         {
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
@@ -753,7 +754,12 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 for (int iteration = 0; iteration < iterations; iteration++)
                 {
-                    var testFileCopier = outerContext?.TestFileCopier ?? new TestFileCopier()
+                    if (testCopier != null)
+                    {
+                        testCopier.WorkingDirectory = indexedDirectories[0].Directory.Path;
+                    }
+
+                    var testFileCopier = testCopier ?? outerContext?.TestFileCopier ?? new TestFileCopier()
                     {
                         WorkingDirectory = indexedDirectories[0].Directory.Path
                     };

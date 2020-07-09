@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -29,30 +30,35 @@ namespace BuildXL.Cache.Host.Test
             using var testDirectory = new DisposableDirectory(FileSystem);
             var logFilePath = testDirectory.CreateRandomFileName();
 
-            var logIntervalSeconds = 10;
+            // Intentionally making the interval longer to test the logic manually instead of relying on the tracker's
+            // logic to write to the file when the timer fires.
+            var logIntervalSeconds = 10_000;
+            var expectedOfflineTime = 10;
             var testClock = new MemoryClock();
-            // Create a new service tracker, in the constructor we will try to get previous online time
-            // Because the file was never created previously, we can not determine offlineTime
-            using var testServiceTracker = new Service.ServiceOfflineDurationTracker(context, testClock, FileSystem, logIntervalSeconds, logFilePath);
 
-            // Offline time is not available.
-            testServiceTracker.GetOfflineDuration(context).ShouldBeError();
-            testServiceTracker.LogTimeStampToFile(context, testClock.UtcNow.ToString());
+            using (var testServiceTracker = Service.ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            {
+                // Offline time is not available, because the file is missing.
+                testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeError();
+                testServiceTracker.LogCurrentTimeStampToFile(context);
 
-            testClock.UtcNow += TimeSpan.FromSeconds(logIntervalSeconds);
+                // Moving the clock forward
+                testClock.UtcNow += TimeSpan.FromSeconds(expectedOfflineTime);
 
-            // From the previous simulated interval, we created a new file and wrote a timestamp to it.
-            // Now we should be able to determine previous offlineTIme
-            testServiceTracker.GetOfflineDuration(context).ShouldBeSuccess();
-        }
+                // From the previous simulated interval, we created a new file and wrote a timestamp to it.
+                // Now we should be able to determine previous offlineTIme
+                // Intentionally converting the offline time to int to simplify the comparison.
+                int offlineDuration = (int)testClock.UtcNow.Subtract(testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeSuccess().Value).TotalSeconds;
+                offlineDuration.Should().Be(expectedOfflineTime);
+            }
 
-        [Fact]
-        public void GetTimeFromProcessStartIsNotInHours()
-        {
-            var context = new OperationContext(new Context(Logger));
-            var timeFromProcessStart = LifetimeTrackerTracer.GetTimeFromProcessStart(context);
-            timeFromProcessStart.ShouldBeSuccess();
-            timeFromProcessStart.Value.Hours.Should().Be(0);
+            // Making sure that once the tracker is re-created
+            // we can get the right offline time.
+            using (var testServiceTracker = Service.ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            {
+                int offlineDuration = (int)testClock.UtcNow.Subtract(testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeSuccess().Value).TotalSeconds;
+                offlineDuration.Should().Be(expectedOfflineTime);
+            }
         }
     }
 }

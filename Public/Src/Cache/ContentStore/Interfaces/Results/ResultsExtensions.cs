@@ -278,5 +278,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             value = result.Succeeded ? result.Value : default;
             return result.Succeeded;
         }
+
+        /// <summary>
+        /// Returns a string representation of the result if succeeded.
+        /// </summary>
+        public static string? ToStringWithValue<T>(this Result<T> result)
+        {
+            if (!result)
+            {
+                return result.ToString();
+            }
+
+            return result.Value!.ToString();
+        }
     }
 }

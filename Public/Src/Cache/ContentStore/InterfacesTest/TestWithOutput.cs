@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Tracing;
 using Xunit.Abstractions;
@@ -51,6 +52,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// Gets the full output "printed" to the console.
         /// </summary>
         public string GetFullOutput() => string.Join(Environment.NewLine, _outputLines);
+
+        /// <summary>
+        /// Gets all the output messages.
+        /// </summary>
+        public IEnumerable<string> GetOutputLines() => _outputLines;
     }
 
     /// <summary>
@@ -73,6 +79,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// Gets the full output "printed" to the console.
         /// </summary>
         protected string GetFullOutput() => _outputTextWriter?.GetFullOutput() ?? string.Empty;
+
+        /// <inheritdoc cref="XUnitTestOutputTextWriter.GetOutputLines"/>
+        protected IEnumerable<string> GetOutputLines() => _outputTextWriter?.GetOutputLines() ?? Enumerable.Empty<string>();
 
         /// <nodoc />
         protected TestWithOutput(ITestOutputHelper output)

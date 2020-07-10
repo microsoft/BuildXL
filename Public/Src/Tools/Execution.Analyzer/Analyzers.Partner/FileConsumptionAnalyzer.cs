@@ -150,9 +150,9 @@ namespace BuildXL.Execution.Analyzer
                 {
                     Console.WriteLine($"Processing {m_processedPips}");
                 }
-
-                GetWorkerAnalyzer().ProcessFingerprintComputed(data);
             }
+
+            GetWorkerAnalyzer().ProcessFingerprintComputed(data);
         }
 
         public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
@@ -186,6 +186,13 @@ namespace BuildXL.Execution.Analyzer
                     long totalInputSize = 0;
                     long totalConsumedSize = 0;
 
+                    if (pip.Worker == null)
+                    {
+                        // this pip was not executed (i.e., cache hit)
+                        pip.ConsumedInputSize = -1;
+                        pip.DeclaredInputSize = -1;
+                        return;
+                    }
 
                     using (var pooledSetInputFiles = Pools.GetAbsolutePathSet())
                     using (var pooledSetConsumedFiles = Pools.GetAbsolutePathSet())
@@ -516,14 +523,18 @@ namespace BuildXL.Execution.Analyzer
 
             public void ProcessFingerprintComputedCore(ProcessFingerprintComputationEventData data)
             {
-                // only interested in the events generated after a corresponding pip was executed
-                if (data.Kind != FingerprintComputationKind.Execution)
-                {
-                    return;
-                }
-
                 var pip = m_analyzer.GetPip(data.PipId) as Process;
                 Contract.Assert(pip != null);
+
+                // only interested in the events generated after a corresponding pip was executed
+                // however, we still need to save pip description so there would be no missing entries in pips.csv
+                if (data.Kind != FingerprintComputationKind.Execution)
+                {
+                    m_analyzer.m_executedProcessPips.TryAdd(
+                        data.PipId,
+                        new ProcessPip(data.PipId, pip.SemiStableHash, getPipDescription(pip, m_analyzer.CachedGraph.Context)));
+                    return;
+                }
 
                 // part 1: collect requested inputs
                 // count only output files/directories

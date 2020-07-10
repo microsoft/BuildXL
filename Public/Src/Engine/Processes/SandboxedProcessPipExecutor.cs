@@ -1699,12 +1699,25 @@ namespace BuildXL.Processes
                     numSurvivingChildErrors);
             }
 
-            // This is the overall success of the process. At a high level, there are 4 things that can cause a process pip to fail:
+            bool failedDueToWritingToStdErr = m_pip.WritingToStandardErrorFailsExecution && result.StandardError.HasLength;
+            if (failedDueToWritingToStdErr)
+            {
+                Tracing.Logger.Log.PipProcessWroteToStandardErrorOnCleanExit(
+                    m_loggingContext,
+                    pipSemiStableHash: m_pip.SemiStableHash,
+                    pipDescription: m_pipDescription,
+                    pipSpecPath: m_pip.Provenance.Token.Path.ToString(m_context.PathTable),
+                    pipWorkingDirectory: m_pip.WorkingDirectory.ToString(m_context.PathTable));
+            }
+
+            // This is the overall success of the process. At a high level, these are the things that can cause a process pip to fail:
             //      1. The process being killed (built into mainProcessExitedCleanly)
             //      2. The process not exiting with the appropriate exit code (mainProcessExitedCleanly)
             //      3. The process not creating all outputs (allOutputsPresent)
             //      4. The process running in a container, and even though succeeding, its outputs couldn't be moved to their expected locations
-            bool mainProcessSuccess = mainProcessExitedCleanly && allOutputsPresent;
+            //      5. The process wrote to standard error, and even though it may have exited with a succesfull exit code, WritingToStandardErrorFailsPip 
+            //         is set (failedDueToWritingToStdErr)
+            bool mainProcessSuccess = mainProcessExitedCleanly && allOutputsPresent && !failedDueToWritingToStdErr;
 
             bool standardOutHasBeenWrittenToLog = false;
             bool errorOrWarnings = !mainProcessSuccess || m_numWarnings > 0;
@@ -1741,12 +1754,12 @@ namespace BuildXL.Processes
             }
 
             bool errorWasTruncated = false;
-            // if some outputs are missing, we are logging this process as a failed one (even if it finished with a success exit code).
-            if ((!mainProcessExitedCleanly || !allOutputsPresent) && !canceled && loggingSuccess)
+            // if some outputs are missing or the process wrote to stderr, we are logging this process as a failed one (even if it finished with a success exit code).
+            if ((!mainProcessExitedCleanly || !allOutputsPresent || failedDueToWritingToStdErr) && !canceled && loggingSuccess)
             {
                 standardOutHasBeenWrittenToLog = true;
 
-                LogErrorResult logErrorResult = await TryLogErrorAsync(result, exitedWithSuccessExitCode);
+                LogErrorResult logErrorResult = await TryLogErrorAsync(result, allOutputsPresent, failedDueToWritingToStdErr);
                 errorWasTruncated = logErrorResult.ErrorWasTruncated;
                 loggingSuccess = logErrorResult.Success;
             }
@@ -4394,7 +4407,7 @@ namespace BuildXL.Processes
             public readonly bool ErrorWasTruncated;
         }
 
-        private async Task<LogErrorResult> TryLogErrorAsync(SandboxedProcessResult result, bool exitedWithSuccessExitCode)
+        private async Task<LogErrorResult> TryLogErrorAsync(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr)
         {
             // Initializing error regex just before it is actually needed to save some cycles.
             if (!await TryInitializeErrorRegexAsync())
@@ -4441,7 +4454,7 @@ namespace BuildXL.Processes
                 HandleErrorsFromTool(standardError);
                 HandleErrorsFromTool(standardOutput);
 
-                LogPipProcessError(result, exitedWithSuccessExitCode, standardError, standardOutput, errorWasTruncated, standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered);
+                LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasTruncated, standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered);
 
                 return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
             }
@@ -4516,7 +4529,7 @@ namespace BuildXL.Processes
                                 }
                             }
 
-                            LogPipProcessError(result, exitedWithSuccessExitCode, stdError, stdOut, errorWasTruncated, false);
+                            LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, stdError, stdOut, errorWasTruncated, false);
                         }
 
                         return true;
@@ -4525,7 +4538,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private void LogPipProcessError(SandboxedProcessResult result, bool exitedWithSuccessExitCode, string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
+        private void LogPipProcessError(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr, string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
         {
             string outputTolog;
             string outputPathsToLog;
@@ -4541,6 +4554,12 @@ namespace BuildXL.Processes
                 errorWasTruncated,
                 errorWasFiltered);
 
+            string optionalMessage = !allOutputsPresent ? 
+                EventConstants.PipProcessErrorMissingOutputsSuffix :
+                failedDueToWritingToStdErr?
+                    EventConstants.PipProcessErrorWroteToStandardError : 
+                    string.Empty;
+
             Tracing.Logger.Log.PipProcessError(
                 m_loggingContext,
                 m_pip.SemiStableHash,
@@ -4552,8 +4571,7 @@ namespace BuildXL.Processes
                 messageAboutPathsToLog,
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
-                // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty,
+                optionalMessage,
                 m_pip.GetShortDescription(m_context));
         }
 

@@ -730,6 +730,12 @@ namespace BuildXL.Pips.Operations
         public bool PreservePathSetCasing => (ProcessOptions & Options.PreservePathSetCasing) != 0;
 
         /// <summary>
+        /// <see cref="Options.WritingToStandardErrorFailsExecution"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool WritingToStandardErrorFailsExecution => (ProcessOptions & Options.WritingToStandardErrorFailsExecution) != 0;
+
+        /// <summary>
         /// Shortcut; <see cref="ServiceInfo.ShutdownPipId"/>.
         /// </summary>
         public PipId ShutdownProcessPipId => ServiceInfo?.ShutdownPipId ?? PipId.Invalid;

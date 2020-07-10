@@ -35,6 +35,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Execute = resolverSettings.Execute;
             CustomCommands = resolverSettings.CustomCommands;
             Exports = resolverSettings.Exports;
+            WritingToStandardErrorFailsExecution = resolverSettings.WritingToStandardErrorFailsExecution;
         }
 
         /// <inheritdoc/>
@@ -72,5 +73,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IJavaScriptExport> Exports { get; set; }
+
+        /// <inheritdoc/>
+        public bool? WritingToStandardErrorFailsExecution { get; set;  }
     }
 }

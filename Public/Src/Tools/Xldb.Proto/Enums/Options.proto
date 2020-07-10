@@ -31,4 +31,5 @@ enum Options{
     TrustStaticallyDeclaredAccesses = 131072;
     Uncancellable = 262144;
     PreservePathSetCasing = 524288;
+    WritingToStandardErrorFailsExecution = 1048576;
 }

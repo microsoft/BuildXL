@@ -822,6 +822,7 @@ namespace Test.BuildXL.Scheduler
             var preserveOutputAllowlist = source.Vary(p => p.PreserveOutputAllowlist);
             bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
             bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
+            bool writingToStandardErrorFailsExecution = source.Vary(p => p.WritingToStandardErrorFailsExecution);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -868,6 +869,11 @@ namespace Test.BuildXL.Scheduler
             if (preservePathSetCasing)
             {
                 options |= Process.Options.PreservePathSetCasing;
+            }
+
+            if (writingToStandardErrorFailsExecution)
+            {
+                options |= Process.Options.WritingToStandardErrorFailsExecution;
             }
 
             return new Process(

@@ -76,5 +76,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// Suffix added to the PipProcessError log when the process finished successfully but did not produced all required outputs.
         /// </summary>
         public const string PipProcessErrorMissingOutputsSuffix = "; required output is missing";
+
+        /// <summary>
+        /// Suffix added to the PipProcessError log when the process finished successfully but wrote to standard error.
+        /// </summary>
+        public const string PipProcessErrorWroteToStandardError = "; pip wrote to standard error";
     }
 }

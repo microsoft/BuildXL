@@ -566,6 +566,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessMissingExpectedOutputOnCleanExit(LoggingContext context, long pipSemiStableHash, string pipDescription, string pipSpecPath, string pipWorkingDirectory, string path);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessWroteToStandardErrorOnCleanExit,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Process exited succesfully but wrote to standard error. The process is configured to fail in this case, even if the exit code was successful.")]
+        public abstract void PipProcessWroteToStandardErrorOnCleanExit(LoggingContext context, long pipSemiStableHash, string pipDescription, string pipSpecPath, string pipWorkingDirectory);
+
+        [GeneratedEvent(
           (int)LogEventId.PipProcessExpectedMissingOutputs,
           EventGenerators = EventGenerators.LocalOnly,
           EventLevel = Level.Error,

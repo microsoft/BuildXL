@@ -222,6 +222,13 @@ namespace Transformer {
          * produced by this process
          */
         outputDirectoryExclusions?: Directory[];
+
+        /**
+         * When set, the execution of a process is considered to have failed if the process writes to standard error, regardless
+         * of the exit code.
+         * Defaults to false.
+         */
+        writingToStandardErrorFailsExecution?: boolean
     }
 
     @@public

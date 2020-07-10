@@ -49,6 +49,14 @@ namespace BuildXL.Utilities.Configuration
         /// Each exported value will have type SharedOpaqueDirectory[], containing the output directories of the specified projects.
         /// </remarks>
         IReadOnlyList<IJavaScriptExport> Exports { get; }
+
+        /// <summary>
+        /// When set, the execution of a script command is considered to have failed if the command writes to standard error, regardless of the script command exit code.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false.
+        /// </remarks>
+        bool? WritingToStandardErrorFailsExecution { get; }
     }
 
     /// <nodoc/>

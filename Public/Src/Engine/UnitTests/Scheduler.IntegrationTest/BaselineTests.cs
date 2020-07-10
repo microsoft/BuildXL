@@ -380,6 +380,26 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void WritingToStandardErrorFailsExecution()
+        {
+            // Schedule a pip that succeeds but writes to standard error
+            var pipBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.Echo("some message", useStdErr: true)
+            });
+
+            pipBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
+
+            Process pip = SchedulePipBuilder(pipBuilder).Process;
+
+            // Should fail since stderr was written
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessWroteToStandardErrorOnCleanExit);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+        }
+
+        [Fact]
         public void ValidateCachingCommandLineChange()
         {
             // Graph construction

@@ -100,6 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_uncancellable;
         private SymbolAtom m_outputDirectoryExclusions;
+        private SymbolAtom m_writingToStandardErrorFailsExecution;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
         private SymbolAtom m_executeEnableMultiLineErrorScanning;
@@ -243,6 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_uncancellable = Symbol("uncancellable");
             m_outputDirectoryExclusions = Symbol("outputDirectoryExclusions");
+            m_writingToStandardErrorFailsExecution = Symbol("writingToStandardErrorFailsExecution");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
             m_executeServiceFinalizationCmds = Symbol("serviceFinalizationCmds");
@@ -662,6 +664,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (outputDirectoryExclusions != null)
             {
                 ProcessOutputDirectoryExclusions(context, processBuilder, outputDirectoryExclusions);
+            }
+
+            // writingToStandardErrorFailsExecution flag
+            if (Converter.ExtractOptionalBoolean(obj, m_writingToStandardErrorFailsExecution) == true)
+            {
+                processBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
             }
 
             // Surviving process settings.

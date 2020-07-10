@@ -167,6 +167,11 @@ namespace BuildXL.Pips.Operations
             /// caching, where the same weak fingerprint may have different path sets that only differ in casing.
             /// </remarks>
             PreservePathSetCasing = 1 << 18,
+
+            /// <summary>
+            /// When set, the pip is considered to have failed executing if it writes to standard error, regardless of the pip exit code.
+            /// </summary>
+            WritingToStandardErrorFailsExecution = 1 << 19,
         }
     }
 }

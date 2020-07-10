@@ -59,7 +59,8 @@ namespace BuildXL.Pips.Graph
         /// 82: Add ProcessSymlinkedAcceses in SandboxConfiguration
         /// 83: Add PreservePathSetCasing in Process.Options
         /// 84: Added IgnoreFullSymlinkResolving in IUnsafeSandboxConfiguration.
+        /// 85: Added WritingToStandardErrorFailsPip in Process.Options
         /// </remarks>
-        TwoPhaseV2 = 84,
+        TwoPhaseV2 = 85,
     }
 }

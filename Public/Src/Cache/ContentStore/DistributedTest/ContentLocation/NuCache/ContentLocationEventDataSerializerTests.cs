@@ -13,9 +13,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-using Test.BuildXL.TestUtilities.Xunit;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -350,12 +348,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 Events.Add(new UpdateMetadataEntryEventData(Sender, strongFingerprint, entry));
             }
 
-            protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader)
+            protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable)
             {
                 return BoolResult.SuccessTask;
             }
 
-            protected override Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath)
+            protected override Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable)
             {
                 var bytes = State.Storage[storageId];
                 File.WriteAllBytes(targetFilePath.Path, bytes);

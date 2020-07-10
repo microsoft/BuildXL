@@ -394,6 +394,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Optional settings for validating CAS consistency used by DistributedCentralStorage.
         /// </summary>
         public SelfCheckSettings? SelfCheckSettings { get; set; }
+
+        /// <summary>
+        /// When enabled, we will use our knowledge of which checkpointed files are immutable or not to optimize copy
+        /// operations into hardlinks.
+        /// </summary>
+        public bool ImmutabilityOptimizations { get; set; }
     }
 
     /// <summary>

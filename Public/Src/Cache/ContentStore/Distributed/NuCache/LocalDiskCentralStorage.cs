@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath)
+        protected override Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable)
         {
             if (File.Exists(storageId))
             {
@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return Task.FromResult(new BoolResult($"Can't find checkpoint '{storageId}'."));
         }
 
-        protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool isUploader)
+        protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool isUploader, bool isImmutable)
         {
             return BoolResult.SuccessTask;
         }

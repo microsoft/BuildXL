@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System.IO;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Engine.Cache.KeyValueStores;
 using ContentStoreTest.Test;
@@ -19,9 +18,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void ReadOnlyWorksWithHardlinks()
+        public void WorksWithSstFileHardlinks()
         {
             var storeDirectory = TestRootDirectoryPath / "store";
+            var hardlinkPath = TestRootDirectoryPath / "hardlinks";
+
+            try
+            {
+                FileSystem.DeleteDirectory(storeDirectory, DeleteOptions.All);
+            }
+            catch (DirectoryNotFoundException)
+            {
+
+            }
+
+            try
+            {
+                FileSystem.DeleteDirectory(hardlinkPath, DeleteOptions.All);
+            }
+            catch (DirectoryNotFoundException)
+            {
+
+            }
+
+            FileSystem.CreateDirectory(hardlinkPath);
+
             var key = ThreadSafeRandom.GetBytes(10);
             var value = ThreadSafeRandom.GetBytes(10);
 
@@ -33,22 +54,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             }
 
             // Hardlink it to the target path
-            var hardlinkPath = TestRootDirectoryPath / "hardlinks";
-            FileSystem.CreateDirectory(hardlinkPath);
             foreach (var file in FileSystem.EnumerateFiles(storeDirectory, EnumerateOptions.None))
             {
                 var source = file.FullPath;
                 var target = hardlinkPath / file.FullPath.FileName;
 
                 Logger.Info($"Found {source}. Linking to {target}");
-                var result = FileSystem.CreateHardLink(source, target, replaceExisting: true);
-                result.Should().Be(CreateHardLinkResult.Success);
 
-                // Make sure nothing can be written to any of the files
-                FileSystem.SetFileAttributes(target, System.IO.FileAttributes.Normal);
-                FileSystem.SetFileAttributes(target, System.IO.FileAttributes.ReadOnly);
-                FileSystem.DenyFileWrites(target);
-                FileSystem.DenyAttributeWrites(target);
+                if (IsImmutable(source))
+                {
+                    var result = FileSystem.CreateHardLink(source, target, replaceExisting: true);
+                    result.Should().Be(CreateHardLinkResult.Success);
+
+                    // Make sure nothing can be written to any of the files
+                    FileSystem.DenyFileWrites(target);
+                    FileSystem.DenyAttributeWrites(target);
+                }
+                else
+                {
+                    FileSystem.CopyFile(source, target, replaceExisting: true);
+                }
             }
 
             // Open the target in read-only mode and make sure we read the same value
@@ -62,6 +87,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                   });
                 result.Succeeded.Should().BeTrue();
             }
+
+            // Open the target in write mode and make sure we can delete the key
+            using (var accessor = KeyValueStoreAccessor.Open(hardlinkPath.ToString(), openReadOnly: false).Result)
+            {
+                var result = accessor.Use(store =>
+                  {
+                      store.Remove(key);
+
+                      var lookup = store.TryGetValue(key, out var foundValue);
+                      lookup.Should().BeFalse();
+                  });
+                result.Succeeded.Should().BeTrue();
+            }
+        }
+
+        private bool IsImmutable(AbsolutePath source)
+        {
+            return source.Path.EndsWith(".sst");
         }
     }
 }

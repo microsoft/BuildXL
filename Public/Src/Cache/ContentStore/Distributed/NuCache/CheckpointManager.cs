@@ -205,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _fileSystem.FileExists(incrementalCheckpointFile))
             {
                 // File was present in last checkpoint. Just add it to the new incremental checkpoint info
-                await _storage.TouchBlobAsync(context, file, storageId, isUploader: true).ThrowIfFailure();
+                await _storage.TouchBlobAsync(context, file, storageId, isUploader: true, isImmutable: true).ThrowIfFailure();
                 newCheckpointInfo[relativePath] = storageId;
                 Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
             }
@@ -350,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         using (new DisposableDirectory(_fileSystem, _checkpointStagingDirectory))
                         {
                             // Getting the checkpoint from the central store
-                            await _storage.TryGetFileAsync(context, checkpointId, checkpointFile).ThrowIfFailure();
+                            await _storage.TryGetFileAsync(context, checkpointId, checkpointFile, isImmutable: true).ThrowIfFailure();
 
                             if (isIncrementalCheckpoint)
                             {
@@ -481,20 +481,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     var incrementalCheckpointFile = incrementalCheckpointFileResult.Value;
+                    var isFileImmutable = _database.IsImmutable(incrementalCheckpointFile);
                     if ((_incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
                             && storageId == fileStorageId)
-                        && _database.IsImmutable(incrementalCheckpointFile)
+                        && isFileImmutable
                         && _fileSystem.FileExists(incrementalCheckpointFile))
                     {
                         // File is already present in the incremental checkpoint directory, no need to download it
-                        await _storage.TouchBlobAsync(context, incrementalCheckpointFile, storageId, isUploader: false).ThrowIfFailure();
+                        await _storage.TouchBlobAsync(context, incrementalCheckpointFile, storageId, isUploader: false, isFileImmutable).ThrowIfFailure();
                         Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloadSkipped].Increment();
                     }
                     else
                     {
                         // File is missing, different, or mutable so download it and update it in the incremental checkpoint
                         _fileSystem.DeleteFile(incrementalCheckpointFile);
-                        await _storage.TryGetFileAsync(context, storageId, incrementalCheckpointFile).ThrowIfFailure();
+                        await _storage.TryGetFileAsync(context, storageId, incrementalCheckpointFile, isFileImmutable).ThrowIfFailure();
                         Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloaded].Increment();
                     }
 

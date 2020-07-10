@@ -283,6 +283,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 ProactiveCopyGetBulkBatchSize = 1,
                 ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
                 ProactiveCopyMaxRetries = ProactiveCopyRetries,
+
+                ContentLocationDatabaseOpenReadOnly = false,
+                DistributedCentralStorageImmutabilityOptimizations = true,
             };
 
             _overrideDistributed?.Invoke(settings);

@@ -39,12 +39,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Touches a blob to indicate that the blob is still active.
         /// </summary>
-        public Task<BoolResult> TouchBlobAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader)
+        public Task<BoolResult> TouchBlobAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable = false)
         {
             storageId = PreprocessStorageId(storageId);
             return context.PerformOperationAsync(
                 Tracer,
-                () => TouchBlobCoreAsync(context, file, storageId, isUploader),
+                () => TouchBlobCoreAsync(context, file, storageId, isUploader, isImmutable),
                 counter: Counters[CentralStorageCounters.TouchBlob],
                 extraStartMessage: $"[{storageId}]");
         }
@@ -52,12 +52,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Try to get the blob specified by a given <paramref name="storageId"/> and store it in a <paramref name="targetFilePath"/>.
         /// </summary>
-        public Task<BoolResult> TryGetFileAsync(OperationContext context, string storageId, AbsolutePath targetFilePath)
+        public Task<BoolResult> TryGetFileAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable = false)
         {
             storageId = PreprocessStorageId(storageId);
             return context.PerformOperationAsync(
                 Tracer,
-                () => TryGetFileCoreAsync(context, storageId, targetFilePath),
+                () => TryGetFileCoreAsync(context, storageId, targetFilePath, isImmutable),
                 counter: Counters[CentralStorageCounters.TryGetFile],
                 extraStartMessage: $"[{storageId}]");
         }
@@ -70,11 +70,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// <see cref="TouchBlobAsync"/>
         /// </summary>
-        protected abstract Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader);
+        protected abstract Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable);
 
         /// <summary>
         /// <see cref="TryGetFileAsync"/>
         /// </summary>
-        protected abstract Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath);
+        protected abstract Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable);
     }
 }

@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = async m =>
             {
                 ConfigurationOptions options = ConfigurationOptions.Parse(m.Configuration);
-                await RedisConnectionMultiplexer.ForgetAsync(options);
+                await RedisConnectionMultiplexer.ForgetAsync(context, options);
             };
 
             var connectionMultiplexer = await connectionMultiplexerFactory();

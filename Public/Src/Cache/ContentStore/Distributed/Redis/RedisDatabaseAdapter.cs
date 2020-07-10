@@ -356,8 +356,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 // It means that the service just reconnected to a redis instance.
                 context.Info($"Successfully reconnected to {DatabaseName}. Previous ConnectionErrorCount={previousConnectionErrorCount}, previous ReconnectionCount={previousReconnectionCount}");
             }
-
-            
         }
 
         /// <summary>

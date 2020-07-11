@@ -1148,6 +1148,15 @@ namespace BuildXL.Engine
 
                 // Spec cache is disabled as most builds are happening on SSDs. 
                 mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
+
+                if (mutableConfig.Logging.Environment == ExecutionEnvironment.OsgLab &&
+                    mutableConfig.Schedule.DelayedCacheLookupMaxMultiplier == null &&
+                    mutableConfig.Schedule.DelayedCacheLookupMinMultiplier == null)
+                {
+                    // For Cosine builds in CloudBuild, enable delayedCacheLookup by default.
+                    mutableConfig.Schedule.DelayedCacheLookupMaxMultiplier = 2;
+                    mutableConfig.Schedule.DelayedCacheLookupMinMultiplier = 1;
+                }
             }
             else
             {

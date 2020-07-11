@@ -1215,45 +1215,61 @@ namespace Test.BuildXL.Scheduler
             // End of test setup. Now query various directories under different situations to make sure the appropriate enumeration method is used
 
             // A file outside of any mount should get the default fingerprint
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/outsideAnyMount")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/outsideAnyMount")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.DefaultFingerprint, mode);
             XAssert.IsNull(rule);
 
+            // A file outside of any mount when undeclared source reads are on should get the minimal + alien fingerprint
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/outsideAnyMount")), allowUndeclaredSourceReads: true, out rule);
+            XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraphWithAlienFiles, mode);
+            XAssert.IsNull(rule);
+
             // A file in an unhashable mount also gets the default fingerprint
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/notHashable")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/notHashable")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.DefaultFingerprint, mode);
             XAssert.IsNull(rule);
 
             // Readonly mounts use the filesystem
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/readOnly")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/readOnly")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.RealFilesystem, mode);
             XAssert.IsNull(rule);
 
             // Readonly directories use the filesystem
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), isReadOnlyDirectory: true, rule: out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), allowUndeclaredSourceReads: false, isReadOnlyDirectory: true, rule: out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.RealFilesystem, mode);
             XAssert.IsNull(rule);
 
             // Writeable mounts use the graph
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraph, mode);
             XAssert.IsNull(rule);
 
             // Check that a rule impacts the enumeration method
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/filesystemDisabled")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/filesystemDisabled")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraph, mode);
             XAssert.IsNotNull(rule);
 
             // Change the configuration to always use the minimal graph. This should override the readonly path that use to use the real filesystem
             config.Sandbox.FileSystemMode = FileSystemMode.AlwaysMinimalGraph;
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/readOnly")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/readOnly")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraph, mode);
             XAssert.IsNull(rule);
 
             // Set the configuration to use the full graph
             config.Sandbox.FileSystemMode = FileSystemMode.RealAndPipGraph;
-            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), out rule);
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable")), allowUndeclaredSourceReads: false, out rule);
             XAssert.AreEqual(DirectoryEnumerationMode.FullGraph, mode);
+            XAssert.IsNull(rule);
+
+            // If allowed undeclared reads are enabled, we should always get the minimal + alien file system mode on a known mount
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/writeable/foo/bar")), allowUndeclaredSourceReads: true, out rule);
+            XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraphWithAlienFiles, mode);
+            XAssert.IsNull(rule);
+
+            // Change the configuration to always use the alien files graph. This should override the readonly path that use to use the real filesystem
+            config.Sandbox.FileSystemMode = FileSystemMode.AlwaysMinimalWithAlienFilesGraph;
+            mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/readOnly")), allowUndeclaredSourceReads: false, out rule);
+            XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraphWithAlienFiles, mode);
             XAssert.IsNull(rule);
         }
 

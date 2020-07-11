@@ -37,5 +37,13 @@ namespace BuildXL.Utilities.Configuration
         /// don't explicitely declare dependencies on the files they consume.
         /// </summary>
         AlwaysMinimalGraph,
+
+        /// <summary>
+        /// Always use MinimalWithAlienFilesGraph for determining directory fingerprints. This is a stricter version of <see cref="AlwaysMinimalGraph"/>
+        /// where files alien to the build (including undeclared source reads) are also included. Known outputs that are not part of the immediate
+        /// dependencies are excluded, which matches the behavior of PipGraph.
+        /// The main use case is avoiding underbuilds when a directory change wrt undeclared source reads.
+        /// </summary>
+        AlwaysMinimalWithAlienFilesGraph,
     }
 }

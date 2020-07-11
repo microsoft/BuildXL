@@ -172,6 +172,11 @@ namespace BuildXL.Utilities
         public static ObjectPool<HashSet<AbsolutePath>> AbsolutePathSetPool { get; } = CreateSetPool<AbsolutePath>();
 
         /// <summary>
+        /// Global pool of HashSet&lt;(AbsolutePath, string)&gt; instances.
+        /// </summary>
+        public static ObjectPool<HashSet<(AbsolutePath, string)>> DirectoryMemberEntrySetPool { get; } = CreateSetPool<(AbsolutePath, string)>();
+
+        /// <summary>
         /// Global pool of char[] instances.
         /// </summary>
         public static ArrayPool<char> CharArrayPool { get; } = new ArrayPool<char>(260 /* MAX PATH */);
@@ -421,6 +426,19 @@ namespace BuildXL.Utilities
         public static PooledObjectWrapper<HashSet<AbsolutePath>> GetAbsolutePathSet()
         {
             return AbsolutePathSetPool.GetInstance();
+        }
+
+        /// <summary>
+        /// Gets an HashSet&lt;(AbsolutePath, string)&gt; instance from a common object pool.
+        /// </summary>
+        /// <remarks>
+        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
+        /// when you are done with the set. Calling Dispose returns the set to the
+        /// pool.
+        /// </remarks>
+        public static PooledObjectWrapper<HashSet<(AbsolutePath, string)>> GetDirectoryMemberSet()
+        {
+            return DirectoryMemberEntrySetPool.GetInstance();
         }
 
         /// <summary>

@@ -992,10 +992,21 @@ namespace BuildXL.Scheduler
         FullGraphDirectoryEnumerations,
 
         /// <summary>
+        /// The number of minimal graph with alien files directory enumerations.
+        /// </summary>
+        MinimalGraphWithAlienFilesDirectoryEnumerations,
+
+        /// <summary>
         /// The time spent to enumerate the directories via full graph 
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         FullGraphDirectoryEnumerationsDuration,
+
+        /// <summary>
+        /// The time spent to enumerate the directories via minimal graph with alien files
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MinimalGraphWithAlienFilesDirectoryEnumerationsDuration,
 
         /// <summary>
         /// The number of existing directory probes in pathsets

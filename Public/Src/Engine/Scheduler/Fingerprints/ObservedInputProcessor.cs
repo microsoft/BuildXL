@@ -1696,9 +1696,14 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
                 else
                 {
-                    // ExistsAsDirectory is handled before querying real file system
+                    // Generally speaking, if the full graph file system doesn't know about a given directory, that means there are no known inputs
+                    // underneath and it is safe to return that the directory does not exist: this makes the pip fingerprint stable across changes in directories
+                    // that pips are not allowed to read anyway. However, when undeclared source reads mode is on, we need to return what the real file system
+                    // is seeing since there might be undeclared inputs underneath
+                    // Observe this behavior is in sync wrt incremental scheduling: in case of undeclared reads, we are only returning that the directory exists when
+                    // it actually exists in the real filesystem
                     Contract.Assert(fullGraphExistExistence.Result == PathExistence.Nonexistent);
-                    return PathExistence.Nonexistent;
+                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads? existence : PathExistence.Nonexistent;
                 }
             }
 
@@ -1756,16 +1761,16 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Determines the way a directory should be enumerated based on the directory. This is where the logic for switching
         /// between various filesystem rules lives
         /// </summary>
-        internal DirectoryEnumerationMode DetermineEnumerationModeAndRule(AbsolutePath directoryPath, out DirectoryMembershipFingerprinterRule rule)
+        internal DirectoryEnumerationMode DetermineEnumerationModeAndRule(AbsolutePath directoryPath, bool allowUndeclaredSourceReads, out DirectoryMembershipFingerprinterRule rule)
         {
-            return DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory: false, rule: out rule);
+            return DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory: false, allowUndeclaredSourceReads, rule: out rule);
         }
 
         /// <summary>
         /// Determines the way a directory should be enumerated based on the directory. This is where the logic for switching
         /// between various filesystem rules lives
         /// </summary>
-        internal DirectoryEnumerationMode DetermineEnumerationModeAndRule(AbsolutePath directoryPath, bool isReadOnlyDirectory, out DirectoryMembershipFingerprinterRule rule)
+        internal DirectoryEnumerationMode DetermineEnumerationModeAndRule(AbsolutePath directoryPath, bool isReadOnlyDirectory, bool allowUndeclaredSourceReads, out DirectoryMembershipFingerprinterRule rule)
         {
             Contract.Assume(directoryPath.IsValid);
 
@@ -1776,7 +1781,8 @@ namespace BuildXL.Scheduler.Fingerprints
             if (!mountInfo.AllowHashing || (!mountInfo.IsReadable && !mountInfo.IsWritable))
             {
                 rule = null;
-                return DirectoryEnumerationMode.DefaultFingerprint;
+                // Undeclared sources are allowed even when no mount is defined for them. So make sure we use the file system that includes them
+                return allowUndeclaredSourceReads? DirectoryEnumerationMode.MinimalGraphWithAlienFiles : DirectoryEnumerationMode.DefaultFingerprint;
             }
 
             // If the config says to always use the minimal graph, honor it
@@ -1785,24 +1791,41 @@ namespace BuildXL.Scheduler.Fingerprints
                 rule = null;
                 return DirectoryEnumerationMode.MinimalGraph;
             }
+            
+            // Similarly with the minimal graph with alien files file system enumeration mode
+            if (m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalWithAlienFilesGraph)
+            {
+                rule = null;
+                return DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
+            }
 
             // Now determine which graph based enumeration mode could be used, if we determine to use the graph
             DirectoryEnumerationMode graphEnumerationMode;
-            switch (m_env.Configuration.Sandbox.FileSystemMode)
+
+            // If allowed undeclared reads are allowed, then using the alien files file system avoids underbuilds
+            // when a new undeclared read gets added so it only affects enumerations
+            if (allowUndeclaredSourceReads)
             {
-                case FileSystemMode.RealAndMinimalPipGraph:
-                    graphEnumerationMode = DirectoryEnumerationMode.MinimalGraph;
-                    break;
-                case FileSystemMode.RealAndPipGraph:
-                    // If the directoryPath is under an opaque directory, then we always use the minimal graph, so
-                    // all artifacts from direct dependencies (both static and dynamic content) will be used
-                    graphEnumerationMode = m_env.PipGraphView.IsPathUnderOutputDirectory(directoryPath, out _) ?
-                        DirectoryEnumerationMode.MinimalGraph :
-                        DirectoryEnumerationMode.FullGraph;
-                    break;
-                default:
-                    Contract.Assert(false, "Unknown FileSystemMode");
-                    throw new BuildXLException(string.Empty);
+                graphEnumerationMode = DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
+            }
+            else
+            {
+                switch (m_env.Configuration.Sandbox.FileSystemMode)
+                {
+                    case FileSystemMode.RealAndMinimalPipGraph:
+                        graphEnumerationMode = DirectoryEnumerationMode.MinimalGraph;
+                        break;
+                    case FileSystemMode.RealAndPipGraph:
+                        // If the directoryPath is under an opaque directory, then we always use the minimal graph, so
+                        // all artifacts from direct dependencies (both static and dynamic content) will be used
+                        graphEnumerationMode = m_env.PipGraphView.IsPathUnderOutputDirectory(directoryPath, out _) ?
+                            DirectoryEnumerationMode.MinimalGraph :
+                            DirectoryEnumerationMode.FullGraph;
+                        break;
+                    default:
+                        Contract.Assert(false, "Unknown FileSystemMode");
+                        throw new BuildXLException(string.Empty);
+                }
             }
 
             // If the directory has build outputs, the graph enumeration should be used
@@ -1848,12 +1871,12 @@ namespace BuildXL.Scheduler.Fingerprints
             try
             {
                 m_directoryMembershipFilter = filter;
-
+                
                 DirectoryMembershipFingerprinterRule rule = null;
-                enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, out rule);
+                enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, process.UnderlyingPip.ProcessAllowsUndeclaredSourceReads, out rule);
 
                 // If (1) the enumeration does not use the search-based filter and (2) the directory is not enumerated via the minimal graph, cache the fingerprint.
-                bool cacheableFingerprint = !eventData.IsSearchPath && enumerationMode != DirectoryEnumerationMode.MinimalGraph;
+                bool cacheableFingerprint = !eventData.IsSearchPath && enumerationMode != DirectoryEnumerationMode.MinimalGraph && enumerationMode != DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
 
                 if (filter == DirectoryMembershipFilter.AllowAllFilter && AllowAllFilterPaths.Add(directoryPath))
                 {
@@ -1910,7 +1933,21 @@ namespace BuildXL.Scheduler.Fingerprints
 
                             break;
                         }
+                    case DirectoryEnumerationMode.MinimalGraphWithAlienFiles:
+                        using (Counters.StartStopwatch(PipExecutorCounter.MinimalGraphWithAlienFilesDirectoryEnumerationsDuration))
+                        {
+                            eventData.IsStatic = false;
+                            result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
+                                directoryPath,
+                                process,
+                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles,
+                                cacheableFingerprint: cacheableFingerprint,
+                                rule: rule,
+                                eventData: eventData);
+                            Counters.IncrementCounter(PipExecutorCounter.MinimalGraphWithAlienFilesDirectoryEnumerations);
 
+                            break;
+                        }
                     default:
                         Contract.Assume(enumerationMode == DirectoryEnumerationMode.RealFilesystem);
 
@@ -1982,6 +2019,87 @@ namespace BuildXL.Scheduler.Fingerprints
             return TryEnumerateDirectory(request, FileSystemViewMode.FullGraph, trackPathExistence: false);
         }
 
+        private PathExistence? TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(EnumerationRequest request)
+        {
+            // Enumerating the minimal + alien files means exposing outputs from immediate dependencies and hiding outputs
+            // from everything else. Input files, undeclared sources or any other alien file (unknown to the build) will
+            // become part of the enumeration. The main goal is to balance fingerprint stability and correctness.
+            // The main steps are:
+            // 1) add known immediate outputs using the pip file system. These should always be there.
+            // 2) enumerate the real file system excluding outputs that are not immediate dependency ones
+            using (var pooledPathSet = Pools.GetDirectoryMemberSet())
+            {
+                var pipFileEnumResult = pooledPathSet.Instance;
+
+                // 1) Query the pip file system, since we want outputs from immediate dependencies to be there regardless
+                // of the state of the real file system
+                InitializePipFileSystem(request.PipInfo);
+
+                // Reuse the pip file system enumeration by setting a handle that just adds to the final enumeration
+                var path = request.DirectoryPath;
+                Action<AbsolutePath, string> addPipFileSystemEntry = new Action<AbsolutePath, string>((absolutePath, pathAsString) => pipFileEnumResult.Add((absolutePath, pathAsString)));
+                var pipEnumeration = PipFileSystem.EnumerateDirectory(PathTable, path, addPipFileSystemEntry);
+
+                // 2) Query the real file system since we want inputs (including undeclared sources) to be part of the fingerprint
+                // and add the result to the final enumeration
+                var realFileEnumResult = GetEnumerationResult(request, FileSystemViewMode.Real, trackPathExistence: false);
+
+                // Only add entries coming from the real enumeration if they are not recognized as outputs (and are not part of the immediate dependency outputs either)
+                if (realFileEnumResult.IsValid)
+                {
+                    foreach (var realFileEntry in realFileEnumResult.Members)
+                    {
+                        // If the real entry is already part of the enumeration, this means it is also part of the pip file system 
+                        // and it is already included
+                        if (pipFileEnumResult.Contains(realFileEntry))
+                        {
+                            continue;
+                        }
+                        
+                        // If the entry is reported as existent from the output file system, this means it is an output that is
+                        // not part of the immediate dependencies. So we don't add it.
+                        if (FileSystemView.GetExistence(realFileEntry.Item1, FileSystemViewMode.Output).Result != PathExistence.Nonexistent)
+                        {
+                            continue;
+                        }
+
+                        // There might be stale outputs that bxl is not aware of as yet coming from exclusive opaques.
+                        // These outputs are not part of the output file system (because they were not produced yet).
+                        // Any file found under an exclusive opaque is considered an output
+                        if (m_env.PipGraphView.IsPathUnderOutputDirectory(request.DirectoryPath, out var isSharedOpaque) && !isSharedOpaque)
+                        {
+                            continue;
+                        }
+
+                        // Finally, we can always remove any stale shared opaque files since those are permanently flagged. 
+                        // Observe that as a side effect of IsSharedOpaqueOutput, we won't include directories in the fingerprint (since directories are always considered
+                        // shared opaque outputs). This is intentional since even though ignoring the presence of directories could result in an under build, directories
+                        // in general are too unstable in bxl land, where we don't keep track of them fully.
+                        try
+                        {
+                            if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntry.Item1.ToString(PathTable)))
+                            {
+                                continue;
+                            }
+                        }
+                        catch(BuildXLException)
+                        {
+                            // Checking for shared opaques can fail if the target file requires extra permissions
+                            // In this case we choose the most conservative option and do not consider the output a shared opaque
+                        }
+
+                        pipFileEnumResult.Add(realFileEntry);
+                    }
+                }
+
+                // Create a new directory enumeration result that represents this 'overlayed' view
+                var result = new DirectoryEnumerationResult(pipFileEnumResult.Count > 0 ? PathExistence.ExistsAsDirectory : PathExistence.Nonexistent, pipFileEnumResult.ToList());
+                var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
+
+                return HandleDirectoryContents(request, result, handleEntry);
+            }
+        }
+
         /// <summary>
         /// Attempts to enumerate a directory.
         /// </summary>
@@ -1997,13 +2115,17 @@ namespace BuildXL.Scheduler.Fingerprints
         private PathExistence? TryEnumerateDirectory(EnumerationRequest request, FileSystemViewMode mode, bool trackPathExistence = true)
         {
             var directoryContents = GetEnumerationResult(request, mode, trackPathExistence: trackPathExistence);
-
             var path = request.DirectoryPath;
             var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
 
+            return HandleDirectoryContents(request, directoryContents, handleEntry);
+        }
+
+        private PathExistence? HandleDirectoryContents(EnumerationRequest request, DirectoryEnumerationResult directoryContents, Action<AbsolutePath, string> handleEntry)
+        {
             if (!directoryContents.IsValid)
             {
-                Logger.Log.DirectoryFingerprintingFilesystemEnumerationFailed(Events.StaticContext, path.ToString(PathTable), "The error was given before");
+                Logger.Log.DirectoryFingerprintingFilesystemEnumerationFailed(Events.StaticContext, request.DirectoryPath.ToString(PathTable), "The error was given before");
                 return null;
             }
 

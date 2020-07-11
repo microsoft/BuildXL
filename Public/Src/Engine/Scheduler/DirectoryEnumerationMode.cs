@@ -30,5 +30,16 @@ namespace BuildXL.Scheduler
         /// Enumerations to directories that are under un-hashable or non-readable non-writable mounts do not contribute to fingerprints
         /// </remarks>
         DefaultFingerprint,
+
+        /// <summary>
+        /// Presents a relevant mix of the real filesystem and known immediate dependencies. This is a slightly
+        /// stricter mode than <see cref="MinimalGraph"/>.
+        /// In particular:
+        /// * Immediate output dependencies are always present
+        /// * Known outputs that are not part of the immediate dependencies are always absent
+        /// * Files that are not recognized as (present or yet absent) outputs and are present in the file system. Observe this last
+        ///   category includes undeclared source reads.
+        /// </summary>
+        MinimalGraphWithAlienFiles,
     }
 }

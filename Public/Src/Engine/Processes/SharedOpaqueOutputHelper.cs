@@ -204,12 +204,20 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// <see cref="IsSharedOpaqueOutput(string, out PathExistence)"/>
+        /// </summary>
+        public static bool IsSharedOpaqueOutput(string expandedPath)
+        {
+            return IsSharedOpaqueOutput(expandedPath, out _);
+        }
+
+        /// <summary>
         /// Checks if the given path is an output under a shared opaque by verifying whether <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/> is the creation time of the file
         /// </summary>
         /// <remarks>
         /// If the given path is a directory, it is always considered part of a shared opaque
         /// </remarks>
-        public static bool IsSharedOpaqueOutput(string expandedPath)
+        public static bool IsSharedOpaqueOutput(string expandedPath, out PathExistence pathExistence)
         {
             // On Windows: FOLLOW symlinks
             //   - directory symlinks are not fully supported (e.g., producing directory symlinks)
@@ -228,6 +236,7 @@ namespace BuildXL.Processes
             var maybeResult = FileUtilities.TryProbePathExistence(expandedPath, followSymlink);
             if (maybeResult.Succeeded && maybeResult.Result == PathExistence.Nonexistent)
             {
+                pathExistence = PathExistence.Nonexistent;
                 return true;
             }
 
@@ -236,8 +245,11 @@ namespace BuildXL.Processes
             // It is important to track directory symlinks, because they are considered files for sake of shared opaque scrubbing.
             if (maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsDirectory)
             {
+                pathExistence = PathExistence.ExistsAsDirectory;
                 return true;
             }
+
+            pathExistence = PathExistence.ExistsAsFile;
 
             return OperatingSystemHelper.IsMacOS
                 ? XattrBased.IsSharedOpaqueOutput(expandedPath)

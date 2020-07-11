@@ -108,6 +108,8 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "FrameworkCore22";
         case QTestDotNetFramework.frameworkCore30:
             return "FrameworkCore30";
+        case QTestDotNetFramework.netcoreApp:
+            return "netcoreApp";    
         case QTestDotNetFramework.unspecified:
         default:
             return "Unspecified";
@@ -435,6 +437,8 @@ export const enum QTestDotNetFramework {
     frameworkCore22,
     @@Tool.option("--qtestDotNetFramework frameworkCore30")
     frameworkCore30,
+    @@Tool.option("--qtestDotNetFramework netcoreApp")
+    netcoreApp
 }
 
 /**

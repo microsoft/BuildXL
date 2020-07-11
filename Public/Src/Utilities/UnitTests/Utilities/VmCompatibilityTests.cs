@@ -107,34 +107,15 @@ namespace Test.BuildXL.Utilities
 
                 string vmOriginalTemp = Environment.GetEnvironmentVariable(VmSpecialEnvironmentVariables.VmOriginalTemp);
                 XAssert.IsNotNull(vmOriginalTemp);
-
-                string testEnvironment = Environment.GetEnvironmentVariable("TESTENVIRONMENT");
-                bool inQTest = !string.IsNullOrEmpty(testEnvironment) && string.Equals(testEnvironment, "QTEST", StringComparison.OrdinalIgnoreCase);
                 
                 string tempVarValue = Environment.GetEnvironmentVariable("Temp") ?? Environment.GetEnvironmentVariable("Tmp");
                 string tempPath = Path.GetTempPath();
 
                 // For our unit test, we ensure that temp var is set.
                 XAssert.IsNotNull(tempVarValue);
-
-                if (inQTest)
-                {
-                    // QTest changes %TEMP% to its sandbox path. When we relocate the TEMP in sandboxed process pip executor, we don't know about
-                    // the existence of QTest sandbox path. The sandbox path may have been created using the original %TEMP%.
-                    XAssert.AreEqual(
-                        Path.GetPathRoot(vmOriginalTemp).ToUpperInvariant(),
-                        Path.GetPathRoot(tempVarValue).ToUpperInvariant(),
-                        $"%TEMP% (or %TMP%): '{tempVarValue}'");
-                    XAssert.AreEqual(
-                        Path.GetPathRoot(vmOriginalTemp).ToUpperInvariant(),
-                        Path.GetPathRoot(tempPath.ToUpperInvariant()),
-                        $"Path.GetTempPath(): '{tempPath}'");
-                }
-                else
-                {
-                    XAssert.IsTrue(tempVarValue.StartsWith(VmConstants.Temp.Root, StringComparison.OrdinalIgnoreCase), $"%TEMP% (or %TMP%): '{tempVarValue}'");
-                    XAssert.IsTrue(tempPath.StartsWith(VmConstants.Temp.Root, StringComparison.OrdinalIgnoreCase), $"Path.GetTempPath(): '{tempPath}'");
-                }
+                
+                XAssert.IsTrue(tempVarValue.StartsWith(VmConstants.Temp.Root, StringComparison.OrdinalIgnoreCase), $"%TEMP% (or %TMP%): '{tempVarValue}'");
+                XAssert.IsTrue(tempPath.StartsWith(VmConstants.Temp.Root, StringComparison.OrdinalIgnoreCase), $"Path.GetTempPath(): '{tempPath}'");                
             });
         }
 

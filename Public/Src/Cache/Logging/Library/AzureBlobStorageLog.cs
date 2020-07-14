@@ -36,7 +36,7 @@ namespace BuildXL.Cache.Logging
     ///     The working assumption here is that the log lines are formatted as expected by Kusto. This is purely a
     ///     configuration issue which can't be enforced from the code here, so we assume that to be correct.
     /// </remarks>
-    public sealed class AzureBlobStorageLog : StartupShutdownSlimBase
+    public sealed class AzureBlobStorageLog : StartupShutdownSlimBase, IKustoLog
     {
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageLog));
@@ -52,6 +52,8 @@ namespace BuildXL.Cache.Logging
         private readonly ITelemetryFieldsProvider _telemetryFieldsProvider;
 
         private readonly CloudBlobContainer _container;
+
+        private readonly IReadOnlyDictionary<string, string> _additionalBlobMetadata;
 
         /// <summary>
         /// Logs are pushed into this queue, and batched together for writing them into files on disk.
@@ -80,7 +82,29 @@ namespace BuildXL.Cache.Logging
         public Func<StreamWriter, Task>? OnFileClose { get; set; } = null;
 
         /// <nodoc />
-        public AzureBlobStorageLog(AzureBlobStorageLogConfiguration configuration, OperationContext context, IClock clock, IAbsFileSystem fileSystem, ITelemetryFieldsProvider telemetryFieldsProvider, AzureBlobStorageCredentials credentials)
+        public AzureBlobStorageLog(
+            AzureBlobStorageLogConfiguration configuration, 
+            OperationContext context, 
+            IClock clock, 
+            IAbsFileSystem fileSystem, 
+            ITelemetryFieldsProvider telemetryFieldsProvider, 
+            AzureBlobStorageCredentials credentials,
+            IReadOnlyDictionary<string, string> additionalBlobMetadata)
+            : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
+                credentials.CreateCloudBlobClient().GetContainerReference(configuration.ContainerName),
+                additionalBlobMetadata)
+        {
+        }
+
+        /// <nodoc />
+        public AzureBlobStorageLog(
+            AzureBlobStorageLogConfiguration configuration, 
+            OperationContext context, 
+            IClock clock, 
+            IAbsFileSystem fileSystem, 
+            ITelemetryFieldsProvider telemetryFieldsProvider, 
+            CloudBlobContainer container,
+            IReadOnlyDictionary<string, string> additionalBlobMetadata)
         {
             _configuration = configuration;
 
@@ -88,9 +112,8 @@ namespace BuildXL.Cache.Logging
             _clock = clock;
             _fileSystem = fileSystem;
             _telemetryFieldsProvider = telemetryFieldsProvider;
-
-            var cloudBlobClient = credentials.CreateCloudBlobClient();
-            _container = cloudBlobClient.GetContainerReference(configuration.ContainerName);
+            _container = container;
+            _additionalBlobMetadata = additionalBlobMetadata;
 
             _writeQueue = NagleQueue<string>.CreateUnstarted(
                 configuration.WriteMaxDegreeOfParallelism,
@@ -183,18 +206,14 @@ namespace BuildXL.Cache.Logging
             return BoolResult.SuccessTask;
         }
 
-        /// <summary>
-        ///     Write a single log line
-        /// </summary>
+        /// <inheritdoc />
         public void Write(string log)
         {
             _writeQueue.Enqueue(log);
         }
 
-        /// <summary>
-        ///     Write multiple log lines
-        /// </summary>
-        public void Write(IEnumerable<string> logs)
+        /// <inheritdoc />
+        public void WriteBatch(IEnumerable<string> logs)
         {
             _writeQueue.EnqueueAll(logs);
         }
@@ -324,6 +343,14 @@ namespace BuildXL.Cache.Logging
                     var uploadSucceeded = true;
                     try
                     {
+                        if (_additionalBlobMetadata != null)
+                        {
+                            foreach (KeyValuePair<string, string> pair in _additionalBlobMetadata)
+                            {
+                                blob.Metadata.Add(pair.Key, pair.Value);
+                            }
+                        }
+
                         if (uploadTask.UncompressedSizeBytes != null)
                         {
                             blob.Metadata.Add("rawSizeBytes", uploadTask.UncompressedSizeBytes.ToString());

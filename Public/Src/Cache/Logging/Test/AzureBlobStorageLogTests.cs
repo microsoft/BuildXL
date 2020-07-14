@@ -48,7 +48,7 @@ namespace BuildXL.Cache.Logging.Test
             return WithConfiguration(async (configuration, context, clock, fileSystem, telemetryFieldsProvider, credentials) =>
             {
                 configuration.DrainUploadsOnShutdown = true;
-                var log = new AzureBlobStorageLog(configuration, context, clock, fileSystem, telemetryFieldsProvider, credentials);
+                var log = new AzureBlobStorageLog(configuration, context, clock, fileSystem, telemetryFieldsProvider, credentials, null);
 
                 await log.StartupAsync().ThrowIfFailure();
                 {

@@ -298,7 +298,8 @@ namespace BuildXL.Cache.Host.Service
                 clock: SystemClock.Instance,
                 fileSystem: new PassThroughFileSystem(),
                 telemetryFieldsProvider: arguments.TelemetryFieldsProvider,
-                credentials: credentials);
+                credentials: credentials,
+                additionalBlobMetadata: null);
 
             await azureBlobStorageLog.StartupAsync().ThrowIfFailure();
 

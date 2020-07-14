@@ -11,7 +11,7 @@ namespace BuildXL.Cache.Host.Service
     /// <summary>
     /// Host used for providing callbacks and external functionality to a distributed cache service
     /// </summary>
-    public interface IDistributedCacheServiceHost
+    public interface IDistributedCacheServiceHost : ISecretsProvider
     {
         /// <summary>
         /// Notifies host immediately before host is started and returns a task that completes when the service is ready to start
@@ -33,15 +33,5 @@ namespace BuildXL.Cache.Host.Service
         /// Request a graceful shutdown of a current service instance.
         /// </summary>
         void RequestTeardown(string reason);
-
-        /// <summary>
-        /// Gets a value from the hosting environment's secret store
-        /// </summary>
-        string GetSecretStoreValue(string key);
-
-        /// <summary>
-        /// Retrieves secrets from key vault
-        /// </summary>
-        Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token);
     }
 }

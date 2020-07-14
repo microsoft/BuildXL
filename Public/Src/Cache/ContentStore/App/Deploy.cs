@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.App
                 Initialize();
                 var deploymentRoot = new AbsolutePath(targetDirectory);
 
-                var deploymentRunner = new DeploymentRunner(
+                var deploymentRunner = new DeploymentIngester(
                             context: new OperationContext(new Context(_logger)),
                             sourceRoot: new AbsolutePath(sourceRoot),
                             deploymentRoot: deploymentRoot,

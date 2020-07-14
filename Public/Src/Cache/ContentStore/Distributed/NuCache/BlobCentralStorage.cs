@@ -77,6 +77,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public override bool SupportsSasUrls => true;
+
+        /// <inheritdoc />
+        protected override async Task<Result<string>> TryGetSasUrlCore(OperationContext context, string storageId, DateTime expiry)
+        {
+            foreach (var (container, shardId) in _containers)
+            {
+                var blob = container.GetBlockBlobReference(storageId);
+                var exists = await blob.ExistsAsync(null, null, context.Token);
+
+                if (exists)
+                {
+                    var policy = new SharedAccessBlobPolicy()
+                    {
+                        Permissions = SharedAccessBlobPermissions.Read,
+                        SharedAccessExpiryTime = expiry
+                    };
+
+                    var sasUrlQuery = blob.GetSharedAccessSignature(policy);
+
+                    await TouchShardBlobAsync(context, container, shardId, storageId).ThrowIfFailure();
+
+                    return blob.Uri.AbsoluteUri + sasUrlQuery;
+                }
+                else
+                {
+                    Tracer.Debug(context, $@"Could not find '{_configuration.ContainerName}\{storageId}' from shard #{shardId}.");
+                }
+            }
+
+            return new ErrorResult($@"Could not find '{_configuration.ContainerName}\{storageId}'");
+        }
+
+        /// <inheritdoc />
         protected override async Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string blobName, AbsolutePath targetCheckpointFile, bool isImmutable)
         {
             BoolResult? attemptResult = null;

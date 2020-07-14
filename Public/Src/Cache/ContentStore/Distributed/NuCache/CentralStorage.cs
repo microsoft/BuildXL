@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -17,6 +19,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         /// <nodoc />
         public CounterCollection<CentralStorageCounters> Counters { get; } = new CounterCollection<CentralStorageCounters>();
+
+        /// <summary>
+        /// Indicates whether the central storage instance supports SAS download urls
+        /// </summary>
+        public virtual bool SupportsSasUrls { get; }
 
         /// <summary>
         /// Preprocess storage id to remove unsupported components
@@ -61,6 +68,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 counter: Counters[CentralStorageCounters.TryGetFile],
                 extraStartMessage: $"[{storageId}]");
         }
+
+        /// <summary>
+        /// Attempts to get a SAS url which can be used to do
+        /// </summary>
+        public Task<Result<string>> TryGetSasUrlAsync(OperationContext context, string storageId, DateTime expiry)
+        {
+            Contract.Assert(SupportsSasUrls, "Storage must support SAS urls in order to call TryGetSasUrl");
+            storageId = PreprocessStorageId(storageId);
+            return context.PerformOperationAsync(
+                Tracer,
+                () => TryGetSasUrlCore(context, storageId, expiry),
+                extraStartMessage: $"[{storageId}]");
+        }
+
+        /// <summary>
+        /// <see cref="TryGetSasUrlAsync"/>
+        /// </summary>
+        protected virtual Task<Result<string>> TryGetSasUrlCore(OperationContext context, string storageId, DateTime expiry) => throw Contract.AssertFailure("SAS urls are not supported");
 
         /// <summary>
         /// <see cref="UploadFileAsync"/>

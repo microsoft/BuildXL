@@ -98,6 +98,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             return new Result<T>(result);
         }
 
+        /// <nodoc />
+        public static implicit operator Result<T>(ErrorResult result)
+        {
+            return new Result<T>(result);
+        }
+
         /// <inheritdoc />
         public bool Equals(Result<T> other)
         {

@@ -40,6 +40,14 @@ namespace BuildXL.Utilities
         public T Value => m_lazyTask.Value.GetAwaiter().GetResult();
 
         /// <summary>
+        /// Gets the asynchronous result of the completion of the async lazy
+        /// </summary>
+        public Task<T> GetValueAsync()
+        {
+            return m_lazyTask.Value;
+        }
+
+        /// <summary>
         /// Starts the asynchronous operation without blocking the current thread of execution
         /// </summary>
         public void Start()

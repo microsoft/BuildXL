@@ -31,7 +31,7 @@ namespace BuildXL.Cache.Host.Service
     /// Deploys drops/files from a given deployment configuration to a CAS store and writes manifests describing contents
     /// so that subsequent process (i.e. Deployment Service) can read files and proffer deployments to clients.
     /// </summary>
-    public class DeploymentRunner
+    public class DeploymentIngester
     {
         #region Configuration
 
@@ -78,7 +78,7 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         private FileSystemContentStoreInternal Store { get; }
 
-        private Tracer Tracer { get; } = new Tracer(nameof(DeploymentRunner));
+        private Tracer Tracer { get; } = new Tracer(nameof(DeploymentIngester));
 
         /// <summary>
         /// Describes the drops specified in deployment configuration
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.Host.Service
         public Func<(string exePath, string args, string dropUrl, string targetDirectory, string relativeRoot), BoolResult> OverrideLaunchDropProcess { get; set; }
 
         /// <nodoc />
-        public DeploymentRunner(
+        public DeploymentIngester(
             OperationContext context,
             AbsolutePath sourceRoot,
             AbsolutePath deploymentRoot,
@@ -195,7 +195,7 @@ namespace BuildXL.Cache.Host.Service
             Context.PerformOperation(Tracer, () =>
             {
                 string text = FileSystem.ReadAllText(DeploymentConfigurationPath);
-                var document = JsonDocument.Parse(text);
+                var document = JsonDocument.Parse(text, DeploymentUtilities.ConfigurationDocumentOptions);
 
                 var urls = document.RootElement
                     .GetProperty(nameof(DeploymentConfiguration.Drops))
@@ -205,17 +205,10 @@ namespace BuildXL.Cache.Host.Service
                          .Where(e => e.Name.StartsWith(nameof(DropDeploymentConfiguration.Url))))
                     .Select(e => e.Value.GetString());
 
-                foreach (var url in urls)
+                foreach (var url in new[] { DeploymentUtilities.ConfigDropUri.ToString() }.Concat(urls))
                 {
                     Drops[url] = ParseDropUrl(url);
                 }
-
-                // Deploy deployment configuration under deployment root so that deployment service can access it
-                // NOTE: This is done as two step process to ensure file is replaced atomically.
-                var targetDeployConfigPath = DeploymentUtilities.GetDeploymentConfiguationPath(DeploymentRoot);
-                var targetDeployConfigTempPath = new AbsolutePath(targetDeployConfigPath.Path + ".tmp");
-                FileSystem.CopyFile(DeploymentConfigurationPath, targetDeployConfigTempPath, replaceExisting: true);
-                FileSystem.MoveFile(targetDeployConfigTempPath, targetDeployConfigPath, replaceExisting: true);
 
                 return BoolResult.Success;
             },
@@ -415,7 +408,11 @@ namespace BuildXL.Cache.Host.Service
             {
                 var files = new List<(RelativePath path, AbsolutePath fullPath)>();
 
-                if (drop.ParsedUrl.IsFile)
+                if (drop.ParsedUrl == DeploymentUtilities.ConfigDropUri)
+                {
+                    files.Add((new RelativePath(DeploymentUtilities.DeploymentConfigurationFileName), DeploymentConfigurationPath));
+                }
+                else if (drop.ParsedUrl.IsFile)
                 {
                     var path = SourceRoot / drop.ParsedUrl.LocalPath.TrimStart('\\');
                     if (FileSystem.DirectoryExists(path))

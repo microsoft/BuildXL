@@ -23,6 +23,12 @@ namespace BuildXL.Cache.Host.Configuration
             /// The size of the file
             /// </summary>
             public long Size { get; set; }
+
+            /// <summary>
+            /// Url to use to download the file.
+            /// NOTE: This may be missing if file is not yet uploaded
+            /// </summary>
+            public string DownloadUrl { get; set; }
         }
 
         /// <summary>

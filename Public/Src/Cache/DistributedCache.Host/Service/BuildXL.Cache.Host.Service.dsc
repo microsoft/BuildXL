@@ -30,6 +30,9 @@ namespace Service {
             importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,
+
+            ...BuildXLSdk.bclAsyncPackages,
+
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Web.dll,
                 NetFx.System.Xml.dll

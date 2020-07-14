@@ -29,6 +29,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public readonly Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)> EnumeratedDirectories = new Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)>();
         public readonly HashSet<HierarchicalNameId> AllDependencyPathIds = new HashSet<HierarchicalNameId>();
         public readonly HashSet<AbsolutePath> SearchPaths = new HashSet<AbsolutePath>();
+        public readonly HashSet<AbsolutePath> SharedOpaqueOutputs = new HashSet<AbsolutePath>();
 
         /// <summary>
         /// Gets a pooled instance instance of <see cref="ObservedInputProcessingState"/>.
@@ -52,6 +53,7 @@ namespace BuildXL.Scheduler.Fingerprints
             EnumeratedDirectories.Clear();
             AllDependencyPathIds.Clear();
             SearchPaths.Clear();
+            SharedOpaqueOutputs.Clear();
         }
 
         /// <summary>

@@ -86,6 +86,9 @@ namespace BuildXL.Scheduler.Fingerprints
                     target,
                     pip,
                     pathSet.Paths.BaseArray,
+                    // When processing a prior path set, shared opaques are already flagged as such, and therefore
+                    // there are not non-populated ones
+                    unPopulatedSharedOpaqueOutputs: null,
                     pathSet.ObservedAccessedFileNames,
                     isCacheLookup: true);
             }
@@ -103,6 +106,7 @@ namespace BuildXL.Scheduler.Fingerprints
             TTarget target,
             CacheablePipInfo pip,
             ReadOnlyArray<ObservedFileAccess> accesses,
+            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             bool trackFileChanges = true)
             where TTarget : struct, IObservedInputProcessingTarget<ObservedFileAccess>
         {
@@ -114,6 +118,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     target,
                     pip,
                     accesses,
+                    sharedDynamicDirectoryWriteAccesses,
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                     isCacheLookup: false,
                     trackFileChanges: trackFileChanges);
@@ -132,6 +137,7 @@ namespace BuildXL.Scheduler.Fingerprints
             TTarget target,
             CacheablePipInfo pip,
             ReadOnlyArray<TObservation> observations,
+            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> unPopulatedSharedOpaqueOutputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             bool isCacheLookup,
             bool trackFileChanges = true)
@@ -171,6 +177,14 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 var allowUndeclaredSourceReads = pip.UnderlyingPip.ProcessAllowsUndeclaredSourceReads;
 
+                // Compute the set of all shared dynamic outputs. This is only done if there is a chance we end up using MinimalGraphWithAlienFiles 
+                // for this pip, otherwise we keep the set empty to avoid unnecessary computations
+                HashSet<AbsolutePath> sharedOpaqueOutputs = processingState.SharedOpaqueOutputs;
+                if (unPopulatedSharedOpaqueOutputs != null && envAdapter.MayDetermineMinimalGraphWithAlienFiles(allowUndeclaredSourceReads))
+                {
+                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts => fileArtifacts.Select(fa => fa.Path)));
+                }
+                
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessDuration))
                 {
                     using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessListDirectoriesDuration))
@@ -618,6 +632,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                             IsSearchPath = isSearchPath,
                                             EnumeratePatternRegex = enumeratePatternRegex
                                         },
+                                        sharedOpaqueOutputs,
                                         enumerationMode: out mode,
                                         trackPathExistence: trackFileChanges);
 
@@ -1222,6 +1237,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryMembershipFilter filter,
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
+            IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence);
 
@@ -1767,9 +1783,24 @@ namespace BuildXL.Scheduler.Fingerprints
         }
 
         /// <summary>
+        /// Conservatively determines whether <see cref="DirectoryEnumerationMode.MinimalGraphWithAlienFiles"/> is a possible answer when 
+        /// calling <see cref="DetermineEnumerationModeAndRule(AbsolutePath, bool, bool, out DirectoryMembershipFingerprinterRule)"/> for any given directory path
+        /// </summary>
+        /// <remarks>
+        /// Keep in sync with <see cref="DetermineEnumerationModeAndRule(AbsolutePath, bool, bool, out DirectoryMembershipFingerprinterRule)"/>
+        /// </remarks>
+        internal bool MayDetermineMinimalGraphWithAlienFiles(bool allowUndeclaredSourceReads)
+        {
+            return m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalGraph || allowUndeclaredSourceReads;
+        }
+
+        /// <summary>
         /// Determines the way a directory should be enumerated based on the directory. This is where the logic for switching
         /// between various filesystem rules lives
         /// </summary>
+        /// <remarks>
+        /// Keep in sync with <see cref="MayDetermineMinimalGraphWithAlienFiles(bool)"/>
+        /// </remarks>
         internal DirectoryEnumerationMode DetermineEnumerationModeAndRule(AbsolutePath directoryPath, bool isReadOnlyDirectory, bool allowUndeclaredSourceReads, out DirectoryMembershipFingerprinterRule rule)
         {
             Contract.Assume(directoryPath.IsValid);
@@ -1781,8 +1812,10 @@ namespace BuildXL.Scheduler.Fingerprints
             if (!mountInfo.AllowHashing || (!mountInfo.IsReadable && !mountInfo.IsWritable))
             {
                 rule = null;
-                // Undeclared sources are allowed even when no mount is defined for them. So make sure we use the file system that includes them
-                return allowUndeclaredSourceReads? DirectoryEnumerationMode.MinimalGraphWithAlienFiles : DirectoryEnumerationMode.DefaultFingerprint;
+                // Even if undeclared sources are allowed, out of mount directories get the default fingerprint.
+                // This is because there are tools that enumerate random places of the disk (a typical behavior is to consecutively enumerate 
+                // 'upwards' looking for a particular file) but in a distributed environment the result of those enumerations will most likely differ
+                return DirectoryEnumerationMode.DefaultFingerprint;
             }
 
             // If the config says to always use the minimal graph, honor it
@@ -1860,6 +1893,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryMembershipFilter filter,
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
+            IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence = true)
         {
@@ -1867,13 +1901,16 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Assume(process != null);
             Contract.Assume(filter != null);
             Contract.Assert(m_directoryMembershipFilter == null, "This method may not be called concurrently");
+            Contract.RequiresNotNull(sharedOpaqueOutputs);
 
             try
             {
                 m_directoryMembershipFilter = filter;
                 
                 DirectoryMembershipFingerprinterRule rule = null;
-                enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, process.UnderlyingPip.ProcessAllowsUndeclaredSourceReads, out rule);
+                bool allowsUndeclaredSourceReads = process.UnderlyingPip.ProcessAllowsUndeclaredSourceReads;
+                enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, allowsUndeclaredSourceReads, out rule);
+                Contract.Assert(enumerationMode != DirectoryEnumerationMode.MinimalGraphWithAlienFiles || MayDetermineMinimalGraphWithAlienFiles(allowsUndeclaredSourceReads));
 
                 // If (1) the enumeration does not use the search-based filter and (2) the directory is not enumerated via the minimal graph, cache the fingerprint.
                 bool cacheableFingerprint = !eventData.IsSearchPath && enumerationMode != DirectoryEnumerationMode.MinimalGraph && enumerationMode != DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
@@ -1940,7 +1977,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
-                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles,
+                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs),
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
                                 eventData: eventData);
@@ -2019,85 +2056,96 @@ namespace BuildXL.Scheduler.Fingerprints
             return TryEnumerateDirectory(request, FileSystemViewMode.FullGraph, trackPathExistence: false);
         }
 
-        private PathExistence? TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(EnumerationRequest request)
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(IReadOnlyCollection<AbsolutePath> sharedDynamicOutputs)
         {
-            // Enumerating the minimal + alien files means exposing outputs from immediate dependencies and hiding outputs
-            // from everything else. Input files, undeclared sources or any other alien file (unknown to the build) will
-            // become part of the enumeration. The main goal is to balance fingerprint stability and correctness.
-            // The main steps are:
-            // 1) add known immediate outputs using the pip file system. These should always be there.
-            // 2) enumerate the real file system excluding outputs that are not immediate dependency ones
-            using (var pooledPathSet = Pools.GetDirectoryMemberSet())
+            return (request =>
             {
-                var pipFileEnumResult = pooledPathSet.Instance;
-
-                // 1) Query the pip file system, since we want outputs from immediate dependencies to be there regardless
-                // of the state of the real file system
-                InitializePipFileSystem(request.PipInfo);
-
-                // Reuse the pip file system enumeration by setting a handle that just adds to the final enumeration
-                var path = request.DirectoryPath;
-                Action<AbsolutePath, string> addPipFileSystemEntry = new Action<AbsolutePath, string>((absolutePath, pathAsString) => pipFileEnumResult.Add((absolutePath, pathAsString)));
-                var pipEnumeration = PipFileSystem.EnumerateDirectory(PathTable, path, addPipFileSystemEntry);
-
-                // 2) Query the real file system since we want inputs (including undeclared sources) to be part of the fingerprint
-                // and add the result to the final enumeration
-                var realFileEnumResult = GetEnumerationResult(request, FileSystemViewMode.Real, trackPathExistence: false);
-
-                // Only add entries coming from the real enumeration if they are not recognized as outputs (and are not part of the immediate dependency outputs either)
-                if (realFileEnumResult.IsValid)
+                // Enumerating the minimal + alien files means exposing outputs from immediate dependencies and hiding outputs
+                // from everything else. Input files, undeclared sources or any other alien file (unknown to the build) will
+                // become part of the enumeration. The main goal is to balance fingerprint stability and correctness.
+                // The main steps are:
+                // 1) add known immediate outputs using the pip file system. These should always be there.
+                // 2) enumerate the real file system excluding outputs that are not immediate dependency ones
+                using (var pooledPathSet = Pools.GetDirectoryMemberSet())
                 {
-                    foreach (var realFileEntry in realFileEnumResult.Members)
+                    var pipFileEnumResult = pooledPathSet.Instance;
+
+                    // 1) Query the pip file system, since we want outputs from immediate dependencies to be there regardless
+                    // of the state of the real file system
+                    InitializePipFileSystem(request.PipInfo);
+
+                    // Reuse the pip file system enumeration by setting a handle that just adds to the final enumeration
+                    var path = request.DirectoryPath;
+                    Action<AbsolutePath, string> addPipFileSystemEntry = new Action<AbsolutePath, string>((absolutePath, pathAsString) => pipFileEnumResult.Add((absolutePath, pathAsString)));
+                    var pipEnumeration = PipFileSystem.EnumerateDirectory(PathTable, path, addPipFileSystemEntry);
+
+                    // 2) Query the real file system since we want inputs (including undeclared sources) to be part of the fingerprint
+                    // and add the result to the final enumeration
+                    var realFileEnumResult = GetEnumerationResult(request, FileSystemViewMode.Real, trackPathExistence: false);
+
+                    // Only add entries coming from the real enumeration if they are not recognized as outputs (and are not part of the immediate dependency outputs either)
+                    if (realFileEnumResult.IsValid)
                     {
-                        // If the real entry is already part of the enumeration, this means it is also part of the pip file system 
-                        // and it is already included
-                        if (pipFileEnumResult.Contains(realFileEntry))
+                        foreach (var realFileEntry in realFileEnumResult.Members)
                         {
-                            continue;
-                        }
-                        
-                        // If the entry is reported as existent from the output file system, this means it is an output that is
-                        // not part of the immediate dependencies. So we don't add it.
-                        if (FileSystemView.GetExistence(realFileEntry.Item1, FileSystemViewMode.Output).Result != PathExistence.Nonexistent)
-                        {
-                            continue;
-                        }
-
-                        // There might be stale outputs that bxl is not aware of as yet coming from exclusive opaques.
-                        // These outputs are not part of the output file system (because they were not produced yet).
-                        // Any file found under an exclusive opaque is considered an output
-                        if (m_env.PipGraphView.IsPathUnderOutputDirectory(request.DirectoryPath, out var isSharedOpaque) && !isSharedOpaque)
-                        {
-                            continue;
-                        }
-
-                        // Finally, we can always remove any stale shared opaque files since those are permanently flagged. 
-                        // Observe that as a side effect of IsSharedOpaqueOutput, we won't include directories in the fingerprint (since directories are always considered
-                        // shared opaque outputs). This is intentional since even though ignoring the presence of directories could result in an under build, directories
-                        // in general are too unstable in bxl land, where we don't keep track of them fully.
-                        try
-                        {
-                            if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntry.Item1.ToString(PathTable)))
+                            AbsolutePath realFileEntryPath = realFileEntry.Item1;
+                            // If the real entry is already part of the enumeration, this means it is also part of the pip file system 
+                            // and it is already included
+                            if (pipFileEnumResult.Contains(realFileEntry))
                             {
                                 continue;
                             }
-                        }
-                        catch(BuildXLException)
-                        {
-                            // Checking for shared opaques can fail if the target file requires extra permissions
-                            // In this case we choose the most conservative option and do not consider the output a shared opaque
-                        }
 
-                        pipFileEnumResult.Add(realFileEntry);
+                            // If the entry is reported as existent from the output file system, this means it is an output that is
+                            // not part of the immediate dependencies. So we don't add it.
+                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent)
+                            {
+                                continue;
+                            }
+
+                            // There might be stale outputs that bxl is not aware of as yet coming from exclusive opaques.
+                            // These outputs are not part of the output file system (because they were not produced yet).
+                            // Any file found under an exclusive opaque is considered an output
+                            if (m_env.PipGraphView.IsPathUnderOutputDirectory(request.DirectoryPath, out var isSharedOpaque) && !isSharedOpaque)
+                            {
+                                continue;
+                            }
+
+                            // Rule out all shared opaques produced by this pips. These files may not be part yet of the output file system since those get registered
+                            // in a post-execution step which is not reached yet on cache miss, so the output file system may have not captured them yet
+                            if (sharedDynamicOutputs.Contains(realFileEntryPath))
+                            { 
+                                continue; 
+                            }
+
+                            // Finally, we can always remove any stale shared opaque files since those are permanently flagged. 
+                            // Observe that as a side effect of IsSharedOpaqueOutput, we won't include directories in the fingerprint (since directories are always considered
+                            // shared opaque outputs). This is intentional since even though ignoring the presence of directories could result in an under build, directories
+                            // in general are too unstable in bxl land, where we don't keep track of them fully.
+                            try
+                            {
+                                if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntry.Item1.ToString(PathTable)))
+                                {
+                                    continue;
+                                }
+                            }
+                            catch (BuildXLException)
+                            {
+                                // Checking for shared opaques can fail if the target file requires extra permissions
+                                // In this case we choose the most conservative option and do not consider the output a shared opaque
+                            }
+
+                            pipFileEnumResult.Add(realFileEntry);
+                        }
                     }
+
+                    // Create a new directory enumeration result that represents this 'overlayed' view
+                    var result = new DirectoryEnumerationResult(pipFileEnumResult.Count > 0 ? PathExistence.ExistsAsDirectory : PathExistence.Nonexistent, pipFileEnumResult.ToList());
+                    var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
+
+                    return HandleDirectoryContents(request, result, handleEntry);
                 }
-
-                // Create a new directory enumeration result that represents this 'overlayed' view
-                var result = new DirectoryEnumerationResult(pipFileEnumResult.Count > 0 ? PathExistence.ExistsAsDirectory : PathExistence.Nonexistent, pipFileEnumResult.ToList());
-                var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
-
-                return HandleDirectoryContents(request, result, handleEntry);
-            }
+            });
         }
 
         /// <summary>

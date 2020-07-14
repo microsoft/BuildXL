@@ -39,6 +39,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using JetBrains.Annotations;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -1766,6 +1767,7 @@ namespace BuildXL.Scheduler
                             state.GetCacheableProcess(pip, environment),
                             fileAccessReportingContext,
                             executionResult.ObservedFileAccesses,
+                            executionResult.SharedDynamicDirectoryWriteAccesses,
                             trackFileChanges: succeeded);
                     LogSubPhaseDuration(
                         operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
@@ -3841,6 +3843,7 @@ namespace BuildXL.Scheduler
             CacheablePip pip,
             FileAccessReportingContext fileAccessReportingContext,
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedFileAccesses,
+            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             bool trackFileChanges = true)
         {
             Contract.Requires(environment != null);
@@ -3861,6 +3864,7 @@ namespace BuildXL.Scheduler
                 target,
                 pip,
                 observedFileAccesses,
+                sharedDynamicDirectoryWriteAccesses,
                 trackFileChanges);
 
             LogInputAssertions(

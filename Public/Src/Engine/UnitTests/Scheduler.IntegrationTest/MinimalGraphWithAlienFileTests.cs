@@ -19,6 +19,40 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        [Fact]
+        public void FingerprintIsStable()
+        {
+            // Schedule a pip that produces the three kind of available outputs (declared, shared and exclusive opaque outputs)
+            // and make sure the fingerprint is stable when there are no changes
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            AbsolutePath sod = dirPath.Combine(Context.PathTable, "sod");
+            AbsolutePath eod = dirPath.Combine(Context.PathTable, "eod");
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            var declaredOuput = CreateSourceFile(root: dirPath);
+            var sharedOpaqueOutput = CreateSourceFile(root: sod);
+            var exclusiveOpaqueOutput = CreateSourceFile(root: eod);
+
+            var operations = new List<Operation>
+            {
+                Operation.WriteFile(declaredOuput),
+                Operation.WriteFile(sharedOpaqueOutput, doNotInfer: true),
+                Operation.WriteFile(exclusiveOpaqueOutput, doNotInfer: true),
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            builder.AddOutputDirectory(sod, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+            builder.AddOutputDirectory(eod, global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            // Run once
+            RunScheduler().AssertSuccess();
+            // Run a second time. Nothing changed, we should get a hit
+            RunScheduler().AssertSuccess();
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

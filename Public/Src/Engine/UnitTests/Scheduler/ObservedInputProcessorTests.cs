@@ -498,6 +498,7 @@ namespace Test.BuildXL.Scheduler
                     new AssertingTarget(this, Context, (target, topOnly) => handled.Add(new Tuple<TestObservation, bool>(target, topOnly))),
                     CacheableProcess.GetProcessCacheInfo(process, Context),
                     ReadOnlyArray<TestObservation>.From(observations),
+                    unPopulatedSharedOpaqueOutputs: null,
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                     isCacheLookup: false).Result;
 
@@ -709,6 +710,7 @@ namespace Test.BuildXL.Scheduler
                     DirectoryMembershipFilter filter,
                     bool isReadOnlyDirectory,
                     DirectoryMembershipHashedEventData eventData,
+                    IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
                     out DirectoryEnumerationMode mode,
                     bool trackPathExistence = false)
                 {
@@ -1219,9 +1221,9 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(DirectoryEnumerationMode.DefaultFingerprint, mode);
             XAssert.IsNull(rule);
 
-            // A file outside of any mount when undeclared source reads are on should get the minimal + alien fingerprint
+            // A file outside of any mount when undeclared source reads are on should get the default fingerprint
             mode = adapter.DetermineEnumerationModeAndRule(AbsolutePath.Create(context.PathTable, X("/z/outsideAnyMount")), allowUndeclaredSourceReads: true, out rule);
-            XAssert.AreEqual(DirectoryEnumerationMode.MinimalGraphWithAlienFiles, mode);
+            XAssert.AreEqual(DirectoryEnumerationMode.DefaultFingerprint, mode);
             XAssert.IsNull(rule);
 
             // A file in an unhashable mount also gets the default fingerprint

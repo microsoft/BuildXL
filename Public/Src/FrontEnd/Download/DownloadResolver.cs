@@ -24,6 +24,7 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -248,8 +249,8 @@ namespace BuildXL.FrontEnd.Download
                 {
                     var expectedHashType = downloadData.ContentHash.HasValue
                         ? downloadData.ContentHash.Value.HashType
-                        : HashType.Unknown;
-
+                        : HashTypeParser(downloadData.Settings.Hash);
+                   
                     // Compare actual hash to compare if we need to download again.
                     var actualHash = await GetContentHashAsync(downloadData.DownloadedFilePath, expectedHashType);
 
@@ -354,10 +355,23 @@ namespace BuildXL.FrontEnd.Download
             return EvaluationResult.Continue;
         }
 
+        private HashType HashTypeParser(string hash)
+        {
+            if (!string.IsNullOrEmpty(hash))
+            {
+                var hashTypeString = hash?.Split(':')[0];
+                return hashTypeString.FindHashTypeByName();
+            }
+
+            return HashType.Unknown;
+        }
+
         /// <nodoc />
         private async Task<EvaluationResult> ValidateAndStoreIncrementalDownloadStateAsync(DownloadData downloadData)
         {
-            var downloadedHash = await GetContentHashAsync(downloadData.DownloadedFilePath);
+            // If the hash is given in the download setting, use the corresponding hashType(hash algorithm) to get the content hash of the downloaded file.
+            var downloadedHash = await GetContentHashAsync(downloadData.DownloadedFilePath, HashTypeParser(downloadData.Settings.Hash));
+            
             if (downloadData.ContentHash.HasValue)
             {
                 // Validate downloaded hash if specified
@@ -759,11 +773,20 @@ namespace BuildXL.FrontEnd.Download
         private async Task<ContentHash> GetContentHashAsync(AbsolutePath path, HashType hashType = HashType.Unknown)
         {
             m_frontEndHost.Engine.RecordFrontEndFile(path, Name);
-            var actualHash = await m_frontEndHost.Engine.GetFileContentHashAsync(
+
+            // We don't call GetFileContentHashAsync() to get the existing hash, since it register the file. 
+            // This has been done in RecordFrontEndFile with the default hasher, re-register it with the specified hasher will cause error.
+            using (
+            var fs = FileUtilities.CreateFileStream(
                 path.ToString(m_context.PathTable),
-                trackFile: false,
-                hashType);
-            return actualHash;
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Delete | FileShare.Read,
+                FileOptions.SequentialScan))
+            {
+                return await ContentHashingUtilities.HashContentStreamAsync(fs, hashType);
+            }
+
         }
 
         private EvaluationResult SealDirectory(PipConstructionHelper pipConstructionHelper, DownloadData downloadData, DirectoryArtifact directory, SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> files)

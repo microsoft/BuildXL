@@ -4350,6 +4350,13 @@ namespace BuildXL.Scheduler
                         Logger.Log.ScheduleProcessNotStoredToCacheDueToFileMonitoringViolations(loggingContext, processRunnable.Description);
                     }
 
+                    // If the result converged we should delete shared opaque outputs where the execution happened. On convergence, the result
+                    // will be consumed from the already cached pip and the just produced outputs should be absent.
+                    if (executionResult.Converged && worker.IsLocal)
+                    {
+                        ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                    }
+
                     if (!IsDistributedWorker)
                     {
                         m_chooseWorkerCpu.ReportProcessExecutionOutputs(processRunnable, executionResult);
@@ -4358,9 +4365,6 @@ namespace BuildXL.Scheduler
                         // the content of the (final) outputs
                         if (executionResult.Converged)
                         {
-                            // On convergence, delete shared opaque outputs
-                            ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
-
                             start = DateTime.UtcNow;
                             executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                operationContext,

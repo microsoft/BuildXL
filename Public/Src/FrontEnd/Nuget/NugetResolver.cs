@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -139,9 +140,10 @@ namespace BuildXL.FrontEnd.Script
         private async Task<bool> SaveCgManifetsFileAsync(string generatedCgManifest)
         {
             // Overwrite or create new cgmanifest.json file with updated nuget package and version info
+            string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
+
             try
             {
-                string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
                 FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
                 await FileUtilities.WriteAllTextAsync(targetFilePath, generatedCgManifest, Encoding.UTF8);
                 FrontEndHost.Engine.RecordFrontEndFile(
@@ -150,7 +152,16 @@ namespace BuildXL.FrontEnd.Script
             }
             catch (BuildXLException e)
             {
-                Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, "Could not write Component Governance Manifest file to disk\n" + e.ToString());
+                string handleUsageInfo = string.Empty;
+                if (e?.InnerException.GetType() == typeof(UnauthorizedAccessException))
+                {
+                    if (FileUtilities.TryFindOpenHandlesToFile(targetFilePath, out handleUsageInfo))
+                    {
+                        handleUsageInfo += Environment.NewLine;
+                    }
+                }
+
+                Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, $"Could not write Component Governance Manifest file to disk.{Environment.NewLine}{handleUsageInfo}{e}");
                 return false;
             }
 

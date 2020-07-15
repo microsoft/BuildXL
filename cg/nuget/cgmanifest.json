@@ -311,33 +311,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Grpc.AspNetCore",
-          "Version": "2.26.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Grpc.AspNetCore.Server",
-          "Version": "2.26.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Grpc.AspNetCore.Server.ClientFactory",
-          "Version": "2.26.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Grpc.Core",
           "Version": "2.26.0"
         }
@@ -357,15 +330,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client",
-          "Version": "2.26.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Grpc.Net.ClientFactory",
           "Version": "2.26.0"
         }
       }
@@ -518,8 +482,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.AspNetCore",
-          "Version": "2.2.0"
+          "Name": "Microsoft.AspNetCore.App.Ref",
+          "Version": "3.1.3"
         }
       }
     },
@@ -527,485 +491,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.AspNetCore.Antiforgery",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Authentication.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Authentication.Core",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Authorization",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Authorization.Policy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Connections.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Cors",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Cryptography.Internal",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.DataProtection",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.DataProtection.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Diagnostics",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Diagnostics.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.HostFiltering",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Hosting",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Hosting.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Hosting.Server.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Html.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Http",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Http.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Http.Extensions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Http.Features",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.HttpOverrides",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.HttpsPolicy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.JsonPatch",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Localization",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Analyzers",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.ApiExplorer",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Core",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Cors",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.DataAnnotations",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Formatters.Json",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Localization",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Razor",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.Razor.Extensions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.RazorPages",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.TagHelpers",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Mvc.ViewFeatures",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Razor",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Razor.Design",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Razor.Language",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Razor.Runtime",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.ResponseCaching.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Routing",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Routing.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.IIS",
-          "Version": "2.2.6"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.IISIntegration",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.Kestrel",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.Kestrel.Core",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.Kestrel.Https",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.WebUtilities",
-          "Version": "2.2.0"
+          "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+          "Version": "3.1.5"
         }
       }
     },
@@ -1553,15 +1040,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.Razor",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.VisualBasic",
           "Version": "2.10.0"
         }
@@ -1652,15 +1130,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.DiaSymReader.Native",
-          "Version": "1.7.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Diagnostics.Tracing.EventSource.Redist",
           "Version": "1.1.28"
         }
@@ -1672,33 +1141,6 @@
         "NuGet": {
           "Name": "Microsoft.Diagnostics.Tracing.TraceEvent",
           "Version": "2.0.30"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.DotNet.PlatformAbstractions",
-          "Version": "2.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Caching.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Caching.Memory",
-          "Version": "2.2.0"
         }
       }
     },
@@ -1733,106 +1175,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Extensions.Configuration.CommandLine",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Configuration.FileExtensions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Configuration.Json",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Configuration.UserSecrets",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.DependencyInjection",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.DependencyModel",
-          "Version": "2.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.FileProviders.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.FileProviders.Composite",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.FileProviders.Physical",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.FileSystemGlobbing",
           "Version": "2.2.0"
         }
       }
@@ -1850,35 +1193,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Extensions.Hosting.Abstractions",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.Http",
           "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Localization",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Localization.Abstractions",
-          "Version": "2.2.0"
         }
       }
     },
@@ -1904,42 +1220,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Extensions.Logging.Configuration",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Logging.Console",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Logging.Debug",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Logging.EventSource",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.MemoryPool",
           "Version": "1.0.0-rc1-final"
         }
@@ -1949,25 +1229,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Extensions.ObjectPool",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.Options",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.Options.ConfigurationExtensions",
           "Version": "2.2.0"
         }
       }
@@ -1986,15 +1248,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.WebEncoders",
           "Version": "2.2.0"
         }
       }
@@ -2239,15 +1492,6 @@
         "NuGet": {
           "Name": "Microsoft.Net.Http",
           "Version": "2.2.29"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Net.Http.Headers",
-          "Version": "2.2.0"
         }
       }
     },

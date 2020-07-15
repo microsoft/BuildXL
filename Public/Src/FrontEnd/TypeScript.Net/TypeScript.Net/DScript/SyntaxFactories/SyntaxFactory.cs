@@ -51,7 +51,7 @@ namespace TypeScript.Net.DScript
         {
             return new TaggedTemplateExpression(kind.GetIdentifierName(), literalText);
         }
-        
+
         /// <summary>
         /// Creates a path-like expression with a given kind and text.
         /// </summary>
@@ -118,6 +118,44 @@ namespace TypeScript.Net.DScript
         }
 
         /// <summary>
+        /// Creates an 'undefined' identifier
+        /// </summary>
+        public static IIdentifier Undefined()
+        {
+            return TypeScript.Net.Types.Identifier.CreateUndefined();
+        }
+
+        /// <summary>
+        /// Creates a call expression. 
+        /// NOTE: Preprocesses arguments to remove trailing nulls and replace non-trailing nulls with 'undefined' identifier.
+        /// </summary>
+        public static ICallExpression Call(ILeftHandSideExpression methodReference, params IExpression[] arguments)
+        {
+            var argumentsList = arguments.ToList();
+            bool encounteredNonNull = false;
+            for (int i = argumentsList.Count - 1; i >= 0; i--)
+            {
+                if (argumentsList[i] == null)
+                {
+                    if (encounteredNonNull)
+                    {
+                        argumentsList[i] = Undefined();
+                    }
+                    else
+                    {
+                        argumentsList.RemoveAt(i);
+                    }
+                }
+                else
+                {
+                    encounteredNonNull = true;
+                }
+            }
+
+            return new CallExpression(methodReference, argumentsList);
+        }
+
+        /// <summary>
         /// Creates a type assertion like 'x : YourType'.
         /// </summary>
         public static IExpression TypeAssertion(ITypeNode type, IUnaryExpression expression)
@@ -165,7 +203,7 @@ namespace TypeScript.Net.DScript
             Contract.Requires(members.Length > 0);
 
             return new TypeLiteralNode(
-                members.Select(member => 
+                members.Select(member =>
                     new PropertySignature(
                         member.propertyName,
                         new UnionOrIntersectionTypeNode()

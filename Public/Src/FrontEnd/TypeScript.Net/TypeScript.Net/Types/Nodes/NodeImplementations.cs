@@ -1377,6 +1377,13 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
+        public CallExpression(ILeftHandSideExpression expression, List<IExpression> arguments)
+        {
+            Expression = expression;
+            Arguments = new NodeArray<IExpression>(arguments);
+        }
+
+        /// <nodoc/>
         public CallExpression(ILeftHandSideExpression expression, params IExpression[] arguments)
         {
             Expression = expression;

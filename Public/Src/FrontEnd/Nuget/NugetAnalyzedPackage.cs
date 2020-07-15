@@ -179,7 +179,29 @@ namespace BuildXL.FrontEnd.Nuget
             foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path.ToString(stringTable)))
             {
                 // This is a dll. Check if it is in a lib folder or ref folder.
-                var atoms = relativePath.GetAtoms();
+
+                // This code handles two layouts
+                // Case 1: /runtimes/{targetRuntime}/[lib|ref]/{targetFramework}/{fileName}
+                // Case 2: /[lib|ref]/{targetFramework}/{fileName}
+
+                // In case 1, /runtimes/{targetRuntime} is removed and then rest of string is processed as in
+                // case 2.
+                // Case 2 treats files under 'lib' folder as runtime dependencies (and optionally compile-time
+                // references if missing a corresponding set of compile-time references for the target framework
+                // under the 'ref' folder). Files under 'ref' folder are treated strictly as compile-time only references.
+
+                var atoms = new ReadOnlySpan<PathAtom>(relativePath.GetAtoms());
+                if (atoms.Length == 5)
+                {
+                    var isRuntime = NugetFrameworkMonikers.RuntimesFolderName.CaseInsensitiveEquals(stringTable, atoms[0])
+                        && NugetFrameworkMonikers.SupportedTargetRuntimeAtoms.Contains(atoms[1].StringId);
+
+                    if (isRuntime)
+                    {
+                        atoms = atoms.Slice(2);
+                    }
+                }
+
                 if (atoms.Length == 3)
                 {
                     var libOrRef = atoms[0];

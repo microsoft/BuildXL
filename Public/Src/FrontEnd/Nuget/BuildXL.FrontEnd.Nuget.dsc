@@ -15,7 +15,11 @@ namespace Nuget {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll
+                NetFx.System.Xml.Linq.dll,
+                NetFx.Netstandard.dll
+            ),
+            ...addIf(BuildXLSdk.isFullFramework,
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
             ),
 
             Sdk.dll,

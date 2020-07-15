@@ -4,6 +4,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -105,6 +106,9 @@ namespace BuildXL.FrontEnd.Nuget
         public PathAtom RefFolderName { get; }
 
         /// <nodoc />
+        public PathAtom RuntimesFolderName { get; }
+
+        /// <nodoc />
         public HashSet<PathAtom> WellknownMonikers { get; }
 
         /// <nodoc />
@@ -126,13 +130,17 @@ namespace BuildXL.FrontEnd.Nuget
         public bool IsFullFrameworkMoniker(PathAtom moniker) => FullFrameworkVersionHistory.Contains(moniker);
 
         /// <nodoc />
-        public string[] SupportedTargetRuntimes {get;}
+        public string[] SupportedTargetRuntimes { get; }
+
+        /// <nodoc />
+        public HashSet<StringId> SupportedTargetRuntimeAtoms { get; }
 
         /// <nodoc />
         public NugetFrameworkMonikers(StringTable stringTable)
         {
             LibFolderName = PathAtom.Create(stringTable, "lib");
             RefFolderName = PathAtom.Create(stringTable, "ref");
+            RuntimesFolderName = PathAtom.Create(stringTable, "runtimes");
 
             WellknownMonikers = new HashSet<PathAtom>();
             TargetFrameworkNameToMoniker = new Dictionary<string, PathAtom>();
@@ -179,6 +187,8 @@ namespace BuildXL.FrontEnd.Nuget
                 "osx-x64",
                 "linux-x64"
             };
+
+            SupportedTargetRuntimeAtoms = new HashSet<StringId>(SupportedTargetRuntimes.Select(s => PathAtom.Create(stringTable, s).StringId));
         }
 
         private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, List<PathAtom> versions)

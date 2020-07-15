@@ -6,10 +6,6 @@ const grpcVersion = "2.26.0";
 
 export const pkgs = [
     // grpc
-    { id: "Grpc.AspNetCore", version: grpcVersion},
-    { id: "Grpc.AspNetCore.Server", version: grpcVersion },
-    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion },
-    { id: "Grpc.Net.ClientFactory", version: grpcVersion },
     { id: "Grpc.Net.Client", version: grpcVersion },
     { id: "Grpc.Net.Common", version: grpcVersion },
     { id: "Grpc.Core", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },

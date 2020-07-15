@@ -190,6 +190,11 @@ namespace BuildXL.Processes
         ReparsePointTarget,
 
         /// <summary>
+        /// Access of reparse point target, cached by Detours
+        /// </summary>
+        ReparsePointTargetCached,
+
+        /// <summary>
         /// Access checks for source of CreateSymbolicLink API.
         /// </summary>
         CreateSymbolicLinkSource,

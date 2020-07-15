@@ -50,7 +50,7 @@ namespace Tool.ExecutionLogSdk
                                                         flagsAndAttributes: reportedFileAccess.FlagsAndAttributes,
                                                         manifestPath: reportedFileAccess.ManifestPath,
                                                         path: reportedFileAccess.GetPath(pathTable),
-                                                        enumeratePatttern: reportedFileAccess.EnumeratePattern);
+                                                        enumeratePattern: reportedFileAccess.EnumeratePattern);
         }
         #endregion
     }

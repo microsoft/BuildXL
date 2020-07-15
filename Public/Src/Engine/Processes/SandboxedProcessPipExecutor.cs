@@ -1326,7 +1326,7 @@ namespace BuildXL.Processes
                 FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 manifestPath,
                 path: (path == manifestPath) ? null : path.ToString(m_pathTable),
-                enumeratePatttern: null,
+                enumeratePattern: null,
                 FileAccessStatusMethod.TrustedTool);
 
             return true;

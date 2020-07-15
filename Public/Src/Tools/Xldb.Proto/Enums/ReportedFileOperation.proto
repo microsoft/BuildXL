@@ -74,4 +74,5 @@ enum ReportedFileOperation{
     MacVNodeCloneSource = 62;
     MacVNodeCloneDest = 63;
     CreateProcess = 64;
+    ReparsePointTargetCached = 65;
 }

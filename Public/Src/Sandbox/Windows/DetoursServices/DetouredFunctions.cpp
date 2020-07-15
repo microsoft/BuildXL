@@ -3,31 +3,23 @@
 
 #include "stdafx.h"
 
-#include <algorithm>
-#include <unordered_set>
-#include <winternl.h>
-
-#include "DebuggingHelpers.h"
 #include "DetouredFunctions.h"
 #include "DetouredScope.h"
-#include "DetoursHelpers.h"
-#include "DetoursServices.h"
-#include "FileAccessHelpers.h"
 #include "HandleOverlay.h"
 #include "MetadataOverrides.h"
+#include "ResolvedPathCache.h"
 #include "SendReport.h"
 #include "StringOperations.h"
 #include "SubstituteProcessExecution.h"
 #include "UnicodeConverter.h"
 
+using std::map;
+using std::vector;
+using std::wstring;
+
 #if _MSC_VER >= 1200
 #pragma warning(disable:26812) // Disable: The enum type ‘X’ is unscoped warnings originating from the WinSDK
 #endif
-
-using std::wstring;
-using std::unique_ptr;
-using std::unordered_set;
-using std::vector;
 
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
@@ -206,8 +198,21 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 /// </summary>
 static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
 {
+    HANDLE hFile = INVALID_HANDLE_VALUE;
     DWORD lastError = GetLastError();
-    HANDLE hFile = hInput != INVALID_HANDLE_VALUE
+    DWORD reparsePointType = 0;
+    vector<char> buffer;
+    bool status = false;
+
+    auto io_result = ResolvedPathCache::Instance().GetResolvedPathAndType(path);
+    if (io_result != nullptr)
+    {
+        target = io_result->first;
+        reparsePointType = io_result->second;
+        goto Success;
+    }
+
+    hFile = hInput != INVALID_HANDLE_VALUE
         ? hInput
         : CreateFileW(
             path.c_str(),
@@ -220,15 +225,13 @@ static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _I
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        SetLastError(lastError);
-        return false;
+        goto Error;
     }
 
     DWORD bufferSize = INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES;
     DWORD errorCode = ERROR_INSUFFICIENT_BUFFER;
     DWORD bufferReturnedSize = 0;
 
-    vector<char> buffer;
     while (errorCode == ERROR_MORE_DATA || errorCode == ERROR_INSUFFICIENT_BUFFER)
     {
         buffer.clear();
@@ -257,38 +260,38 @@ static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _I
 
     if (errorCode != ERROR_SUCCESS)
     {
-        if (hFile != hInput)
-        {
-            CloseHandle(hFile);
-        }
-
-        SetLastError(lastError);
-        return false;
+        goto Error;
     }
 
     PREPARSE_DATA_BUFFER pReparseDataBuffer = (PREPARSE_DATA_BUFFER)buffer.data();
-    DWORD reparsePointType = pReparseDataBuffer->ReparseTag;
+    reparsePointType = pReparseDataBuffer->ReparseTag;
 
     if (!IsActionableReparsePointType(reparsePointType))
     {
-        if (hFile != hInput)
-        {
-            CloseHandle(hFile);
-        }
-
-        SetLastError(lastError);
-        return false;
+        goto Error;
     }
 
     GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
+    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, reparsePointType);
 
-    if (hFile != hInput)
+Success:
+
+    status = IgnoreFullSymlinkResolving() ? true : reparsePointType == IO_REPARSE_TAG_SYMLINK;
+    goto Epilogue;
+
+Error:
+
+    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, 0);
+
+Epilogue:
+
+    if (hFile != INVALID_HANDLE_VALUE && hFile != hInput)
     {
         CloseHandle(hFile);
     }
 
     SetLastError(lastError);
-    return IgnoreFullSymlinkResolving() ? true : reparsePointType == IO_REPARSE_TAG_SYMLINK;
+    return status;
 }
 
 /// <summary>
@@ -315,6 +318,8 @@ static bool ShouldResolveSymlinkChain(
         return AccessReparsePointTarget(lpFileName, dwDesiredAccess, dwFlagsAndAttributes); // Trying to access reparse point target.
     }
 
+    CanonicalizedPath path = CanonicalizedPath::Canonicalize(lpFileName);
+
     // BuildXL tries to delete files using the 'FILE_FLAG_DELETE_ON_CLOSE' attribute when opening a handle then closing it, before
     // falling back to other strategies. If we try to delete a symbolic link, it's important to not do full resolving as only the link
     // itself should be deleted, not its targets.
@@ -323,10 +328,15 @@ static bool ShouldResolveSymlinkChain(
 
     if (symbolicLinkDeletion)
     {
+        ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
         return false;
     }
 
-    CanonicalizedPath path = CanonicalizedPath::Canonicalize(lpFileName);
+    auto result = ResolvedPathCache::Instance().GetResolvingCheckResult(path.GetPathStringWithoutTypePrefix());
+    if (result != nullptr)
+    {
+        return *result;
+    }
 
     auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
     auto directory = std::make_unique<wchar_t[]>(_MAX_EXTENDED_DIR_LENGTH);
@@ -359,6 +369,7 @@ static bool ShouldResolveSymlinkChain(
 
         if (TryGetSymlinkTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
         {
+            ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
             return true;
         }
 
@@ -371,9 +382,11 @@ static bool ShouldResolveSymlinkChain(
 
     if (TryGetSymlinkTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
     {
+        ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
         return true;
     }
 
+    ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), false);
     return false;
 }
 
@@ -681,9 +694,10 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& finalPaths)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& order, _Inout_ map<wstring, ResolvedPathType>& finalPaths)
 {
-    finalPaths.push_back(path.GetPathString());
+    order.push_back(path.GetPathString());
+    finalPaths.emplace(path.GetPathString(), ResolvedPathType::Intermediate);
 
     wstring nextPath;
 
@@ -692,7 +706,7 @@ static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE 
         return;
     }
 
-    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, finalPaths);
+    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, order, finalPaths);
 }
 
 /// <summary>
@@ -806,7 +820,8 @@ static bool EnforceReparsePointAccess(
     NTSTATUS* pNtStatus = nullptr,
     const bool enforceAccess = true,
     const bool isCreateDirectory = false,
-    const bool isFullyResolvedPath = false)
+    const bool isFullyResolvedPath = false,
+    const wstring& contextOperationName = L"ReparsePointTarget")
 {
     DWORD lastError = GetLastError();
     const wchar_t* lpReparsePointPath = reparsePointPath.c_str();
@@ -815,7 +830,7 @@ static bool EnforceReparsePointAccess(
     AccessCheckResult accessCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
 
     FileOperationContext opContext(
-        L"ReparsePointTarget",
+        contextOperationName.c_str(),
         dwDesiredAccess,
         dwShareMode,
         dwCreationDisposition,
@@ -947,6 +962,9 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
     CanonicalizedPath normalized;
     const wchar_t* input = (wchar_t*)path.GetPathStringWithoutTypePrefix();
 
+    vector<wstring> order;
+    map<wstring, ResolvedPathType> resolvedPaths;
+
     while (true)
     {
         auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
@@ -984,6 +1002,8 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
 
             if (TryGetSymlinkTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
             {
+                order.push_back(temp);
+                resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
                 success &= EnforceReparsePointAccess(
                     temp,
                     dwDesiredAccess,
@@ -1021,6 +1041,8 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
 
         if (!symlink_found && TryGetSymlinkTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
         {
+            order.push_back(temp);
+            resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
             success &= EnforceReparsePointAccess(
                 temp,
                 dwDesiredAccess,
@@ -1069,20 +1091,24 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
                 {
                     if (resolvedPath != nullptr)
                     {
-                        resolvedPath->assign(normalized.GetPathStringWithoutTypePrefix());
+                        resolvedPath->assign(input);
                     }
+
+                    order.push_back(temp);
+                    resolvedPaths.emplace(input, ResolvedPathType::FullyResolved);
 
                     if (enforceAccessForResolvedPath)
                     {
                         success &= EnforceReparsePointAccess(
-                            temp,
+                            input,
                             dwDesiredAccess,
                             dwShareMode,
                             dwCreationDisposition,
                             dwFlagsAndAttributes,
                             pNtStatus,
                             enforceAccess,
-                            isCreateDirectory);
+                            isCreateDirectory,
+                            true);
                     }
                 }
             }
@@ -1096,6 +1122,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
         break;
     }
 
+    ResolvedPathCache::Instance().InsertResolvedPaths(path.GetPathStringWithoutTypePrefix(), std::move(order), std::move(resolvedPaths));
     return success;
 }
 
@@ -1125,40 +1152,76 @@ static bool EnforceChainOfReparsePointAccesses(
         return true;
     }
 
-    bool success = true;
+    bool cached = true;
+    const ResolvedPathCacheEntries* cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(path.GetPathStringWithoutTypePrefix());
 
-    if (IgnoreFullSymlinkResolving())
+    if (cachedEntries == nullptr)
     {
-        vector<wstring> symlinkPaths;
-        DetourGetFinalPaths(path, reparsePointHandle, symlinkPaths);
-
-        for each (auto entry in symlinkPaths)
+        if (IgnoreFullSymlinkResolving())
         {
-            success &= EnforceReparsePointAccess(
-                entry,
+            auto order = vector<wstring>();
+            auto paths = map<wstring, ResolvedPathType>();
+
+            DetourGetFinalPaths(path, reparsePointHandle, order, paths);
+            ResolvedPathCache::Instance().InsertResolvedPaths(path.GetPathStringWithoutTypePrefix(), std::move(order), std::move(paths));
+            cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(path.GetPathStringWithoutTypePrefix());
+            cached = false;
+        }
+        else
+        {
+            return ResolveAllSymlinksAndEnforceReparsePointAccess(
+                path,
                 dwDesiredAccess,
                 dwShareMode,
                 dwCreationDisposition,
                 dwFlagsAndAttributes,
                 pNtStatus,
                 enforceAccess,
-                isCreateDirectory);
+                isCreateDirectory,
+                resolvedPath);
         }
-
-        return success;
     }
 
-    return ResolveAllSymlinksAndEnforceReparsePointAccess(
-        path,
-        dwDesiredAccess,
-        dwShareMode,
-        dwCreationDisposition,
-        dwFlagsAndAttributes,
-        pNtStatus,
-        enforceAccess,
-        isCreateDirectory,
-        resolvedPath,
-        enforceAccessForResolvedPath);
+    bool success = true;
+    auto contextOperationName = cached ? L"ReparsePointTargetCached" : L"ReparsePointTarget";
+
+    for (auto it = cachedEntries->first.begin(); it != cachedEntries->first.end(); ++it)
+    {
+        auto key = *it;
+        auto lookupTable = cachedEntries->second;
+        auto type = lookupTable[key];
+
+        // When fully resolving paths, it is sometimes necessary to either pass back the fully resolved path to the caller, or not report it to BuildXL
+        // at all (see <code>ResolveAllSymlinksAndEnforceReparsePointAccess</code>). The 'ResolvedPathType' enum is used to flag the resulting parts of a
+        // path so we can make that distinction when providing cached results. When IgnoreFullSymlinkResolving() is enabled, all files get flagged with
+        // 'ResolvedPathType::Intermediate' in DetourGetFinalPaths when populating the cache, so this check can be skipped too.
+        if (!IgnoreFullSymlinkResolving() && type == ResolvedPathType::FullyResolved)
+        {
+            if (resolvedPath != nullptr)
+            {
+                resolvedPath->assign(key);
+            }
+
+            if (!enforceAccessForResolvedPath)
+            {
+                continue;
+            }
+        }
+
+        success &= EnforceReparsePointAccess(
+            key,
+            dwDesiredAccess,
+            dwShareMode,
+            dwCreationDisposition,
+            dwFlagsAndAttributes,
+            pNtStatus,
+            enforceAccess,
+            isCreateDirectory,
+            type == ResolvedPathType::FullyResolved,
+            contextOperationName);
+    }
+
+    return success;
 }
 
 /// <summary>
@@ -3451,6 +3514,9 @@ BOOL WINAPI Detoured_ReplaceFileW(
     __reserved LPVOID  lpExclude,
     __reserved LPVOID  lpReserved)
 {
+    auto path = CanonicalizedPath::Canonicalize(lpReplacedFileName);
+    ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
+
     // TODO:implement detours logic
     return Real_ReplaceFileW(
         lpReplacedFileName,
@@ -3618,6 +3684,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
         ReportIfNeeded(accessCheck, opContext, policyResult, error);
     }
 
+    ResolvedPathCache::Instance().Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
     SetLastError(error);
     return result;
 }
@@ -3818,6 +3885,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     }
 
     ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
+    ResolvedPathCache::Instance().Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     SetLastError(error);
     return result;
@@ -4939,6 +5007,7 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
     }
 
     ReportIfNeeded(accessCheck, opContext, policyResult, error);
+    ResolvedPathCache::Instance().Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     return result;
 }

@@ -1001,7 +1001,7 @@ namespace Test.BuildXL.Scheduler
                 flagsAndAttributes: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 AbsolutePath.Invalid,
                 path: path,
-                enumeratePatttern: null);
+                enumeratePattern: null);
         }
     }
 

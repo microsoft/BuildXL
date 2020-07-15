@@ -264,7 +264,7 @@ namespace BuildXL.Execution.Analyzer
                     flagsAndAttributes: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                     manifestPath: access.Item3,
                     path: null,
-                    enumeratePatttern: null));
+                    enumeratePattern: null));
             }
 
             return reportedFileAccesses;

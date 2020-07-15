@@ -57,6 +57,7 @@ namespace BuildXL.Processes
                     { "ZwOpenFile", ReportedFileOperation.ZwOpenFile },
                     { "CreateSymbolicLink_Source", ReportedFileOperation.CreateSymbolicLinkSource },
                     { "ReparsePointTarget", ReportedFileOperation.ReparsePointTarget },
+                    { "ReparsePointTargetCached", ReportedFileOperation.ReparsePointTargetCached },
                     { "ChangedReadWriteToReadAccess", ReportedFileOperation.ChangedReadWriteToReadAccess },
                     { "FirstAllowWriteCheckInProcess", ReportedFileOperation.FirstAllowWriteCheckInProcess },
                     { "MoveFileWithProgress_Source", ReportedFileOperation.MoveFileWithProgressSource },

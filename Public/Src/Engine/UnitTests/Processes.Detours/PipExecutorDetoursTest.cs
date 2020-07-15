@@ -76,6 +76,7 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             Process pip,
             out string errorString,
+            IDetoursEventListener detoursListener = null,
             bool existingDirectoryProbesAsEnumerations = false,
             bool disableDetours = false,
             AbsolutePath binDirectory = default,
@@ -159,7 +160,8 @@ namespace Test.BuildXL.Processes.Detours
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
                 isQbuildIntegrated: isQuickBuildIntegrated,
-                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
+                tempDirectoryCleaner: MoveDeleteCleaner,
+                detoursListener: detoursListener).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         [Fact]
@@ -6426,6 +6428,32 @@ namespace Test.BuildXL.Processes.Detours
             return FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, expandedPath));
         }
 
+        private static DirectoryArtifact CreateDirectory(PathTable pathTable, AbsolutePath directoryPath)
+        {
+            Contract.Requires(pathTable != null);
+            Contract.Requires(directoryPath.IsValid);
+
+            string expandedPath = directoryPath.ToString(pathTable);
+
+            if (Directory.Exists(expandedPath))
+            {
+                ExceptionUtilities.HandleRecoverableIOException(() => Directory.Delete(expandedPath, true), exception => { });
+            }
+
+            XAssert.IsFalse(Directory.Exists(expandedPath));
+
+            ExceptionUtilities.HandleRecoverableIOException(
+                        () =>
+                        {
+                            Directory.CreateDirectory(expandedPath);
+                        },
+                        exception => { });
+
+            XAssert.IsTrue(Directory.Exists(expandedPath));
+
+            return DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(pathTable, expandedPath));
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -6620,6 +6648,141 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        private class AccessReportAccumulator : IDetoursEventListener
+        {
+            public delegate void AccumulateFileAccesses(ReportedFileAccess access);
+
+            private readonly BuildXLContext m_context;
+            private readonly AbsolutePath m_executable;
+            private readonly AccumulateFileAccesses m_accumulator;
+
+            public AccessReportAccumulator(BuildXLContext context, AbsolutePath executable, AccumulateFileAccesses acc)
+            {
+                m_context = context;
+                m_executable = executable;
+                m_accumulator = acc;
+            }
+
+            public override void HandleFileAccess(long pipId, string pipDescription, 
+                ReportedFileOperation operation, RequestedAccess requestedAccess, 
+                FileAccessStatus status, bool explicitlyReported, 
+                uint processId, uint error,
+                DesiredAccess desiredAccess, ShareMode shareMode, 
+                CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, 
+                string path, string processArgs, bool isAnAugmentedFileAccess)
+            {
+                var reportedAccess = new ReportedFileAccess(
+                    operation,
+                    new ReportedProcess(1, m_executable.ToString(m_context.PathTable)),
+                    requestedAccess,
+                    status,
+                    explicitlyReported,
+                    error,
+                    new Usn(0),
+                    desiredAccess,
+                    shareMode,
+                    creationDisposition,
+                    flagsAndAttributes,
+                    m_executable,
+                    path,
+                    "",
+                    FileAccessStatusMethod.PolicyBased);
+
+                m_accumulator?.Invoke(reportedAccess);
+            }
+
+            public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage) { }
+
+            public override void HandleProcessData(long pipId, string pipDescription, 
+                string processName, uint processId, 
+                DateTime creationDateTime, DateTime exitDateTime, 
+                TimeSpan kernelTime, TimeSpan userTime,
+                uint exitCode, IOCounters ioCounters, uint parentProcessId) { }
+
+            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data) { }
+        };
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDetoursResolvedPathCacheTests()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {               
+                var targetDirectory = tempFiles.GetDirectory(pathTable, "SourceDirectory");
+                var targetDirectoryArtifact = CreateDirectory(pathTable, targetDirectory);
+                var expandedDirectoryPath = targetDirectory.Expand(pathTable).ToString();
+
+                var firstDirectorySymlink = tempFiles.GetFileName(pathTable, "First_DirectorySymlink");
+                var secondDirectorySymlink = tempFiles.GetFileName(pathTable, "Second_DirectorySymlink");
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(firstDirectorySymlink.ToString(pathTable), secondDirectorySymlink.ToString(pathTable), false));
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(secondDirectorySymlink.ToString(pathTable), expandedDirectoryPath, false));
+
+                var outputFile = tempFiles.GetFileName(pathTable, "SourceDirectory\\output.txt");
+
+                // Process writes / reads the output file through the 'First_DirectorySymlink' chain, see  'ValidateResolvedPathCache()'
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDetoursResolvedPathCacheTests",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(firstDirectorySymlink), FileArtifact.CreateSourceFile(secondDirectorySymlink) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { targetDirectoryArtifact }),
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(firstDirectorySymlink), FileExistence.Required),
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(secondDirectorySymlink), FileExistence.Required),
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(outputFile), FileExistence.Required)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var directlyReportedFileAccesses = new List<ReportedFileAccess>();
+                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
+                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullSymlinkResolving: false,
+                    detoursListener: accumulator);
+
+                VerifyNormalSuccess(context, result);
+
+                // Assert the initial write through the symbolic link happened and populated the resolved path cache and the subsequent read returned cached results
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    // Uncached initial ReparsePointTarget reports
+                    (firstDirectorySymlink, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (secondDirectorySymlink, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+
+                    // ResolvedPathCache reports ReparsePointTargetCached reports
+                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                });
+
+                // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't the same reports after
+                // invalidating the cache only show up once.
+                XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
+                // Assert we have six ReparsePointTarget reports, three before the cache got populated and three after the cache got invalidated
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() == 6);
+                // Assert we have three ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
+                // does not need to happen again, as the cache is populated
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 3);
+            }
+        }
+
         private static Process CreateDetourProcess(
             BuildXLContext context,
             PathTable pathTable,
@@ -6689,9 +6852,9 @@ namespace Test.BuildXL.Processes.Detours
         private static void VerifyFileAccesses(
             BuildXLContext context,
             IReadOnlyList<ReportedFileAccess> reportedFileAccesses,
-            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToVerify,
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus, ReportedFileOperation? operation)[] observationsToVerify,
             AbsolutePath[] pathsToFalsify = null,
-            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToFalsify = null)
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus, ReportedFileOperation? operation)[] observationsToFalsify = null)
         {
             PathTable pathTable = context.PathTable;
             var pathsToReportedFileAccesses = new Dictionary<AbsolutePath, List<ReportedFileAccess>>();
@@ -6748,7 +6911,13 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     if (pathSpecificAccess.RequestedAccess == observation.Item2 && pathSpecificAccess.Status == observation.Item3)
                     {
-                        foundExpectedAccess = true;
+                        bool operationDoesMatch = true;
+                        if (observation.Item4.HasValue)
+                        {
+                            operationDoesMatch = pathSpecificAccess.Operation == observation.Item4.Value;
+                        }
+
+                        foundExpectedAccess = true && operationDoesMatch;
                         break;
                     }
                 }
@@ -6793,9 +6962,15 @@ namespace Test.BuildXL.Processes.Detours
 
                     foreach (var pathSpecificAccess in pathSpecificAccesses)
                     {
-                        if (pathSpecificAccess.RequestedAccess == observation.Item2 && pathSpecificAccess.Status == observation.Item3)
+                        if (pathSpecificAccess.RequestedAccess == observation.Item2 && pathSpecificAccess.Status == observation.Item3 && pathSpecificAccess.Operation == observation.Item4)
                         {
-                            foundExpectedAccess = true;
+                            bool operationDoesMatch = true;
+                            if (observation.Item4.HasValue)
+                            {
+                                operationDoesMatch = pathSpecificAccess.Operation == observation.Item4.Value;
+                            }
+
+                            foundExpectedAccess = true && operationDoesMatch;
                             break;
                         }
                     }
@@ -6808,6 +6983,18 @@ namespace Test.BuildXL.Processes.Detours
                         observation.fileAccessStatus.ToString());
                 }
             }
+        }
+
+        private static void VerifyFileAccesses(
+            BuildXLContext context,
+            IReadOnlyList<ReportedFileAccess> reportedFileAccesses,
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToVerify,
+            AbsolutePath[] pathsToFalsify = null,
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToFalsify = null)
+        {
+            var newObservationsToVerify = observationsToVerify.Select(entry => (entry.Item1, entry.Item2, entry.Item3, new ReportedFileOperation?())).ToArray();
+            var newObservationsToFalsify = observationsToFalsify != null ? observationsToFalsify.Select(entry => (entry.Item1, entry.Item2, entry.Item3, new ReportedFileOperation?())).ToArray() : null;
+            VerifyFileAccesses(context, reportedFileAccesses, newObservationsToVerify, pathsToFalsify, newObservationsToFalsify);
         }
 
         private static void VerifyProcessCreations(

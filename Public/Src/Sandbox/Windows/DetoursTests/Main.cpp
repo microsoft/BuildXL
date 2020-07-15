@@ -13,6 +13,7 @@ using namespace std;
 #include "ReadExclusive.h"
 #include "ShortNames.h"
 #include "SymLinkTests.h"
+#include "ResolvedPathCacheTests.h"
 #include "Tests.h"
 #include "Timestamps.h"
 #include "Utils.h"
@@ -1176,6 +1177,10 @@ int CallCreateSelfForWrite()
     return (int)GetLastError();
 }
 
+int CallDetoursResolvedPathCacheTests()
+{
+    return ValidateResolvedPathCache();
+}
 
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
@@ -1211,6 +1216,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteWithoutSharing);
     IF_COMMAND(CallDeleteOnOpenedHardlink);
     IF_COMMAND(CallCreateSelfForWrite);
+    IF_COMMAND(CallDetoursResolvedPathCacheTests);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2
@@ -1345,6 +1351,7 @@ int main(int argc, char **argv)
     LoggingTests(verb);
     SymlinkTests(verb);
     GenericTests(verb);
+
 #undef IF_COMMAND
 
     exit(ERROR_INVALID_COMMAND);

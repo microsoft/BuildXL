@@ -596,7 +596,7 @@ Versions/sym-sym-A -> sym-A/
         public void ConcurrentCreationOfHardlinksPointingToSameFile()
         {
             var srcFile = CreateSourceFileWithPrefix(prefix: "hardlink-source.txt");
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 666; i++)
             {
                 CreateAndSchedulePipBuilder(
                     description: "create-hardlink-" + i,

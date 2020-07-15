@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Utilities.Tasks
 {
@@ -200,9 +201,11 @@ namespace BuildXL.Utilities.Tasks
         /// <returns>A disposable which will release the semaphore when it is disposed.</returns>
         public static async Task<SemaphoreReleaser> AcquireAsync(this SemaphoreSlim semaphore, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Contract.RequiresNotNull(semaphore);
+            Contract.Requires(semaphore != null);
+
+            var stopwatch = StopwatchSlim.Start();
             await semaphore.WaitAsync(cancellationToken);
-            return new SemaphoreReleaser(semaphore);
+            return new SemaphoreReleaser(semaphore, stopwatch.Elapsed);
         }
 
         /// <summary>
@@ -211,9 +214,11 @@ namespace BuildXL.Utilities.Tasks
         /// <param name="semaphore">The semaphore to acquire</param>
         public static SemaphoreReleaser AcquireSemaphore(this SemaphoreSlim semaphore)
         {
-            Contract.RequiresNotNull(semaphore);
+            Contract.Requires(semaphore != null);
+            var stopwatch = StopwatchSlim.Start();
+
             semaphore.Wait();
-            return new SemaphoreReleaser(semaphore);
+            return new SemaphoreReleaser(semaphore, stopwatch.Elapsed);
         }
 
         /// <summary>
@@ -369,17 +374,22 @@ namespace BuildXL.Utilities.Tasks
         {
             private readonly SemaphoreSlim m_semaphore;
 
+            /// <nodoc />
+            public TimeSpan LockAcquisitionDuration { get; }
+
             /// <summary>
             /// Creates a new releaser.
             /// </summary>
             /// <param name="semaphore">The semaphore to release when Dispose is invoked.</param>
+            /// <param name="lockAcquisitionDuration">The time it took to acquire the lock.</param>
             /// <remarks>
             /// Assumes the semaphore is already acquired.
             /// </remarks>
-            internal SemaphoreReleaser(SemaphoreSlim semaphore)
+            internal SemaphoreReleaser(SemaphoreSlim semaphore, TimeSpan lockAcquisitionDuration)
             {
                 Contract.RequiresNotNull(semaphore);
                 m_semaphore = semaphore;
+                LockAcquisitionDuration = lockAcquisitionDuration;
             }
 
             /// <summary>

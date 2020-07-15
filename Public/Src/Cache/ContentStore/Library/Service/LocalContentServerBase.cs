@@ -753,7 +753,7 @@ namespace BuildXL.Cache.ContentStore.Service
             return default;
         }
 
-        private async Task<Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>> CreateTempDirectoryAndSessionAsync(
+        private Task<Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>> CreateTempDirectoryAndSessionAsync(
             OperationContext context,
             int? sessionIdHint,
             string sessionName,
@@ -765,30 +765,37 @@ namespace BuildXL.Cache.ContentStore.Service
             // The hint is provided when the session is recovered from hibernation.
             var sessionId = sessionIdHint ?? Interlocked.Increment(ref _lastSessionId);
 
-            var tempDirectoryCreationResult = await CreateSessionTempDirectoryAsync(context, cacheName, sessionId);
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var tempDirectoryCreationResult = await CreateSessionTempDirectoryAsync(context, cacheName, sessionId);
 
-            if (!tempDirectoryCreationResult)
-            {
-                return new Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(tempDirectoryCreationResult);
-            }
+                    if (!tempDirectoryCreationResult)
+                    {
+                        return new Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(tempDirectoryCreationResult);
+                    }
 
-            var sessionResult = await CreateSessionAsync(
-                context,
-                sessionName,
-                cacheName,
-                implicitPin,
-                sessionId,
-                sessionExpirationUtcTicks,
-                capabilities);
+                    var sessionResult = await CreateSessionAsync(
+                        context,
+                        sessionName,
+                        cacheName,
+                        implicitPin,
+                        sessionId,
+                        sessionExpirationUtcTicks,
+                        capabilities);
 
-            if (!sessionResult)
-            {
-                RemoveSessionTempDirectory(sessionId);
-                return Result.FromError<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(sessionResult);
-            }
+                    if (!sessionResult)
+                    {
+                        RemoveSessionTempDirectory(sessionId);
+                        return Result.FromError<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(sessionResult);
+                    }
 
-            return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
-                (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
+                    return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
+                        (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
+                },
+                extraStartMessage: $"SessionId=[{sessionId}]",
+                extraEndMessage: r => $"SessionId=[{sessionId}]");
         }
 
         /// <inheritdoc />

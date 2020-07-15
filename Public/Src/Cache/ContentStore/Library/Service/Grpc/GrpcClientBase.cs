@@ -176,6 +176,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             await operationContext.PerformOperationAsync(
                     Tracer,
                     () => sendHeartbeatAsync(sessionContext.Value).WithTimeoutAsync(HeartbeatHardTimeout),
+                    extraStartMessage: $"SessionId={sessionId}",
                     extraEndMessage: r => $"SessionId={sessionId}")
                 .IgnoreFailure(); // The error was already traced.
 
@@ -227,12 +228,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return startupResult;
             }
 
-            CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
-            if (string.IsNullOrEmpty(response.ErrorMessage))
+            var operationContext = new OperationContext(context);
+            Result<SessionData> dataResult = await CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, isReconnect: false);
+            if (dataResult.Succeeded)
             {
-                var sessionId = response.SessionId;
-                SessionData data = new SessionData(sessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
-                SessionState = new SessionState(() => CreateSessionDataAsync(context, name, cacheName, implicitPin), data);
+                SessionData data = dataResult.Value!;
+                SessionState = new SessionState(() => CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, isReconnect: true), data);
+
+                int sessionId = data.SessionId;
 
                 // Send a heartbeat iff both the service can receive one and the service was told to expect one.
                 if ((_serviceCapabilities & Capabilities.Heartbeat) != 0 &&
@@ -244,13 +247,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     });
                 }
 
-                Tracer.Info(context, $"Created a session with SessionId={sessionId}.");
-
                 return BoolResult.Success;
             }
             else
             {
-                return new BoolResult(response.ErrorMessage);
+                return dataResult;
             }
         }
 
@@ -311,22 +312,32 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return BoolResult.Success;
         }
 
-        private async Task<ObjectResult<SessionData>> CreateSessionDataAsync(
-            Context context,
+        private Task<Result<SessionData>> CreateSessionDataAsync(
+            OperationContext context,
             string name,
             string cacheName,
-            ImplicitPin implicitPin)
+            ImplicitPin implicitPin,
+            bool isReconnect)
         {
-            CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
-            if (string.IsNullOrEmpty(response.ErrorMessage))
-            {
-                SessionData data = new SessionData(response.SessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
-                return new ObjectResult<SessionData>(data);
-            }
-            else
-            {
-                return new ObjectResult<SessionData>(response.ErrorMessage);
-            }
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
+                    if (string.IsNullOrEmpty(response.ErrorMessage))
+                    {
+                        SessionData data = new SessionData(response.SessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
+                        return new Result<SessionData>(data);
+                    }
+                    else
+                    {
+                        return new Result<SessionData>(response.ErrorMessage);
+                    }
+                },
+                traceOperationStarted: true,
+                extraStartMessage: $"Reconnect={isReconnect}",
+                extraEndMessage: r => $"Reconnect={isReconnect}, SessionId={(r ? r.Value!.SessionId.ToString() : "Error")}"
+                );
         }
 
         private async Task<CreateSessionResponse> CreateSessionAsyncInternalAsync(
@@ -377,14 +388,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
 
-            ObjectResult<SessionData> result = await SessionState.GetDataAsync();
+            Result<SessionData> result = await SessionState.GetDataAsync(new OperationContext(context, token));
             if (!result)
             {
                 return Result.FromError<SessionContext>(result);
             }
 
             var startTime = DateTime.UtcNow;
-            return new SessionContext(context, startTime, result.Data!, token);
+            return new SessionContext(context, startTime, result.Value!, token);
         }
 
         /// <summary>
@@ -546,7 +557,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
 
                 Tracer.Warning(context, $"Could not find session id {sessionId}. Resetting session state.");
-                await SessionState.ResetAsync(sessionId);
+                await SessionState.ResetAsync(new OperationContext(context), sessionId);
                 if (throwFailures)
                 {
                     throw new ClientCanRetryException(context, $"Could not find session id {sessionId}");

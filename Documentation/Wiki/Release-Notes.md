@@ -1,11 +1,26 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200711.0 (Release [71168](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71168)).  Released 7/15/2020
+- Enable non-nullable reference types for Cache Library 
+- Exclude ClientTelemetry.pdb from getting copied several times as a part of packages/final deployment.
+- Add Chromium tracer for BuildXL
+- Fix DistributedContentCopier logging
+- Disable writing ClusterState to ContentLocationDatabase and make read-only on workers
+- Add Redis autoscaling to the cache monitor
+- Retry Proactive Copies (and clean-up)
+- Add Yarn integration tests
+- Embed debug information (pdb) into assemblies
+- Checkpoint manager hardlink immutable files instead of copying
+- Add a configuration option to make a pip fail when writing to standard error
+- Fix under build related to directory enumerations and undeclared sources
+- Some other bug fixes, documentation updates and test additions
+
 # 0.1.0-20200703.4.1 (Release [70555](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=70555)).  Released 7/8/2020
 - A new Yarn frontend
 - New counters for the size of materialized files
 - Minimum value of MaxNumPipTelemetryBatches is now 0
-- The default value of FingerprintStoreAnalysisMode is now Offline
+- Saving fingerprintstore into the logs directory is now optional
 - Process cancellation messages are now verbose
 - Misc bug fixes
 

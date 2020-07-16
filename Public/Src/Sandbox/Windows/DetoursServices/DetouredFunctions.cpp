@@ -209,6 +209,10 @@ static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _I
     {
         target = io_result->first;
         reparsePointType = io_result->second;
+        if (reparsePointType == 0x0)
+        {
+            goto Epilogue;
+        }
         goto Success;
     }
 
@@ -281,7 +285,8 @@ Success:
 
 Error:
 
-    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, 0);
+    // Also add dummy cache entry for paths that are not reparse points, so we can avoid calling DeviceIoControl repeatedly
+    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, 0x0);
 
 Epilogue:
 

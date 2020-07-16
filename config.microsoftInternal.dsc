@@ -54,9 +54,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "NodeJs", version: "13.3.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
-    // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.3", osSkip: [ "macOS", "unix" ] },
-
     // Officially mantained CB package that contains Yarn. Used for Yarn tests.
     { id: "Npm.OnCloudBuild", version: "3.1.0" },
 
@@ -76,7 +73,6 @@ export const resolver = {
         ...addIf(isMicrosoftInternal,
             f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
             f`Private/InternalSdk/NodeJs/module.config.dsc`,
-            f`Private/InternalSdk/DotNet-Runtime/module.config.dsc`,
             f`Private/InternalSdk/Windows.Sdk/module.config.dsc`
         ),
 

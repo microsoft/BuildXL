@@ -422,21 +422,21 @@ config({
 
                 // DotNet Core Runtime
                 {
-                    moduleName: "DotNet-Runtime.win-x64.3.1.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/5e1c20ea-113f-47fd-9702-22a8bf1e3974/16bf234b587064709d8e7b58439022d4/dotnet-runtime-3.1.0-win-x64.zip",
-                    hash: "VSO0:EE359BDFFFED53EF3C5E76C1716AADD1567447B12A37292C075D6A26F1138C0700",
+                    moduleName: "DotNet-Runtime.win-x64.3.1.6",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/f01755a3-b9cf-4d63-acdd-e331337548d6/ab5385bc8a555e741bc093b3459015b7/dotnet-runtime-3.1.6-win-x64.zip",
+                    hash: "VSO0:9757187648C77E11F41303763ED2CCD427741616EE38376C40E96827671482C500",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.3.1.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/454ca582-64f7-4817-bbb0-34a7fb831499/1d2d5613a2d2ebb26da04471e97cb539/dotnet-runtime-3.1.0-osx-x64.tar.gz",
-                    hash: "VSO0:FCB44A9D07D3923DB197C05A710FEBBB060649555418A067E04EAE1A06CBCE4400",
+                    moduleName: "DotNet-Runtime.osx-x64.3.1.6",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d1a67dcf-12d9-4ecd-86a4-c4a659f0eebf/519db8ce56503d551d35ef9378239c70/dotnet-runtime-3.1.6-osx-x64.tar.gz",
+                    hash: "VSO0:F0FBE5172B7D57CE46EEF54BED6790EF197D841B53B83656982616DC193740D800",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.3.1.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d731f991-8e68-4c7c-8ea0-fad5605b077a/49497b5420eecbd905158d86d738af64/dotnet-sdk-3.1.100-linux-x64.tar.gz",
-                    hash: "VSO0:B89DFFD762BEA6D94E11CEA1C430FDC620CE5407827360085B21963E5887E38300",
+                    moduleName: "DotNet-Runtime.linux-x64.3.1.6",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/7c2978aa-1a4c-4fb0-a7cd-1dbaf1ce405d/c54e21f55dfa49d2ccdb599fa2edb9ed/dotnet-runtime-3.1.6-linux-x64.tar.gz",
+                    hash: "VSO0:713CA0FE106D1EEE837E4595312F4771CDD429147DA2E1CB66F85E2603DD9BA900",
                     archiveType: "tgz",
                 },
                 // The following are needed for dotnet core MSBuild test deployments

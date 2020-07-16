@@ -185,15 +185,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Dotnet-Runtime",
-          "Version": "5.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Drop.App.Core",
           "Version": "18.171.30210-buildid12336404"
         }

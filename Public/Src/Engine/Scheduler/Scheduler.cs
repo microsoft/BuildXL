@@ -6715,7 +6715,7 @@ namespace BuildXL.Scheduler
             LoggingContext pipLoggingContext = new LoggingContext(
                 m_executePhaseLoggingContext,
                 IsDistributedWorker ? "remote call" : pip.PipId.ToString(),
-                runnablePip.Observer.GetActivityId(pip.PipId));
+                runnablePip.Observer.GetActivityId(runnablePip));
 
             EventSource.SetCurrentThreadActivityId(pipLoggingContext.ActivityId);
 

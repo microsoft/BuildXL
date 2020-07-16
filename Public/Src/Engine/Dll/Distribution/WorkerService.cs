@@ -87,11 +87,11 @@ namespace BuildXL.Engine.Distribution
         private readonly TaskSourceSlim<bool> m_exitCompletionSource;
         private readonly TaskSourceSlim<bool> m_attachCompletionSource;
 
-        private readonly ConcurrentDictionary<PipId, SinglePipBuildRequest> m_pendingBuildRequests =
-            new ConcurrentDictionary<PipId, SinglePipBuildRequest>();
+        private readonly ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> m_pendingBuildRequests =
+            new ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest>();
 
-        private readonly ConcurrentDictionary<PipId, ExtendedPipCompletionData> m_pendingPipCompletions =
-            new ConcurrentDictionary<PipId, ExtendedPipCompletionData>();
+        private readonly ConcurrentDictionary<(PipId,PipExecutionStep), ExtendedPipCompletionData> m_pendingPipCompletions =
+            new ConcurrentDictionary<(PipId, PipExecutionStep), ExtendedPipCompletionData>();
 
         private readonly ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
 
@@ -485,13 +485,14 @@ namespace BuildXL.Engine.Distribution
 
                     var pipId = new PipId(pipBuildRequest.PipIdValue);
                     var pip = m_pipTable.HydratePip(pipId, PipQueryContext.HandlePipStepOnWorker);
-                    m_pendingBuildRequests[pipId] = pipBuildRequest;
+                    var pipIdStepTuple = (pipId, (PipExecutionStep)pipBuildRequest.Step);
+                    m_pendingBuildRequests[pipIdStepTuple] = pipBuildRequest;
                     var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step })
                     {
                         SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId)
                     };
 
-                    m_pendingPipCompletions[pipId] = pipCompletionData;
+                    m_pendingPipCompletions[pipIdStepTuple] = pipCompletionData;
 
                     HandlePipStepAsync(pip, pipCompletionData, pipBuildRequest, reportInputsResult).Forget((ex)=>
                     {
@@ -502,7 +503,7 @@ namespace BuildXL.Engine.Distribution
 
                         // HandlePipStep might throw an exception after we remove pipCompletionData from m_pendingPipCompletions.
                         // That's why, we check whether the pipCompletionData still exists there.
-                        if (m_pendingPipCompletions.ContainsKey(pip.PipId))
+                        if (m_pendingPipCompletions.ContainsKey(pipIdStepTuple))
                         {
                             ReportResult(
                                 pip,
@@ -581,9 +582,9 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private Guid GetActivityId(PipId pipId)
+        private Guid GetActivityId(RunnablePip runnablePip)
         {
-            return new Guid(m_pendingBuildRequests[pipId].ActivityId);
+            return new Guid(m_pendingBuildRequests[(runnablePip.PipId, runnablePip.Step)].ActivityId);
         }
 
         private void StartStep(RunnablePip runnablePip)
@@ -597,7 +598,8 @@ namespace BuildXL.Engine.Distribution
                 runnablePip.Description,
                 runnablePip.Step.AsString());
 
-            var completionData = m_pendingPipCompletions[pipId];
+            var pipIdStepTuple = (pipId, runnablePip.Step);
+            var completionData = m_pendingPipCompletions[pipIdStepTuple];
             completionData.StepExecutionStarted.SetResult(true);
 
             switch (runnablePip.Step)
@@ -606,9 +608,9 @@ namespace BuildXL.Engine.Distribution
                     if (runnablePip.PipType == PipType.Process)
                     {
                         SinglePipBuildRequest pipBuildRequest;
-                        bool found = m_pendingBuildRequests.TryGetValue(pipId, out pipBuildRequest);
+                        bool found = m_pendingBuildRequests.TryGetValue(pipIdStepTuple, out pipBuildRequest);
                         Contract.Assert(found, "Could not find corresponding build request for executed pip on worker");
-                        m_pendingBuildRequests[pipId] = null;
+                        m_pendingBuildRequests[pipIdStepTuple] = null;
 
                         // Set the cache miss result with fingerprint so ExecuteProcess step can use it
                         var fingerprint = pipBuildRequest.Fingerprint.ToFingerprint();
@@ -633,7 +635,8 @@ namespace BuildXL.Engine.Distribution
             var description = runnablePip.Description;
             var executionResult = runnablePip.ExecutionResult;
 
-            var completionData = m_pendingPipCompletions[pipId];
+
+            var completionData = m_pendingPipCompletions[(pipId, runnablePip.Step)];
             completionData.SerializedData.ExecuteStepTicks = runnablePip.StepDuration.Ticks;
             completionData.SerializedData.ThreadId = runnablePip.ThreadId;
             completionData.SerializedData.StartTimeTicks = runnablePip.StepStartTime.Ticks;
@@ -717,7 +720,7 @@ namespace BuildXL.Engine.Distribution
                 m_hasFailures = true;
             }
 
-            bool found = m_pendingPipCompletions.TryRemove(pipId, out var pipCompletion);
+            bool found = m_pendingPipCompletions.TryRemove((pipId, step), out var pipCompletion);
             Contract.Assert(found, "Could not find corresponding build completion data for executed pip on worker");
 
             pipCompletion.ExecutionResult = executionResult;
@@ -865,9 +868,9 @@ namespace BuildXL.Engine.Distribution
                 m_workerService = workerService;
             }
 
-            public override Guid? GetActivityId(PipId pipId)
+            public override Guid? GetActivityId(RunnablePip runnablePip)
             {
-                return m_workerService.GetActivityId(pipId);
+                return m_workerService.GetActivityId(runnablePip);
             }
 
             public override void StartStep(RunnablePip runnablePip)

@@ -20,7 +20,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets the logging activity id for the given pip (if specified)
         /// </summary>
-        public virtual Guid? GetActivityId(PipId pipId)
+        public virtual Guid? GetActivityId(RunnablePip runnablePip)
         {
             return null;
         }

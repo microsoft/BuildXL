@@ -1034,16 +1034,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 Settings.PinConfiguration.StartCopyWhenPinMinUnverifiedCountThreshold;
                 if (locations.Count < threshold)
                 {
-                    Tracer.Warning(operationContext, $"Starting asynchronous copy of the content for hash {remote.ContentHash.ToShortString()} because the number of locations '{locations.Count}' is less then a threshold of '{threshold}'.");
+                    Tracer.Info(operationContext, $"Starting asynchronous copy of the content for hash {remote.ContentHash.ToShortString()} because the number of locations '{locations.Count}' is less then a threshold of '{threshold}'.");
                     SessionCounters[Counters.StartCopyForPinWhenUnverifiedCountSatisfied].Increment();
-                    var task = TryCopyAndPutAndUpdateContentTrackerAsync(operationContext, remote, updateContentTracker, CopyReason.AsyncPin, cancel);
+
+                    // Removing cancellation token from the context so it can outlast this call
+                    var asyncOperationContext = new OperationContext(operationContext.TracingContext, token: default);
+                    var task = TryCopyAndPutAndUpdateContentTrackerAsync(asyncOperationContext, remote, updateContentTracker, CopyReason.AsyncPin, cancel);
                     if (Settings.InlineOperationsForTests)
                     {
                         (await task).TraceIfFailure(operationContext);
                     }
                     else
                     {
-                        task.FireAndForget(operationContext.TracingContext);
+                        task.FireAndForget(asyncOperationContext.TracingContext, operation: "AsynchronousCopyOnPin");
                     }
                 }
 

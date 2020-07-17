@@ -1476,6 +1476,7 @@ namespace BuildXL.Scheduler
                                     start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
                                     LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
+                                    staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
                                 }
 
                                 if (result.PipProperties != null)
@@ -1614,8 +1615,6 @@ namespace BuildXL.Scheduler
                                     userRetry = true;
                                     counters.AddToCounter(PipExecutorCounter.RetriedUserExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
-
-                                    staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
 
                                     continue;
                                 }

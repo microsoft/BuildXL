@@ -3,7 +3,7 @@
 
 namespace VerticalAggregator {
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.VerticalAggregator.Test",
         sources: globR(d`.`, "*.cs"),
         references: [

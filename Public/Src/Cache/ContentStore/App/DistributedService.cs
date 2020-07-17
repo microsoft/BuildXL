@@ -33,7 +33,6 @@ namespace BuildXL.Cache.ContentStore.App
         internal void DistributedService
             (
             [Description("Path to DistributedContentSettings file")] string settingsPath,
-            [Description("Cache name")] string cacheName,
             [Description("Cache root path")] string cachePath,
             [DefaultValue((int)ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
             [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName,
@@ -51,6 +50,9 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath
             )
         {
+            // We don't actually support the cache name being anything different than this, so there is no point in
+            // allowing it.
+            var cacheName = "Default";
             Initialize();
 
             if (debug)

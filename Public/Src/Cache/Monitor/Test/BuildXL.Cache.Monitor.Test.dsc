@@ -7,7 +7,7 @@ import * as ManagedSdk from "Sdk.Managed";
 
 namespace MonitorTest {
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Monitor.Test",
         sources: globR(d`.`, "*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,

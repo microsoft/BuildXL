@@ -4,7 +4,7 @@ import * as ManagedSdk from "Sdk.Managed";
 
 namespace Distributed {
     @@public
-    export const eventHubPackagages = [
+    export const eventHubPackages = [
         importFrom("Microsoft.Azure.EventHubs").pkg,
         // Microsoft.Azure.EventHubs removes 'System.Diagnostics.DiagnosticSource' as the dependency to avoid deployment issue for .netstandard2.0, but this dependency
         // is required for non-.net core builds.
@@ -14,7 +14,7 @@ namespace Distributed {
                 importFrom("Microsoft.IdentityModel.Logging").pkg 
               ] 
             : []),
-
+        importFrom("Microsoft.Azure.Amqp").pkg,
     ];
 
     @@public
@@ -27,7 +27,7 @@ namespace Distributed {
             },
         ],
         references: [
-            ...eventHubPackagages,
+            ...eventHubPackages,
             // Intentionally using different Azure storage package
             importFrom("WindowsAzure.Storage").pkg,
             ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),

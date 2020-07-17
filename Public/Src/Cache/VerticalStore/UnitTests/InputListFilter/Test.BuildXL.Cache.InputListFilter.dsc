@@ -3,7 +3,7 @@
 
 namespace InputListFilter {
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.InputListFilter.Test",
         sources: globR(d`.`, "*.cs"),
         references: [

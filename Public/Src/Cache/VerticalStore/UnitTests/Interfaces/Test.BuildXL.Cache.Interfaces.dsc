@@ -3,7 +3,7 @@
 
 namespace Interfaces {
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Interfaces.Test",
         sources: globR(d`.`, "*.cs"),
         references: [

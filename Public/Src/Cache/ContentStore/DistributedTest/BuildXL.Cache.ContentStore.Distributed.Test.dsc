@@ -63,7 +63,7 @@ namespace DistributedTest {
             ...redisPackages,
             ...getSerializationPackages(true),
             Distributed.dll,
-            ...Distributed.eventHubPackagages,
+            ...Distributed.eventHubPackages,
             UtilitiesCore.dll,
             Hashing.dll,
             Interfaces.dll,

@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Compositing {
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Compositing.Test",
         sources: globR(d`.`, "*.cs"),
         references: [

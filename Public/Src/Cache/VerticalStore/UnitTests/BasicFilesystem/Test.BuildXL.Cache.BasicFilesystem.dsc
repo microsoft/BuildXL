@@ -3,7 +3,7 @@
 
 namespace BasicFilesystem{
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.BasicFilesystem.Test",
         sources: globR(d`.`, "*.cs"),
         references: [

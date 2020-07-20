@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace BuildXL.Utilities.VmCommandProxy
 {
@@ -80,9 +82,14 @@ namespace BuildXL.Utilities.VmCommandProxy
         public static bool HasRelocatedTemp => IsRunningInVm && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(VmTemp));
 
         /// <summary>
+        /// Prefix for host environment variable.
+        /// </summary>
+        public const string HostEnvVarPrefix = "[BUILDXL]VM_HOST_";
+
+        /// <summary>
         /// Environment variable containing path to the host's user profile, or a redirected one.
         /// </summary>
-        public const string HostUserProfile = "[BUILDXL]VM_HOST_USERPROFILE";
+        public static readonly string HostUserProfile = $"{HostEnvVarPrefix}USERPROFILE";
 
         /// <summary>
         /// Environment variable indicating if the host's user profile is a redirected one.
@@ -170,6 +177,55 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// User profile path.
             /// </summary>
             public readonly static string Path = $@"C:\Users\{Name}";
+
+            /// <summary>
+            /// Prefix for ApplicationData special folder.
+            /// </summary>
+            public readonly static string AppDataPrefix = $@"{Path}\AppData";
+
+            /// <summary>
+            /// LocalApplicationData special folder.
+            /// </summary>
+            public readonly static string LocalAppData = $@"{AppDataPrefix}\Local";
+
+            private static Func<string> GetEnvFolderFunc(Environment.SpecialFolder folder) => new Func<string>(() => Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify));
+
+            /// <summary>
+            /// Environment variables related to user profile.
+            /// </summary>
+            public readonly static Dictionary<string, (string value, Func<string> toVerify)> Environments = new Dictionary<string, (string, Func<string>)>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "APPDATA",          ($@"{AppDataPrefix}\Roaming",                                                    GetEnvFolderFunc(Environment.SpecialFolder.ApplicationData)) },
+                { "LOCALAPPDATA",     (LocalAppData,                                                                   GetEnvFolderFunc(Environment.SpecialFolder.LocalApplicationData)) },
+                { "USERPROFILE",      (Path,                                                                           GetEnvFolderFunc(Environment.SpecialFolder.UserProfile)) },
+                { "USERNAME",         (Name,                                                                           null) },
+                { "HOMEDRIVE",        (System.IO.Path.GetPathRoot(Path).Trim(System.IO.Path.DirectorySeparatorChar),   null) }, 
+                { "HOMEPATH",         (Path.Substring(2),                                                              null) },
+                { "INTERNETCACHE" ,   ($@"{LocalAppData}\Microsoft\Windows\INetCache",                                 GetEnvFolderFunc(Environment.SpecialFolder.InternetCache)) },
+                { "INTERNETHISTORY",  ($@"{LocalAppData}\Microsoft\Windows\History",                                   GetEnvFolderFunc(Environment.SpecialFolder.History)) },
+                { "INETCOOKIES",      ($@"{LocalAppData}\Microsoft\Windows\INetCookies",                               GetEnvFolderFunc(Environment.SpecialFolder.Cookies)) },
+                { "LOCALLOW" ,        ($@"{AppDataPrefix}\LocalLow",                                                   new Func<string>(() => GetKnownFolderPath(new Guid("A520A1A4-1780-4FF6-BD18-167343C5AF16")))) },
+            };
+
+            [DllImport("shell32.dll")]
+            private static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr pszPath);
+
+            private static string GetKnownFolderPath(Guid knownFolderId)
+            {
+                IntPtr pszPath = IntPtr.Zero;
+                try
+                {
+                    int hr = SHGetKnownFolderPath(knownFolderId, 0, IntPtr.Zero, out pszPath);
+                    if (hr >= 0)
+                        return Marshal.PtrToStringAuto(pszPath);
+                    throw Marshal.GetExceptionForHR(hr);
+                }
+                finally
+                {
+                    if (pszPath != IntPtr.Zero)
+                        Marshal.FreeCoTaskMem(pszPath);
+                }
+            }
         }
     }
 }

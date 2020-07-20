@@ -754,14 +754,14 @@ namespace BuildXL.Processes
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
 
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
+                
 
                 if (!PrepareWorkingDirectory())
                 {
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                PrepareEnvironmentVariables(ref environmentVariables);
+                var environmentVariables = PrepareEnvironmentVariables();
 
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
@@ -2606,12 +2606,17 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private void PrepareEnvironmentVariables(ref IBuildParameters environmentVariables)
+        private IBuildParameters PrepareEnvironmentVariables()
         {
+            var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(
+                m_pip,
+                m_pipDataRenderer,
+                m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
+
             if (ShouldSandboxedProcessExecuteInVm)
             {
-                environmentVariables = environmentVariables.Override(new[] 
-                { 
+                var vmSpecificEnvironmentVariables = new[]
+                {
                     new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1"),
                     new KeyValuePair<string, string>(
                         VmSpecialEnvironmentVariables.HostHasRedirectedUserProfile,
@@ -2621,8 +2626,32 @@ namespace BuildXL.Processes
                         m_layoutConfiguration != null && m_layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid
                             ? s_possibleRedirectedUserProfilePath
                             : s_userProfilePath)
-                });
+                };
+
+                // Because the pip is going to be run under a different user (i.e., Admin) in VM, all passthrough environment
+                // variables that are related to user profile, like %UserProfile%, %UserName%, %AppData%, %LocalAppData%, etc, need
+                // to be overriden with C:\User\Administrator. The original value of user-profile %ENVVAR%, if any, will be preserved
+                // in %[BUILDXL]VM_HOST_<ENVVAR>%
+                //
+                // We cannot delay the values for all passthrough environment variables until the pip is "sent" to the VM because the pip
+                // may need the environment variables and only the host has the values for them. For example, some pips need
+                // %__CLOUDBUILD_AUTH_HELPER_ROOT__% that only exists in the host.
+                var vmPassThroughEnvironmentVariables = m_pip.EnvironmentVariables
+                    .Where(e => e.IsPassThrough && VmConstants.UserProfile.Environments.ContainsKey(m_pipDataRenderer.Render(e.Name)))
+                    .SelectMany(e =>
+                    {
+                        string name = m_pipDataRenderer.Render(e.Name);
+                        return new[]
+                        {
+                                new KeyValuePair<string, string>(name, VmConstants.UserProfile.Environments[name].value),
+                                new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.HostEnvVarPrefix + name, environmentVariables[name])
+                            };
+                    });
+
+                environmentVariables = environmentVariables.Override(vmSpecificEnvironmentVariables.Concat(vmPassThroughEnvironmentVariables));
             }
+
+            return environmentVariables;
         }
 
         /// <summary>

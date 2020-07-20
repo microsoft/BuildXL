@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.VmCommandProxy;
@@ -119,6 +121,119 @@ namespace Test.BuildXL.Utilities
             });
         }
 
+        [Fact]
+        public void VmPipCurrentlyDoesNotHaveUserProfileEnvironmentVariablesSpecified()
+        {
+            EnsureRunInVm(() =>
+            {
+                var userProfileEnvs = new[]
+                {
+                    getEnvironment("UserName"),
+                    getEnvironment("UserProfile"),
+                    getEnvironment("AppData"),
+                    getEnvironment("LocalAppData"),
+                    getEnvironment("HomeDrive"),
+                    getEnvironment("HomePath")
+                };
+
+                var existingEnvs = userProfileEnvs.Where(e => !string.IsNullOrEmpty(e.value));
+                XAssert.AreEqual(
+                    0,
+                    existingEnvs.Count(),
+                    string.Join("; ", existingEnvs.Select(e => $"%{e.name}%: \"{e.value}\"")));
+            });
+
+            static (string name, string value) getEnvironment(string name) => (name, Environment.GetEnvironmentVariable(name));
+        }
+
+        [Fact]
+        public void VmPipHasSpecialEnvironmentVariables()
+        {
+            EnsureRunInVm(() =>
+            {
+                var envs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var key in Environment.GetEnvironmentVariables().Keys)
+                {
+                    envs[key.ToString()] = Environment.GetEnvironmentVariable(key.ToString());
+                }
+
+                var verifyEqual = new (string name, string value)[]
+                {
+                    (VmSpecialEnvironmentVariables.IsInVm, "1"),
+                    (VmSpecialEnvironmentVariables.HostHasRedirectedUserProfile, "1"),
+                };
+
+                foreach (var (name, value) in verifyEqual)
+                {
+                    assertExists(envs, name);
+                    assertEqual(name, value, envs[name]);
+                }
+
+                var verifyPrefix = new[]
+                {
+                    (VmSpecialEnvironmentVariables.VmTemp, VmConstants.Temp.Root)
+                };
+
+                foreach (var (name, value) in verifyPrefix)
+                {
+                    assertExists(envs, name);
+                    assertPrefix(name, envs[name], value);
+                }
+
+                var verifyRoot = new[]
+                {
+                    (VmSpecialEnvironmentVariables.VmOriginalTemp, VmConstants.Host.NetUseDrive + @":\")
+                };
+
+                foreach (var (name, value) in verifyRoot)
+                {
+                    assertExists(envs, name);
+                    assertRoot(name, envs[name], value);
+                }
+            });
+
+            static void assertExists(IReadOnlyDictionary<string, string> envs, string name)
+            {
+                XAssert.IsTrue(envs.ContainsKey(name), $"%{name}% does not exist in VM");
+            }
+
+            static void assertEqual(string name, string expected, string actual)
+            {
+                XAssert.AreEqual(expected, actual, $"%{name}%: (expected: '{expected}', actual: '{actual}')");
+            }
+
+            static void assertPrefix(string name, string value, string prefix)
+            {
+                XAssert.IsTrue(value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase), $"%{name}%: '{value}' does not start with '{prefix}'");
+            }
+
+            static void assertRoot(string name, string path, string expectedRoot)
+            {
+                var root = Path.GetPathRoot(path); // From B:\..., this returns B:\. We cannot omit this step because the temp B:\...\temp is redirected to T:\...
+                XAssert.IsTrue(FileUtilities.TryGetFinalPathNameByPath(root, out var finalPath, out var error)); // Final path should be UNC\<ip-address>\D\...
+                var finalRoot = finalPath.Split(Path.DirectorySeparatorChar)[2] + @":\";
+                XAssert.AreEqual(expectedRoot.ToUpperInvariant(), finalRoot.ToUpperInvariant(), $"%{name}%: (expected root: '{expectedRoot.ToUpperInvariant()}', actual root: '{finalRoot.ToUpperInvariant()}')");
+            }
+        }
+
+        [Fact]
+        public void HardCodedUserProfileEnvironmentVariablesHaveExpectedValues()
+        {
+            EnsureRunInVm(() =>
+            {
+                foreach (var env in VmConstants.UserProfile.Environments)
+                {
+                    if (env.Value.toVerify != null)
+                    {
+                        XAssert.AreEqual(
+                            env.Value.value.ToUpperInvariant(),
+                            env.Value.toVerify().ToUpperInvariant(),
+                            $"Mismatched values for %{env.Key}%. Expected: '{env.Value.value}', Actual: '{env.Value.toVerify()}'");
+                    }
+                }
+            });
+        }
+        
         private void EnsureRunInVm(Action verify)
         {
             if (VmSpecialEnvironmentVariables.IsRunningInVm)

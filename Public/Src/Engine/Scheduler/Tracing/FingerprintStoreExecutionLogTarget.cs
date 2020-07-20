@@ -162,9 +162,13 @@ namespace BuildXL.Scheduler.Tracing
                 testHooks: testHooks);
 
             Possible<FingerprintStore> possibleCacheLookupStore = new Failure<string>("No attempt to create a cache lookup fingerprint store yet.");
-            if (configuration.Logging.FingerprintStoreMode != FingerprintStoreMode.ExecutionFingerprintsOnly)
+            if (configuration.Logging.FingerprintStoreMode != FingerprintStoreMode.ExecutionFingerprintsOnly
+                && configuration.Logging.SaveFingerprintStoreToLogs == true)
             {
-                // Most operations performed on the execution fingerprint store are writes.
+                // Cache lookup fingerprint store is only use for offline fingerprint analysis. If the store is not saved, then there's no need
+                // to open/create the store in the first place.
+
+                // Most operations performed on the cache lookup fingerprint store are writes.
                 // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
                 possibleCacheLookupStore = FingerprintStore.Open(
                     cacheLookupFingerprintStorePathString,

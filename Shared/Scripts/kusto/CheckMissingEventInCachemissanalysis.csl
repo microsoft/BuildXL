@@ -1,0 +1,23 @@
+let tonum = (arg0:string) { case(isempty(arg0), 0, tolong(arg0)) };
+let summaryTable = 
+    cachemissanalysis
+    | summarize TotalCacheMiss = count() by SessionId, RelatedSessionId;
+finalstatistics
+| where EventInfo_Time > ago(1d) 
+| extend
+    CacheLookUpCount = tonum(Payload["FingerprintStore_CacheMissAnalysisAnalyzeCacheLookUpCount"]),
+    ExecutionCount = tonum(Payload["FingerprintStore_CacheMissAnalysisAnalyzeExecutionCount"]),
+    BatchEnqueueCount = tonum(Payload["FingerprintStore_CacheMissBatchingEnqueueCount"]),
+    BatchDequeueCount = tonum(Payload["FingerprintStore_CacheMissBatchingDequeueCount"])
+| extend
+    PerformedAnalysisCount = CacheLookUpCount + ExecutionCount
+| where PerformedAnalysisCount > 0
+// | where SessionId == "<session-id-of-your-build>" // to check for a particular build
+| where BatchEnqueueCount == 0 //Indicate batching is disabled.
+| join (dominoinvocation 
+| project SessionId, UserName) on SessionId
+| join (dominocompletion | where ExitCode == 0) on SessionId
+| summarize PerformedAnalysisCount=sum(PerformedAnalysisCount) by RelatedSessionId, SessionId, UserName
+| join summaryTable on SessionId, RelatedSessionId
+| where PerformedAnalysisCount != TotalCacheMiss
+| project RelatedSessionId, SessionId, PerformedAnalysisCount, TotalCacheMiss, UserName

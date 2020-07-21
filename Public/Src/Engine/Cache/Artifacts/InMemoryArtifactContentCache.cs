@@ -305,7 +305,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                             {
                                 var expandedPath = path.ExpandedPath;
 
-                                using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                                 using (BinaryReader binaryReader = new BinaryReader(fileStream))
                                 {
                                     // This will work with files up to 2GB in length, due to the 'int' API signature

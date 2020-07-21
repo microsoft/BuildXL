@@ -595,6 +595,10 @@ Versions/sym-sym-A -> sym-A/
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void ConcurrentCreationOfHardlinksPointingToSameFile()
         {
+            // Tests generally use an InMemoryArtifactContentCache and running this test causes share violations when concurrency is high
+            // and page flushing is enabled on Windows systems - this seems to be a bug in either the CLR or the kernel code
+            Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache = false;
+
             var srcFile = CreateSourceFileWithPrefix(prefix: "hardlink-source.txt");
             for (int i = 0; i < 666; i++)
             {

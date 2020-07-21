@@ -913,7 +913,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 OpenFileResult openResultForWriting = FileUtilities.TryCreateOrOpenFile(
                     path,
                     FileDesiredAccess.GenericWrite | FileDesiredAccess.GenericRead,
-                    FileShare.ReadWrite | FileShare.Delete,
+                    FileShare.Read | FileShare.Delete,
                     FileMode.Open,
                     FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                     out handle);
@@ -988,7 +988,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                         var attempt = FileUtilities.UsingFileHandleAndFileLength(
                             path.ExpandedPath,
                             FileDesiredAccess.GenericRead,
-                            FileShare.ReadWrite | FileShare.Delete,
+                            FileShare.Read | FileShare.Delete,
                             FileMode.Open,
                             flags,
                             (handle, length) =>

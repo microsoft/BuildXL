@@ -102,7 +102,7 @@ namespace ContentStoreTest.Distributed.Stores
                     size: 99,
                     machineLocations);
 
-                mockFileCopier.CopyToAsyncResult = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError);
+                mockFileCopier.CopyToAsyncResult = new CopyFileResult(CopyResultCode.UnknownServerError);
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
@@ -137,10 +137,10 @@ namespace ContentStoreTest.Distributed.Stores
                 mockFileCopier.CopyAttempts = 0;
                 var totalCopyAttempts = (retries - 1) * machineLocations.Length + 1;
                 mockFileCopier.CustomResults = new CopyFileResult[totalCopyAttempts];
-                mockFileCopier.CustomResults[0] = new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError);
+                mockFileCopier.CustomResults[0] = new CopyFileResult(CopyResultCode.DestinationPathError);
                 for(int counter = 1; counter < totalCopyAttempts; counter ++)
                 {
-                    mockFileCopier.CustomResults[counter] = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError);
+                    mockFileCopier.CustomResults[counter] = new CopyFileResult(CopyResultCode.UnknownServerError);
                 };
                 var destinationResult = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),

@@ -227,7 +227,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 isInsideRing,
                 CopyReason.None,
                 ProactiveCopyLocationSource.None,
-                result => PushFileResultStatus.Error);
+                result => CopyResultCode.Unknown);
         }
 
         private Task<TResult> PerformProactiveCopyAsync<TResult>(
@@ -238,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             bool isInsideRing,
             CopyReason reason,
             ProactiveCopyLocationSource source,
-            Func<TResult, PushFileResultStatus> statusFunc) where TResult : ResultBase
+            Func<TResult, CopyResultCode> statusFunc) where TResult : ResultBase
         {
             return _proactiveCopyIoGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
                 {
@@ -418,10 +418,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         switch (copyFileResult.Code)
                         {
-                            case CopyFileResult.ResultCode.Success:
+                            case CopyResultCode.Success:
                                 host.ReportReputation(location, MachineReputation.Good);
                                 break;
-                            case CopyFileResult.ResultCode.FileNotFoundError:
+                            case CopyResultCode.FileNotFoundError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
@@ -429,7 +429,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 missingContentLocations.Add(location);
                                 host.ReportReputation(location, MachineReputation.Missing);
                                 break;
-                            case CopyFileResult.ResultCode.SourcePathError:
+                            case CopyResultCode.ServerUnavailable:
+                            case CopyResultCode.UnknownServerError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
@@ -437,33 +438,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 host.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
-                            case CopyFileResult.ResultCode.DestinationPathError:
+                            case CopyResultCode.DestinationPathError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                                 return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
-                            case CopyFileResult.ResultCode.CopyTimeoutError:
+                            case CopyResultCode.CopyTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
-                            case CopyFileResult.ResultCode.CopyBandwidthTimeoutError:
+                            case CopyResultCode.CopyBandwidthTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
-                            case CopyFileResult.ResultCode.InvalidHash:
+                            case CopyResultCode.InvalidHash:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} {copyFileResult}");
                                 break;
-                            case CopyFileResult.ResultCode.Unknown:
+                            case CopyResultCode.Unknown:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
@@ -586,7 +587,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 var foundHash = hashingStream.GetContentHash();
                                 if (foundHash != hashInfo.ContentHash)
                                 {
-                                    return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}.");
+                                    return new CopyFileResult(CopyResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}.");
                                 }
 
                                 // Expose the bytes that were copied, so that small files can be put into the ContentLocationStore even when trusted copy is done
@@ -614,12 +615,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 // Auth errors are considered errors with the destination.
                 // Since FSServer now returns HTTP based exceptions for web, IO failures must be local file paths.
-                return new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError, ex, ex.ToString());
+                return new CopyFileResult(CopyResultCode.DestinationPathError, ex, ex.ToString());
             }
             catch (Exception ex)
             {
                 // any other exceptions are assumed to be bad remote files.
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, ex, ex.ToString());
+                return new CopyFileResult(CopyResultCode.UnknownServerError, ex, ex.ToString());
             }
         }
 
@@ -633,7 +634,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             if (!overwrite && File.Exists(destinationPath.Path))
             {
                 return new CopyFileResult(
-                        CopyFileResult.ResultCode.DestinationPathError,
+                        CopyResultCode.DestinationPathError,
                         $"Destination file {destinationPath} exists but overwrite not specified.");
             }
 

@@ -15,52 +15,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public class CopyFileResult : ResultBase, IEquatable<CopyFileResult>
     {
         /// <summary>
-        /// A code that helps caller to make decisions.
-        /// </summary>
-        public enum ResultCode
-        {
-            /// <summary>
-            /// The call succeeded.
-            /// </summary>
-            Success = 0,
-
-            /// <summary>
-            /// The cause of the exception was the source file.
-            /// </summary>
-            SourcePathError = 1,
-
-            /// <summary>
-            /// The cause of the exception was the destination path.
-            /// </summary>
-            DestinationPathError = 2,
-
-            /// <summary>
-            /// The cause of the exception was the source file.
-            /// </summary>
-            FileNotFoundError = 3,
-
-            /// <summary>
-            /// The cause of the exception was copy timeout.
-            /// </summary>
-            CopyTimeoutError = 4,
-
-            /// <summary>
-            /// The cause of the exception was the received file does not have the expected hash.
-            /// </summary>
-            InvalidHash = 5,
-
-            /// <summary>
-            /// The cause of the exception is unknown.
-            /// </summary>
-            Unknown = 6,
-            
-            /// <summary>
-            /// The cause of the exception was copy timeout detected by bandwidth checker.
-            /// </summary>
-            CopyBandwidthTimeoutError = 7,
-        }
-
-        /// <summary>
         ///     Success singleton.
         /// </summary>
         public static readonly CopyFileResult Success = new CopyFileResult();
@@ -69,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
         /// <param name="code">Whether the exception came from a remote or local path.</param>
-        public CopyFileResult(ResultCode code = ResultCode.Success)
+        public CopyFileResult(CopyResultCode code = CopyResultCode.Success)
         {
             Code = code;
         }
@@ -77,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, string message, string? diagnostics = null)
+        public CopyFileResult(CopyResultCode code, string message, string? diagnostics = null)
             : base(message, diagnostics)
         {
             Code = code;
@@ -86,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, Exception innerException, string? message = null)
+        public CopyFileResult(CopyResultCode code, Exception innerException, string? message = null)
             : base(innerException, message)
         {
             Code = code;
@@ -95,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        public CopyFileResult(ResultCode code, ResultBase other, string? message = null)
+        public CopyFileResult(CopyResultCode code, ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = code;
@@ -105,18 +59,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
         public CopyFileResult(ResultBase other, string? message = null)
-            : this(ResultCode.Unknown, other, message)
+            : this(CopyResultCode.Unknown, other, message)
         {
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Code == ResultCode.Success;
+        public override bool Succeeded => Code == CopyResultCode.Success;
 
         /// <summary>
         /// Successful copy with the actual size of the copied file.
         /// </summary>
         /// <param name="size">Actual size of the copied file.</param>
-        public static CopyFileResult SuccessWithSize(long size) => new CopyFileResult(ResultCode.Success) { Size = size };
+        public static CopyFileResult SuccessWithSize(long size) => new CopyFileResult(CopyResultCode.Success) { Size = size };
 
         /// <summary>
         /// Optional size of the copied file.
@@ -131,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Gets the source of the exception for the file copy (whether it was local or remote).
         /// </summary>
-        public readonly ResultCode Code;
+        public readonly CopyResultCode Code;
 
         /// <summary>
         /// Optional byte array with the bytes that were copied during a trusted copy.
@@ -166,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             switch (Code)
             {
-                case ResultCode.Success:
+                case CopyResultCode.Success:
                     return $"{Code}";
                 default:
                     return $"{Code} {GetErrorString()}";

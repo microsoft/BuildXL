@@ -733,26 +733,26 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        [InlineData(PushFileResultStatus.Disabled, false)]
-        [InlineData(PushFileResultStatus.Error, false)]
-        [InlineData(PushFileResultStatus.Rejected_ContentAvailableLocally, false)]
-        [InlineData(PushFileResultStatus.Rejected_OngoingCopy, false)]
-        [InlineData(PushFileResultStatus.SkipContentUnavailable, false)]
-        [InlineData(PushFileResultStatus.Success, false)]
-        [InlineData(PushFileResultStatus.Rejected_CopyLimitReached, true)]
-        [InlineData(PushFileResultStatus.Rejected_NotSupported, true)]
-        [InlineData(PushFileResultStatus.Rejected_OlderThanLastEvictedContent, true)]
-        [InlineData(PushFileResultStatus.Rejected_Unknown, true)]
-        [InlineData(PushFileResultStatus.ServerUnavailable, true)]
-        public void ProactiveCopyStatusQualifiesForRetryTest(PushFileResultStatus status, bool shouldSucceed)
+        [InlineData(CopyResultCode.Disabled, false)]
+        [InlineData(CopyResultCode.Unknown, false)]
+        [InlineData(CopyResultCode.Rejected_ContentAvailableLocally, false)]
+        [InlineData(CopyResultCode.Rejected_OngoingCopy, false)]
+        [InlineData(CopyResultCode.FileNotFoundError, false)]
+        [InlineData(CopyResultCode.Success, false)]
+        [InlineData(CopyResultCode.Rejected_CopyLimitReached, true)]
+        [InlineData(CopyResultCode.Rejected_NotSupported, true)]
+        [InlineData(CopyResultCode.Rejected_OlderThanLastEvictedContent, true)]
+        [InlineData(CopyResultCode.Rejected_Unknown, true)]
+        [InlineData(CopyResultCode.ServerUnavailable, true)]
+        public void ProactiveCopyStatusQualifiesForRetryTest(CopyResultCode code, bool shouldSucceed)
         {
             if (shouldSucceed)
             {
-                status.QualifiesForRetry().Should().BeTrue();
+                code.QualifiesForRetry().Should().BeTrue();
             }
             else
             {
-                status.QualifiesForRetry().Should().BeFalse();
+                code.QualifiesForRetry().Should().BeFalse();
             }
         }
 
@@ -1229,7 +1229,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                   var results = await Task.WhenAll(tasks);
                                   // We should have at least some skipped operations, because we tried 100 pushes at the same time with 1 as the push count limit.
 
-                                  var acceptedSuccesses = results.Count(r => r.Status == PushFileResultStatus.Success);
+                                  var acceptedSuccesses = results.Count(r => r.Status == CopyResultCode.Success);
                                   if (expectAllSuccesses)
                                   {
                                       acceptedSuccesses.Should().Be(count);

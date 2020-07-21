@@ -6,7 +6,6 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using static BuildXL.Cache.ContentStore.Service.Grpc.PushFileResultStatus;
 
 #nullable enable
 
@@ -92,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 Status = ProactiveCopyStatus.Rejected;
             }
-            else if (results.All(r => r.Status == Disabled))
+            else if (results.All(r => r.Status == CopyResultCode.Disabled))
             {
                 Status = ProactiveCopyStatus.Skipped;
             }
@@ -111,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private static string? GetErrorMessage(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
-            if (ringCopyResult.Status == Error || outsideRingCopyResult.Status == Error)
+            if (!ringCopyResult.Status.IsSuccess() || !outsideRingCopyResult.Status.IsSuccess())
             {
                 return
                     $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)} " +
@@ -124,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private static string? GetDiagnostics(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
-            if (ringCopyResult.Status == Error || outsideRingCopyResult.Status == Error)
+            if (!ringCopyResult.Status.IsSuccess() || !outsideRingCopyResult.Status.IsSuccess())
             {
                 return
                     $"RingMachineResult=[{ringCopyResult.GetStatusOrDiagnostics()}] " +
@@ -146,9 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Contract.AssertNotNull(OutsideRingCopyResult);
 
             // This must be the case when ring copy and outside ring copy succeeded or were gracefully rejected.
-            return (RingCopyResult.Status == Success && OutsideRingCopyResult.Status == Success)
-                ? "Success"
-                : $"[{RingCopyResult.Status}, {OutsideRingCopyResult.Status}]";
+            return $"[Ring={RingCopyResult.Status}, OutsideRing={OutsideRingCopyResult.Status}]";
         }
 
         /// <inheritdoc />

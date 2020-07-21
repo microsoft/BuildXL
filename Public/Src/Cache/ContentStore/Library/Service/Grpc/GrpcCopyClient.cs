@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // stream. To avoid that, exit early instead.
                 if (headers.Count == 0)
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
+                    return new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
                 }
 
                 // Parse header collection.
@@ -191,9 +191,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     switch (exception)
                     {
                         case "ContentNotFound":
-                            return new CopyFileResult(CopyFileResult.ResultCode.FileNotFoundError, message);
+                            return new CopyFileResult(CopyResultCode.FileNotFoundError, message);
                         default:
-                            return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, message);
+                            return new CopyFileResult(CopyResultCode.UnknownServerError, message);
                     }
                 }
 
@@ -205,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 catch (Exception targetException)
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError, targetException);
+                    return new CopyFileResult(CopyResultCode.DestinationPathError, targetException);
                 }
 
                 // Copy the content to the target stream.
@@ -239,11 +239,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 if (r.StatusCode == StatusCode.Unavailable)
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, r);
+                    return new CopyFileResult(CopyResultCode.ServerUnavailable, r);
                 }
                 else
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.Unknown, r);
+                    return new CopyFileResult(CopyResultCode.Unknown, r);
                 }
             }
         }

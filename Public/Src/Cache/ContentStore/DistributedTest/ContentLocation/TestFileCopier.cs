@@ -47,7 +47,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             if (!File.Exists(sourcePath.Path))
             {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {sourcePath} doesn't exist.");
+                return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
             }
 
             using Stream s = GetStream(sourcePath, expectedContentSize);

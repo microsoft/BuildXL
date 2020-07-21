@@ -11,23 +11,23 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
     {
         protected override CopyFileResult CreateFrom(Exception exception)
         {
-            return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, exception);
+            return new CopyFileResult(CopyResultCode.UnknownServerError, exception);
         }
 
         protected override CopyFileResult CreateFrom(string errorMessage)
         {
-            return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, errorMessage);
+            return new CopyFileResult(CopyResultCode.UnknownServerError, errorMessage);
         }
 
         protected override CopyFileResult CreateFrom(string errorMessage, string diagnostics)
         {
-            return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, errorMessage, diagnostics);
+            return new CopyFileResult(CopyResultCode.UnknownServerError, errorMessage, diagnostics);
         }
 
         [Fact]
         public void ConstructFromResultBase()
         {
-            const CopyFileResult.ResultCode code = CopyFileResult.ResultCode.SourcePathError;
+            const CopyResultCode code = CopyResultCode.UnknownServerError;
             var other = new BoolResult("error");
             Assert.Equal(code, new CopyFileResult(code, other, "message").Code);
         }

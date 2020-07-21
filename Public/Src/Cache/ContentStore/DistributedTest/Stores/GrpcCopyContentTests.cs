@@ -137,7 +137,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
 
                 Assert.False(copyFileResult.Succeeded);
-                Assert.Equal(CopyFileResult.ResultCode.FileNotFoundError, copyFileResult.Code);
+                Assert.Equal(CopyResultCode.FileNotFoundError, copyFileResult.Code);
             });
         }
 
@@ -164,7 +164,7 @@ namespace ContentStoreTest.Distributed.Stores
                     client = clientWrapper.Value;
 
                     var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
-                    Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
+                    Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
                 }
             });
         }

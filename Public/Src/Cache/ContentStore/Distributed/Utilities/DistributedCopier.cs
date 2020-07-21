@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             if (!FileUtilities.Exists(sourcePath.Path))
             {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {sourcePath} doesn't exist.");
+                return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
             }
 
             long startPosition = destinationStream.Position;

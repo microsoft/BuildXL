@@ -154,7 +154,7 @@ namespace ContentStoreTest.Utils
             using (var stream = new MemoryStream())
             {
                 var result = await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream);
-                Assert.Equal(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, result.Code);
+                Assert.Equal(CopyResultCode.CopyBandwidthTimeoutError, result.Code);
             }
         }
 

@@ -161,7 +161,8 @@ namespace BuildXL.Scheduler.Tracing
                 counters: counters,
                 testHooks: testHooks);
 
-            Possible<FingerprintStore> possibleCacheLookupStore = new Failure<string>("No attempt to create a cache lookup fingerprint store yet.");
+            Possible<FingerprintStore> possibleCacheLookupStore = (FingerprintStore)null;
+
             if (configuration.Logging.FingerprintStoreMode != FingerprintStoreMode.ExecutionFingerprintsOnly
                 && configuration.Logging.SaveFingerprintStoreToLogs == true)
             {
@@ -254,10 +255,6 @@ namespace BuildXL.Scheduler.Tracing
             m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
             m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
             m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();
-
-            Contract.Assume(
-                m_configuration.Logging.FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, 
-                "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
         }
 
         /// <summary>

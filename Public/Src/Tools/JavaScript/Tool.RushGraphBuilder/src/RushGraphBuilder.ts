@@ -36,14 +36,14 @@ export function buildGraph(rushConfigurationFile: string, pathToRushLib:string):
     let projects : JavaScriptProject[] = [];
     for (const project of rushConf.projects) {
 
-        let dependencies = getDependencies(rushConf, project);
+        let dependencies = getDependencies(rushLib.Rush.version, rushConf, project);
 
         let bxlConfig : BxlConfig.BuildXLConfiguration = BxlConfig.getBuildXLConfiguration(rushConf.rushJsonFolder, project.projectFolder);
 
         let p: JavaScriptProject = {
             name: project.packageName,
             projectFolder: project.projectFolder,
-            dependencies: Array.from(dependencies),
+            dependencies: dependencies,
             availableScriptCommands: project.packageJson.scripts,
             tempFolder: project.projectRushTempFolder,
             outputDirectories: bxlConfig.outputDirectories,
@@ -59,7 +59,17 @@ export function buildGraph(rushConfigurationFile: string, pathToRushLib:string):
     };
 }
 
-function getDependencies(configuration, project) : Set<string> {
+function getDependencies(rushLibVersion: string, configuration, project) : string[] {
+    // Starting from Rush version >= 5.30.0, there is built-in support to get the list of local referenced projects
+    if (semver.gte(rushLibVersion, "5.30.0")) {
+        return project.localDependencyProjects.map(rushConfProject => rushConfProject.packageName);
+    }
+    else {
+        return Array.from(getDependenciesLegacy(configuration, project));
+    }
+}
+
+function getDependenciesLegacy(configuration, project) : Set<string> {
     let dependencies: Set<string> = new Set<string>();
     
     // Collect all dependencies and dev dependencies 

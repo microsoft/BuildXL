@@ -301,6 +301,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // Get the content stream.
             Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.GetContentHash();
+            long size = -1;
             OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
 
             // If result is unsuccessful, then result.Stream is null, but using(null) is just a no op.
@@ -322,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         break;
                     case OpenStreamResult.ResultCode.Success:
                         Contract.AssertNotNull(result.Stream);
-                        long size = result.Stream.Length;
+                        size = result.Stream.Length;
                         headers.Add("FileSize", size.ToString());
                         if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
                         {
@@ -355,7 +356,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             _tracer,
                             () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}.")
+                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{context.Host}].")
                         .IgnoreFailure(); // The error was already logged.
                 }
             }

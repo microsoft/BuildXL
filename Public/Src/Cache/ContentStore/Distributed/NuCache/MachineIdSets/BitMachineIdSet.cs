@@ -53,6 +53,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Offset = offset;
         }
 
+        /// <nodoc />
+        public static BitMachineIdSet Create(in MachineIdCollection machines) => EmptyInstance.SetExistenceBits(machines, exists: true);
+
+        /// <nodoc />
+        public static BitMachineIdSet Create(in IEnumerable<MachineId> machines) => EmptyInstance.SetExistenceBits(MachineIdCollection.Create(machines.ToArray()), exists: true);
+
         /// <summary>
         /// Returns the bit value at position index.
         /// </summary>
@@ -66,24 +72,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns a new instance of <see cref="MachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
         /// </summary>
-        public override MachineIdSet SetExistence(IReadOnlyCollection<MachineId> machines, bool exists)
+        public override MachineIdSet SetExistence(in MachineIdCollection machines, bool exists)
         {
-            Contract.Requires(machines != null);
-
             return SetExistenceBits(machines, exists);
         }
 
         /// <summary>
         /// Returns a new instance of <see cref="BitMachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
         /// </summary>
-        public BitMachineIdSet SetExistenceBits(IReadOnlyCollection<MachineId> machines, bool exists)
+        public BitMachineIdSet SetExistenceBits(in MachineIdCollection machines, bool exists)
         {
             if (machines.Count == 0)
             {
                 return this;
             }
 
-            var max = (machines.Max(m => m.Index) / 8) + 1;
+            var max = (machines.MaxIndex() / 8) + 1;
             var copiedLength = Data.Length - Offset;
 
             const int targetOffset = 0;
@@ -191,19 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return -1;
         }
 
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return $"Count: {Count}";
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="data"></param>
-        /// <param name="offset"></param>
-        /// <param name="index"></param>
-        /// <returns></returns>
+        /// <nodoc />
         public static bool GetValue(byte[] data, int offset, int index)
         {
             int dataIndex = offset + index / 8;

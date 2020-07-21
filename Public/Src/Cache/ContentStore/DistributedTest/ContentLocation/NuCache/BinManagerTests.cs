@@ -140,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             // Make sure this stays true after updates
             var inactiveMachines = new BitMachineIdSet(new byte[amountMachines], 0);
-            inactiveMachines = inactiveMachines.SetExistenceBits(new[] { machineMappings[1].Id }, true);
+            inactiveMachines = inactiveMachines.SetExistenceBits(MachineIdCollection.Create(machineMappings[1].Id), true);
             clusterState.SetMachineStates(inactiveMachines).ShouldBeSuccess();
 
             binMappings = clusterState.GetBinMappings().ThrowIfFailure();

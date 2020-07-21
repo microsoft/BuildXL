@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -128,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public ContentLocationEntry SetMachineExistence(IReadOnlyCollection<MachineId> machines, bool exists, UnixTime? lastAccessTime = null, long? size = null)
+        public ContentLocationEntry SetMachineExistence(in MachineIdCollection machines, bool exists, UnixTime? lastAccessTime = null, long? size = null)
         {
             var locations = Locations.SetExistence(machines, exists);
             if ((lastAccessTime == null || lastAccessTime.Value.Value <= LastAccessTimeUtc.Value)
@@ -155,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return new ContentLocationEntry(
-                entry1.Locations.SetExistence(entry2.Locations, true),
+                entry1.Locations.SetExistence(MachineIdCollection.Create(entry2.Locations.ToArray()), true),
                 entry1.ContentSize,
                 UnixTime.Min(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
                 UnixTime.Min(entry1.CreationTimeUtc, entry2.CreationTimeUtc));
@@ -202,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static byte[] ConvertSizeAndMachineIdToRedisValue(long size, MachineId machineId)
         {
             var sizeBytes = size >= 0 ? ConvertSizeToRedisRangeBytes(size) : UnknownSizeBytes;
-            var machineIdSet = BitMachineIdSet.EmptyInstance.SetExistenceBits(new[] { machineId }, true);
+            var machineIdSet = BitMachineIdSet.Create(MachineIdCollection.Create(machineId));
 
             return CollectionUtilities.ConcatAsArray(sizeBytes, machineIdSet.Data);
         }

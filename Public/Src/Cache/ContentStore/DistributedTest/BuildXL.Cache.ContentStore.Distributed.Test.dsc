@@ -47,7 +47,7 @@ namespace DistributedTest {
         references: [
             
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
-
+            ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.Net.Primitives.dll,

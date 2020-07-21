@@ -497,7 +497,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ContentLocationEntry FilterInactiveMachines(ContentLocationEntry entry)
         {
             var inactiveMachines = _getInactiveMachines();
-            return entry.SetMachineExistence(inactiveMachines, exists: false);
+            return entry.SetMachineExistence(MachineIdCollection.Create(inactiveMachines), exists: false);
         }
 
         /// <summary>
@@ -583,9 +583,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var initialEntry = entry;
 
                     // Don't update machines if entry already contains the machine
-                    var machines = machine != null && (entry.Locations[machine.Value] != existsOnMachine)
-                        ? new[] { machine.Value }
-                        : CollectionUtilities.EmptyArray<MachineId>();
+                    MachineIdCollection machines = machine != null && (entry.Locations[machine.Value] != existsOnMachine)
+                        ? MachineIdCollection.Create(machine.Value)
+                        : MachineIdCollection.Empty;
 
                     // Don't update last access time if the touch frequency interval has not elapsed since last access
                     if (lastAccessTime != null && initialEntry.LastAccessTimeUtc.ToDateTime().IsRecent(lastAccessTime.Value.ToDateTime(), _configuration.TouchFrequency))
@@ -629,7 +629,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     lastAccessTime ??= Clock.UtcNow;
                     var creationTime = UnixTime.Min(lastAccessTime.Value, Clock.UtcNow.ToUnixTime());
 
-                    entry = ContentLocationEntry.Create(MachineIdSet.Empty.SetExistence(new[] { machine.Value }, existsOnMachine), size, lastAccessTime.Value, creationTime);
+                    entry = ContentLocationEntry.Create(MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machine.Value), existsOnMachine), size, lastAccessTime.Value, creationTime);
                     created = true;
                 }
 

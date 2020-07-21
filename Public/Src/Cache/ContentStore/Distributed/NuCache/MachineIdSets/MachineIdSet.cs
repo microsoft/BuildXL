@@ -3,6 +3,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using BuildXL.Utilities;
 
@@ -12,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// Represents a set of machine ids that contains a content.
     /// </summary>
     /// <remarks>
-    /// The type is immutable.
+    /// The type and all of the derived types are immutable.
     /// </remarks>
     public abstract class MachineIdSet : IReadOnlyCollection<MachineId>
     {
@@ -22,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns an empty machine set.
         /// </summary>
-        public static readonly MachineIdSet Empty = new ArrayMachineIdSet(new ushort[0]);
+        public static readonly MachineIdSet Empty = ArrayMachineIdSet.EmptyInstance;
 
         /// <summary>
         /// Returns the format of a machine id set.
@@ -52,13 +53,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns a new instance of <see cref="MachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
         /// </summary>
-        public abstract MachineIdSet SetExistence(IReadOnlyCollection<MachineId> machines, bool exists);
+        public abstract MachineIdSet SetExistence(in MachineIdCollection machines, bool exists);
 
         /// <nodoc />
-        public MachineIdSet Add(params MachineId[] machines) => SetExistence(machines, exists: true);
+        public MachineIdSet Add(params MachineId[] machines) => SetExistence(MachineIdCollection.Create(machines), exists: true);
 
         /// <nodoc />
-        public MachineIdSet Remove(params MachineId[] machines) => SetExistence(machines, exists: false);
+        public MachineIdSet Add(MachineId machine) => SetExistence(MachineIdCollection.Create(machine), exists: true);
+
+        /// <nodoc />
+        public MachineIdSet Remove(params MachineId[] machines) => SetExistence(MachineIdCollection.Create(machines), exists: false);
+
+        /// <nodoc />
+        public MachineIdSet Remove(MachineId machine) => SetExistence(MachineIdCollection.Create(machine), exists: false);
 
         /// <summary>
         /// Enumerates the bits in the machine id set
@@ -83,14 +90,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 if (Count <= BitMachineIdSetThreshold)
                 {
-                    serializableInstance = new ArrayMachineIdSet(EnumerateMachineIds().Select(id => (ushort)id.Index).ToArray());
+                    serializableInstance = new ArrayMachineIdSet(EnumerateMachineIds().Select(id => (ushort)id.Index));
                 }
             }
             else
             {
                 if (Count > BitMachineIdSetThreshold)
                 {
-                    serializableInstance = BitMachineIdSet.EmptyInstance.SetExistence(this, exists: true);
+                    serializableInstance = BitMachineIdSet.Create(EnumerateMachineIds());
                 }
             }
 
@@ -157,5 +164,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <inheritdoc />
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"Count: {Count}";
+        }
     }
 }

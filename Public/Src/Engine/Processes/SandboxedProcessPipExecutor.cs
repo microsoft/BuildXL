@@ -1759,7 +1759,9 @@ namespace BuildXL.Processes
             {
                 standardOutHasBeenWrittenToLog = true;
 
-                LogErrorResult logErrorResult = await TryLogErrorAsync(result, allOutputsPresent, failedDueToWritingToStdErr);
+                // We only checked if all outputs are present if exitedSuccessfullyAndGracefully is true. So if exitedSuccessfullyAndGracefully is false,
+                // we don't log anything at this respect.
+                LogErrorResult logErrorResult = await TryLogErrorAsync(result, (!exitedSuccessfullyAndGracefully || allOutputsPresent), failedDueToWritingToStdErr);
                 errorWasTruncated = logErrorResult.ErrorWasTruncated;
                 loggingSuccess = logErrorResult.Success;
             }

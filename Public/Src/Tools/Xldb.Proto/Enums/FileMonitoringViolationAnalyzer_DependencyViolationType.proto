@@ -23,4 +23,5 @@ enum FileMonitoringViolationAnalyzer_DependencyViolationType{
     WriteOnAbsentPathProbe = 11;
     AbsentPathProbeUnderUndeclaredOpaque = 12;
     WriteToTempPathInsideSharedOpaque = 13;
+    TempFileProducedByIndependentPips = 14;
 }

@@ -695,7 +695,7 @@ namespace BuildXL.Scheduler
                     m_result = m_unsealedState.Result.Value;
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.From(m_unsealedState.OutputContent);
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.From(m_unsealedState.DirectoryOutputs);
-                    
+
                     // If the result from the sandbox was not reported, that means this pip came from the cache, and therefore
                     // the shared dynamic accesses need to be populated from the already reported output directories
                     if (!m_unsealedState.SandboxedResultReported)
@@ -711,8 +711,8 @@ namespace BuildXL.Scheduler
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
-                    if (processResult != null && 
-                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
+                    if (processResult != null &&
+                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed &&
                         !processResult.CancellationReason.IsPrepRetryableFailure())
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
@@ -724,7 +724,7 @@ namespace BuildXL.Scheduler
                         {
                             Contract.Assert(false, "Invalid execution status: " + processResult.Status);
                         }
-                            
+
                         Contract.Assert(
                             processResult.PrimaryProcessTimes != null,
                             "Execution counters are available when the status is not PreparationFailed");

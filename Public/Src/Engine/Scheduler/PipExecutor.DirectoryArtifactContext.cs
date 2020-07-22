@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -33,9 +35,24 @@ namespace BuildXL.Scheduler
             }
 
             /// <inheritdoc/>
-            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory)
+            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory, out IReadOnlySet<AbsolutePath> temporaryFiles)
             {
-                return m_pipExecutionEnvironment.State.FileContentManager.ListSealedDirectoryContents(directory);
+                var dirContent = m_pipExecutionEnvironment.State.FileContentManager.ListSealedDirectoryContents(directory);
+
+                using (var pooledSet = Pools.GetAbsolutePathSet())
+                {
+                    var instance = pooledSet.Instance;
+                    instance.UnionWith(dirContent
+                        .Where(file => m_pipExecutionEnvironment.State.FileContentManager.TryGetInputContent(file, out var materializationInfo)
+                            && materializationInfo.Hash == WellKnownContentHashes.AbsentFile)
+                        .Select(file => file.Path));
+
+                    temporaryFiles = instance.Count > 0
+                        ? new ReadOnlyHashSet<AbsolutePath>(instance)
+                        : CollectionUtilities.EmptySet<AbsolutePath>();
+                }
+
+                return dirContent;
             }
         }
     }

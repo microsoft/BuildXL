@@ -312,6 +312,8 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreUnableToOpen = 5030,
         FingerprintStoreUnableToCopyOnWriteLogFile = 5031, // was FingerprintStoreFormatVersionChangeDetected = 5031,
 
+        DependencyViolationTheSameTempFileProducedByIndependentPips = 5032,
+
         MovingCorruptFile = 5040,
         FailedToMoveCorruptFile = 5041,
         FailedToDeleteCorruptFile = 5042,

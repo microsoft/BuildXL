@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -76,9 +77,14 @@ namespace BuildXL.Scheduler
         private readonly IQueryableFileContentManager m_fileContentManager;
         private readonly IExecutionLogTarget m_executionLog;
         private readonly ConcurrentBigMap<AbsolutePath, UndeclaredAccessors> m_undeclaredAccessors = new ConcurrentBigMap<AbsolutePath, UndeclaredAccessors>();
+        
         // Maps of paths that are dynamically read or written to the corresponding pip. 
         // The tuple indicates whether it is a reader of the path or a writer, together with the actual pip and materialization info when available (absent file otherwise)
         private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, PipId processPip, FileMaterializationInfo fileMaterializationInfo)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, PipId, FileMaterializationInfo)>();
+        
+        // Maps of path of temp files under shared opaques to their producers.
+        // Under certain conditions the same file can be produced by multiple pips.
+        private readonly ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>> m_dynamicTemporaryFileProducers = new ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>>();
 
         // Some dependency analysis rules cause issues with distribution. Even if /unsafe_* flags or configuration options
         // are used to downgrade errors to warnings, these must be treated as errors and cleaned up for distributed
@@ -169,6 +175,11 @@ namespace BuildXL.Scheduler
             /// Detected a write inside a temp directory under a shared opaque
             /// </summary>
             WriteToTempPathInsideSharedOpaque,
+
+            /// <summary>
+            /// Detected a temp file produced by two pips that do not share an explicit dependency
+            /// </summary>
+            TempFileProducedByIndependentPips,
         }
 
         /// <summary>
@@ -682,7 +693,7 @@ namespace BuildXL.Scheduler
                 using var createdSubDirectoriesWrapper = IsDirProbeAnalysisDisabled ? (PooledObjectWrapper<HashSet<AbsolutePath>>?)null : Pools.GetAbsolutePathSet();
                 foreach (var access in accesses)
                 {
-                    ReportWriteViolations(pip, reportedViolations, outputArtifactsInfo, access.Path, allowedDoubleWriteViolations);
+                    ReportWriteViolations(pip, reportedViolations, outputArtifactsInfo, access, allowedDoubleWriteViolations);
                     ReportBlockedScopesViolations(pip, reportedViolations, access.Path);
                     DirProbe_AccumulateParentDirectories(createdSubDirectoriesWrapper?.Instance, rootSharedOpaqueDirectory, access.Path);
                 }
@@ -800,11 +811,12 @@ namespace BuildXL.Scheduler
             Process pip, 
             List<ReportedViolation> reportedViolations, 
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, 
-            AbsolutePath access,
+            FileArtifactWithAttributes access,
             [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             // The access in an opaque has always rewrite count 1
-            var artifact = FileArtifact.CreateOutputFile(access);
+            Contract.Assert(access.RewriteCount == 1);
+            var artifact = access.ToFileArtifact();
             var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, artifact);
 
             RegisterWriteInPathAndUpdateViolations(pip, access, reportedViolations, outputArtifactInfo, out ReportedViolation? allowedDoubleWriteViolation);
@@ -815,7 +827,7 @@ namespace BuildXL.Scheduler
 
             // Now look for a static one. Any pip statically producing this file, regardless of the scheduled order,
             // is considered a double write violation
-            var maybeProducer = TryFindProducer(access, VersionDisposition.Latest);
+            var maybeProducer = TryFindProducer(access.Path, VersionDisposition.Latest);
 
             if (maybeProducer != null && maybeProducer.PipId != pip.PipId)
             {
@@ -823,7 +835,7 @@ namespace BuildXL.Scheduler
                 // may be unavailable. So just warn about this, and log the violation as an error.
                 if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
                 {
-                    Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.ToString(Context.PathTable));
+                    Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.Path.ToString(Context.PathTable));
                 }
 
                 // We found a double write: two pips tried to produce the same file in the cone of a shared opaque directory. One statically, the current one
@@ -832,7 +844,7 @@ namespace BuildXL.Scheduler
                     HandleDependencyViolation(
                         DependencyViolationType.DoubleWrite,
                         AccessLevel.Write,
-                        access,
+                        access.Path,
                         pip,
                         isAllowlistedViolation: false,
                         related: maybeProducer,
@@ -885,7 +897,7 @@ namespace BuildXL.Scheduler
                 foreach (FileArtifact fileArtifact in directoryContent)
                 {
                     var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, fileArtifact);
-                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations, outputArtifactInfo, out _);
+                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.WithAttributes(), reportedViolations, outputArtifactInfo, out _);
                     ReportExclusiveOpaqueExclusions(pip, reportedViolations, fileArtifact, outputDirectoryExclusionSet);
                 }
             }
@@ -915,12 +927,12 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Register a write in <paramref name="path"/> by <paramref name="pip"/>. And in the case the write access generates a violation,
+        /// Register a write in <paramref name="access"/> by <paramref name="pip"/>. And in the case the write access generates a violation,
         /// populate <paramref name="reportedViolations"/>
         /// </summary>
         private void RegisterWriteInPathAndUpdateViolations(
             Process pip, 
-            AbsolutePath path, 
+            FileArtifactWithAttributes access, 
             List<ReportedViolation> reportedViolations,
             FileMaterializationInfo outputMaterializationInfo,
             out ReportedViolation? allowedSameContentDoubleWriteViolation)
@@ -929,9 +941,27 @@ namespace BuildXL.Scheduler
 
             // Register the access and the writer, so we can spot other dynamic accesses to the same file later
             var result = m_dynamicReadersAndWriters.GetOrAdd(
-                path,
+                access.Path,
                 pip,
                 (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
+
+            if (access.IsTemporaryOutputFile)
+            {
+                m_dynamicTemporaryFileProducers.AddOrUpdate(
+                    key: access.Path,
+                    data: pip.PipId,
+                    addValueFactory: (p, pipId) =>
+                    {
+                        var queue = new ConcurrentQueue<PipId>();
+                        queue.Enqueue(pipId);
+                        return queue;
+                    },
+                    updateValueFactory: (p, pipId, oldValue) =>
+                    {
+                        oldValue.Enqueue(pipId);
+                        return oldValue;
+                    });
+            }
 
             // We found an existing dynamic access to the same file
             if (result.IsFound && result.Item.Value.processPip != pip.PipId)
@@ -943,7 +973,7 @@ namespace BuildXL.Scheduler
                 {
                     // There was another write, so this is a double write
                     case DynamicFileAccessType.Write:
-                        
+
                         if (IsAllowedSameContentDoubleWrite(pip, outputMaterializationInfo, related, result.Item.Value.fileMaterializationInfo))
                         {
                             // Just log a verbose message to indicate a same-content double write happened
@@ -951,14 +981,65 @@ namespace BuildXL.Scheduler
                                 LoggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(Context),
-                                path.ToString(Context.PathTable),
+                                access.Path.ToString(Context.PathTable),
                                 related.GetDescription(Context));
 
-                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, related.PipId, pip.Executable.Path);
+                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, access.Path, pip.PipId, related.PipId, pip.Executable.Path);
                             return;
                         }
 
-                        violationType = DependencyViolationType.DoubleWrite;
+                        if (access.IsTemporaryOutputFile)
+                        {
+                            // If it's a write at a temp file path, we need to check that there is dependency between the current pip
+                            // and all of the producers of that file. We also need to check that the current pip is not deleting a real
+                            // file that was produced previously.
+                            bool badAccess = false;
+                            bool visitedOriginalProducer = false;
+                            if (m_dynamicTemporaryFileProducers.TryGetValue(access.Path, out var producers))
+                            {
+                                foreach (var producerPipId in producers)
+                                {
+                                    visitedOriginalProducer |= producerPipId == result.Item.Value.processPip;
+                                    if (producerPipId != pip.PipId
+                                        && !m_graph.IsReachableFrom(from: producerPipId, to: pip.PipId))
+                                    {
+                                        // Found a producer of the same temp file, and there is no dependency between these
+                                        // two pips in the graph.
+
+                                        // Update the related pip if it does not match the one that was hydrated above
+                                        if (related.PipId != producerPipId)
+                                        {
+                                            related = (Process)m_graph.HydratePip(producerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                                        }
+
+                                        violationType = DependencyViolationType.TempFileProducedByIndependentPips;
+                                        badAccess = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!visitedOriginalProducer)
+                            {
+                                // writing over a real file -> DoubleWrite
+                                violationType = DependencyViolationType.DoubleWrite;
+                            }
+                            else if (badAccess)
+                            {
+                                // writing at a temp file path, but there is no dependency -> TempFileProducedByIndependentPips
+                                violationType = DependencyViolationType.TempFileProducedByIndependentPips;
+                            }
+                            else
+                            {
+                                // writing at a temp file path and there is a dependency -> allowed access
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            violationType = DependencyViolationType.DoubleWrite;
+                        }
+
                         break;
                     // There was an undeclared read, so this is a write in an undeclared read
                     case DynamicFileAccessType.UndeclaredRead:
@@ -966,7 +1047,7 @@ namespace BuildXL.Scheduler
                         break;
                     // There was an absent file probe, so this is a write on an absent file probe
                     case DynamicFileAccessType.AbsentPathProbe:
-                        // WriteOnAbsentPathProbe message literaly says "declare an explicit dependency between these pips",
+                        // WriteOnAbsentPathProbe message literally says "declare an explicit dependency between these pips",
                         // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
                         if (m_dynamicWritesOnAbsentProbePolicy.HasFlag(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes) ||
                             IsDependencyDeclared(absentProbePipId: related.PipId, writerPipId: pip.PipId))
@@ -984,7 +1065,7 @@ namespace BuildXL.Scheduler
                     HandleDependencyViolation(
                         violationType,
                         AccessLevel.Write,
-                        path,
+                        access.Path,
                         pip,
                         isAllowlistedViolation: false,
                         related: related,
@@ -1692,6 +1773,20 @@ namespace BuildXL.Scheduler
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
                             violator.WorkingDirectory.ToString(Context.PathTable),
                             path.ToString(Context.PathTable));
+                    }
+
+                    break;
+                case DependencyViolationType.TempFileProducedByIndependentPips:
+                    isError = isError || m_validateDistribution;
+
+                    if (isError && hasRelatedPip)
+                    {
+                        Logger.Log.DependencyViolationTheSameTempFileProducedByIndependentPips(
+                            LoggingContext,
+                            violator.SemiStableHash,
+                            violator.GetDescription(Context),
+                            path.ToString(Context.PathTable),
+                            related.GetDescription(Context));
                     }
 
                     break;

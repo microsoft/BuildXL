@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
@@ -13,7 +12,6 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -2089,6 +2087,151 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Even though there is a write in a path that is a shared opaque candidate, the fact that the final artifact on that
             // path ends up being a directory should be enough to discard all writes.
             RunScheduler().AssertSuccess();
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void MultiplePipsProduceTheSameTemporaryFile(bool dependencyBetweenPips, bool secondPipDeletesFile)
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir, "tempFileUnderSOD");
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Using weight/priority to force pipB to run after pipA
+            builderA.Weight = 1000;
+            builderA.Priority = Process.MaxPriority;
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(secondPipDeletesFile
+                ? new Operation[]
+                {
+                    Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                    Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+                }
+                : new Operation[] { Operation.WriteFile(outputInSharedOpaque, doNotInfer: true) });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            if (dependencyBetweenPips)
+            {
+                builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            }
+
+            builderB.Weight = 1000;
+            builderB.Priority = Process.MinPriority;
+            var pipB = SchedulePipBuilder(builderB);
+
+            var res = RunScheduler();
+            if (dependencyBetweenPips && secondPipDeletesFile)
+            {
+                res.AssertSuccess();
+            }
+            else
+            {
+                res.AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
+            }
+        }
+
+        /// <summary>
+        /// This test is different from a double-write test because the engine will interpret
+        /// the deletion of a file as if the second pip created/deleted a temp file.
+        /// </summary>
+        [Theory]
+        [Trait("Category", "SkipLinux")] // TODO(BUG 1751624)
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void DeletingPreviouslyProducedFilesIsNotAllowed(bool dependencyBetweenPips)
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir, "tempFileUnderSOD");
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Using weight/priority to force pipB to run after pipA
+            builderA.Weight = 1000;
+            builderA.Priority = Process.MaxPriority;
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            if (dependencyBetweenPips)
+            {
+                builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            }
+
+            builderB.Weight = 1000;
+            builderB.Priority = Process.MinPriority;
+            var pipB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
+            if (dependencyBetweenPips)
+            {
+                // If there is dependency, delete operation will be blocked by detours (due to restrictions in FileAccessManifest),
+                // and as a result the pip will fail.
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
+            }
+        }
+
+        [Fact]
+        public void DependencyChainRequiredForProducersOfTheSameTempFile()
+        {
+            // 1) Three pips produce the same temp file.
+            // 2) There is a dependency between pipA and pipB, as well as between pipA and pipC.
+            // 3) There is no dependency between pipB and pipC
+            // 4) Either pipB or pipC (whichever runs last) should result in a DFA.
+            //     a) To make this test deterministic, we force that the pips are run in the following order: pipA, pipB, pipC
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir, "tempFileUnderSOD");
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Using weight/priority to make pipA run first
+            builderA.Weight = 1000;
+            builderA.Priority = Process.MaxPriority;
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            builderB.Weight = 1000;
+            builderB.Priority = Process.MaxPriority / 2;
+            var pipB = SchedulePipBuilder(builderB);
+
+            var builderC = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+            });
+            builderC.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderC.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            builderC.Weight = 1000;
+            builderC.Priority = Process.MinPriority;
+            var pipC = SchedulePipBuilder(builderC);
+
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);

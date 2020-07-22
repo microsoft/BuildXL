@@ -2167,6 +2167,24 @@ namespace BuildXL.Scheduler.Tracing
             string pipWithTempPathDescription,
             string tempPath);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DependencyViolationTheSameTempFileProducedByIndependentPips,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                PipDependencyAnalysisPrefix +
+                "This pip used '{path}' as a path for a temporary file, however, '{relatedPipDescription}' also used it as a temporary file path. " +
+                "There is no dependency between these two pips (i.e., no guarantee that they won't access that path at the same time), therefore, " +
+                "such accesses are not allowed. Please declare an explicit dependency between these pips.")]
+        public abstract void DependencyViolationTheSameTempFileProducedByIndependentPips(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            string relatedPipDescription);
+
         #endregion
 
         [GeneratedEvent(

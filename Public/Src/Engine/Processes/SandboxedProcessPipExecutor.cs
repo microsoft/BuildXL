@@ -1265,7 +1265,7 @@ namespace BuildXL.Processes
                 // could be a way to do it in the future. This is enforced by the process builder.
                 Contract.Assert(!directoryContext.GetSealDirectoryKind(inputDirectory).IsSourceSeal());
 
-                var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory);
+                var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory, out _);
 
                 foreach (var inputArtifact in directoryContent)
                 {
@@ -2447,11 +2447,16 @@ namespace BuildXL.Processes
 
         private void AddSharedOpaqueInputContentToManifest(DirectoryArtifact directory, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
         {
-            var content = m_directoryArtifactContext.ListSealDirectoryContents(directory);
+            var content = m_directoryArtifactContext.ListSealDirectoryContents(directory, out var temporaryFiles);
 
             foreach (var fileArtifact in content)
             {
-                AddDynamicInputFileAndAncestorsToManifest(fileArtifact, allInputPathsUnderSharedOpaques, directory.Path);
+                // A shared opaque might contain files that are marked as 'absent'. Essentially these are "temp" files produced by a pip in the cone
+                // of that shared opaque. We do not add these paths to the manifest, so detours would not block write accesses.
+                if (!temporaryFiles.Contains(fileArtifact.Path))
+                {
+                    AddDynamicInputFileAndAncestorsToManifest(fileArtifact, allInputPathsUnderSharedOpaques, directory.Path);
+                }
             }
         }
 
@@ -3517,7 +3522,7 @@ namespace BuildXL.Processes
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
                 return true;
             }
-            
+
             bool sharedOutputDirectoriesAreRedirected = m_pip.NeedsToRunInContainer && m_pip.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
 
             // Note that we are enumerating an unordered set to produce the array of observed paths.
@@ -3700,7 +3705,7 @@ namespace BuildXL.Processes
                             }
 
                             // if the access is a write on a file (that is, not on a directory), then the path is a candidate to be part of a shared opaque
-                            isPathCandidateToBeOwnedByASharedOpaque |= 
+                            isPathCandidateToBeOwnedByASharedOpaque |=
                                 access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
                                 !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY) &&
                                 !access.IsDirectoryCreationOrRemoval();
@@ -3802,7 +3807,7 @@ namespace BuildXL.Processes
                             {
                                 outputPath = writeAccess.ToString(m_pathTable);
                             }
-                            
+
                             var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false);
                             if (!maybeResult.Succeeded)
                             {
@@ -3811,7 +3816,7 @@ namespace BuildXL.Processes
                                     m_pip.GetDescription(m_context),
                                     writeAccess.ToString(m_pathTable),
                                     maybeResult.Failure.DescribeIncludingInnerFailures());
-                                
+
                                 sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
 
                                 return false;
@@ -3851,7 +3856,7 @@ namespace BuildXL.Processes
                         // else, include IFF:
                         //   (1) access is a directory enumeration, AND
                         //   (2) the directory was not created by this pip
-                        return 
+                        return
                             access.ObservationFlags.HasFlag(ObservationFlags.Enumeration)
                             && !access.Accesses.Any(rfa => rfa.IsDirectoryCreation());
                     }

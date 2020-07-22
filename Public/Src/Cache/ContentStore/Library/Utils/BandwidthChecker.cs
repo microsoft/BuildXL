@@ -85,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (copyCompleted)
                     {
                         var result = await copyTask;
+                        result.MinimumSpeedInMbPerSec = minimumSpeedInMbPerSec;
                         var bytesCopied = result.Size ?? (previousPosition - startPosition);
 
                         return (result, bytesCopied);
@@ -114,7 +115,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                     }
                 }
 
-                return (await copyTask, previousPosition - startPosition);
+                var copyFileResult = await copyTask;
+                copyFileResult.MinimumSpeedInMbPerSec = minimumSpeedInMbPerSec;
+                return (copyFileResult, previousPosition - startPosition);
 
                 void traceCopyTaskFailures(Task task)
                 {

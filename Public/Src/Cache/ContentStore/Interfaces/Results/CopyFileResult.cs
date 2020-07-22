@@ -93,6 +93,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public byte[]? BytesFromTrustedCopy { get; set; }
 
         /// <summary>
+        /// Minimum bandwidth speed for a copy operation in MbPerSec
+        /// </summary>
+        public double? MinimumSpeedInMbPerSec { get; set; }
+
+        /// <summary>
         /// Implicit conversion operator from <see cref="CopyFileResult"/> to <see cref="bool"/>.
         /// </summary>
         public static implicit operator bool(CopyFileResult result) => result.Succeeded;

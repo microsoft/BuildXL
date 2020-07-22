@@ -29,7 +29,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <remarks>
         /// Default: 60 minutes
         /// </remarks>
-        public static TimeSpan InactiveTimeout => EngineEnvironmentSettings.DistributionInactiveTimeout;
+        public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
 
         /// <summary>
         /// The number of threads to be created for Grpc.

@@ -142,7 +142,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (waitForConnection)
             {
-                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.InactiveTimeout, operation, watch);
+                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
                 waitForConnectionDuration = watch.Elapsed;
 
                 if (!connectionSucceeded)

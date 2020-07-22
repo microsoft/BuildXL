@@ -281,7 +281,7 @@ namespace BuildXL.Engine
                 GrpcSettings.ThreadPoolSize,
                 grpcHandlerInliningEnabled,
                 (int)GrpcSettings.CallTimeout.TotalMinutes,
-                (int)GrpcSettings.InactiveTimeout.TotalMinutes);
+                (int)GrpcSettings.WorkerAttachTimeout.TotalMinutes);
 
             if (!string.IsNullOrEmpty(initialConfig.Startup.ChosenABTestingKey))
             {

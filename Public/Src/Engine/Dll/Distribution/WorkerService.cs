@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
@@ -294,9 +295,10 @@ namespace BuildXL.Engine.Distribution
         {
             Logger.Log.DistributionWaitingForMasterAttached(m_appLoggingContext);
 
-            while (!AttachCompletion.Wait(EngineEnvironmentSettings.WorkerAttachTimeout))
+            var timeout = GrpcSettings.WorkerAttachTimeout;
+            while (!AttachCompletion.Wait(timeout))
             {
-                if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
+                if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > timeout)
                 {
                     Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
                     Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
@@ -306,7 +308,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!AttachCompletion.Result)
             {
-                Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)EngineEnvironmentSettings.WorkerAttachTimeout.Value.TotalMinutes);
+                Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)timeout.TotalMinutes);
                 return false;
             }
 

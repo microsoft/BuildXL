@@ -27,6 +27,65 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public async Task TestPerformOperationAsyncTimeout()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(1));
+                    return BoolResult.Success;
+                },
+                timeout: TimeSpan.FromMilliseconds(100));
+
+            r.ShouldBeError();
+            r.IsCancelled.Should().BeFalse("The operation fails with TimeoutException and is not cancelled");
+        }
+
+        [Fact]
+        public async Task OperationSucceedsWithASmallTimeout()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(1));
+                    return BoolResult.Success;
+                },
+                timeout: TimeSpan.FromMinutes(10));
+
+            r.ShouldBeSuccess();
+        }
+
+        [Fact]
+        public async Task TestPerformNonResultOperationAsyncTimeout()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            try
+            {
+                await context.PerformNonResultOperationAsync(
+                    tracer,
+                    async () =>
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        return 42;
+                    },
+                    timeout: TimeSpan.FromMilliseconds(100));
+                Assert.False(true, "The operation should fail");
+            }
+            catch (TimeoutException)
+            {}
+        }
+
+        [Fact]
         public async Task TraceWhenWithTimeoutIsCalled()
         {
             var tracer = new Tracer("MyTracer");

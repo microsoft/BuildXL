@@ -580,7 +580,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
                 },
-                Counters[GlobalStoreCounters.GetCheckpointState]);
+                Counters[GlobalStoreCounters.GetCheckpointState],
+                // Using a timeout to make sure the operation finishes: this is important because we want for heartbeat operations
+                // that call this method to keep running to avoid stale checkpoints.
+                timeout: Configuration.GetCheckpointStateTimeout);
         }
 
         public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
@@ -654,9 +657,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return context.PerformOperationAsync(
                 Tracer,
-                () => TaskUtilities.WithTimeoutAsync(_ => GetBlobAdapter(hash).GetBlobAsync(context, hash), _configuration.GetBlobTimeout, context.Token),
+                () => GetBlobAdapter(hash).GetBlobAsync(context, hash),
                 traceOperationStarted: false,
-                counter: Counters[GlobalStoreCounters.GetBlob]);
+                counter: Counters[GlobalStoreCounters.GetBlob],
+                timeout: _configuration.GetBlobTimeout);
         }
 
         internal RedisBlobAdapter GetBlobAdapter(ContentHash hash)

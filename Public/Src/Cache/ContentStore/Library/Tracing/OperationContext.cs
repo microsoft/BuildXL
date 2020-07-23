@@ -129,11 +129,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
+            TimeSpan? timeout = null,
             bool isCritical = false,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical, timeout: timeout)
                 .RunAsync(caller);
         }
 
@@ -149,11 +150,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             Func<T, string>? extraEndMessage = null,
             Func<T, ResultBase>? resultBaseFactory = null,
             bool isCritical = false,
+            TimeSpan? timeout = null,
             [CallerMemberName]string? caller = null)
         {
-
             return this.CreateNonResultOperation(operationTracer, operation, resultBaseFactory)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical, timeout: timeout)
                 .RunAsync(caller);
         }
     }

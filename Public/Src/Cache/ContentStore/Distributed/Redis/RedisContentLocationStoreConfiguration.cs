@@ -111,5 +111,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Timeout for GetBlob operations.
         /// </summary>
         public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;
+
+        /// <summary>
+        /// Timeout for getting checkpoint information from redis.
+        /// </summary>
+        public TimeSpan GetCheckpointStateTimeout { get; set; } = TimeSpan.FromMinutes(5);
     }
 }

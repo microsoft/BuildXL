@@ -5,6 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 #nullable enable
@@ -64,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             Func<TResult, string>? endMessageFactory = null)
             where TBuilder : PerformOperationBuilderBase<TResult, TBuilder>
         {
-            return builder.WithOptions(traceOperationStarted: false, traceOperationFinished: enableTracing, traceErrorsOnly: true, endMessageFactory: endMessageFactory);
+            return builder.WithOptions(traceErrorsOnly: true, traceOperationStarted: false, traceOperationFinished: enableTracing, endMessageFactory: endMessageFactory);
         }
     }
     /// <summary>
@@ -97,6 +98,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
+        /// <summary>
+        /// An optional timeout for asynchronous operations.
+        /// </summary>
+        protected TimeSpan? _timeout;
+
         /// <nodoc />
         protected PerformOperationBuilderBase(OperationContext context, Tracer tracer, Func<TResult, ResultBase>? resultBaseFactory)
         {
@@ -127,7 +133,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             string? extraStartMessage = null,
             Func<TResult, string>? endMessageFactory = null,
             TimeSpan? silentOperationDurationThreshold = null,
-            bool isCritical = false)
+            bool isCritical = false,
+            TimeSpan? timeout = null)
         {
             _counter = counter;
             _traceErrorsOnly = traceErrorsOnly;
@@ -137,7 +144,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             _endMessageFactory = endMessageFactory;
             _silentOperationDurationThreshold = silentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
             _isCritical = isCritical;
-
+            _timeout = timeout;
             return (TBuilder)this;
         }
 
@@ -190,12 +197,23 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        protected static Task<T> WithOptionalTimeoutAsync<T>(Task<T> task, TimeSpan? timeout)
+        {
+            if (timeout == null)
+            {
+                return task;
+            }
+
+            return task.WithTimeoutAsync(timeout.Value);
+        }
+
+        /// <nodoc />
         protected async Task<T> RunOperationAndConvertExceptionToErrorAsync<T>(Func<Task<T>> operation)
             where T : ResultBase
         {
             try
             {
-                return await operation();
+                return await WithOptionalTimeoutAsync(operation(), _timeout);
             }
             catch (Exception ex)
             {
@@ -235,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 try
                 {
-                    var result = await _asyncOperation();
+                    var result = await WithOptionalTimeoutAsync(_asyncOperation(), _timeout);
                     TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
                     return result;

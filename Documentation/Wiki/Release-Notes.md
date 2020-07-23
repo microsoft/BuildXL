@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200717.1 (Release [71912](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71912)).  Released 7/22/2020
+-	Perf improvements on junction resolution in detours
+-	Clean dynamic outputs on pip retry
+-	Update .NET Core runtime to 3.1.6
+-	Various bug fixes
+
 # 0.1.0-20200711.0 (Release [71168](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71168)).  Released 7/15/2020
 - Enable non-nullable reference types for Cache Library 
 - Exclude ClientTelemetry.pdb from getting copied several times as a part of packages/final deployment.

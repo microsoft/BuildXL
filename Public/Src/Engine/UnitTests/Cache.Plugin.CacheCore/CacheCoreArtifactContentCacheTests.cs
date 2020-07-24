@@ -158,7 +158,7 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
 
                     XAssert.IsFalse(maybeMaterialized.Succeeded, "Expected materialization failure due to open file handle, but it succeed");
 
-                    XAssert.Contains(maybeMaterialized.Failure.DescribeIncludingInnerFailures(), LocalDiskContentStore.ExistingFileDeletionFailure);
+                    XAssert.IsTrue(maybeMaterialized.Failure is FailToDeleteForMaterializationFailure);
                 }
             }
         }

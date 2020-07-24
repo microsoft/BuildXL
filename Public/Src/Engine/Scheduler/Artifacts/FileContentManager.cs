@@ -562,7 +562,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash)> filesAndContentHashes,
             Action onFailure = null,
-            Action<int, string, string> onContentUnavailable = null,
+            Action<int, string, Failure> onContentUnavailable = null,
             bool materialize = false)
         {
             Logger.Log.ScheduleTryBringContentToLocalCache(operationContext, pipInfo.Description);
@@ -578,7 +578,7 @@ namespace BuildXL.Scheduler.Artifacts
                     onlyLogUnavailableContent: true,
                     filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index)),
                     onFailure: failure => { onFailure?.Invoke(); },
-                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr, failureType) => { /* Do nothing. Callee already logs the failure */ }));
+                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr, failure) => { /* Do nothing. Callee already logs the failure */ }));
 
                 return result;
             }
@@ -1825,16 +1825,14 @@ namespace BuildXL.Scheduler.Artifacts
                     pipInfo,
                     state);
 
-                if (!materialize)
-                {
-                    return success ? PlaceFile.Success : PlaceFile.InternalError;
-                }
-
-                if (!success &&
-                    state.InnerFailure != null &&
-                    state.InnerFailure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                if (!success && state.InnerFailure is FailToDeleteForMaterializationFailure)
                 {
                     userError = true;
+                }
+
+                if (!materialize)
+                {
+                    return success ? PlaceFile.Success : (userError ? PlaceFile.UserError : PlaceFile.InternalError);
                 }
 
                 // Remove the failures
@@ -1896,7 +1894,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
-                                    if (possiblyPlaced.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                                    if (state.InnerFailure?.GetType() == typeof(FailToDeleteForMaterializationFailure))
                                     {
                                         userError = true;
                                     }
@@ -2101,7 +2099,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                     state.InnerFailure = failure;
                 },
-                onContentUnavailable: (index, hashLogStr, failureType) =>
+                onContentUnavailable: (index, hashLogStr, failure) =>
                 {
                     state.SetMaterializationFailure(index);
 
@@ -2114,11 +2112,7 @@ namespace BuildXL.Scheduler.Artifacts
                             hashLogStr,
                             state.MaterializationFiles[index].Artifact.Path.ToString(Context.PathTable));
 
-                        if (failureType == LocalDiskContentStore.ExistingFileDeletionFailure)
-                        {
-                            state.InnerFailure = new Failure<string>(LocalDiskContentStore.ExistingFileDeletionFailure);
-                        }
-                        
+                        state.InnerFailure = failure;
                     }
                 },
                 state: state);
@@ -2136,7 +2130,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex)> filesAndContentHashes,
             Action<Failure> onFailure,
-            Action<int, string, string> onContentUnavailable,
+            Action<int, string, Failure> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2417,7 +2411,7 @@ namespace BuildXL.Scheduler.Artifacts
                             if (!isAvailable)
                             {
                                 success = false;
-                                onContentUnavailable(currentFileIndex, hashLogStr, result.FailureType);
+                                onContentUnavailable(currentFileIndex, hashLogStr, result.Failure);
                             }
                         }
                     }
@@ -2454,10 +2448,7 @@ namespace BuildXL.Scheduler.Artifacts
                     else
                     {
                         allContentAvailable = false;
-                        string failureType = result.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure)
-                                        ? LocalDiskContentStore.ExistingFileDeletionFailure
-                                        : null;
-                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss", failureType);
+                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss", result.Failure.InnerFailure);
                     }
                 };
 

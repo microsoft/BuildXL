@@ -154,7 +154,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     // Call the file content manager to ensure that the source file materialization fails when local file cannot be deleted
                     var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesInternalAsync(consumer, harness.UntrackedOpContext);
-                    Assert.Equal(fileMaterializationResult, ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure);
+                    Assert.Equal(ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure, fileMaterializationResult);
                 }
             }
         }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {
@@ -35,24 +36,24 @@ namespace BuildXL.Engine.Cache.Artifacts
         public readonly string SourceCache;
 
         /// <summary>
-        /// Type of failure when ContentAvailabilityResult is unavailable
+        /// Failure when ContentAvailabilityResult is unavailable
         /// </summary>
-        public readonly string FailureType;
+        public readonly Failure Failure;
 
         /// <nodoc />
-        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache, string failureType = null)
+        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache, Failure failure = null)
         {
             Hash = hash;
             IsAvailable = isAvailable;
             BytesTransferred = bytesTransferred;
             SourceCache = sourceCache;
-            FailureType = failureType;
+            Failure = failure;
         }
 
         /// <inherit />
         public override string ToString()
         {
-            return $"({Hash.ToString()}: is{(IsAvailable ? "" : " not")} available, {BytesTransferred}B transferred from {SourceCache}){(FailureType != null ? " due to Failure: " + FailureType : "")}";
+            return $"({Hash.ToString()}: is{(IsAvailable ? "" : " not")} available, {BytesTransferred}B transferred from {SourceCache}){(Failure != null ? " due to Failure: " + Failure.Describe() : "")}";
         }
     }
 }

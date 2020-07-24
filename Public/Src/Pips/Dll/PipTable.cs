@@ -436,6 +436,15 @@ namespace BuildXL.Pips
             return (pipId.Value > 0 && pipId.Value <= m_lastId && m_mutables[pipId.Value] != null) || pipId == PipId.DummyHashSourceFilePipId;
         }
 
+        internal ServiceInfo GetServiceInfo(PipId pipId)
+        {
+            Contract.Requires(!IsDisposed);
+            Contract.Requires(IsValid(pipId));
+
+            var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
+            return processMutableState?.ServiceInfo ?? ServiceInfo.None;
+        }
+
         /// <summary>
         /// Gets mutable state associated with a particular pip
         /// </summary>

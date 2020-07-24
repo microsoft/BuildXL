@@ -70,6 +70,21 @@ namespace BuildXL.Scheduler
         }
 
         /// <inheritdoc />
+        public override bool HasRealConsumers(IpcPip pip)
+        {
+            foreach (var outgoingEdge in m_pipGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
+            {
+                var otherPipId = outgoingEdge.OtherNode.ToPipId();
+                if (m_pipGraph.PipTable.GetServiceInfo(otherPipId).Kind == ServicePipKind.None)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc />
         public override async Task<bool> TryRunServiceDependenciesAsync(
             IPipExecutionEnvironment environment,
             IEnumerable<PipId> servicePips,

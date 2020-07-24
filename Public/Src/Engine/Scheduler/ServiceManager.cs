@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 
@@ -35,6 +36,14 @@ namespace BuildXL.Scheduler
                 "Default service manager cannot be used to execute services and thus should not be called with processes requires service pip execution");
 
             return BoolTask.True;
+        }
+
+        /// <summary>
+        /// Checks whether an IPC pip has a non-service pip dependent
+        /// </summary>
+        public virtual bool HasRealConsumers(IpcPip pip)
+        {
+            return false;
         }
     }
 }

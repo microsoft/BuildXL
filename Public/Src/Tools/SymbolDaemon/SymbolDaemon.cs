@@ -15,6 +15,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
@@ -106,8 +107,16 @@ namespace Tool.SymbolDaemon
         internal static readonly StrOption SymbolMetadataFile = new StrOption("symbolMetadata")
         {
             ShortName = "sm",
-            HelpText = "Path to file with symbols metadata.",
+            HelpText = "Path to a file with symbols metadata.",
             IsRequired = false,
+            IsMultiValue = false,
+        };
+
+        internal static readonly StrOption InputDirectoriesContent = new StrOption("inputDirectoriesContent")
+        {
+            ShortName = "idc",
+            HelpText = "Path to a file with the content of input directories.",
+            IsRequired = true,
             IsMultiValue = false,
         };
 
@@ -226,7 +235,13 @@ namespace Tool.SymbolDaemon
             {
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Verbose("[ADDSYMBOLS] Started");
-                var result = await AddSymbolFilesInternalAsync(conf, symbolDaemon);
+
+                var files = File.GetValues(conf.Config).ToArray();
+                var fileIds = FileId.GetValues(conf.Config).ToArray();
+                var hashes = HashOptional.GetValues(conf.Config).ToArray();
+                var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
+
+                var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, symbolDaemon);
                 symbolDaemon.Logger.Verbose("[ADDSYMBOLS] " + result);
                 return result;
             });
@@ -249,6 +264,61 @@ namespace Tool.SymbolDaemon
                 IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile);
 
                 return 0;
+            });
+
+        internal static readonly Command GetDirectoriesContentCmd = RegisterCommand(
+            name: "getDirectoriesContent",
+            description: "[RPC] invokes the 'GetDirectoriesContentAsync' operation.",
+            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId },
+            clientAction: SyncRPCSend,
+            serverAction: async (conf, daemon) =>
+            {
+                var symbolDaemon = daemon as SymbolDaemon;
+                symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] Started");
+                var result = await GetDirectoriesContentAsync(conf, symbolDaemon);
+                symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] " + result);
+                return result;
+            });
+
+        internal static readonly Command IndexDirectoriesCmd = RegisterCommand(
+            name: "indexDirectories",
+            description: "Indexes files in the specified directories and saves SymbolData into a file.",
+            options: new Option[] { Directory, InputDirectoriesContent, SymbolMetadataFile },
+            needsIpcClient: false,
+            clientAction: (ConfiguredCommand conf, IClient rpc) =>
+            {
+                var dirContentFile = InputDirectoriesContent.GetValue(conf.Config);
+                var dirContent = System.IO.File.ReadLines(dirContentFile);
+                var files = new List<string>();
+                var hashes = new List<ContentHash>();
+                foreach (var line in dirContent.Where(line => line.Length > 0))
+                {
+                    var pathAndHash = line.Split(s_debugEntryDataFieldSeparator);
+                    Contract.Assert(pathAndHash.Length == 2, "Input directories content file has a wrong format");
+
+                    files.Add(pathAndHash[0]);
+                    hashes.Add(FileContentInfo.Parse(pathAndHash[1]).Hash);
+                }
+
+                var outputFile = SymbolMetadataFile.GetValue(conf.Config);
+
+                IndexFilesAndStoreMetadataToFile(files.ToArray(), hashes.ToArray(), outputFile);
+
+                return 0;
+            });
+
+        internal static readonly Command AddSymbolFilesFromDirectoriesCmd = RegisterCommand(
+            name: "addSymbolFilesFromDirectories",
+            description: "[RPC] invokes the 'addSymbolFilesFromDirectories' operation.",
+            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, SymbolMetadataFile },
+            clientAction: SyncRPCSend,
+            serverAction: async (conf, daemon) =>
+            {
+                var symbolDaemon = daemon as SymbolDaemon;
+                symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] Started");
+                var result = await AddDirectoriesInternalAsync(conf, symbolDaemon);
+                symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] " + result);
+                return result;
             });
 
         private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile)
@@ -376,13 +446,67 @@ namespace Tool.SymbolDaemon
             return result;
         }
 
-        private static async Task<IIpcResult> AddSymbolFilesInternalAsync(ConfiguredCommand conf, SymbolDaemon daemon)
+        private static async Task<IIpcResult> GetDirectoriesContentAsync(ConfiguredCommand conf, SymbolDaemon daemon)
         {
-            var files = File.GetValues(conf.Config).ToArray();
-            var fileIds = FileId.GetValues(conf.Config).ToArray();
-            var hashes = HashOptional.GetValues(conf.Config).ToArray();
-            var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
+            var directoryPaths = Directory.GetValues(conf.Config).ToArray();
+            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();           
 
+            if (directoryPaths.Length != directoryIds.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}"));
+            }
+
+            if (daemon.ApiClient == null)
+            {
+                return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");       
+            }
+                     
+            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient);
+            if (!maybeResult.Succeeded)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
+            }
+            
+            var files = maybeResult.Result
+                .Select(file => $"{file.FileName.ToUpperInvariant()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}")
+                .ToList();
+            files.Sort();
+
+            return new IpcResult(IpcResultStatus.Success, string.Join(Environment.NewLine, files));
+        }
+
+        private static async Task<Possible<HashSet<SealedDirectoryFile>>> GetDedupedDirectoriesContentAsync(string[] directoryIds, string[] directoryPaths, Client apiClient)
+        {
+            Contract.Requires(apiClient != null);
+            Contract.Requires(directoryIds.Length == directoryIds.Length);
+
+            var files = new HashSet<SealedDirectoryFile>();
+            for (int i = 0; i < directoryIds.Length; i++)
+            {
+                DirectoryArtifact directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryIds[i]);
+                var maybeResult = await apiClient.GetSealedDirectoryContent(directoryArtifact, directoryPaths[i]);
+                if (!maybeResult.Succeeded)
+                {
+                    return maybeResult.Failure;
+                }
+
+                files.UnionWith(maybeResult.Result);
+            }
+
+            return files;
+        }
+
+        private static async Task<IIpcResult> AddSymbolFilesInternalAsync(
+            string[] files, 
+            string[] fileIds, 
+            string[] hashes, 
+            string symbolMetadataFile, 
+            SymbolDaemon daemon)
+        {           
             if (files.Length != fileIds.Length || files.Length != hashes.Length)
             {
                 return new IpcResult(
@@ -446,6 +570,45 @@ namespace Tool.SymbolDaemon
             var result = await daemon.AddSymbolFilesAsync(symbolFiles);
 
             return result;
+        }
+
+        private static async Task<IIpcResult> AddDirectoriesInternalAsync(ConfiguredCommand conf, SymbolDaemon daemon)
+        {
+            var directoryPaths = Directory.GetValues(conf.Config).ToArray();
+            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
+            var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
+
+            if (directoryPaths.Length != directoryIds.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}"));
+            }
+
+            if (daemon.ApiClient == null)
+            {
+                return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
+            }
+
+            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient);
+            if (!maybeResult.Succeeded)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
+            }
+
+            var filesPaths = new List<string>();
+            var filesIds = new List<string>();
+            var hashes = new List<string>();
+            foreach (var file in maybeResult.Result)
+            {
+                filesPaths.Add(file.FileName);
+                filesIds.Add(BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact));
+                hashes.Add(file.ContentInfo.Render());
+            }
+
+            return await AddSymbolFilesInternalAsync(filesPaths.ToArray(),filesIds.ToArray(),hashes.ToArray(),symbolMetadataFile, daemon);
         }
 
         #endregion

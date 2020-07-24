@@ -157,22 +157,6 @@ namespace Tool.DropDaemon
             HelpText = "Relative drop path",
             IsRequired = false,
             IsMultiValue = true,
-        };       
-
-        internal static readonly StrOption Directory = new StrOption("directory")
-        {
-            ShortName = "dir",
-            HelpText = "Directory path",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
-        internal static readonly StrOption DirectoryId = new StrOption("directoryId")
-        {
-            ShortName = "dirid",
-            HelpText = "BuildXL directory identifier",
-            IsRequired = false,
-            IsMultiValue = true,
         };
 
         internal static readonly StrOption RelativeDirectoryDropPath = new StrOption("directoryDropPath")

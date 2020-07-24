@@ -23,7 +23,9 @@ export const runner: SymbolRunner = {
     )
     => createSymbol(args),
     
-    addFilesToSymbol: addFiles,       
+    addFilesToSymbol: addFiles,    
+    
+    addDirectoriesToSymbol: addDirectories,
 
     startDaemonNoSymbol: (
         args: ServiceStartArguments
@@ -76,6 +78,7 @@ export const cloudBuildRunner: SymbolRunner = {
         applyCloudBuildDefaultsAndSetEnvVars(args)
     ),
     addFilesToSymbol: runner.addFilesToSymbol,
+    addDirectoriesToSymbol: runner.addDirectoriesToSymbol,
     startDaemonNoSymbol: runner.startDaemonNoSymbol,
     pingDaemon: runner.pingDaemon,
     testReadFile: runner.testReadFile,
@@ -196,6 +199,42 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
     );
 }
 
+function addDirectories(createResult: SymbolCreateResult, args: OperationArguments, directories: OpaqueDirectory[]): Result {
+    Contract.requires(
+        createResult !== undefined,
+        "result of the 'symbol create' operation must be provided"
+    );
+
+    const symbolMetadataFile = indexSymbolFilesInDirectories(directories, createResult, args);
+
+    const directoryMessageBody = directories.length !== 0
+        ? [
+            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
+            Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),
+            Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),             
+            ]
+        : [];          
+
+    const uberArgs = args.merge<UberArguments>({
+        dependencies: createResult.outputs || [],
+        ipcServerMoniker: Transformer.getIpcServerMoniker(),
+    });
+
+    return executeDaemonCommand(
+        createResult.serviceStartInfo,
+        "addSymbolFilesFromDirectories",
+        uberArgs,
+        ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
+            messageBody: [
+                ...directoryMessageBody,
+            ],
+            lazilyMaterializedDependencies: [
+                ...directories,
+            ],
+        })
+    );
+}
+
 function indexSymbolFiles(files: File[]) : DerivedFile {
     const symbolDataFileName = "symbol_data.txt";
 
@@ -234,6 +273,74 @@ function indexSymbolFiles(files: File[]) : DerivedFile {
     const outputResult = result.getOutputFile(outputPath);
 
     return outputResult;
+}
+
+function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createResult: SymbolCreateResult, args: OperationArguments) : DerivedFile {
+    Contract.requires(
+        directories !== undefined,
+        "directories to index must be identified"
+    );
+
+    Contract.requires(
+        directories.length !== 0,
+        "The list of directories cannot be empty"
+    ); 
+
+    const directoryMessageBody = directories.length !== 0
+        ? [
+            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
+            Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),
+            ]
+        : [];
+
+    const outDir = Context.getNewOutputDirectory("symbol_indexing");    
+    const dirContentFile = p`${outDir.path}/dir_content.txt`;
+
+    const uberArgs = args.merge<UberArguments>({
+        dependencies: createResult.outputs || [],
+        ipcServerMoniker: Transformer.getIpcServerMoniker(),
+        consoleOutput: dirContentFile
+    });
+
+    const dirContentResult = executeDaemonCommand(
+        createResult.serviceStartInfo,
+        "getDirectoriesContent",
+        uberArgs,
+        ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
+            messageBody: directoryMessageBody,
+            lazilyMaterializedDependencies: directories,
+        })
+    );
+
+    Contract.requires(
+        dirContentResult.outputs.length === 1,
+        "There must be exactly one output file"
+    );
+
+    const outputPath = p`${outDir.path}/symbol_data.txt`;
+
+    const executeArguments = <Transformer.ExecuteArguments>{
+        tool: tool,
+        workingDirectory: outDir,
+        arguments: [
+            Cmd.argument("indexDirectories"),
+            Cmd.startUsingResponseFile(false),
+            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),            
+            Cmd.option("--inputDirectoriesContent ", Artifact.input(dirContentResult.outputs[0])),
+            Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
+        ],
+        // SymStoreUtil opens some files (namely .pdb) with ReadWrite access, this causes DFAs and other issues.
+        // Because the pip consumes dynamic directories we need to specify both the double wrtite policy and the 
+        // untracked scopes.
+        doubleWritePolicy: "allowSameContentDoubleWrites",
+        unsafe: {            
+            untrackedScopes: directories.map(dir => dir.root)
+        },
+        description : "SymbolIndexing: " + directories[0].name + " and " + (directories.length - 1) + " other directories(s)"
+    }; 
+
+    // run the tool
+    return Transformer.execute(executeArguments).getOutputFile(outputPath);
 }
 
 function overrideMustRunOnMaster(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
@@ -354,6 +461,7 @@ function getIpcArguments(serviceStartInfo: ServiceStartResult, command: string, 
         fileDependencies: exeArgs.dependencies,
         outputFile: args.consoleOutput || exeArgs.consoleOutput,
     };
+
     return overrideIpcArgs !== undefined ? overrideIpcArgs(ipcArgs) : ipcArgs;
 }
 

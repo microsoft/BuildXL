@@ -616,7 +616,7 @@ namespace BuildXL.Scheduler
                     PipExecutorCounter.Ipc_ResponseAfterSetTaskDurationMs,
                     (long)response_AfterSetTaskDuration.TotalMilliseconds);
 
-                if (environment.Configuration.Schedule.WriteIpcOutput)
+                if (environment.Configuration.Schedule.WriteIpcOutput || environment.State.ServiceManager.HasRealConsumers(pip))
                 {
                     // write payload to pip.OutputFile
                     Possible<PipResultStatus> writeFileStatus = await TryWriteFileAndReportOutputsAsync(

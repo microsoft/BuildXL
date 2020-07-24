@@ -148,10 +148,14 @@ export interface SymbolRunner {
     createSymbol: (args: SymbolCreateArguments) => SymbolCreateResult;
 
     /** 
-     * Adds files to symbol. 
-     * Preferred method is to use addArtifactsToSymbol.
+     * Indexes and publishes files.
      */
     addFilesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, fileInfos: File[]) => Result;
+
+    /**
+     * Indexes and publishes files withing the specified directories.
+     */
+    addDirectoriesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, directories: OpaqueDirectory[]) => Result;
    
     // ------------------------------- for testing only ------------------------------------
     

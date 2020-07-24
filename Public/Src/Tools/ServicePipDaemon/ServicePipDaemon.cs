@@ -224,6 +224,25 @@ namespace Tool.ServicePipDaemon
             IsRequired = false,
         };
 
+
+        /// <nodoc />
+        public static readonly StrOption Directory = new StrOption("directory")
+        {
+            ShortName = "dir",
+            HelpText = "Directory path",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc />
+        public static readonly StrOption DirectoryId = new StrOption("directoryId")
+        {
+            ShortName = "dirid",
+            HelpText = "BuildXL directory identifier",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         /// <nodoc />
         protected static T RegisterOption<T>(List<Option> options, T option) where T : Option
         {

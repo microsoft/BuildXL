@@ -746,15 +746,14 @@ namespace BuildXL.Processes
                     m_pip.Tags.Any(a => a.ToString(m_context.StringTable) == TagFilter.TriggerWorkerProcessStartFailed))
                 {
                     s_testRetryOccurred = true;
-                    return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure);
+                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                        RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure));
                 }
             }
 
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
-
-                
 
                 if (!PrepareWorkingDirectory())
                 {
@@ -765,7 +764,8 @@ namespace BuildXL.Processes
 
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
-                    return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.TempDirectoryCleanupFailure);
+                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.PreparationFailed,
+                        RetryInfo.RetryOnDifferentWorker(RetryReason.TempDirectoryCleanupFailure));
                 }
 
                 if (!await PrepareResponseFileAsync())
@@ -951,7 +951,7 @@ namespace BuildXL.Processes
                                 if (!s_isIsolationSupported)
                                 {
                                     Tracing.Logger.Log.PipSpecifiedToRunInContainerButIsolationIsNotSupported(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                                    return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, (int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
+                                    return SandboxedProcessPipExecutionResult.PreparationFailure((int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
                                 }
 
                                 Tracing.Logger.Log.PipInContainerStarting(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, m_containerConfiguration.ToDisplayString());
@@ -1014,7 +1014,7 @@ namespace BuildXL.Processes
                                     ex.LogEventMessage);
                             }
 
-                            return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure, processLaunchRetryCount, maxDetoursHeapSize);
+                            return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed, RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure), maxDetoursHeapSize: maxDetoursHeapSize);
                         }
                     }
 
@@ -1103,7 +1103,7 @@ namespace BuildXL.Processes
                     ex.LogEventErrorCode,
                     ex.LogEventMessage);
 
-                return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure);
+                return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed, RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure));
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
@@ -1597,7 +1597,6 @@ namespace BuildXL.Processes
                                     encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
                                     encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
                                     return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
-                                        result.NumberOfProcessLaunchRetries,
                                         result.ExitCode,
                                         primaryProcessTimes,
                                         jobAccounting,
@@ -1629,7 +1628,6 @@ namespace BuildXL.Processes
                                     deadProcess.ProcessId);
 
                                 return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
-                                    result.NumberOfProcessLaunchRetries,
                                     result.ExitCode,
                                     primaryProcessTimes,
                                     jobAccounting,
@@ -1848,6 +1846,7 @@ namespace BuildXL.Processes
             }
 
             SandboxedProcessPipExecutionStatus status = SandboxedProcessPipExecutionStatus.ExecutionFailed;
+            RetryInfo retryInfo = null;
             if (result.HasDetoursInjectionFailures)
             {
                 status = SandboxedProcessPipExecutionStatus.PreparationFailed;
@@ -1887,7 +1886,8 @@ namespace BuildXL.Processes
                           m_pipDescription,
                           "'" + expandedOutputPath + "'. " + (isFile ? "Found path is a file" : "Found path is a directory"));
 
-                        status = SandboxedProcessPipExecutionStatus.OutputWithNoFileAccessFailed;
+                        status = SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed;
+                        retryInfo = RetryInfo.RetryOnSameWorker(RetryReason.OutputWithNoFileAccessFailed);
                     }
                 }
             }
@@ -1905,7 +1905,6 @@ namespace BuildXL.Processes
                 numberOfWarnings: m_numWarnings,
                 primaryProcessTimes: primaryProcessTimes,
                 jobAccountingInformation: jobAccounting,
-                numberOfProcessLaunchRetries: result.NumberOfProcessLaunchRetries,
                 exitCode: result.ExitCode,
                 sandboxPrepMs: sandboxPrepMs,
                 processSandboxedProcessResultMs: sw.ElapsedMilliseconds,
@@ -1915,7 +1914,8 @@ namespace BuildXL.Processes
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 containerConfiguration: m_containerConfiguration,
                 pipProperties: pipProperties,
-                timedOut: result.TimedOut);
+                timedOut: result.TimedOut,
+                retryInfo: retryInfo);
         }
 
         private async Task<(bool Success, Dictionary<string, int> PipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)

@@ -157,7 +157,12 @@ namespace BuildXL.Scheduler.Distribution
 
             var pipProperties = ReadPipProperties(reader);
             var hasUserRetries = reader.ReadBoolean();
-            int pipCancellationStatus = reader.ReadInt32();
+
+            RetryInfo pipRetryInfo = null;
+            if (reader.ReadBoolean())
+            {
+                pipRetryInfo = RetryInfo.Deserialize(reader);
+            }
 
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
@@ -181,7 +186,7 @@ namespace BuildXL.Scheduler.Distribution
                 cacheLookupCounters,
                 pipProperties,
                 hasUserRetries,
-                (CancellationReason)pipCancellationStatus);
+                pipRetryInfo);
 
             return processExecutionResult;
         }
@@ -244,7 +249,8 @@ namespace BuildXL.Scheduler.Distribution
 
             WritePipProperties(writer, result.PipProperties);
             writer.Write(result.HasUserRetries);
-            writer.Write((int)result.CancellationReason);
+
+            writer.Write(result.RetryInfo, (w, ri) => ri.Serialize(w));
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)

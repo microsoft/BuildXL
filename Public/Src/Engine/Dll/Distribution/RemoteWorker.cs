@@ -870,7 +870,7 @@ namespace BuildXL.Engine.Distribution
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
-                result = ExecutionResult.GetCanceledNotRunResult(operationContext, Processes.CancellationReason.StoppedWorker);
+                result = ExecutionResult.GetRetryableNotRunResult(operationContext, Processes.RetryInfo.RetryOnDifferentWorker(Processes.RetryReason.StoppedWorker));
 
                 pipCompletionTask.TrySet(result);
                 return;

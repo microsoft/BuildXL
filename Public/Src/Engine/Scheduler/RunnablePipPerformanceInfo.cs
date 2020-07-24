@@ -97,20 +97,20 @@ namespace BuildXL.Scheduler
             Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
         }
 
-        internal void Retried(CancellationReason pipCancellationReason)
+        internal void Retried(RetryInfo pipRetryInfo)
         {
-            Contract.Requires(pipCancellationReason != CancellationReason.None, "If retry occurs, we need to have cancellation");
+            Contract.Requires(pipRetryInfo != null, "If retry occurs, we need to have a retry information (reason and location)");
 
-            switch (pipCancellationReason)
+            switch (pipRetryInfo.RetryReason)
             {
-                case CancellationReason.ResourceExhaustion:
+                case RetryReason.ResourceExhaustion:
                     RetryCountDueToLowMemory++;
                     break;
-                case CancellationReason.ProcessStartFailure:
-                case CancellationReason.TempDirectoryCleanupFailure:
+                case RetryReason.ProcessStartFailure:
+                case RetryReason.TempDirectoryCleanupFailure:
                     RetryCountDueToRetryableFailures++;
                     break;
-                case CancellationReason.StoppedWorker:
+                case RetryReason.StoppedWorker:
                     RetryCountDueToStoppedWorker++;
                     break;
             }

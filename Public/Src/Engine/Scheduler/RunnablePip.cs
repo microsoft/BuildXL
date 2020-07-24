@@ -313,9 +313,10 @@ namespace BuildXL.Scheduler
             if (result.Status == PipResultStatus.Canceled &&
                 !Environment.IsTerminating)
             {
+                // Handle Retryable Cancellations
                 SetWorker(null);
 
-                Performance.Retried(ExecutionResult?.CancellationReason ?? CancellationReason.StoppedWorker);
+                Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.RetryOnDifferentWorker(RetryReason.StoppedWorker));
 
                 return DecideNextStepForRetry();
             }

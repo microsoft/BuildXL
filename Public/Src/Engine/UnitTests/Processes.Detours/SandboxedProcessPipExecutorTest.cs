@@ -1853,9 +1853,8 @@ namespace Test.BuildXL.Processes.Detours
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default);
 
-                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Canceled, result.Status);
-                XAssert.AreEqual(CancellationReason.ProcessStartFailure, result.CancellationReason);
-                XAssert.AreEqual(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, result.NumberOfProcessLaunchRetries);
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.ExecutionFailed, result.Status);
+                XAssert.AreEqual(RetryReason.ProcessStartFailure, result.RetryInfo?.RetryReason);
                 AssertVerboseEventLogged(ProcessesLogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
                 AssertWarningEventLogged(LogEventId.PipProcessStartFailed, 1);
             }

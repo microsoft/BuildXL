@@ -58,7 +58,7 @@ namespace BuildXL.Scheduler
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
-        private CancellationReason m_cancellationReason;
+        private RetryInfo m_retryInfo;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -152,8 +152,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void SetResult(LoggingContext context, 
             PipResultStatus status, 
-            CancellationReason cancellationReason = CancellationReason.None)
+            RetryInfo retryInfo = null)
         {
+            Contract.Requires(status != PipResultStatus.Succeeded || retryInfo == null, "Succeeded Pips should not have RetryInfo");
             if (status == PipResultStatus.Failed)
             {
                 Contract.Assert(context.ErrorWasLogged, "Set a failed status without logging an error");
@@ -161,7 +162,7 @@ namespace BuildXL.Scheduler
 
             EnsureUnsealed();
             InnerUnsealedState.Result = status;
-            m_cancellationReason = cancellationReason;
+            m_retryInfo = retryInfo;
         }
 
         /// <summary>
@@ -405,11 +406,11 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether the pip was cancelled. Returns the reason for cancellation.
         /// </summary>
-        public CancellationReason CancellationReason
+        public RetryInfo RetryInfo
         {
             get
             {
-                return m_cancellationReason;
+                return m_retryInfo;
             }
         }
 
@@ -452,7 +453,7 @@ namespace BuildXL.Scheduler
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
-            CancellationReason pipCancellationReason)
+            RetryInfo pipRetryInfo = null)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -480,7 +481,7 @@ namespace BuildXL.Scheduler
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
-                    m_cancellationReason = pipCancellationReason,
+                    m_retryInfo = pipRetryInfo,
                 };
             return processExecutionResult;
         }
@@ -523,7 +524,7 @@ namespace BuildXL.Scheduler
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
-                CancellationReason);
+                RetryInfo);
         }
 
         /// <summary>
@@ -556,7 +557,7 @@ namespace BuildXL.Scheduler
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
-                CancellationReason);
+                RetryInfo);
         }
 
         /// <summary>
@@ -602,7 +603,7 @@ namespace BuildXL.Scheduler
             m_numberOfWarnings = executionResult.NumberOfWarnings;
             m_pipProperties = executionResult.PipProperties;
             m_hasUserRetries = executionResult.HadUserRetries;
-            m_cancellationReason = executionResult.CancellationReason;
+            m_retryInfo = executionResult.RetryInfo;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
         }
@@ -658,12 +659,12 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Gets a canceled result without run information.
+        /// Gets a canceled result without run information for retry on another worker.
         /// </summary>
-        public static ExecutionResult GetCanceledNotRunResult(LoggingContext loggingContext, CancellationReason cancellationReason)
+        public static ExecutionResult GetRetryableNotRunResult(LoggingContext loggingContext, RetryInfo retryInfo)
         {
             var result = new ExecutionResult();
-            result.SetResult(loggingContext, PipResultStatus.Canceled, cancellationReason);
+            result.SetResult(loggingContext, PipResultStatus.Canceled, retryInfo);
             result.Seal();
 
             return result;
@@ -711,18 +712,20 @@ namespace BuildXL.Scheduler
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
-                    if (processResult != null &&
-                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed &&
-                        !processResult.CancellationReason.IsPrepRetryableFailure())
+
+                    if (processResult != null && 
+                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
+                        !RetryReasonExtensions.IsPrepRetryableFailure(processResult.RetryInfo?.RetryReason))
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.Canceled ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed ||
-                            processResult.Status == SandboxedProcessPipExecutionStatus.OutputWithNoFileAccessFailed ||
-                            processResult.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount))
+                            processResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
+                            processResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount))
                         {
-                            Contract.Assert(false, "Invalid execution status: " + processResult.Status);
+                            string retryReason = processResult.RetryInfo != null ? $", Retry Reason: {processResult.RetryInfo.RetryReason}, Retry Location: {processResult.RetryInfo.RetryLocation}" : "";
+                            Contract.Assert(false, "Invalid execution status: " + processResult.Status + retryReason);
                         }
 
                         Contract.Assert(

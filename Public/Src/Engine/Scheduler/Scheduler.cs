@@ -2864,7 +2864,7 @@ namespace BuildXL.Scheduler
                     {
                         if (pipRuntimeInfo.State != PipState.Running)
                         {
-                            Contract.Assume(false, "Prior state assumed to be running. Was: " + pipRuntimeInfo.State.ToString());
+                            Contract.Assume(false, $"Prior state assumed to be {nameof(PipState.Running)}. Was: {pipRuntimeInfo.State}");
                         }
 
                         pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Canceled);
@@ -4179,11 +4179,11 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    // The pip was canceled due to memory or retryable failure
+                    // The pip was canceled due to retryable failure
                     if (executionResult.Result == PipResultStatus.Canceled && !IsTerminating)
                     {
-                        var cancellationReason = executionResult.CancellationReason;
-                        Contract.Assert(cancellationReason != CancellationReason.None, "If the result is Cancelled, we must have the cancellationReason");
+                        Contract.Requires(executionResult.RetryInfo != null, $"Retry Information is required for all retry cases. IsTerminating: {m_scheduleTerminating}");
+                        var retryReason = executionResult.RetryInfo.RetryReason;
                         
                         if (worker.IsLocal)
                         {
@@ -4195,7 +4195,7 @@ namespace BuildXL.Scheduler
                         // If it is a single machine or distributed build master 
                         if (!IsDistributedBuild || IsDistributedMaster)
                         {
-                            if (cancellationReason == CancellationReason.ResourceExhaustion)
+                            if (retryReason == RetryReason.ResourceExhaustion)
                             {
                                 // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
                                 var expectedCounters = processRunnable.ExpectedMemoryCounters.Value;
@@ -4215,9 +4215,9 @@ namespace BuildXL.Scheduler
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
                                 }
                             }
-                            else if (cancellationReason == CancellationReason.ProcessStartFailure || cancellationReason == CancellationReason.TempDirectoryCleanupFailure)
+                            else if (RetryReasonExtensions.IsPrepRetryableFailure(retryReason))
                             {
-                                Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, cancellationReason.ToString());
+                                Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, retryReason.ToString());
 
                                 if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
                                 {

@@ -108,11 +108,6 @@ namespace BuildXL.Processes
         public Exception StandardInputException { get; internal set; }
 
         /// <summary>
-        /// Number of retries to execute this pip.
-        /// </summary>
-        public int NumberOfProcessLaunchRetries { get; internal set; }
-
-        /// <summary>
         /// Whether there were ReadWrite access requests changed to Read access requests.
         /// </summary>
         public bool HasReadWriteToReadFileAccessRequest { get; internal set; }
@@ -185,7 +180,6 @@ namespace BuildXL.Processes
             writer.WriteNullableString(DumpFileDirectory);
             writer.WriteNullableString(DumpCreationException?.Message);
             writer.WriteNullableString(StandardInputException?.Message);
-            writer.Write(NumberOfProcessLaunchRetries);
             writer.Write(HasReadWriteToReadFileAccessRequest);
             writer.WriteNullableString(MessageProcessingFailure?.Describe());
             writer.Write(ProcessStartTime);
@@ -230,7 +224,6 @@ namespace BuildXL.Processes
             string dumpFileDirectory = reader.ReadNullableString();
             string dumpCreationExceptionMessage = reader.ReadNullableString();
             string standardInputExceptionMessage = reader.ReadNullableString();
-            int numberOfPRocessLaunchRetries = reader.ReadInt32();
             bool hasReadWriteToReadFileAccessRequest = reader.ReadBoolean();
             string messageProcessingFailureMessage = reader.ReadNullableString();
             long processStartTime = reader.ReadInt64();
@@ -258,7 +251,6 @@ namespace BuildXL.Processes
                 DumpFileDirectory = dumpFileDirectory,
                 DumpCreationException = dumpCreationExceptionMessage != null ? new Exception(dumpCreationExceptionMessage) : null,
                 StandardInputException = standardInputExceptionMessage != null ? new Exception(standardInputExceptionMessage) : null,
-                NumberOfProcessLaunchRetries = numberOfPRocessLaunchRetries,
                 HasReadWriteToReadFileAccessRequest = hasReadWriteToReadFileAccessRequest,
                 MessageProcessingFailure = messageProcessingFailureMessage != null ? new Failure<string>(messageProcessingFailureMessage) : null,
                 ProcessStartTime = processStartTime,

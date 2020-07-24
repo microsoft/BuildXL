@@ -96,8 +96,7 @@ namespace Test.BuildXL.Scheduler
                 pathSet: null,
                 cacheLookupStepDurations: null,
                 pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
-                hasUserRetries: true,
-                CancellationReason.None);
+                hasUserRetries: true);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -157,7 +156,7 @@ namespace Test.BuildXL.Scheduler
 
                 r => r.PipProperties.Count,
                 r => r.HasUserRetries,
-                r => r.CancellationReason
+                r => r.RetryInfo
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)

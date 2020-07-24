@@ -27,6 +27,7 @@ using static ContentStoreTest.Distributed.Sessions.DistributedContentTests;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 {
@@ -61,11 +62,17 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         [Fact]
         public Task BasicDistributedAddAndGet()
         {
+            _test.ConfigureWithOneMaster(dcs =>
+            {
+                dcs.TouchContentHashLists = true;
+            });
+
            return RunTestAsync(
                3,
                async context =>
                {
                    var sf = StrongFingerprint.Random();
+                   var touchedSf = StrongFingerprint.Random();
 
                    var workerCaches = context.EnumerateWorkersIndices().Select(i => context.CacheSessions[i]).ToArray();
                    var workerCache0 = workerCaches[0];
@@ -83,7 +90,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                        false,
                        RandomContentByteCount,
                        Token).ShouldBeSuccess();
-                   var contentHashList = new ContentHashList(new[] {putResult.ContentHash});
+                   var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
 
                    async Task<int?> findLevelAsync(ICacheSession cacheSession)
                    {
@@ -122,6 +129,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                        level.Should().Be(expectedLevel);
                    }
 
+                   DateTime getTouchedFingerprintLastAccessTime(LocalLocationStore store)
+                   {
+                       return store.Database.GetMetadataEntry(context, touchedSf, touch: false).ShouldBeSuccess().Value.Value.LastAccessTimeUtc;
+                   }
+
                    // Verify not found initially
                    await ensureLevelAsync(workerCache0, null);
                    await ensureLevelAsync(workerCache1, null);
@@ -130,12 +142,22 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                        sf,
                        new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None),
                        Token).ShouldBeSuccess();
+
+                   await workerCache0.AddOrGetContentHashListAsync(
+                       context,
+                       touchedSf,
+                       new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None),
+                       Token).ShouldBeSuccess();
                    Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
                    await ensureLevelAsync(masterCache, 0 /* Master DB gets updated immediately */);
 
                    // Verify found remotely
                    await ensureLevelAsync(workerCache0, 1);
                    await ensureLevelAsync(workerCache1, 1);
+
+                   // Get original last access time for strong fingerprint which will be touched
+                   var initialTouchTime = getTouchedFingerprintLastAccessTime(masterStore);
+                   initialTouchTime.Should().Be(_test.TestClock.UtcNow);
 
                    _test.TestClock.UtcNow += TimeSpan.FromDays(1);
 
@@ -158,12 +180,22 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                        sf,
                        new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None),
                        Token).ShouldBeSuccess();
+
+                   await workerCache0.GetContentHashListAsync(
+                       context,
+                       touchedSf,
+                       Token).ShouldBeSuccess();
+
                    await ensureLevelAsync(masterCache, 0 /* Master db gets updated immediately */);
 
                    await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
                    await workerStore1.HeartbeatAsync(context, inline: true, forceRestore: true).ShouldBeSuccess();
                    await ensureLevelAsync(workerCache0, 1 /* Worker 0 has not updated its db it should still be found remotely */);
-                   await ensureLevelAsync(workerCache1, 0 /* Worker 0 should find locally after restoring DB */);
+                   await ensureLevelAsync(workerCache1, 0 /* Worker 1 should find locally after restoring DB */);
+
+                   // Touch should have propagated to master and worker 1 (worker 1 restored checkpoint above)
+                   getTouchedFingerprintLastAccessTime(masterStore).Should().Be(_test.TestClock.UtcNow);
+                   getTouchedFingerprintLastAccessTime(workerStore1).Should().Be(_test.TestClock.UtcNow);
                });
         }
 

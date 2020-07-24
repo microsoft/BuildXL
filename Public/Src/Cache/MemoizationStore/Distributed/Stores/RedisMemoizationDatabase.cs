@@ -62,7 +62,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private Task<bool> CompareExchangeInternalAsync(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement, string newReplacementToken)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
-            var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow.ToFileTimeUtc());
+            var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow);
             var replacementBytes = SerializeMetadataEntry(replacementMetadata);
 
             byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);

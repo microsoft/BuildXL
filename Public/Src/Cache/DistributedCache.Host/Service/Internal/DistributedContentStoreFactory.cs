@@ -167,7 +167,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
                 AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray(),
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
-                MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies
+                MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
+                TouchContentHashLists = _distributedSettings.TouchContentHashLists
             };
 
             ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisContentLocationStoreConfiguration.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));

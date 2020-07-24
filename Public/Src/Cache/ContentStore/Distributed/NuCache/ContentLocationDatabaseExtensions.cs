@@ -32,7 +32,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context,
                 strongFingerprint,
                 replacement,
-                entry => entry.ContentHashListWithDeterminism.Equals(expected));
+                entry => entry.ContentHashListWithDeterminism.Equals(expected),
+                lastAccessTimeUtc: null);
         }
 
         /// <summary>

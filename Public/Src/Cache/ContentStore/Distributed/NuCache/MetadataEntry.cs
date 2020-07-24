@@ -20,12 +20,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public ContentHashListWithDeterminism ContentHashListWithDeterminism { get; }
 
         /// <summary>
-        /// Last update time, stored as output by <see cref="DateTime.ToFileTimeUtc"/>.
+        /// Last update time
         /// </summary>
-        public long LastAccessTimeUtc { get; }
+        public DateTime LastAccessTimeUtc { get; }
 
         /// <nodoc />
-        public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, long lastAccessTimeUtc)
+        public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, DateTime lastAccessTimeUtc)
         {
             ContentHashListWithDeterminism = contentHashListWithDeterminism;
             LastAccessTimeUtc = lastAccessTimeUtc;
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var lastUpdateTimeUtc = reader.ReadInt64Compact();
             var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(reader);
-            return new MetadataEntry(contentHashListWithDeterminism, lastUpdateTimeUtc);
+            return new MetadataEntry(contentHashListWithDeterminism, DateTime.FromFileTimeUtc(lastUpdateTimeUtc));
         }
 
         /// <nodoc />
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
-            writer.WriteCompact(LastAccessTimeUtc);
+            writer.WriteCompact(LastAccessTimeUtc.ToFileTimeUtc());
             ContentHashListWithDeterminism.Serialize(writer);
         }
     }

@@ -689,12 +689,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism replacement,
-            Func<MetadataEntry, bool> shouldReplace);
+            Func<MetadataEntry, bool> shouldReplace,
+            DateTime? lastAccessTimeUtc);
 
         /// <summary>
         /// Load a ContentHashList.
         /// </summary>
-        public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
+        public abstract Result<MetadataEntry?> GetMetadataEntry(OperationContext context, StrongFingerprint strongFingerprint, bool touch);
+
+        /// <summary>
+        /// Load a ContentHashList.
+        /// </summary>
+        public GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            var result = GetMetadataEntry(context, strongFingerprint, touch: true);
+            return result.Succeeded 
+                ? new GetContentHashListResult(result.Value?.ContentHashListWithDeterminism ?? new ContentHashListWithDeterminism(null, CacheDeterminism.None))
+                : new GetContentHashListResult(result);
+        }
 
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.

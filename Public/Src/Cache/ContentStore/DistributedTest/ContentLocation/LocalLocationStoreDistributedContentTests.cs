@@ -171,7 +171,7 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
-        protected class TestDistributedContentSettings : DistributedContentSettings
+        public class TestDistributedContentSettings : DistributedContentSettings
         {
             public int TestMachineIndex { get; set; }
 
@@ -380,7 +380,7 @@ namespace ContentStoreTest.Distributed.Sessions
             return true;
         }
 
-        protected void ConfigureWithOneMaster(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        public void ConfigureWithOneMaster(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
         {
             _overrideDistributed = s =>
             {

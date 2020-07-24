@@ -684,22 +684,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        public override Result<MetadataEntry?> GetMetadataEntry(OperationContext context, StrongFingerprint strongFingerprint, bool touch)
         {
             var key = GetMetadataKey(strongFingerprint);
-            ContentHashListWithDeterminism? result = null;
+            MetadataEntry? result = null;
             var status = _keyValueStore.Use(
                 store =>
                 {
                     if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                     {
                         var metadata = DeserializeMetadataEntry(data);
-                        result = metadata.ContentHashListWithDeterminism;
+                        result = metadata;
 
-                        // Update the time, only if no one else has changed it in the mean time. We don't
-                        // really care if this succeeds or not, because if it doesn't it only means someone
-                        // else changed the stored value before this operation but after it was read.
-                        Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                        if (!_configuration.OpenReadOnly && touch)
+                        {
+                            // Update the time, only if no one else has changed it in the mean time. We don't
+                            // really care if this succeeds or not, because if it doesn't it only means someone
+                            // else changed the stored value before this operation but after it was read.
+                            Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                        }
 
                         // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                         // hashes exist. Moreover, we can prune content.
@@ -708,15 +711,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (!status.Succeeded)
             {
-                return new GetContentHashListResult(status.Failure.CreateException());
+                return new Result<MetadataEntry?>(status.Failure.CreateException());
             }
 
-            if (result is null)
-            {
-                return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-            }
-
-            return new GetContentHashListResult(result.Value);
+            return new Result<MetadataEntry?>(result, isNullAllowed: true);
         }
 
         /// <summary>
@@ -729,7 +727,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism replacement,
-            Func<MetadataEntry, bool> shouldReplace)
+            Func<MetadataEntry, bool> shouldReplace,
+            DateTime? lastAccessTimeUtc)
         {
             return _keyValueStore.Use(
                 store =>
@@ -741,14 +740,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                         {
                             var current = DeserializeMetadataEntry(data);
+
                             if (!shouldReplace(current))
                             {
-                                return false;
+                                if (lastAccessTimeUtc != null)
+                                {
+                                    // Not updated contents but content should be touched
+                                    replacement = current.ContentHashListWithDeterminism;
+                                }
+                                else
+                                {
+                                    return false;
+                                }
+                            }
+
+                            if (lastAccessTimeUtc < current.LastAccessTimeUtc)
+                            {
+                                lastAccessTimeUtc = current.LastAccessTimeUtc;
                             }
                         }
 
-                        var replacementMetadata = new MetadataEntry(replacement, Clock.UtcNow.ToFileTimeUtc());
-                        store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
+                        // Don't put if content hash list is null since this represents a touch which arrived before
+                        // the initial put for the content hash list.
+                        if (replacement.ContentHashList != null)
+                        {
+                            var replacementMetadata = new MetadataEntry(replacement, lastAccessTimeUtc ?? Clock.UtcNow);
+                            store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
+                        }
                     }
 
                     return true;

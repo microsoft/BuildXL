@@ -200,7 +200,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                                 new ContentHashListWithDeterminism(
                                     new ContentHashList(contentHashes),
                                     CacheDeterminism.None),
-                                DateTime.UtcNow.ToFileTimeUtc()));
+                                DateTime.UtcNow));
 
                         await eventStore.UpdateMetadataEntryAsync(context, sent).ShouldBeSuccess();
 

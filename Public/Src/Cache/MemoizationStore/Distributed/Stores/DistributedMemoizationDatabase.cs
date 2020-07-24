@@ -53,7 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 new UpdateMetadataEntryEventData(
                     _localLocationStore.ClusterState.PrimaryMachineId, 
                     strongFingerprint, 
-                    new MetadataEntry(replacement, _localLocationStore.EventStore.Clock.UtcNow.ToFileTimeUtc()))).ThrowIfFailure();
+                    new MetadataEntry(replacement, _localLocationStore.EventStore.Clock.UtcNow))).ThrowIfFailure();
             return result;
         }
 
@@ -65,6 +65,26 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         /// <inheritdoc />
         protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        {
+            var result = await GetContentHashListMultiLevelAsync(context, strongFingerprint, preferShared);
+            if (_localLocationStore.Configuration.TouchContentHashLists && result.Succeeded && result.Value.contentHashListInfo.ContentHashList != null)
+            {
+                // Successfully retrieved the entry. Notify the event store of the access.
+                // NOTE: Empty content hash list is used to signal that this is strictly a touch
+                await _localLocationStore.EventStore.UpdateMetadataEntryAsync(context,
+                    new UpdateMetadataEntryEventData(
+                        _localLocationStore.ClusterState.PrimaryMachineId,
+                        strongFingerprint,
+                        new MetadataEntry(new ContentHashListWithDeterminism(null, CacheDeterminism.None), _localLocationStore.EventStore.Clock.UtcNow))).ThrowIfFailure();
+            }
+
+            return result;
+        }
+
+        private async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListMultiLevelAsync(
+            OperationContext context, 
+            StrongFingerprint strongFingerprint, 
+            bool preferShared)
         {
             var firstDatabase = preferShared ? _sharedDatabase : _localDatabase;
             var secondDatabase = preferShared ? _localDatabase : _sharedDatabase;

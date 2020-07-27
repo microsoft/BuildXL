@@ -75,6 +75,25 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
+#if NET_COREAPP
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ReadOnlyFixedBytes"/> struct.
+        /// </summary>
+        public ReadOnlyFixedBytes(ReadOnlySpan<byte> buffer, int length = MaxLength, int offset = 0)
+        {
+            // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
+            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+
+            fixed (byte* d = &_bytes.FixedElementField)
+            {
+                var span = new Span<byte>(((IntPtr)d).ToPointer(), len);
+                buffer.Slice(offset, len).CopyTo(span);
+            }
+        }
+
+#endif
+
         /// <summary>
         ///     Creates a new instance of the <see cref="ReadOnlyFixedBytes"/> by reading the <paramref name="length"/> bytes from the <paramref name="reader"/>.
         /// </summary>

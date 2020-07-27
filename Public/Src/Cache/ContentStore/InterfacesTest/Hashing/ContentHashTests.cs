@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
@@ -254,5 +255,46 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.False(h2 < h1);
             Assert.True(h2 > h1);
         }
+
+#if NET_COREAPP
+
+        [Theory]
+        [InlineData(HashType.MD5)]
+        [InlineData(HashType.SHA1)]
+        [InlineData(HashType.SHA256)]
+        [InlineData(HashType.Vso0)]
+        [InlineData(HashType.DedupNodeOrChunk)]
+        public void EqualContentHashRoundTripViaSpan(HashType hashType)
+        {
+            var h1 = ContentHash.Random(hashType);
+            var b = new byte[h1.ByteLength];
+            h1.SerializeHashBytes(b);
+            var sb = new ReadOnlySpan<byte>(b);
+            var h2 = new ContentHash(hashType, sb);
+
+            Assert.Equal(h1, h2);
+        }
+
+        [Theory]
+        [InlineData(HashType.MD5)]
+        [InlineData(HashType.SHA1)]
+        [InlineData(HashType.SHA256)]
+        [InlineData(HashType.Vso0)]
+        [InlineData(HashType.DedupNodeOrChunk)]
+        public void EqualContentHashRoundTripViaHexString(HashType hashType)
+        {
+            var h1 = ContentHash.Random(hashType);
+            var hex = h1.ToHex();
+
+            var hashInfo = HashInfoLookup.Find(hashType);
+            var buffer = new byte[hashInfo.ByteLength];
+
+            var sb = HexUtilities.HexToBytes(hex, buffer);
+            var h2 = new ContentHash(hashType, sb);
+
+            Assert.Equal(h1, h2);
+        }
+
+#endif
     }
 }

@@ -255,6 +255,21 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(v1, v2);
         }
 
+#if NET_COREAPP
+
+        [Fact]
+        public void BufferRoundtripViaSpan()
+        {
+            var buffer = new byte[ReadOnlyFixedBytes.MaxLength];
+            var v1 = ReadOnlyFixedBytes.Random();
+            v1.Serialize(buffer);
+            var sb = new ReadOnlySpan<byte>(buffer);
+            var v2 = new ReadOnlyFixedBytes(sb);
+            Assert.Equal(v1, v2);
+        }
+
+#endif
+
         [Fact]
         public void BufferPositiveOffsetRoundtrip()
         {

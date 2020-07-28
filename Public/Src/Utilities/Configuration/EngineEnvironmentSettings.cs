@@ -193,6 +193,15 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
         /// <summary>
+        /// Whether HandlerInlining is enabled for grpc.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
+
+        
+        /// <summary>
         /// An artificial delay in reporting notifications to force batching
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionBatchArtificialDelay = CreateSetting("BuildXLDistributionBatchArtificialDelay", value => ParseTimeSpan(value, ts => TimeSpan.FromMilliseconds(ts)) ??

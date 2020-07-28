@@ -35,7 +35,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public void Start(int port)
         {
             var interceptor = new ServerInterceptor(m_loggingContext, m_buildId);
-            m_server = new Server(ClientConnectionManager.DefaultChannelOptions)
+            m_server = new Server(ClientConnectionManager.ServerChannelOptions)
             {
                 Services = { Worker.BindService(this).Intercept(interceptor) },
                 Ports = { new ServerPort(IPAddress.Any.ToString(), port, ServerCredentials.Insecure) },

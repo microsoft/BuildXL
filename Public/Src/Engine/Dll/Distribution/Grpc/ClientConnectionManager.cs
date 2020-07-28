@@ -2,12 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
@@ -20,7 +22,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Default channel options for clients/servers to send/receive unlimited messages.
         /// </summary>
-        public static ChannelOption[] DefaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
+        private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
+
+        public static readonly IEnumerable<ChannelOption> ClientChannelOptions = GetClientChannelOptions();
+        public static readonly IEnumerable<ChannelOption> ServerChannelOptions = GetServerChannelOptions();
 
         internal readonly Channel Channel;
         private readonly LoggingContext m_loggingContext;
@@ -51,8 +56,39 @@ namespace BuildXL.Engine.Distribution.Grpc
                     ipAddress,
                     port,
                     ChannelCredentials.Insecure,
-                    DefaultChannelOptions);
+                    ClientChannelOptions);
             m_monitorConnectionTask = MonitorConnectionAsync();
+        }
+
+        public static IEnumerable<ChannelOption> GetClientChannelOptions()
+        {
+            List<ChannelOption> channelOptions = new List<ChannelOption>();
+            channelOptions.AddRange(s_defaultChannelOptions);
+            if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
+            {
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAlivePermitWithoutCalls, 1)); // enable sending pings
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeMs, 300000)); // 5m-frequent pings
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAliveTimeoutMs, 60000)); // wait for 1m to receive ack for the ping before closing connection.
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MaxPingsWithoutData, 0)); // no limit for pings with no header/data
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinSentPingIntervalWithoutDataMs, 300000)); // 5m-frequent pings with no header/data
+            }
+
+            return channelOptions;
+        }
+
+        public static IEnumerable<ChannelOption> GetServerChannelOptions()
+        {
+            List<ChannelOption> channelOptions = new List<ChannelOption>();
+            channelOptions.AddRange(s_defaultChannelOptions);
+            if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
+            {
+                // Pings are sent from client to server, and we do not want server to send pings to client due to the overhead concerns.
+                // We just need to make server accept the pings.
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.KeepAlivePermitWithoutCalls, 1)); // enable receiving pings with no data
+                channelOptions.Add(new ChannelOption(ExtendedChannelOptions.MinRecvPingIntervalWithoutDataMs, 300000)); // expecting 5m-frequent pings with no header/data
+            }
+
+            return channelOptions;
         }
 
         public async Task MonitorConnectionAsync()

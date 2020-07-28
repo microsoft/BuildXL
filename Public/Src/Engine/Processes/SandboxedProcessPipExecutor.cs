@@ -2644,7 +2644,16 @@ namespace BuildXL.Processes
                 // may need the environment variables and only the host has the values for them. For example, some pips need
                 // %__CLOUDBUILD_AUTH_HELPER_ROOT__% that only exists in the host.
                 var vmPassThroughEnvironmentVariables = m_pip.EnvironmentVariables
-                    .Where(e => e.IsPassThrough && VmConstants.UserProfile.Environments.ContainsKey(m_pipDataRenderer.Render(e.Name)))
+                    .Where(e =>
+                    {
+                        if (e.IsPassThrough)
+                        {
+                            string name = m_pipDataRenderer.Render(e.Name);
+                            return VmConstants.UserProfile.Environments.ContainsKey(name) && environmentVariables.ContainsKey(name);
+                        }
+
+                        return false;
+                    })
                     .SelectMany(e =>
                     {
                         string name = m_pipDataRenderer.Render(e.Name);

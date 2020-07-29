@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200724.3.1 (Release [73072](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73072)).  Released 7/29/2020
+- Fix passthrough user-profile environment variables when running in VM
+- Fix several issues with fingerprint store lookups
+- Fix double-write violations on temporary files under shared opaque directories
+- Fix misclassified pip materialization failures
+- Update to latest QTest
+
 # 0.1.0-20200717.1 (Release [71912](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71912)).  Released 7/22/2020
 -	Perf improvements on junction resolution in detours
 -	Clean dynamic outputs on pip retry

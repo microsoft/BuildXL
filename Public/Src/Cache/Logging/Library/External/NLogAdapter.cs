@@ -228,6 +228,10 @@ namespace BuildXL.Cache.Logging.External
             logLine.Properties[MetaData.OperationResult] = result.Status;
             logLine.Properties[MetaData.OperationDuration] = result.Duration;
 
+            // Make sure to use high-resolution datetimes, since DateTime.Now can have a resolution as big as 15ms depending on the system.
+            // Also note that NLog requires Now and not UtcNow.
+            logLine.TimeStamp = DateTimeUtility.GetHighResolutionNow();
+
             return logLine;
         }
 

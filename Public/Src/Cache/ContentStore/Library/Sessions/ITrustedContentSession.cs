@@ -19,7 +19,8 @@ namespace BuildXL.Cache.ContentStore.Sessions.Internal
         /// <summary>
         /// Put the given file without hashing.
         /// </summary>
-        Task<PutResult> PutTrustedFileAsync(Context context,
+        Task<PutResult> PutTrustedFileAsync(
+            Context context,
             ContentHashWithSize contentHashWithSize,
             AbsolutePath path,
             FileRealizationMode realizationMode,

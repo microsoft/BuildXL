@@ -149,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Runs a given function within a newly created operation context.
         /// </summary>
-        protected async Task<T> WithOperationContext<T>(Context context, CancellationToken token, Func<OperationContext, Task<T>> func)
+        public async Task<T> WithOperationContext<T>(Context context, CancellationToken token, Func<OperationContext, Task<T>> func)
         {
             using (var operationContext = TrackShutdown(context, token))
             {

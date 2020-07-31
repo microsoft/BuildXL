@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
@@ -15,9 +15,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// Performs remote pinning for <see cref="IReadOnlyContentSession.PinAsync(BuildXL.Cache.ContentStore.Interfaces.Tracing.Context, System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, CancellationToken, UrgencyHint)"/>
     /// </summary>
     public delegate Task<IEnumerable<Task<Indexed<PinResult>>>> RemotePinAsync(
-            Context context,
+            OperationContext context,
             IReadOnlyList<ContentHash> contentHashes,
-            CancellationToken cts,
             bool succeedWithOneLocation,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
         );

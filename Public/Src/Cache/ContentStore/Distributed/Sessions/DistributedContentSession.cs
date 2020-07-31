@@ -174,9 +174,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (registerResult && Settings.ProactiveCopyOnPut && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
-                var proactiveCopyTask = WithOperationContext(
+                var proactiveCopyTask = WithStoreCancellationAsync(
                     context,
-                    CancellationToken.None,
                     operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, tryBuildRing: true, CopyReason.Put)
                 );
 

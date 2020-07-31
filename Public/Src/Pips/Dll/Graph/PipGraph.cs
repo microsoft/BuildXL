@@ -855,9 +855,9 @@ namespace BuildXL.Pips.Graph
         public int ContentCount => FileCount + m_sealedDirectoryNodes.Count + m_servicePipClients.Count;
 
         /// <summary>
-        /// Gets the number of declared content (file or sealed directories) for the build
+        /// Gets the number of declared content (file, sealed directories, or temp directories) for the build
         /// </summary>
-        internal int ArtifactContentCount => FileCount + m_sealedDirectoryNodes.Count;
+        internal int ArtifactContentCount => FileCount + m_sealedDirectoryNodes.Count + TemporaryPaths.Count;
 
         /// <summary>
         /// Gets the associated file or directory for the given content index. <paramref name="contentIndex"/> should be in the range [0, <see cref="ArtifactContentCount"/>)
@@ -874,6 +874,13 @@ namespace BuildXL.Pips.Graph
             if (contentIndex < m_sealedDirectoryNodes.Count)
             {
                 return m_sealedDirectoryNodes.BackingSet[contentIndex].Key;
+            }
+
+            contentIndex -= m_sealedDirectoryNodes.Count;
+
+            if (contentIndex < TemporaryPaths.Count)
+            {
+                return DirectoryArtifact.CreateWithZeroPartialSealId(TemporaryPaths.BackingSet[contentIndex].Key);
             }
 
             throw Contract.AssertFailure("Out of range: contentIndex >= ArtifactContentCount");

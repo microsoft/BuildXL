@@ -4,9 +4,9 @@
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
-    /// Dedup Node or Chunk hash info.
+    /// Dedup Node or Chunk hash info for 1024K sized chunk(s).
     /// </summary>
-    public class DedupNodeOrChunkHashInfo : TaggedHashInfo
+    public class DedupNodeOrChunk1024KHashInfo : TaggedHashInfo
     {
         /// <summary>
         ///     Number of bytes in hash value.
@@ -14,27 +14,27 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public const int Length = 33;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="DedupNodeOrChunkHashInfo" /> class.
+        ///     Initializes a new instance of the <see cref="DedupNodeOrChunk1024KHashInfo" /> class.
         /// </summary>
-        private DedupNodeOrChunkHashInfo()
-            : base(HashType.DedupNodeOrChunk, Length)
+        private DedupNodeOrChunk1024KHashInfo()
+            : base(HashType.Dedup1024K, Length)
         {
         }
 
         /// <inheritdoc />
-        public override IContentHasher CreateContentHasher() => new DedupNodeOrChunkContentHasher();
+        public override IContentHasher CreateContentHasher() => new DedupNodeOrChunk1024KContentHasher();
 
         /// <summary>
         ///     A convenient ready-made instance.
         /// </summary>
-        public static readonly DedupNodeOrChunkHashInfo Instance = new DedupNodeOrChunkHashInfo();
+        public static readonly DedupNodeOrChunk1024KHashInfo Instance = new DedupNodeOrChunk1024KHashInfo();
 
         /// <summary>
         /// Deduplication node hash based on the chunk hash.
         /// </summary>
-        private sealed class DedupNodeOrChunkContentHasher : ContentHasher<DedupNodeOrChunkHashAlgorithm>
+        private sealed class DedupNodeOrChunk1024KContentHasher : ContentHasher<DedupNodeOrChunkHashAlgorithm>
         {
-            public DedupNodeOrChunkContentHasher()
+            public DedupNodeOrChunk1024KContentHasher()
                 : base(Instance)
             {
             }

@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             if (SingleChunkHotPath)
             {
                 Contract.Assert(_chunks.Count == 0);
-                Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHin={_sizeHint}");
+                Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
                 Contract.Assert(_session == null);
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
                 return new DedupNode(DedupNode.NodeType.ChunkLeaf, (ulong)_sizeHint, chunkHash, 0);
@@ -184,7 +184,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
             else
             {
-                result[bytes.Length] = NodeDedupIdentifier.NodeAlgorithmId;
+                // TODO: Chunk size optimization: This gets replaced with a nicer Chunk config <--> hash type mapper to take care of this in the subsequent PRs.
+                if (_chunker.Configuration.AvgChunkSize == 1024 * 1024) // 1MB
+                {
+                    result[bytes.Length] = (byte)NodeAlgorithmId.Node1024K;
+                }
+                else if (_chunker.Configuration.AvgChunkSize == 64 * 1024) // 64K (default)
+                {
+                    result[bytes.Length] = (byte)NodeAlgorithmId.Node64K;
+                }
+                else
+                {
+                    throw new NotImplementedException($"Unsupported average chunk size specified (in bytes): {_chunker.Configuration.AvgChunkSize}.");
+                }
             }
 
             return result;

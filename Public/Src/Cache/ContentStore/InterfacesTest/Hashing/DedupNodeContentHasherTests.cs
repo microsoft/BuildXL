@@ -76,14 +76,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [MtaTheory]
-        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 1, 2)] // 32K
         [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 1, 1)] // 64K
-        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 2, 1)] // 128K
-        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 4, 1)] // 256K
-        [InlineData(DedupNode.MaxDirectChildrenPerNode, 8, 1)] // 512K
         [InlineData(DedupNode.MaxDirectChildrenPerNode / 2, 16, 1)] // 1MB
-        [InlineData(DedupNode.MaxDirectChildrenPerNode / 4, 32, 1)] // 2MB
-        [InlineData(DedupNode.MaxDirectChildrenPerNode / 8, 64, 1)] // 4MB
         public void HashOfChunksInNodeMatchesChunkHashAlgorithm(int expectedChunkCount, int multiplier, int divider)
         {
             var config = new ChunkerConfiguration((multiplier * ChunkerConfiguration.Default.AvgChunkSize) / divider);
@@ -94,6 +88,26 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 config.AvgChunkSize == ChunkerConfiguration.Default.AvgChunkSize)
             {
                 HashOfChunksInNodeMatchesChunkHashAlgorithmInner(expectedChunkCount, config, new ComChunker(config));
+            }
+        }
+
+        [MtaTheory]
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 1, 2)] // 32K
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 2, 1)] // 128K
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 4, 1)] // 256K
+        [InlineData(DedupNode.MaxDirectChildrenPerNode, 8, 1)] // 512K
+        [InlineData(DedupNode.MaxDirectChildrenPerNode / 4, 32, 1)] // 2MB
+        [InlineData(DedupNode.MaxDirectChildrenPerNode / 8, 64, 1)] // 4MB
+        public void HashOfChunksInNodeMatchesChunkHashAlgorithmNegative(int expectedChunkCount, int multiplier, int divider)
+        {
+            var config = new ChunkerConfiguration((multiplier * ChunkerConfiguration.Default.AvgChunkSize) / divider);
+
+            Assert.Throws<NotImplementedException>(() => HashOfChunksInNodeMatchesChunkHashAlgorithmInner(expectedChunkCount, config, new ManagedChunker(config)));
+
+            if (Chunker.IsComChunkerSupported &&
+                config.AvgChunkSize == ChunkerConfiguration.Default.AvgChunkSize)
+            {
+                Assert.Throws<NotImplementedException>(() => HashOfChunksInNodeMatchesChunkHashAlgorithmInner(expectedChunkCount, config, new ComChunker(config)));
             }
         }
 

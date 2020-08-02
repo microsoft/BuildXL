@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public static class PackedDedupNodeTree
     {
         /// <summary>
-        /// Non-blocking enumerable of the whole tree given an emuerable of chunk leaves.
+        /// Non-blocking enumerable of the whole tree given an enumerable of chunk leaves.
         /// </summary>
         public static IEnumerable<DedupNode> EnumerateTree(IEnumerable<ChunkInfo> chunks)
         {

@@ -63,11 +63,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            if (contentHash.HashType != RequiredHashType)
+            if (!contentHash.HashType.IsValidDedup())
             {
                 return new PutResult(
                     contentHash,
-                    $"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
+                    $"DedupStore client requires a HashType that supports dedup. Given hash type: {contentHash.HashType}.");
             }
 
             try
@@ -121,11 +121,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            if (hashType != RequiredHashType)
+            if (!hashType.IsValidDedup())
             {
                 return new PutResult(
                     new ContentHash(hashType),
-                    $"DedupStore client requires {RequiredHashType}. Cannot take HashType '{hashType}'.");
+                    $"DedupStore client requires a HashType that supports dedup. Given hash type: {hashType}.");
             }
 
             try
@@ -174,11 +174,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <inheritdoc />
         protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            if (contentHash.HashType != RequiredHashType)
+            if (!contentHash.HashType.IsValidDedup())
             {
                 return new PutResult(
                     contentHash,
-                    $"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
+                    $"DedupStore client requires a HashType that supports dedup. Given hash type: {contentHash.HashType}");
             }
 
             try
@@ -201,11 +201,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <inheritdoc />
         protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            if (hashType != RequiredHashType)
+            if (!hashType.IsValidDedup())
             {
                 return new PutResult(
                     new ContentHash(hashType),
-                    $"DedupStore client requires {RequiredHashType}. Cannot take HashType '{hashType}'.");
+                    $"DedupStore client requires a HashType that supports dedup. Given hash type: {hashType}");
             }
 
             try

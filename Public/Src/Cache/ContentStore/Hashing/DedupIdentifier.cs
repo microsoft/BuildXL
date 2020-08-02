@@ -31,13 +31,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public sealed class NodeDedupIdentifier : DedupIdentifier
     {
         /// <nodoc />
-        public const byte NodeAlgorithmId = 2;
-
-        /// <nodoc />
-        public NodeDedupIdentifier(byte[] hashResult)
-            : base(hashResult, NodeAlgorithmId)
+        public NodeDedupIdentifier(byte[] hashResult, byte algorithmId)
+            : base(hashResult, algorithmId)
         {
-            if (AlgorithmId != NodeAlgorithmId)
+            if (((NodeAlgorithmId)AlgorithmId).IsValidNode())
             {
                 throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
             }
@@ -65,10 +62,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public BlobIdentifier ToBlobIdentifier()
-        {
-            return new BlobIdentifier(AlgorithmResult, AlgorithmId);
-        }
+        public BlobIdentifier ToBlobIdentifier() => new BlobIdentifier(AlgorithmResult, AlgorithmId);
 
         /// <summary>
         /// Hash produced by AlgorithmId's hashing algorithm.

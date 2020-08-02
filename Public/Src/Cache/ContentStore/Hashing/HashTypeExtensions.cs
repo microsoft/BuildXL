@@ -23,6 +23,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {"DEDUPCHUNK", HashType.DedupChunk},
                 {"DEDUPNODE", HashType.DedupNode},
                 {"DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk},
+                {"DEDUPNODEORCHUNK1024K", HashType.Dedup1024K},
                 {"MURMUR", HashType.Murmur },
             };
 
@@ -62,6 +63,33 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(value != null);
 
             return NameToValue.TryGetValue(value, out hashType);
+        }
+
+         /// <summary>
+        ///     IsValidDedupHashType - determine if the hash type is 'valid'.
+        /// </summary>
+        /// <param name="hashType">The given hash type.</param>
+        /// <returns>True, if valid. False, otherwise.</returns>
+        public static bool IsValidDedup(this HashType hashType)
+        {
+            switch (hashType)
+            {
+                case HashType.Dedup1024K:
+                case HashType.DedupNodeOrChunk:
+                    return true;
+                case HashType.Unknown:
+                case HashType.SHA1:
+                case HashType.SHA256:
+                case HashType.MD5:
+                case HashType.Vso0:
+                case HashType.DedupChunk:
+                case HashType.DedupNode: // TODO: Chunk size optimization - remove this one entirely.
+                case HashType.Murmur:
+                case HashType.DeprecatedVso0:
+                    return false;
+                default:
+                    throw new NotImplementedException($"Unsupported enum {hashType} of type {nameof(HashType)} encountered.");
+            }
         }
     }
 }

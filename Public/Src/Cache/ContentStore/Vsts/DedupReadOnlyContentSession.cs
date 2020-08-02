@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private CounterCollection<Counters> _dedupCounters { get; }
 
         /// <summary>
-        /// Default number of oustanding connections to throttle Artifact Services.
+        /// Default number of outstanding connections to throttle Artifact Services.
         /// TODO: Unify cache config - current default taken from IOGate in DistributedReadOnlyContentSession.
         /// </summary>
         protected const int DefaultMaxConnections = 512;
@@ -66,11 +66,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// Default number of tasks to process in parallel.
         /// </summary>
         private const int DefaultMaxParallelism = 16;
-
-        /// <summary>
-        ///     Required HashType for Dedup content sessions.
-        /// </summary>
-        protected const HashType RequiredHashType = HashType.DedupNodeOrChunk;
 
         /// <summary>
         ///     Size for stream buffers to temp files.
@@ -106,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected readonly IDedupStoreClient DedupStoreClient;
 
         /// <summary>
-        ///     Gate to limit the number of oustanding connections to AS.
+        ///     Gate to limit the number of outstanding connections to AS.
         /// </summary>
         protected readonly SemaphoreSlim ConnectionGate;
 
@@ -130,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
         /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
-        /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
+        /// <param name="maxConnections">The maximum number of outbound connections to VSTS.</param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
@@ -172,9 +167,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override async Task<PinResult> PinCoreAsync(
             OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            if (contentHash.HashType != RequiredHashType)
+            if (!contentHash.HashType.IsValidDedup())
             {
-                return new PinResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
+                return new PinResult($"DedupStore client requires a HashType that supports dedup. Given hash type: {contentHash.HashType}.");
             }
 
             var pinResult = CheckPinInMemory(contentHash);
@@ -217,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             if (timeLeft > _ignorePinThreshold)
             {
-                Tracer.Debug(context, $"Pin was skipped bacause keepUntil has remaining time [{timeLeft}] that is greater than ignorePinThreshold=[{_ignorePinThreshold}]");
+                Tracer.Debug(context, $"Pin was skipped because keepUntil has remaining time [{timeLeft}] that is greater than ignorePinThreshold=[{_ignorePinThreshold}]");
                 _dedupCounters[Counters.PinIgnored].Increment();
                 return PinResult.Success;
             }
@@ -226,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             if (timeLeft < _pinInlineThreshold)
             {
-                Tracer.Debug(context, $"Pin inlined bacause keepUntil has remaining time [{timeLeft}] that is less than pinInlineThreshold=[{_pinInlineThreshold}]");
+                Tracer.Debug(context, $"Pin inlined because keepUntil has remaining time [{timeLeft}] that is less than pinInlineThreshold=[{_pinInlineThreshold}]");
                 _dedupCounters[Counters.PinInlined].Increment();
                 return await pinTask;
             }
@@ -246,9 +241,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     pinResult = await TryPinChunkAsync(context, dedupId);
                 }
-                else
+                else if (((NodeAlgorithmId)dedupId.AlgorithmId).IsValidNode())
                 {
                     pinResult = await TryPinNodeAsync(context, dedupId);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unknown dedup algorithm id detected for dedup {dedupId.ValueString} : {dedupId.AlgorithmId}");
                 }
 
                 if (pinResult.Succeeded)
@@ -269,9 +268,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override async Task<OpenStreamResult> OpenStreamCoreAsync(
             OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            if (contentHash.HashType != RequiredHashType)
+            if (!contentHash.HashType.IsValidDedup())
             {
-                return new OpenStreamResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
+                return new OpenStreamResult($"DedupStore client requires a HashType that supports dedup. Given hash type: {contentHash.HashType}.");
             }
 
             string tempFile = null;
@@ -343,9 +342,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             UrgencyHint urgencyHint,
             Counter retryCount)
         {
-            if (contentHash.HashType != RequiredHashType)
+            if (!contentHash.HashType.IsValidDedup())
             {
-                return new PlaceFileResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
+                return new PlaceFileResult($"DedupStore client requires a HashType that supports dedup. Given hash type: {contentHash.HashType}.");
             }
 
             try
@@ -619,9 +618,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     chunks.Add(id);
                 }
-                else
+                else if (((NodeAlgorithmId)id.AlgorithmId).IsValidNode())
                 {
                     nodes.Add(id);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unknown dedup algorithm id detected for dedup {id.ValueString} : {id.AlgorithmId}");
                 }
             }
 
@@ -724,7 +727,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 (needAction) =>
                 {
                     // For the reason explained above, this case where children need to be pinned should never happen.
-                    // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
+                    // However, as a best approximation, we take the min of all the children, which always outlive the parent.
                     keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
                 },
                 (added) =>

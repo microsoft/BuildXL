@@ -129,10 +129,10 @@ namespace BuildXL.Storage
             s_isInitialized = true;
             HashInfo = HashInfoLookup.Find(hashType);
 
-            if (hashType == HashType.DedupNodeOrChunk || hashType == HashType.DedupNode)
+            if (hashType.IsValidDedup())
             {
                 if (Chunker.IsComChunkerSupported)
-                { 
+                {
                     if (Chunker.ComChunkerLoadError.Value != null)
                     {
                         Logger.Log.ComChunkerFailulre(Events.StaticContext, Chunker.ComChunkerLoadError.Value.ToString());

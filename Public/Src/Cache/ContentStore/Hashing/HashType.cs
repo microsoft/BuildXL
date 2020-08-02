@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.ComponentModel;
+
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
@@ -52,6 +54,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Murmur3 Well distributed hash
         /// </summary>
         Murmur = 8,
+
+        /// <summary>
+        ///     Dedup with chunk sizes of 1MB with respective algorithm ID appended (33 bytes)
+        /// </summary>
+        Dedup1024K = 9,
 
         /// <summary>
         ///     Legacy VSO hash (33 bytes)

@@ -16,11 +16,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 {HashType.Vso0, VsoHash.VsoAlgorithmId},
                 {HashType.DedupChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
-                {HashType.DedupNode, NodeDedupIdentifier.NodeAlgorithmId},
+                {HashType.DedupNode, (byte)NodeAlgorithmId.Node64K},
 
                 // DedupNodeOrChunk will always end with DedupChunk or DedupNode algorithm IDs. Default to DedupChunk.
-                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
-                {HashType.Murmur,  MurmurHashInfo.MurmurAlgorithmId}
+                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId}, // TODO: Chunk size optimization
+                {HashType.Dedup1024K, (byte)NodeAlgorithmId.Node1024K},
+                {HashType.Murmur, MurmurHashInfo.MurmurAlgorithmId}
             };
 
         /// <summary>
@@ -46,6 +47,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 HashType.Vso0 => hashTag == AlgorithmIdLookup.Find(HashType.Vso0),
                 HashType.DedupNodeOrChunk => hashTag == AlgorithmIdLookup.Find(HashType.DedupNode) ||
                                              hashTag == AlgorithmIdLookup.Find(HashType.DedupChunk),
+                HashType.Dedup1024K => hashTag == AlgorithmIdLookup.Find(HashType.Dedup1024K) ||
+                                       hashTag == AlgorithmIdLookup.Find(HashType.DedupChunk),
                 HashType.Murmur => hashTag == AlgorithmIdLookup.Find(HashType.Murmur),
                 _ => throw new ArgumentException($"{contentHash.HashType} is not a tagged hash.")
             };

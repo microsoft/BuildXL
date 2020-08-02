@@ -404,7 +404,7 @@ namespace BuildXL
                             {
                                 if (sign)
                                 {
-                                    ContentHashingUtilities.SetDefaultHashType(HashType.DedupNodeOrChunk);
+                                    ContentHashingUtilities.SetDefaultHashType(HashType.DedupNodeOrChunk);// Keep this as default for now.
                                     cacheConfiguration.UseDedupStore = true;
                                 }
                             }),
@@ -414,7 +414,7 @@ namespace BuildXL
                             {
                                 var hashType = option.Value.FindHashTypeByName();
                                 ContentHashingUtilities.SetDefaultHashType(hashType);
-                                if (hashType == HashType.DedupNodeOrChunk)
+                                if (hashType.IsValidDedup())
                                 {
                                     cacheConfiguration.UseDedupStore = true;
                                 }

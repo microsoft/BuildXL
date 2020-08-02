@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
@@ -44,6 +46,16 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             HashType hashType;
             var succeeded = value.Deserialize(out hashType);
             Assert.False(succeeded);
+        }
+
+        [Fact]
+        public void AssertValidDedupHashTypes()
+        {
+            var hashTypes = Enum.GetValues(typeof(HashType)).Cast<HashType>();
+            foreach(var hashType in hashTypes)
+            {
+                Analysis.IgnoreResult(hashType.IsValidDedup());
+            }
         }
     }
 }

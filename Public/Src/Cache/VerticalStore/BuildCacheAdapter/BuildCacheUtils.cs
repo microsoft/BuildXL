@@ -52,7 +52,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
         internal static BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache CreateBuildCacheCache<T>(T cacheConfig, ILogger logger, string pat = null) where T : BuildCacheCacheConfig
         {
             // TODO: Remove check when all clients are updated with unified Dedup flag
-            if (ContentHashingUtilities.HashInfo.HashType == HashType.DedupNodeOrChunk ^ cacheConfig.UseDedupStore)
+            if ((ContentHashingUtilities.HashInfo.HashType.IsValidDedup()) ^ cacheConfig.UseDedupStore)
             {
                 var store = cacheConfig.UseDedupStore ? "DedupStore" : "BlobStore";
                 throw new ArgumentException($"HashType {ContentHashingUtilities.HashInfo.HashType} cannot be used with {store}");

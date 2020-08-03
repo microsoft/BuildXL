@@ -31,6 +31,14 @@ namespace Cache {
                     ),
                 ]
             },
+            {
+                subfolder: r`DeployServer`,
+                contents: [
+                    ...addIfLazy(BuildXLSdk.isDotNetCoreBuild,
+                        () => [importFrom("BuildXL.Cache.DistributedCache.Host").LauncherServer.exe]
+                    ),
+                ]
+            }
         ],
     };
 

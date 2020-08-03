@@ -171,6 +171,13 @@ config({
                 { id: "System.IdentityModel.Tokens.Jwt", version: "5.2.2",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
 
+                // Key Vault
+                { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
+                { id: "Azure.Identity", version: "1.1.1" },
+                { id: "Microsoft.Identity.Client", version: "4.16.1" },
+                { id: "Azure.Core", version: "1.3.0" },
+
+
                 // Package sets
                 ...importFile(f`config.nuget.vssdk.dsc`).pkgs,
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,
@@ -283,7 +290,7 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" },
-                { id: "System.IO.Pipelines", version: "4.7.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Numerics.Vectors", version: "4.5.0" },
 
                 // Extra dependencies to make MSBuild work

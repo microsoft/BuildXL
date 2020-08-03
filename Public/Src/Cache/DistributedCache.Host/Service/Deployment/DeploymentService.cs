@@ -21,6 +21,8 @@ using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Tracing;
+using System.Threading;
 
 namespace BuildXL.Launcher.Server
 {
@@ -29,6 +31,8 @@ namespace BuildXL.Launcher.Server
     /// </summary>
     public class DeploymentService
     {
+        private Tracer Tracer { get; } = new Tracer(nameof(DeploymentService));
+
         /// <summary>
         /// The root of the mounted deployment folder created by the <see cref="DeploymentIngester"/>
         /// </summary>
@@ -81,67 +85,84 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Uploads the deployment files to the target storage account and returns the launcher manifest for the given deployment parameters
         /// </summary>
-        public async Task<LauncherManifest> UploadFilesAndGetManifestAsync(OperationContext context, DeploymentParameters parameters, bool waitForCompletion)
+        public Task<LauncherManifest> UploadFilesAndGetManifestAsync(OperationContext context, DeploymentParameters parameters, bool waitForCompletion)
         {
-            var resultManifest = new LauncherManifest();
-            var deployConfig = ReadDeploymentConfiguration(parameters, out var manifest);
-
-            var uploadTasks = new List<Task<(string targetPath, FileSpec spec)>>();
-
-            resultManifest.Tool = deployConfig.Tool;
-            resultManifest.Drops = deployConfig.Drops;
-
-            var storage = await LoadStorage(context, deployConfig.AzureStorageSecretName);
-
-            foreach (var drop in deployConfig.Drops)
-            {
-                if (drop.Url == null)
+            int pendingUploads = 0;
+            int totalFiles = 0;
+            int completedFiles = 0;
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
                 {
-                    continue;
-                }
+                    var resultManifest = new LauncherManifest();
+                    var deployConfig = ReadDeploymentConfiguration(parameters, out var manifest);
 
-                var dropLayout = manifest.Drops[drop.Url];
-                foreach (var fileEntry in dropLayout)
-                {
-                    // Queue file for deployment
-                    uploadTasks.Add(ensureUploadedAndGetEntry());
+                    var uploadTasks = new List<Task<(string targetPath, FileSpec spec)>>();
 
-                    async Task<(string targetPath, FileSpec entry)> ensureUploadedAndGetEntry()
+                    resultManifest.Tool = deployConfig.Tool;
+                    resultManifest.Drops = deployConfig.Drops;
+
+                    var storage = await LoadStorage(context, deployConfig.AzureStorageSecretName);
+
+                    foreach (var drop in deployConfig.Drops)
                     {
-                        var downloadUrl = await EnsureUploadedAndGetDownloadUrlAsync(context, fileEntry.Value, deployConfig, storage);
-
-                        // Compute and record path in final layout
-                        var targetPath = Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key);
-                        return (targetPath, new FileSpec()
+                        if (drop.Url == null)
                         {
-                            Hash = fileEntry.Value.Hash,
-                            Size = fileEntry.Value.Size,
-                            DownloadUrl = downloadUrl
-                        });
+                            continue;
+                        }
+
+                        var dropLayout = manifest.Drops[drop.Url];
+                        foreach (var fileEntry in dropLayout)
+                        {
+                            // Queue file for deployment
+                            uploadTasks.Add(ensureUploadedAndGetEntry());
+
+                            async Task<(string targetPath, FileSpec entry)> ensureUploadedAndGetEntry()
+                            {
+                                var downloadUrl = await EnsureUploadedAndGetDownloadUrlAsync(context, fileEntry.Value, deployConfig, storage);
+
+                                // Compute and record path in final layout
+                                var targetPath = Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key);
+                                return (targetPath, new FileSpec()
+                                {
+                                    Hash = fileEntry.Value.Hash,
+                                    Size = fileEntry.Value.Size,
+                                    DownloadUrl = downloadUrl
+                                });
+                            }
+                        }
                     }
-                }
-            }
 
-            var uploadCompletion = Task.WhenAll(uploadTasks);
-            if (waitForCompletion)
-            {
-                await uploadCompletion;
-            }
-            else
-            {
-                uploadCompletion.FireAndForget(context);
-            }
+                    var uploadCompletion = Task.WhenAll(uploadTasks);
+                    if (waitForCompletion)
+                    {
+                        await uploadCompletion;
+                    }
+                    else
+                    {
+                        uploadCompletion.FireAndForget(context);
+                    }
 
-            foreach (var uploadTask in uploadTasks)
-            {
-                if (uploadTask.Status == TaskStatus.RanToCompletion)
-                {
-                    var entry = await uploadTask;
-                    resultManifest.Deployment[entry.targetPath] = entry.spec;
-                }
-            }
+                    foreach (var uploadTask in uploadTasks)
+                    {
+                        totalFiles++;
+                        if (uploadTask.Status == TaskStatus.RanToCompletion)
+                        {
+                            completedFiles++;
+                            var entry = await uploadTask;
+                            resultManifest.Deployment[entry.targetPath] = entry.spec;
+                        }
+                        else
+                        {
+                            pendingUploads++;
+                        }
+                    }
 
-            return resultManifest;
+                    return Result.Success(resultManifest);
+                },
+                extraStartMessage: $"Machine={parameters.Machine} Stamp={parameters.Stamp} Wait={waitForCompletion}",
+                extraEndMessage: r => $"Machine={parameters.Machine} Stamp={parameters.Stamp} Drops={r.GetValueOrDefault()?.Drops.Count ?? 0} Files[Total={totalFiles}, Pending={pendingUploads}, Completed={completedFiles}] Wait={waitForCompletion}"
+                ).ThrowIfFailureAsync();
         }
 
         private Task<CentralStorage> LoadStorage(OperationContext context, string storageSecretName)
@@ -156,7 +177,7 @@ namespace BuildXL.Launcher.Server
                     {
                         var credentials = await SecretsProvider.GetBlobCredentialsAsync(
                             storageSecretName,
-                            useSasTokens: true,
+                            useSasTokens: false,
                             context.Token);
 
                         CentralStorage centralStorage = OverrideCreateCentralStorage?.Invoke((storageSecretName, credentials))

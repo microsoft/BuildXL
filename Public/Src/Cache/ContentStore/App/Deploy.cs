@@ -41,6 +41,8 @@ namespace BuildXL.Cache.ContentStore.App
             try
             {
                 Initialize();
+
+                _consoleLog.CurrentSeverity = Interfaces.Logging.Severity.Debug;
                 var deploymentRoot = new AbsolutePath(targetDirectory);
 
                 var deploymentRunner = new DeploymentIngester(

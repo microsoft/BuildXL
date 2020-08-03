@@ -114,7 +114,14 @@ namespace BuildXL.Cache.Host.Service
                 fileSystem,
                 SystemClock.Instance,
                 DeploymentUtilities.GetCasRootPath(deploymentRoot),
-                new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{retentionSizeGb}GB"))));
+                new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{retentionSizeGb}GB"))),
+                settings: new ContentStoreSettings()
+                {
+                    TraceFileSystemContentStoreDiagnosticMessages = true,
+
+                    // Disable empty file shortcuts to ensure all content is always placed on disk
+                    UseEmptyContentShortcut = false
+                });
             FileSystem = fileSystem;
             DropExeFilePath = dropExeFilePath;
             DropToken = dropToken;
@@ -343,7 +350,7 @@ namespace BuildXL.Cache.Host.Service
         private Task DownloadAndStoreDropAsync(DropLayout drop)
         {
             var context = Context.CreateNested(Tracer.Name);
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationAsync<BoolResult>(Tracer, async () =>
             {
                 // Can't skip local file drops since file system is mutable
                 if (!drop.ParsedUrl.IsFile)
@@ -373,21 +380,35 @@ namespace BuildXL.Cache.Host.Service
                 // Stores files into CAS and populate file specs with hash and size info
                 await ActionQueue.ForEachAsync(files, async (file, index) =>
                 {
-                    var result = await Store.PutFileAsync(context, file.fullPath, FileRealizationMode.Copy, HashType.MD5, PinRequest).ThrowIfFailure();
-
-                    var spec = drop.Files[index];
-                    spec.Hash = result.ContentHash;
-                    spec.Size = result.ContentSize;
-
-                    var targetPath = DeploymentRoot / DeploymentUtilities.GetContentRelativePath(result.ContentHash);
-
-                    Contract.Check(FileSystem.FileExists(targetPath))?.Assert($"Could not find content for hash {result.ContentHash} at '{targetPath}'");
+                    await DeployFileAsync(drop, file, index, context);
                 });
 
                 return BoolResult.Success;
             },
             extraStartMessage: drop.ToString(),
             extraEndMessage: r => drop.ToString()).ThrowIfFailure<BoolResult>();
+        }
+
+        private Task DeployFileAsync(DropLayout drop, (RelativePath path, AbsolutePath fullPath) file, int index, OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var result = await Store.PutFileAsync(context, file.fullPath, FileRealizationMode.Copy, HashType.MD5, PinRequest).ThrowIfFailure();
+
+                var spec = drop.Files[index];
+                spec.Hash = result.ContentHash;
+                spec.Size = result.ContentSize;
+
+                var targetPath = DeploymentRoot / DeploymentUtilities.GetContentRelativePath(result.ContentHash);
+
+                Contract.Check(FileSystem.FileExists(targetPath))?.Assert($"Could not find content for hash {result.ContentHash} at '{targetPath}'");
+
+                return result;
+            },
+            traceOperationStarted: true,
+            extraStartMessage: $"Path={file.fullPath}",
+            extraEndMessage: r => $"Path={file.fullPath}"
+            ).ThrowIfFailureAsync();
         }
 
         private RelativePath GetRelativePath(AbsolutePath path, AbsolutePath parent)

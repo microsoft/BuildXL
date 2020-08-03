@@ -677,7 +677,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // If we are given the empty file, the put is a no-op.
             // We have dedicated logic for pinning and returning without having
             // the empty file in the cache directory.
-            if (content.Hash.IsEmptyHash())
+            if (UseEmptyContentShortcut(content.Hash))
             {
                 return new PutResult(content.Hash, 0L, contentAlreadyExistsInCache: true);
             }
@@ -1787,7 +1787,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // If this is the empty hash, then directly create an empty file.
                 // This avoids hash-level lock, all I/O in the cache directory, and even
                 // operations in the in-memory representation of the cache.
-                if (contentHashWithPath.Hash.IsEmptyHash())
+                if (UseEmptyContentShortcut(contentHashWithPath.Hash))
                 {
                     await FileSystem.CreateEmptyFileAsync(contentHashWithPath.Path);
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
@@ -2420,7 +2420,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     // Pinning the empty file always succeeds; no I/O or other operations required,
                     // because we have dedicated logic to place it when required.
-                    if (contentHash.IsEmptyHash())
+                    if (UseEmptyContentShortcut(contentHash))
                     {
                         results.Add(new PinResult(contentSize: 0, lastAccessTime: Clock.UtcNow, code: PinResult.ResultCode.Success));
                     }
@@ -2570,7 +2570,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 // Short-circuit requests for the empty stream
                 // No lock is required since no file is involved.
-                if (contentHash.IsEmptyHash())
+                if (UseEmptyContentShortcut(contentHash))
                 {
                     return new OpenStreamResult(_emptyFileStream);
                 }
@@ -2582,6 +2582,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                         .WithLockAcquisitionDuration(lockHandle);
                 }
             });
+        }
+
+        private bool UseEmptyContentShortcut(ContentHash hash)
+        {
+            return _settings.UseEmptyContentShortcut && hash.IsEmptyHash();
         }
 
         private async Task<StreamWithLength?> OpenStreamInternalWithLockAsync(Context context, ContentHash contentHash, PinRequest? pinRequest, FileShare share)

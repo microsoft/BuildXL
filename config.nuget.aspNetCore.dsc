@@ -3,6 +3,12 @@
 
 const aspVersion = "2.2.0";
 
+// Versions used by framework reference packages for reference assemblies
+// and runtime assemblies respectively
+const aspRefVersion = "3.1.3";
+const aspRuntimeVersion = "3.1.5";
+
+
 export const pkgs = [
     // aspnet web api
     { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7" },
@@ -21,6 +27,8 @@ export const pkgs = [
 
     { id: "Microsoft.Net.Http", version: "2.2.29" },
 
-    { id: "Microsoft.AspNetCore.App.Ref", version: "3.1.3" },
-    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: "3.1.5" },
+    { id: "Microsoft.AspNetCore.App.Ref", version: aspRefVersion },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: aspRuntimeVersion },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: aspRuntimeVersion },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: aspRuntimeVersion },
 ];

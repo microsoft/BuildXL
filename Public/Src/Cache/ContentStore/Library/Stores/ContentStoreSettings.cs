@@ -26,6 +26,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseRedundantPutFileShortcut { get; set; } = true;
 
         /// <summary>
+        /// Whether the shortcuts for empty files are used.
+        /// </summary>
+        public bool UseEmptyContentShortcut { get; set; } = true;
+
+        /// <summary>
         /// Whether to use native (unmanaged) file enumeration or not.
         /// </summary>
         public bool UseNativeBlobEnumeration { get; set; } = false;

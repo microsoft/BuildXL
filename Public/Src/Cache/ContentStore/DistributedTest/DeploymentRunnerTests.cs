@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         {
             var sources = new Dictionary<string, string>()
             {
-                { @"Stamp3\info.txt", "My stamp 3 info" },
+                { @"Stamp3\info.txt", "" },
 
                 { @"Env\RootFile.json", "{ 'key1': 1, 'key2': 2 }" },
                 { @"Env\Subfolder\Hello.txt", "Hello world" },
@@ -311,13 +311,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
                 foreach (var request in requests)
                 {
-                    request.Kind.Should().Be(SecretKind.SasToken);
-                    secrets.Add(request.Name, new UpdatingSasToken(new SasToken()
+                    if (request.Kind == SecretKind.PlainText)
                     {
-                        StorageAccount = $"https://{request.Name}.azure.blob.com/",
-                        ResourcePath = "ResourcePath",
-                        Token = Guid.NewGuid().ToString()
-                    }));
+                        secrets.Add(request.Name, new PlainTextSecret($"https://{request.Name}.azure.blob.com/{Guid.NewGuid()}"));
+                    }
+                    else
+                    {
+                        request.Kind.Should().Be(SecretKind.SasToken);
+                        secrets.Add(request.Name, new UpdatingSasToken(new SasToken()
+                        {
+                            StorageAccount = $"https://{request.Name}.azure.blob.com/",
+                            ResourcePath = "ResourcePath",
+                            Token = Guid.NewGuid().ToString()
+                        }));
+                    }
                 }
 
                 return Task.FromResult(secrets);

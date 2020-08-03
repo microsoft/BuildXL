@@ -68,6 +68,21 @@ namespace Factory {
     }
 
     @@public
+    export function createFrameworkPackage(refPackage: ManagedNugetPackage, runtimePackage: NugetPackage, runtimeName: PathAtom, frameworkName:PathAtom) : ManagedNugetPackage
+    {
+        // TODO: This method may need to be changed if Nuget spec generation becomes aware of framework NuGet packages
+        let result = refPackage.override<ManagedNugetPackage>({
+            contents: runtimePackage.contents,
+        });
+
+        // Add native binaries
+        result = addRuntimeSpecificBinariesFromRootDir(result, r`runtimes/${runtimeName}/native`);
+        result = addRuntimeSpecificBinariesFromRootDir(result, r`runtimes/${runtimeName}/lib/${frameworkName}`);
+
+        return result;
+    }
+
+    @@public
     export function createTool(tool: Transformer.ToolDefinition) : Transformer.ToolDefinition {
 
         const toolDefault = {
@@ -86,6 +101,20 @@ namespace Factory {
             osToolDefault,
             tool
         );
+    }
+
+    @@public
+    export function filterRuntimeSpecificBinaries(nuget: ManagedNugetPackage, exclusions: ManagedNugetPackage[]): ManagedNugetPackage {
+        const oldRuntimeBinaries: Binary[] = nuget.runtime;
+        const runtimeSpecificBinaries: Binary[] = exclusions.mapMany(exclusion => exclusion.runtime);
+        const runtimeSpecificFileNames: PathAtom[] = runtimeSpecificBinaries.mapMany(binaryFileNames);
+        return nuget.override<ManagedNugetPackage>({
+            runtime: [
+                // filter out old binaries that clash with the runtime specific ones
+                ...oldRuntimeBinaries.filter(b => intersect(binaryFileNames(b), runtimeSpecificFileNames).length === 0),
+                // add runtime specific ones
+            ]
+        });
     }
 
     @@public

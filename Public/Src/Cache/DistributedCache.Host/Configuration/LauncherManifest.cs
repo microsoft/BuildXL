@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace BuildXL.Cache.Host.Configuration
 {
+    /// <summary>
+    /// Describes drops and files (with download urls) present in a deployment along with tools to launch
+    /// </summary>
     public class LauncherManifest
     {
         /// <summary>

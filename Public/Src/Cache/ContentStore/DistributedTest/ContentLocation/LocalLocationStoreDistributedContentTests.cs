@@ -117,6 +117,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         private Action<TestDistributedContentSettings> _overrideDistributed = null;
         private Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
+        private Action<DistributedContentStoreSettings> _overrideDistributedContentStooreSettings = null;
 
         private MemoryContentLocationEventStoreConfiguration MemoryEventStoreConfiguration { get; } = new MemoryContentLocationEventStoreConfiguration();
 
@@ -168,6 +169,8 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 settings.InlineOperationsForTests = true;
                 settings.SetPostInitializationCompletionAfterStartup = true;
+
+                _tests._overrideDistributedContentStooreSettings?.Invoke(settings);
             }
         }
 
@@ -1352,6 +1355,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.StartCopyWhenPinMinUnverifiedCountThreshold = threshold;
             };
 
+            _overrideDistributedContentStooreSettings = s =>
+            {
+                // this is a special kind of tests and we really want to keep a production behavior.
+                s.InlineOperationsForTests = false;
+            };
+
             await RunTestAsync(
                 new Context(Logger),
                 storeCount: 3,
@@ -1366,26 +1375,78 @@ namespace ContentStoreTest.Distributed.Sessions
                     var path = context.Directories[0].CreateRandomFileName();
                     FileSystem.WriteAllBytes(path, content);
 
+                    //------------------------------------------------
                     // Insert random file in session 1
+                    //------------------------------------------------
                     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // The number of locations is less than PinMinUnverifiedCount, therefore counter will not be incremented
                     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
                     var counters = session0.GetCounters().ToDictionaryIntegral();
                     counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
                     var remoteFileCopies = counters["RemoteFilesCopied.Count"];
 
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+                    // Establishing the base line for number of locations.
+                    int preAsyncPinLocationsCount = 2;
+                    (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount);
 
+                    //------------------------------------------------
+                    // Calling PinAsync that should be an async pin
+                    //------------------------------------------------
+
+                    // This pin should be satisfied based on the number of locations and trigger an async copy.
+                    // Introducing the copy delay to check that asynchronous copy indeed asynchronous and works as expected.
+                    context.TestFileCopier.CopyDelay = TimeSpan.FromSeconds(1);
                     await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-                    var counters1 = session2.GetCounters().ToDictionaryIntegral();
-                    counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
-                    int expectedStartCopies = threshold > 0 ? 1 : 0;
-                    counters1["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
-                    counters1["RemoteFilesCopied.Count"].Should().Be(remoteFileCopies + expectedStartCopies, "Second pin should have triggered another remote file copy.");
+                    //------------------------------------------------
+                    // Analyzing the results
+                    //------------------------------------------------
+
+                    var session2Counters = session2.GetCounters().ToDictionaryIntegral();
+                    session2Counters["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+
+                    // We do initiate the async copy on pin only when configured.
+                    bool asyncCopyShouldBeInitiated = threshold > 0;
+                    int expectedStartCopies = asyncCopyShouldBeInitiated ? 1 : 0;
+
+                    session2Counters["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
+                    // Copy should not be done yet, because it must be asynchronous.
+                    session2Counters["RemoteFilesCopied.Count"].Should().Be(remoteFileCopies, "Copies should not be done in place with pin");
+
+                    // Now the copy is happening asynchronously, so we can wait for it.
+                    (await context.TestFileCopier.CopyToAsyncTask).ShouldBeSuccess();
+                    // We need to give the chance for the asynchronous operation to complete.
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+
+                    // Making sure that we did a copy.
+                    session2Counters = session2.GetCounters().ToDictionaryIntegral();
+                    session2Counters["RemoteFilesCopied.Count"].Should().Be(remoteFileCopies + expectedStartCopies, "Second pin should have triggered another remote file copy.");
+
+                    // Making sure that the location was registered.
+                    (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount + expectedStartCopies);
+
+                    // And now we can call another pin on the same session and this time the pin should be satisfied by a local pin.
+                    var result = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+
+                    // If the pin is satisfied by local store we're getting a simple 'PinResult' instance, otherwise the type is DistributedPinResult.
+                    var expectedType = asyncCopyShouldBeInitiated ? typeof(PinResult) : typeof(DistributedPinResult);
+                    result.Should().BeOfType(expectedType);
                 });
+        }
+
+        private async Task<int> GetGlobalLocationsCount(TestContext testContext, ContentHash hash)
+        {
+            var master = testContext.GetMaster();
+            var locations = await master.GetBulkAsync(
+                testContext,
+                new []{hash},
+                Token,
+                UrgencyHint.Nominal,
+                GetBulkOrigin.Global).ShouldBeSuccess();
+            return locations.ContentHashesInfo[0].Locations.Count;
         }
 
         [Fact]

@@ -1066,11 +1066,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     Tracer.Info(operationContext, $"Starting asynchronous copy of the content for hash {remote.ContentHash.ToShortString()} because the number of locations '{locations.Count}' is less then a threshold of '{threshold}'.");
                     SessionCounters[Counters.StartCopyForPinWhenUnverifiedCountSatisfied].Increment();
 
-                    // Removing cancellation token from the context so it can outlast this call
+                    // For "synchronous" pins the tracker is updated at once for all the hashes for performance reasons,
+                    // but for asynchronous copy we always need to update the tracker with a new location.
                     var task = WithStoreCancellationAsync(
                         operationContext.TracingContext,
-                        opContext => TryCopyAndPutAndUpdateContentTrackerAsync(opContext, remote, updateContentTracker, CopyReason.AsyncPin));
-
+                        opContext => TryCopyAndPutAndUpdateContentTrackerAsync(opContext, remote, updateContentTracker: true, CopyReason.AsyncPin));
                     if (Settings.InlineOperationsForTests)
                     {
                         (await task).TraceIfFailure(operationContext);

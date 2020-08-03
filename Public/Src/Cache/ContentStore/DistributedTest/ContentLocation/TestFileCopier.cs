@@ -39,22 +39,44 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
-        public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+        public TimeSpan? CopyDelay;
+        public Task<CopyFileResult> CopyToAsyncTask;
+
+        public Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
-            long startPosition = destinationStream.Position;
+            var result = CopyToAsyncCore(sourcePath, destinationStream, expectedContentSize);
+            CopyToAsyncTask = result;
+            return result;
+        }
 
-            FilesCopied.AddOrUpdate(sourcePath, p => sourcePath, (dest, prevPath) => prevPath);
-
-            if (!File.Exists(sourcePath.Path))
+        private async Task<CopyFileResult> CopyToAsyncCore(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize)
+        {
+            try
             {
-                return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
+                if (CopyDelay != null)
+                {
+                    await Task.Delay(CopyDelay.Value);
+                }
+
+                long startPosition = destinationStream.Position;
+
+                FilesCopied.AddOrUpdate(sourcePath, p => sourcePath, (dest, prevPath) => prevPath);
+
+                if (!File.Exists(sourcePath.Path))
+                {
+                    return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
+                }
+
+                using Stream s = GetStream(sourcePath, expectedContentSize);
+
+                await s.CopyToAsync(destinationStream);
+
+                return CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition);
             }
-
-            using Stream s = GetStream(sourcePath, expectedContentSize);
-
-            await s.CopyToAsync(destinationStream);
-
-            return CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition);
+            catch (Exception e)
+            {
+                return new CopyFileResult(CopyResultCode.DestinationPathError, e);
+            }
         }
 
         private Stream GetStream(AbsolutePath sourcePath, long expectedContentSize)

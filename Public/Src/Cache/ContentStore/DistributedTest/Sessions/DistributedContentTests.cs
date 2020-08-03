@@ -41,7 +41,10 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     public abstract class DistributedContentTests : TestBase
     {
-        protected static readonly CancellationToken Token = CancellationToken.None;
+        // It is very important to use "cancellable" cancellation token instance.
+        // This fact can be used by the system and change the behavior based on it.
+        protected static readonly CancellationToken Token = new CancellationTokenSource().Token;
+
         protected static readonly ContentStoreConfiguration Config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(50);
         protected bool UseGrpcServer;
 

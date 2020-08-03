@@ -36,12 +36,11 @@ namespace Tool.DropDaemon
         /// </summary>
         public bool IsOutputFile => m_file.IsOutputFile;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly bool m_chunkDedup;
 
         /// <nodoc/>
-        public DropItemForBuildXLFile(Client client, string filePath, string fileId, bool chunkDedup, FileContentInfo fileContentInfo, string relativeDropPath = null)
-            : this(Statics.IsSymLinkOrMountPoint, client, filePath, fileId, chunkDedup, fileContentInfo, relativeDropPath)
+        public DropItemForBuildXLFile(Client client, string filePath, string fileId, FileContentInfo fileContentInfo, string relativeDropPath = null)
+            : this(Statics.IsSymLinkOrMountPoint, client, filePath, fileId, fileContentInfo, relativeDropPath)
         {
         }
 
@@ -50,7 +49,6 @@ namespace Tool.DropDaemon
             Client client,
             string filePath,
             string fileId,
-            bool chunkDedup,
             FileContentInfo fileContentInfo,
             string relativeDropPath = null)
             : base(filePath, relativeDropPath, fileContentInfo)
@@ -63,7 +61,7 @@ namespace Tool.DropDaemon
             m_symlinkTester = symlinkTester;
             m_file = FileId.Parse(fileId);
             m_client = client;
-            m_chunkDedup = chunkDedup;
+            m_chunkDedup = fileContentInfo.Hash.HashType.IsValidDedup();
             Hash = fileContentInfo.Hash;
         }
 

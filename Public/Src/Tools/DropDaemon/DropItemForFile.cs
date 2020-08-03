@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
@@ -40,16 +41,7 @@ namespace Tool.DropDaemon
             if (fileContentInfo != null)
             {
                 var contentInfo = fileContentInfo.Value;
-
-                if (contentInfo.Hash.HashType.Equals(BuildXL.Cache.ContentStore.Hashing.HashType.DedupChunk))
-                {
-                    BlobIdentifier = new ChunkDedupIdentifier(contentInfo.Hash.ToHashByteArray()).ToBlobIdentifier();
-                }
-                else
-                {
-                    BlobIdentifier = new BlobIdentifier(contentInfo.Hash.ToHashByteArray());
-                }
-
+                BlobIdentifier = ContentHashToBlobIdentifier(contentInfo.Hash);
                 FileLength = contentInfo.HasKnownLength ? contentInfo.Length : UnknownFileLength;
             }
             else
@@ -139,6 +131,24 @@ namespace Tool.DropDaemon
             }
 
             return new BlobIdentifier(contentHash.ToHashByteArray());
+        }
+
+        private static BlobIdentifier ContentHashToBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash)
+        {
+            switch (contentHash.HashType)
+            {
+                case BuildXL.Cache.ContentStore.Hashing.HashType.Vso0:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNodeOrChunk:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.Murmur:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.Dedup1024K:
+                    return new BlobIdentifier(contentHash.ToHashByteArray());
+                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupChunk:
+                    return new ChunkDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
+                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNode:
+                    return new NodeDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
+                default:
+                    throw new ArgumentException($"ContentHash has unsupported type when converting to BlobIdentifier: {contentHash.HashType}");
+            }
         }
     }
 }

@@ -707,7 +707,6 @@ namespace Tool.DropDaemon
                 .Range(0, files.Length)
                 .Select(i => new DropItemForBuildXLFile(
                     daemon.ApiClient,
-                    chunkDedup: conf.Get(EnableChunkDedup),
                     filePath: files[i],
                     fileId: fileIds[i],
                     fileContentInfo: FileContentInfo.Parse(hashes[i]),
@@ -818,7 +817,6 @@ namespace Tool.DropDaemon
                     daemon.ApiClient,
                     file.FileName,
                     BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact),
-                    conf.Get(EnableChunkDedup),
                     file.ContentInfo,
                     remoteFileName);
             }).ToArray(), null);

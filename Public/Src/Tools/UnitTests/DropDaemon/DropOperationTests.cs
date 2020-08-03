@@ -160,8 +160,6 @@ namespace Test.Tool.DropDaemon
             });
         }
 
-        private const bool TestChunkDedup = false;
-
         [Fact]
         public void TestAddFile_AssociateDoesntNeedServer()
         {
@@ -179,7 +177,7 @@ namespace Test.Tool.DropDaemon
                 var contentInfo = new FileContentInfo(new ContentHash(HashType.Vso0), length: 123456);
 
                 var client = new Client(provider.GetClient(connStr, new ClientConfig()));
-                var addFileItem = new DropItemForBuildXLFile(client, filePath: "file-which-doesnt-exist.txt", fileId: "23423423:1", chunkDedup: TestChunkDedup, fileContentInfo: contentInfo);
+                var addFileItem = new DropItemForBuildXLFile(client, filePath: "file-which-doesnt-exist.txt", fileId: "23423423:1", fileContentInfo: contentInfo);
 
                 // addfile succeeds without needing BuildXL server nor the file on disk
                 IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
@@ -238,7 +236,7 @@ namespace Test.Tool.DropDaemon
                     (moniker, mockServer) =>
                     {
                         var client = new Client(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig()));
-                        var addFileItem = new DropItemForBuildXLFile(client, filePath, fileId, TestChunkDedup, fileContentInfo: TestFileContentInfo);
+                        var addFileItem = new DropItemForBuildXLFile(client, filePath, fileId, fileContentInfo: TestFileContentInfo);
 
                         // addfile succeeds
                         IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
@@ -289,7 +287,6 @@ namespace Test.Tool.DropDaemon
                             client: client,
                             filePath: filePath,
                             fileId: fileId,
-                            chunkDedup: TestChunkDedup,
                             fileContentInfo: TestFileContentInfo);
 
                         // addfile files

@@ -22,6 +22,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -30,8 +31,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         private const long MaxRowCount = 10000;
         private readonly MemoryClock _clock = new MemoryClock();
 
-        public SQLiteMemoizationSessionTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public SQLiteMemoizationSessionTests(ITestOutputHelper helper = null)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, helper)
         {
         }
 

@@ -17,6 +17,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Xunit;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {
@@ -25,8 +26,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         private const HashType ContentHashType = HashType.Vso0;
         private const int RandomContentByteCount = 100;
 
-        protected MemoizationSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger)
-            : base(createFileSystemFunc, logger)
+        protected MemoizationSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper helper = null)
+            : base(createFileSystemFunc, logger, helper)
         {
         }
 

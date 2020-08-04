@@ -16,6 +16,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -30,8 +31,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         private readonly List<LocalRedisProcessDatabase> _databasesToDispose = new List<LocalRedisProcessDatabase>();
 
-        public RedisMemoizationSessionTests(LocalRedisFixture redis)
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public RedisMemoizationSessionTests(LocalRedisFixture redis, ITestOutputHelper helper)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, helper)
         {
             _redis = redis;
             _logger = TestGlobal.Logger;

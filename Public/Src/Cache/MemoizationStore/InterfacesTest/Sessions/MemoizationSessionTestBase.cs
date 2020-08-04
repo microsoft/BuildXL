@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -16,11 +15,13 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using ContentStoreTest.Test;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {
-    public abstract class MemoizationSessionTestBase : IDisposable
+    public abstract class MemoizationSessionTestBase : TestBase
     {
         protected const string Name = "name";
         protected const int DeterminismNone = 0;
@@ -43,36 +44,10 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         };
 
         protected static readonly CancellationToken Token = CancellationToken.None;
-        protected readonly IAbsFileSystem FileSystem;
-        protected readonly ILogger Logger;
-        private bool _disposed;
 
-        protected MemoizationSessionTestBase(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger)
+        protected MemoizationSessionTestBase(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper helper = null)
+        : base(createFileSystemFunc, logger, helper)
         {
-            FileSystem = createFileSystemFunc();
-            Logger = logger;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            Dispose(true);
-            GC.SuppressFinalize(this);
-
-            _disposed = true;
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                FileSystem?.Dispose();
-                Logger?.Flush();
-            }
         }
 
         protected abstract IMemoizationStore CreateStore(DisposableDirectory testDirectory);

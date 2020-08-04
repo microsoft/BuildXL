@@ -23,6 +23,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using FluentAssertions;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -30,8 +31,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     {
         private readonly MemoryClock _clock = new MemoryClock();
 
-        public RocksDbMemoizationSessionTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public RocksDbMemoizationSessionTests(ITestOutputHelper helper = null)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, helper)
         {
         }
 

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -21,13 +22,19 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using StackExchange.Redis;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.DistributedTest
 {
-    public class MemoryMetadataCacheTests
+    public class MemoryMetadataCacheTests : TestBase
     {
         private const string RedisNameSpace = "test";
         private readonly IRedisSerializer _redisSerializer = new RedisSerializer();
+
+        public MemoryMetadataCacheTests(ITestOutputHelper output = null)
+            : base(TestGlobal.Logger, output)
+        {
+        }
 
         [Fact]
         public Task TestGetOrAddSelectorsEmptyCache()

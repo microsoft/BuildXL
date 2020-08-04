@@ -7,13 +7,14 @@ using ContentStoreTest.Test;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
     public class MemoryMemoizationSessionTests : MemoizationSessionTests
     {
-        public MemoryMemoizationSessionTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public MemoryMemoizationSessionTests(ITestOutputHelper helper = null)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, helper)
         {
         }
 

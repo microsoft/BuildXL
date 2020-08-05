@@ -20,12 +20,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Executes a batch with a set of operations defined by <paramref name="addOperations"/> callback.
         /// </summary>
+        /// <exception cref="OperationCanceledException">
+        /// If <code>context.Token</code> is cancelled or the connection is closed.
+        /// </exception>
         public static async Task<T> ExecuteBatchAsync<T>(this RedisDatabaseAdapter adapter, OperationContext context, Func<RedisBatch, Task<T>> addOperations, RedisOperation operation)
         {
             var batch = adapter.CreateBatchOperation(operation);
             var result = addOperations((RedisBatch)batch);
             await adapter.ExecuteBatchOperationAsync(context, batch, context.Token).IgnoreFailure();
             return await result;
+        }
+
+        /// <summary>
+        /// Executes a batch with a set of operations defined by <paramref name="addOperations"/> callback.
+        /// </summary>
+        public static async Task<Result<T>> ExecuteBatchAsResultAsync<T>(this RedisDatabaseAdapter adapter, OperationContext context, Tracer tracer, Func<RedisBatch, Task<T>> addOperations, RedisOperation operation)
+        {
+            bool isCancelled = false;
+            Result<T> executeBatchResult = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    var batch = adapter.CreateBatchOperation(operation);
+                    var result = addOperations((RedisBatch)batch);
+
+                    var executeBatchOperationResult = await adapter.ExecuteBatchOperationAsync(context, batch, context.Token);
+
+                    // Tracking the cancellation of redis operation to return this aspect back to the caller.
+                    isCancelled = executeBatchOperationResult.IsCancelled;
+                    return Result.Success(await result);
+                });
+
+            executeBatchResult.IsCancelled = isCancelled;
+            return executeBatchResult;
         }
 
         /// <summary>

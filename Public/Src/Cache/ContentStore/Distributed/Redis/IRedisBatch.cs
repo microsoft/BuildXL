@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using StackExchange.Redis;
@@ -255,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Executes the currently created batch operation and returns a task that completes when the batch is done.
         /// </summary>
-        Task ExecuteBatchOperationAndGetCompletion(Context context, IDatabase database);
+        Task ExecuteBatchOperationAndGetCompletion(Context context, IDatabase database, CancellationToken token = default);
 
         /// <summary>
         /// Notifies any consumer of tasks in the batch that the results are available successfully.
@@ -266,5 +267,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Notifies any consumer of tasks in the batch failed with a particular exception.
         /// </summary>
         void NotifyConsumersOfFailure(Exception exception);
+
+        /// <summary>
+        /// Notifies any consumer of tasks in the batch should be cancelled.
+        /// </summary>
+        void NotifyConsumersOfCancellation();
     }
 }

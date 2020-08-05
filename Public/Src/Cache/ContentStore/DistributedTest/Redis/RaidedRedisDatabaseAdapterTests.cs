@@ -118,7 +118,7 @@ namespace ContentStoreTest.Distributed.Redis
             r.secondary.Should().BeNull();
         }
 
-        private static Task<BoolResult> ExecuteAsync(OperationContext context, RedisDatabaseAdapter adapter, CancellationToken token)
+        private static async Task<Result<bool>> ExecuteAsync(OperationContext context, RedisDatabaseAdapter adapter, CancellationToken token)
         {
             var redisBatch = adapter.CreateBatchOperation(RedisOperation.All);
             var first = redisBatch.StringGetAsync("first");
@@ -126,7 +126,13 @@ namespace ContentStoreTest.Distributed.Redis
             first.FireAndForget(context, redisBatch);
 
             // Execute the batch
-            return adapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, token);
+            var result = await adapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, token);
+            if (!result)
+            {
+                return new ErrorResult(result).AsResult<Result<bool>>();
+            }
+
+            return true;
         }
 
         private static RedisKey GetKey(RedisKey key)

@@ -28,7 +28,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         private readonly Func<IConnectionMultiplexer, Task> _connectionMultiplexerShutdownFunc;
         private IConnectionMultiplexer _connectionMultiplexer;
 
-        private volatile bool _resetConnectionMultiplexer = false;
+        /// <summary>
+        /// Notifies existing clients that the current connection multiplexer instance is about to be closed.
+        /// Also used internally to detect that the multiplexer must be closed.
+        /// </summary>
+        private CancellationTokenSource _resetConnectionMultiplexerCts;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseFactory"/> class.
@@ -38,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             _connectionMultiplexerFactory = connectionMultiplexerFactory;
             _connectionMultiplexerShutdownFunc = connectionMultiplexerShutdownFunc;
             _connectionMultiplexer = connectionMultiplexer;
+            _resetConnectionMultiplexerCts = new CancellationTokenSource();
         }
 
         /// <summary>
@@ -95,26 +100,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Gets a Redis Database object with a specified key prefix.
         /// </summary>
-        public async Task<IDatabase> GetDatabaseWithKeyPrefix(Context context, string keySpace)
+        public async Task<(IDatabase database, CancellationToken databaseLifetimeToken)> GetDatabaseWithKeyPrefix(Context context, string keySpace)
         {
-            if (_resetConnectionMultiplexer)
+            if (_resetConnectionMultiplexerCts.IsCancellationRequested)
             {
                 using (await SemaphoreSlimToken.WaitAsync(_creationSemaphore))
                 {
-                    if (_resetConnectionMultiplexer)
+                    if (_resetConnectionMultiplexerCts.IsCancellationRequested)
                     {
                         context.Debug("Shutting down current connection multiplexer.");
+
+                        // The clients already notified about the cancellation so we just
+                        // need to re-create a cancellation token source.
+                        _resetConnectionMultiplexerCts = new CancellationTokenSource();
+
                         await _connectionMultiplexerShutdownFunc(_connectionMultiplexer);
 
                         context.Debug("Creating new multiplexer instance.");
                         _connectionMultiplexer = await _connectionMultiplexerFactory();
-
-                        _resetConnectionMultiplexer = false;
                     }
                 }
             }
 
-            return _connectionMultiplexer.GetDatabase().WithKeyPrefix(keySpace);
+            return (_connectionMultiplexer.GetDatabase().WithKeyPrefix(keySpace), _resetConnectionMultiplexerCts.Token);
         }
 
         /// <summary>
@@ -122,7 +130,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public void ResetConnectionMultiplexer()
         {
-            _resetConnectionMultiplexer = true;
+            // Cancelling all the pending operations.
+            _resetConnectionMultiplexerCts.Cancel();
         }
     }
 }

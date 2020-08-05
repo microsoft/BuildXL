@@ -333,8 +333,15 @@ namespace ContentStoreTest.Distributed.Redis
             GC.SuppressFinalize(this);
         }
 
+        public Task<HashEntry[]> HashGetAllAsyncTask;
+
         public Task<HashEntry[]> HashGetAllAsync(RedisKey key, CommandFlags command = CommandFlags.None)
         {
+            if (HashGetAllAsyncTask != null)
+            {
+                return HashGetAllAsyncTask;
+            }
+
             if (_dbHash.TryGetValue(key, out var entries))
             {
                 return Task.FromResult(entries.Select(kvp => new HashEntry(kvp.Key, kvp.Value)).ToArray());

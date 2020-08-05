@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -13,7 +14,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using StackExchange.Redis;
@@ -35,6 +39,110 @@ namespace ContentStoreTest.Distributed.Redis
         public RedisDatabaseAdapterTests(ITestOutputHelper output)
             : base(output)
         {
+        }
+
+        [Fact]
+        public async Task BatchIsCancelledOnReconnectForOtherOperation()
+        {
+            // The test checks that if the connection is lost and the new connection is established,
+            // all the pending operations are cancelled.
+
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData);
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            int connectionCount = 0;
+
+            bool failWithRedisConnectionErrorOnce = false;
+
+            // Setup Redis DB adapter
+            Func<IConnectionMultiplexer> connectionMultiplexerFactory = () =>
+            {
+                connectionCount++;
+                // Failing connection only when the local is true;
+                return MockRedisDatabaseFactory.CreateConnection(
+                    testDb,
+                    testBatch: null,
+                    throwConnectionExceptionOnGet: () =>
+                                                   {
+                                                       var oldValue = failWithRedisConnectionErrorOnce;
+                                                       failWithRedisConnectionErrorOnce = false;
+                                                       return oldValue;
+                                                   });
+            };
+
+            var redisDatabaseFactory = await RedisDatabaseFactory.CreateAsync(connectionMultiplexerFactory, connectionMultiplexer => BoolResult.SuccessTask);
+            var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace,
+                // If the operation fails we'll retry once and after that we should reset the connection multiplexer so the next operation should create a new one.
+                redisConnectionErrorLimit: 1,
+                // No retries: should fail the operation immediately.
+                retryCount: 0,
+                cancelBatchWhenMultiplexerIsClosed: true);
+            var dbAdapter = new RedisDatabaseAdapter(redisDatabaseFactory, adapterConfiguration);
+
+            connectionCount.Should().Be(1);
+
+            // Causing HashGetAllAsync operation to hang that will cause ExecuteGetCheckpointInfoAsync operation to "hang".
+            var taskCompletionSource = new TaskCompletionSource<HashEntry[]>();
+            testDb.HashGetAllAsyncTask = taskCompletionSource.Task;
+
+            // Running two operations at the same time:
+            // The first one should get stuck on task completion source's task
+            // and the second one will fail with connectivity issue, will cause the restart of the multiplexer,
+            // and will cancel all the existing operations 9including the first one).
+
+            var task1 = ExecuteGetCheckpointInfoAsync(context, dbAdapter);
+            failWithRedisConnectionErrorOnce = true;
+            var task2 = ExecuteGetCheckpointInfoAsync(context, dbAdapter);
+
+            Output.WriteLine("Waiting for the redis operations to finish.");
+            await Task.WhenAll(task1, task2);
+
+            var results = new[] {task1.Result, task2.Result};
+            var errorCount = results.Count(r => !r.Succeeded && r.ErrorMessage?.Contains("RedisConnectionException") == true);
+            errorCount.Should().Be(1, $"Should have 1 error with RedisConnectionException. Results: {string.Join(Environment.NewLine, results.Select(r => r.ToString()))}");
+
+            var cancelledCount = results.Count(r => r.IsCancelled);
+            cancelledCount.Should().Be(1, $"Should have 1 cancellation. Results: {string.Join(Environment.NewLine, results.Select(r => r.ToString()))}");
+        }
+
+        [Fact]
+        public async Task BatchIsCanceledBeforeOperationStarts()
+        {
+            // The test checks that if the connection is lost and the new connection is established,
+            // all the pending operations are cancelled.
+
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData);
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+
+            // Setup Redis DB adapter
+            Func<IConnectionMultiplexer> connectionMultiplexerFactory = () =>
+            {
+                return MockRedisDatabaseFactory.CreateConnection(testDb, testBatch: null);
+            };
+
+            var redisDatabaseFactory = await RedisDatabaseFactory.CreateAsync(connectionMultiplexerFactory, connectionMultiplexer => BoolResult.SuccessTask);
+            var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace,
+                // If the operation fails we'll retry once and after that we should reset the connection multiplexer so the next operation should create a new one.
+                redisConnectionErrorLimit: 1,
+                // No retries: should fail the operation immediately.
+                retryCount: 0,
+                cancelBatchWhenMultiplexerIsClosed: true);
+            var dbAdapter = new RedisDatabaseAdapter(redisDatabaseFactory, adapterConfiguration);
+
+            // Causing HashGetAllAsync operation to hang that will cause ExecuteGetCheckpointInfoAsync operation to "hang".
+            var taskCompletionSource = new TaskCompletionSource<HashEntry[]>();
+            testDb.HashGetAllAsyncTask = taskCompletionSource.Task;
+            cts.Cancel();
+            // Using timeout to avoid hangs in the tests if something is wrong with the logic.
+            var result = await ExecuteGetCheckpointInfoAsync(context, dbAdapter).WithTimeoutAsync(TimeSpan.FromSeconds(1));
+            result.IsCancelled.Should().BeTrue();
+        }
+
+        private static Task<Result<(RedisCheckpointInfo[] checkpoints, DateTime epochStartCursor)>> ExecuteGetCheckpointInfoAsync(OperationContext context, RedisDatabaseAdapter dbAdapter)
+        {
+            var tracer = new Tracer("Tracer");
+            return dbAdapter.ExecuteBatchAsResultAsync(context, tracer, b => b.GetCheckpointsInfoAsync("Key", DateTime.UtcNow), RedisOperation.Batch);
         }
 
         [Fact]
@@ -212,8 +320,7 @@ namespace ContentStoreTest.Distributed.Redis
             connectionCount.Should().Be(3);
         }
 
-        private static Task<BoolResult> ExecuteBatchAsync(RedisDatabaseAdapter dbAdapter) =>
-            dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), dbAdapter.CreateBatchOperation(RedisOperation.All), default);
+        private static Task<BoolResult> ExecuteBatchAsync(RedisDatabaseAdapter dbAdapter) => dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), dbAdapter.CreateBatchOperation(RedisOperation.All), default);
 
         private static RedisKey GetKey(RedisKey key)
         {

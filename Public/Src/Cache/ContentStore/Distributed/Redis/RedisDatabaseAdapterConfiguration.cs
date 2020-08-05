@@ -34,6 +34,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.MinRedisReconnectInterval"/>
         public TimeSpan MinReconnectInterval { get; }
 
+        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.CancelBatchWhenMultiplexerIsClosed"/>
+        public bool CancelBatchWhenMultiplexerIsClosed { get; }
+
         public RetryPolicy CreateRetryPolicy(Action<Exception> onRedidException)
         {
             if (_retryCount != null)
@@ -54,7 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             bool traceTransientFailures = false,
             int? retryCount = null,
             string? databaseName = null,
-            TimeSpan? minReconnectInterval = null)
+            TimeSpan? minReconnectInterval = null,
+            bool cancelBatchWhenMultiplexerIsClosed = false)
         {
             _retryCount = retryCount;
             KeySpace = keySpace;
@@ -64,6 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             TraceTransientFailures = traceTransientFailures;
             DatabaseName = databaseName ?? "Default";
             MinReconnectInterval = minReconnectInterval ?? TimeSpan.Zero;
+            CancelBatchWhenMultiplexerIsClosed = cancelBatchWhenMultiplexerIsClosed;
         }
     }
 }

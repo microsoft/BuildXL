@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -269,6 +270,11 @@ return { requestedIncrement, currentValue }";
             /// Updates the final exception from the redis batch to the consumers' task.
             /// </summary>
             void SetFailure(Exception exception);
+
+            /// <summary>
+            /// Updates the final result from the redis batch on the consumers' task.
+            /// </summary>
+            void SetCancelled();
         }
 
         /// <inheritdoc />
@@ -298,12 +304,17 @@ return { requestedIncrement, currentValue }";
                 // SetResult causes a task's continuation to run in the same thread that can cause issues
                 // because a continuation of BatchExecutionTask could be a synchronous continuation as well.
                 await Task.Yield();
-                FinalTaskResult.SetResult(taskResult);
+                FinalTaskResult.TrySetResult(taskResult);
+            }
+
+            public void SetCancelled()
+            {
+                FinalTaskResult.TrySetCanceled();
             }
 
             public void SetFailure(Exception exception)
             {
-                FinalTaskResult.SetException(exception);
+                FinalTaskResult.TrySetException(exception);
             }
         }
 
@@ -849,13 +860,13 @@ return { requestedIncrement, currentValue }";
         }
 
         /// <inheritdoc />
-        public Task ExecuteBatchOperationAndGetCompletion(Context context, IDatabase database)
+        public async Task ExecuteBatchOperationAndGetCompletion(Context context, IDatabase database, CancellationToken token)
         {
             if (_redisOperations.Count == 0)
             {
-                return Task.FromResult(0);
+                return;
             }
-
+            
             IBatch batch = database.CreateBatch();
             var taskToTrack = new List<Task>(_redisOperations.Count);
             foreach (IRedisOperationAndResult operation in _redisOperations)
@@ -871,7 +882,9 @@ return { requestedIncrement, currentValue }";
             }
 
             batch.Execute();
-            return Task.WhenAll(taskToTrack);
+
+            // The following call with throw an exception if token triggers before the completion of the tasks.
+            await TaskUtilities.WhenAllWithCancellation(taskToTrack, token);
         }
 
         /// <inheritdoc />
@@ -886,6 +899,15 @@ return { requestedIncrement, currentValue }";
             foreach (IRedisOperationAndResult operation in _redisOperations)
             {
                 operation.SetFailure(exception);
+            }
+        }
+
+        /// <inheritdoc />
+        public void NotifyConsumersOfCancellation()
+        {
+            foreach (IRedisOperationAndResult operation in _redisOperations)
+            {
+                operation.SetCancelled();
             }
         }
 

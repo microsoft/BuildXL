@@ -93,7 +93,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             (var primaryResult, var secondaryResult) = await ExecuteRaidedAsync(
                 context,
-                executeAsync,
+                async (adapter, token) =>
+                {
+                    var result = await executeAsync(adapter, token);
+
+                    if (!result)
+                    {
+                        return new ErrorResult(result).AsResult<Result<bool>>();
+                    }
+                    else
+                    {
+                        return Result.Success(true);
+                    }
+                },
                 retryWindow,
                 concurrent: true);
 
@@ -111,11 +123,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// One of the elements in the result are not null.
         /// </remarks>
-        public async Task<(TResult? primary, TResult? secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? retryWindow, bool concurrent = true, [CallerMemberName]string? caller = null)
-            where TResult : BoolResult
+        public async Task<(Result<TResult>? primary, Result<TResult>? secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<Result<TResult>>> executeAsync, TimeSpan? retryWindow, bool concurrent = true, [CallerMemberName]string? caller = null)
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
-            var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
+            Task<Result<TResult>> primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
 
             if (SecondaryRedisDb == null)
             {
@@ -134,8 +145,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Instead of waiting for both - the primary and the secondary, we'll check for the primary first and then try to cancel the other one.
             // There is a time out delay acting as a window for the slower task to complete before we cancel the retry attempts
 
-            Task<TResult> fasterResultTask = await Task.WhenAny(primaryResultTask, secondaryResultTask);
-            Task<TResult> slowerResultTask = fasterResultTask == primaryResultTask ? secondaryResultTask : primaryResultTask;
+            Task<Result<TResult>> fasterResultTask = await Task.WhenAny(primaryResultTask, secondaryResultTask);
+            Task<Result<TResult>> slowerResultTask = fasterResultTask == primaryResultTask ? secondaryResultTask : primaryResultTask;
 
             // Try to cancel the slower operation only when the faster one finished successfully (and the timeout was provided).
             if (fasterResultTask.Result.Succeeded && retryWindow != null)
@@ -166,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            await slowerResultTask;
+            (await slowerResultTask).IgnoreFailure();
             var primaryResult = await primaryResultTask;
             var secondaryResult = await secondaryResultTask;
 

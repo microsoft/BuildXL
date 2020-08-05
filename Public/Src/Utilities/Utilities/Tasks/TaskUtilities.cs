@@ -57,6 +57,20 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
+        /// Creates a task that will complete when all of the <see cref="T:System.Threading.Tasks.Task" /> objects in an enumerable collection have completed or when the <paramref name="token"/> is triggered.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">The exception is thrown if the <paramref name="token"/> is canceled before the completion of <paramref name="tasks"/></exception>
+        public static async Task WhenAllWithCancellation(IEnumerable<Task> tasks, CancellationToken token)
+        {
+            var completedTask = await Task.WhenAny(
+                Task.Delay(Timeout.InfiniteTimeSpan, token), 
+                Task.WhenAll(tasks));
+            Analysis.IgnoreResult(completedTask);
+
+            token.ThrowIfCancellationRequested();
+        }
+
+        /// <summary>
         /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
         /// propagated back through a single AggregateException. This is necessary because the default awaiter
         /// (as used by 'await') only takes the *first* exception inside of a task's aggregate exception.

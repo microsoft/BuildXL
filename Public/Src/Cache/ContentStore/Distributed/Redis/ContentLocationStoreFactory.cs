@@ -124,7 +124,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     traceOperationFailures: Configuration.TraceRedisFailures,
                     traceTransientFailures: Configuration.TraceRedisTransientFailures,
                     databaseName: databaseName,
-                    minReconnectInterval: Configuration.MinRedisReconnectInterval);
+                    minReconnectInterval: Configuration.MinRedisReconnectInterval,
+                    cancelBatchWhenMultiplexerIsClosed: Configuration.CancelBatchWhenMultiplexerIsClosed);
 
                 return new RedisDatabaseAdapter(factory, adapterConfiguration);
             }

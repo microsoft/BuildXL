@@ -108,6 +108,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public TimeSpan MinRedisReconnectInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
+        /// Whether to cancel existing batches when a connection multiplexer used for creating it is closed.
+        /// </summary>
+        public bool CancelBatchWhenMultiplexerIsClosed { get; set; } = false;
+
+        /// <summary>
         /// Timeout for GetBlob operations.
         /// </summary>
         public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;

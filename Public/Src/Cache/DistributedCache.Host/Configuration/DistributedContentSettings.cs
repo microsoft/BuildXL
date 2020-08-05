@@ -136,6 +136,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan? MinRedisReconnectInterval { get; set; }
 
         [DataMember]
+        public bool? CancelBatchWhenMultiplexerIsClosed { get; set; }
+
+        [DataMember]
         [Validation.Range(-1, int.MaxValue)]
         public int? RedisGetBlobTimeoutMilliseconds { get; set; }
 

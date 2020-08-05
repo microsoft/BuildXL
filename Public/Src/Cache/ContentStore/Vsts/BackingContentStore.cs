@@ -47,11 +47,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly bool _useDedupStore;
 
         /// <summary>
-        /// Used for BlobStore implementation only.
-        /// </summary>
-        private readonly bool _downloadBlobsThroughBlobStore;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="BackingContentStore"/> class.
         /// </summary>
         /// <param name="fileSystem">Filesystem used to read/write files.</param>
@@ -59,7 +54,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
         /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
-        /// <param name="downloadBlobsThroughBlobStore">Flag for BlobStore: If enabled, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">Determines whether or not DedupStore is used for content. Must be used in tandem with Dedup hashes.</param>
         public BackingContentStore(
             IAbsFileSystem fileSystem,
@@ -67,7 +61,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
-            bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false)
         {
             Contract.Requires(fileSystem != null);
@@ -77,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _timeToKeepContent = timeToKeepContent;
             _pinInlineThreshold = pinInlineThreshold;
             _ignorePinThreshold = ignorePinThreshold;
-            _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
             _useDedupStore = useDedupStore;
         }
 
@@ -154,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             return new CreateSessionResult<IReadOnlyContentSession>(new BlobReadOnlyContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
+                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
         }
 
         /// <inheritdoc />
@@ -168,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             return new CreateSessionResult<IContentSession>(new BlobContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
+                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
         }
 
         /// <inheritdoc />

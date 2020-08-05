@@ -10,26 +10,32 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public static class DedupNodeExtensions
     {
         /// <nodoc />
-        public static ContentHash ToContentHash(this DedupNode node)
+        public static ContentHash ToContentHash(this DedupNode node, HashType hashType)
         {
-            var nodeDedupIdentifier = node.GetDedupIdentifier();
-            switch (nodeDedupIdentifier.AlgorithmId)
+            byte[] hash;
+            switch (hashType)
             {
-                case (byte)NodeAlgorithmId.Node64K:
-                    return new ContentHash(HashType.DedupNodeOrChunk, nodeDedupIdentifier.ToBlobIdentifier().Bytes);
-                case (byte)NodeAlgorithmId.Node1024K:
-                    return new ContentHash(HashType.Dedup1024K, nodeDedupIdentifier.ToBlobIdentifier().Bytes);
+                case HashType.DedupChunk:
+                case HashType.DedupNode:
+                    hash = node.Hash;
+                    break;
+                case HashType.DedupNodeOrChunk:
+                case HashType.Dedup1024K:
+                    hash = node.GetDedupIdentifier(hashType).ToBlobIdentifier().Bytes;
+                    break;
                 default:
-                    throw new InvalidEnumArgumentException($"Unknown algorithm id detected for blob {nodeDedupIdentifier.ToBlobIdentifier()} : {nodeDedupIdentifier.AlgorithmId}");
+                    throw new ArgumentException($"Unexpected HashType '{hashType}' for DedupNode.");
             }
+
+            return new ContentHash(hashType, hash);
         }
 
         /// <nodoc />
-        public static DedupIdentifier GetDedupIdentifier(this DedupNode node)
+        public static DedupIdentifier GetDedupIdentifier(this DedupNode node, HashType hashType)
         {
             if (node.Type == DedupNode.NodeType.InnerNode)
             {
-                return node.GetNodeIdentifier();
+                return node.GetNodeIdentifier(hashType);
             }
             else
             {
@@ -38,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node)
+        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node, HashType hashType)
         {
             if (node.Type != DedupNode.NodeType.InnerNode)
             {
@@ -46,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
             // TODO: Chunk size optimization - the hash-algo mapper will take care of this.
             // for now use default.
-            return new NodeDedupIdentifier(node.Hash, (byte)NodeAlgorithmId.Node64K);
+            return new NodeDedupIdentifier(node.Hash, (NodeAlgorithmId)AlgorithmIdLookup.Find(hashType));
         }
 
         /// <nodoc />

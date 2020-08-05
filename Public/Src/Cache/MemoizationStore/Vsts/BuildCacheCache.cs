@@ -72,7 +72,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="writeThroughContentStoreFunc">Optional write-through store to allow writing-behind to BlobStore</param>
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
         /// <param name="useBlobContentHashLists">use blob based content hash lists.</param>
-        /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
         /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
@@ -97,7 +96,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             Func<IContentStore> writeThroughContentStoreFunc = null,
             bool sealUnbackedContentHashLists = false,
             bool useBlobContentHashLists = false,
-            bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false,
             bool overrideUnixFileAccessMode = false,
             bool enableEagerFingerprintIncorporation = false,
@@ -115,7 +113,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
 
             _backingContentStore = new BackingContentStore(
-                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, pinInlineThreshold, ignorePinThreshold, downloadBlobsThroughBlobStore, useDedupStore);
+                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, pinInlineThreshold, ignorePinThreshold, useDedupStore);
 
             if (useDedupStore)
             {

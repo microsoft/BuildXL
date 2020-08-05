@@ -85,8 +85,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, _artifactFileSystem, context.Token);
-                var calculatedHash = dedupNode.ToContentHash();
+                var dedupNode = await GetDedupNodeFromFileAsync(contentHash.HashType, path.Path, _artifactFileSystem, context.Token);
+                var calculatedHash = dedupNode.ToContentHash(contentHash.HashType);
 
                 if (contentHash != calculatedHash)
                 {
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         $"Failed to add a DedupStore reference due to hash mismatch: provided=[{contentHash}] calculated=[{calculatedHash}]");
                 }
 
-                var putResult = await UploadWithDedupAsync(context, path, dedupNode).ConfigureAwait(false);
+                var putResult = await UploadWithDedupAsync(context, path, contentHash.HashType, dedupNode).ConfigureAwait(false);
                 if (!putResult.Succeeded)
                 {
                     return new PutResult(
@@ -131,8 +131,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 var contentSize = GetContentSize(path);
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, _artifactFileSystem, context.Token);
-                var contentHash = dedupNode.ToContentHash();
+                var dedupNode = await GetDedupNodeFromFileAsync(hashType, path.Path, _artifactFileSystem, context.Token);
+                var contentHash = dedupNode.ToContentHash(hashType);
 
                 if (contentHash.HashType != hashType)
                 {
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var putResult = await UploadWithDedupAsync(context, path, dedupNode).ConfigureAwait(false);
+                var putResult = await UploadWithDedupAsync(context, path, hashType, dedupNode).ConfigureAwait(false);
 
                 if (!putResult.Succeeded)
                 {
@@ -228,6 +228,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private async Task<BoolResult> UploadWithDedupAsync(
             OperationContext context,
             AbsolutePath path,
+            HashType hashType,
             DedupNode dedupNode)
         {
             // Puts are effectively implicitly pinned regardless of configuration.
@@ -242,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     await PutNodeAsync(context, dedupNode, path);
                 }
 
-                BackingContentStoreExpiryCache.Instance.AddExpiry(dedupNode.ToContentHash(), EndDateTime);
+                BackingContentStoreExpiryCache.Instance.AddExpiry(dedupNode.ToContentHash(hashType), EndDateTime);
                 return BoolResult.Success;
             }
             catch (Exception ex)
@@ -280,15 +281,21 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 innerCts));
         }
 
-        internal static async Task<DedupNode> GetDedupNodeFromFileAsync(string path, IFileSystem fileSystem, CancellationToken token)
+        internal static Task<DedupNode> GetDedupNodeFromFileAsync(HashType hashType, string path, IFileSystem fileSystem, CancellationToken token)
         {
-            var dedupNode = await ChunkerHelper.CreateFromFileAsync(
-                fileSystem: fileSystem,
-                path: path,
-                cancellationToken: token,
-                configureAwait: false);
-
-            return dedupNode;
+            switch(hashType)
+            {
+                case HashType.DedupNodeOrChunk:
+                    return ChunkerHelper.CreateFromFileAsync(
+                        fileSystem: fileSystem,
+                        path: path,
+                        cancellationToken: token,
+                        configureAwait: false);
+                case HashType.Dedup1024K:
+                    // TODO
+                default:
+                    throw new ArgumentException($"Unexpected HashType '{hashType}' for DedupNode creation.");
+            }
         }
     }
 }

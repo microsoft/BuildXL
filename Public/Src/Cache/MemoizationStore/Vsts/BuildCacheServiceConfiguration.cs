@@ -90,11 +90,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public const int DefaultHttpSendTimeoutMinutes = 5;
 
         /// <summary>
-        /// Default value indicating whether blobs are downloaded through BlobStore.
-        /// </summary>
-        public const bool DefaultDownloadBlobsThroughBlobStore = false;
-
-        /// <summary>
         /// Default value indicating whether Dedup is enabled.
         /// </summary>
         public const bool DefaultUseDedupStore = false;
@@ -254,12 +249,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public int HttpSendTimeoutMinutes { get; set; } = DefaultHttpSendTimeoutMinutes;
-
-        /// <summary>
-        /// Gets or sets whether blobs are downloaded through BlobStore.
-        /// </summary>
-        [DataMember]
-        public bool DownloadBlobsThroughBlobStore { get; set; } = DefaultDownloadBlobsThroughBlobStore;
 
         /// <summary>
         /// Gets or sets whether Dedup is enabled.

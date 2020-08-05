@@ -49,7 +49,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 writeThroughContentStoreFunc,
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,
-                cacheConfig.DownloadBlobsThroughBlobStore,
                 cacheConfig.UseDedupStore,
                 cacheConfig.OverrideUnixFileAccessMode,
                 cacheConfig.EnableEagerFingerprintIncorporation,

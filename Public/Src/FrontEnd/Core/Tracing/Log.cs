@@ -547,7 +547,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Tool '{toolName}' failed to store file '{targetFilePath}' successfully in the cache with has '{contentHash}': {message}")]
+            Message = "Tool '{toolName}' failed to store file '{targetFilePath}' successfully in the cache with hash '{contentHash}': {message}")]
         public abstract void DownloadToolCannotCache(
             LoggingContext loggingContext,
             string toolName,

@@ -47,7 +47,6 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "MaxFingerprintsPerIncorporateRequest":{22},
         //     "HttpSendTimeoutMinutes":{23},
         //     "LogFlushIntervalSeconds":{24}
-        //     "DownloadBlobsThroughBlobStore":{25}
         //     "UseDedupStore":{26}
         //     "OverrideUnixFileAccessMode":{27}
         //     "DefaultPinInlineThresholdMinutes":{28}

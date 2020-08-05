@@ -33,10 +33,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
-        /// <param name="downloadBlobsThroughBlobStore">
-        /// If true, gets blobs through BlobStore. If false, gets blobs from the Azure
-        /// Uri.
-        /// </param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobContentSession(
             IAbsFileSystem fileSystem,
@@ -44,9 +40,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            bool downloadBlobsThroughBlobStore,
             CounterTracker counterTracker)
-            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore, counterTracker)
+            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, counterTracker)
         {
         }
 

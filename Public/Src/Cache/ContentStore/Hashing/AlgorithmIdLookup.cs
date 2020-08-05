@@ -17,9 +17,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.Vso0, VsoHash.VsoAlgorithmId},
                 {HashType.DedupChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
                 {HashType.DedupNode, (byte)NodeAlgorithmId.Node64K},
-
-                // DedupNodeOrChunk will always end with DedupChunk or DedupNode algorithm IDs. Default to DedupChunk.
-                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId}, // TODO: Chunk size optimization
+                {HashType.DedupNodeOrChunk, (byte)NodeAlgorithmId.Node64K},
                 {HashType.Dedup1024K, (byte)NodeAlgorithmId.Node1024K},
                 {HashType.Murmur, MurmurHashInfo.MurmurAlgorithmId}
             };

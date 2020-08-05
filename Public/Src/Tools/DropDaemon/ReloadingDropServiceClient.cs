@@ -177,7 +177,7 @@ namespace Tool.ServicePipDaemon
         #endregion
 
         /// <inheritdoc />
-        public Task<IEnumerable<DropItem>> ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        public Task<IEnumerable<DropItem>> ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions, IDomainId domainId)
         {
             return RetryAsync(
                 nameof(IDropServiceClient.ListAsync),

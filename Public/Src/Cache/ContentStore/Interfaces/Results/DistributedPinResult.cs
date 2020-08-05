@@ -6,44 +6,89 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <nodoc />
     public sealed class DistributedPinResult : PinResult
     {
-        private readonly string? _extraSuccessMessage;
+        /// <summary>
+        /// A code for different results in copy operations
+        /// </summary>
+        public enum DistributedPinResultCode
+        {
+            /// <summary>
+            /// Enough replicas to not copy
+            /// </summary>
+            EnoughReplicas,
+
+            /// <summary>
+            /// Copied synchronously
+            /// </summary>
+            Copy,
+
+            /// <summary>
+            /// Copied Asynchronously
+            /// </summary>
+            CopyAsync,
+
+            /// <summary>
+            /// Failure to copy due to an error
+            /// </summary>
+            Fail,
+        }
+
+        private readonly string? _extraMessage;
 
         /// <summary>
         /// True when the remote pin succeeded after the content was copied locally.
         /// </summary>
-        public bool CopyLocally { get; private set; }
+        public bool CopyLocally => DistributedPinCode == DistributedPinResultCode.Copy;
 
-        private DistributedPinResult(string extraSuccessMessage)
-            : base(ResultCode.Success)
+        /// <nodoc />
+        public DistributedPinResultCode DistributedPinCode { get; private set; }
+
+        /// <nodoc />
+        public int ReplicaCount { get; private set; }
+
+        private DistributedPinResult(DistributedPinResultCode code, int replicaCount, string? extraMessage = null, ResultCode internalCode = ResultCode.Success)
+            : base(internalCode)
         {
-            _extraSuccessMessage = extraSuccessMessage;
+            DistributedPinCode = code;
+            ReplicaCount = replicaCount;
+            _extraMessage = extraMessage;
         }
 
         /// <nodoc />
-        public DistributedPinResult(ResultBase other, string message)
+        public DistributedPinResult(int replicaCount, ResultBase other, string? message = null)
+            : this(other, message)
+        {
+            DistributedPinCode = DistributedPinResultCode.Fail;
+            ReplicaCount = replicaCount;
+        }
+
+        /// <nodoc />
+        public DistributedPinResult(ResultBase other, string? message = null)
             : base(other, message)
         {
         }
 
         /// <nodoc />
-        public static DistributedPinResult SuccessByLocalCopy()
-        {
-            return new DistributedPinResult("Copied locally")
-                   {
-                       CopyLocally = true,
-                   };
-        }
+        public static DistributedPinResult EnoughReplicas(int replicaCount, string? extraMessage = null) => new DistributedPinResult(DistributedPinResultCode.EnoughReplicas, replicaCount, extraMessage);
 
         /// <nodoc />
-        public static new DistributedPinResult Success(string message)
-        {
-            return new DistributedPinResult(message);
-        }
+        public static DistributedPinResult SynchronousCopy(int replicaCount, string? extraMessage = null) => new DistributedPinResult(DistributedPinResultCode.Copy, replicaCount, extraMessage);
+
+        /// <nodoc />
+        public static DistributedPinResult AsynchronousCopy(int replicaCount, string? extraMessage = null) => new DistributedPinResult(DistributedPinResultCode.CopyAsync, replicaCount, extraMessage);
+
+        /// <nodoc />
+        public static new DistributedPinResult ContentNotFound(int replicaCount, string? extraMessage = null) => new DistributedPinResult(DistributedPinResultCode.Fail, replicaCount, extraMessage, ResultCode.ContentNotFound);
 
         /// <inheritdoc />
         protected override string GetSuccessString()
         {
-            return $"Success({_extraSuccessMessage})";
+            return $"{DistributedPinCode}/{ReplicaCount}" + (string.IsNullOrEmpty(_extraMessage) ? "" : $"({_extraMessage})");
+        }
+
+        /// <inheritdoc />
+        protected override string GetErrorString()
+        {
+            return $"{DistributedPinCode}/{ReplicaCount}, " + base.GetErrorString() + (string.IsNullOrEmpty(_extraMessage) ? string.Empty : $"({_extraMessage})");
         }
     }
 }

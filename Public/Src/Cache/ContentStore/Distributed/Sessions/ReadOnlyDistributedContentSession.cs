@@ -1042,21 +1042,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
                 }
 
-                return PinResult.ContentNotFound;
+                return DistributedPinResult.ContentNotFound(replicaCount: 0, "No locations found");
             }
 
             // When we only require the content to exist at least once anywhere, we can ignore pin thresholds
             // and return success after finding a single location.
             if (succeedWithOneLocation && locations.Count >= 1)
             {
-                // Do not update pin cache because this does not represent complete knowledge about this context.
-                return DistributedPinResult.Success($"{locations.Count} replicas (global succeeds)");
+                return DistributedPinResult.EnoughReplicas(locations.Count, "Global succeeds");
             }
 
             if (locations.Count >= Settings.PinConfiguration.PinMinUnverifiedCount)
             {
                 SessionCounters[Counters.PinUnverifiedCountSatisfied].Increment();
-                var result = DistributedPinResult.Success($"Replica Count={locations.Count}");
+                var result = DistributedPinResult.EnoughReplicas(locations.Count);
 
                 // Triggering an async copy if the number of replicas are close to a PinMinUnverifiedCount threshold.
                 int threshold = Settings.PinConfiguration.PinMinUnverifiedCount +
@@ -1079,6 +1078,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     {
                         task.FireAndForget(operationContext.TracingContext, operation: "AsynchronousCopyOnPin");
                     }
+
+                    // Note: Pin result traces with CpA (copied asynchronously) code is to provide the information that the content is being copied asynchronously, and that replica count is enough but not above async copy threshold.
+                    // This trace result does not represent that of the async copy since that is done FireAndForget.
+                    result = DistributedPinResult.AsynchronousCopy(locations.Count);
                 }
 
                 return result;
@@ -1089,7 +1092,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Don't copy content locally based on locally cached result. So stop here and return content not found.
                 // This method will be called again with global locations at which time we will attempt to copy the files locally.
                 // When allowing global locations to succeed a put, report success.
-                return PinResult.ContentNotFound;
+                return DistributedPinResult.ContentNotFound(locations.Count);
             }
 
             // Previous checks were not sufficient, so copy the file locally.
@@ -1098,7 +1101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (!updateContentTracker)
                 {
-                    return DistributedPinResult.SuccessByLocalCopy();
+                    return DistributedPinResult.SynchronousCopy(locations.Count);
                 }
 
                 // Inform the content directory that we have the file.
@@ -1106,20 +1109,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
-                    return DistributedPinResult.SuccessByLocalCopy();
+                    return DistributedPinResult.SynchronousCopy(locations.Count);
                 }
                 else
                 {
                     // Tracing the error separately.
                     Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
-                    return new PinResult(updated);
+                    return new DistributedPinResult(locations.Count, updated);
                 }
             }
             else
             {
                 // Tracing the error separately.
                 Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
-                return PinResult.ContentNotFound;
+                return DistributedPinResult.ContentNotFound(locations.Count);
             }
         }
 

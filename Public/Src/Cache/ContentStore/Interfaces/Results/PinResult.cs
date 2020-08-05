@@ -160,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 case ResultCode.Success:
                     return GetSuccessString();
                 default:
-                    return $"{Code}";
+                    return (string.IsNullOrEmpty(GetErrorString()) ? $"{Code}" : GetErrorString());
             }
         }
     }

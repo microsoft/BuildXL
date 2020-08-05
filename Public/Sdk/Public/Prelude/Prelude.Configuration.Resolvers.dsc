@@ -569,14 +569,16 @@ interface UntrackingSettings {
     untrackedFiles?: File[];
 
     /**
-     * Individual directories to flag as untracked
+     * Individual directories to flag as untracked.
+     * A relative path is interpreted as relative to the corresponding project root
      */
-    untrackedDirectories?: Directory[];
+    untrackedDirectories?: (Directory | RelativePath)[];
 
     /**
-     * Cones (directories and its recursive content) to flag as untracked
+     * Cones (directories and its recursive content) to flag as untracked.
+     * A relative path is interpreted as relative to the corresponding project root
      */
-    untrackedDirectoryScopes?: Directory[];
+    untrackedDirectoryScopes?: (Directory | RelativePath)[];
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

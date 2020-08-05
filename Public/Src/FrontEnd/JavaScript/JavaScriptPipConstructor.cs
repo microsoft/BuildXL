@@ -344,7 +344,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 processBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
             }
 
-            PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);
+            PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, project.ProjectFolder, processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);
             processBuilder.SetStandardOutputFile(logDirectory.Combine(m_context.PathTable, "build.log"));

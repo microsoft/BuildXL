@@ -292,7 +292,7 @@ namespace BuildXL.FrontEnd.Ninja
             processBuilder.WorkingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(m_specPath.GetParent(m_context.PathTable));
 
             // Untrack directories
-            UntrackFilesAndDirectories(processBuilder);
+            UntrackFilesAndDirectories(processBuilder.WorkingDirectory, processBuilder);
 
             // Allow some surviving child process
             AddRequiredSurvivingChildren(processBuilder);
@@ -303,7 +303,7 @@ namespace BuildXL.FrontEnd.Ninja
             return true;
         }
 
-        private void UntrackFilesAndDirectories(ProcessBuilder processBuilder)
+        private void UntrackFilesAndDirectories(AbsolutePath projectRoot, ProcessBuilder processBuilder)
         {
             processBuilder.AddCurrentHostOSDirectories();
             processBuilder.AddUntrackedProgramDataDirectories();
@@ -311,7 +311,7 @@ namespace BuildXL.FrontEnd.Ninja
 
             if (m_untrackingSettings != null)
             {
-                PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_untrackingSettings);
+                PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, processBuilder, m_untrackingSettings);
             }
 
             var programFilesDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));

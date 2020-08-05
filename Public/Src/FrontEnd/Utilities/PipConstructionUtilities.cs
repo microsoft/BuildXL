@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.FrontEnd.Utilities
@@ -70,13 +71,14 @@ namespace BuildXL.FrontEnd.Utilities
         /// Some FrontEnds allow configurable untracking of files, directories and directory scopes
         /// This method applies that configuration to the process builder
         /// </summary>
-        public static void UntrackUserConfigurableArtifacts(ProcessBuilder processBuilder, IUntrackingSettings settings)
+        public static void UntrackUserConfigurableArtifacts(PathTable pathTable, AbsolutePath projectRoot, ProcessBuilder processBuilder, IUntrackingSettings settings)
         {
             Contract.Assert(settings != null);
             if (settings.UntrackedDirectoryScopes != null)
             {
-                foreach (var untrackedDirectoryScope in settings.UntrackedDirectoryScopes)
+                foreach (var untrackedDirectoryScopeUnion in settings.UntrackedDirectoryScopes)
                 {
+                    DirectoryArtifact untrackedDirectoryScope = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryScopeUnion, projectRoot);
                     if (!untrackedDirectoryScope.IsValid)
                     {
                         continue;
@@ -87,8 +89,10 @@ namespace BuildXL.FrontEnd.Utilities
 
             if (settings.UntrackedDirectories != null)
             {
-                foreach (var untrackedDirectory in settings.UntrackedDirectories)
+                foreach (var untrackedDirectoryUnion in settings.UntrackedDirectories)
                 {
+                    DirectoryArtifact untrackedDirectory = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryUnion, projectRoot);
+
                     if (!untrackedDirectory.IsValid)
                     {
                         continue;
@@ -108,6 +112,24 @@ namespace BuildXL.FrontEnd.Utilities
                     processBuilder.AddUntrackedFile(untrackedFile);
                 }
             }
+        }
+
+        private static DirectoryArtifact ResolveAbsoluteOrRelativeDirectory(PathTable pathTable, DiscriminatingUnion<DirectoryArtifact, RelativePath> absoluteOrRelativeUnion, AbsolutePath root)
+        {
+            var absoluteOrRelative = absoluteOrRelativeUnion.GetValue();
+            if (absoluteOrRelative is DirectoryArtifact directory)
+            {
+                return directory;
+            }
+
+            var relative = (RelativePath) absoluteOrRelative;
+
+            if (!relative.IsValid)
+            {
+                return DirectoryArtifact.Invalid;
+            }
+
+            return DirectoryArtifact.CreateWithZeroPartialSealId(root.Combine(pathTable, relative));
         }
 
         /// <nodoc />

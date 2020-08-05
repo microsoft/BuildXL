@@ -9,13 +9,13 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
     public struct UntrackingSettings : IUntrackingSettings 
     {
         /// <inheritdoc />
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectoryScopes { get; set; }
-        
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; set; }
+
         /// <inheritdoc />
 
         public IReadOnlyList<FileArtifact> UntrackedFiles { get; set; }
-       
+
         /// <inheritdoc />
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectories { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
     }
 }

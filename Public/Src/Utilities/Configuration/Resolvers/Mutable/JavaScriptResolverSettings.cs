@@ -45,13 +45,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string ModuleName { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectoryScopes { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<FileArtifact> UntrackedFiles { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectories { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; set; }

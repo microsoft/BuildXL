@@ -10,6 +10,7 @@ using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script.Util;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -120,14 +121,20 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             XAssert.Equals("input3.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
-        [Fact]
-        public void PredictedInputsUnderUntrackedDirectoriesAreSkipped()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void PredictedInputsUnderUntrackedDirectoriesAreSkipped(bool pathRelativeToProject)
         {
             var project = CreateProjectWithPredictions(inputs: CreatePath(@"untracked\input.txt", "input2.txt"));
 
             var processInputs = Start(new MsBuildResolverSettings
                 {
-                    UntrackedDirectories = CreatePath("untracked").Select(path => DirectoryArtifact.CreateWithZeroPartialSealId(path)).ToList()
+                    UntrackedDirectories = CreatePath("untracked").Select(path =>
+                        pathRelativeToProject ? 
+                            new DiscriminatingUnion<DirectoryArtifact, RelativePath>(RelativePath.Create(StringTable, @"untracked\input.txt")) :
+                            new DiscriminatingUnion<DirectoryArtifact, RelativePath>(DirectoryArtifact.CreateWithZeroPartialSealId(path)))
+                    .ToList()
                 })
                 .Add(project)
                 .ScheduleAll()

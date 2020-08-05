@@ -70,13 +70,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DirectoryArtifact> AdditionalOutputDirectories { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectoryScopes { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<FileArtifact> UntrackedFiles { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> UntrackedDirectories { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
 
         /// <inheritdoc/>
         public bool RunInContainer { get; set; }

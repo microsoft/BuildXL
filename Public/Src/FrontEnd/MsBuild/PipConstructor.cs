@@ -516,7 +516,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // By default the double write policy is to allow same content double writes.
             processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
 
-            SetUntrackedFilesAndDirectories(processBuilder);
+            SetUntrackedFilesAndDirectories(processBuilder.WorkingDirectory, processBuilder);
 
             // Add the log directory and its corresponding files
             AbsolutePath logDirectory = GetLogDirectory(project, deltaGlobalProperties);
@@ -747,7 +747,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
         }
 
-        private void SetUntrackedFilesAndDirectories(ProcessBuilder processBuilder)
+        private void SetUntrackedFilesAndDirectories(AbsolutePath projectRoot, ProcessBuilder processBuilder)
         {
             // On some machines, the current user and public user desktop.ini are read by Powershell.exe.
             // Ignore accesses to the user profile and Public common user profile.
@@ -758,7 +758,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
-            PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);
+            PipConstructionUtilities.UntrackUserConfigurableArtifacts(PathTable, projectRoot, processBuilder, m_resolverSettings);
 
             // Git accesses should be ignored if .git directory is there
             var gitDirectory = Root.Combine(PathTable, ".git");

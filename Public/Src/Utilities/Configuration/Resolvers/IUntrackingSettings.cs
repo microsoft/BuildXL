@@ -8,12 +8,15 @@ namespace BuildXL.Utilities.Configuration.Resolvers
     /// <summary>
     /// Settings for resolvers which allow configurable untracking
     /// </summary>
+    /// <remarks>
+    /// Relative paths are interpreted relative to the corresponding project root
+    /// </remarks>
     public interface IUntrackingSettings
     {
         /// <summary>
         /// Cones to flag as untracked
         /// </summary>
-        IReadOnlyList<DirectoryArtifact> UntrackedDirectoryScopes { get; }
+        IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; }
 
         /// <summary>
         /// Files to  flag as untracked
@@ -23,6 +26,6 @@ namespace BuildXL.Utilities.Configuration.Resolvers
         /// <summary>
         /// Directories to flag as untracked
         /// </summary>
-        IReadOnlyList<DirectoryArtifact> UntrackedDirectories { get; }
+        IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; }
     }
 }

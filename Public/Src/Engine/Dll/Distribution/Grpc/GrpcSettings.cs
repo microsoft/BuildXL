@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Maximum time to wait for the master to connect to a worker.
         /// </summary>
         /// <remarks>
-        /// Default: 60 minutes
+        /// Default: 75 minutes
         /// </remarks>
         public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
 

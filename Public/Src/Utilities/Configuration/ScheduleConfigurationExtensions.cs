@@ -23,5 +23,13 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to 500
         /// </remarks>
         public static int MinimumTotalAvailableRamMb(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.MinimumTotalAvailableRamMb ?? 500;
+
+        /// <summary>
+        /// <see cref="IScheduleConfiguration.ManageMemoryMode"/>
+        /// </summary>
+        /// <remarks>
+        /// Defaults to <see cref="ManageMemoryMode.CancellationRam"/>
+        /// </remarks>
+        public static ManageMemoryMode GetManageMemoryMode(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.ManageMemoryMode ?? ManageMemoryMode.CancellationRam;
     }
 }

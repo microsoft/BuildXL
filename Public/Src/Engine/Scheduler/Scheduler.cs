@@ -2597,7 +2597,7 @@ namespace BuildXL.Scheduler
             resourceManager.LastRequiredSizeMb = 0;
             resourceManager.LastManageMemoryMode = null;
 
-            var defaultManageMemoryMode = m_scheduleConfiguration.ManageMemoryMode;
+            var defaultManageMemoryMode = m_scheduleConfiguration.GetManageMemoryMode();
 
             if (isCommitCriticalLevel)
             {

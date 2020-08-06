@@ -77,7 +77,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             EnableSetupCostWhenChoosingWorker = true;
             EnableLessAggresiveMemoryProjection = false;
-            ManageMemoryMode = ManageMemoryMode.CancellationRam;
             MaxRetriesDueToRetryableFailures = 5;
         }
 
@@ -376,7 +375,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool EnableEmptyingWorkingSet { get; set; }
 
         /// <inheritdoc />
-        public ManageMemoryMode ManageMemoryMode { get; set; }
+        public ManageMemoryMode? ManageMemoryMode { get; set; }
 
         /// <inheritdoc />
         public bool? DisableCompositeOpaqueFilters { get; set; }

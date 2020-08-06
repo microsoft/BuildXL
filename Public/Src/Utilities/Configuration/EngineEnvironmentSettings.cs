@@ -155,7 +155,7 @@ namespace BuildXL.Utilities.Configuration
         /// Allows optionally specifying an alternative timeout for workers to wait for attach from master
         /// </summary>
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(60));
+            TimeSpan.FromMinutes(75));
 
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both master->worker and worker->master)

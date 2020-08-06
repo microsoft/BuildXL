@@ -1157,6 +1157,12 @@ namespace BuildXL.Engine
                     mutableConfig.Schedule.DelayedCacheLookupMaxMultiplier = 2;
                     mutableConfig.Schedule.DelayedCacheLookupMinMultiplier = 1;
                 }
+
+                if (mutableConfig.Schedule.ManageMemoryMode == null)
+                {
+                    // If ManageMemoryMode is unset for CB builds, we use EmptyWorkingSet option due to the large page file size in CB machines.
+                    mutableConfig.Schedule.ManageMemoryMode = ManageMemoryMode.EmptyWorkingSet;
+                }
             }
             else
             {

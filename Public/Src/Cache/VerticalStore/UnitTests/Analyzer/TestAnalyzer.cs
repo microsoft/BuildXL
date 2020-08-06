@@ -84,7 +84,7 @@ namespace BuildXL.Cache.Tests
             {
                 using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
                 {
-                    pathSet.Serialize(pathTable, writer, preservePathCasing: false);
+                    pathSet.Serialize(pathTable, writer, preserveCasing: false);
                 }
 
                 pathSetBuffer.Seek(0, SeekOrigin.Begin);

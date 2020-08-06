@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Scheduler.Fingerprints;
@@ -26,6 +27,16 @@ namespace Test.BuildXL.Scheduler
                 foundDuplicate |= cmp == 0;
             }
 
+            for (int i = 1; i < pathSet.ObservedAccessedFileNames.Length; i++)
+            {
+                int cmp = pathSet.ObservedAccessedFileNames.Comparer.Compare(pathSet.ObservedAccessedFileNames[i], pathSet.ObservedAccessedFileNames[i - 1]);
+                XAssert.IsTrue(
+                    cmp >= 0,
+                    "Observed accessed file names must contain unique items in a sorted order");
+
+                foundDuplicate |= cmp == 0;
+            }
+
             XAssert.IsTrue(foundDuplicate, "Expected at least one duplicate");
         }
 
@@ -37,37 +48,72 @@ namespace Test.BuildXL.Scheduler
                     pathSet.Paths.Comparer.Compare(pathSet.Paths[i], pathSet.Paths[i - 1]) > 0,
                     "Path set must contain unique items in a sorted order");
             }
+
+            for (int i = 1; i < pathSet.ObservedAccessedFileNames.Length; i++)
+            {
+                XAssert.IsTrue(
+                    pathSet.ObservedAccessedFileNames.Comparer.Compare(pathSet.ObservedAccessedFileNames[i], pathSet.ObservedAccessedFileNames[i - 1]) > 0,
+                    "Observed accessed file names must contain unique items in a sorted order");
+            }
         }
 
         public static void AssertPathSetsEquivalent(ObservedPathSet a, ObservedPathSet b)
         {
-            List<AbsolutePath> aList = RemoveDuplicates(a);
-            List<AbsolutePath> bList = RemoveDuplicates(b);
+            List<AbsolutePath> aPaths = RemoveDuplicates(a.Paths);
+            List<AbsolutePath> bPaths = RemoveDuplicates(b.Paths);
 
-            XAssert.AreEqual(aList.Count, bList.Count);
-            for (int i = 0; i < aList.Count; i++)
+            XAssert.AreEqual(aPaths.Count, bPaths.Count);
+            for (int i = 0; i < aPaths.Count; i++)
             {
-                XAssert.AreEqual(aList[i], bList[i]);
+                XAssert.AreEqual(aPaths[i], bPaths[i]);
+            }
+
+            List<StringId> aFileNames = RemoveDuplicates(a.ObservedAccessedFileNames);
+            List<StringId> bFileNames = RemoveDuplicates(b.ObservedAccessedFileNames);
+
+            XAssert.AreEqual(aFileNames.Count, bFileNames.Count);
+            for (int i = 0; i < aFileNames.Count; i++)
+            {
+                XAssert.IsTrue(a.ObservedAccessedFileNames.Comparer.Compare(aFileNames[i], bFileNames[i]) == 0);
             }
         }
 
-        public static List<AbsolutePath> RemoveDuplicates(ObservedPathSet pathSet)
+        public static List<AbsolutePath> RemoveDuplicates(SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer> paths)
+            => RemoveDuplicates(
+                paths,
+                comparer: (a, b) => a.Path == b.Path,
+                selector: v => v.Path);
+
+        public static List<StringId> RemoveDuplicates(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames)
+            => RemoveDuplicates(
+                observedAccessedFileNames,
+                comparer: (a, b) => !OperatingSystemHelper.IsUnixOS && observedAccessedFileNames.Comparer.Compare(a, b) == 0 || a == b,
+                selector: v => v);
+
+        public static List<TValue2> RemoveDuplicates<TValue, TValue2, TComparer>(
+            SortedReadOnlyArray<TValue, TComparer> values,
+            Func<TValue, TValue, bool> comparer,
+            Func<TValue, TValue2> selector)
+            where TComparer : class, IComparer<TValue>
         {
-            var paths = new List<AbsolutePath>();
-            for (int i = 0; i < pathSet.Paths.Length; i++)
+            var uniqueEntries = new List<TValue2>();
+            for (int i = 0; i < values.Length; i++)
             {
-                while (i + 1 < pathSet.Paths.Length && pathSet.Paths[i + 1].Path == pathSet.Paths[i].Path)
+                while (i + 1 < values.Length && comparer(values[i + 1], values[i]))
                 {
                     i++;
                 }
 
-                paths.Add(pathSet.Paths[i].Path);
+                uniqueEntries.Add(selector(values[i]));
             }
 
-            return paths;
+            return uniqueEntries;
         }
 
         public static ObservedPathSet CreatePathSet(PathTable pathTable, params string[] paths)
+            => CreatePathSet(pathTable, Array.Empty<string>(), paths);
+
+        public static ObservedPathSet CreatePathSet(PathTable pathTable, string[] observedAccessedFileNames, params string[] paths)
         {
             AbsolutePath[] pathIds = new AbsolutePath[paths.Length];
             for (int i = 0; i < paths.Length; i++)
@@ -75,15 +121,19 @@ namespace Test.BuildXL.Scheduler
                 pathIds[i] = AbsolutePath.Create(pathTable, paths[i]);
             }
 
-            SortedReadOnlyArray<AbsolutePath, PathTable.ExpandedAbsolutePathComparer> sortedPathIds =
-                SortedReadOnlyArray<AbsolutePath, PathTable.ExpandedAbsolutePathComparer>.SortUnsafe(
-                    pathIds,
-                    pathTable.ExpandedPathComparer);
+            StringId[] stringIds = new StringId[observedAccessedFileNames.Length];
+            for (int i = 0; i < stringIds.Length; i++)
+            {
+                stringIds[i] = StringId.Create(pathTable.StringTable, observedAccessedFileNames[i]);
+            }
 
-            return CreatePathSet(pathTable, pathIds);
+            return CreatePathSet(pathTable, stringIds, pathIds);
         }
 
         public static ObservedPathSet CreatePathSet(PathTable pathTable, params AbsolutePath[] paths)
+             => CreatePathSet(pathTable, Array.Empty<StringId>(), paths);
+
+        public static ObservedPathSet CreatePathSet(PathTable pathTable, StringId[] observedNames, AbsolutePath[] paths)
         {
             ObservedPathEntry[] entries = paths.Select(p => new ObservedPathEntry(p, false, false, false, null, false)).ToArray();
 
@@ -92,13 +142,14 @@ namespace Test.BuildXL.Scheduler
                     entries,
                     new ObservedPathEntryExpandedPathComparer(pathTable.ExpandedPathComparer));
 
-            var emptyObservedAccessFileNames = SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.FromSortedArrayUnsafe(
-                ReadOnlyArray<StringId>.Empty,
-                new CaseInsensitiveStringIdComparer(pathTable.StringTable));
+            SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessFileNames =
+                SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.SortUnsafe(
+                    observedNames,
+                    new CaseInsensitiveStringIdComparer(pathTable.StringTable));
 
             return new ObservedPathSet(
-                sortedPathIds, 
-                emptyObservedAccessFileNames, 
+                sortedPathIds,
+                observedAccessFileNames,
                 new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), 0)));
         }
     }

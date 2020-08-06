@@ -58,6 +58,37 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void RoundTripSerializationRemovesDuplicatesInObservedAccessedFileNames()
+        {                       
+            var pathTable = new PathTable();
+            var pathSet = ObservedPathSetTestUtilities.CreatePathSet(
+                pathTable,
+                observedAccessedFileNames: new string[] { "d", "d", "f" },
+                X("/X/a/b/c"));
+
+            var roundtrip = SerializeRoundTripAndAssertEquivalent(pathTable, pathSet);
+
+            ObservedPathSetTestUtilities.AssertPathSetContainsDuplicates(pathSet);
+            ObservedPathSetTestUtilities.AssertPathSetDoesNotContainDuplicates(roundtrip);
+        }
+
+        [Fact]
+        [Trait("Category", "WindowsOSOnly")] // Paths are case-sensitive on Linux-based systems.
+        public void RoundTripSerializationNormalizesCasingAndRemovesDuplicatesInObservedAccessedFileNames()
+        {
+            var pathTable = new PathTable();
+            var pathSet = ObservedPathSetTestUtilities.CreatePathSet(
+                pathTable,
+                observedAccessedFileNames: new string[] { "d", "D", "f" },
+                X("/X/a/b/c"));
+
+            var roundtrip = SerializeRoundTripAndAssertEquivalent(pathTable, pathSet);
+
+            ObservedPathSetTestUtilities.AssertPathSetContainsDuplicates(pathSet);
+            ObservedPathSetTestUtilities.AssertPathSetDoesNotContainDuplicates(roundtrip);
+        }
+
+        [Fact]
         public void RoundTripSerializationEmpty()
         {
             var pathTable = new PathTable();
@@ -221,9 +252,9 @@ namespace Test.BuildXL.Scheduler
 
         private static void AssertCompressedSizeExpected(PathTable pathTable, ObservedPathSet pathSet, params string[] uncompressedStrings)
         {
-            long compressedSize = GetSizeOfSerializedContent(writer => pathSet.Serialize(pathTable, writer, preservePathCasing: false));
+            long compressedSize = GetSizeOfSerializedContent(writer => pathSet.Serialize(pathTable, writer, preserveCasing: false));
 
-            int numberOfUniquePaths = ObservedPathSetTestUtilities.RemoveDuplicates(pathSet).Count;
+            int numberOfUniquePaths = ObservedPathSetTestUtilities.RemoveDuplicates(pathSet.Paths).Count;
 
             // This is correct assuming the following:
             // - Each string can be represented with a one byte length prefix, and a one byte reuse-count.
@@ -258,7 +289,7 @@ namespace Test.BuildXL.Scheduler
             {
                 using (var writer = new BuildXLWriter(stream: mem, debug: true, leaveOpen: true, logStats: true))
                 {
-                    original.Serialize(pathTable, writer, preservePathCasing: false, pathExpander);
+                    original.Serialize(pathTable, writer, preserveCasing: false, pathExpander);
                 }
 
                 mem.Position = 0;

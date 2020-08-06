@@ -56,9 +56,9 @@ namespace BuildXL.Utilities
         public int Compare(StringId x, StringId y)
         {
             return
-                !x.IsValid && !y.IsValid ? 0 : // both invalid               ==> equal
+                x == y ? 0 : //                                              ==> equal
                 !x.IsValid && y.IsValid ? 2 : // first invalid second valid  ==> pick an order
-                x.IsValid && !y.IsValid ? -2 : // first valid second invalid ==> pick the oposite order
+                x.IsValid && !y.IsValid ? -2 : // first valid second invalid ==> pick the opposite order
                 m_stringTable.CompareCaseInsensitive(x, y); // both valid    ==> delegate
         }
     }

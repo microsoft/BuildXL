@@ -128,11 +128,16 @@ namespace BuildXL.Scheduler.Fingerprints
         public void Serialize(
             PathTable pathTable,
             BuildXLWriter writer,
-            bool preservePathCasing,
+            bool preserveCasing,
             PathExpander pathExpander = null,
             Action<BuildXLWriter, AbsolutePath> pathWriter = null,
             Action<BuildXLWriter, StringId> stringWriter = null)
         {
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                preserveCasing = true;
+            }
+
             // We allow duplicates on construction (and deserialization), but attempt to remove them here.
             // This isn't required for correctness, but may result in storing fewer PathSets.
             int countWithoutDuplicates = Paths.Length == 0 ? 0 : 1;
@@ -168,8 +173,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 else
                 {
                     // Try to tokenize the path if the pathExpander is given.
-                    string expanded =  pathExpander?.ExpandPath(pathTable, entry.Path) ?? entry.Path.ToString(pathTable);
-                    if (!OperatingSystemHelper.IsUnixOS && !preservePathCasing)
+                    string expanded = pathExpander?.ExpandPath(pathTable, entry.Path) ?? entry.Path.ToString(pathTable);
+                    if (!preserveCasing)
                     {
                         expanded = expanded.ToUpperInvariant();
                     }
@@ -200,7 +205,7 @@ namespace BuildXL.Scheduler.Fingerprints
             int fileNameCountWithoutDuplicates = ObservedAccessedFileNames.Length == 0 ? 0 : 1;
             for (int i = 1; i < ObservedAccessedFileNames.Length; i++)
             {
-                if (ObservedAccessedFileNames[i - 1] != ObservedAccessedFileNames[i])
+                if (!compareFileNames(ObservedAccessedFileNames[i - 1], ObservedAccessedFileNames[i], preserveCasing, ObservedAccessedFileNames.Comparer))
                 {
                     fileNameCountWithoutDuplicates++;
                 }
@@ -210,7 +215,7 @@ namespace BuildXL.Scheduler.Fingerprints
             StringId lastFileName = StringId.Invalid;
             foreach (var entry in ObservedAccessedFileNames)
             {
-                if (lastFileName == entry)
+                if (compareFileNames(lastFileName, entry, preserveCasing, ObservedAccessedFileNames.Comparer))
                 {
                     continue;
                 }
@@ -221,12 +226,25 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
                 else
                 {
-                    writer.Write(entry.ToString(pathTable.StringTable));
+                    var expandedFileName = entry.ToString(pathTable.StringTable);
+                    if (!preserveCasing)
+                    {
+                        expandedFileName = expandedFileName.ToUpperInvariant();
+                    }
+
+                    writer.Write(expandedFileName);
                 }
+
+                lastFileName = entry;
             }
 
             // Serializing UnsafeOptions
             UnsafeOptions.Serialize(writer);
+
+            bool compareFileNames(StringId a, StringId b, bool preserveCasing, CaseInsensitiveStringIdComparer caseInsensitiveComparer)
+            {
+                return !preserveCasing ? caseInsensitiveComparer.Compare(a, b) == 0 : a == b;
+            }
         }
 
         /// <nodoc />

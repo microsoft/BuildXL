@@ -8,9 +8,10 @@ import * as Deployment from "Sdk.Deployment";
 const qTestToolsStaticDirectory = (() => {
     const qTestStaticDirectory = importFrom("CB.QTest").Contents.all;
     const qTestToolsDirectory = d`${qTestStaticDirectory.root}/tools`;
-    const v150DirectoryPath = p`${qTestToolsDirectory}/V150`;    
+    const v150DirectoryPath = p`${qTestToolsDirectory}/V150`;
+    const corruptCoverageFileFixerPath = p`${qTestToolsDirectory}/CorruptCoverageFileFixer`;
     const toolsFiles = qTestStaticDirectory.contents.filter(
-        f => f.parent === qTestToolsDirectory.path || f.isWithin(v150DirectoryPath)
+        f => f.parent === qTestToolsDirectory.path || f.isWithin(v150DirectoryPath) || f.isWithin(corruptCoverageFileFixerPath)
     );
     return Transformer.sealPartialDirectory(qTestToolsDirectory, toolsFiles);
 }

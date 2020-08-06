@@ -6,7 +6,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     ///     NTFS Deduplication chunk hash: Hash info for SHA512 truncated to the first 256 bits
     /// </summary>
-    public class DedupChunkHashInfo : HashInfo
+    public class DedupSingleChunkHashInfo : HashInfo
     {
         /// <summary>
         ///     Number of bytes in hash value.
@@ -14,17 +14,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public const int Length = 32;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="DedupChunkHashInfo" /> class.
+        ///     Initializes a new instance of the <see cref="DedupSingleChunkHashInfo" /> class.
         /// </summary>
-        private DedupChunkHashInfo()
-            : base(HashType.DedupChunk, Length)
+        private DedupSingleChunkHashInfo()
+            : base(HashType.DedupSingleChunk, Length)
         {
         }
 
         /// <summary>
         ///     A convenient ready-made instance.
         /// </summary>
-        public static readonly DedupChunkHashInfo Instance = new DedupChunkHashInfo();
+        public static readonly DedupSingleChunkHashInfo Instance = new DedupSingleChunkHashInfo();
 
         /// <inheritdoc />
         public override IContentHasher CreateContentHasher()

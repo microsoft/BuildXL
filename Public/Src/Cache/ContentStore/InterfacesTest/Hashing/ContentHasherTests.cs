@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
             if (algorithmType == typeof(DedupChunkHashAlgorithm))
             {
-                return DedupChunkHashInfo.Instance;
+                return DedupSingleChunkHashInfo.Instance;
             }
 
             if (algorithmType == typeof(DedupNodeHashAlgorithm))

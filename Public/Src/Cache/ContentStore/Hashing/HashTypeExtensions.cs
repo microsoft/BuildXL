@@ -20,11 +20,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {"SHA1", HashType.SHA1},
                 {"SHA256", HashType.SHA256},
                 {"VSO0", HashType.Vso0},
-                {"DEDUPCHUNK", HashType.DedupChunk},
+                {"DEDUPCHUNK", HashType.DedupSingleChunk},
                 {"DEDUPNODE", HashType.DedupNode},
-                {"DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk},
-                {"DEDUPNODEORCHUNK1024K", HashType.Dedup1024K},
-                {"MURMUR", HashType.Murmur },
+                {"DEDUPNODEORCHUNK", HashType.Dedup64K}, // Leaving the DEDUPNODEORCHUNK moniker here for back-compat.
+                {"DEDUP1024K", HashType.Dedup1024K},
+                {"MURMUR", HashType.Murmur},
             };
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
@@ -75,14 +75,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
             switch (hashType)
             {
                 case HashType.Dedup1024K:
-                case HashType.DedupNodeOrChunk:
+                case HashType.Dedup64K:
                     return true;
                 case HashType.Unknown:
                 case HashType.SHA1:
                 case HashType.SHA256:
                 case HashType.MD5:
                 case HashType.Vso0:
-                case HashType.DedupChunk:
+                case HashType.DedupSingleChunk:
                 case HashType.DedupNode: // TODO: Chunk size optimization - remove this one entirely.
                 case HashType.Murmur:
                 case HashType.DeprecatedVso0:

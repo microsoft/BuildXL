@@ -132,7 +132,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         /// <summary>
         ///     Gets a value indicating the hash type preferred by the subclass.
         /// </summary>
-        protected virtual HashType PreferredHashType => ChunkDedupEnabled ? HashType.DedupNodeOrChunk : HashType.Vso0;
+        protected virtual HashType PreferredHashType => ChunkDedupEnabled ? HashType.Dedup64K : HashType.Vso0;
 
         /// <summary>
         ///     Gets a value indicating whether or not the subclass implements EnumerateStrongFingerprints.

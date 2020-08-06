@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void PublicConstructor()
         {
-            using (var hasher = new ContentHasher<DedupChunkHashAlgorithm>(DedupChunkHashInfo.Instance))
+            using (var hasher = new ContentHasher<DedupChunkHashAlgorithm>(DedupSingleChunkHashInfo.Instance))
             {
                 Assert.NotNull(hasher);
             }

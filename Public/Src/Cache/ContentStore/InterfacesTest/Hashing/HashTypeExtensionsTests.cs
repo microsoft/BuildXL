@@ -17,7 +17,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData("SHA256", HashType.SHA256)]
         [InlineData("VSO0", HashType.Vso0)]
         [InlineData("VSo0", HashType.Vso0)]
-        [InlineData("DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk)]
+        [InlineData("DEDUPNODEORCHUNK", HashType.Dedup64K)]
+        [InlineData("DEDUP1024K", HashType.Dedup1024K)]
         public void Serialize(string value, HashType hashType)
         {
             Assert.True(hashType.Serialize().Equals(value, StringComparison.OrdinalIgnoreCase));
@@ -29,7 +30,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData("SHA256", HashType.SHA256)]
         [InlineData("VSO0", HashType.Vso0)]
         [InlineData("VSo0", HashType.Vso0)]
-        [InlineData("DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk)]
+        [InlineData("DEDUPNODEORCHUNK", HashType.Dedup64K)]
+        [InlineData("DEDUP1024K", HashType.Dedup1024K)]
         public void DeserializeSucceeds(string value, HashType expectedHashType)
         {
             HashType hashType;

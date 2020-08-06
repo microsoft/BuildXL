@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>Limited to put a cap on the amount of work the server must do for a single request.</remarks>
         public const int MaxDirectChildrenPerNode = 512;
 
-        private static readonly IContentHasher NodeHasher = DedupChunkHashInfo.Instance.CreateContentHasher();
+        private static readonly IContentHasher NodeHasher = DedupSingleChunkHashInfo.Instance.CreateContentHasher();
 
         /// <summary>
         /// The type of this node.

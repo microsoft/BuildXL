@@ -138,11 +138,11 @@ namespace Tool.DropDaemon
             switch (contentHash.HashType)
             {
                 case BuildXL.Cache.ContentStore.Hashing.HashType.Vso0:
-                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNodeOrChunk:
-                case BuildXL.Cache.ContentStore.Hashing.HashType.Murmur:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.Dedup64K:
                 case BuildXL.Cache.ContentStore.Hashing.HashType.Dedup1024K:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.Murmur:
                     return new BlobIdentifier(contentHash.ToHashByteArray());
-                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupChunk:
+                case BuildXL.Cache.ContentStore.Hashing.HashType.DedupSingleChunk:
                     return new ChunkDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
                 case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNode:
                     return new NodeDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();

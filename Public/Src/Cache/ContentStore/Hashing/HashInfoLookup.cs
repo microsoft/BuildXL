@@ -18,9 +18,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.SHA256, SHA256HashInfo.Instance},
                 {HashType.MD5, MD5HashInfo.Instance},
                 {HashType.Vso0, VsoHashInfo.Instance},
-                {HashType.DedupChunk, DedupChunkHashInfo.Instance},
+                {HashType.DedupSingleChunk, DedupSingleChunkHashInfo.Instance},
                 {HashType.DedupNode, DedupNodeHashInfo.Instance},
-                {HashType.DedupNodeOrChunk, DedupNodeOrChunkHashInfo.Instance},
+                {HashType.Dedup64K, DedupNode64KHashInfo.Instance},
                 {HashType.Dedup1024K, DedupNodeOrChunk1024KHashInfo.Instance},
                 {HashType.DeprecatedVso0, VsoHashInfo.Instance},
                 {HashType.Murmur, MurmurHashInfo.Instance }

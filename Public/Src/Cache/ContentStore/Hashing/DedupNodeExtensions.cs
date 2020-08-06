@@ -15,11 +15,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
             byte[] hash;
             switch (hashType)
             {
-                case HashType.DedupChunk:
+                case HashType.DedupSingleChunk:
                 case HashType.DedupNode:
                     hash = node.Hash;
                     break;
-                case HashType.DedupNodeOrChunk:
+                case HashType.Dedup64K:
                 case HashType.Dedup1024K:
                     hash = node.GetDedupIdentifier(hashType).ToBlobIdentifier().Bytes;
                     break;

@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private DedupNode? _lastNode;
 
         /// <inheritdoc />
-        public override int HashSize => 8 * DedupNodeOrChunkHashInfo.Length;
+        public override int HashSize => 8 * DedupNode64KHashInfo.Length;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DedupNodeOrChunkHashAlgorithm"/> class.
@@ -122,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             if (SingleChunkHotPath)
             {
-                Contract.Assert(_chunks.Count == 0);
+                Contract.Assert(_chunks.Count == 0, $"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
                 Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
                 Contract.Assert(_session == null);
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 if (_chunks.Count == 0)
                 {
-                    return new DedupNode(new ChunkInfo(0, 0, DedupChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
+                    return new DedupNode(new ChunkInfo(0, 0, DedupSingleChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
                 }
                 else if (_chunks.Count == 1)
                 {

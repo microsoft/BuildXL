@@ -14,7 +14,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripFullBinary(HashType hashType)
         {
             using (var ms = new MemoryStream())
@@ -41,7 +42,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripPartialBinary(HashType hashType)
         {
             using (var ms = new MemoryStream())

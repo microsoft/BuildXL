@@ -211,7 +211,7 @@ namespace ContentStoreTest.Performance.Hashing
     public class DedupChunkHasherPerformanceTests : HasherPerformanceTests, IClassFixture<PerformanceResultsFixture>
     {
         public DedupChunkHasherPerformanceTests(ITestOutputHelper output, PerformanceResultsFixture resultsFixture)
-            : base(output, HashType.DedupChunk, resultsFixture)
+            : base(output, HashType.DedupSingleChunk, resultsFixture)
         {
         }
     }

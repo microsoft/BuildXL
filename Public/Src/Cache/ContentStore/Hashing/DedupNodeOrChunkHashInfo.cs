@@ -6,7 +6,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     /// Dedup Node or Chunk hash info.
     /// </summary>
-    public class DedupNodeOrChunkHashInfo : TaggedHashInfo
+    public class DedupNode64KHashInfo : TaggedHashInfo
     {
         /// <summary>
         ///     Number of bytes in hash value.
@@ -14,10 +14,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public const int Length = 33;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="DedupNodeOrChunkHashInfo" /> class.
+        ///     Initializes a new instance of the <see cref="DedupNode64KHashInfo" /> class.
         /// </summary>
-        private DedupNodeOrChunkHashInfo()
-            : base(HashType.DedupNodeOrChunk, Length)
+        private DedupNode64KHashInfo()
+            : base(HashType.Dedup64K, Length)
         {
         }
 
@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     A convenient ready-made instance.
         /// </summary>
-        public static readonly DedupNodeOrChunkHashInfo Instance = new DedupNodeOrChunkHashInfo();
+        public static readonly DedupNode64KHashInfo Instance = new DedupNode64KHashInfo();
 
         /// <summary>
         /// Deduplication node hash based on the chunk hash.

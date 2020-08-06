@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public override byte[] Hash => TruncateTo256Bits(base.Hash);
 
         /// <inheritdoc />
-        public override int HashSize => 8 * DedupChunkHashInfo.Length;
+        public override int HashSize => 8 * DedupSingleChunkHashInfo.Length;
 
         /// <inheritdoc />
         public override void Initialize()
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static byte[] TruncateTo256Bits(byte[] bytes)
         {
-            return bytes.Take(DedupChunkHashInfo.Length).ToArray();
+            return bytes.Take(DedupSingleChunkHashInfo.Length).ToArray();
         }
     }
 }

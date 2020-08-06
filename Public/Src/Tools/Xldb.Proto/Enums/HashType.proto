@@ -14,7 +14,7 @@ enum HashType{
     SHA256 = 3;
     MD5 = 4;
     Vso0 = 5;
-    DedupChunk = 6;
+    DedupSingleChunk = 6;
     DedupNode = 7;
     DedupNodeOrChunk = 8;
     Murmur = 9;

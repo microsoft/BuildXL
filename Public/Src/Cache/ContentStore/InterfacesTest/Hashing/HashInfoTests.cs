@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(20, SHA1HashInfo.Length);
             Assert.Equal(32, SHA256HashInfo.Length);
             Assert.Equal(33, VsoHashInfo.Length);
-            Assert.Equal(32, DedupChunkHashInfo.Length);
+            Assert.Equal(32, DedupSingleChunkHashInfo.Length);
         }
 
         [Fact]
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(20, SHA1HashInfo.Instance.ByteLength);
             Assert.Equal(32, SHA256HashInfo.Instance.ByteLength);
             Assert.Equal(33, VsoHashInfo.Instance.ByteLength);
-            Assert.Equal(32, DedupChunkHashInfo.Instance.ByteLength);
+            Assert.Equal(32, DedupSingleChunkHashInfo.Instance.ByteLength);
         }
 
         [Fact]
@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 VsoHashInfo.Instance.EmptyHash.Serialize());
             Assert.Equal(
                 "DEDUPCHUNK:CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE",
-                DedupChunkHashInfo.Instance.EmptyHash.Serialize());
+                DedupSingleChunkHashInfo.Instance.EmptyHash.Serialize());
         }
     }
 }

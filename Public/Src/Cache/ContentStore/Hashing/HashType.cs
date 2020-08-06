@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     NTFS Deduplication chunk hash: SHA512 truncated to 256 (32 bytes)
         /// </summary>
-        DedupChunk = 5,
+        DedupSingleChunk = 5,
 
         /// <summary>
         ///     VSTS chunk-level deduplication file node (32 bytes)
@@ -46,9 +46,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         DedupNode = 6,
 
         /// <summary>
-        ///     DedupChunk or DedupNode with respective algorithm ID appended (33 bytes)
+        ///     Dedup with chunk sizes of 64K (default) with respective algorithm ID appended (33 bytes)
         /// </summary>
-        DedupNodeOrChunk = 7,
+        Dedup64K = 7,
 
         /// <summary>
         ///     Murmur3 Well distributed hash

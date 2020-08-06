@@ -399,12 +399,12 @@ namespace BuildXL
                             "enableHistoricCommitMemoryProjection",
                             sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "enableDedup",
+                            "enableDedup", // TODO: Chunk size optimization
                             sign =>
                             {
                                 if (sign)
                                 {
-                                    ContentHashingUtilities.SetDefaultHashType(HashType.DedupNodeOrChunk);// Keep this as default for now.
+                                    ContentHashingUtilities.SetDefaultHashType(HashType.Dedup64K);// Keep this as default for now.
                                     cacheConfiguration.UseDedupStore = true;
                                 }
                             }),

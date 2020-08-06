@@ -21,9 +21,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 case VsoHash.VsoAlgorithmId:
                     return new ContentHash(HashType.Vso0, blobId.Bytes);
                 case ChunkDedupIdentifier.ChunkAlgorithmId:
-                    return new ContentHash(HashType.DedupNodeOrChunk, blobId.Bytes); // TODO: Chunk size optimization
+                    return new ContentHash(HashType.Dedup64K, blobId.Bytes); // TODO: Chunk size optimization
                 case (byte)NodeAlgorithmId.Node64K:
-                    return new ContentHash(HashType.DedupNodeOrChunk, blobId.Bytes);
+                    return new ContentHash(HashType.Dedup64K, blobId.Bytes);
                 case (byte)NodeAlgorithmId.Node1024K:
                     return new ContentHash(HashType.Dedup1024K, blobId.Bytes);
                 case MurmurHashInfo.MurmurAlgorithmId:
@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             switch (contentHash.HashType)
             {
                 case HashType.Vso0:
-                case HashType.DedupNodeOrChunk:
+                case HashType.Dedup64K:
                 case HashType.Dedup1024K:
                 case HashType.Murmur:
                     return BlobIdentifier.Deserialize(contentHash.ToHex());

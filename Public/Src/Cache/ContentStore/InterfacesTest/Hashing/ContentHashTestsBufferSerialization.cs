@@ -14,7 +14,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void Indexer(HashType hashType)
         {
             var length = HashInfoLookup.Find(hashType).ByteLength;
@@ -32,7 +33,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void ToHashBytesArray(HashType hashType)
         {
             var length = HashInfoLookup.Find(hashType).ByteLength;
@@ -47,7 +49,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripFullBuffer(HashType hashType)
         {
             var buffer = new byte[ContentHash.SerializedLength];
@@ -63,7 +66,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripFullBufferPositiveOffset(HashType hashType)
         {
             const int offset = 3;
@@ -80,7 +84,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripPartialBuffer(HashType hashType)
         {
             var buffer = new byte[ContentHash.SerializedLength];
@@ -96,7 +101,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripPartialBufferPositiveOffset(HashType hashType)
         {
             const int offset = 5;
@@ -113,7 +119,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void ToFixedBytes(HashType hashType)
         {
             var length = HashInfoLookup.Find(hashType).ByteLength;

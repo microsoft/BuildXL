@@ -33,7 +33,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1, 20)]
         [InlineData(HashType.SHA256, 32)]
         [InlineData(HashType.Vso0, 33)]
-        [InlineData(HashType.DedupNodeOrChunk, 33)]
+        [InlineData(HashType.Dedup64K, 33)]
+        [InlineData(HashType.Dedup1024K, 33)]
         public void ValidByteLength(HashType hashType, int length)
         {
             var randomHash = ContentHash.Random(hashType);
@@ -46,7 +47,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1, 40)]
         [InlineData(HashType.SHA256, 64)]
         [InlineData(HashType.Vso0, 66)]
-        [InlineData(HashType.DedupNodeOrChunk, 66)]
+        [InlineData(HashType.Dedup64K, 66)]
+        [InlineData(HashType.Dedup1024K, 66)]
         public void ValidStringLength(HashType hashType, int length)
         {
             Assert.Equal(length, ContentHash.Random(hashType).StringLength);
@@ -57,7 +59,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RandomValue(HashType hashType)
         {
             var v = ContentHash.Random(hashType);
@@ -75,7 +78,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void MismatchLengthThrows(HashType hashType)
         {
             var b = Enumerable.Repeat((byte)0, 15).ToArray();
@@ -88,8 +92,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.MD5, HashType.SHA1)]
         [InlineData(HashType.SHA1, HashType.SHA256)]
         [InlineData(HashType.SHA256, HashType.Vso0)]
-        [InlineData(HashType.Vso0, HashType.DedupNodeOrChunk)]
-        [InlineData(HashType.DedupNodeOrChunk, HashType.MD5)]
+        [InlineData(HashType.Vso0, HashType.Dedup64K)]
+        [InlineData(HashType.Vso0, HashType.Dedup1024K)]
+        [InlineData(HashType.Dedup64K, HashType.MD5)]
+        [InlineData(HashType.Dedup1024K, HashType.MD5)]
         public void EqualsOtherHashType(HashType left, HashType right)
         {
             var h1 = new ContentHash(left, Zeros);
@@ -102,7 +108,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualsTrueReferenceType(HashType hashType)
         {
             var hash = ContentHash.Random(hashType);
@@ -114,7 +121,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualsFalseReferenceType(HashType hashType)
         {
             var h1 = ContentHash.Random(hashType);
@@ -127,7 +135,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void GetHashCodeEqual(HashType hashType)
         {
             var h1 = new ContentHash(hashType, Zeros);
@@ -140,7 +149,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void GetHashCodeNotEqual(HashType hashType)
         {
             var h1 = ContentHash.Random(hashType);
@@ -153,7 +163,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void CompareToEqual(HashType hashType)
         {
             var h1 = new ContentHash(hashType, Zeros);
@@ -166,7 +177,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void CompareToLessThan(HashType hashType)
         {
             var h1 = new ContentHash(hashType, B1);
@@ -179,7 +191,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void CompareToGreaterThan(HashType hashType)
         {
             var h1 = new ContentHash(hashType, B1);
@@ -191,8 +204,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.MD5, HashType.SHA1)]
         [InlineData(HashType.SHA1, HashType.SHA256)]
         [InlineData(HashType.SHA256, HashType.Vso0)]
-        [InlineData(HashType.Vso0, HashType.DedupNodeOrChunk)]
-        [InlineData(HashType.DedupNodeOrChunk, HashType.MD5)]
+        [InlineData(HashType.Vso0, HashType.Dedup64K)]
+        [InlineData(HashType.Dedup64K, HashType.MD5)]
+        [InlineData(HashType.Vso0, HashType.Dedup1024K)]
+        [InlineData(HashType.Dedup1024K, HashType.MD5)]
         public void CompareToOtherHashType(HashType left, HashType right)
         {
             var h1 = new ContentHash(left, Zeros);
@@ -205,7 +220,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualityOperatorTrue(HashType hashType)
         {
             var hash1 = new ContentHash(hashType, B1);
@@ -218,7 +234,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualityOperatorFalse(HashType hashType)
         {
             var h1 = new ContentHash(hashType, B1);
@@ -231,7 +248,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void InequalityOperatorFalse(HashType hashType)
         {
             var h1 = new ContentHash(hashType, B1);
@@ -244,7 +262,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void InequalityOperatorTrue(HashType hashType)
         {
             var h1 = new ContentHash(hashType, B1);
@@ -263,7 +282,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualContentHashRoundTripViaSpan(HashType hashType)
         {
             var h1 = ContentHash.Random(hashType);
@@ -280,7 +300,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.SHA1)]
         [InlineData(HashType.SHA256)]
         [InlineData(HashType.Vso0)]
-        [InlineData(HashType.DedupNodeOrChunk)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void EqualContentHashRoundTripViaHexString(HashType hashType)
         {
             var h1 = ContentHash.Random(hashType);

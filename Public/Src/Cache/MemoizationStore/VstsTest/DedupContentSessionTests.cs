@@ -21,7 +21,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Test
         public async Task CanGetHashFromFile(int fileLength)
         {
             using var stream = new MemoryStream(new byte[fileLength]);
-            var node = await DedupContentSession.GetDedupNodeFromFileAsync(HashType.DedupNodeOrChunk, string.Empty, new TestFileSystem(stream), CancellationToken.None);
+            var node = await DedupContentSession.GetDedupNodeFromFileAsync(HashType.Dedup64K, string.Empty, new TestFileSystem(stream), CancellationToken.None);
             node.HashString.Should().NotBeNullOrEmpty();
         }
 

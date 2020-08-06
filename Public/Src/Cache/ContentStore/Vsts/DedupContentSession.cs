@@ -285,14 +285,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             switch(hashType)
             {
-                case HashType.DedupNodeOrChunk:
+                case HashType.Dedup64K:
                     return ChunkerHelper.CreateFromFileAsync(
                         fileSystem: fileSystem,
                         path: path,
                         cancellationToken: token,
-                        configureAwait: false);
+                        configureAwait: false); // TODO: Chunk size optimization - this will be replaced with a call that doesn't need to talk to blobstore.
                 case HashType.Dedup1024K:
-                    // TODO
+                    throw new NotImplementedException($"Hash type {hashType} is not supported."); // TODO: Chunk size optimization - this will be replaced with a call that doesn't need to talk to blobstore.
                 default:
                     throw new ArgumentException($"Unexpected HashType '{hashType}' for DedupNode creation.");
             }

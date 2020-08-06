@@ -932,8 +932,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 // Only perform this operation for distributed master.
                 var pip = runnable.Pip;
-                var description = runnable.Description;
-                Logger.Log.DistributionExecutePipRequest(operationContext, pip.SemiStableHash, description, Name, runnable.Step.AsString());
+                Logger.Log.DistributionExecutePipRequest(operationContext, pip.SemiStableHash, Name, runnable.Step.AsString());
             }
 
             return scope;
@@ -952,10 +951,9 @@ namespace BuildXL.Scheduler.Distribution
 
             var operationContext = runnable.OperationContext;
             var pip = runnable.Pip;
-            var description = runnable.Description;
             var executionResult = runnable.ExecutionResult;
 
-            Logger.Log.DistributionFinishedPipRequest(operationContext, pip.SemiStableHash, description, Name, runnable.Step.AsString());
+            Logger.Log.DistributionFinishedPipRequest(operationContext, pip.SemiStableHash, Name, runnable.Step.AsString());
 
             if (executionResult == null)
             {
@@ -991,7 +989,7 @@ namespace BuildXL.Scheduler.Distribution
                     Logger.Log.DistributionMasterWorkerProcessOutputContent(
                         operationContext,
                         pip.SemiStableHash,
-                        description,
+                        runnable.Description,
                         outputFile.fileArtifact.Path.ToString(runnable.Environment.Context.PathTable),
                         outputFile.fileInfo.Hash.ToHex(),
                         outputFile.fileInfo.ReparsePointInfo.ToString(),

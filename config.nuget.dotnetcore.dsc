@@ -202,7 +202,7 @@ export const pkgs = [
     // NOTE(jubayard): If you depend on this package and need to build for Net472, you will need to add the
     // dependency manually, using netstandard2.0 targetFramework qualifier. Dependency clipped because it 
     // causes a deployment conflict for the cache.
-    { id: "System.Threading.Tasks.Extensions", version: "4.5.2",
+    { id: "System.Threading.Tasks.Extensions", version: "4.5.4",
         dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"] },
 
     { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },

@@ -1776,6 +1776,7 @@ namespace BuildXL.Scheduler
                         start = DateTime.UtcNow;
                         result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
                         LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
+                        staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
                     }
 
                     if (result.PipProperties != null)
@@ -1815,7 +1816,6 @@ namespace BuildXL.Scheduler
                         LogUserSpecifiedExitCodeEvent(result, operationContext, context, pip, processDescription, remainingUserRetries);
 
                         userRetry = true;
-                        staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
 
                         counters.AddToCounter(PipExecutorCounter.RetriedUserExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                         counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);

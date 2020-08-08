@@ -27,6 +27,8 @@ namespace Service {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
 
+            importFrom("BuildXL.Cache.Roxis").Client.dll,
+
             importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,

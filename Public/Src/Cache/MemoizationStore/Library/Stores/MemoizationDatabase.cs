@@ -37,7 +37,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             return context.PerformOperationAsync(Tracer, () => CompareExchangeCore(context, strongFingerprint, expectedReplacementToken, expected, replacement),
                 extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}]",
-                traceOperationStarted: false,
                 traceErrorsOnly: true);
         }
 
@@ -55,8 +54,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             return context.PerformOperationAsync(Tracer, () => GetContentHashListCoreAsync(context, strongFingerprint, preferShared),
+                extraStartMessage: $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
                 extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
-                traceOperationStarted: false,
                 traceErrorsOnly: true);
         }
 
@@ -75,7 +74,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             return context.PerformOperationAsync(Tracer, () => GetLevelSelectorsCoreAsync(context, weakFingerprint, level),
                 extraEndMessage: _ => $"WeakFingerprint=[{weakFingerprint}], Level=[{level}]",
-                traceOperationStarted: false,
                 traceErrorsOnly: true);
         }
 

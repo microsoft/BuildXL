@@ -293,8 +293,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "FSharp.Core",
+          "Version": "4.2.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "FluentAssertions",
           "Version": "5.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "FsCheck",
+          "Version": "2.14.3"
         }
       }
     },

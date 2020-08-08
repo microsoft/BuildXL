@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package BuildXL.Cache.Roxis.Grpc;
+
+message Request {
+    // TODO: rename to data
+    bytes request = 1;
+}
+
+message Reply {
+    bytes reply = 1;
+}
+
+service RoxisService {
+  rpc Execute (Request) returns (Reply) {}
+}

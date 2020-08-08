@@ -162,24 +162,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             Contract.Requires(config != null);
 
-            if (config is SQLiteMemoizationStoreConfiguration sqliteConfig)
-            {
-                return () => new SQLiteMemoizationStore(
-                    logger,
-                    clock ?? SystemClock.Instance,
-                    sqliteConfig);
-            }
-            else if (config is RocksDbMemoizationStoreConfiguration rocksDbConfig)
-            {
-                return () => new RocksDbMemoizationStore(
-                    logger,
-                    clock ?? SystemClock.Instance,
-                    rocksDbConfig);
-            }
-            else
-            {
-                throw new NotSupportedException($"Configuration type '{config.GetType()}' for memoization store is unhandled.");
-            }
+            return () => config.CreateStore(logger, clock ?? SystemClock.Instance);
         }
 
         /// <inheritdoc />

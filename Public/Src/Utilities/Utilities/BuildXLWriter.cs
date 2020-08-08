@@ -356,6 +356,23 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Writes a byte array
+        /// </summary>
+        public void WriteNullableByteArray(byte[] bytes)
+        {
+            if (bytes == null)
+            {
+                Write(false);
+            }
+            else
+            {
+                Write(true);
+                WriteCompact(bytes.Length);
+                Write(bytes);
+            }
+        }
+
+        /// <summary>
         /// Writes a custom action
         /// </summary>
         public void Write<T>(T? value, Action<BuildXLWriter, T> writer) where T : struct

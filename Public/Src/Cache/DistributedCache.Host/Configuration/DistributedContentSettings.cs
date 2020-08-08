@@ -736,6 +736,15 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRedisMetadataStore { get; set; } = false;
 
+        [DataMember]
+        public bool UseRoxisMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public string RoxisMetadataStoreHost { get; set; } = null;
+
+        [DataMember]
+        public int? RoxisMetadataStorePort { get; set; } = null;
+
         /// <summary>
         /// Gets or sets the time period between logging incremental stats
         /// </summary>

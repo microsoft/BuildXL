@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
 using System.IO;
-using BuildXL.Utilities;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// Helper class that can be used for binary serializing multiple objects in memory efficient way
@@ -14,9 +13,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// The instance of this type is not thread-safe.
     /// </remarks>
-    internal sealed class StreamBinaryWriter
+    public sealed class StreamBinaryWriter
     {
+        /// <nodoc />
         public MemoryStream Buffer { get; }
+
+        /// <nodoc />
         public BuildXLWriter Writer { get; }
 
         /// <nodoc />
@@ -47,15 +49,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Helper struct that restores the position of <see cref="StreamBinaryWriter"/>.
         /// </summary>
-        internal struct PositionRestorer : IDisposable
+        public struct PositionRestorer : IDisposable
         {
             private readonly StreamBinaryWriter _writer;
 
+            /// <nodoc />
             internal PositionRestorer(StreamBinaryWriter writer)
             {
                 _writer = writer;
             }
 
+            /// <inheritdoc />
             public void Dispose() => _writer.ResetPosition();
         }
     }

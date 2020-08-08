@@ -830,17 +830,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
         {
-            return SerializeCore(weakFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(weakFingerprint, (instance, writer) => instance.Serialize(writer));
         }
 
         private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
         {
-            return SerializeCore(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(strongFingerprint, (instance, writer) => instance.Serialize(writer));
         }
 
         private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
         {
-            return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, reader => StrongFingerprint.Deserialize(reader));
         }
 
         private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
@@ -850,17 +850,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeMetadataEntry(MetadataEntry value)
         {
-            return SerializeCore(value, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(value, (instance, writer) => instance.Serialize(writer));
         }
 
         private MetadataEntry DeserializeMetadataEntry(byte[] data)
         {
-            return DeserializeCore(data, reader => MetadataEntry.Deserialize(reader));
+            return SerializationPool.Deserialize(data, reader => MetadataEntry.Deserialize(reader));
         }
 
         private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
         {
-            return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+            return SerializationPool.Deserialize(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
 
@@ -1118,12 +1118,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeCompactionInfo(CompactionInfo strongFingerprint)
         {
-            return SerializeCore(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(strongFingerprint, (instance, writer) => instance.Serialize(writer));
         }
 
         private CompactionInfo DeserializeCompactionInfo(byte[] bytes)
         {
-            return DeserializeCore(bytes, reader => CompactionInfo.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, reader => CompactionInfo.Deserialize(reader));
         }
 
         private struct CompactionInfo

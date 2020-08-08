@@ -374,6 +374,10 @@ config({
                 { id: "Microsoft.Azure.Management.Monitor.Fluent", version: "1.33.0" },
                 { id: "Microsoft.Azure.Management.Monitor", version: "0.25.0-preview" },
 
+                // FsCheck
+                { id: "FsCheck", version: "2.14.3" },
+                { id: "FSharp.Core", version: "4.2.3" },
+
                 // ANTLR
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },
 

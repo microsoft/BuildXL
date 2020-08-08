@@ -38,6 +38,14 @@ namespace Cache {
                         () => [importFrom("BuildXL.Cache.DistributedCache.Host").LauncherServer.exe]
                     ),
                 ]
+            },
+            {
+                subfolder: r`Roxis`,
+                contents: [
+                    ...addIfLazy(BuildXLSdk.isDotNetCoreBuild,
+                        () => [importFrom("BuildXL.Cache.Roxis").Default.deployment]
+                    ),
+                ]
             }
         ],
     };

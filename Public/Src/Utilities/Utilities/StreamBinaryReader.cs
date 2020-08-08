@@ -1,12 +1,11 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BuildXL.Utilities;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// Helper class that can be used for binary deserialization of multiple objects in memory efficient way
@@ -15,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// The instance of this type is not thread-safe.
     /// </remarks>
-    public sealed class StreamBinaryReader 
+    public sealed class StreamBinaryReader
     {
         private readonly MemoryStream _eventReadBuffer;
         private readonly BuildXLReader _eventBufferReader;

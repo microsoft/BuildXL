@@ -35,11 +35,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Converts <see cref="Possible{TResult}"/> to <see cref="Result{T}"/>
         /// </summary>
-        public static Result<T> ToResult<T>(this Possible<T> possible)
+        public static Result<T> ToResult<T>(this Possible<T> possible, bool isNullAllowed = false)
         {
             if (possible.Succeeded)
             {
-                return new Result<T>(possible.Result);
+                return new Result<T>(possible.Result, isNullAllowed);
             }
             else
             {

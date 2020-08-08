@@ -30,8 +30,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly RedisDatabaseAdapter _redis;
         private readonly IClock _clock;
 
-        private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
-        private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });
+        private readonly SerializationPool _serializationPool = new SerializationPool();
 
         private readonly TimeSpan _metadataExpiryTime;
 
@@ -143,57 +142,33 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return LevelSelectors.Single<List<Selector>>(result);
         }
 
-        private Fingerprint DeserializeKey(string key)
-        {
-            if (Fingerprint.TryParse(key.Substring(3), out var weakFingerprint))
-            {
-                return weakFingerprint;
-            }
-            return default;
-        }
-
         private (Selector, bool isReplacementToken) DeserializeSelector(byte[] selectorBytes)
         {
-            using (var pooledReader = _readerPool.GetInstance())
+            return _serializationPool.Deserialize(selectorBytes, reader =>
             {
-                var reader = pooledReader.Instance;
-                return reader.Deserialize(new ArraySegment<byte>(selectorBytes), reader =>
-                {
-                    var isReplacementToken = reader.ReadBoolean();
-                    var selector = Selector.Deserialize(reader);
-                    return (selector, isReplacementToken);
-                });
-            }
+                var isReplacementToken = reader.ReadBoolean();
+                var selector = Selector.Deserialize(reader);
+                return (selector, isReplacementToken);
+            });
         }
 
         private byte[] SerializeSelector(Selector selector, bool isReplacementToken)
         {
-            using (var pooledWriter = _writerPool.GetInstance())
+            return _serializationPool.Serialize(selector, isReplacementToken, (isReplacementToken, selector, writer) =>
             {
-                var writer = pooledWriter.Instance.Writer;
                 writer.Write(isReplacementToken);
                 selector.Serialize(writer);
-                return pooledWriter.Instance.Buffer.ToArray();
-            }
+            });
         }
 
         private byte[] SerializeMetadataEntry(MetadataEntry metadata)
         {
-            using (var pooledWriter = _writerPool.GetInstance())
-            {
-                var writer = pooledWriter.Instance.Writer;
-                metadata.Serialize(writer);
-                return pooledWriter.Instance.Buffer.ToArray();
-            }
+            return _serializationPool.Serialize(metadata, (metadata, writer) => metadata.Serialize(writer));
         }
 
         private MetadataEntry DeserializeMetadataEntry(byte[] bytes)
         {
-            using (var pooledReader = _readerPool.GetInstance())
-            {
-                var reader = pooledReader.Instance;
-                return reader.Deserialize(new ArraySegment<byte>(bytes), reader => MetadataEntry.Deserialize(reader));
-            }
+            return _serializationPool.Deserialize(bytes, reader => MetadataEntry.Deserialize(reader));
         }
     }
 }

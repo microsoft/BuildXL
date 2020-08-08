@@ -179,6 +179,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(true)]
             public bool UseVfsSymlinks { get; set; } = true;
+
+            /// <nodoc />
+            [DefaultValue(false)]
+            public bool UseRoxisMetadataStore { get; set; }
+
+            /// <nodoc />
+            [DefaultValue("")]
+            public string RoxisMetadataStoreHost { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(-1)]
+            public int RoxisMetadataStorePort { get; set; }
         }
 
         /// <inheritdoc />
@@ -275,9 +287,29 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStoreConfiguration CreateInProcMemoizationStoreConfiguration(Config cacheConfig, AbsolutePath cacheRootPath)
         {
+            if (cacheConfig.UseRoxisMetadataStore)
+            {
+                var roxisClientConfiguration = new Roxis.Client.RoxisClientConfiguration();
+
+                if (!string.IsNullOrEmpty(cacheConfig.RoxisMetadataStoreHost))
+                {
+                    roxisClientConfiguration.GrpcHost = cacheConfig.RoxisMetadataStoreHost;
+                }
+
+                if (cacheConfig.RoxisMetadataStorePort > 0)
+                {
+                    roxisClientConfiguration.GrpcPort = cacheConfig.RoxisMetadataStorePort;
+                }
+
+                return new RoxisMemoizationDatabaseConfiguration()
+                {
+                    MetadataClientConfiguration = roxisClientConfiguration,
+                };
+            }
+
             if (cacheConfig.UseRocksDbMemoizationStore)
             {
-                var memoConfig = new RocksDbMemoizationStoreConfiguration()
+                return new RocksDbMemoizationStoreConfiguration()
                 {
                     Database = new RocksDbContentLocationDatabaseConfiguration(cacheRootPath / "RocksDbMemoizationStore")
                     {
@@ -289,8 +321,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         LogsKeepLongTerm = true,
                     },
                 };
-
-                return memoConfig;
             }
             else
             {

@@ -3,16 +3,23 @@
 
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Stores
 {
     /// <summary>
     ///     Marker type for children of <see cref="MemoizationStore"/>
     /// </summary>
-    public class MemoizationStoreConfiguration
+    public abstract class MemoizationStoreConfiguration
     {
+        /// <summary>
+        /// Create memoization store with the current config
+        /// </summary>
+        public abstract IMemoizationStore CreateStore(ILogger logger, IClock clock);
     }
 
     /// <summary>
@@ -24,6 +31,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// Configuration for the internal RocksDB database
         /// </summary>
         public RocksDbContentLocationDatabaseConfiguration Database { get; set; }
+
+        /// <inheritdoc />
+        public override IMemoizationStore CreateStore(ILogger logger, IClock clock)
+        {
+            return new RocksDbMemoizationStore(logger, clock, this);
+        }
     }
 
     /// <summary>
@@ -65,6 +78,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public SQLiteMemoizationStoreConfiguration(AbsolutePath path)
         {
             Database = new SQLiteDatabaseConfiguration(path);
+        }
+
+        /// <inheritdoc />
+        public override IMemoizationStore CreateStore(ILogger logger, IClock clock)
+        {
+            return new SQLiteMemoizationStore(logger, clock, this);
         }
     }
 }

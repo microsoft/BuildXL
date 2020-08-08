@@ -147,15 +147,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     var determinism = contentHashListWithDeterminism.Determinism;
 
                     // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                    var oldContentHashListWithDeterminism = await Database.GetContentHashListAsync(
+                    var (oldContentHashListInfo, replacementToken) = await Database.GetContentHashListAsync(
                         ctx,
                         strongFingerprint,
                         // Prefer shared result because conflicts are resolved at shared level
-                        preferShared: true);
-
-                    var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
-                     ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
-                     : (default(ContentHashListWithDeterminism), string.Empty);
+                        preferShared: true).ThrowIfFailureAsync();
 
                     var oldContentHashList = oldContentHashListInfo.ContentHashList;
                     var oldDeterminism = oldContentHashListInfo.Determinism;
@@ -200,11 +196,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     {
                         return new AddOrGetContentHashListResult(
                             AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                            oldContentHashListWithDeterminism.Value.contentHashListInfo);
+                            oldContentHashListInfo);
                     }
 
                     // If we did not accept the given value, return the value in the cache
-                    return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism.Value.contentHashListInfo);
+                    return new AddOrGetContentHashListResult(oldContentHashListInfo);
                 }
 
                 return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");

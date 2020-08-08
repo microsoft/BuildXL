@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
@@ -62,6 +63,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 new AbsolutePath(_arguments.DataRootPath),
                 isDistributed: !isLocal);
             var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration, distributedSettings);
+
+            // Initialization of the GrpcEnvironment is nasty business: we have a wrapper class around the internal
+            // state. The internal state has a flag inside that marks whether it's been initialized or not. If we do
+            // any Grpc activity, the internal state will be initialized, and all further attempts to change things
+            // will throw. Since we may need to initialize a Grpc client before we do a Grpc server, this means we
+            // need to call this early, even if it doesn't have anything to do with what's going on here.
+            GrpcEnvironment.InitializeIfNeeded(localServerConfiguration.GrpcThreadPoolSize ?? 70);
 
             if (isLocal)
             {
@@ -196,6 +204,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (distributedSettings.UseRedisMetadataStore)
             {
                 return factory.CreateMemoizationStoreAsync().GetAwaiter().GetResult();
+            }
+            else if (distributedSettings.UseRoxisMetadataStore)
+            {
+                var config = new RoxisMemoizationDatabaseConfiguration();
+                ApplyIfNotNull(distributedSettings.RoxisMetadataStoreHost, v => config.MetadataClientConfiguration.GrpcHost = v);
+                ApplyIfNotNull(distributedSettings.RoxisMetadataStorePort, v => config.MetadataClientConfiguration.GrpcPort = v);
+
+                return config.CreateStore(_logger, SystemClock.Instance);
             }
             else
             {

@@ -369,6 +369,26 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Reads an array of bytes
+        /// </summary>
+        public byte[] ReadNullableByteArray()
+        {
+            var hasValue = ReadBoolean();
+            if (!hasValue)
+            {
+                return null;
+            }
+
+            int length = ReadInt32Compact();
+            if (length == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            return ReadBytes(length);
+        }
+
+        /// <summary>
         /// Reads a ReadOnlySet
         /// </summary>
         public IReadOnlySet<T> ReadReadOnlySet<T>(Func<BuildXLReader, T> reader)

@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Cache.Roxis.Client;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -211,6 +212,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; }
 
             /// <nodoc />
+            [DefaultValue(false)]
+            public bool UseRoxisMetadataStore { get; set; }
+
+            /// <nodoc />
+            [DefaultValue("")]
+            public string RoxisMetadataStoreHost { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(-1)]
+            public int RoxisMetadataStorePort { get; set; }
+
+            /// <nodoc />
             public Config()
             {
                 CacheId = new CacheId("FileSystemCache");
@@ -406,7 +419,26 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStoreConfiguration GetInProcMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
         {
-            if (config.UseRocksDbMemoizationStore)
+            if (config.UseRoxisMetadataStore)
+            {
+                var roxisClientConfiguration = new RoxisClientConfiguration();
+
+                if (!string.IsNullOrEmpty(config.RoxisMetadataStoreHost))
+                {
+                    roxisClientConfiguration.GrpcHost = config.RoxisMetadataStoreHost;
+                }
+
+                if (config.RoxisMetadataStorePort > 0)
+                {
+                    roxisClientConfiguration.GrpcPort = config.RoxisMetadataStorePort;
+                }
+
+                return new RoxisMemoizationDatabaseConfiguration()
+                {
+                    MetadataClientConfiguration = roxisClientConfiguration,
+                };
+            }
+            else if (config.UseRocksDbMemoizationStore)
             {
                 return new RocksDbMemoizationStoreConfiguration() {
                     Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore") {

@@ -45,8 +45,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public abstract class ContentLocationDatabase : StartupShutdownSlimBase, IContentLocationDatabase
     {
-        private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
-        private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });
+        /// <nodoc />
+        protected readonly SerializationPool SerializationPool = new SerializationPool();
 
         /// <nodoc />
         protected readonly IClock Clock;
@@ -757,38 +757,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Uses an object pool to fetch a serializer and feed it into the serialization function.
-        /// </summary>
-        /// <remarks>
-        /// We explicitly take and pass the instance as parameters in order to avoid lambda capturing.
-        /// </remarks>
-        protected byte[] SerializeCore<T>(T instance, Action<T, BuildXLWriter> serializeFunc)
-        {
-            using var pooledWriter = _writerPool.GetInstance();
-            var writer = pooledWriter.Instance.Writer;
-            serializeFunc(instance, writer);
-            return pooledWriter.Instance.Buffer.ToArray();
-        }
-
-        /// <summary>
-        /// Uses an object pool to fetch a binary reader and feed it into the deserialization function.
-        /// </summary>
-        /// <remarks>
-        /// Be mindful of avoiding lambda capture when using this function.
-        /// </remarks>
-        protected T DeserializeCore<T>(byte[] bytes, Func<BuildXLReader, T> deserializeFunc)
-        {
-            using PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance();
-            var reader = pooledReader.Instance;
-            return reader.Deserialize(new ArraySegment<byte>(bytes), deserializeFunc);
-        }
-
-        /// <summary>
         /// Serialize a given <paramref name="entry"/> into a byte stream.
         /// </summary>
         protected byte[] SerializeContentLocationEntry(ContentLocationEntry entry)
         {
-            return SerializeCore(entry, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(entry, (instance, writer) => instance.Serialize(writer));
         }
 
         /// <summary>
@@ -798,7 +771,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Please do not convert the delegate to a method group, because this code is called many times
             // and method group allocates a delegate on each conversion to a delegate.
-            return DeserializeCore(bytes, reader => ContentLocationEntry.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, reader => ContentLocationEntry.Deserialize(reader));
         }
 
         /// <summary>
@@ -810,10 +783,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public bool HasMachineId(byte[] bytes, int machineId)
         {
-            using var pooledObjectWrapper = _readerPool.GetInstance();
-            var pooledReader = pooledObjectWrapper.Instance;
-            return pooledReader.Deserialize(
-                new ArraySegment<byte>(bytes),
+            return SerializationPool.Deserialize(
+                bytes,
                 machineId,
                 (localIndex, reader) =>
                 {

@@ -25,6 +25,8 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
+            importFrom("BuildXL.Cache.Roxis").Client.dll,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStoreAdapter.Test",

@@ -238,7 +238,7 @@ namespace BuildXL.Scheduler
 
                 m_hasAnyChange.Reset();
 
-                if (m_config.DelayedCacheLookupMinMultiplier.HasValue)
+                if (m_config.DelayedCacheLookupEnabled())
                 {
                     int totalSlots = m_totalProcessSlots;
                     int minElements = (int)(totalSlots * m_config.DelayedCacheLookupMinMultiplier.Value);

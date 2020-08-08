@@ -3967,7 +3967,7 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Process)
                     {
-                        return m_configuration.Schedule.DelayedCacheLookupMinMultiplier.HasValue ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
+                        return m_configuration.Schedule.DelayedCacheLookupEnabled() ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
                     }
                     else
                     {

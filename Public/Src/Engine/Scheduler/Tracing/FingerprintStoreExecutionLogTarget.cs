@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override bool CanHandleWorkerEvents => true;
 
-        private IConfiguration m_configuration { get;  }
+        private IConfiguration m_configuration { get; }
 
         /// <summary>
         /// Counters, shared with <see cref="Tracing.FingerprintStore"/>.
@@ -94,7 +94,39 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly Task<RuntimeCacheMissAnalyzer> m_runtimeCacheMissAnalyzerTask;
 
-        private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer => m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
+        private bool m_runtimeCacheMissAnalyzerCalled;
+        private RuntimeCacheMissAnalyzer m_runtimeCacheMissAnalyzer;
+
+        private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer
+        {
+            get
+            {
+                if (m_runtimeCacheMissAnalyzerCalled)
+                {
+                    return m_runtimeCacheMissAnalyzer;
+                }
+
+                if (m_runtimeCacheMissAnalyzerTask.Status == TaskStatus.RanToCompletion)
+                {
+                    m_runtimeCacheMissAnalyzer = m_runtimeCacheMissAnalyzerTask.Result;
+                }
+                else if (m_testHooks != null)
+                {
+                    // For unit tests, synchronously wait for loading runtimeCacheMissAnalyzer.
+                    m_runtimeCacheMissAnalyzer = m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // If we do not load the fingerprintstore by the time when we call RuntimeCacheMissAnalyzer,
+                    // Log a message and give up.
+                    Logger.Log.GettingFingerprintStoreTrace(LoggingContext, "FingerprintStore loading took very long, so the build will continue without cache miss results.");
+                    m_runtimeCacheMissAnalyzer = null;
+                }
+
+                m_runtimeCacheMissAnalyzerCalled = true;
+                return m_runtimeCacheMissAnalyzer;
+            }
+        }
 
         private bool CacheMissAnalysisEnabled => RuntimeCacheMissAnalyzer != null;
 
@@ -124,6 +156,8 @@ namespace BuildXL.Scheduler.Tracing
         private readonly ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint> m_augmentedWeakFingerprintsToOriginalWeakFingeprints;
 
         private bool m_disposed = false;
+
+        private readonly FingerprintStoreTestHooks m_testHooks;
 
         /// <summary>
         /// Creates a <see cref="FingerprintStoreExecutionLogTarget"/>.
@@ -252,6 +286,7 @@ namespace BuildXL.Scheduler.Tracing
                 runnablePipPerformance,
                 testHooks: testHooks);
 
+            m_testHooks = testHooks;
             m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
             m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
             m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();

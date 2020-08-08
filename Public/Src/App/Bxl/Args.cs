@@ -676,6 +676,9 @@ namespace BuildXL
                             "maxCacheLookup",
                             opt => schedulingConfiguration.MaxCacheLookup = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "maxChooseWorkerCacheLookup",
+                            opt => schedulingConfiguration.MaxChooseWorkerCacheLookup = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
+                         OptionHandlerFactory.CreateOption(
                             "maxChooseWorkerCpu",
                             opt => schedulingConfiguration.MaxChooseWorkerCpu = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption2(

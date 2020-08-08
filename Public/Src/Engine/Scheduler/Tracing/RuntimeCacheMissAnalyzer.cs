@@ -49,6 +49,9 @@ namespace BuildXL.Scheduler.Tracing
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
             FingerprintStoreTestHooks testHooks = null)
         {
+            // Unblock caller
+            await Task.Yield();
+
             using (logTarget.Counters.StartStopwatch(FingerprintStoreCounters.InitializeCacheMissAnalysisDuration))
             {
                 var option = configuration.Logging.CacheMissAnalysisOption;
@@ -60,6 +63,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 Possible<FingerprintStore> possibleStore;
 
+                PathTable newPathTable = new PathTable();
                 if (option.Mode == CacheMissMode.Local)
                 {
                     possibleStore = FingerprintStore.CreateSnapshot(logTarget.ExecutionFingerprintStore, loggingContext);
@@ -76,14 +80,14 @@ namespace BuildXL.Scheduler.Tracing
                         Contract.Assert(option.Mode == CacheMissMode.Remote);
                         foreach (var key in option.Keys)
                         {
-                            var cacheSavePath = configuration.Logging.FingerprintsLogDirectory
-                                .Combine(context.PathTable, Scheduler.FingerprintStoreDirectory + "." + key);
-#pragma warning disable AsyncFixer02 // This should explicitly happen synchronously since it interacts with the PathTable and StringTable
-                            var result = cache.TryRetrieveFingerprintStoreAsync(loggingContext, cacheSavePath, context.PathTable, key, configuration.Schedule.EnvironmentFingerprint).Result;
-#pragma warning restore AsyncFixer02
+                            var fingerprintsLogDirectoryStr = configuration.Logging.FingerprintsLogDirectory.ToString(context.PathTable);
+                            var fingerprintsLogDirectory = AbsolutePath.Create(newPathTable, fingerprintsLogDirectoryStr);
+
+                            var cacheSavePath = fingerprintsLogDirectory.Combine(newPathTable, Scheduler.FingerprintStoreDirectory + "." + key);
+                            var result = await cache.TryRetrieveFingerprintStoreAsync(loggingContext, cacheSavePath, newPathTable, key, configuration.Schedule.EnvironmentFingerprint);
                             if (result.Succeeded && result.Result)
                             {
-                                path = cacheSavePath.ToString(context.PathTable);
+                                path = cacheSavePath.ToString(newPathTable);
                                 downLoadedPriviousFingerprintStoreSavedPath = path;
                                 break;
                             }
@@ -95,11 +99,6 @@ namespace BuildXL.Scheduler.Tracing
                             return null;
                         }
                     }
-
-                    // Unblock caller
-                    // WARNING: The rest can simultenously happen with saving the graph files to disk.
-                    // We should not create any paths or strings by using PathTable and StringTable.
-                    await Task.Yield();
 
                     possibleStore = FingerprintStore.Open(path, readOnly: true);
                 }

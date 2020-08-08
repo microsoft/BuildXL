@@ -148,7 +148,17 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies to disable load balance among workers.
         /// </summary>
         public static readonly Setting<double?> DisableLoadBalanceMultiplier = CreateSetting("BuildXLDisableLoadBalanceMultiplier", value => ParseDouble(value));
-        
+
+        /// <summary>
+        /// Disable pausing chooseworkerthreads
+        /// </summary>
+        public static readonly Setting<bool> DoNotPauseChooseWorkerThreads = CreateSetting("BuildXLDoNotPauseChooseWorkerThreads", value => value == "1");
+
+        /// <summary>
+        /// DisableDelayedCacheLookup
+        /// </summary>
+        public static readonly Setting<bool> DisableDelayedCacheLookup = CreateSetting("BuildXLDisableDelayedCacheLookup", value => value == "1");
+
         #region Distribution-related timeouts
 
         /// <summary>

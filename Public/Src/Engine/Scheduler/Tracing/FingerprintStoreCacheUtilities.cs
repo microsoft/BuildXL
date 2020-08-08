@@ -36,11 +36,10 @@ namespace BuildXL.Scheduler.Tracing
         /// Computes a fingerprint for looking up fingerprint store
         /// </summary>
         private static ContentFingerprint ComputeFingerprint(
-            PathTable pathTable,
             string key,
             string environment)
         {
-            using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
+            using (var hasher = new BasicHashingHelper(recordFingerprintString: false))
             {
                 hasher.Add("Type", "FingerprintStoreFingerprint");
                 hasher.Add("FormatVersion", FingerprintStore.FormatVersion.Version.ToString());
@@ -70,7 +69,7 @@ namespace BuildXL.Scheduler.Tracing
             string key,
             string environment)
         {
-            var fingerprint = ComputeFingerprint(pathTable, key, environment);
+            var fingerprint = ComputeFingerprint(key, environment);
             var pathStr = path.ToString(pathTable);
             BoxRef<long> size = 0;
 
@@ -159,7 +158,7 @@ namespace BuildXL.Scheduler.Tracing
             string key,
             string environment)
         {
-            var fingerprint = ComputeFingerprint(pathTable, key, environment);
+            var fingerprint = ComputeFingerprint(key, environment);
             var possibleCacheEntry = await cache.TwoPhaseFingerprintStore.TryGetLatestCacheEntryAsync(loggingContext, fingerprint);
             if (!possibleCacheEntry.Succeeded)
             {

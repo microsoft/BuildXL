@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 
@@ -83,7 +84,10 @@ namespace BuildXL.Scheduler.Distribution
                 Interlocked.Increment(ref ChooseBlockedCount);
 
                 // Attempt to pause the choose worker queue since resources are not available
-                TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
+                if (!EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads)
+                {
+                    TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
+                }
             }
             else
             {

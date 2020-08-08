@@ -25,6 +25,11 @@ namespace BuildXL.Utilities.Configuration
         public static int MinimumTotalAvailableRamMb(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.MinimumTotalAvailableRamMb ?? 500;
 
         /// <summary>
+        /// <see cref="IScheduleConfiguration.DelayedCacheLookupMinMultiplier"/>
+        /// </summary>
+        public static bool DelayedCacheLookupEnabled(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.DelayedCacheLookupMinMultiplier.HasValue && !EngineEnvironmentSettings.DisableDelayedCacheLookup;
+
+        /// <summary>
         /// <see cref="IScheduleConfiguration.ManageMemoryMode"/>
         /// </summary>
         /// <remarks>

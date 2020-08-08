@@ -1271,6 +1271,16 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void FailPipOutputWithNoAccessed(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
+            (int)LogEventId.DisabledDetoursRetry,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message =
+        EventConstants.PipPrefix + "Pip failed due to a detours-related issue: {error}. BuildXLDisableDetoursRetries env variable is set to disable retries for detours failures.")]
+        public abstract void DisabledDetoursRetry(LoggingContext context, long pipSemiStableHash, string pipDescription, string error);
+
+        [GeneratedEvent(
             (int)LogEventId.PipCacheMetadataBelongToAnotherPip,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -144,6 +144,7 @@ namespace BuildXL.Scheduler.Tracing
         FailPipOutputWithNoAccessed = 2602,
         PipWillBeRetriedDueToExitCode = 2604,
         DetailedPipMaterializeDependenciesFromCacheFailure = 2610,
+        DisabledDetoursRetry = 2611,
 
         FileArtifactContentMismatch = 2700,
         PipOutputNotMaterialized = 2701,

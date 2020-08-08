@@ -234,6 +234,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> MinStepDurationSecForTracer = CreateSetting("BuildXLMinStepDurationSecForTracer", value => ParseInt32(value, allowZero: true) ?? 30);
 
         /// <summary>
+        /// Disables retries due to detours failures
+        /// </summary>
+        public static readonly Setting<bool> DisableDetoursRetries = CreateSetting("BuildXLDisableDetoursRetries", value => value == "1");
+        
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

@@ -184,5 +184,20 @@ namespace BuildXL.Processes
 
             return false;
         }
+
+        /// <summary>
+        /// Is retryable failure due to Detours
+        /// </summary>
+        public static bool IsDetoursRetrableFailure(this RetryReason retryReason)
+        {
+            switch (retryReason)
+            {
+                case RetryReason.MismatchedMessageCount:
+                case RetryReason.OutputWithNoFileAccessFailed:
+                    return true;
+            }
+
+            return false;
+        }
     }
 }

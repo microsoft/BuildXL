@@ -1839,6 +1839,12 @@ namespace BuildXL.Scheduler
                         }
                         else
                         {
+                            if (EngineEnvironmentSettings.DisableDetoursRetries && result.RetryInfo.RetryReason.IsDetoursRetrableFailure())
+                            {
+                                Logger.Log.DisabledDetoursRetry(operationContext, pip.SemiStableHash, processDescription, result.RetryInfo.RetryReason.ToString());
+                                break;
+                            }
+
                             --remainingInternalSandboxedProcessExecutionFailureRetries;
                             counters.AddToCounter(PipExecutorCounter.RetriedInternalExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
 
@@ -1901,7 +1907,7 @@ namespace BuildXL.Scheduler
 
         private static bool IncrementInternalErrorRetryCounters(RetryReason retryReason, CounterCollection<PipExecutorCounter> counters)
         {
-            // Retrun true to break the caller's loop
+            // Return true to break the caller's loop
             switch (retryReason)
             {
                 case RetryReason.OutputWithNoFileAccessFailed:

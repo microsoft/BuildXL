@@ -61,7 +61,8 @@ namespace BuildXL.Pips.Graph
         /// 84: Added IgnoreFullSymlinkResolving in IUnsafeSandboxConfiguration.
         /// 85: Added WritingToStandardErrorFailsPip in Process.Options
         /// 86: Normalize casing of ObservedAccessedFileNames.
+        /// 87: Changed the cleaning logic of SOD for retries.
         /// </remarks>
-        TwoPhaseV2 = 86,
+        TwoPhaseV2 = 87,
     }
 }

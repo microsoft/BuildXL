@@ -67,6 +67,11 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Hooks used for unit and integration tests
+        /// </summary>
+        public TestHooks TestHooks { get; set; }
+
+        /// <summary>
         /// Protected constructor
         /// </summary>
         protected PipExecutionContext(PipExecutionContext context)

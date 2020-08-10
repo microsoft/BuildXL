@@ -1234,18 +1234,6 @@ namespace BuildXL.Scheduler
             // We may have some violations reported already (outright denied by the sandbox manifest).
             FileAccessReportingContext fileAccessReportingContext = executionResult.UnexpectedFileAccesses;
 
-            if (executionResult.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
-            {
-                // Preparation failures provide minimal feedback.
-                // We do not have any execution-time information (observed accesses or file monitoring violations) to analyze.
-                processExecutionResult.SetResult(operationContext, PipResultStatus.Failed);
-
-                counters.IncrementCounter(PipExecutorCounter.PreparationFailureCount);
-                counters.IncrementCounter(PipExecutorCounter.PreparationFailurePartialCopyCount);
-
-                return processExecutionResult;
-            }
-
             if (RetryInfo.RetryAbleOnDifferentWorker(executionResult.RetryInfo))
             {
                 // No post processing for retryable pips
@@ -1262,6 +1250,20 @@ namespace BuildXL.Scheduler
                         PipExecutorCounter.CanceledProcessExecuteDuration,
                         executionResult.PrimaryProcessTimes.TotalWallClockTime);
                 }
+
+                return processExecutionResult;
+            }
+
+            if (executionResult.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+            {
+                // Preparation failures provide minimal feedback.
+                // We do not have any execution-time information (observed accesses or file monitoring violations) to analyze.
+                // executionResult.RetryInfo.
+                // No error here
+                processExecutionResult.SetResult(operationContext, PipResultStatus.Failed);
+
+                counters.IncrementCounter(PipExecutorCounter.PreparationFailureCount);
+                counters.IncrementCounter(PipExecutorCounter.PreparationFailurePartialCopyCount);
 
                 return processExecutionResult;
             }

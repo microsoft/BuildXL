@@ -2761,6 +2761,11 @@ namespace BuildXL.Processes
 
             try
             {
+                if (m_context?.TestHooks?.FailDeletingTempDirectory == true)
+                {
+                    throw new BuildXLException("TestHook: FailDeletingTempDirectory");
+                }
+
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
                 PreparePathForDirectory(

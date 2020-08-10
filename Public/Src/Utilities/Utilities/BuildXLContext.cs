@@ -76,7 +76,7 @@ namespace BuildXL.Utilities
             Justification = "BuildXLContext takes ownership for disposal.")]
         public static BuildXLContext CreateInstanceForTestingWithCancellationToken(BuildXLContext context, CancellationToken cancellationToken)
         {
-            return new BuildXLTestContext(context.StringTable, context.PathTable, context.SymbolTable, context.QualifierTable, context.TokenTextTable, cancellationToken);
+            return new BuildXLTestContext(context.StringTable, context.PathTable, context.SymbolTable, context.QualifierTable, context.TokenTextTable, cancellationToken) { TestHooks = context.TestHooks };
         }
 
         /// <summary>

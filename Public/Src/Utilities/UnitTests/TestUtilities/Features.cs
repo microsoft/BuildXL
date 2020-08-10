@@ -41,6 +41,7 @@ namespace Test.BuildXL.TestUtilities
         public const string UntrackedAccess = "UntrackedAccess";
         public const string Allowlist = "Allowlist";
         public const string WriteFilePip = "WriteFilePip";
+        public const string PipRetry = "PipRetry";
 #pragma warning restore 1591
     }
 }

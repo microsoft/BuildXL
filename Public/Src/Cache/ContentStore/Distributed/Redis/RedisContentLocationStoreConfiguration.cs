@@ -113,13 +113,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool CancelBatchWhenMultiplexerIsClosed { get; set; } = false;
 
         /// <summary>
-        /// Timeout for GetBlob operations.
+        /// Timeout for GetBlob/PutBlob operations.
         /// </summary>
-        public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;
+        public TimeSpan BlobTimeout { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
-        /// Timeout for getting checkpoint information from redis.
+        /// Timeout for getting .
         /// </summary>
-        public TimeSpan GetCheckpointStateTimeout { get; set; } = TimeSpan.FromMinutes(5);
+        public TimeSpan ClusterRedisOperationTimeout { get; set; } = TimeSpan.FromMinutes(5);
     }
 }

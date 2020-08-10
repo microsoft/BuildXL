@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -57,14 +58,15 @@ namespace ContentStoreTest.Distributed.Redis
             var context = new OperationContext(new Context(Logger));
 
             var replicatedRedisHashKey = new ReplicatedRedisHashKey("key", new MockReplicatedKeyHost(), new MemoryClock(), raidedDatabaseAdapter);
-            var error = await replicatedRedisHashKey.UseReplicatedHashAsync(
+            var error = await replicatedRedisHashKey.UseNonConcurrentReplicatedHashAsync(
                 context,
                 retryWindow: TimeSpan.FromMinutes(1),
                 RedisOperation.All,
                 (batch, key) =>
                 {
                     return batch.StringGetAsync("first");
-                }).ShouldBeError();
+                },
+                timeout: Timeout.InfiniteTimeSpan).ShouldBeError();
             // The operation should fail gracefully, not with a critical error like contract violation.
             error.IsCriticalFailure.Should().BeFalse();
         }

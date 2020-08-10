@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Name of field in redis hash which indicates the version number of key. 
         /// </summary>
         private const string ReplicatedHashVersionNumber = nameof(ReplicatedHashVersionNumber);
-        private static Tracer Tracer = new Tracer(nameof(ReplicatedRedisHashKey));
+        private static readonly Tracer Tracer = new Tracer(nameof(ReplicatedRedisHashKey));
 
         private readonly string _key;
         private readonly IReplicatedKeyHost _host;
@@ -70,9 +70,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Perform an operation against the redis hash using logic to ensure that result of operation comes from instance with latest updates and is resilient to data loss in one of the instances
+        /// Perform an operation against the redis hash using logic to ensure that result of operation comes from instance with latest updates and is resilient to data loss in one of the instances.
         /// </summary>
-        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string? caller = null)
+        public Task<Result<T>> UseNonConcurrentReplicatedHashAsync<T>(
+            OperationContext context,
+            TimeSpan? retryWindow,
+            RedisOperation operation,
+            Func<RedisBatch, string, Task<T>> addOperations,
+            TimeSpan timeout,
+            [CallerMemberName] string? caller = null)
+        {
+            // UseReplicatedHashCoreAsync runs sequentially on different redis instances.
+            // To prevent the potential hangs, forcing the timeout for all of them.
+            return context.PerformOperationAsync(
+                Tracer,
+                () => UseNonConcurrentReplicatedHashAsync(context, retryWindow, operation, addOperations, caller),
+                timeout: timeout,
+                traceErrorsOnly: true);
+        }
+
+        private async Task<Result<T>> UseNonConcurrentReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string? caller = null)
         {
             // Query to see which db has highest version number
             (Result<(T result, long version)>? primaryVersionedResult, Result<(T result, long version)>? secondaryVersionedResult) =

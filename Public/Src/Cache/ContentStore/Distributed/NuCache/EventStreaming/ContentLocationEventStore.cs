@@ -179,17 +179,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private Task GetDeserializeAndDispatchBlobEventAsync(OperationContext context, BlobContentLocationEventData blobEvent, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
+            int batchSize = -1;
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    IEnumerable<ContentLocationEventData> eventDatas;
+                    IReadOnlyList<ContentLocationEventData> eventDatas;
 
                     using (counters[GetAndDeserializeEventData].Start())
                     {
                         eventDatas = await getAndDeserializeLargeEventDataAsync();
                     }
 
+                    batchSize = eventDatas.Count;
                     foreach (var eventData in eventDatas)
                     {
                         if (eventData.Kind == EventKind.AddLocation
@@ -204,10 +206,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
 
                     return BoolResult.Success;
+                },
+                extraEndMessage: _ => $"Size=[{batchSize}]")
+                .ThrowIfFailure();
 
-                }).ThrowIfFailure();
-
-            async Task<IEnumerable<ContentLocationEventData>> getAndDeserializeLargeEventDataAsync()
+            async Task<IReadOnlyList<ContentLocationEventData>> getAndDeserializeLargeEventDataAsync()
             {
                 var blobFilePath = _workingDirectory / Guid.NewGuid().ToString();
                 var blobName = blobEvent.BlobId;

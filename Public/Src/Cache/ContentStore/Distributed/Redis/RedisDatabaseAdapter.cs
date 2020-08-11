@@ -617,11 +617,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 // naively retry all redis server exceptions.
 
                 if (ex is RedisException redisException)
-                { 
-                    if (RedisDatabaseAdapter.IsRedisUnableToConnectException(redisException))
-                    {
-                        return false;
-                    }
+                {
+                    // UnableToConnect may or may not be caused by the instance not existing any more. It can also be
+                    // caused by transient connectivity issues (for example, due to Redis failover operations), in
+                    // which case we want to keep retrying.
 
                     // If the error contains the following text, then the error is not transient.
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));

@@ -1676,9 +1676,9 @@ namespace BuildXL.Execution.Analyzer
                 flagsDifference.Add("IgnoreReparsePoints");
             }
             
-            if (currentSalts.IgnoreFullSymlinkResolving != previousSalts.IgnoreFullSymlinkResolving)
+            if (currentSalts.IgnoreFullReparsePointResolving != previousSalts.IgnoreFullReparsePointResolving)
             {
-                flagsDifference.Add("IgnoreFullSymlinkResolving");
+                flagsDifference.Add("IgnoreFullReparsePointResolving");
             }
             
             if (currentSalts.IgnorePreloadedDlls != previousSalts.IgnorePreloadedDlls)

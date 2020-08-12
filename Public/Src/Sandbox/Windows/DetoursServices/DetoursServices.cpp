@@ -75,6 +75,13 @@ volatile LONG g_msTimeInAddClosedList = 0;
 volatile LONG g_msTimeInRemoveClosedList = 0;
 #endif // #if MEASURE_DETOURED_NT_CLOSE_IMPACT
 
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+volatile ULONGLONG g_shouldResolveReparsePointCacheHitCount;
+volatile ULONGLONG g_reparsePointTargetCacheHitCount;
+volatile ULONGLONG g_resolvedPathsCacheHitCout;
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+
+
 extern "C" {
     NTSTATUS NTAPI NtQueryDirectoryFile(
         _In_     HANDLE                 FileHandle,
@@ -1027,6 +1034,15 @@ static bool DllProcessDetach()
     Dbg(L"Time adding to closed list: %d ms.", g_msTimeInAddClosedList);
     Dbg(L"Time removing from closed list: %d ms.", g_msTimeInRemoveClosedList);
 #endif // MEASURE_DETOURED_NT_CLOSE_IMPACT
+
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+    if (!IgnoreFullReparsePointResolving())
+    {
+        Dbg(L"Intial resolver result cache hit count for PID(%d) and PPID(%d): %ld", g_shouldResolveReparsePointCacheHitCount, g_currentProcessId, g_parentProcessId);
+    }
+    Dbg(L"ReparsePoint target resolver cache hit count for PID(%d) and PPID(%d): %ld", g_reparsePointTargetCacheHitCount, g_currentProcessId, g_parentProcessId);
+    Dbg(L"Resolved paths cache hit count for PID(%d) and PPID(%d): %ld", g_resolvedPathsCacheHitCout, g_currentProcessId, g_parentProcessId);
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
 
     return TRUE;
 }

@@ -113,7 +113,7 @@ namespace BuildXL.Engine.Tracing
         ConfigIgnoreCreateProcessReport = 939,
         ConfigProbeDirectorySymlinkAsDirectory = 940,
         ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
-        ConfigIgnoreFullSymlinkResolving = 942,
+        ConfigIgnoreFullReparsePointResolving = 942,
 
 
         StartInitializingCache = 1502,

@@ -17,6 +17,7 @@ using std::vector;
 
 #define SUPER_VERBOSE 0
 #define MEASURE_DETOURED_NT_CLOSE_IMPACT 0
+#define MEASURE_REPARSEPOINT_RESOLVING_IMPACT 0
 
 // ----------------------------------------------------------------------------
 // FORWARD DECLARATIONS
@@ -201,3 +202,9 @@ extern volatile LONG g_maxClosedListCount;
 extern volatile LONG g_msTimeInAddClosedList;
 extern volatile LONG g_msTimeInRemoveClosedList;
 #endif // MEASURE_DETOURED_NT_CLOSE_IMPACT
+
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+extern volatile ULONGLONG g_shouldResolveReparsePointCacheHitCount;
+extern volatile ULONGLONG g_reparsePointTargetCacheHitCount;
+extern volatile ULONGLONG g_resolvedPathsCacheHitCout;
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT

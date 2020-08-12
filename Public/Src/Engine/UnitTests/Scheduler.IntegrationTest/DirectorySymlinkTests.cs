@@ -99,7 +99,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public DirectorySymlinkTests(ITestOutputHelper output) : base(output)
         {
             // Enable full symbolic link resolving for testing 
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = false;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
         }
 
         protected override void Dispose(bool disposing)

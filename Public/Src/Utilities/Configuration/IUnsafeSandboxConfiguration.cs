@@ -81,9 +81,9 @@ namespace BuildXL.Utilities.Configuration
         bool IgnoreReparsePoints { get; }
         
         /// <summary>
-        /// Whether BuildXL is to ignore fully resolving symbolic links. Ignoring symlink resolving is an unsafe configuration. Defaults to on (i.e., skipping full resolving, due to backwards compatibility).
+        /// Whether BuildXL is to ignore fully resolving of reparse points. Ignoring reparse point resolving is an unsafe configuration. Defaults to on (i.e., skipping full resolving, due to backwards compatibility).
         /// </summary>
-        bool IgnoreFullSymlinkResolving { get; }
+        bool IgnoreFullReparsePointResolving { get; }
 
         /// <summary>
         /// Whether BuildXL is to ignore Dlls loaded before Detours was started. Ignoring the preloaded (statically loaded) dlls is an unsafe configuration. Defaults to on (i.e., ignoring preloaded Dlls).
@@ -227,7 +227,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write(@this.ProcessSymlinkedAccesses.Value);
             }
-            writer.Write(@this.IgnoreFullSymlinkResolving);
+            writer.Write(@this.IgnoreFullReparsePointResolving);
         }
 
         /// <nodoc/>
@@ -256,7 +256,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
                 ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
-                IgnoreFullSymlinkResolving = reader.ReadBoolean(),
+                IgnoreFullReparsePointResolving = reader.ReadBoolean(),
             };
         }
 
@@ -270,7 +270,7 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreGetFinalPathNameByHandle, rhs.IgnoreGetFinalPathNameByHandle, SafeDefaults.IgnoreGetFinalPathNameByHandle)
                 && IsAsSafeOrSafer(lhs.IgnoreNonCreateFileReparsePoints, rhs.IgnoreNonCreateFileReparsePoints, SafeDefaults.IgnoreNonCreateFileReparsePoints)
                 && IsAsSafeOrSafer(lhs.IgnoreReparsePoints, rhs.IgnoreReparsePoints, SafeDefaults.IgnoreReparsePoints)
-                && IsAsSafeOrSafer(lhs.IgnoreFullSymlinkResolving, rhs.IgnoreFullSymlinkResolving, SafeDefaults.IgnoreFullSymlinkResolving)
+                && IsAsSafeOrSafer(lhs.IgnoreFullReparsePointResolving, rhs.IgnoreFullReparsePointResolving, SafeDefaults.IgnoreFullReparsePointResolving)
                 && IsAsSafeOrSafer(lhs.IgnoreSetFileInformationByHandle, rhs.IgnoreSetFileInformationByHandle, SafeDefaults.IgnoreSetFileInformationByHandle)
                 && IsAsSafeOrSafer(lhs.IgnoreZwOtherFileInformation, rhs.IgnoreZwOtherFileInformation, SafeDefaults.IgnoreZwOtherFileInformation)
                 && IsAsSafeOrSafer(lhs.IgnoreZwRenameFileInformation, rhs.IgnoreZwRenameFileInformation, SafeDefaults.IgnoreZwRenameFileInformation)

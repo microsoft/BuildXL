@@ -149,7 +149,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle), getBoolString(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints), getBoolString(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreReparsePoints), getBoolString(UnsafeConfiguration.IgnoreReparsePoints));
-            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreFullSymlinkResolving), getBoolString(UnsafeConfiguration.IgnoreFullSymlinkResolving));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreFullReparsePointResolving), getBoolString(UnsafeConfiguration.IgnoreFullReparsePointResolving));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreSetFileInformationByHandle), getBoolString(UnsafeConfiguration.IgnoreSetFileInformationByHandle));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreZwOtherFileInformation), getBoolString(UnsafeConfiguration.IgnoreZwOtherFileInformation));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreZwRenameFileInformation), getBoolString(UnsafeConfiguration.IgnoreZwRenameFileInformation));

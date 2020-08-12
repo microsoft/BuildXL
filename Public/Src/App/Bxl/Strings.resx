@@ -291,8 +291,8 @@
   <data name="HelpText_DisplayHelp_IgnoreReparsePoints" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
   </data>
-  <data name="HelpText_DisplayHelp_IgnoreFullSymlinkResolving" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of symbolic links (directory + file symbolic links). This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
+  <data name="HelpText_DisplayHelp_IgnoreFullReparsePointResolving" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
   </data>
   <data name="HelpText_DisplayHelp_IgnorePreloadedDlls" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>

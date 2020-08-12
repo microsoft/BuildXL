@@ -1254,6 +1254,7 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallProbeDirectorySymlink);
     IF_COMMAND(CallProbeDirectorySymlinkTargetWithReparsePointFlag);
     IF_COMMAND(CallProbeDirectorySymlinkTargetWithoutReparsePointFlag);
+    IF_COMMAND(CallValidateFileSymlinkAccesses);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2

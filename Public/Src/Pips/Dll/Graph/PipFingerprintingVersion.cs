@@ -58,7 +58,7 @@ namespace BuildXL.Pips.Graph
         /// 81: Add OutputDirectoryContents for SealDirectories
         /// 82: Add ProcessSymlinkedAcceses in SandboxConfiguration
         /// 83: Add PreservePathSetCasing in Process.Options
-        /// 84: Added IgnoreFullSymlinkResolving in IUnsafeSandboxConfiguration.
+        /// 84: Added IgnoreFullReparsePointResolving in IUnsafeSandboxConfiguration.
         /// 85: Added WritingToStandardErrorFailsPip in Process.Options
         /// 86: Normalize casing of ObservedAccessedFileNames.
         /// 87: Changed the cleaning logic of SOD for retries.

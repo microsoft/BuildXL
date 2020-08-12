@@ -1043,13 +1043,13 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreReparsePoints(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreFullSymlinkResolving,
+            (ushort)LogEventId.ConfigIgnoreFullReparsePointResolving,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreFullSymlinkResolving enabled: {ShortProductName} will not fully resolve paths containing any sort of symbolic links (directory + file symbolic links). This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigIgnoreFullSymlinkResolving(LoggingContext context);
+            Message = "/unsafe_IgnoreFullReparsePointResolving enabled: {ShortProductName} will not fully resolve paths containing any sort of reparse point (old-resolver logic). This might lead to incorrect builds because some file accesses will not be enforced.")]
+        public abstract void ConfigIgnoreFullReparsePointResolving(LoggingContext context);
         
         [GeneratedEvent(
             (ushort)LogEventId.ConfigIgnorePreloadedDlls,

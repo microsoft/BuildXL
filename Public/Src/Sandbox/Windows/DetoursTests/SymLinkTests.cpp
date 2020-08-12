@@ -574,3 +574,29 @@ int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag()
 {
     return CallProbeDirectorySymlinkTarget(false);
 }
+
+int CallValidateFileSymlinkAccesses()
+{
+    HANDLE hFile = CreateFileW(
+        L"AnotherDirectory\\Target_DirectorySymlink\\symlink.txt",
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    std::string content = "Some content to write";
+    DWORD bytes_written;
+
+    // Write content throught the symbolic file link
+    WriteFile(hFile, content.c_str(), (DWORD)content.size(), &bytes_written, nullptr);
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}

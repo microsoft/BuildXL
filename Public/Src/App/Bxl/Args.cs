@@ -1117,14 +1117,14 @@ namespace BuildXL
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreFullSymlinkResolving",
+                            "unsafe_IgnoreFullReparsePointResolving",
                             sign =>
                             {
                                 if (sign && OperatingSystemHelper.IsUnixOS)
                                 {
-                                    throw CommandLineUtilities.Error("/unsafe_IgnoreFullSymlinkResolving not allowed on non-Windows OS");
+                                    throw CommandLineUtilities.Error("/unsafe_IgnoreFullReparsePointResolving not allowed on non-Windows OS");
                                 }
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = sign;
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = sign;
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(

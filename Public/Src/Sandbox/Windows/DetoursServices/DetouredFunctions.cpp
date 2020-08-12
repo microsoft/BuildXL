@@ -194,9 +194,9 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 }
 
 /// <summary>
-/// Get the symlink target via DeviceIoControl
+/// Get the reparse point target via DeviceIoControl
 /// </summary>
-static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
+static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
 {
     HANDLE hFile = INVALID_HANDLE_VALUE;
     DWORD lastError = GetLastError();
@@ -207,6 +207,11 @@ static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _I
     auto io_result = ResolvedPathCache::Instance().GetResolvedPathAndType(path);
     if (io_result != nullptr)
     {
+
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+        InterlockedIncrement(&g_reparsePointTargetCacheHitCount);
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+
         target = io_result->first;
         reparsePointType = io_result->second;
         if (reparsePointType == 0x0)
@@ -280,7 +285,7 @@ static bool TryGetSymlinkTarget(_In_ const wstring& path, _In_ HANDLE hInput, _I
 
 Success:
 
-    status = IgnoreFullSymlinkResolving() ? true : reparsePointType == IO_REPARSE_TAG_SYMLINK;
+    status = IgnoreFullReparsePointResolving() ? true : reparsePointType == IO_REPARSE_TAG_SYMLINK;
     goto Epilogue;
 
 Error:
@@ -300,15 +305,15 @@ Epilogue:
 }
 
 /// <summary>
-/// Checks if Detours should resolve all symlinks contained in a path.
+/// Checks if Detours should resolve all reparse points contained in a path.
 /// </summary>
 /// <remarks>
 /// Given a path this function traverses it from left to right, checking if any components
 /// are of type 'reparse point'. As soon as an entry of that type is found, a positive result 
 /// is returned, indicating that the path needs further processing to properly indicate all
-/// potential symlinks as file accesses upstream.
+/// potential reparse point targets as file accesses upstream.
 /// </remarks>
-static bool ShouldResolveSymlinkChain(
+static bool ShouldResolveReparsePointsInPath(
     _In_     LPCWSTR               lpFileName,
     _In_     DWORD                 dwDesiredAccess,
     _In_     DWORD                 dwFlagsAndAttributes)
@@ -318,7 +323,7 @@ static bool ShouldResolveSymlinkChain(
         return false;
     }
 
-    if (IgnoreFullSymlinkResolving())
+    if (IgnoreFullReparsePointResolving())
     {
         return AccessReparsePointTarget(lpFileName, dwDesiredAccess, dwFlagsAndAttributes); // Trying to access reparse point target.
     }
@@ -328,10 +333,10 @@ static bool ShouldResolveSymlinkChain(
     // BuildXL tries to delete files using the 'FILE_FLAG_DELETE_ON_CLOSE' attribute when opening a handle then closing it, before
     // falling back to other strategies. If we try to delete a symbolic link, it's important to not do full resolving as only the link
     // itself should be deleted, not its targets.
-    bool symbolicLinkDeletion = (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0 &&
+    bool reparsePointDeletion = (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0 &&
         (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
 
-    if (symbolicLinkDeletion)
+    if (reparsePointDeletion)
     {
         ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
         return false;
@@ -340,6 +345,9 @@ static bool ShouldResolveSymlinkChain(
     auto result = ResolvedPathCache::Instance().GetResolvingCheckResult(path.GetPathStringWithoutTypePrefix());
     if (result != nullptr)
     {
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+        InterlockedIncrement(&g_shouldResolveReparsePointCacheHitCount);
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
         return *result;
     }
 
@@ -357,7 +365,7 @@ static bool ShouldResolveSymlinkChain(
 
     if (err != 0)
     {
-        Dbg(L"ShouldResolveSymlinkChain: _wsplitpath_s failed, not resolving path: %d", err);
+        Dbg(L"ShouldResolveReparsePointsInPath: _wsplitpath_s failed, not resolving path: %d", err);
         return false;
     }
 
@@ -372,7 +380,7 @@ static bool ShouldResolveSymlinkChain(
         resolver.append(L"\\");
         resolver.append(next);
 
-        if (TryGetSymlinkTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
+        if (TryGetReparsePointTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
         {
             ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
             return true;
@@ -385,7 +393,7 @@ static bool ShouldResolveSymlinkChain(
     resolver.append(file_name.get());
     resolver.append(extension.get());
 
-    if (TryGetSymlinkTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
+    if (TryGetReparsePointTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
     {
         ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
         return true;
@@ -625,7 +633,7 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 
             // Get the next target of the directory symlink.
             wstring target;
-            if (!TryGetSymlinkTarget(result, INVALID_HANDLE_VALUE, target))
+            if (!TryGetReparsePointTarget(result, INVALID_HANDLE_VALUE, target))
             {
                 return false;
             }
@@ -669,7 +677,7 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
     wstring target;
 
     // Get the next target of a reparse point path.
-    if (!TryGetSymlinkTarget(path, hInput, target))
+    if (!TryGetReparsePointTarget(path, hInput, target))
     {
         return false;
     }
@@ -818,7 +826,7 @@ static bool IsHandleOrPathToDirectory(
 /// </summary>
 static bool EnforceReparsePointAccess(
     const wstring& reparsePointPath,
-    const DWORD dwDesiredAccess,
+    DWORD dwDesiredAccess,
     const DWORD dwShareMode,
     const DWORD dwCreationDisposition,
     const DWORD dwFlagsAndAttributes,
@@ -833,6 +841,17 @@ static bool EnforceReparsePointAccess(
 
     // We start with allow / ignore (no access requested) and then restrict based on read / write (maybe both, maybe neither!)
     AccessCheckResult accessCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
+
+    if (!IgnoreFullReparsePointResolving())
+    {
+        bool isDir = IsPathToDirectory(lpReparsePointPath, false);
+        if (isDir && !isFullyResolvedPath)
+        {
+            // Always report intermediate reparse point target results (junctions and directory symbolic links only) as probes or reads, only the fully resolved path 
+            // or intermediate symbolic files are reported with the original desired access
+            dwDesiredAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? dwDesiredAccess : (GENERIC_READ | FILE_READ_DATA);
+        }
+    }
 
     FileOperationContext opContext(
         contextOperationName.c_str(),
@@ -870,7 +889,7 @@ static bool EnforceReparsePointAccess(
         {
             FileReadContext readContext;
 
-            // When enforcing reparse point access, we want to make sure to report and treat any intermediate symbolic links
+            // When enforcing reparse point access, we want to make sure to report and treat any intermediate reparse points
             // in a path as file open actions and only indicate either a file or directory open action once the input is fully resolved.
             // The general design idea is:
             //
@@ -907,7 +926,7 @@ static bool EnforceReparsePointAccess(
             //
             // Design Document: https://bit.ly/2XBqVWy
 
-            readContext.OpenedDirectory = IgnoreFullSymlinkResolving()
+            readContext.OpenedDirectory = IgnoreFullReparsePointResolving()
                 ? IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, lpReparsePointPath, dwDesiredAccess, dwFlagsAndAttributes, &policyResult)
                 : isFullyResolvedPath ? IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, lpReparsePointPath, false) : false;
 
@@ -944,14 +963,13 @@ static bool EnforceReparsePointAccess(
 }
 
 /// <summary>
-/// Resolves all symbolic links contained in a path and enforces allowed accesses for all found matches and optionally the final resolved path.
+/// Resolves all reparse points potentially contained in a path and enforces allowed accesses for all found matches and optionally the final resolved path.
 /// </summary>
 /// <remarks>
-/// This function first canonicalizes the input path, then splits it by its path components to then analyze each component to check 
-/// if it is a reparse point with a symbolic link tag. If that is the case, the target of the symbolic link is used to gradually resolve 
-/// the input and transform it into its final form.
+/// This function first canonicalizes the input path, then splits it by its path components to then analyze each component to check if it is a reparse 
+/// point. If that is the case, the target of the reparse point is used to gradually resolve the input and transform it into its final form.
 /// </remarks>
-static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
+static bool ResolveAllReparsePointsAndEnforceAccess(
     const CanonicalizedPath& path,
     const DWORD dwDesiredAccess,
     const DWORD dwShareMode,
@@ -990,7 +1008,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
             return false;
         }
 
-        bool symlink_found = false;
+        bool reparsepoint_found = false;
 
         wstring target;
         wstring resolved = drive.get();
@@ -1005,7 +1023,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
             wstring temp = resolved;
             temp.append(next);
 
-            if (TryGetSymlinkTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
+            if (TryGetReparsePointTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
             {
                 order.push_back(temp);
                 resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
@@ -1028,7 +1046,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
                     resolved.append(target);
                 }
 
-                symlink_found = true;
+                reparsepoint_found = true;
             }
             else
             {
@@ -1044,7 +1062,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
         temp.append(file_name.get());
         temp.append(extension.get());
 
-        if (!symlink_found && TryGetSymlinkTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
+        if (!reparsepoint_found && TryGetReparsePointTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
         {
             order.push_back(temp);
             resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
@@ -1088,7 +1106,7 @@ static bool ResolveAllSymlinksAndEnforceReparsePointAccess(
             if (!normalized.IsNull())
             {
                 input = normalized.GetPathStringWithoutTypePrefix();
-                if (symlink_found)
+                if (reparsepoint_found)
                 {
                     continue;
                 }
@@ -1162,7 +1180,7 @@ static bool EnforceChainOfReparsePointAccesses(
 
     if (cachedEntries == nullptr)
     {
-        if (IgnoreFullSymlinkResolving())
+        if (IgnoreFullReparsePointResolving())
         {
             auto order = vector<wstring>();
             auto paths = map<wstring, ResolvedPathType>();
@@ -1174,7 +1192,7 @@ static bool EnforceChainOfReparsePointAccesses(
         }
         else
         {
-            return ResolveAllSymlinksAndEnforceReparsePointAccess(
+            return ResolveAllReparsePointsAndEnforceAccess(
                 path,
                 dwDesiredAccess,
                 dwShareMode,
@@ -1187,6 +1205,10 @@ static bool EnforceChainOfReparsePointAccesses(
         }
     }
 
+#if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+    InterlockedIncrement(&g_resolvedPathsCacheHitCout);
+#endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
+
     bool success = true;
     auto contextOperationName = cached ? L"ReparsePointTargetCached" : L"ReparsePointTarget";
 
@@ -1197,10 +1219,10 @@ static bool EnforceChainOfReparsePointAccesses(
         auto type = lookupTable[key];
 
         // When fully resolving paths, it is sometimes necessary to either pass back the fully resolved path to the caller, or not report it to BuildXL
-        // at all (see <code>ResolveAllSymlinksAndEnforceReparsePointAccess</code>). The 'ResolvedPathType' enum is used to flag the resulting parts of a
-        // path so we can make that distinction when providing cached results. When IgnoreFullSymlinkResolving() is enabled, all files get flagged with
+        // at all (see <code>ResolveAllReparsePointsAndEnforceAccess</code>). The 'ResolvedPathType' enum is used to flag the resulting parts of a
+        // path so we can make that distinction when providing cached results. When IgnoreFullReparsePointResolving() is enabled, all files get flagged with
         // 'ResolvedPathType::Intermediate' in DetourGetFinalPaths when populating the cache, so this check can be skipped too.
-        if (!IgnoreFullSymlinkResolving() && type == ResolvedPathType::FullyResolved)
+        if (!IgnoreFullReparsePointResolving() && type == ResolvedPathType::FullyResolved)
         {
             if (resolvedPath != nullptr)
             {
@@ -2642,7 +2664,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     error = GetLastError();
 
-    if (ShouldResolveSymlinkChain(lpFileName, dwDesiredAccess, dwFlagsAndAttributes))
+    if (ShouldResolveReparsePointsInPath(lpFileName, dwDesiredAccess, dwFlagsAndAttributes))
     {
         // Even though the process CreateFile the file with FILE_FLAG_OPEN_REPARSE_POINT, we need to follow the chain of symlinks
         // because the process may use the handle returned by that CreateFile to read the file, which essentially read the final target of symlinks.
@@ -2664,7 +2686,7 @@ HANDLE WINAPI Detoured_CreateFileW(
             return INVALID_HANDLE_VALUE;
         }
 
-        if (!IgnoreFullSymlinkResolving())
+        if (!IgnoreFullReparsePointResolving())
         {
             // We only report directory symlinks contained in the path and the final target path in this case
             SetLastError(error);
@@ -3881,7 +3903,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
 
     error = GetLastError();
 
-    if (!IgnoreFullSymlinkResolving() && (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0)
+    if (!IgnoreFullReparsePointResolving() && (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0)
     {
         // When running in full symlink resolving mode and creating a directory symlink with an approved write access,
         // we need to adjust the report level to make sure we send the report to BuildXL. This normally does not happen,
@@ -4142,7 +4164,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     // Both of the currently understood info levels return WIN32_FIND_DATAW.
     LPWIN32_FIND_DATAW findFileDataAtLevel = (LPWIN32_FIND_DATAW)lpFindFileData;
 
-    if (!IgnoreFullSymlinkResolving() && ShouldResolveSymlinkChain(lpFileName, GENERIC_READ, FILE_FLAG_OPEN_REPARSE_POINT))
+    if (!IgnoreFullReparsePointResolving() && ShouldResolveReparsePointsInPath(lpFileName, GENERIC_READ, FILE_FLAG_OPEN_REPARSE_POINT))
     {
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
         NTSTATUS ntStatus;
@@ -5869,7 +5891,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         return result;
     }
 
-    if (ShouldResolveSymlinkChain(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
     {
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
         NTSTATUS ntStatus;
@@ -6151,7 +6173,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         return result;
     }
 
-    if (ShouldResolveSymlinkChain(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
     {
         NTSTATUS ntStatus;
 
@@ -6406,7 +6428,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         return result;
     }
 
-    if (ShouldResolveSymlinkChain(path.GetPathString(), opContext.DesiredAccess, OpenOptions))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, OpenOptions))
     {
         NTSTATUS ntStatus;
 

@@ -67,7 +67,7 @@ namespace BuildXL.Processes
             ReportProcessArgs = false;
             ForceReadOnlyForRequestedReadWrite = false;
             IgnoreReparsePoints = false;
-            IgnoreFullSymlinkResolving = true; // TODO: Change this when customers onboard the feature.
+            IgnoreFullReparsePointResolving = true; // TODO: Change this when customers onboard the feature.
             IgnorePreloadedDlls = true; // TODO: Change this when customers onboard the feature.
             DisableDetours = false;
             IgnoreZwRenameFileInformation = false;
@@ -275,7 +275,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// If true, allows following reparse points without enforcing any file access rules.
+        /// If true, allows following reparse points without enforcing any file access rules for their embedded targets.
         /// </summary>
         public bool IgnoreReparsePoints
         {
@@ -284,12 +284,17 @@ namespace BuildXL.Processes
         }
         
         /// <summary>
-        /// If true, paths with symbolic links are not fully resolved nor reported.
+        /// Initially BuildXL did not fully resolve file access paths which contained reparse points - especially paths with multiple embedded 
+        /// junctions and/or directory symbolic links were not handled correctly, nor were the semantics for symbolic link reporting on Windows 
+        /// on par with our Unix implementations. This behavior was mostly incomplete due to performance concerns, but with a resolver cache in
+        /// the Detours layer we can slowly migrate partners to using full reparse point resolving. If no resolving at all should happen at all, 
+        /// users can still pass 'IgnoreReparsePoints'.
+        /// <remarks>If true, paths with reparse points are not fully resolved nor reported and the legacy behavior is honored.</remarks>
         /// </summary>
-        public bool IgnoreFullSymlinkResolving
+        public bool IgnoreFullReparsePointResolving
         {
-            get => GetFlag(FileAccessManifestFlag.IgnoreFullSymlinkResolving);
-            set => SetFlag(FileAccessManifestFlag.IgnoreFullSymlinkResolving, value);
+            get => GetFlag(FileAccessManifestFlag.IgnoreFullReparsePointResolving);
+            set => SetFlag(FileAccessManifestFlag.IgnoreFullReparsePointResolving, value);
         }
 
         /// <summary>
@@ -1135,7 +1140,7 @@ namespace BuildXL.Processes
             IgnorePreloadedDlls = 0x8000000,
             EnforceAccessPoliciesOnDirectoryCreation = 0x10000000,
             ProbeDirectorySymlinkAsDirectory = 0x20000000,
-            IgnoreFullSymlinkResolving = 0x40000000
+            IgnoreFullReparsePointResolving = 0x40000000
         }
 
         // CODESYNC: DataTypes.h

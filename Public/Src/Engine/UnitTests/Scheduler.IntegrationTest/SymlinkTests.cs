@@ -28,7 +28,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public SymlinkTests(ITestOutputHelper output) : base(output)
         {
             // Enable full symbolic link resolving for testing 
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = false;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
         }
 
         [Feature(Features.AbsentFileProbe)]
@@ -1014,7 +1014,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
-        public void AccessFileSymlinkThroughDirectorySymlinkOrJunction(bool useJunction, bool ignoreFullSymlinkResolving)
+        public void AccessFileSymlinkThroughDirectorySymlinkOrJunction(bool useJunction, bool ignoreFullReparsePointResolving)
         {
             // File and directory layout:
             //    Enlist
@@ -1043,7 +1043,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
             
             // When handling junctions, use the old default behavior
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = ignoreFullSymlinkResolving;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = ignoreFullReparsePointResolving;
 
             // If junction, then the prefix should be '..\' instead of '..\..\'
             string relativePrefix = useJunction ? ".." : Path.Combine("..", "..");
@@ -1098,7 +1098,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             builder.AddInputDirectory(sealedTargetDirectory.Directory);
             
-            if (!ignoreFullSymlinkResolving || OperatingSystemHelper.IsUnixOS)    
+            if (!ignoreFullReparsePointResolving || OperatingSystemHelper.IsUnixOS)    
             {
                 builder.AddInputFile(FileArtifact.CreateSourceFile(linkFile));
                 
@@ -1140,7 +1140,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess().AssertCacheMiss(processWithOutputs.Process.PipId);
             
-            if (useJunction && ignoreFullSymlinkResolving)
+            if (useJunction && ignoreFullReparsePointResolving)
             {
                 // Re-route /Enlist/Source ==> Intermediate/CurrentY should result in cache miss.
                 // Create /Enlist/Target/targetFileY and /Enlist/Intermediate/CurrentY/linkFile
@@ -1170,7 +1170,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
 
             // TODO: This test can be deleted once we have validated and optimized Rush based scenarios
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = true;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = true;
 
             // Create a source file via a directory symlink
             string symlinkDir = Path.Combine(SourceRoot, "symlinkDir");

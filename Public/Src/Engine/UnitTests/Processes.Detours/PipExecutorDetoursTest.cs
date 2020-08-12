@@ -29,7 +29,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes.Detours
 {
-    /* TODO: This class tests symlink / junction behavior from before /unsafe_IgnoreFullSymlinkResolving was introduced and makes
+    /* TODO: This class tests symlink / junction behavior from before /unsafe_IgnoreFullReparsePointResolving was introduced and makes
              sure we don't break compatibility for our partners relying on this. Once directory symlink support is the default,
              these tests need to be adjusted.
      */
@@ -90,7 +90,7 @@ namespace Test.BuildXL.Processes.Detours
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
-            bool ignoreFullSymlinkResolving = true)
+            bool ignoreFullReparsePointResolving = true)
         {
             errorString = null;
 
@@ -120,7 +120,7 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors,
                     IgnoreReparsePoints = ignoreReparsePoints,
-                    IgnoreFullSymlinkResolving = ignoreFullSymlinkResolving,
+                    IgnoreFullReparsePointResolving = ignoreFullReparsePointResolving,
                     ExistingDirectoryProbesAsEnumerations = existingDirectoryProbesAsEnumerations,
                     IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = ignoreZwOtherFileInformation,
@@ -1599,7 +1599,7 @@ namespace Test.BuildXL.Processes.Detours
                     {
                         UnexpectedFileAccessesAreErrors = true,
                         IgnoreReparsePoints = false,
-                        IgnoreFullSymlinkResolving = true,
+                        IgnoreFullReparsePointResolving = true,
                         IgnoreSetFileInformationByHandle = false,
                         IgnoreZwRenameFileInformation = false,
                         IgnoreZwOtherFileInformation = false,
@@ -6302,7 +6302,7 @@ namespace Test.BuildXL.Processes.Detours
                     else
                     {
                         // Probe should succeed because the directory symlink exists, regardless the existence of its target.
-                        // However, since the probe is treated a existing file probe, we should get access denied.
+                        // However, since the probe is treated as existing file probe, we should get access denied.
                         VerifyAccessDenied(context, result);
                         VerifyFileAccesses(
                             context,
@@ -6753,7 +6753,7 @@ namespace Test.BuildXL.Processes.Detours
                     pip: process,
                     errorString: out errorString,
                     unexpectedFileAccessesAreErrors: false,
-                    ignoreFullSymlinkResolving: false,
+                    ignoreFullReparsePointResolving: false,
                     detoursListener: accumulator);
 
                 VerifyNormalSuccess(context, result);
@@ -6762,8 +6762,8 @@ namespace Test.BuildXL.Processes.Detours
                 VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
                 {
                     // Uncached initial ReparsePointTarget reports
-                    (firstDirectorySymlink, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
-                    (secondDirectorySymlink, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
                     (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
 
                     // ResolvedPathCache reports ReparsePointTargetCached reports
@@ -6780,6 +6780,81 @@ namespace Test.BuildXL.Processes.Detours
                 // Assert we have three ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
                 // does not need to happen again, as the cache is populated
                 XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 3);
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDetoursValidateResolvedReparsePointAccesses()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory(pathTable, "TargetDirectory");
+                var targetDirectoryArtifact = CreateDirectory(pathTable, targetDirectory);
+                var expandedDirectoryPath = targetDirectory.Expand(pathTable).ToString();
+
+                var outputFile = tempFiles.GetFileName(pathTable, "TargetDirectory\\output.txt");
+                var outputArtifact = FileArtifact.CreateSourceFile(outputFile);
+                var outputPath = outputArtifact.Path.ToString(pathTable);
+
+                if (File.Exists(outputPath))
+                {
+                    ExceptionUtilities.HandleRecoverableIOException(() => File.Delete(outputPath), exception => { });
+                }
+
+                File.WriteAllText(outputPath, "Some content");
+
+                var anotherDirectory = tempFiles.GetDirectory(pathTable, "AnotherDirectory");
+                var anotherDirectoryArtifact = CreateDirectory(pathTable, anotherDirectory);
+                var anotherExpandedDirectoryPath = anotherDirectory.Expand(pathTable).ToString();
+
+                var directorySymlink = tempFiles.GetFileName(anotherExpandedDirectoryPath, "Target_DirectorySymlink");
+                var directorySymlinkAbsolutePath = AbsolutePath.Create(pathTable, directorySymlink);
+
+                var fileSymlink = tempFiles.GetFileName(expandedDirectoryPath, "symlink.txt");
+                var fileSymlinkAbsolutePath = AbsolutePath.Create(pathTable, fileSymlink);
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directorySymlink, $"..{Path.DirectorySeparatorChar}{Path.GetFileName(expandedDirectoryPath)}", false));
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(fileSymlink, outputPath, true));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallValidateFileSymlinkAccesses",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(directorySymlinkAbsolutePath), FileArtifact.CreateSourceFile(fileSymlinkAbsolutePath) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString, 
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    // Intermediate directory symbolic links are always reported with Read access only
+                    (directorySymlinkAbsolutePath, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    // Make sure that both the output file and the symbolic file pointing to it have the same RequestedAccess 
+                    // as specified in the native 'CallValidateFileSymlinkAccesses()' test harness
+                    (fileSymlinkAbsolutePath, RequestedAccess.ReadWrite, FileAccessStatus.Denied),
+                    (outputFile, RequestedAccess.ReadWrite, FileAccessStatus.Denied)
+                });
             }
         }
 
@@ -6915,9 +6990,10 @@ namespace Test.BuildXL.Processes.Detours
                         if (observation.Item4.HasValue)
                         {
                             operationDoesMatch = pathSpecificAccess.Operation == observation.Item4.Value;
+                            if (!operationDoesMatch) continue; // Look at all available operations to find a match
                         }
 
-                        foundExpectedAccess = true && operationDoesMatch;
+                        foundExpectedAccess = true;
                         break;
                     }
                 }

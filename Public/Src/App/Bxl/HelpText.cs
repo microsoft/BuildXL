@@ -919,8 +919,8 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/unsafe_IgnoreFullSymlinkResolving[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreFullSymlinkResolving,
+                "/unsafe_IgnoreFullReparsePointResolving[+|-]",
+                Strings.HelpText_DisplayHelp_IgnoreFullReparsePointResolving,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

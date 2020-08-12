@@ -49,7 +49,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     // Tracking the cancellation of redis operation to return this aspect back to the caller.
                     isCancelled = executeBatchOperationResult.IsCancelled;
                     return Result.Success(await result);
-                });
+                },
+                traceOperationStarted: false,
+                traceOperationFinished: false);
 
             executeBatchResult.IsCancelled = isCancelled;
             return executeBatchResult;

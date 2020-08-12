@@ -1577,7 +1577,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var removedContent = new List<ShortHash>();
 
                             var removalsOnlyLimit = _configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
-                            var maximumAddsOnRemoveBatch = removalsOnlyLimit * (_configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0);
+                            var maximumAddsOnRemoveBatch = (removalsOnlyLimit * (_configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0)) / 100;
+
                             var limit = _configuration.ReconciliationMaxCycleSize;
                             var limitThreshold = Math.Min(limit, removalsOnlyLimit);
                             foreach (var diffItem in diffedContent)
@@ -1598,16 +1599,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     removedContent.Add(diffItem.item.hash);
                                 }
 
-                                // We have the most information about the batch size at the limit, so that's when we
-                                // compute exactly what size we need.
-                                if (addedContent.Count + removedContent.Count == limitThreshold)
+                                // Potentially adjusting the limit of the cycle size once we reached the limit threshold.
+                                if (addedContent.Count + removedContent.Count >= limitThreshold)
                                 {
-                                    if (addedContent.Count > 0)
+                                    // Using normal (lower) limit if the number of adds exceeds the threshold.
+                                    // Or using a "re-imaging" (higher) limit otherwise.
+                                    if (addedContent.Count > maximumAddsOnRemoveBatch )
                                     {
-                                        if (removedContent.Count > 0 && addedContent.Count <= maximumAddsOnRemoveBatch)
-                                        {
-                                            limit = removalsOnlyLimit;
-                                        }
+                                        limit = _configuration.ReconciliationMaxCycleSize;
                                     }
                                     else
                                     {

@@ -1860,94 +1860,130 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        /// <nodoc />
-        public enum ReconciliationTestMode
+        [Fact]
+        public async Task TestReconciliation()
         {
-            Normal,
-            Slow,
+            // A small (normal) reconciliation that must be done in one cycle.
+            ConfigureReconciliation(
+                reconciliationMaxCycleSize: 100_000,
+                reconciliationMaxRemoveHashesCycleSize: null,
+                reconciliationCycleFrequencyMinutes: 30,
+                reconciliationMaxRemoveHashesAddPercentage: null
+                );
 
-            /// <summary>
-            /// Tests reconciliation when machines are mass-reimaged
-            /// </summary>
-            Reimage,
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
+            cycles.Should().Be(1);
+        }
 
-            /// <summary>
-            /// Machines are mass-reimaged, but they also get some content added inside the cycle
-            /// </summary>
-            FuzzyReimage
+        [Fact]
+        public async Task TestReconciliationWithMultipleCycles()
+        {
+            // A relatively large reconciliation that doesn't fit into one reconciliation cycle
+            ConfigureReconciliation(
+                reconciliationMaxCycleSize: 50,
+                reconciliationMaxRemoveHashesCycleSize: null,
+                reconciliationCycleFrequencyMinutes: null,
+                reconciliationMaxRemoveHashesAddPercentage: null
+                );
+
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
+            cycles.Should().Be(3);
         }
 
         [Theory]
-        [InlineData(ReconciliationTestMode.Normal)]
-        [InlineData(ReconciliationTestMode.Slow)]
-        [InlineData(ReconciliationTestMode.Reimage)]
-        [InlineData(ReconciliationTestMode.FuzzyReimage)]
-        public async Task ReconciliationTest(ReconciliationTestMode testMode)
+        [InlineData(1000 - 1, 0, 0.5)]
+        // -1 is needed for the next cases because reconciliation stppps only when the number of hashes is less then the limit
+        // i.e. reconciling 1000 hashes with the cycle size of 1000 requires 2 cycles.
+        [InlineData(1000 - 4 - 1, 4, 0.5)]
+        [InlineData(1000 - 100 - 1, 100, 30)]
+        public async Task TestReconciliationCausedByReimage(int removeContent, int addContent, double maxRemoveToAddPercentage)
         {
-            bool slowReconciliation = testMode == ReconciliationTestMode.Slow;
+            // Covering the case where due to a way bigger number of removals caused by machine re-imaging
+            // the reconciliation is still done in one cycle.
+            ConfigureReconciliation(
+                reconciliationMaxCycleSize: 10,
+                reconciliationMaxRemoveHashesCycleSize: 1000,
+                reconciliationCycleFrequencyMinutes: null,
+                reconciliationMaxRemoveHashesAddPercentage: maxRemoveToAddPercentage
+                );
 
-            var removeCount = 100;
-            var addCount = 10;
-            _enableSecondaryRedis = false;
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeContent, addContent);
+            cycles.Should().Be(1);
+        }
 
-            var reconciliationMaxCycleSize = 100_000;
-            int? reconciliationMaxRemoveHashesCycleSize = null;
-            var reconciliationCycleFrequencyMinutes = 30;
-            double? reconciliationMaxRemoveHashesAddPercentage = null;
+        [Fact]
+        public async Task TestReconciliationOutOfSync()
+        {
+            // An out of sync case when the number of adds and removals is mixed and
+            // re-imaging reconciliation count is not used.
+            ConfigureReconciliation(
+                reconciliationMaxCycleSize: 1000,
+                reconciliationMaxRemoveHashesCycleSize: 10_000,
+                reconciliationCycleFrequencyMinutes: null,
+                reconciliationMaxRemoveHashesAddPercentage: 0.1 // Up to 10 removals is small reconciliation
+            );
 
-            if (slowReconciliation)
-            {
-                reconciliationMaxCycleSize = 50;
-                reconciliationCycleFrequencyMinutes = 1;
-            }
+            // Should have more than 1 cycle to reconcile 99 adds with 10 removals accepted for re-image
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 10000 - 100, addCount: 99);
+            cycles.Should().BeGreaterThan(1, "We should have more than one reconciliation cycle to handle 99 new hashes");
+        }
 
-            if (testMode == ReconciliationTestMode.Reimage)
-            {
-                removeCount = 1000;
-                addCount = 0;
-                reconciliationMaxRemoveHashesCycleSize = int.MaxValue;
-                reconciliationMaxCycleSize = 10;
-                reconciliationCycleFrequencyMinutes = 1;
-            }
+        [Fact]
+        public async Task TestReconciliationReImage()
+        {
+            // An out of sync case when the number of adds and removals is mixed and
+            // re-imaging reconciliation count is not used.
+            ConfigureReconciliation(
+                reconciliationMaxCycleSize: 1000,
+                reconciliationMaxRemoveHashesCycleSize: 10_000,
+                reconciliationCycleFrequencyMinutes: null,
+                reconciliationMaxRemoveHashesAddPercentage: 0.1 // Up to 10 removals is small reconciliation
+            );
 
-            if (testMode == ReconciliationTestMode.FuzzyReimage)
-            {
-                removeCount = 10000;
-                addCount = 10;
-                reconciliationMaxRemoveHashesCycleSize = int.MaxValue;
-                reconciliationMaxCycleSize = 500;
-                reconciliationCycleFrequencyMinutes = 1;
-                reconciliationMaxRemoveHashesAddPercentage = 0.3;
-            }
+            // Need 2 cycles, because we allow only 5 removals to consider the reconciliation be caused by re-imaging.
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 10000 - 10, addCount: 9);
+            cycles.Should().Be(1);
+        }
 
+        private void ConfigureReconciliation(
+            int reconciliationMaxCycleSize,
+            int? reconciliationMaxRemoveHashesCycleSize,
+            int? reconciliationCycleFrequencyMinutes,
+            double? reconciliationMaxRemoveHashesAddPercentage)
+        {
             ConfigureWithOneMaster(s =>
-            {
-                s.LogReconciliationHashes = true;
-                s.UseContextualEntryDatabaseOperationLogging = true;
-                s.Unsafe_DisableReconciliation = false;
-                s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
-                s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
-                s.ReconciliationMaxRemoveHashesAddPercentage = reconciliationMaxRemoveHashesAddPercentage;
-                s.ReconciliationCycleFrequencyMinutes = reconciliationCycleFrequencyMinutes;
-            },
-            r =>
-            {
-                r.AllowSkipReconciliation = false;
-
-                if (slowReconciliation || testMode == ReconciliationTestMode.Reimage || testMode == ReconciliationTestMode.FuzzyReimage)
+                                   {
+                                       s.LogReconciliationHashes = true;
+                                       s.UseContextualEntryDatabaseOperationLogging = true;
+                                       s.Unsafe_DisableReconciliation = false;
+                                       s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
+                                       s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
+                                       s.ReconciliationMaxRemoveHashesAddPercentage = reconciliationMaxRemoveHashesAddPercentage;
+                                       s.ReconciliationCycleFrequencyMinutes = reconciliationCycleFrequencyMinutes ?? 1;
+                                   },
+                r =>
                 {
-                    // Verify that configuration propagated and change it to 1ms rather than 1 minute
-                    // for the sake of test speed
-                    r.ReconciliationCycleFrequency.Should().Be(TimeSpan.FromMinutes(1));
-                    r.ReconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
-                }
-            });
+                    r.AllowSkipReconciliation = false;
 
+                    if (reconciliationCycleFrequencyMinutes == null)
+                    {
+                        // Verify that configuration propagated and change it to 1ms rather than 1 minute
+                        // for the sake of test speed
+                        r.ReconciliationCycleFrequency.Should().Be(TimeSpan.FromMinutes(1));
+                        r.ReconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
+                    }
+                });
+        }
+
+        private async Task<long> ReconcileAndGetNumberOfReconciliationCycles(int removeCount, int addCount)
+        {
             ThreadSafeRandom.SetSeed(1);
 
             var addedHashes = new List<ContentHashWithSize>();
             var retainedHashes = new List<ContentHashWithSize>();
             var removedHashes = Enumerable.Range(0, removeCount).Select(i => new ContentHashWithSize(ContentHash.Random(), 120)).OrderBy(h => h.Hash).ToList();
+
+            long numberOfCycles = 0;
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1994,19 +2030,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: true);
 
-                    if (slowReconciliation)
-                    {
-                        var expectedCycles = ((removeCount + addCount) / reconciliationMaxCycleSize) + 1;
-                        worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(initialReconciliationCycles + expectedCycles);
-                    }
-
-                    if (testMode == ReconciliationTestMode.Reimage || testMode == ReconciliationTestMode.FuzzyReimage)
-                    {
-                        // When doing a reimage test, we should only have deletes. Since the deletes are less than the
-                        // maximum deletion-only cycle, we should do only one reconciliation cycle on the worker.
-                        worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(initialReconciliationCycles + 1);
-                    }
-
                     int removedIndex = 0;
                     foreach (var removedHash in removedHashes)
                     {
@@ -2020,9 +2043,13 @@ namespace ContentStoreTest.Distributed.Sessions
                         HasLocation(master.LocalLocationStore.Database, context, addedHash.Hash, workerId, addedHash.Size).Should()
                             .BeTrue(addedHash.ToString());
                     }
-                });
-        }
 
+                    numberOfCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value - initialReconciliationCycles;
+                });
+
+            return numberOfCycles;
+        }
+        
         private static bool HasLocation(ContentLocationDatabase db, BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext context, ContentHash hash, MachineId machine, long size)
         {
             if (!db.TryGetEntry(context, hash, out var entry))

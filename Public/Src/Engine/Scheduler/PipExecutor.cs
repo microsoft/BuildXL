@@ -1090,7 +1090,7 @@ namespace BuildXL.Scheduler
                     environment,
                     pip.SemiStableHash,
                     executionResult,
-                    pip.PipType == PipType.Process ? ((Process)pip).DoubleWritePolicy.ImpliesDoubleWriteIsWarning() : false);
+                    pip.PipType == PipType.Process ? ((Process)pip).RewritePolicy.ImpliesDoubleWriteIsWarning() : false);
 
                 if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings)
                 {
@@ -3247,7 +3247,7 @@ namespace BuildXL.Scheduler
             // The ordering of pip.DirectoryOutputs and metadata.DynamicOutputs is consistent.
 
             // The index of the first artifact corresponding to an opaque directory input
-            using (var poolFileList = Pools.GetFileArtifactList())
+            using (var poolFileList = Pools.GetFileArtifactWithAttributesList())
             {
                 var fileList = poolFileList.Instance;
                 for (int i = 0; i < pip.DirectoryOutputs.Length; i++)
@@ -3256,7 +3256,10 @@ namespace BuildXL.Scheduler
 
                     foreach (var dynamicOutputFileAndInfo in cacheHitData.DynamicDirectoryContents[i])
                     {
-                        fileList.Add(dynamicOutputFileAndInfo.fileArtifact);
+                        fileList.Add(FileArtifactWithAttributes.Create(
+                            dynamicOutputFileAndInfo.fileArtifact, 
+                            FileExistence.Required, 
+                            dynamicOutputFileAndInfo.fileMaterializationInfo.IsUndeclaredFileRewrite));
                     }
 
                     executionResult.ReportDirectoryOutput(pip.DirectoryOutputs[i], fileList);
@@ -4234,7 +4237,7 @@ namespace BuildXL.Scheduler
             using (var poolFileArtifactWithAttributesList = Pools.GetFileArtifactWithAttributesList())
             using (var poolAbsolutePathFileOutputDataMap = s_absolutePathFileOutputDataMapPool.GetInstance())
             using (var poolAbsolutePathFileArtifactWithAttributes = Pools.GetAbsolutePathFileArtifactWithAttributesMap())
-            using (var poolFileList = Pools.GetFileArtifactList())
+            using (var poolFileList = Pools.GetFileArtifactWithAttributesList())
             using (var poolAbsolutePathFileMaterializationInfoTuppleList = s_absolutePathFileMaterializationInfoTuppleListPool.GetInstance())
             using (var poolFileArtifactPossibleFileMaterializationInfoTaskMap = s_fileArtifactPossibleFileMaterializationInfoTaskMapPool.GetInstance())
             {
@@ -4300,7 +4303,8 @@ namespace BuildXL.Scheduler
                                     return;
                                 }
 
-                                fileList.Add(fileArtifact);
+                                // Files under an exclusive opaques are always considered required outputs
+                                fileList.Add(FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required));
                                 FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
                                 var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
                                 allOutputs.Add(fileArtifactWithAttributes);
@@ -4336,7 +4340,7 @@ namespace BuildXL.Scheduler
 
                         foreach (var access in accesses)
                         {
-                            fileList.Add(access.ToFileArtifact());
+                            fileList.Add(access);
                             FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
 
                             allOutputs.Add(access);
@@ -4656,13 +4660,14 @@ namespace BuildXL.Scheduler
                     && !isSymlink;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
-                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, isSymlink)
+                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isSymlink)
                     : await TrackPipOutputAsync(
                         operationContext,
                         environment,
                         outputArtifact,
                         environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
-                        isSymlink);
+                        isSymlink,
+                        output.IsUndeclaredFileRewrite);
 
                 if (!possiblyStoredOutputArtifact.Succeeded)
                 {
@@ -5059,6 +5064,7 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             Process process,
             FileArtifact outputFileArtifact,
+            bool isUndeclaredFileRewrite,
             bool isSymlink = false)
         {
             Contract.Requires(environment != null);
@@ -5069,10 +5075,11 @@ namespace BuildXL.Scheduler
                 await
                     environment.LocalDiskContentStore.TryStoreAsync(
                         environment.Cache.ArtifactContentCache,
-                        GetFileRealizationMode(environment, process),
+                        GetFileRealizationMode(environment, process, isUndeclaredFileRewrite),
                         outputFileArtifact.Path,
                         tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
-                        isSymlink: isSymlink);
+                        isSymlink: isSymlink,
+                        isUndeclaredFileRewrite: isUndeclaredFileRewrite);
 
             if (!possiblyStored.Succeeded)
             {
@@ -5090,7 +5097,8 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             FileArtifact outputFileArtifact,
             bool createHandleWithSequentialScan = false,
-            bool isSymlink = false)
+            bool isSymlink = false,
+            bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(environment != null);
             Contract.Requires(outputFileArtifact.IsOutputFile);
@@ -5108,7 +5116,8 @@ namespace BuildXL.Scheduler
                 // of the USN. However, here we are tracking a produced output. Thus, the known content hash should be ignored.
                 ignoreKnownContentHashOnDiscoveringContent: true,
                 createHandleWithSequentialScan: createHandleWithSequentialScan,
-                isSymlink: isSymlink);
+                isSymlink: isSymlink,
+                isUndeclaredFileRewrite: isUndeclaredFileRewrite);
 
             if (!possiblyTracked.Succeeded)
             {
@@ -5128,9 +5137,11 @@ namespace BuildXL.Scheduler
                 : FileRealizationMode.Copy;
         }
 
-        private static FileRealizationMode GetFileRealizationMode(IPipExecutionEnvironment environment, Process process)
+        private static FileRealizationMode GetFileRealizationMode(IPipExecutionEnvironment environment, Process process, bool isUndeclaredFileRewrite)
         {
-            return (environment.Configuration.Engine.UseHardlinks && !process.OutputsMustRemainWritable)
+            // Make sure we don't place hardlinks for undeclared file rewrites, since we want ot leave the rewrite writable
+            // for future builds
+            return (environment.Configuration.Engine.UseHardlinks && !process.OutputsMustRemainWritable && !isUndeclaredFileRewrite)
                 ? FileRealizationMode.HardLinkOrCopy // Prefers hardlinks, but will fall back to copying when creating a hard link fails. (e.g. >1023 links)
                 : FileRealizationMode.Copy;
         }

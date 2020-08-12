@@ -41,19 +41,25 @@ namespace BuildXL.Storage.ChangeTracking
         public readonly ReparsePointInfo ReparsePointInfo;
 
         /// <summary>
+        /// Whether the tracked content represents a rewrite on a source or alien file, allowed by relaxing policies
+        /// </summary>
+        public readonly bool IsUndeclaredFileRewrite;
+
+        /// <summary>
         /// Gets the file materialization info
         /// </summary>
-        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, ReparsePointInfo);
+        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, ReparsePointInfo, IsUndeclaredFileRewrite);
 
         /// <summary>
         /// Creates a <see cref="TrackedFileContentInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public TrackedFileContentInfo(FileContentInfo fileContentInfo, FileChangeTrackingSubscription subscription, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null)
+        public TrackedFileContentInfo(FileContentInfo fileContentInfo, FileChangeTrackingSubscription subscription, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isUndeclaredFileRewrite = false)
         {
             Subscription = subscription;
             FileContentInfo = fileContentInfo;
             FileName = fileName;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
+            IsUndeclaredFileRewrite = isUndeclaredFileRewrite;
         }
 
         /// <summary>
@@ -104,7 +110,8 @@ namespace BuildXL.Storage.ChangeTracking
         {
             return other.Subscription == Subscription &&
                    other.FileContentInfo == FileContentInfo &&
-                   other.ReparsePointInfo == ReparsePointInfo;
+                   other.ReparsePointInfo == ReparsePointInfo &&
+                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite;
         }
 
         /// <inheritdoc />
@@ -116,7 +123,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), Subscription.GetHashCode(), ReparsePointInfo.GetHashCode());
+            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), Subscription.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode());
         }
 
         /// <nodoc />

@@ -504,7 +504,7 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public void ReportFileArtifactPlaced(in FileArtifact artifact)
+        public void ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedSourceRewrite)
         {
             // Do nothing.
         }

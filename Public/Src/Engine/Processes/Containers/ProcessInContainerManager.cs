@@ -391,7 +391,7 @@ namespace BuildXL.Processes.Containers
                     return true;
                 }
 
-                if (!process.DoubleWritePolicy.ImpliesDoubleWriteAllowed())
+                if (!process.RewritePolicy.ImpliesDoubleWriteAllowed())
                 {
                     // Error logged by the caller
                     isDisallowed = true;

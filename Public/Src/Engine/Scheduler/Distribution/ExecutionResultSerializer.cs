@@ -113,7 +113,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             var outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.FromWithoutCopy(ReadOutputContent(reader));
-            var directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(ReadDirectoryOutputs(reader));
+            var directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(ReadDirectoryOutputs(reader));
             var mustBeConsideredPerpetuallyDirty = reader.ReadBoolean();
             var dynamicallyObservedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
             var dynamicallyProbedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
@@ -490,10 +490,11 @@ namespace BuildXL.Scheduler.Distribution
                     var fileName = ReadPathAtom(reader);
                     var reparsePointType = (ReparsePointType)reader.ReadByte();
                     var reparsePointTarget = ReadNullableString(reader);
+                    var isAllowedFileRewrite = reader.ReadBoolean();
 
                     outputContent[i] = (
                         file,
-                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget)),
+                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget), isAllowedFileRewrite),
                         PipOutputOrigin.NotMaterialized);
                 }
             }
@@ -522,29 +523,30 @@ namespace BuildXL.Scheduler.Distribution
                     WritePathAtom(writer, output.fileMaterializationInfo.FileName);
                     writer.Write((byte)output.fileMaterializationInfo.ReparsePointInfo.ReparsePointType);
                     WriteNullableString(writer, output.fileMaterializationInfo.ReparsePointInfo.GetReparsePointTarget());
+                    writer.Write(output.fileMaterializationInfo.IsUndeclaredFileRewrite);
                 }
             }
         }
 
-        private (DirectoryArtifact, ReadOnlyArray<FileArtifact>)[] ReadDirectoryOutputs(BuildXLReader reader)
+        private (DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)[] ReadDirectoryOutputs(BuildXLReader reader)
         {
             int count = reader.ReadInt32Compact();
-            (DirectoryArtifact, ReadOnlyArray<FileArtifact>)[] directoryOutputs = count > 0
-                ? new (DirectoryArtifact, ReadOnlyArray<FileArtifact>)[count]
-                : CollectionUtilities.EmptyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>();
+            (DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)[] directoryOutputs = count > 0
+                ? new (DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)[count]
+                : CollectionUtilities.EmptyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>();
 
             for (int i = 0; i < count; ++i)
             {
                 var directory = reader.ReadDirectoryArtifact();
                 var length = reader.ReadInt32Compact();
-                var members = length > 0 ? new FileArtifact[length] : CollectionUtilities.EmptyArray<FileArtifact>();
+                var members = length > 0 ? new FileArtifactWithAttributes[length] : CollectionUtilities.EmptyArray<FileArtifactWithAttributes>();
 
                 for (int j = 0; j < length; ++j)
                 {
-                    members[j] = ReadFileArtifact(reader);
+                    members[j] = ReadFileArtifactWithAttributes(reader);
                 }
 
-                directoryOutputs[i] = (directory, ReadOnlyArray<FileArtifact>.FromWithoutCopy(members));
+                directoryOutputs[i] = (directory, ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(members));
             }
 
             return directoryOutputs;
@@ -552,7 +554,7 @@ namespace BuildXL.Scheduler.Distribution
 
         private void WriteDirectoryOutputs(
             BuildXLWriter writer,
-            IReadOnlyList<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)> directoryOutputs)
+            IReadOnlyList<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)> directoryOutputs)
         {
             writer.WriteCompact(directoryOutputs.Count);
             foreach (var directoryOutput in directoryOutputs)
@@ -561,7 +563,7 @@ namespace BuildXL.Scheduler.Distribution
                 writer.WriteCompact(directoryOutput.fileArtifactArray.Length);
                 foreach (var member in directoryOutput.fileArtifactArray)
                 {
-                    WriteFileArtifact(writer, member);
+                    WriteFileArtifactWithAttributes(writer, member);
                 }
             }
         }
@@ -628,10 +630,23 @@ namespace BuildXL.Scheduler.Distribution
             return new FileArtifact(path, rewriteCount);
         }
 
+        private FileArtifactWithAttributes ReadFileArtifactWithAttributes(BuildXLReader reader)
+        {
+            var path = ReadAbsolutePath(reader);
+            var rewriteCountAndFileExistenceAndFileRewrite = reader.ReadUInt32();
+            return new FileArtifactWithAttributes(path, rewriteCountAndFileExistenceAndFileRewrite);
+        }
+
         private void WriteFileArtifact(BuildXLWriter writer, FileArtifact file)
         {
             WriteAbsolutePath(writer, file.Path);
             writer.WriteCompact(file.RewriteCount);
+        }
+
+        private void WriteFileArtifactWithAttributes(BuildXLWriter writer, FileArtifactWithAttributes file)
+        {
+            WriteAbsolutePath(writer, file.Path);
+            writer.Write(file.RewriteCountAndFileExistenceAndFileRewrite);
         }
 
         private static IReadOnlyDictionary<string, int> ReadPipProperties(BuildXLReader reader)

@@ -70,6 +70,27 @@ namespace BuildXL.Scheduler
             AbsentPathProbe = 3
         }
 
+        /// <summary>
+        /// Detailed reasons when a same content rewrite on an undeclared source or alien file is denied
+        /// </summary>
+        private enum SameContentRewriteDisallowedReason
+        {
+            /// <summary>
+            /// Same content rewrite is allowed
+            /// </summary>
+            None = 1,
+            
+            /// <summary>
+            /// The rewrite happened on a file and reads cannot be guaranteed to consistently read the same content
+            /// </summary>
+            SameContentCannotBeGuaranteed = 2,
+            
+            /// <summary>
+            /// Configured policy does not allow a same content rewrite
+            /// </summary>
+            PolicyDoesNotAllowRewrite = 3,
+        }
+
         [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1304:NonPrivateReadonlyFieldsMustBeginWithUpperCaseLetter")]
         protected readonly PipExecutionContext Context;
         protected readonly LoggingContext LoggingContext;
@@ -85,6 +106,10 @@ namespace BuildXL.Scheduler
         // Maps of path of temp files under shared opaques to their producers.
         // Under certain conditions the same file can be produced by multiple pips.
         private readonly ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>> m_dynamicTemporaryFileProducers = new ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>>();
+
+
+        // Maps of paths that represent undeclared reads to all its known readers. Only kept for same content rewrites, since we need to track whether there is at least one reader ordered before the rewrite 
+        private readonly ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>> m_undeclaredReaders = new ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>>();
 
         // Some dependency analysis rules cause issues with distribution. Even if /unsafe_* flags or configuration options
         // are used to downgrade errors to warnings, these must be treated as errors and cleaned up for distributed
@@ -264,7 +289,7 @@ namespace BuildXL.Scheduler
             Process pip,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
+            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
@@ -287,15 +312,22 @@ namespace BuildXL.Scheduler
                     return AnalyzePipViolationsResult.NoViolations;
                 }
 
+                var allowedDoubleWriteViolations = new Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
                 var outputArtifactInfo = GetOutputArtifactInfoMap(pip, outputsContent);
+                
+                UpdateUndeclaredReadersIfNeeded(pip, allowedUndeclaredReads);
 
                 ReportedViolation[] reportedDependencyViolations = null;
+                ReportedFileAccess[] nonAnalyzableViolations = null;
                 if (violations?.Count > 0)
                 {
                     reportedDependencyViolations = ClassifyAndReportAggregateViolations(
                         pip,
                         violations,
-                        isAllowlistedViolation: false);
+                        isAllowlistedViolation: false,
+                        outputArtifactInfo,
+                        allowedDoubleWriteViolations,
+                        out nonAnalyzableViolations);
                 }
 
                 ReportedViolation[] reportedDependencyViolationsForAllowlisted = null;
@@ -304,7 +336,10 @@ namespace BuildXL.Scheduler
                     reportedDependencyViolationsForAllowlisted = ClassifyAndReportAggregateViolations(
                         pip,
                         allowlistedAccesses,
-                        isAllowlistedViolation: true);
+                        isAllowlistedViolation: true,
+                        outputArtifactInfo,
+                        allowedDoubleWriteViolations,
+                        out _);
                 }
 
                 var errorPaths = new HashSet<ReportedViolation>();
@@ -319,10 +354,10 @@ namespace BuildXL.Scheduler
                             if (TryGetAccessedAndProcessPaths(pip, a, out var path, out var processPath))
                             {
                                 return new ReportedViolation(isError: false,
-                                    a.IsWriteViolation ? DependencyViolationType.UndeclaredOutput : DependencyViolationType.UndeclaredOrderedRead, 
-                                    path: path, 
-                                    violatorPipId: pip.PipId, 
-                                    relatedPipId: null, 
+                                    a.IsWriteViolation ? DependencyViolationType.UndeclaredOutput : DependencyViolationType.UndeclaredOrderedRead,
+                                    path: path,
+                                    violatorPipId: pip.PipId,
+                                    relatedPipId: null,
                                     processPath: processPath);
                             }
 
@@ -330,7 +365,7 @@ namespace BuildXL.Scheduler
                             return null;
                         };
 
-                    if (violations.Count != reportedDependencyViolations.Length)
+                    if (nonAnalyzableViolations?.Length > 0)
                     {
                         // Populated non-reported violations. Note that this modifies the underlying errorPaths and warningPaths hashet
                         var errorOrWarningPaths = m_unexpectedFileAccessesAsErrors ? errorPaths : warningPaths;
@@ -338,12 +373,8 @@ namespace BuildXL.Scheduler
                         // If unexpectedFileAccessesAsErrors is false, then (violations - reportedDependencyViolations) are warnings.
                         // The paths whose access is RequestedAccess.None or whose paths cannot be parsed are not analyzed for dependency violations.
                         // Because we were originally logging a warning (dx09) or error (dx14) for those paths, we wanted to keep the same behavior.
-                        var reportedPathDependencyViolation = new HashSet<string>(reportedDependencyViolations.Select(v => v.Path.ToString(Context.PathTable)), StringComparer.OrdinalIgnoreCase);
-
                         errorOrWarningPaths.UnionWith(
-                            violations
-                            // only violations that have not been reported yet
-                            .Where(a => !reportedPathDependencyViolation.Contains(a.GetPath(Context.PathTable)))
+                            nonAnalyzableViolations
                             .Select(a => getAccessViolationPath(a))
                             // skip violations for which we failed to parse the accessed path or process path
                             .Where(a => a != null)
@@ -361,7 +392,6 @@ namespace BuildXL.Scheduler
                     errorPaths.UnionWith(errors);
                 }
 
-                var allowedDoubleWriteViolations = new Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
                 var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories, outputArtifactInfo, allowedDoubleWriteViolations);
                 allowedSameContentDoubleWriteViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
@@ -378,6 +408,21 @@ namespace BuildXL.Scheduler
                 return new AnalyzePipViolationsResult(
                     isViolationClean: errorPaths.Count == 0,
                     pipIsSafeToCache);
+            }
+        }
+
+        private void UpdateUndeclaredReadersIfNeeded(Process pip, IReadOnlySet<AbsolutePath> allowedUndeclaredReads)
+        {
+            // If same content rewrites are allowed, keep track of all readers from undeclared reads, since in case of a rewrite we need
+            // to make sure there is at least one reader ordered before the write
+            if ((pip.RewritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0 && allowedUndeclaredReads?.Count > 0)
+            {
+                foreach (var undeclaredRead in allowedUndeclaredReads)
+                {
+                    m_undeclaredReaders.AddOrUpdate(undeclaredRead, pip.PipId,
+                        (path, pipId) => { var readers = new ConcurrentQueue<PipId>(); readers.Enqueue(pipId); return readers; },
+                        (path, pipId, readers) => { readers.Enqueue(pipId); return readers; });
+                }
             }
         }
 
@@ -431,12 +476,12 @@ namespace BuildXL.Scheduler
         /// Returns a map with all output file artifact with their corresponding file materialization info
         /// </summary>
         /// <remarks>
-        /// The map is only populated when <see cref="DoubleWritePolicy.AllowSameContentDoubleWrites"/>, which is the policy that actually require the analyzer to be content aware. Otherwise it just returns an empty map.
+        /// The map is only populated when <see cref="RewritePolicyExtensions.ImpliesContentAwareness(RewritePolicy)"/>, which is the policy that actually require the analyzer to be content aware. Otherwise it just returns an empty map.
         /// This is to improve performance of subsequent lookups.
         /// </remarks>
         private static IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> GetOutputArtifactInfoMap(Process pip, ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
-            if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+            if (pip.RewritePolicy.ImpliesContentAwareness())
             {
                 var result = new Dictionary<FileArtifact, FileMaterializationInfo>(outputsContent.Length);
                 foreach (var kvp in outputsContent)
@@ -461,7 +506,7 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public bool AnalyzeDynamicViolations(
             Process pip,
-            IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
+            IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
@@ -473,6 +518,8 @@ namespace BuildXL.Scheduler
             {
                 var errorPaths = new HashSet<ReportedViolation>();
                 var warningPaths = new HashSet<ReportedViolation>();
+
+                UpdateUndeclaredReadersIfNeeded(pip, allowedUndeclaredReads);
 
                 List<ReportedViolation> dynamicViolations = ReportDynamicViolations(
                     pip,
@@ -494,7 +541,7 @@ namespace BuildXL.Scheduler
 
         private List<ReportedViolation> ReportDynamicViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectories,
+            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectories,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
@@ -515,7 +562,7 @@ namespace BuildXL.Scheduler
 
             if (allowedUndeclaredReads?.Count > 0)
             {
-                ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations);
+                ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations, allowedDoubleWriteViolations);
             }
 
             if (absentPathProbesUnderOutputDirectories?.Count > 0)
@@ -810,14 +857,14 @@ namespace BuildXL.Scheduler
         private void ReportWriteViolations(
             Process pip, 
             List<ReportedViolation> reportedViolations, 
-            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, 
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
             FileArtifactWithAttributes access,
             [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             // The access in an opaque has always rewrite count 1
             Contract.Assert(access.RewriteCount == 1);
             var artifact = access.ToFileArtifact();
-            var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, artifact);
+            var outputArtifactInfo = GetOutputMaterializationInfo(outputArtifactsInfo, artifact);
 
             RegisterWriteInPathAndUpdateViolations(pip, access, reportedViolations, outputArtifactInfo, out ReportedViolation? allowedDoubleWriteViolation);
             if (allowedDoubleWriteViolations != null && allowedDoubleWriteViolation.HasValue)
@@ -833,7 +880,7 @@ namespace BuildXL.Scheduler
             {
                 // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
                 // may be unavailable. So just warn about this, and log the violation as an error.
-                if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+                if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
                 {
                     Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.Path.ToString(Context.PathTable));
                 }
@@ -853,7 +900,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private FileMaterializationInfo GetOutputMaterializationInfo(Process pip, IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, FileArtifact fileArtifact)
+        private FileMaterializationInfo GetOutputMaterializationInfo(IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, FileArtifact fileArtifact)
         {
             var success = outputArtifactsInfo.TryGetValue(fileArtifact, out FileMaterializationInfo outputArtifactInfo);
             if (!success)
@@ -866,17 +913,9 @@ namespace BuildXL.Scheduler
             return outputArtifactInfo;
         }
 
-        private static bool IsAllowedSameContentDoubleWrite(Process secondWriter, FileMaterializationInfo secondWriterOutputInfo, Process firstWriter, FileMaterializationInfo firstWriterOutputInfo)
-        {
-            // Both pips involved in the double write need to allow for same content double write, and the hashes should match
-            return secondWriter.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites &&
-                   firstWriter.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites &&
-                   secondWriterOutputInfo.FileContentInfo.Hash == firstWriterOutputInfo.FileContentInfo.Hash;
-        }
-
         private void ReportExclusiveOpaqueViolations(
             Process pip,
-            IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueContent,
+            IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueContent,
             List<ReportedViolation> reportedViolations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo)
         {
@@ -892,12 +931,12 @@ namespace BuildXL.Scheduler
             // * Content under directory exclusions. Observe this case doesn't have a shared opaque correlate here since
             // the detours-based approach for shared opaques already takes care of this just by not attributing the corresponding writes
             // to the owning shared opaque directory
-            foreach ((_, ReadOnlyArray<FileArtifact> directoryContent) in exclusiveOpaqueContent)
+            foreach ((_, ReadOnlyArray<FileArtifactWithAttributes> directoryContent) in exclusiveOpaqueContent)
             {
-                foreach (FileArtifact fileArtifact in directoryContent)
+                foreach (FileArtifactWithAttributes fileArtifact in directoryContent)
                 {
-                    var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, fileArtifact);
-                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.WithAttributes(), reportedViolations, outputArtifactInfo, out _);
+                    var outputArtifactInfo = GetOutputMaterializationInfo(outputArtifactsInfo, fileArtifact.ToFileArtifact());
+                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact, reportedViolations, outputArtifactInfo, out _);
                     ReportExclusiveOpaqueExclusions(pip, reportedViolations, fileArtifact, outputDirectoryExclusionSet);
                 }
             }
@@ -906,7 +945,7 @@ namespace BuildXL.Scheduler
         private void ReportExclusiveOpaqueExclusions(
             Process pip,
             List<ReportedViolation> reportedViolations,
-            FileArtifact fileArtifact,
+            FileArtifactWithAttributes fileArtifact,
             HashSet<AbsolutePath> outputDirectoryExclusions)
         {
             // If an exclusive opaque file is under a directory exclusion, the violation is reported as an undeclared output. This matches
@@ -938,17 +977,18 @@ namespace BuildXL.Scheduler
             out ReportedViolation? allowedSameContentDoubleWriteViolation)
         {
             allowedSameContentDoubleWriteViolation = null;
+            var path = access.Path;
 
             // Register the access and the writer, so we can spot other dynamic accesses to the same file later
             var result = m_dynamicReadersAndWriters.GetOrAdd(
-                access.Path,
+                path,
                 pip,
                 (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
 
             if (access.IsTemporaryOutputFile)
             {
                 m_dynamicTemporaryFileProducers.AddOrUpdate(
-                    key: access.Path,
+                    key: path,
                     data: pip.PipId,
                     addValueFactory: (p, pipId) =>
                     {
@@ -966,25 +1006,27 @@ namespace BuildXL.Scheduler
             // We found an existing dynamic access to the same file
             if (result.IsFound && result.Item.Value.processPip != pip.PipId)
             {
-                var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                var relatedPipId = result.Item.Value.processPip;
 
                 DependencyViolationType violationType;
                 switch (result.Item.Value.accessType)
                 {
                     // There was another write, so this is a double write
                     case DynamicFileAccessType.Write:
-
-                        if (IsAllowedSameContentDoubleWrite(pip, outputMaterializationInfo, related, result.Item.Value.fileMaterializationInfo))
+                        
+                        if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0 && 
+                            (m_graph.GetRewritePolicy(result.Item.Value.processPip) & RewritePolicy.AllowSameContentDoubleWrites) != 0 &&
+                            outputMaterializationInfo.Hash == result.Item.Value.fileMaterializationInfo.Hash)
                         {
                             // Just log a verbose message to indicate a same-content double write happened
                             Logger.Log.AllowedSameContentDoubleWrite(
                                 LoggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(Context),
-                                access.Path.ToString(Context.PathTable),
-                                related.GetDescription(Context));
+                                path.ToString(Context.PathTable),
+                                m_graph.GetFormattedSemiStableHash(relatedPipId));
 
-                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, access.Path, pip.PipId, related.PipId, pip.Executable.Path);
+                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, relatedPipId, pip.Executable.Path);
                             return;
                         }
 
@@ -995,7 +1037,7 @@ namespace BuildXL.Scheduler
                             // file that was produced previously.
                             bool badAccess = false;
                             bool visitedOriginalProducer = false;
-                            if (m_dynamicTemporaryFileProducers.TryGetValue(access.Path, out var producers))
+                            if (m_dynamicTemporaryFileProducers.TryGetValue(path, out var producers))
                             {
                                 foreach (var producerPipId in producers)
                                 {
@@ -1007,9 +1049,9 @@ namespace BuildXL.Scheduler
                                         // two pips in the graph.
 
                                         // Update the related pip if it does not match the one that was hydrated above
-                                        if (related.PipId != producerPipId)
+                                        if (relatedPipId != producerPipId)
                                         {
-                                            related = (Process)m_graph.HydratePip(producerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                                            relatedPipId = producerPipId;
                                         }
 
                                         violationType = DependencyViolationType.TempFileProducedByIndependentPips;
@@ -1043,6 +1085,18 @@ namespace BuildXL.Scheduler
                         break;
                     // There was an undeclared read, so this is a write in an undeclared read
                     case DynamicFileAccessType.UndeclaredRead:
+                        // Check if the violation can be relaxed
+                        if (IsAllowedRewriteOnUndeclaredFile(pip.PipId, pip.RewritePolicy, outputMaterializationInfo, pip.Executable.Path, path, out allowedSameContentDoubleWriteViolation, out var disallowedReason, out var racyReader))
+                        {
+                            // Log a verbose message to indicate a rewrite on an undeclared source happened
+                            Logger.Log.AllowedRewriteOnUndeclaredFile(LoggingContext, pip.SemiStableHash, pip.GetDescription(Context), path.ToString(Context.PathTable));
+
+                            return;
+                        }
+
+                        // Log a verbose message explaining why the same-content check failed
+                        LogDisallowedReasonIfNeeded(disallowedReason, pip, path, racyReader);
+
                         violationType = DependencyViolationType.WriteInUndeclaredSourceRead;
                         break;
                     // There was an absent file probe, so this is a write on an absent file probe
@@ -1050,7 +1104,7 @@ namespace BuildXL.Scheduler
                         // WriteOnAbsentPathProbe message literally says "declare an explicit dependency between these pips",
                         // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
                         if (m_dynamicWritesOnAbsentProbePolicy.HasFlag(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes) ||
-                            IsDependencyDeclared(absentProbePipId: related.PipId, writerPipId: pip.PipId))
+                            IsDependencyDeclared(absentProbePipId: relatedPipId, writerPipId: pip.PipId))
                         {
                             return;
                         }
@@ -1060,6 +1114,8 @@ namespace BuildXL.Scheduler
                     default:
                         throw new InvalidOperationException(I($"Unexpected value {result.Item.Value.accessType}"));
                 }
+
+                var related = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                 reportedViolations.Add(
                     HandleDependencyViolation(
@@ -1072,6 +1128,116 @@ namespace BuildXL.Scheduler
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
             }
+            // If we didn't find any other accesses on this file, but this is an undeclared file rewrite
+            // this is only allowed if safe source rewrites is on. Otherwise is a DFA.
+            else if (!result.IsFound && 
+                    access.IsUndeclaredFileRewrite)
+            {
+                if ((pip.RewritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) == 0)
+                {
+                    reportedViolations.Add(
+                    HandleDependencyViolation(
+                        DependencyViolationType.WriteInExistingFile,
+                        AccessLevel.Write,
+                        path,
+                        pip,
+                        isAllowlistedViolation: false,
+                        related: null,
+                        // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                        pip.Executable.Path));
+                }
+                else
+                {
+                    // Log a verbose message to indicate a rewrite on an undeclared source happened
+                    Logger.Log.AllowedRewriteOnUndeclaredFile(LoggingContext, pip.SemiStableHash, pip.GetDescription(Context), path.ToString(Context.PathTable));
+                }
+            }
+        }
+        
+        private bool IsAllowedRewriteOnUndeclaredFile(
+            PipId writerPipId,
+            RewritePolicy writerDoubleWritePolicy, 
+            FileMaterializationInfo writeMaterializationInfo, 
+            AbsolutePath writerExecutablePath,
+            AbsolutePath undeclaredRead, 
+            out ReportedViolation? allowedSameContentRewriteViolation,
+            out SameContentRewriteDisallowedReason disallowedReason,
+            out PipId? racyReader)
+        {
+            racyReader = null;
+
+            // We may allow writing in an undeclared file if a relaxing policy is configured and:
+            // 1) Buildxl can guarantee the written content is the same. This means being aware of the previous content by virtue of an undeclared read ordered before the rewrite
+            // 2) BuildXL can guarantee there are no reads preceding the rewrite. In this case we can allow writing a different content (buildxl has no way to check whether the 
+            // original content was the same or not), but that's fine since the build will never see the original content.
+            if ((writerDoubleWritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0 &&
+                m_undeclaredReaders.TryGetValue(undeclaredRead, out var readers))
+            {
+                // Retrieve the hash of the undeclared file. Observe in this case the hash should be always be retrieved from the cache since an undeclared read on that path already happened
+                var maybeUndeclaredSourceMaterializationInfo = m_fileContentManager.TryQueryUndeclaredInputContentAsync(undeclaredRead).GetAwaiter().GetResult();
+                Contract.Assert(maybeUndeclaredSourceMaterializationInfo.HasValue);
+
+                // Check if we have the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
+                var isSameContent = writeMaterializationInfo.Hash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;
+                   
+                // Make sure the ordering constraints for the readers can be satisfied
+                if (ReadersAreWellOrdered(readers, writerPipId, isSameContent, out racyReader))
+                {
+                    allowedSameContentRewriteViolation = new ReportedViolation(isError: true, DependencyViolationType.WriteInUndeclaredSourceRead, undeclaredRead, writerPipId, relatedPipId: null, writerExecutablePath);
+                    disallowedReason = SameContentRewriteDisallowedReason.None;
+                    return true;
+                }
+                else
+                {
+                    disallowedReason = SameContentRewriteDisallowedReason.SameContentCannotBeGuaranteed;
+                }
+            }
+            else if ((writerDoubleWritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0)
+            {
+                // There are no known readers so far. So it is safe to allow the rewrite regardless of the content
+                disallowedReason = SameContentRewriteDisallowedReason.None;
+                allowedSameContentRewriteViolation = null;
+                return true;
+            }
+            else 
+            {
+                disallowedReason = SameContentRewriteDisallowedReason.PolicyDoesNotAllowRewrite;
+            }
+
+            allowedSameContentRewriteViolation = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Make sure the ordering constraints for source/alien file readers wrt a rewrite can be satisfied
+        /// </summary>
+        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, bool isSameContent, out PipId? racyReader)
+        {
+            bool hasNonOrderedReaders = false;
+            racyReader = null;
+            foreach (PipId reader in readers)
+            {
+                // if there is at least one read that is guaranteed to happen before the write, we can trust we observed the file content before the write happened
+                if (IsDependencyDeclared(writerPipId, reader))
+                {
+                    // If we saw the same content and there is a read before the write, that means we can trust we saw the before/after
+                    // and there are actually no restrictions on the readers order
+                    // So we can shortcut the validation
+                    if (isSameContent)
+                    {
+                        return true;
+                    }
+                }
+                else if (!IsDependencyDeclared(reader, writerPipId))
+                {
+                    hasNonOrderedReaders = true;
+                    // This will just store the last racy one
+                    racyReader = reader;
+                }
+            }
+
+            // If there are unordered readers, then we cannot guarantee they saw the same content.
+            return !hasNonOrderedReaders;
         }
 
         private bool IsDependencyDeclared(PipId writerPipId, PipId absentProbePipId)
@@ -1082,7 +1248,8 @@ namespace BuildXL.Scheduler
         private void ReportAllowedUndeclaredReadViolations(
             Process pip,
             IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            List<ReportedViolation> reportedViolations)
+            List<ReportedViolation> reportedViolations,
+            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             foreach (var undeclaredRead in allowedUndeclaredReads)
             {
@@ -1122,7 +1289,34 @@ namespace BuildXL.Scheduler
                 // This is currently the case. Otherwise, multiple access types need to be stored and validated.
                 if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
                 {
-                    var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    var writerPipId = result.Item.Value.processPip;
+                    var writerMaterializationInfo = result.Item.Value.fileMaterializationInfo;
+
+                    // Check if the violation can be ignored because of same-content policies
+                    if (IsAllowedRewriteOnUndeclaredFile(
+                        writerPipId, 
+                        m_graph.GetRewritePolicy(writerPipId),
+                        writerMaterializationInfo, 
+                        m_graph.GetProcessExecutablePath(writerPipId), 
+                        undeclaredRead, 
+                        out var allowedSameContentRewriteViolation,
+                        out var disallowedReason,
+                        out var racyReader))
+                    {
+                        if (allowedDoubleWriteViolations != null && allowedSameContentRewriteViolation.HasValue)
+                        {
+                            // This is a dynamic write, and therefore has rewrite count 1
+                            allowedDoubleWriteViolations[FileArtifact.CreateOutputFile(undeclaredRead)] = (writerMaterializationInfo, allowedSameContentRewriteViolation.Value);
+                        }
+
+                        continue;
+                    }
+
+                    var related = (Process)m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    
+                    // Log a verbose message explaining why the same-content check failed
+                    LogDisallowedReasonIfNeeded(disallowedReason, related, undeclaredRead, racyReader);
+
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
@@ -1227,37 +1421,50 @@ namespace BuildXL.Scheduler
         private ReportedViolation[] ClassifyAndReportAggregateViolations(
             Process pip,
             IReadOnlyCollection<ReportedFileAccess> violations,
-            bool isAllowlistedViolation)
+            bool isAllowlistedViolation,
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
+            Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations,
+            out ReportedFileAccess[] nonAnalyzableViolations)
         {
             var aggregateViolationsByPath = new Dictionary<(AbsolutePath, AbsolutePath), AggregateViolation>();
-            foreach (ReportedFileAccess violation in violations)
+            using (var nonAnalyzableViolationsMutableWrapper = ProcessPools.ReportedFileAccessList.GetInstance())
             {
-                if (violation.RequestedAccess == RequestedAccess.None)
+                var nonAnalyzableViolationsMutable = nonAnalyzableViolationsMutableWrapper.Instance;
+
+                foreach (ReportedFileAccess violation in violations)
                 {
-                    // How peculiar.
-                    continue;
+                    if (violation.RequestedAccess == RequestedAccess.None)
+                    {
+                        nonAnalyzableViolationsMutable.Add(violation);
+                        // How peculiar.
+                        continue;
+                    }
+
+                    AbsolutePath path;
+                    if (!violation.TryParseAbsolutePath(Context, LoggingContext, pip, out path))
+                    {
+                        nonAnalyzableViolationsMutable.Add(violation);
+                        continue;
+                    }
+                    AbsolutePath processPath;
+                    if (!AbsolutePath.TryCreate(Context.PathTable, violation.Process.Path, out processPath))
+                    {
+                        nonAnalyzableViolationsMutable.Add(violation);
+                        continue;
+                    }
+
+                    // it's possible that a single path was accessed by several different processes (e.g., child processes),
+                    // so we aggregate based on (path, process) rather than (path)
+                    var key = (path, processPath);
+                    AggregateViolation aggregate;
+                    aggregate = aggregateViolationsByPath.TryGetValue(key, out aggregate)
+                        ? aggregate.Combine(GetAccessLevel(violation.RequestedAccess))
+                        : new AggregateViolation(GetAccessLevel(violation.RequestedAccess), path, processPath, violation.Method);
+
+                    aggregateViolationsByPath[key] = aggregate;
                 }
 
-                AbsolutePath path;
-                if (!violation.TryParseAbsolutePath(Context, LoggingContext, pip, out path))
-                {
-                    continue;
-                }
-                AbsolutePath processPath;
-                if (!AbsolutePath.TryCreate(Context.PathTable, violation.Process.Path, out processPath))
-                {
-                    continue;
-                }
-
-                // it's possible that a single path was accessed by several different processes (e.g., child processes),
-                // so we aggregate based on (path, process) rather than (path)
-                var key = (path, processPath);
-                AggregateViolation aggregate;
-                aggregate = aggregateViolationsByPath.TryGetValue(key, out aggregate)
-                    ? aggregate.Combine(GetAccessLevel(violation.RequestedAccess))
-                    : new AggregateViolation(GetAccessLevel(violation.RequestedAccess), path, processPath, violation.Method);
-
-                aggregateViolationsByPath[key] = aggregate;
+                nonAnalyzableViolations = nonAnalyzableViolationsMutable.ToArray();
             }
 
             AggregateViolation[] aggregateViolations = aggregateViolationsByPath.Values.ToArray();
@@ -1294,7 +1501,7 @@ namespace BuildXL.Scheduler
                         {
                             // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
                             // may be unavailable. So just warn about this, and log the violation as an error.
-                            if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+                            if ((pip.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0)
                             {
                                 Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), violation.Path.ToString(Context.PathTable));
                             }
@@ -1313,23 +1520,11 @@ namespace BuildXL.Scheduler
                         }
                         else
                         {
-                            // So this is the case where there is no producer. 
+                            // This is the case where there is no producer. 
                             // When the violation was determined based on the manifest policy, this means a standard undeclared write.
-                            // When the violation was determined based on file existence, this means the pip tried to write into an undeclared 
-                            // file that was created by the pip
-                            if (violation.Method == FileAccessStatusMethod.FileExistenceBased)
-                            {
-                                reportedViolations.Add(
-                                    HandleDependencyViolation(
-                                        DependencyViolationType.WriteInExistingFile,
-                                        AccessLevel.Write,
-                                        violation.Path,
-                                        pip,
-                                        isAllowlistedViolation,
-                                        related: null,
-                                        violation.ProcessPath));
-                            }
-                            else
+                            // When the violation was determined based on file existence, this means the pip tried to dynamically write into an undeclared 
+                            // file that was not created by the pip. This is case is handled in ReportDynamicViolations
+                            if (violation.Method != FileAccessStatusMethod.FileExistenceBased)
                             {
                                 reportedViolations.Add(
                                     HandleDependencyViolation(
@@ -1519,6 +1714,30 @@ namespace BuildXL.Scheduler
             }
 
             return reportedViolations.ToArray();
+        }
+
+        private void LogDisallowedReasonIfNeeded(SameContentRewriteDisallowedReason disallowedReason, Process writerPip, AbsolutePath undeclaredSource, PipId? racyReaderId)
+        {
+            Contract.Requires(disallowedReason != SameContentRewriteDisallowedReason.SameContentCannotBeGuaranteed || racyReaderId != null);
+
+            string detail = string.Empty;
+
+            switch (disallowedReason)
+            {
+                // If the configured policy does not allow for same-content rewrites, there is nothing that is worth communicating the user about
+                case SameContentRewriteDisallowedReason.None:
+                case SameContentRewriteDisallowedReason.PolicyDoesNotAllowRewrite:
+                    return;
+                case SameContentRewriteDisallowedReason.SameContentCannotBeGuaranteed:
+                    var racyReader = m_graph.HydratePip(racyReaderId.Value, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    detail = $"The rewrite occured on a file where readers are not guaranteed to always see the same content. Pip '{racyReader.GetDescription(Context)}' should be ordered either after or before the rewriting pip.";
+                    break;
+                default:
+                    Contract.Assert(false, $"Unexpected reason '{disallowedReason}'");
+                    break;
+            }
+
+            Logger.Log.DisallowedSameContentRewriteOnUndeclaredFile(LoggingContext, writerPip.SemiStableHash, writerPip.GetDescription(Context), undeclaredSource.ToString(Context.PathTable), detail);
         }
 
         private ReportedViolation ReportReadUndeclaredOutput(
@@ -1847,7 +2066,7 @@ namespace BuildXL.Scheduler
                 // In case of a double write, if the the violation path got redirected, then the pip is still cacheable. It is not otherwise.
                 violationMakesPipUncacheable = !IsOutputPathRedirected(violator, path);
                 // If the double write policy doesn't make the double write an error (on both pips), then the overall reported violation is not an error
-                if (violator.DoubleWritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).DoubleWritePolicy.ImpliesDoubleWriteIsWarning()))
+                if (violator.RewritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).RewritePolicy.ImpliesDoubleWriteIsWarning()))
                 {
                     isError = false;
                 }

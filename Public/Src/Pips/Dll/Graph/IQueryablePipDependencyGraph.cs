@@ -4,6 +4,7 @@
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 
 namespace BuildXL.Pips.Graph
@@ -30,6 +31,21 @@ namespace BuildXL.Pips.Graph
         /// Hydrates the pip from the pip id.
         /// </summary>
         Pip HydratePip(PipId pipId, PipQueryContext queryContext);
+
+        /// <summary>
+        /// Returns the double write policy for a process pip without hydrating the pip
+        /// </summary>
+        RewritePolicy GetRewritePolicy(PipId pipId);
+
+        /// <summary>
+        /// Get a formatted pip semi stable hash without the need to hydrate the pip
+        /// </summary>
+        string GetFormattedSemiStableHash(PipId pipId);
+
+        /// <summary>
+        /// Get the process executable path without the need to hydrate the pip
+        /// </summary>
+        AbsolutePath GetProcessExecutablePath(PipId pipId);
 
         /// <summary>
         /// Returns the first (by walking the path upwards) source seal directory containing <paramref name="path"/> 

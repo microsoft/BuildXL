@@ -144,27 +144,27 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Creates an output directory.
         /// </summary>
-        protected ValueTuple<DirectoryArtifact, ReadOnlyArray<FileArtifact>>  CreateOutputDirectory(
+        protected ValueTuple<DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>>  CreateOutputDirectory(
             AbsolutePath rootPath = default(AbsolutePath),
             RelativePath relativePathToDirectory = default(RelativePath),
             RelativePath[] relativePathToMembers = null)
         {
             var directory = CreateDirectory(rootPath, relativePathToDirectory);
-            ReadOnlyArray<FileArtifact> members;
+            ReadOnlyArray<FileArtifactWithAttributes> members;
 
             if (relativePathToMembers == null || relativePathToMembers.Length == 0)
             {
-                members = ReadOnlyArray<FileArtifact>.Empty;
+                members = ReadOnlyArray<FileArtifactWithAttributes>.Empty;
             }
             else
             {
-                var fullMemberNames = new FileArtifact[relativePathToMembers.Length];
+                var fullMemberNames = new FileArtifactWithAttributes[relativePathToMembers.Length];
                 for (int i = 0; i < fullMemberNames.Length; ++i)
                 {
-                    fullMemberNames[i] = FileArtifact.CreateOutputFile(directory.Path.Combine(Context.PathTable, relativePathToMembers[i]));
+                    fullMemberNames[i] = FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(directory.Path.Combine(Context.PathTable, relativePathToMembers[i])), FileExistence.Required);
                 }
 
-                members = ReadOnlyArray<FileArtifact>.FromWithoutCopy(fullMemberNames);
+                members = ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(fullMemberNames);
             }
 
             return (directory, members);

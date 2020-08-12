@@ -4054,3 +4054,5 @@ namespace Unit {
     /** Returns the (only) value of type Unit*/
     export declare function unit(): Unit;
 }
+
+type SourceRewritePolicy = "sourceRewritesAreErrors" | "safeSourceRewritesAreAllowed";

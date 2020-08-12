@@ -23,6 +23,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Pips.Graph
 {
     using BuildXL.Pips.DirectedGraph;
+    using BuildXL.Utilities.Configuration;
 
     /// <summary>
     /// Defines graph of pips and allows adding Pips with validation.
@@ -155,6 +156,24 @@ namespace BuildXL.Pips.Graph
         Pip IQueryablePipDependencyGraph.HydratePip(PipId pipId, PipQueryContext queryContext)
         {
             return PipTable.HydratePip(pipId, queryContext);
+        }
+
+        /// <inheritdoc />
+        public RewritePolicy GetRewritePolicy(PipId pipId)
+        {
+            return PipTable.GetRewritePolicy(pipId);
+        }
+
+        /// <inheritdoc />
+        public AbsolutePath GetProcessExecutablePath(PipId pipId)
+        {
+            return PipTable.GetProcessExecutablePath(pipId);
+        }
+
+        /// <inheritdoc />
+        public string GetFormattedSemiStableHash(PipId pipId)
+        {
+            return PipTable.GetFormattedSemiStableHash(pipId);
         }
 
         private NodeId TryFindContainingExclusiveOpaqueOutputDirectory(AbsolutePath filePath)

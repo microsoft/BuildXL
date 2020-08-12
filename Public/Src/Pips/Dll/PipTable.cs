@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Diagnostics;
 
 namespace BuildXL.Pips
@@ -489,6 +490,40 @@ namespace BuildXL.Pips
             Contract.Assert(processMutableState != null);
 
             return processMutableState.ProcessOptions;
+        }
+
+        /// <summary>
+        /// Get pip process double write policy without the need to hydrate the pip
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="pipId"/> must refer to <see cref="Operations.Process"/>. Use <see cref="GetPipType(PipId)"/> to check.
+        /// </remarks>
+        public RewritePolicy GetRewritePolicy(PipId pipId)
+        {
+            Contract.Requires(!IsDisposed);
+            Contract.Requires(IsValid(pipId));
+
+            var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
+            Contract.Assert(processMutableState != null);
+
+            return processMutableState.RewritePolicy;
+        }
+
+        /// <summary>
+        /// Get pip process executable path without the need to hydrate the pip
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="pipId"/> must refer to <see cref="Operations.Process"/>. Use <see cref="GetPipType(PipId)"/> to check.
+        /// </remarks>
+        public AbsolutePath GetProcessExecutablePath(PipId pipId)
+        {
+            Contract.Requires(!IsDisposed);
+            Contract.Requires(IsValid(pipId));
+
+            var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
+            Contract.Assert(processMutableState != null);
+
+            return processMutableState.ExecutablePath;
         }
 
         /// <summary>

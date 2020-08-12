@@ -2617,7 +2617,7 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            VerifyIncrementedOnceEnumsAreEqual(typeof(DoubleWritePolicy), typeof(global::BuildXL.Xldb.Proto.DoubleWritePolicy));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(RewritePolicy), typeof(global::BuildXL.Xldb.Proto.DoubleWritePolicy));
             VerifyIncrementedOnceEnumsAreEqual(typeof(ExecutionEventId), typeof(global::BuildXL.Xldb.Proto.ExecutionEventId));
             VerifyIncrementedOnceEnumsAreEqual(typeof(ExecutionSampler.LimitingResource), typeof(global::BuildXL.Xldb.Proto.ExecutionSampler_LimitingResource));
             VerifyIncrementedOnceEnumsAreEqual(typeof(FileAccessStatus), typeof(global::BuildXL.Xldb.Proto.FileAccessStatus));

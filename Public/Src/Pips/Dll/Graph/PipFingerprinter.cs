@@ -304,7 +304,7 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.DisableCacheLookup), ContentHashingUtilities.CreateRandom());
             }
 
-            fingerprinter.Add(nameof(Process.DoubleWritePolicy), (byte)process.DoubleWritePolicy);
+            fingerprinter.Add(nameof(Process.RewritePolicy), (byte)process.RewritePolicy);
 
             if (process.RequiresAdmin)
             {

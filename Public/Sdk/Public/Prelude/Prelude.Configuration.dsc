@@ -339,6 +339,8 @@ type DoubleWritePolicy =
         // win the race. Consider this will result in a non-deterministic deployment for a given build, and is therefore unsafe.
         "unsafeFirstDoubleWriteWins";
 
+type SourceRewritePolicy = "sourceRewritesAreErrors" | "safeSourceRewritesAreAllowed";
+
 /**
  * The different isolation level options when a process runs in a container
  */

@@ -434,6 +434,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// already expanded by the caller. This must match the fileArtifact.</param>
         /// <param name="ignoreKnownContentHash">If true, ignore recorded known content hash in <see cref="FileContentTable"/>.</param>
         /// <param name="createHandleWithSequentialScan">When true access to file is intended to be sequential from beginning to end, which the system can use as a hint to optimize file caching.</param>
+        /// <param name="isUndeclaredFileRewrite">Whether the file is an undeclared source or alien file rewrite. This is reflected in the file materialization info for future scrubbing purposes</param>
         /// <remarks>
         /// The content hash of the file is recorded in <see cref="FileContentTable"/>.
         ///
@@ -461,7 +462,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             FileArtifact fileArtifact,
             ExpandedAbsolutePath path = default,
             bool ignoreKnownContentHash = false,
-            bool createHandleWithSequentialScan = false)
+            bool createHandleWithSequentialScan = false,
+            bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(fileArtifact.Path.IsValid);
 
@@ -639,7 +641,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                             info,
                             // Only output files require file name to be retrieved in order to maintain casing when caching
                             requiresFileName: fileArtifact.IsOutputFile,
-                            reparsePointInfo: ReparsePointInfo.Create(reparsePointType, finalLocation));
+                            reparsePointInfo: ReparsePointInfo.Create(reparsePointType, finalLocation),
+                            isUndeclaredFileRewrite: isUndeclaredFileRewrite);
                         return maybeTracked.Then(tracked => new ContentDiscoveryResult(origin, tracked, hashingDuration));
                     }
                 }
@@ -763,7 +766,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool tryFlushPageCacheToFileSystem,
             ContentHash? knownContentHash = null,
             bool trackPath = true,
-            bool? isSymlink = null)
+            bool? isSymlink = null,
+            bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(cache != null);
             Contract.Requires(path.IsValid);
@@ -805,7 +809,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
                 return await possiblyStored.ThenAsync(
-                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink.Value, trackPath: trackPath));
+                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
             }
             else
             {
@@ -814,7 +818,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     expandedPath);
 
                 return await possiblyStored.ThenAsync(
-                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isSymlink.Value, trackPath: trackPath));
+                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isSymlink.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
             }
         }
 
@@ -827,7 +831,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             ContentHash? knownContentHash = null,
             bool ignoreKnownContentHashOnDiscoveringContent = false,
             bool createHandleWithSequentialScan = false,
-            bool isSymlink = false)
+            bool isSymlink = false,
+            bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(file.IsValid);
 
@@ -844,14 +849,15 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (knownContentHash.HasValue)
             {
-                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink);
+                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink, isUndeclaredFileRewrite);
             }
 
             var possibleDiscover = await TryDiscoverAsync(
                 file,
                 path: expandedPath,
                 ignoreKnownContentHash: ignoreKnownContentHashOnDiscoveringContent,
-                createHandleWithSequentialScan: createHandleWithSequentialScan);
+                createHandleWithSequentialScan: createHandleWithSequentialScan,
+                isUndeclaredFileRewrite: isUndeclaredFileRewrite);
 
             if (!possibleDiscover.Succeeded)
             {
@@ -959,7 +965,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool trackPath = true,
             // For legacy reason, recordPathInFileContentTable is default to false because if trackPath is false,
             // then recordPathInFileContentTable used to automatically be false.
-            bool recordPathInFileContentTable = false)
+            bool recordPathInFileContentTable = false,
+            bool isUndeclaredFileRewrite = false)
         {
             // If path needs to be tracked, then path needs to be recorded in the file content table.
             recordPathInFileContentTable = trackPath ? true : recordPathInFileContentTable;
@@ -1012,14 +1019,14 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 {
                                     // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
                                     // but we need the file length, and potentially need to ensure that the file name casing match.
-                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName);
+                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName, isUndeclaredFileRewrite: isUndeclaredFileRewrite);
                                 }
 
                                 Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);
 
                                 // Note that the identity kind may be Anonymous if we couldn't establish an identity for the target file;
                                 // in that case we still need to call TrackChangesToFile to ensure the tracker latches to disabled.
-                                return TrackChangesToFile(handle, path, identityAndContentInfo.Value, knownFileName: fileName);
+                                return TrackChangesToFile(handle, path, identityAndContentInfo.Value, knownFileName: fileName, isUndeclaredFileRewrite: isUndeclaredFileRewrite);
                             });
 
                         if (attempt.Succeeded)
@@ -1037,7 +1044,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             in VersionedFileIdentityAndContentInfo identityAndContentInfo,
             PathAtom knownFileName = default,
             bool requiresFileName = true,
-            ReparsePointInfo? reparsePointInfo = null)
+            ReparsePointInfo? reparsePointInfo = null,
+            bool isUndeclaredFileRewrite = false)
         {
             FileChangeTrackingSubscription subscription = TrackChangesToFile(handle, path, identityAndContentInfo.Identity);
 
@@ -1053,7 +1061,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 knownFileName = possibleFileName.Result;
             }
 
-            return new TrackedFileContentInfo(identityAndContentInfo.FileContentInfo, subscription, knownFileName, reparsePointInfo);
+            return new TrackedFileContentInfo(identityAndContentInfo.FileContentInfo, subscription, knownFileName, reparsePointInfo, isUndeclaredFileRewrite);
         }
 
         private FileChangeTrackingSubscription TrackChangesToFile(SafeFileHandle handle, ExpandedAbsolutePath path, in VersionedFileIdentity identity)

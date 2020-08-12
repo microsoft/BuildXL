@@ -87,6 +87,9 @@ struct FileArtifactKeyedHash
    
     /// Indicates whether the file is source change affected 
     10: bool IsSourceAffected;
+
+    /// Indicates whether the file represents an allowed rewrite on a source or alien file
+    11: bool IsAllowedFileRewrite;
 }
 
 /// Defines information about a completed pip and its outputs

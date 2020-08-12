@@ -137,7 +137,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// Can be individually controlled on a per-pip basis, this value sets the default
         /// </remarks>
-        DoubleWritePolicy? DoubleWritePolicy { get; }
+        RewritePolicy? DoubleWritePolicy { get; }
 
         /// <summary>
         /// Undeclared accesses under a shared opaque are not reported.
@@ -251,7 +251,7 @@ namespace BuildXL.Utilities.Configuration
                 UnexpectedFileAccessesAreErrors = reader.ReadBoolean(),
                 IgnorePreloadedDlls = reader.ReadBoolean(),
                 IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)reader.ReadInt32Compact(),
-                DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
+                DoubleWritePolicy = reader.ReadBoolean() ? (RewritePolicy?)reader.ReadByte() : null,
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),

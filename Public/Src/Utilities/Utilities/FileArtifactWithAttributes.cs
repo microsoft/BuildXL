@@ -14,7 +14,7 @@ namespace BuildXL.Utilities
     /// </summary>
     /// <remarks>
     /// This struct is similar to <see cref="BuildXL.Utilities.FileArtifact"/> but holds additional information
-    /// provided by FileExistence property.
+    /// provided by FileExistence property and file rewrite tracking.
     /// </remarks>
     [DebuggerDisplay("{ToDebuggerDisplay(),nq}")]
     public readonly struct FileArtifactWithAttributes : IEquatable<FileArtifactWithAttributes>
@@ -22,19 +22,34 @@ namespace BuildXL.Utilities
         private const FileExistence DefaultFileExistence = FileExistence.Required;
 
         /// <summary>
-        /// Number of bits for rewrite count in m_rewriteCountAndFileExistence field
+        /// Number of bits for rewrite count in m_rewriteCountAndFileExistenceAndFileRewrite field
         /// </summary>
         private const int RewriteCountSize = 24;
 
         /// <summary>
-        /// Bitmask for getting rewrite count from m_rewriteCountAndFileExistence field
+        /// Bitmask for getting rewrite count from m_rewriteCountAndFileExistenceAndFileRewrite field
         /// </summary>
         private const int RewriteCountMask = 0x00FFFFFF;
+
+        /// <summary>
+        /// Bitmask for getting the file existence from m_rewriteCountAndFileExistenceAndFileRewrite field
+        /// </summary>
+        private const int FileExistenceMask = 0x7F000000;
+
+        /// <summary>
+        /// Bitmask for the source rewrite bit from m_rewriteCountAndFileExistenceAndFileRewrite field
+        /// </summary>
+        private const uint UndeclaredFileRewriteMask = 0x80000000;
 
         /// <summary>
         /// Max value for <see cref="RewriteCount"/> property.
         /// </summary>
         public const int MaxRewriteCount = (int)(uint.MaxValue >> 8);
+
+        /// <summary>
+        /// Max value for <see cref="FileExistence"/> property.
+        /// </summary>
+        public const int MaxFileExistence = 127;
 
         private readonly AbsolutePath m_path;
 
@@ -43,47 +58,49 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Following structure is used:
-        /// |-----------------------------------------------|
-        /// | FileExistence |        Rewrite Count          |
-        /// |-----------------------------------------------|
-        /// |31           24|23                            0|
+        /// Following structure is used (FR is for FileRewrite):
+        /// |--------------------------------------------------|
+        /// |FR| FileExistence |        Rewrite Count          |
+        /// |--------------------------------------------------|
+        /// |31|30           24|23                            0|
+        /// |--------------------------------------------------|
         /// </para>
         /// <para>
-        /// Following structure allows to store 256 different FileExistence attributes and up to 16.777.216 rewrites.
+        /// Following structure allows to store 128 different FileExistence attributes and up to 16.777.216 rewrites.
         /// </para>
         /// </remarks>
-        private readonly uint m_rewriteCountAndFileExistence;
+        private readonly uint m_rewriteCountAndFileExistenceAndFileRewrite;
 
         /// <summary>
         /// Invalid <see cref="FileArtifactWithAttributes"/> for uninitialized fields.
         /// </summary>
-        public static readonly FileArtifactWithAttributes Invalid = new FileArtifactWithAttributes(AbsolutePath.Invalid, 0, DefaultFileExistence);
+        public static readonly FileArtifactWithAttributes Invalid = new FileArtifactWithAttributes(AbsolutePath.Invalid, 0, DefaultFileExistence, isUndeclaredFileRewrite: false);
 
         /// <summary>
         /// Creates an  artifact at the given write count and existence.
         /// </summary>
-        internal FileArtifactWithAttributes(AbsolutePath path, int rewriteCount, FileExistence fileExistence)
+        internal FileArtifactWithAttributes(AbsolutePath path, int rewriteCount, FileExistence fileExistence, bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(rewriteCount <= MaxRewriteCount);
+            Contract.Requires(((byte)fileExistence) <= MaxFileExistence);
 
             m_path = path;
-            m_rewriteCountAndFileExistence = (uint)(rewriteCount | ((byte)fileExistence << RewriteCountSize));
+            m_rewriteCountAndFileExistenceAndFileRewrite = ((uint)rewriteCount | (uint)((byte)fileExistence << RewriteCountSize) | (isUndeclaredFileRewrite ? UndeclaredFileRewriteMask : 0));
         }
 
         /// <summary>
         /// Creates a file artifact from deserialized values.
         /// </summary>
-        private FileArtifactWithAttributes(AbsolutePath path, uint rewriteCountAndFileExistence)
+        internal FileArtifactWithAttributes(AbsolutePath path, uint rewriteCountAndFileExistenceAndFileRewrite)
         {
             m_path = path;
-            m_rewriteCountAndFileExistence = rewriteCountAndFileExistence;
+            m_rewriteCountAndFileExistenceAndFileRewrite = rewriteCountAndFileExistenceAndFileRewrite;
         }
 
         /// <nodoc />
-        public static FileArtifactWithAttributes Create(FileArtifact artifact, FileExistence fileExistence)
+        public static FileArtifactWithAttributes Create(FileArtifact artifact, FileExistence fileExistence, bool isUndeclaredFileRewrite = false)
         {
-            return new FileArtifactWithAttributes(artifact.Path, artifact.RewriteCount, fileExistence);
+            return new FileArtifactWithAttributes(artifact.Path, artifact.RewriteCount, fileExistence, isUndeclaredFileRewrite);
         }
 
         /// <summary>
@@ -97,6 +114,11 @@ namespace BuildXL.Utilities
         public AbsolutePath Path => m_path;
 
         /// <summary>
+        /// Compact representation that is exposed for internal custom serialization/deseralization
+        /// </summary>
+        internal uint RewriteCountAndFileExistenceAndFileRewrite => m_rewriteCountAndFileExistenceAndFileRewrite;
+
+        /// <summary>
         /// Returns the rewrite count.
         /// </summary>
         /// <remarks>
@@ -104,7 +126,7 @@ namespace BuildXL.Utilities
         /// A value of 1 means it is an output file
         /// A value greater than 1 means it is a rewritten file.
         /// </remarks>
-        public int RewriteCount => (int)(m_rewriteCountAndFileExistence & RewriteCountMask);
+        public int RewriteCount => (int)(m_rewriteCountAndFileExistenceAndFileRewrite & RewriteCountMask);
 
         /// <summary>
         /// Determines if this is a source file or not.
@@ -119,7 +141,12 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Returns <see cref="FileExistence"/> associated with current <see cref="BuildXL.Utilities.FileArtifact"/>.
         /// </summary>
-        public FileExistence FileExistence => (FileExistence)(m_rewriteCountAndFileExistence >> RewriteCountSize);
+        public FileExistence FileExistence => (FileExistence)((m_rewriteCountAndFileExistenceAndFileRewrite & FileExistenceMask) >> RewriteCountSize);
+
+        /// <summary>
+        /// Returns whether the current <see cref="BuildXL.Utilities.FileArtifact"/> is rewriting an undeclared source or alien file.
+        /// </summary>
+        public bool IsUndeclaredFileRewrite => (m_rewriteCountAndFileExistenceAndFileRewrite & UndeclaredFileRewriteMask) > 0;
 
         /// <summary>
         /// Determines if this is a temporary output file or not.
@@ -148,14 +175,14 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Factory method that creates new instance based on specified <paramref name="fileArtifact"/>.
         /// </summary>
-        public static FileArtifactWithAttributes FromFileArtifact(FileArtifact fileArtifact, FileExistence fileExistence)
+        public static FileArtifactWithAttributes FromFileArtifact(FileArtifact fileArtifact, FileExistence fileExistence, bool isUndeclaredFileRewrite = false)
         {
             if (!fileArtifact.IsValid)
             {
                 return Invalid;
             }
 
-            return new FileArtifactWithAttributes(fileArtifact.Path, fileArtifact.RewriteCount, fileExistence);
+            return new FileArtifactWithAttributes(fileArtifact.Path, fileArtifact.RewriteCount, fileExistence, isUndeclaredFileRewrite);
         }
 
         /// <summary>
@@ -163,7 +190,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public FileArtifactWithAttributes CreateNextWrittenVersion()
         {
-            return new FileArtifactWithAttributes(Path, checked(RewriteCount + 1), FileExistence);
+            return new FileArtifactWithAttributes(Path, checked(RewriteCount + 1), FileExistence, IsUndeclaredFileRewrite);
         }
 
         /// <summary>
@@ -177,7 +204,7 @@ namespace BuildXL.Utilities
         public bool Equals(FileArtifactWithAttributes other)
         {
             // Note: The Invalid FileArtifactWithAttributes always has a rewrite count of 0.
-            return Path == other.Path && m_rewriteCountAndFileExistence == other.m_rewriteCountAndFileExistence;
+            return Path == other.Path && m_rewriteCountAndFileExistenceAndFileRewrite == other.m_rewriteCountAndFileExistenceAndFileRewrite;
         }
 
         /// <summary>
@@ -190,7 +217,7 @@ namespace BuildXL.Utilities
         public int CompareTo(FileArtifactWithAttributes other, PathTable.ExpandedAbsolutePathComparer comparer, bool pathOnly)
         {
             var pathCompare = comparer.Compare(Path, other.Path);
-            return pathCompare != 0 || pathOnly ? pathCompare : (((int)m_rewriteCountAndFileExistence) - ((int)other.m_rewriteCountAndFileExistence));
+            return pathCompare != 0 || pathOnly ? pathCompare : (((int)m_rewriteCountAndFileExistenceAndFileRewrite) - ((int)other.m_rewriteCountAndFileExistenceAndFileRewrite));
         }
 
         /// <summary>
@@ -209,7 +236,7 @@ namespace BuildXL.Utilities
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Path.GetHashCode(), (int)m_rewriteCountAndFileExistence);
+            return HashCodeHelper.Combine(Path.GetHashCode(), (int)m_rewriteCountAndFileExistenceAndFileRewrite);
         }
 
         /// <summary>
@@ -260,7 +287,7 @@ namespace BuildXL.Utilities
         private string ToDebuggerDisplay()
         {
             string annotation;
-            switch (m_rewriteCountAndFileExistence)
+            switch (RewriteCount)
             {
                 case 0:
                     annotation = "source";
@@ -269,8 +296,13 @@ namespace BuildXL.Utilities
                     annotation = "output";
                     break;
                 default:
-                    annotation = "rewrite:" + m_rewriteCountAndFileExistence.ToString(CultureInfo.InvariantCulture);
+                    annotation = "rewrite:" + RewriteCount.ToString(CultureInfo.InvariantCulture);
                     break;
+            }
+
+            if (IsUndeclaredFileRewrite)
+            {
+                annotation += "[File rewrite]";
             }
 
             string path;
@@ -304,7 +336,7 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(writer);
 
             writer.Write(m_path);
-            writer.Write(m_rewriteCountAndFileExistence);
+            writer.Write(m_rewriteCountAndFileExistenceAndFileRewrite);
         }
     }
 }

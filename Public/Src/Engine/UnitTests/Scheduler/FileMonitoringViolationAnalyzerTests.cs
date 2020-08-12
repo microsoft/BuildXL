@@ -734,9 +734,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
-        [InlineData(DoubleWritePolicy.UnsafeFirstDoubleWriteWins)]
-        public void DoubleWritePolicyDeterminesViolationSeverity(DoubleWritePolicy doubleWritePolicy)
+        [InlineData(RewritePolicy.DoubleWritesAreErrors)]
+        [InlineData(RewritePolicy.UnsafeFirstDoubleWriteWins)]
+        public void DoubleWritePolicyDeterminesViolationSeverity(RewritePolicy doubleWritePolicy)
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
@@ -778,7 +778,7 @@ namespace Test.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
 
             // Based on the double write policy, the violation is an error or a warning
-            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            if (doubleWritePolicy == RewritePolicy.DoubleWritesAreErrors)
             {
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
@@ -789,9 +789,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
-        [InlineData(DoubleWritePolicy.AllowSameContentDoubleWrites)]
-        public void DoubleWritePolicyIsContentAware(DoubleWritePolicy doubleWritePolicy)
+        [InlineData(RewritePolicy.DoubleWritesAreErrors)]
+        [InlineData(RewritePolicy.AllowSameContentDoubleWrites)]
+        public void DoubleWritePolicyIsContentAware(RewritePolicy doubleWritePolicy)
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
@@ -845,7 +845,7 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             // Based on the double write policy, the violation is an error or it is not raised
-            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            if ((doubleWritePolicy & RewritePolicy.DoubleWritesAreErrors) != 0)
             {
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);

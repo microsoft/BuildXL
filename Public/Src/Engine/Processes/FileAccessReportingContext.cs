@@ -31,6 +31,7 @@ namespace BuildXL.Processes
         private List<ReportedFileAccess> m_allowlistedAccesses;
         private int m_numAllowlistedButNotCacheableFileAccessViolations;
         private int m_numAllowlistedAndCacheableFileAccessViolations;
+        private int m_numFileExistenceAccessViolationsNotAllowlisted;
 
         /// <summary>
         /// Creates a context. All <see cref="Counters"/> are initially zero and will increase as accesses are reported.
@@ -56,7 +57,8 @@ namespace BuildXL.Processes
         public UnexpectedFileAccessCounters Counters => new UnexpectedFileAccessCounters(
             numFileAccessesAllowlistedButNotCacheable: m_numAllowlistedButNotCacheableFileAccessViolations,
             numFileAccessViolationsNotAllowlisted: m_violations == null ? 0 : m_violations.Count,
-            numFileAccessesAllowlistedAndCacheable: m_numAllowlistedAndCacheableFileAccessViolations);
+            numFileAccessesAllowlistedAndCacheable: m_numAllowlistedAndCacheableFileAccessViolations,
+            numFileExistenceAccessViolationsNotAllowlisted: m_numFileExistenceAccessViolationsNotAllowlisted);
 
         /// <summary>
         /// Gets the collection of unexpected file accesses reported so far that were not allowlisted. These are 'violations'.
@@ -163,6 +165,11 @@ namespace BuildXL.Processes
             if (reportedFileAccess.Operation != ReportedFileOperation.NtCreateFile || m_config.UnsafeSandboxConfiguration.MonitorNtCreateFile)
             {
                 m_violations.Add(reportedFileAccess);
+
+                if (reportedFileAccess.Method == FileAccessStatusMethod.FileExistenceBased)
+                {
+                    m_numFileExistenceAccessViolationsNotAllowlisted++;
+                }
             }
         }
 
@@ -286,26 +293,31 @@ namespace BuildXL.Processes
         /// </summary>
         public readonly int NumFileAccessViolationsNotAllowlisted;
 
+        /// <summary>
+        /// Count of accesses such that the access is not allowlisted based on an existing file (as opposed to determined by policy).
+        /// </summary>
+        /// <remarks>Counts a subset of <see cref="NumFileAccessViolationsNotAllowlisted"/></remarks>
+        public readonly int NumFileExistenceAccessViolationsNotAllowlisted;
+
         /// <nodoc />
         public UnexpectedFileAccessCounters(
             int numFileAccessesAllowlistedButNotCacheable,
             int numFileAccessesAllowlistedAndCacheable,
-            int numFileAccessViolationsNotAllowlisted)
+            int numFileAccessViolationsNotAllowlisted,
+            int numFileExistenceAccessViolationsNotAllowlisted)
         {
             NumFileAccessViolationsNotAllowlisted = numFileAccessViolationsNotAllowlisted;
             NumFileAccessesAllowlistedAndCacheable = numFileAccessesAllowlistedAndCacheable;
             NumFileAccessesAllowlistedButNotCacheable = numFileAccessesAllowlistedButNotCacheable;
+            NumFileExistenceAccessViolationsNotAllowlisted = numFileExistenceAccessViolationsNotAllowlisted;
         }
-
-        /// <summary>
-        /// Returns the sum of counters for those accesses that were violations or were allowlisted. This total excludes only those accesses
-        /// that were allowed on their own merit, i.e., not 'unexpected' and handled.
-        /// </summary>
-        public int TotalUnexpectedFileAccesses => NumFileAccessesAllowlistedButNotCacheable + NumFileAccessesAllowlistedAndCacheable + NumFileAccessViolationsNotAllowlisted;
 
         /// <summary>
         /// Indicates if this context has reported accesses which should mark the owning process as cache-ineligible.
         /// </summary>
-        public bool HasUncacheableFileAccesses => (NumFileAccessViolationsNotAllowlisted + NumFileAccessesAllowlistedButNotCacheable) > 0;
+        /// <remarks>
+        /// File existence based violations don't necessarily make the pip uncacheable, since there may be relaxing policies in place
+        /// </remarks>
+        public bool HasUncacheableFileAccesses => (NumFileAccessViolationsNotAllowlisted + NumFileAccessesAllowlistedButNotCacheable) - NumFileExistenceAccessViolationsNotAllowlisted > 0;
     }
 }

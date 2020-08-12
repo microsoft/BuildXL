@@ -122,7 +122,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
                 FileName = info.FileName.IsValid ?
                     info.FileName.ToString(pathTable.StringTable) : null,
                 ReparsePointType = info.ReparsePointInfo.ReparsePointType.ToBondReparsePointType(),
-                ReparsePointTarget = info.ReparsePointInfo.GetReparsePointTarget()
+                ReparsePointTarget = info.ReparsePointInfo.GetReparsePointTarget(),
+                IsAllowedFileRewrite = info.IsUndeclaredFileRewrite
             };
         }
 
@@ -134,7 +135,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
             return new FileMaterializationInfo(
                 new FileContentInfo(bondInfo.Hash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(bondInfo.Length)),
                 bondInfo.FileName != null ? PathAtom.Create(pathTable.StringTable, bondInfo.FileName) : PathAtom.Invalid,
-                ReparsePointInfo.Create(bondInfo.ReparsePointType.ToReparsePointType(), bondInfo.ReparsePointTarget));
+                ReparsePointInfo.Create(bondInfo.ReparsePointType.ToReparsePointType(), bondInfo.ReparsePointTarget),
+                bondInfo.IsAllowedFileRewrite);
         }
 
         /// <nodoc />

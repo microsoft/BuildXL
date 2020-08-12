@@ -110,9 +110,9 @@ namespace BuildXL.Utilities
         /// Constructs <see cref="FileArtifactWithAttributes"/> based on the current FileAttribute instance
         /// with specified <paramref name="fileExistence"/> attibute.
         /// </summary>
-        public FileArtifactWithAttributes WithAttributes(FileExistence fileExistence = FileExistence.Required)
+        public FileArtifactWithAttributes WithAttributes(FileExistence fileExistence = FileExistence.Required, bool undeclaredSourceRewrite = false)
         {
-            return FileArtifactWithAttributes.FromFileArtifact(this, fileExistence);
+            return FileArtifactWithAttributes.FromFileArtifact(this, fileExistence, undeclaredSourceRewrite);
         }
 
         /// <summary>

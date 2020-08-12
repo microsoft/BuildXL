@@ -182,7 +182,12 @@ namespace BuildXL.Scheduler.Fingerprints
                 HashSet<AbsolutePath> sharedOpaqueOutputs = processingState.SharedOpaqueOutputs;
                 if (unPopulatedSharedOpaqueOutputs != null && envAdapter.MayDetermineMinimalGraphWithAlienFiles(allowUndeclaredSourceReads))
                 {
-                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts => fileArtifacts.Select(fa => fa.Path)));
+                    // We filter out artifacts that are allowed file rewrites since that information is not available
+                    // when processing a prior path set. The final result will be that allowed rewrites, even though outputs,
+                    // will be part of the directory fingerprint when using minimal with alien files. This is the desired outcome
+                    // since those files existed before the build begun.
+                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts => 
+                        fileArtifacts.Where(fa => !fa.IsUndeclaredFileRewrite).Select(fa => fa.Path)));
                 }
                 
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessDuration))
@@ -2098,7 +2103,10 @@ namespace BuildXL.Scheduler.Fingerprints
 
                             // If the entry is reported as existent from the output file system, this means it is an output that is
                             // not part of the immediate dependencies. So we don't add it.
-                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent)
+                            // The only exception is when the file is flagged as an undeclared source/alien file rewrite. In this case the file was there
+                            // before the build started, and therefore it makes sense to include it in the fingerprint
+                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent && 
+                                !m_env.State.FileContentManager.IsAllowedFileRewriteOutput(realFileEntryPath))
                             {
                                 continue;
                             }
@@ -2111,10 +2119,10 @@ namespace BuildXL.Scheduler.Fingerprints
                                 continue;
                             }
 
-                            // Rule out all shared opaques produced by this pips. These files may not be part yet of the output file system since those get registered
+                            // Rule out all shared opaques produced by this pip. These files may not be part yet of the output file system since those get registered
                             // in a post-execution step which is not reached yet on cache miss, so the output file system may have not captured them yet
                             if (sharedDynamicOutputs.Contains(realFileEntryPath))
-                            { 
+                            {
                                 continue; 
                             }
 

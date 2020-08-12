@@ -235,6 +235,9 @@ message FileArtifactKeyedHash
 
     // Whether the File is affected by the source code changes
     bool IsSourceAffected = 10;
+
+    /// Indicates whether the file represents an allowed rewrite on a source or alien file
+    bool IsAllowedFileRewrite = 11;
 }
 
 message GrpcDirectoryArtifact

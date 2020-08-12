@@ -328,8 +328,8 @@ namespace BuildXL.FrontEnd.JavaScript
             // Otherwise in Windows we force path sets to be all uppercase
             processBuilder.Options |= Process.Options.PreservePathSetCasing;
 
-            // By default the double write policy is to allow same content double writes.
-            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.AllowSameContentDoubleWrites;
+            // By default the double write policy is to allow same content double writes and safe rewrites.
+            processBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
 
             // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
             // any attempt to read into the user profile will fail to compute its corresponding hash

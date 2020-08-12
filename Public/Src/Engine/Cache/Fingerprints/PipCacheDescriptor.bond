@@ -34,6 +34,7 @@ struct BondFileMaterializationInfo
     3: nullable<string> FileName;
     4: BondReparsePointType ReparsePointType = None;
     5: nullable<string> ReparsePointTarget;
+    6: bool IsAllowedFileRewrite;
 }
 
 struct RelativePathFileMaterializationInfo

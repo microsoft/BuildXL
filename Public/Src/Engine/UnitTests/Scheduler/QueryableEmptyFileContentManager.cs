@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Threading.Tasks;
 using BuildXL.Scheduler;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 
 namespace Test.BuildXL.Scheduler
@@ -16,6 +18,12 @@ namespace Test.BuildXL.Scheduler
         {
             containingOutputDirectory = DirectoryArtifact.Invalid;
             return false;
+        }
+
+        /// <inheritdoc/>
+        public Task<FileContentInfo?> TryQueryUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription = null)
+        {
+            return Task.FromResult<FileContentInfo?>(null);
         }
     }
 }

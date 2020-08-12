@@ -71,7 +71,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // Weak fingerprint augmentation should be enforced
             Assert.True((testProj.ProcessOptions & Process.Options.EnforceWeakFingerprintAugmentation) != 0);
             // Double writes are allowed as long as the written content is the same
-            Assert.True(testProj.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites);
+            Assert.True((testProj.RewritePolicy & RewritePolicy.AllowSameContentDoubleWrites) != 0);
             // Working directory is the project directory
             Assert.True(testProj.WorkingDirectory == project.FullPath.GetParent(PathTable));
             // Log file is configured

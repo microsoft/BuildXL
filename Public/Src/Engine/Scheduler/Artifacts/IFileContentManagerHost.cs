@@ -123,7 +123,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Callback to host to report that a file has been placed to disk.
         /// </summary>
-        void ReportFileArtifactPlaced(in FileArtifact artifact);
+        void ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedFileRewrite);
 
         /// <summary>
         /// Gets whether the host supports materializing the given file

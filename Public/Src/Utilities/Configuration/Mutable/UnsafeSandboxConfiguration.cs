@@ -130,7 +130,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; set; }
 
         /// <inheritdoc />
-        public DoubleWritePolicy? DoubleWritePolicy { get; set; }
+        public RewritePolicy? DoubleWritePolicy { get; set; }
 
         /// <inheritdoc />
         public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }

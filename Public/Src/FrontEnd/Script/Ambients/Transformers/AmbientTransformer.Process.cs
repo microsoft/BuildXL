@@ -45,11 +45,18 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         };
 
         // Keep in sync with Transformer.Execute.dsc DoubleWritePolicy definition
-        private static readonly Dictionary<string, DoubleWritePolicy> s_doubleWritePolicyMap = new Dictionary<string, DoubleWritePolicy>(StringComparer.Ordinal)
+        private static readonly Dictionary<string, RewritePolicy> s_doubleWritePolicyMap = new Dictionary<string, RewritePolicy>(StringComparer.Ordinal)
         {
-            ["doubleWritesAreErrors"] = DoubleWritePolicy.DoubleWritesAreErrors,
-            ["allowSameContentDoubleWrites"] = DoubleWritePolicy.AllowSameContentDoubleWrites,
-            ["unsafeFirstDoubleWriteWins"] = DoubleWritePolicy.UnsafeFirstDoubleWriteWins,
+            ["doubleWritesAreErrors"] = RewritePolicy.DoubleWritesAreErrors,
+            ["allowSameContentDoubleWrites"] = RewritePolicy.AllowSameContentDoubleWrites,
+            ["unsafeFirstDoubleWriteWins"] = RewritePolicy.UnsafeFirstDoubleWriteWins,
+        };
+
+        // Keep in sync with Transformer.Execute.dsc DoubleWritePolicy definition
+        private static readonly Dictionary<string, RewritePolicy> s_fileRewritePolicyMap = new Dictionary<string, RewritePolicy>(StringComparer.Ordinal)
+        {
+            ["sourceRewritesAreErrors"] = RewritePolicy.SourceRewritesAreErrors,
+            ["safeSourceRewritesAreAllowed"] = RewritePolicy.SafeSourceRewritesAreAllowed,
         };
 
         private static readonly Dictionary<string, bool> s_privilegeLevel = new Dictionary<string, bool>(StringComparer.Ordinal)
@@ -94,6 +101,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeRunInContainer;
         private SymbolAtom m_executeContainerIsolationLevel;
         private SymbolAtom m_executeDoubleWritePolicy;
+        private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_privilegeLevel;
@@ -236,6 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeRunInContainer = Symbol("runInContainer");
             m_executeContainerIsolationLevel = Symbol("containerIsolationLevel");
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
+            m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
@@ -634,12 +643,22 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     containerIsolationLevel.Value :
                     context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
-            // Container double write policy
+            // Double write policy
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
-            var doubleWritePolicy = Converter.ExtractStringLiteral(obj, m_executeDoubleWritePolicy, s_doubleWritePolicyMap.Keys, allowUndefined: true);
-            processBuilder.DoubleWritePolicy = doubleWritePolicy != null ?
-                    s_doubleWritePolicyMap[doubleWritePolicy] :
+            var doubleWritePolicyString = Converter.ExtractStringLiteral(obj, m_executeDoubleWritePolicy, s_doubleWritePolicyMap.Keys, allowUndefined: true);
+            var doubleWritePolicy = doubleWritePolicyString != null ?
+                    s_doubleWritePolicyMap[doubleWritePolicyString] :
                     context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.DoubleWritePolicy();
+
+            // Source rewrite write policy
+            // The value is set based on the default but overridden if the field is explicitly defined for the pip
+            var sourceRewritePolicyString = Converter.ExtractStringLiteral(obj, m_executeSourceRewritePolicy, s_fileRewritePolicyMap.Keys, allowUndefined: true);
+            
+            var sourceRewritePolicy = sourceRewritePolicyString != null ?
+                    s_fileRewritePolicyMap[sourceRewritePolicyString] :
+                    context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.SourceWritePolicy();
+
+            processBuilder.RewritePolicy = doubleWritePolicy | sourceRewritePolicy;
 
             // Allow undeclared source reads flag
             if (Converter.ExtractOptionalBoolean(obj, m_executeAllowUndeclaredSourceReads) == true)

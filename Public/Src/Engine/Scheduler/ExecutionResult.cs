@@ -46,7 +46,7 @@ namespace BuildXL.Scheduler
         private WeakContentFingerprint? m_weakFingerprint;
         private TwoPhaseCachingInfo m_twoPhaseCachingInfo;
         private ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> m_outputContent;
-        private ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> m_directoryOutputs;
+        private ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> m_directoryOutputs;
         private bool m_mustBeConsideredPerpetuallyDirty;
         private bool m_converged;
         private ReadOnlyArray<AbsolutePath> m_dynamicallyObservedFiles;
@@ -378,7 +378,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Directory outputs.
         /// </summary>
-        public ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)> DirectoryOutputs
+        public ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)> DirectoryOutputs
         {
             get
             {
@@ -435,7 +435,7 @@ namespace BuildXL.Scheduler
             PipResultStatus result,
             int numberOfWarnings,
             ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent,
-            ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs,
+            ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> directoryOutputs,
             ProcessPipExecutionPerformance performanceInformation,
             WeakContentFingerprint? fingerprint,
             IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotAllowlisted,
@@ -630,10 +630,10 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Records the output directory along with its contents as strings.
         /// </summary>
-        public void ReportDirectoryOutput(DirectoryArtifact directoryArtifact, IReadOnlyList<FileArtifact> contents)
+        public void ReportDirectoryOutput(DirectoryArtifact directoryArtifact, IReadOnlyList<FileArtifactWithAttributes> contents)
         {
             EnsureUnsealed();
-            InnerUnsealedState.DirectoryOutputs.Add((directoryArtifact, ReadOnlyArray<FileArtifact>.From(contents)));
+            InnerUnsealedState.DirectoryOutputs.Add((directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>.From(contents)));
         }
 
         private void EnsureSealed()
@@ -695,8 +695,8 @@ namespace BuildXL.Scheduler
                 {
                     m_result = m_unsealedState.Result.Value;
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.From(m_unsealedState.OutputContent);
-                    m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.From(m_unsealedState.DirectoryOutputs);
-
+                    m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.From(m_unsealedState.DirectoryOutputs);
+                    
                     // If the result from the sandbox was not reported, that means this pip came from the cache, and therefore
                     // the shared dynamic accesses need to be populated from the already reported output directories
                     if (!m_unsealedState.SandboxedResultReported)
@@ -763,7 +763,7 @@ namespace BuildXL.Scheduler
                 else
                 {
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty;
-                    m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.Empty;
+                    m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty;
                     m_dynamicallyObservedFiles = ReadOnlyArray<AbsolutePath>.Empty;
                     m_dynamicallyProbedFiles = ReadOnlyArray<AbsolutePath>.Empty;
                     m_dynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
@@ -776,11 +776,11 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs)
+        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> directoryOutputs)
         {
             var sharedDynamicAccesses = directoryOutputs
                 .Where(kvp => kvp.Item1.IsSharedOpaque)
-                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>) kvp.Item2.SelectArray(fileArtifact => FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required)));
+                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>) kvp.Item2);
 
             return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(sharedDynamicAccesses);
         }
@@ -822,8 +822,8 @@ namespace BuildXL.Scheduler
             public readonly List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> OutputContent =
                 new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>();
 
-            public readonly List<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> DirectoryOutputs =
-                new List<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>();
+            public readonly List<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> DirectoryOutputs =
+                new List<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>();
 
             public UnsealedState()
             {

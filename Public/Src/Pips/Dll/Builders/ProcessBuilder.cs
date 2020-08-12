@@ -136,9 +136,9 @@ namespace BuildXL.Pips.Builders
         // Container related
 
         /// <summary>
-        /// <see cref="DoubleWritePolicy"/>. Only in effect if <see cref="Options.NeedsToRunInContainer"/> is true.
+        /// <see cref="RewritePolicy"/>. 
         /// </summary>
-        public DoubleWritePolicy DoubleWritePolicy { get; set; }
+        public RewritePolicy RewritePolicy { get; set; }
 
         /// <summary>
         /// <see cref="ContainerIsolationLevel"/>. Only in effect if <see cref="Options.NeedsToRunInContainer"/> is true.
@@ -698,7 +698,7 @@ namespace BuildXL.Pips.Builders
                 serviceInfo: serviceInfo,
                 allowedSurvivingChildProcessNames: AllowedSurvivingChildProcessNames,
                 nestedProcessTerminationTimeout: NestedProcessTerminationTimeout,
-                doubleWritePolicy: DoubleWritePolicy,
+                rewritePolicy: RewritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,

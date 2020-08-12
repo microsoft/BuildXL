@@ -155,6 +155,12 @@ namespace Transformer {
          */
         doubleWritePolicy?: DoubleWritePolicy;
 
+        /**
+         * The policy to apply when a source is rewritten.
+         * Default is globally controlled by the sandbox configuration
+         */
+        sourceRewritePolicy?: SourceRewritePolicy;
+
         /** Whether this process should allow undeclared reads from source files. A source 
          * file is considered to be a file that is not written during the build.
          * Note: this option turns static enforcements based on source file declarations into dynamic

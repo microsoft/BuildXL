@@ -712,9 +712,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(DoubleWritePolicy.AllowSameContentDoubleWrites)]
-        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
-        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed(DoubleWritePolicy doubleWritePolicy)
+        [InlineData(RewritePolicy.AllowSameContentDoubleWrites)]
+        [InlineData(RewritePolicy.DoubleWritesAreErrors)]
+        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed(RewritePolicy doubleWritePolicy)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
@@ -728,13 +728,13 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                        Operation.WriteFile(dependencyInOpaque, content: ContentToWrite, doNotInfer: true),
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            builderA.DoubleWritePolicy = doubleWritePolicy;
+            builderA.RewritePolicy = doubleWritePolicy;
             
             var resA = SchedulePipBuilder(builderA);
 
             // The second pip depends on the shared opaque of the first pip, and tries to write to that same file (with same content)
             var operations = new List<Operation>();
-            if (doubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+            if (doubleWritePolicy == RewritePolicy.AllowSameContentDoubleWrites)
             {
                 // Delete the file first, since write file operation implies append
                 // and we want to be sure we write the same content than the first time
@@ -745,14 +745,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builderB = CreatePipBuilder(operations);
             builderB.AddInputDirectory(resA.ProcessOutputs.GetOutputDirectories().Single().Root);
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            builderB.DoubleWritePolicy = doubleWritePolicy;
+            builderB.RewritePolicy = doubleWritePolicy;
 
             SchedulePipBuilder(builderB);
 
             IgnoreWarnings();
             var result = RunScheduler();
 
-            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            if (doubleWritePolicy == RewritePolicy.DoubleWritesAreErrors)
             {
                 result.AssertFailure();
                 // We are expecting a file monitor violation
@@ -1269,13 +1269,13 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.ReadAndWriteFile(FileArtifact.CreateSourceFile(output.Path), output, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))});
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            builderA.DoubleWritePolicy = DoubleWritePolicy.AllowSameContentDoubleWrites;
+            builderA.RewritePolicy = RewritePolicy.AllowSameContentDoubleWrites;
             var processA = SchedulePipBuilder(builderA);
 
             // And the same for this one. The previous one has a static dummy output so just they don't collide in weak fingerprint
             var builderB = CreatePipBuilder(new Operation[] { Operation.ReadAndWriteFile(outputAsSource, output, doNotInfer: true) });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            builderB.DoubleWritePolicy = DoubleWritePolicy.AllowSameContentDoubleWrites;
+            builderB.RewritePolicy = RewritePolicy.AllowSameContentDoubleWrites;
             var processB = SchedulePipBuilder(builderB);
 
             // We only want to run processB, but we need to add both pips in the graph so we can get cache hits the second time
@@ -1315,7 +1315,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ProcessBuilder originalProducerPipBuilder = CreatePipBuilder(
                 writeOperations.Append(Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "dep")))));
             originalProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            originalProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+            originalProducerPipBuilder.RewritePolicy |= RewritePolicy.UnsafeFirstDoubleWriteWins;
             ProcessWithOutputs originalProducerPipResult = SchedulePipBuilder(originalProducerPipBuilder);
 
             // doubleWriteProducerPip writes the same artifact in a shared opaque directory
@@ -1326,7 +1326,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             doubleWriteProducerPipBuilder.AddInputFile(originalProducerPipResult.ProcessOutputs.GetOutputFiles().Single());
 
             // Set UnsafeFirstDoubleWriteWins
-            doubleWriteProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+            doubleWriteProducerPipBuilder.RewritePolicy |= RewritePolicy.UnsafeFirstDoubleWriteWins;
             ProcessWithOutputs doubleWriteProducerPipResult = SchedulePipBuilder(doubleWriteProducerPipBuilder);
 
             var result = RunScheduler().AssertSuccess();

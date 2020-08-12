@@ -513,8 +513,8 @@ namespace BuildXL.FrontEnd.MsBuild
             // to avoid a large number of path sets
             processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
 
-            // By default the double write policy is to allow same content double writes.
-            processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
+            // By default the double write policy is to allow same content double writes
+            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy ?? RewritePolicy.AllowSameContentDoubleWrites;
 
             SetUntrackedFilesAndDirectories(processBuilder.WorkingDirectory, processBuilder);
 

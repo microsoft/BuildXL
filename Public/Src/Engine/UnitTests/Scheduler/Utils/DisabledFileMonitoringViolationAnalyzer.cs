@@ -32,7 +32,7 @@ namespace Test.BuildXL.Scheduler.Utils
         /// <inheritdoc />
         public bool AnalyzeDynamicViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
+            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
@@ -43,7 +43,7 @@ namespace Test.BuildXL.Scheduler.Utils
             Process pip,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
+            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,

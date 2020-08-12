@@ -878,6 +878,7 @@ namespace BuildXL.Processes
                     // Remove the denied access and add the corresponding allowed ones
                     FileUnexpectedAccesses.Remove(deniedAccess);
                     FileAccesses?.Remove(deniedAccess);
+                    ExplicitlyReportedFileAccesses.Remove(deniedAccess);
                     HandleReportedAccess(finalPath, deniedAccess.CreateWithStatus(FileAccessStatus.Allowed));
                     // Remove the denied accesses from the dictionary
                     m_deniedAccessesBasedOnExistence.Remove(finalPath);
@@ -903,6 +904,13 @@ namespace BuildXL.Processes
             {
                 Contract.Assume(access.Status == FileAccessStatus.Denied || access.Status == FileAccessStatus.CannotDeterminePolicy);
                 FileUnexpectedAccesses.Add(access);
+
+                // There might be relaxing policies in place that may allow a denied access based on file existence
+                // But in order to process it we need to explicitly report the access
+                if (access.Method == FileAccessStatusMethod.FileExistenceBased && access.ExplicitlyReported)
+                {
+                    ExplicitlyReportedFileAccesses.Add(access);
+                }
             }
 
             FileAccesses?.Add(access);

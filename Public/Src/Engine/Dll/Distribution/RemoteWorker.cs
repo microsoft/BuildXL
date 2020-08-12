@@ -790,6 +790,7 @@ namespace BuildXL.Engine.Distribution
                             RewriteCount = file.RewriteCount,
                             PathValue = file.Path.Value.Value,
                             PathString = isDynamicFile ? file.Path.ToString(pathTable) : null,
+                            IsAllowedFileRewrite = environment.State.FileContentManager.IsAllowedFileRewriteOutput(file.Path)
                         }.SetFileMaterializationInfo(pathTable, fileMaterializationInfo);
 
                         if (isDynamicFile)

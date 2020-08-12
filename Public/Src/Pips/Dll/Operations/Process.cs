@@ -421,7 +421,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
-            DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
+            RewritePolicy rewritePolicy = RewritePolicy.DefaultStrict,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
@@ -457,6 +457,7 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.IsValid);
             Contract.RequiresForAll(additionalTempDirectories, path => path.IsValid);
             Contract.Requires(tags.IsValid);
+            Contract.Requires(rewritePolicy.IsValid());
             // If the process needs to run in a container, the redirected directory has to be set
             Contract.Requires((options & Options.NeedsToRunInContainer) == Options.None || uniqueRedirectedDirectoryRoot.IsValid);
 
@@ -528,7 +529,7 @@ namespace BuildXL.Pips.Operations
             AllowedSurvivingChildProcessNames = allowedSurvivingChildProcessNames ?? ReadOnlyArray<PathAtom>.Empty;
             NestedProcessTerminationTimeout = nestedProcessTerminationTimeout;
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
-            DoubleWritePolicy = doubleWritePolicy;
+            RewritePolicy = rewritePolicy.StrictDefaultsIfAbsent();
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
@@ -588,7 +589,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
-            DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
+            RewritePolicy rewritePolicy = RewritePolicy.DefaultStrict,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
@@ -635,7 +636,7 @@ namespace BuildXL.Pips.Operations
                 allowedSurvivingChildProcessNames,
                 nestedProcessTerminationTimeout,
                 absentPathProbeMode,
-                doubleWritePolicy,
+                rewritePolicy,
                 containerIsolationLevel,
                 weight,
                 priority,
@@ -794,11 +795,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// What policy to apply when merging redirected outputs back
         /// </summary>
-        /// <remarks>
-        /// Only makes sense when <see cref="NeedsToRunInContainer"/> is true
-        /// </remarks>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public DoubleWritePolicy DoubleWritePolicy { get; }
+        public RewritePolicy RewritePolicy { get; }
 
         /// <summary>
         /// How much of this process (in terms of inputs and outputs) should be isolated in the container
@@ -924,7 +922,7 @@ namespace BuildXL.Pips.Operations
                 allowedSurvivingChildProcessNames: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 nestedProcessTerminationTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
                 absentPathProbeMode: (AbsentPathProbeInUndeclaredOpaquesMode)reader.ReadByte(),
-                doubleWritePolicy: (DoubleWritePolicy)reader.ReadByte(),
+                rewritePolicy: (RewritePolicy)reader.ReadByte(),
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
@@ -976,7 +974,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(AllowedSurvivingChildProcessNames, (w, v) => w.Write(v));
             writer.Write(NestedProcessTerminationTimeout, (w, t) => w.Write(t));
             writer.Write((byte)ProcessAbsentPathProbeInUndeclaredOpaquesMode);
-            writer.Write((byte)DoubleWritePolicy);
+            writer.Write((byte)RewritePolicy);
             writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);

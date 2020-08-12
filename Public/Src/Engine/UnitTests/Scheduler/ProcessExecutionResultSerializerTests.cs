@@ -40,7 +40,7 @@ namespace Test.BuildXL.Scheduler
                 result: PipResultStatus.Succeeded,
                 numberOfWarnings: 12,
                 outputContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.FromWithoutCopy(CreateRandomOutputContent(), CreateRandomOutputContent()),
-                directoryOutputs: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(CreateRandomOutputDirectory(), CreateRandomOutputDirectory()), 
+                directoryOutputs: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(CreateRandomOutputDirectory(), CreateRandomOutputDirectory()), 
                 performanceInformation: new ProcessPipExecutionPerformance(
                     PipExecutionLevel.Executed,
                     DateTime.UtcNow,
@@ -234,7 +234,7 @@ namespace Test.BuildXL.Scheduler
             return (outputFile, fileContentInfo, PipOutputOrigin.Produced);
         }
 
-        private (DirectoryArtifact, ReadOnlyArray<FileArtifact>) CreateRandomOutputDirectory()
+        private (DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>) CreateRandomOutputDirectory()
         {
             Random r = new Random();
             int length = r.Next(1, 10);

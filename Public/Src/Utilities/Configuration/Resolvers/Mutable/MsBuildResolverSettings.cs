@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? UseLegacyProjectIsolation { get; set; }
 
         /// <inheritdoc/>
-        public DoubleWritePolicy? DoubleWritePolicy { get; set; }
+        public RewritePolicy? DoubleWritePolicy { get; set; }
 
         /// <inheritdoc/>
         public bool? AllowProjectsToNotSpecifyTargetProtocol { get; set; }

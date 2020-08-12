@@ -749,12 +749,13 @@ namespace BuildXL.Engine.Distribution
 
         private Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes)
         {
-            var dynamicDirectoryMap = new Dictionary<DirectoryArtifact, List<FileArtifact>>();
+            var dynamicDirectoryMap = new Dictionary<DirectoryArtifact, List<FileArtifactWithAttributes>>();
             var failedFiles = new List<(FileArtifact file, ContentHash hash)>();
             var fileContentManager = m_environment.State.FileContentManager;
 
             foreach (FileArtifactKeyedHash fileArtifactKeyedHash in hashes)
             {
+                FileArtifactWithAttributes fileWithAttributes;
                 FileArtifact file;
                 if (fileArtifactKeyedHash.AssociatedDirectories != null && fileArtifactKeyedHash.AssociatedDirectories.Count != 0)
                 {
@@ -767,6 +768,11 @@ namespace BuildXL.Engine.Distribution
                         AbsolutePath.Create(m_environment.Context.PathTable, fileArtifactKeyedHash.PathString),
                         fileArtifactKeyedHash.RewriteCount);
 
+                    fileWithAttributes = FileArtifactWithAttributes.Create(
+                        file,
+                        FileExistence.Required,
+                        isUndeclaredFileRewrite: fileArtifactKeyedHash.IsAllowedFileRewrite);
+
                     foreach (var bondDirectoryArtifact in fileArtifactKeyedHash.AssociatedDirectories)
                     {
                         var directory = new DirectoryArtifact(
@@ -776,11 +782,11 @@ namespace BuildXL.Engine.Distribution
 
                         if (!dynamicDirectoryMap.TryGetValue(directory, out var files))
                         {
-                            files = new List<FileArtifact>();
+                            files = new List<FileArtifactWithAttributes>();
                             dynamicDirectoryMap.Add(directory, files);
                         }
 
-                        files.Add(file);
+                        files.Add(fileWithAttributes);
                     }
                 }
                 else

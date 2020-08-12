@@ -185,6 +185,11 @@ namespace BuildXL.Scheduler.Artifacts
         private readonly ConcurrentBigMap<FileArtifact, DirectoryArtifact> m_dynamicOutputFileDirectories =
             new ConcurrentBigMap<FileArtifact, DirectoryArtifact>();
 
+        /// <summary>
+        /// Output paths which are allowed undeclared source/alien files rewrites. These are allowed based on configured relaxing policies.
+        /// </summary>
+        private readonly ConcurrentBigSet<AbsolutePath> m_allowedFileRewriteOutputs = new ConcurrentBigSet<AbsolutePath>();
+
         #endregion
 
         #region External State (i.e. passed into constructor)
@@ -329,6 +334,11 @@ namespace BuildXL.Scheduler.Artifacts
         {
             Contract.Requires(artifact.IsOutputFile);
 
+            if (info.IsUndeclaredFileRewrite)
+            {
+                m_allowedFileRewriteOutputs.Add(artifact.Path);
+            }
+
             if (ReportContent(artifact, info, origin, doubleWriteErrorsAreWarnings))
             {
                 if (origin != PipOutputOrigin.NotMaterialized && artifact.IsOutputFile)
@@ -403,6 +413,14 @@ namespace BuildXL.Scheduler.Artifacts
 
                 return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
             }
+        }
+
+        /// <summary>
+        /// Whether the path represents an output that rewrote an undeclared source or alien file
+        /// </summary>
+        public bool IsAllowedFileRewriteOutput(AbsolutePath path)
+        {
+            return m_allowedFileRewriteOutputs.Contains(path);
         }
 
         private async Task<Possible<Unit>> TryHashArtifactsAsync(OperationContext operationContext, PipArtifactsState state, bool allowUndeclaredSourceReads)
@@ -610,10 +628,25 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Reports the contents of an output directory
         /// </summary>
-        public void ReportDynamicDirectoryContents(DirectoryArtifact directoryArtifact, IEnumerable<FileArtifact> contents, PipOutputOrigin outputOrigin)
+        public void ReportDynamicDirectoryContents(DirectoryArtifact directoryArtifact, IEnumerable<FileArtifactWithAttributes> contents, PipOutputOrigin outputOrigin)
         {
-            m_sealContents.GetOrAdd(directoryArtifact, contents, (key, contents2) =>
-                SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents2, OrdinalFileArtifactComparer.Instance));
+            using (var artifactsWrapper = Pools.FileArtifactListPool.GetInstance())
+            {
+                var artifacts = artifactsWrapper.Instance;
+
+                foreach (FileArtifactWithAttributes faa in contents)
+                {
+                    artifacts.Add(faa.ToFileArtifact());
+
+                    if (faa.IsUndeclaredFileRewrite)
+                    {
+                        m_allowedFileRewriteOutputs.Add(faa.Path);
+                    }
+                }
+
+                m_sealContents.GetOrAdd(directoryArtifact, artifacts, (key, contents2) =>
+                    SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents2, OrdinalFileArtifactComparer.Instance));
+            }
 
             RegisterDirectoryContents(directoryArtifact);
 
@@ -835,6 +868,20 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
+        /// <see cref="IQueryableFileContentManager.TryQueryUndeclaredInputContentAsync(AbsolutePath, string)"/>
+        /// </summary>
+        public async Task<FileContentInfo?> TryQueryUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription = null)
+        {
+            var result = await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads: true);
+            if (result.isUndeclaredInput)
+            {
+                return result.fileContentInto;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// For a given path (which must be one of the pip's input artifacts; not an output), returns a content hash if:
         /// - that path has been 'sealed' (i.e., is under a sealed directory) . Since a sealed directory never changes, the path is un-versioned
         /// (unlike a <see cref="FileArtifact" />)
@@ -844,10 +891,15 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public async Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
         {
+            return (await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads)).fileContentInto;
+        }
+
+        private async Task<(FileContentInfo? fileContentInto, bool isUndeclaredInput)> TryQuerySealedOrUndeclaredInputContentInternalAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
+        { 
             FileOrDirectoryArtifact declaredArtifact;
 
             var isDynamicallyObservedSource = false;
-
+            bool isUndeclaredInput;
             if (!m_sealedFiles.TryGetValue(path, out FileArtifact sealedFile))
             {
                 var sourceSealDirectory = TryGetSealSourceAncestor(path);
@@ -857,7 +909,7 @@ namespace BuildXL.Scheduler.Artifacts
                     if (!allowUndeclaredSourceReads)
                     {
                         // No source seal directory found
-                        return null;
+                        return (null, false);
                     }
                     else
                     {
@@ -867,15 +919,17 @@ namespace BuildXL.Scheduler.Artifacts
                         var maybeResult = FileUtilities.TryProbePathExistence(path.ToString(Context.PathTable), followSymlink: false);
                         if (!maybeResult.Succeeded || maybeResult.Result == PathExistence.Nonexistent)
                         {
-                            return null;
+                            return (null, false);
                         }
                     }
 
+                    isUndeclaredInput = true;
                     // We set the declared artifact as the path itself, there is no 'declared container' for this case.
                     declaredArtifact = FileArtifact.CreateSourceFile(path);
                 }
                 else
                 {
+                    isUndeclaredInput = false;
                     // The source seal directory is the artifact which is actually declared
                     // file artifact is created on the fly and never declared
                     declaredArtifact = sourceSealDirectory;
@@ -891,6 +945,7 @@ namespace BuildXL.Scheduler.Artifacts
             }
             else
             {
+                isUndeclaredInput = true;
                 declaredArtifact = sealedFile;
             }
 
@@ -910,16 +965,16 @@ namespace BuildXL.Scheduler.Artifacts
                     // This is different from the case of other seal directory types because the paths registered
                     // in those directories are required to be files or missing
                     // Querying a directory when undeclared source reads are allowed is also allowed
-                    return null;
+                    return (null, false);
                 }
 
                 // This causes the ObservedInputProcessor to abort the strong fingerprint computation
                 // by indicating a failure in hashing a path
                 // TODO: In theory, ObservedInputProcessor should not treat
-                return FileContentInfo.CreateWithUnknownLength(WellKnownContentHashes.UntrackedFile);
+                return (FileContentInfo.CreateWithUnknownLength(WellKnownContentHashes.UntrackedFile), isUndeclaredInput);
             }
 
-            return materializationInfo.Value.FileContentInfo;
+            return (materializationInfo.Value.FileContentInfo, isUndeclaredInput);
         }
 
         /// <summary>
@@ -1124,7 +1179,10 @@ namespace BuildXL.Scheduler.Artifacts
                     return result.Failure;
                 }
 
-                ReportDynamicDirectoryContents(directory, fileList, PipOutputOrigin.UpToDate);
+                // When enumerating the local disk in order to get an output directory contents, the result is always required artifacts with no rewritten sources
+                // The source of rewritten sources are always reported from the pip executor
+                ReportDynamicDirectoryContents(directory, fileList.Select(fa => 
+                    FileArtifactWithAttributes.Create(fa, FileExistence.Required, isUndeclaredFileRewrite: false)), PipOutputOrigin.UpToDate);
             }
 
             return Unit.Void;
@@ -1876,7 +1934,7 @@ namespace BuildXL.Scheduler.Artifacts
                                         origin: possiblyPlaced.Result.Origin,
                                         operationContext: operationContext);
 
-                                    m_host.ReportFileArtifactPlaced(file);
+                                    m_host.ReportFileArtifactPlaced(file, materializationInfo.IsUndeclaredFileRewrite);
                                 }
                                 else
                                 {
@@ -1950,7 +2008,10 @@ namespace BuildXL.Scheduler.Artifacts
             ContentHash hash = materializationInfo.Hash;
             PathAtom fileName = materializationInfo.FileName;
             AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
-            bool allowReadOnly = materializationFile.AllowReadOnly;
+            // Read only is allowed if set on the materialization file and the file is not an allowed source rewrite: we don't want to make the
+            // file readonly when placing it since the rewrite was allowed to begin with, in a source or alien file which was very likely not a readonly one.
+            // The ultimate goal is to allow the file to continue to be rewritten in subsequent builds, if possible
+            bool allowReadOnly = materializationFile.AllowReadOnly && !materializationFile.MaterializationInfo.IsUndeclaredFileRewrite;
 
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
             using (await m_materializationSemaphore.AcquireAsync())
@@ -2442,7 +2503,7 @@ namespace BuildXL.Scheduler.Artifacts
                     if (result.Succeeded)
                     {
                         state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
-                        m_host.ReportFileArtifactPlaced(fileAndIndex.materializationFile.Artifact);
+                        m_host.ReportFileArtifactPlaced(fileAndIndex.materializationFile.Artifact, fileAndIndex.materializationFile.MaterializationInfo.IsUndeclaredFileRewrite);
                         results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
                     }
                     else

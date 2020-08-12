@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips
 {
@@ -65,11 +66,20 @@ namespace BuildXL.Pips
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
                     var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies);
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, Process.MinPriority);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, default(RewritePolicy), AbsolutePath.Invalid, Process.MinPriority);
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions, pipAsProcess.Priority, pipAsProcess.PreserveOutputsTrustLevel);
+                    mutable = new ProcessMutablePipState(
+                        pip.PipType, 
+                        pip.SemiStableHash, 
+                        default(PageableStoreId), 
+                        pipAsProcess.ServiceInfo, 
+                        pipAsProcess.ProcessOptions, 
+                        pipAsProcess.RewritePolicy, 
+                        pipAsProcess.Executable.Path, 
+                        pipAsProcess.Priority, 
+                        pipAsProcess.PreserveOutputsTrustLevel);
                     break;
                 case PipType.CopyFile:
                     var pipAsCopy = (CopyFile)pip;
@@ -216,6 +226,8 @@ namespace BuildXL.Pips
         internal readonly Process.Options ProcessOptions;
         internal readonly int Priority;
         internal readonly int PreserveOutputTrustLevel;
+        internal readonly RewritePolicy RewritePolicy;
+        internal readonly AbsolutePath ExecutablePath;
 
         internal ProcessMutablePipState(
             PipType pipType, 
@@ -223,12 +235,16 @@ namespace BuildXL.Pips
             PageableStoreId storeId, 
             ServiceInfo serviceInfo, 
             Process.Options processOptions,
+            RewritePolicy rewritePolicy,
+            AbsolutePath executablePath,
             int priority,
             int? preserveOutputsTrustLevel = null)
             : base(pipType, semiStableHash, storeId)
         {
             ServiceInfo = serviceInfo;
             ProcessOptions = processOptions;
+            RewritePolicy = rewritePolicy;
+            ExecutablePath = executablePath;
             Priority = priority;
             PreserveOutputTrustLevel = preserveOutputsTrustLevel ?? 0;
         }
@@ -248,6 +264,8 @@ namespace BuildXL.Pips
         {
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
             writer.Write((int)ProcessOptions);
+            writer.Write((byte)RewritePolicy);
+            writer.Write(ExecutablePath);
             writer.Write(Priority);
             writer.Write(PreserveOutputTrustLevel);
         }
@@ -256,10 +274,12 @@ namespace BuildXL.Pips
         {
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
             int options = reader.ReadInt32();
+            RewritePolicy rewritePolicy = (RewritePolicy) reader.ReadByte();
+            AbsolutePath executablePath = reader.ReadAbsolutePath();
             int priority = reader.ReadInt32();
             int preserveOutputTrustLevel = reader.ReadInt32();
 
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, priority, preserveOutputTrustLevel);
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, rewritePolicy, executablePath, priority, preserveOutputTrustLevel);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;

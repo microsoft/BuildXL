@@ -1992,7 +1992,7 @@ namespace BuildXL
                 case "RUNINCONTAINERANDALLOWDOUBLEWRITES":
                     sandboxConfiguration.ContainerConfiguration.RunInContainer = experimentalOptionAndValue.Item2;
                     sandboxConfiguration.ContainerConfiguration.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
-                    sandboxConfiguration.UnsafeSandboxConfigurationMutable.DoubleWritePolicy = DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+                    sandboxConfiguration.UnsafeSandboxConfigurationMutable.DoubleWritePolicy = RewritePolicy.UnsafeFirstDoubleWriteWins;
                     break;
                 case "LAZYSODELETION":
                     scheduleConfiguration.UnsafeLazySODeletion = experimentalOptionAndValue.Item2;

@@ -291,16 +291,65 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on pip failure");
         }
 
-        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "", string exclusions = "") => 
-            ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies, exclusions);
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void AllowedRewrittenSourcesAreNotFlaggedAsSharedOpaques()
+        {
+            var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            var file = X("out/SharedOpaqueOutput.txt");
+            var producedFile = Path.Combine(objDir, file);
+
+            // Create the file beforehand so it introduces an allowed rewrite
+            Directory.CreateDirectory(Directory.GetParent(producedFile).FullName);
+            string originalContent = "content";
+            string rewrittenContent = "rewritten";
+            File.WriteAllText(producedFile, originalContent);
+
+            var spec0 = ProduceFileUnderSharedOpaque(file, allowSourceRewrites: true, allowUndeclaredReads: true, content: rewrittenContent);
+            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
+
+            RunEngine(rememberAllChangedTrackedInputs: true);
+
+            // Make sure the file was produced with rewritten content
+            Assert.True(File.Exists(producedFile));
+            Assert.Equal(rewrittenContent, File.ReadAllText(producedFile).Trim(' ', '\r', '\n'));
+
+            // And that it has not been marked as shared opaque output
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
+            // We should place the file as a copy, not hardlinked to the cache, and therefore the file should be modifiable
+            // This operation will throw otherwise
+            File.AppendAllText(producedFile, " we should be able to modify the file");
+
+            // Restore the file to its initial shape
+            File.Delete(producedFile);
+            File.WriteAllText(producedFile, originalContent);
+
+            // Replay from cache this time
+            RunEngine(rememberAllChangedTrackedInputs: true);
+
+            // Make sure the file was produced with rewritten content
+            Assert.True(File.Exists(producedFile));
+            Assert.Equal(rewrittenContent, File.ReadAllText(producedFile).Trim(' ', '\r', '\n'));
+
+            IgnoreWarnings();
+            // Make sure this is a cache replay
+            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessPipCacheHit);
+            // And check again that the file is still not marked
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
+            // We should place the file as a copy, not hardlinked to the cache, and therefore the file should be modifiable
+            // This operation will throw otherwise
+            File.AppendAllText(producedFile, " we should be able to modify the file");
+        }
+
+        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi") => 
+            ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies, exclusions, allowSourceRewrites, allowUndeclaredReads, content);
 
         private string ProduceFileStatically(string file, bool failOnExit = false) => ProduceFileUnderDirectory(file, isDynamic: false, failOnExit);
 
-        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "", string exclusions = "")
+        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi")
         {
             var shellCommand = OperatingSystemHelper.IsUnixOS
-                ? "-c 'echo hi" // note we are opening single quotes in this case
-                : "/C echo hi";
+                ? $"-c 'echo {content}" // note we are opening single quotes in this case
+                : $"/C echo {content}";
 
             var artifactKind = isDynamic
                 ? "none"
@@ -349,6 +398,8 @@ const result = execute({{
     outputs: {outputs},
     dependencies: [{dependencies}],
     outputDirectoryExclusions: [{exclusions}],
+    {(allowSourceRewrites? "sourceRewritePolicy: 'safeSourceRewritesAreAllowed'," : string.Empty)}
+    {(allowUndeclaredReads ? "allowUndeclaredSourceReads: true," : string.Empty)}
 }});";
         }
     }

@@ -10,7 +10,13 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 enum DoubleWritePolicy{
     DoubleWritePolicy_UNSPECIFIED = 0;
 
-    DoubleWritesAreErrors = 1;
-    AllowSameContentDoubleWrites = 2;
-    UnsafeFirstDoubleWriteWins = 3;
+    DoubleWritesAreErrors = 2;
+    AllowSameContentDoubleWrites = 3;
+    UnsafeFirstDoubleWriteWins = 5;
+    SourceRewritesAreErrors = 9;
+    SafeSourceRewritesAreAllowed = 17;
+    DefaultStrict = 10; //DoubleWritesAreErrors | SourceRewritesAreErrors;
+    DefaultSafe = 19; //AllowSameContentDoubleWrites | SafeSourceRewritesAreAllowed;
+    DoubleWriteMask = 8; //DoubleWritesAreErrors | AllowSameContentDoubleWrites | UnsafeFirstDoubleWriteWins;
+    SourceRewriteMask = 25; //SourceRewritesAreErrors | SafeSourceRewritesAreAllowed;
 }

@@ -816,7 +816,7 @@ namespace Test.BuildXL.Scheduler
             bool allowUndeclaredSourceReads = source.Vary(p => p.AllowUndeclaredSourceReads);
             bool needsToRunInContainer = source.Vary(p => p.NeedsToRunInContainer);
             bool requiresAdmin = source.Vary(p => p.RequiresAdmin);
-            DoubleWritePolicy doubleWritePolicy = source.Vary(p => p.DoubleWritePolicy);
+            RewritePolicy doubleWritePolicy = source.Vary(p => p.RewritePolicy);
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
             var preserveOutputAllowlist = source.Vary(p => p.PreserveOutputAllowlist);
@@ -909,7 +909,7 @@ namespace Test.BuildXL.Scheduler
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                 options: options,
-                doubleWritePolicy: doubleWritePolicy,
+                rewritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
                 preserveOutputAllowlist: preserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
@@ -1175,7 +1175,7 @@ namespace Test.BuildXL.Scheduler
                                     paths, 
                                     role, 
                                     fingerprinterTestKind)).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<DirectoryArtifact>>())),
-                       new FingerprintingTypeDescriptor<DoubleWritePolicy>(DoubleWritePolicy.DoubleWritesAreErrors, DoubleWritePolicy.UnsafeFirstDoubleWriteWins),
+                       new FingerprintingTypeDescriptor<RewritePolicy>(RewritePolicy.DoubleWritesAreErrors, RewritePolicy.UnsafeFirstDoubleWriteWins),
                        new FingerprintingTypeDescriptor<ContainerIsolationLevel>(
                            ContainerIsolationLevel.None, 
                            ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, 

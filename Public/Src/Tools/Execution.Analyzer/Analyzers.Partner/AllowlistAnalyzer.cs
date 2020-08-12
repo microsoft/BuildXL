@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
@@ -216,7 +217,7 @@ namespace BuildXL.Execution.Analyzer
                             process,
                             violations: ConvertAccesses(accessLookup[process.PipId]),
                             allowlistedAccesses: null,
-                            exclusiveOpaqueDirectoryContent: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.Empty,
+                            exclusiveOpaqueDirectoryContent: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty,
                             sharedOpaqueDirectoryWriteAccesses: null,
                             allowedUndeclaredReads: null,
                             absentPathProbesUnderOutputDirectories: null,
@@ -405,6 +406,12 @@ namespace BuildXL.Execution.Analyzer
             public bool TryGetContainingOutputDirectory(AbsolutePath path, out DirectoryArtifact containingOutputDirectory)
             {
                 return m_outputDirectoryContent.TryGetValue(path, out containingOutputDirectory);
+            }
+
+            public Task<FileContentInfo?> TryQueryUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription = null)
+            {
+                // There are no allowed undeclared reads at creation time
+                return Task.FromResult<FileContentInfo?>(null);
             }
         }
     }

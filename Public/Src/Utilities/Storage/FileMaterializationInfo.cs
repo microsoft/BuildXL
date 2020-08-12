@@ -41,13 +41,19 @@ namespace BuildXL.Storage
         public readonly ReparsePointInfo ReparsePointInfo;
 
         /// <summary>
+        /// Whether the file represents an allowed source rewrite
+        /// </summary>
+        public readonly bool IsUndeclaredFileRewrite;
+
+        /// <summary>
         /// Creates a <see cref="FileMaterializationInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public FileMaterializationInfo(FileContentInfo fileContentInfo, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null)
+        public FileMaterializationInfo(FileContentInfo fileContentInfo, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isAllowedSourceRewrite = false)
         {
             FileName = fileName;
             FileContentInfo = fileContentInfo;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
+            IsUndeclaredFileRewrite = isAllowedSourceRewrite;
 
             // NOTE: Update ExecutionResultSerializer WriteOutputContent/ReadOutputContent when adding new fields (i.e., BuildXL.Engine.Cache bond structure) 
             // NOTE: Update FileArtifactKeyedHash when adding new fields (i.e., BuildXL.Engine bond structure) 
@@ -95,7 +101,8 @@ namespace BuildXL.Storage
         {
             return other.FileName == FileName &&
                    other.FileContentInfo == FileContentInfo &&
-                   other.ReparsePointInfo == ReparsePointInfo;
+                   other.ReparsePointInfo == ReparsePointInfo &&
+                   other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite;
         }
 
         /// <inheritdoc />
@@ -107,7 +114,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), FileName.GetHashCode(), ReparsePointInfo.GetHashCode());
+            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), FileName.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode());
         }
 
         /// <nodoc />

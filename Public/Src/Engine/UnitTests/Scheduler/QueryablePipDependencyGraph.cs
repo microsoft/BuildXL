@@ -125,7 +125,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Adds a fake process pip that produces only the given path.
         /// </summary>
-        public Process AddProcess(AbsolutePath producedPath, DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors)
+        public Process AddProcess(AbsolutePath producedPath, RewritePolicy doubleWritePolicy = RewritePolicy.DoubleWritesAreErrors)
         {
             Contract.Assume(!m_pathProducers.ContainsKey(producedPath), "Each path may have only one producer (no rewrites)");
 
@@ -158,7 +158,7 @@ namespace Test.BuildXL.Scheduler
                 provenance: PipProvenance.CreateDummy(m_context),
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
-                doubleWritePolicy: doubleWritePolicy);
+                rewritePolicy: doubleWritePolicy);
 
             process.PipId = AllocateNextPipId();
             m_pips.Add(process.PipId, process);
@@ -243,7 +243,22 @@ namespace Test.BuildXL.Scheduler
             pip = null;
             return false;
         }
-        
+
+        public RewritePolicy GetRewritePolicy(PipId pipId)
+        {
+            return ((Process)m_pips[pipId]).RewritePolicy;
+        }
+
+        public string GetFormattedSemiStableHash(PipId pipId)
+        {
+            return ((Process)m_pips[pipId]).FormattedSemiStableHash;
+        }
+
+        public AbsolutePath GetProcessExecutablePath(PipId pipId)
+        {
+            return ((Process)m_pips[pipId]).Executable.Path;
+        }
+
         #endregion
     }
 }

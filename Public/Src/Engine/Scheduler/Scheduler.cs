@@ -3090,11 +3090,12 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            var directoryOutputs = executionResult.DirectoryOutputs;
+            var directoryOutputs = executionResult.DirectoryOutputs.Select(tuple => 
+                (tuple.directoryArtifact, ReadOnlyArray<FileArtifact>.From(tuple.fileArtifactArray.Select(faa => faa.ToFileArtifact()))));
             ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
             {
                 PipId = runnablePip.PipId,
-                DirectoryOutputs = directoryOutputs,
+                DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.From(directoryOutputs),
             });
         }
 
@@ -3579,7 +3580,7 @@ namespace BuildXL.Scheduler
             Contract.Assert(runnablePip.IsCancelled);
             if (runnablePip is ProcessRunnablePip processRunnable)
             {
-                FlagAndReturnSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
+                FlagAndReturnScrubbableSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
             }
         }
 
@@ -4188,7 +4189,7 @@ namespace BuildXL.Scheduler
                         if (worker.IsLocal)
                         {
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
-                            var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                            var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
                             ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
                         }
 
@@ -4266,7 +4267,7 @@ namespace BuildXL.Scheduler
                     // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                     // This allows the scrubber to remove those files as well in the next run.
                     var start = DateTime.UtcNow;
-                    var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                    var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
                     LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                     // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
@@ -4408,7 +4409,7 @@ namespace BuildXL.Scheduler
                         environment,
                         processRunnable.Pip.SemiStableHash,
                         executionResult,
-                        processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+                        processRunnable.Process.RewritePolicy.ImpliesDoubleWriteIsWarning());
                     LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
                     return processRunnable.SetPipResult(executionResult);
                 }
@@ -4427,12 +4428,13 @@ namespace BuildXL.Scheduler
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
-        private List<string> FlagAndReturnSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
+        private List<string> FlagAndReturnScrubbableSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
             List<string> outputPaths = new List<string>();
 
-            // Select all declared output files
-            foreach (var fileArtifact in process.Process.FileOutputs)
+            // Select all declared output files that are not source rewrites (and therefore scrubbable, we don't want to flag what was a source file as a shared opaque
+            // since we don't want to delete it next time)
+            foreach (var fileArtifact in process.Process.FileOutputs.Where(fa => !fa.IsUndeclaredFileRewrite))
             {
                 if (MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path))
                 {
@@ -4448,7 +4450,9 @@ namespace BuildXL.Scheduler
                 // since flagging also happens on failed pips
                 foreach (IReadOnlyCollection<FileArtifactWithAttributes> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
                 {
-                    foreach (FileArtifactWithAttributes writeInPath in writesPerSharedOpaque)
+                    // Only add the files that are not source rewrites (and therefore scrubbable, we don't want to flag what was a source file as a shared opaque
+                    // since we don't want to delete it next time)
+                    foreach (FileArtifactWithAttributes writeInPath in writesPerSharedOpaque.Where(fa => !fa.IsUndeclaredFileRewrite))
                     {
                         var path = writeInPath.Path.ToString(environment.Context.PathTable);
                         SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
@@ -4647,11 +4651,13 @@ namespace BuildXL.Scheduler
             {
                 var cacheHitContents = cacheHitData.DynamicDirectoryContents[outputDirectoryIndex];
                 var executionContents = executionResult.DirectoryOutputs[outputDirectoryIndex];
+                var fileArtifactArray = executionContents.fileArtifactArray.Select(faa => faa.ToFileArtifact()).ToReadOnlyArray();
 
                 var outputs = new List<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo)>();
 
-                foreach (var fileArtifact in executionContents.fileArtifactArray)
+                foreach (var fileArtifactWithAttributes in executionContents.fileArtifactArray)
                 {
+                    var fileArtifact = fileArtifactWithAttributes.ToFileArtifact();
                     if (processFilesInfo.TryGetValue(fileArtifact, out var value))
                     {
                         outputs.Add((fileArtifact, value.Value));
@@ -4663,7 +4669,7 @@ namespace BuildXL.Scheduler
                 }
 
                 var cacheHitFiles = Enumerable.Range(0, cacheHitContents.Length).ToDictionary(i => cacheHitContents[i].fileArtifact, i => cacheHitContents[i]);
-                var executionFiles = Enumerable.Range(0, cacheHitContents.Length).ToDictionary(i => executionContents.fileArtifactArray[i], i => outputs[i]);
+                var executionFiles = Enumerable.Range(0, cacheHitContents.Length).ToDictionary(i => fileArtifactArray[i], i => outputs[i]);
 
                 var intersection = cacheHitFiles.Keys.Where(t => executionFiles.ContainsKey(t)).ToHashSet();
 
@@ -4698,7 +4704,7 @@ namespace BuildXL.Scheduler
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipDeterminismProbeDifferentDirectories);
 
                     var cacheHitOnly = cacheHitContents.Select(t => t.fileArtifact).Except(intersection);
-                    var executionOnly = executionContents.fileArtifactArray.Except(intersection);
+                    var executionOnly = fileArtifactArray.Except(intersection);
 
                     Logger.Log.DeterminismProbeEncounteredOutputDirectoryDifferentFiles(
                         loggingContext,
@@ -6225,10 +6231,10 @@ namespace BuildXL.Scheduler
             Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
 
             // Aggregates the content of all non-composite directories and report it
-            using (var pooledAggregatedContent = Pools.FileArtifactSetPool.GetInstance())
-            using (var filteredContentWrapper = Pools.FileArtifactListPool.GetInstance())
+            using (var pooledAggregatedContent = Pools.FileArtifactWithAttributesSetPool.GetInstance())
+            using (var filteredContentWrapper = Pools.FileArtifactWithAttributesListPool.GetInstance())
             {
-                HashSet<FileArtifact> aggregatedContent = pooledAggregatedContent.Instance;
+                HashSet<FileArtifactWithAttributes> aggregatedContent = pooledAggregatedContent.Instance;
                 var filteredContent = filteredContentWrapper.Instance;
                 long duration;
                 using (var sw = PipExecutionCounters[PipExecutorCounter.ComputeCompositeSharedOpaqueContentDuration].Start())
@@ -6239,7 +6245,8 @@ namespace BuildXL.Scheduler
                         // produced by an upstream pip (ProcessPip/SealDirectoryPip respectively). At this point,
                         // FileContentManager knows the content of this directory artifact.
                         var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
-                        aggregatedContent.AddRange(memberContents);
+                        aggregatedContent.AddRange(memberContents.Select(member => 
+                            FileArtifactWithAttributes.Create(member, FileExistence.Required, m_fileContentManager.IsAllowedFileRewriteOutput(member.Path))));
                     }
 
                     // if the filter is specified, restrict the final content
@@ -6263,9 +6270,10 @@ namespace BuildXL.Scheduler
                 }
 
                 // the directory artifacts that this composite shared opaque consists of might or might not be materialized
+                var contents = pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifactWithAttributes>)filteredContent;
                 m_fileContentManager.ReportDynamicDirectoryContents(
                     pip.Directory,
-                    pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent,
+                    contents,
                     PipOutputOrigin.NotMaterialized);
 
                 Logger.Log.CompositeSharedOpaqueContentDetermined(
@@ -6281,7 +6289,7 @@ namespace BuildXL.Scheduler
                     PipId = pip.PipId,
                     DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)>.From(
                         new[] {
-                            (pip.Directory, ReadOnlyArray<FileArtifact>.From(pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent))
+                            (pip.Directory, ReadOnlyArray<FileArtifact>.From(contents.Select(content => content.ToFileArtifact())))
                         })
                 });
             }
@@ -6510,9 +6518,14 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        void IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact)
+        void IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact, bool isAllowedFileRewrite)
         {
-            MakeSharedOpaqueOutputIfNeeded(artifact.Path);
+            // Don't flag allowed source rewrites as shared opaque outputs since we don't want to delete them
+            // in the next build.
+            if (!isAllowedFileRewrite)
+            {
+                MakeSharedOpaqueOutputIfNeeded(artifact.Path);
+            }
         }
 
         private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)

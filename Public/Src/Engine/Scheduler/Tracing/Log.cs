@@ -1886,6 +1886,35 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipDescription);
 
         [GeneratedEvent(
+             (int)LogEventId.AllowedRewriteOnUndeclaredFile,
+             EventGenerators = EventGenerators.LocalOnly,
+             EventLevel = Level.Verbose,
+             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             EventTask = (int)Tasks.Scheduler,
+             Message =
+                 "Pip {1} wrote to the undeclared file '{2}'. However, the configured policy allows for it and the rewrite is safe.")]
+        public abstract void AllowedRewriteOnUndeclaredFile(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
+
+        [GeneratedEvent(
+             (int)LogEventId.DisallowedSameContentRewriteOnUndeclaredFile,
+             EventGenerators = EventGenerators.LocalOnly,
+             EventLevel = Level.Verbose,
+             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             EventTask = (int)Tasks.Scheduler,
+             Message = PipDependencyAnalysisPrefix +
+                 "Same-content write on the undeclared file '{2}' was disallowed. {3}")]
+        public abstract void DisallowedSameContentRewriteOnUndeclaredFile(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            string disallowedReason);
+
+        [GeneratedEvent(
             (int)LogEventId.DependencyViolationReadRace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

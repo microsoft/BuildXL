@@ -32,5 +32,12 @@ namespace BuildXL.Processes
         public static ObjectPool<List<ObservedFileAccess>> AccessUnsorted { get; } = new ObjectPool<List<ObservedFileAccess>>(
             () => new List<ObservedFileAccess>(),
             s => s.Clear());
+
+        /// <summary>
+        /// Global pool of lists for collecting reported file accesses
+        /// </summary>
+        public static ObjectPool<List<ReportedFileAccess>> ReportedFileAccessList { get; } = new ObjectPool<List<ReportedFileAccess>>(
+            () => new List<ReportedFileAccess>(),
+            s => s.Clear());
     }
 }

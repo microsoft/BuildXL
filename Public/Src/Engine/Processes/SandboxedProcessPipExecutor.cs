@@ -2474,7 +2474,7 @@ namespace BuildXL.Processes
                 // are not allowed by construction under shared opaques.
                 // Observe that if double writes are allowed, then we can't just block writes: we need to allow them to happen and then
                 // observe the result to figure out if they conform to the double write policy
-                mask: DefaultMask & (m_pip.DoubleWritePolicy.ImpliesDoubleWriteAllowed()? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
+                mask: DefaultMask & (m_pip.RewritePolicy.ImpliesDoubleWriteAllowed()? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -3551,7 +3551,8 @@ namespace BuildXL.Processes
 
                 foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses)
                 {
-                    Contract.Assume(reported.Status == FileAccessStatus.Allowed, "Explicitly reported accesses are defined to be successful");
+                    Contract.Assume(reported.Status == FileAccessStatus.Allowed || 
+                        reported.Method == FileAccessStatusMethod.FileExistenceBased, "Explicitly reported accesses are defined to be successful or denied only based on file existence");
 
                     // Enumeration probes have a corresponding Enumeration access (also explicitly reported).
                     // Presently we are interested in capturing the existence of enumerations themselves rather than what was seen
@@ -3652,7 +3653,10 @@ namespace BuildXL.Processes
                 using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper =
                     ProcessPools.AccessUnsorted.GetInstance())
                 using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
+                using (var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet())
                 {
+                    var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
+
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
                     foreach (var sharedDirectory in m_sharedOpaqueDirectoryRoots)
@@ -3723,6 +3727,12 @@ namespace BuildXL.Processes
                                 access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
                                 !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY) &&
                                 !access.IsDirectoryCreationOrRemoval();
+
+                            // If the access is a shared opaque candidate and it was denied based on file existence, keep track of it
+                            if (isPathCandidateToBeOwnedByASharedOpaque && access.Method == FileAccessStatusMethod.FileExistenceBased && access.Status == FileAccessStatus.Denied)
+                            {
+                                fileExistenceDenials.Add(entry.Key);
+                            }
                         }
 
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then
@@ -3738,6 +3748,11 @@ namespace BuildXL.Processes
                             isAccessUnderASharedOpaque = true;
                             // This is a known output, so don't store it
                             continue;
+                        }
+                        // if the candidate was discarded because it was not under a shared opaque, make sure the set of denials based on file existence is also kept in sync
+                        else if (isPathCandidateToBeOwnedByASharedOpaque)
+                        { 
+                            fileExistenceDenials.Remove(entry.Key);
                         }
 
                         // The following two lines need to be removed in order to report file accesses for
@@ -3845,7 +3860,12 @@ namespace BuildXL.Processes
                                     // If outputs are redirected, we don't want to store a tombstone file
                                     if (!sharedOutputDirectoriesAreRedirected || !FileUtilities.IsWciTombstoneFile(outputPath))
                                     {
-                                        fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Required));
+                                        // If the written file was a denied write based on file existence, that means an undeclared file was overriden.
+                                        // This file could be an allowed undeclared source or a file completely alien to the build, not mentioned at all.
+                                        fileWrites.Add(FileArtifactWithAttributes.Create(
+                                            FileArtifact.CreateOutputFile(writeAccess), 
+                                            FileExistence.Required, 
+                                            isUndeclaredFileRewrite: fileExistenceDenials.Contains(writeAccess)));
                                     }
                                     break;
                                 case PathExistence.Nonexistent:

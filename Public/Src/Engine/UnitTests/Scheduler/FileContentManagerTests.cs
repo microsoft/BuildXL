@@ -241,7 +241,7 @@ namespace Test.BuildXL.Scheduler
             // Report files for directory
             harness.FileContentManager.ReportDynamicDirectoryContents(
                 dynamicOutputDirectory,
-                dynamicDirectoryContents,
+                dynamicDirectoryContents.Select(fa => FileArtifactWithAttributes.Create(fa, FileExistence.Required)),
                 PipOutputOrigin.NotMaterialized);
 
             var producer = CreateCmdProcess(

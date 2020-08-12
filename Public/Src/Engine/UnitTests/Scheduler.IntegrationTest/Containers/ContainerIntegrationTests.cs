@@ -35,12 +35,12 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
         /// </summary>
         [TheoryIfSupported(requiresHeliumDriversAvailable: true, Skip = "AB#1599591 - Test is failing with newer OS")]
         // When all outputs are isolated and the policy allows for it, both pips get cached and the double write is just a warning
-        [InlineData(ContainerIsolationLevel.IsolateAllOutputs, DoubleWritePolicy.UnsafeFirstDoubleWriteWins, true, false)]
+        [InlineData(ContainerIsolationLevel.IsolateAllOutputs, RewritePolicy.UnsafeFirstDoubleWriteWins, true, false)]
         // When all outputs are isolated and the policy does not allow for it, the violator does not get cached and the double write is an error
-        [InlineData(ContainerIsolationLevel.IsolateAllOutputs, DoubleWritePolicy.DoubleWritesAreErrors, false, true)]
+        [InlineData(ContainerIsolationLevel.IsolateAllOutputs, RewritePolicy.DoubleWritesAreErrors, false, true)]
         // Since double writes occur in a shared opaque, isolating exclusive opaques results in the violator being uncacheable. Still the violation is reported as a warning due to the specified policy
-        [InlineData(ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories, DoubleWritePolicy.UnsafeFirstDoubleWriteWins, false, false)]
-        public void DoubleWriteMakesPipCacheableWhenOutputsAreIsolated(ContainerIsolationLevel containerIsolationLevel, DoubleWritePolicy doubleWritePolicy, bool expectCacheHit, bool expectViolationIsError)
+        [InlineData(ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories, RewritePolicy.UnsafeFirstDoubleWriteWins, false, false)]
+        public void DoubleWriteMakesPipCacheableWhenOutputsAreIsolated(ContainerIsolationLevel containerIsolationLevel, RewritePolicy doubleWritePolicy, bool expectCacheHit, bool expectViolationIsError)
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
@@ -103,8 +103,8 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
 
             FileArtifact doubleWriteArtifact = CreateOutputFileArtifact(sharedOpaqueDir);
 
-            var firstProducerBuilder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateAllOutputs, DoubleWritePolicy.UnsafeFirstDoubleWriteWins, doubleWriteArtifact, "first", sharedOpaqueDirPath);
-            var secondProducerBuilder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateAllOutputs, DoubleWritePolicy.UnsafeFirstDoubleWriteWins, doubleWriteArtifact, "second", sharedOpaqueDirPath);
+            var firstProducerBuilder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateAllOutputs, RewritePolicy.UnsafeFirstDoubleWriteWins, doubleWriteArtifact, "first", sharedOpaqueDirPath);
+            var secondProducerBuilder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateAllOutputs, RewritePolicy.UnsafeFirstDoubleWriteWins, doubleWriteArtifact, "second", sharedOpaqueDirPath);
             var firstProducer = SchedulePipBuilder(firstProducerBuilder);
             var secondProducer = SchedulePipBuilder(secondProducerBuilder);
 
@@ -168,7 +168,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
 
             var fileArtifactInOpaque = CreateOutputFileArtifact(opaqueDir);
 
-            var builder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, DoubleWritePolicy.DoubleWritesAreErrors, fileArtifactInOpaque, "foo", opaqueDirPath);
+            var builder = CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, RewritePolicy.DoubleWritesAreErrors, fileArtifactInOpaque, "foo", opaqueDirPath);
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
 
@@ -245,7 +245,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             AbsolutePath sharedOpaqueDirPath,
             FileArtifact doubleWriteArtifact,
             ContainerIsolationLevel containerIsolationLevel, 
-            DoubleWritePolicy doubleWritePolicy, 
+            RewritePolicy doubleWritePolicy, 
             out ProcessWithOutputs firstProducer, 
             out ProcessWithOutputs secondProducer)
         {
@@ -260,7 +260,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             secondProducer = SchedulePipBuilder(secondProducerBuilder);
         }
 
-        private ProcessBuilder CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel containerIsolationLevel, DoubleWritePolicy doubleWritePolicy, FileArtifact writeArtifact, string writeContent, AbsolutePath sharedOpaqueDirPath)
+        private ProcessBuilder CreateFileInSharedOpaqueBuilder(ContainerIsolationLevel containerIsolationLevel, RewritePolicy rewritePolicy, FileArtifact writeArtifact, string writeContent, AbsolutePath sharedOpaqueDirPath)
         {
             ProcessBuilder producerBuilder;
             IEnumerable<Operation> producerWrites =
@@ -275,7 +275,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             producerBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             producerBuilder.Options |= Process.Options.NeedsToRunInContainer;
             producerBuilder.ContainerIsolationLevel = containerIsolationLevel;
-            producerBuilder.DoubleWritePolicy = doubleWritePolicy;
+            producerBuilder.RewritePolicy = rewritePolicy;
             return producerBuilder;
         }
     }

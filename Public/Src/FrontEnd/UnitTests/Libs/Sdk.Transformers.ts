@@ -190,6 +190,12 @@ namespace Transformer {
              * Default is globally controlled by the sandbox configuration
              */
             doubleWritePolicy?: DoubleWritePolicy;
+
+            /**
+            * The policy to apply when a source is rewritten.
+            * Default is globally controlled by the sandbox configuration
+            */
+            sourceRewritePolicy?: SourceRewritePolicy;
         }
 
         @@public

@@ -433,6 +433,47 @@ export function cacheTest(args: TestArguments) : TestResult {
     return test(args);
 }
 
+/**
+ * Gets binding redirects required for running tests from the IDE.
+ */
+@@public
+export function cacheTestBindingRedirects() {
+    return [
+            // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
+            // but System.Memory.dll from netstandard2.0 references System.Buffer.dll v.4.0.2.0!
+            // And the rest of the world references System.Buffer.dll v.4.0.3.0
+            // So we need to have a redirect to solve this problem.
+            {
+                name: "System.Buffers",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "4.0.3.0", // Corresponds to: { id: "System.Buffers", version: "4.5.1" },
+            },
+            // Different packages reference different version of this assembly.
+            {
+                name: "System.Runtime.CompilerServices.Unsafe",
+                publicKeyToken: "b03f5f7f11d50a3a",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "4.0.6.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" },
+            },
+            {
+                name: "System.Numerics.Vectors",
+                publicKeyToken: "b03f5f7f11d50a3a",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.1.4.0",
+                newVersion: "4.1.4.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.5.0" },
+            },
+            {
+                name: "System.IO.Pipelines",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.99.99.99",
+                newVersion: "4.0.2.1", // Corresponds to: { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+            }
+        ];
+}
 
 /**
  * Used in the DScript tests to determine which Xunit to run the test

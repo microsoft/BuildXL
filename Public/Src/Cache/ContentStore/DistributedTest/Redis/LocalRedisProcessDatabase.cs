@@ -246,35 +246,18 @@ namespace ContentStoreTest.Distributed.Redis
 
         private void StartRedisServerIfNeeded()
         {
-            if (_process != null)
+            // Can reuse an existing process only when this instance successfully created a connection to it.
+            // Otherwise the test will fail with NRE.
+            if (_process != null && _connectionMultiplexer != null)
             {
-                try
-                {
-                    _logger.Debug($"Redis process is already running. Reusing an existing instance.");
-                }
-                catch (InvalidOperationException)
-                {
-                    // InvalidOperation is thrown when there is no active tests.
-                    throw;
-                }
-
+                _logger.Debug("Redis process is already running. Reusing an existing instance.");
                 return;
             }
 
-            try
-            {
-                _logger.Debug("Starting a redis server.");
-            }
-            catch (InvalidOperationException)
-            {
-                // InvalidOperation is thrown when there is no active tests.
-                throw;
-            }
+            _logger.Debug("Starting a redis server.");
 
             var redisName = OperatingSystemHelper.IsWindowsOS ? "redis-server.exe" : "redis-server";
-
             string redisServerPath = Path.GetFullPath(Path.Combine("redisServer", redisName));
-
             if (!File.Exists(redisServerPath))
             {
                 throw new InvalidOperationException($"Could not find {redisName} at {redisServerPath}");
@@ -298,15 +281,7 @@ port {portNumber}";
                 File.WriteAllText(fileName.Path, newConfig);
 
                 var args = $" {fileName}";
-                try
-                {
-                    _logger.Debug($"Running cmd=[{redisServerPath} {args}]");
-                }
-                catch (InvalidOperationException)
-                {
-                    // InvalidOperation is thrown when there is no active tests.
-                    throw;
-                }
+                _logger.Debug($"Running cmd=[{redisServerPath} {args}]");
 
                 const bool createNoWindow = true;
                 _process = new ProcessUtility(redisServerPath, args, createNoWindow, workingDirectory: Path.GetDirectoryName(redisServerPath));
@@ -335,15 +310,7 @@ port {portNumber}";
                     processOutput = $"[Process {_process.Id} is still running]";
                 }
 
-                try
-                {
-                    _logger.Debug("Process output: " + processOutput);
-                }
-                catch (InvalidOperationException)
-                {
-                    // InvalidOperation is thrown when there is no active tests.
-                    throw;
-                }
+                _logger.Debug("Process output: " + processOutput);
 
                 ConnectionString = $"localhost:{portNumber}";
                 ConfigurationOptions options = ConfigurationOptions.Parse(ConnectionString);
@@ -357,15 +324,7 @@ port {portNumber}";
                 catch (RedisConnectionException ex)
                 {
                     SafeKillProcess();
-                    try
-                    {
-                        _logger.Debug($"Retrying for exception connecting to redis process {_process.Id} with port {portNumber}: {ex.ToString()}. Has process exited {_process.HasExited} with output {_process.GetLogs()}");
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // InvalidOperation is thrown when there is no active tests.
-                        throw;
-                    }
+                    _logger.Debug($"Retrying for exception connecting to redis process {_process.Id} with port {portNumber}: {ex.ToString()}. Has process exited {_process.HasExited} with output {_process.GetLogs()}");
 
                     if (i != maxRetries - 1)
                     {
@@ -385,15 +344,7 @@ port {portNumber}";
                 }
             }
 
-            try
-            {
-                _logger.Debug($"Redis server {_process.Id} is up and running at port {portNumber}.");
-            }
-            catch (InvalidOperationException)
-            {
-                // InvalidOperation is thrown when there is no active tests.
-                throw;
-            }
+            _logger.Debug($"Redis server {_process.Id} is up and running at port {portNumber}.");
         }
 
         public void Execute()

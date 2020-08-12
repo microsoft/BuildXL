@@ -16,34 +16,7 @@ namespace RoxisTest {
             // TODO: without this, we get DFAs on each test run because of RocksDb. Do we really need it?
             untrackTestDirectory: true,
         },
-        assemblyBindingRedirects: [
-            // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
-            // but System.Memory.dll from netstandard2.0 references Ssstem.Buffer.dll v.4.0.2.0!
-            // And the rest of the world references System.Buffer.dll v.4.0.3.0
-            // So we need to have a redirect to solve this problem.
-            {
-                name: "System.Buffers",
-                publicKeyToken: "cc7b13ffcd2ddd51",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "4.0.3.0",
-            },
-            // Different packages reference different version of this assembly.
-            {
-                name: "System.Runtime.CompilerServices.Unsafe",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "4.0.6.0",
-            },
-            {
-                name: "System.Numerics.Vectors",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-4.1.4.0",
-                newVersion: "4.1.4.0",
-            },
-        ],
+        assemblyBindingRedirects: BuildXLSdk.cacheTestBindingRedirects(),
         appConfig: f`App.config`,
         references: [
             // Assertions

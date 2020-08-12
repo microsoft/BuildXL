@@ -287,11 +287,11 @@ config({
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Buffers and Memory
-                { id: "System.Buffers", version: "4.5.1" }, // A different version, because StackExchange.Redis uses it.
+                { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheTestBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
-                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" },
-                { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
-                { id: "System.Numerics.Vectors", version: "4.5.0" },
+                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" }, /* Change Sync: BuildXLSdk.cacheTestBindingRedirects() */
+                { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] }, /* Change Sync: BuildXLSdk.cacheTestBindingRedirects() */
+                { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheTestBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},

@@ -1,6 +1,22 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200807.11.1 (Release [74593](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=74593)).  Released 8/12/2020
+- Fix blolbID mismatch due to incorrect chunkDedup hashes
+-	Enable manageMemoryMode.EmptyWorkingSet by default for CB 
+-	Remove pip description from distribution logs to reduce logging volume
+-	Disable enableEvaluationThrottling by default
+-	Add an env var to disable retry for detours-related failures
+-	Asynchronous FingerprintStore loading
+-	Fix retry crash with pip failing without logging an error
+-	[QTest] Add CorruptCoverageFileFixer package to QTest SDK files
+-	[JavaScript]Add support for untracking directories based on relative paths
+
+# 0.1.0-20200801.0 (Release [73610](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73610)).  Released 8/5/2020
+- Add symbols support for output directories 
+- Add support for gRPC keepalive
+- Fix KeyNotFoundException in SandboxedProcessPipExecutor
+
 # 0.1.0-20200724.3.1 (Release [73072](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73072)).  Released 7/29/2020
 - Fix passthrough user-profile environment variables when running in VM
 - Fix several issues with fingerprint store lookups

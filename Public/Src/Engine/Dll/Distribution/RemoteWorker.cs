@@ -871,7 +871,7 @@ namespace BuildXL.Engine.Distribution
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
-                result = ExecutionResult.GetRetryableNotRunResult(operationContext, Processes.RetryInfo.RetryOnDifferentWorker(Processes.RetryReason.StoppedWorker));
+                result = ExecutionResult.GetRetryableNotRunResult(operationContext, Processes.RetryInfo.GetDefault(Processes.RetryReason.StoppedWorker));
 
                 pipCompletionTask.TrySet(result);
                 return;

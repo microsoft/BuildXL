@@ -316,7 +316,7 @@ namespace BuildXL.Scheduler
                 // Handle Retryable Cancellations
                 SetWorker(null);
 
-                Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.RetryOnDifferentWorker(RetryReason.StoppedWorker));
+                Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.GetDefault(RetryReason.StoppedWorker));
 
                 return DecideNextStepForRetry();
             }

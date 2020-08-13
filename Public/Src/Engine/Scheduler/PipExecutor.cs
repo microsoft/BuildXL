@@ -1811,7 +1811,7 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    if (result.RetryInfo != null && result.RetryInfo.RetryReason == RetryReason.UserSpecifiedExitCode)
+                    if (result.RetryInfo?.RetryReason == RetryReason.UserSpecifiedExitCode)
                     {
                         Contract.Assert(remainingUserRetries > 0);
                         --remainingUserRetries;
@@ -1834,9 +1834,12 @@ namespace BuildXL.Scheduler
                                 LogRetryOnSameWorkerErrors(result.RetryInfo.RetryReason, operationContext, pip, processDescription);
                                 break;
                             }
-                            else // case: RetryLocation.Both
+                            else // Case: RetryLocation.Both
                             {
-                                // Retry on different worker after failing on the same worker to be added here
+                                Logger.Log.PipProcessToBeRetriedOnDifferentWorker(operationContext,
+                                    InternalSandboxedProcessExecutionFailureRetryCountMax,
+                                    processDescription, result.RetryInfo.RetryReason.ToString());
+                                break;
                             }
                         }
                         else
@@ -1848,6 +1851,12 @@ namespace BuildXL.Scheduler
                             }
 
                             --remainingInternalSandboxedProcessExecutionFailureRetries;
+
+                            Logger.Log.PipProcessToBeRetriedOnSameWorker(operationContext,
+                                InternalSandboxedProcessExecutionFailureRetryCountMax - remainingInternalSandboxedProcessExecutionFailureRetries,
+                                InternalSandboxedProcessExecutionFailureRetryCountMax,
+                                processDescription, result.RetryInfo.RetryReason.ToString());
+
                             counters.AddToCounter(PipExecutorCounter.RetriedInternalExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
 
                             if (!IncrementInternalErrorRetryCounters(result.RetryInfo.RetryReason, counters))
@@ -1867,7 +1876,7 @@ namespace BuildXL.Scheduler
 
                 if (result.Status == SandboxedProcessPipExecutionStatus.Canceled && resourceScope.CancellationReason.HasValue)
                 {
-                    result.RetryInfo = RetryInfo.RetryOnDifferentWorker(RetryReason.ResourceExhaustion);
+                    result.RetryInfo = RetryInfo.GetDefault(RetryReason.ResourceExhaustion);
 
                     counters.IncrementCounter(resourceScope.CancellationReason == ProcessResourceManager.ResourceScopeCancellationReason.ResourceLimits ?
                         PipExecutorCounter.ProcessRetriesDueToResourceLimits :
@@ -1922,6 +1931,10 @@ namespace BuildXL.Scheduler
 
                 case RetryReason.AzureWatsonExitCode:
                     counters.IncrementCounter(PipExecutorCounter.AzureWatsonExitCodeRetriesCount);
+                    return true;
+
+                case RetryReason.VmExecutionError:
+                    counters.IncrementCounter(PipExecutorCounter.VmExecutionRetriesCount);
                     return true;
             }
 

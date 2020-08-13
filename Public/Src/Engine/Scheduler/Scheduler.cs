@@ -4184,7 +4184,7 @@ namespace BuildXL.Scheduler
                     if (executionResult.Result == PipResultStatus.Canceled && !IsTerminating)
                     {
                         Contract.Requires(executionResult.RetryInfo != null, $"Retry Information is required for all retry cases. IsTerminating: {m_scheduleTerminating}");
-                        var retryReason = executionResult.RetryInfo.RetryReason;
+                        RetryReason? retryReason = executionResult.RetryInfo.RetryReason;
                         
                         if (worker.IsLocal)
                         {
@@ -4207,23 +4207,28 @@ namespace BuildXL.Scheduler
                                     peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
                                     averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
 
-                                Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
-
                                 if (m_scheduleConfiguration.MaxRetriesDueToLowMemory.HasValue &&
                                     processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
                                 {
                                     Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
                                 }
+                                else
+                                {
+                                    Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
+                                }
                             }
-                            else if (RetryReasonExtensions.IsPrepRetryableFailure(retryReason))
+                            else if (retryReason.IsPrepOrVmFailure())
                             {
-                                Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, retryReason.ToString());
-
                                 if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
                                 {
+                                    LogRetryOnDifferentWorkerErrors(executionResult.RetryInfo.RetryReason, operationContext, processRunnable.Process, processRunnable.Description);
                                     Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToRetryableFailures);
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
+                                }
+                                else
+                                {
+                                    Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, retryReason.ToString());
                                 }
                             }
                         }
@@ -4426,6 +4431,19 @@ namespace BuildXL.Scheduler
         private bool ShouldCancelPip(RunnablePip runnablePip)
         {
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
+        }
+
+        private static void LogRetryOnDifferentWorkerErrors(RetryReason retryReason, OperationContext operationContext, Process pip, string processDescription)
+        {
+            switch (retryReason)
+            {
+                case RetryReason.VmExecutionError:
+                    Logger.Log.PipFailureDueToVmErrors(
+                        operationContext,
+                        pip.SemiStableHash,
+                        processDescription);
+                    return;
+            }
         }
 
         private List<string> FlagAndReturnScrubbableSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)

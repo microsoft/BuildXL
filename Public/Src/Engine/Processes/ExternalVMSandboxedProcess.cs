@@ -46,6 +46,11 @@ namespace BuildXL.Processes
         private readonly VmInitializer m_vmInitializer;
 
         /// <summary>
+        /// <see cref="ExitCode"/> represents a VM Command Proxy failure.
+        /// </summary>
+        public bool HasVmCommandProxyError { get; private set; }
+
+        /// <summary>
         /// Creates an instance of <see cref="ExternalVmSandboxedProcess"/>.
         /// </summary>
         public ExternalVmSandboxedProcess(
@@ -204,6 +209,7 @@ namespace BuildXL.Processes
             string error = m_error.ToString();
             string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
 
+            HasVmCommandProxyError = true;
             return CreateResultForFailure(
                 exitCode: m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 killed: m_processExecutor.Killed,

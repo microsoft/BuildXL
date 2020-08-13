@@ -715,7 +715,7 @@ namespace BuildXL.Scheduler
 
                     if (processResult != null && 
                         processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
-                        !RetryReasonExtensions.IsPrepRetryableFailure(processResult.RetryInfo?.RetryReason))
+                        !(processResult.RetryInfo?.RetryReason).IsPrepOrVmFailure())
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||

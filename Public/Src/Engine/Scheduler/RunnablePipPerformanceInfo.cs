@@ -106,6 +106,7 @@ namespace BuildXL.Scheduler
                 case RetryReason.ResourceExhaustion:
                     RetryCountDueToLowMemory++;
                     break;
+                case RetryReason.VmExecutionError:
                 case RetryReason.ProcessStartFailure:
                 case RetryReason.TempDirectoryCleanupFailure:
                     RetryCountDueToRetryableFailures++;

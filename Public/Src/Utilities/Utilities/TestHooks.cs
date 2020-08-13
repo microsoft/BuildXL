@@ -13,5 +13,10 @@ namespace BuildXL.Utilities
         /// Injects a failure when deleting files under a temp directory prior to executing a pip
         /// </summary>
         public bool FailDeletingTempDirectory { get; set; }
+
+        /// <summary>
+        /// Causes VmCommandProxy to simulate pip failure
+        /// </summary>
+        public bool FailVmCommandProxy { get; set; }
     }
 }

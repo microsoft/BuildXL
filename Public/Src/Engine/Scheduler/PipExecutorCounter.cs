@@ -1254,6 +1254,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ComputeCompositeSharedOpaqueContentDuration,
+
+        /// <summary>
+        /// Number of times the VM or VmCommandProxy caused failures during Sandboxed Process Pip execution.
+        /// </summary>
+        VmExecutionRetriesCount,
     }
 
     /// <summary>

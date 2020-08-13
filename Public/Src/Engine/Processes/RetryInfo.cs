@@ -33,7 +33,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns a RetryInfo object to be retried on the Same Worker
         /// </summary>
-        public static RetryInfo RetryOnSameWorker(RetryReason retryReason)
+        private static RetryInfo RetryOnSameWorker(RetryReason retryReason)
         {
             return new RetryInfo(retryReason, RetryLocation.SameWorker);
         }
@@ -41,7 +41,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns a RetryInfo object to be retried on a Different Worker
         /// </summary>
-        public static RetryInfo RetryOnDifferentWorker(RetryReason retryReason)
+        private static RetryInfo RetryOnDifferentWorker(RetryReason retryReason)
         {
             return new RetryInfo(retryReason, RetryLocation.DifferentWorker);
         }
@@ -49,7 +49,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns a RetryInfo object to be retried on the Same Worker first, and retried on another worker of it fails again
         /// </summary>
-        public static RetryInfo RetryOnSameAndDifferentWorkers(RetryReason retryReason)
+        private static RetryInfo RetryOnSameAndDifferentWorkers(RetryReason retryReason)
         {
             return new RetryInfo(retryReason, RetryLocation.Both);
         }
@@ -82,6 +82,33 @@ namespace BuildXL.Processes
 
             return new RetryInfo(retryReason, retryLocation);
         }
+
+        /// <summary>
+        /// Returns a RetryInfo object with the default location for the given RetryReason.
+        /// </summary>
+        public static RetryInfo GetDefault(RetryReason reason)
+        {
+            switch (reason)
+            {
+                case RetryReason.ResourceExhaustion:
+                case RetryReason.ProcessStartFailure:
+                case RetryReason.TempDirectoryCleanupFailure:
+                case RetryReason.StoppedWorker:
+                    return RetryOnDifferentWorker(reason);
+
+                case RetryReason.OutputWithNoFileAccessFailed:
+                case RetryReason.MismatchedMessageCount:
+                case RetryReason.AzureWatsonExitCode:
+                case RetryReason.UserSpecifiedExitCode:
+                    return RetryOnSameWorker(reason);
+
+                case RetryReason.VmExecutionError:
+                    return RetryOnSameAndDifferentWorkers(reason);
+
+                default:
+                    throw Contract.AssertFailure("Default not defined for RetryReason: " + reason.ToString());
+            }
+        }
     }
 
     /// <summary>
@@ -113,51 +140,48 @@ namespace BuildXL.Processes
     {
         /// <summary>
         /// ResourceExhaustion
-        /// Retried on Different Worker
         /// </summary>
         ResourceExhaustion = 0,
 
         /// <summary>
         /// ProcessStartFailure
-        /// Retried on Different Worker
         /// </summary>
         ProcessStartFailure = 1,
 
         /// <summary>
         /// TempDirectoryCleanupFailure
-        /// Retried on Different Worker
         /// </summary>
         TempDirectoryCleanupFailure = 2,
 
         /// <summary>
         /// Stopped worker
-        /// Retried on Different Worker
         /// </summary>
         StoppedWorker = 3,
 
         /// <summary>
         /// There is an output produced with file access observed.
-        /// Retried on Same Worker
         /// </summary>
         OutputWithNoFileAccessFailed = 4,
 
         /// <summary>
         /// There is a mismatch between messages sent by pip children processes and messages received.
-        /// Retried on Same Worker
         /// </summary>
         MismatchedMessageCount = 5,
 
         /// <summary>
         /// The sandboxed process should be retried due to Azure Watson's 0xDEAD exit code.
-        /// Retried on Same Worker
         /// </summary>
         AzureWatsonExitCode = 6,
 
         /// <summary>
         /// The sandboxed process should be retried due to exit code.
-        /// Retried on Same Worker
         /// </summary>
         UserSpecifiedExitCode = 7,
+
+        /// <summary>
+        /// The sandboxed process may be retried due to failures caused during VM execution.
+        /// </summary>
+        VmExecutionError = 8,
     }
 
     /// <summary>
@@ -168,7 +192,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Is retryable failure during the prep
         /// </summary>
-        public static bool IsPrepRetryableFailure(RetryReason? retryReason)
+        public static bool IsPrepRetryableFailure(this RetryReason? retryReason)
         {
             if (retryReason == null)
             {
@@ -183,6 +207,14 @@ namespace BuildXL.Processes
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Is retryable failure due to a process failure in VM or failure during prep
+        /// </summary>
+        public static bool IsPrepOrVmFailure(this RetryReason? retryReason)
+        {
+            return retryReason.IsPrepRetryableFailure() || retryReason == RetryReason.VmExecutionError;
         }
 
         /// <summary>

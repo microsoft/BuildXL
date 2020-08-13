@@ -470,8 +470,13 @@ namespace BuildXL.Scheduler.Tracing
         EmptyWorkingSet = 14511,
         ResumeProcess = 14512,
         HandlePipStepOnWorkerFailed = 14513,
+
+        // Retry Pips on Same/Different Workers
         ExcessivePipRetriesDueToRetryableFailures = 14514,
         PipRetryDueToRetryableFailures = 14515,
+        PipProcessRetriedOnSameWorker = 14516,
+        PipProcessRetriedOnDifferentWorker = 14517,
+        PipFailureDueToVmErrors = 14518,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

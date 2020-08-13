@@ -739,6 +739,15 @@ namespace BuildXL.Processes
             ISandboxConnection sandboxConnection = null,
             SidebandWriter sidebandWriter = null)
         {
+
+            if (m_context?.TestHooks?.FailVmCommandProxy == true)
+            {
+                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                    SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                    RetryInfo.GetDefault(RetryReason.VmExecutionError),
+                    primaryProcessTimes: new ProcessTimes(0, 0, 0, 0));
+            }
+
             if (!s_testRetryOccurred)
             {
                 // For the integration test, we simulate a retryable failure here via ProcessStartFailure.
@@ -747,7 +756,7 @@ namespace BuildXL.Processes
                 {
                     s_testRetryOccurred = true;
                     return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed,
-                        RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure));
+                        RetryInfo.GetDefault(RetryReason.ProcessStartFailure));
                 }
             }
 
@@ -765,7 +774,7 @@ namespace BuildXL.Processes
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
                     return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.PreparationFailed,
-                        RetryInfo.RetryOnDifferentWorker(RetryReason.TempDirectoryCleanupFailure));
+                        RetryInfo.GetDefault(RetryReason.TempDirectoryCleanupFailure));
                 }
 
                 if (!await PrepareResponseFileAsync())
@@ -1014,7 +1023,9 @@ namespace BuildXL.Processes
                                     ex.LogEventMessage);
                             }
 
-                            return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed, RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure), maxDetoursHeapSize: maxDetoursHeapSize);
+                            return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                                SandboxedProcessPipExecutionStatus.ExecutionFailed, 
+                                RetryInfo.GetDefault(RetryReason.ProcessStartFailure), maxDetoursHeapSize: maxDetoursHeapSize);
                         }
                     }
 
@@ -1103,7 +1114,9 @@ namespace BuildXL.Processes
                     ex.LogEventErrorCode,
                     ex.LogEventMessage);
 
-                return SandboxedProcessPipExecutionResult.FailureButRetryAble(SandboxedProcessPipExecutionStatus.ExecutionFailed, RetryInfo.RetryOnDifferentWorker(RetryReason.ProcessStartFailure));
+                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                    SandboxedProcessPipExecutionStatus.ExecutionFailed, 
+                    RetryInfo.GetDefault(RetryReason.ProcessStartFailure));
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
@@ -1182,6 +1195,14 @@ namespace BuildXL.Processes
                                 exitCode,
                                 stdOut,
                                 stdErr);
+
+                            if (externalVmSandboxedProcess.HasVmCommandProxyError)
+                            {
+                                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                                    SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                                    RetryInfo.GetDefault(RetryReason.VmExecutionError),
+                                    primaryProcessTimes: result.PrimaryProcessTimes);
+                            }
                         }
                     }
                 }
@@ -1512,7 +1533,7 @@ namespace BuildXL.Processes
                 ? result.ExitCode == 0
                 : m_pip.SuccessExitCodes.Contains(result.ExitCode);
             bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
-            bool exitedButCanBeRetried = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
+            bool exitedWithRetryAbleUserError = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
 
             Dictionary<string, int> pipProperties = null;
 
@@ -1587,7 +1608,7 @@ namespace BuildXL.Processes
                         }
                         else
                         {
-                            if (exitedButCanBeRetried)
+                            if (exitedWithRetryAbleUserError)
                             {
                                 Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                                 Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
@@ -1887,7 +1908,7 @@ namespace BuildXL.Processes
                           "'" + expandedOutputPath + "'. " + (isFile ? "Found path is a file" : "Found path is a directory"));
 
                         status = SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed;
-                        retryInfo = RetryInfo.RetryOnSameWorker(RetryReason.OutputWithNoFileAccessFailed);
+                        retryInfo = RetryInfo.GetDefault(RetryReason.OutputWithNoFileAccessFailed);
                     }
                 }
             }

@@ -3654,6 +3654,33 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipDescription}] Failed to handle pip step on worker due to an exception: {errorMessage}")]
         internal abstract void HandlePipStepOnWorkerFailed(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessRetriedOnSameWorker,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip failed due to '{reason}'. Will be retried on the same worker. Attempt {attempt} of {limit}.")]
+        public abstract void PipProcessToBeRetriedOnSameWorker(LoggingContext context, int attempt, int limit, string pipDescription, string reason);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessRetriedOnDifferentWorker,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip failed {limit} times on the same worker due to '{reason}'. Will be retried on another worker.")]
+        public abstract void PipProcessToBeRetriedOnDifferentWorker(LoggingContext context, int limit, string pipDescription, string reason);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipFailureDueToVmErrors,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip exited due to VM related failures. May have been retired on multiple workers before failing.")]
+        public abstract void PipFailureDueToVmErrors(LoggingContext context, long pipSemiStableHash, string pipDescription);
     }
 }
 #pragma warning restore CA1823 // Unused field

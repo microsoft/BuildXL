@@ -123,22 +123,21 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
         {
-            sandboxedProcessInfo = null;
-            sandboxedProcessInfo = ExceptionUtilities.HandleRecoverableIOException(
-               () =>
-               {
-                   using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
-                   {
-                       // TODO: Custom DetoursEventListener?
-                       return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
-                   }
-               },
-               ex =>
-               {
-                   m_logger.LogError(ex.ToString());
-               });
+            SandboxedProcessInfo localSandboxedProcessInfo = null;
 
-            return sandboxedProcessInfo != null;
+            bool success = Helpers.RetryOnFailure(
+                attempt => {
+                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
+                    {
+                        // TODO: Custom DetoursEventListener?
+                        localSandboxedProcessInfo = SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
+                        return true;
+                    }
+                });
+
+            sandboxedProcessInfo = localSandboxedProcessInfo;
+
+            return success;
         }
 
         private bool TryWriteSandboxedProcessResult(PathTable pathTable, SandboxedProcessResult result)

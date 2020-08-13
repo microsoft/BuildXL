@@ -96,7 +96,8 @@ namespace BuildXL.Processes
         internal static SandboxedProcessPipExecutionResult FailureButRetryAble(
             SandboxedProcessPipExecutionStatus status,
             RetryInfo retryInfo,
-            long maxDetoursHeapSize = 0)
+            long maxDetoursHeapSize = 0,
+            ProcessTimes primaryProcessTimes = null)
         {
             return new SandboxedProcessPipExecutionResult(
                 status,
@@ -106,7 +107,7 @@ namespace BuildXL.Processes
                 encodedStandardOutput: null,
                 numberOfWarnings: 0,
                 unexpectedFileAccesses: null,
-                primaryProcessTimes: null,
+                primaryProcessTimes: primaryProcessTimes,
                 jobAccountingInformation: null,
                 exitCode: 0,
                 sandboxPrepMs: 0,
@@ -180,7 +181,7 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: false,
-                retryInfo: RetryInfo.RetryOnSameWorker(RetryReason.UserSpecifiedExitCode));
+                retryInfo: RetryInfo.GetDefault(RetryReason.UserSpecifiedExitCode));
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
@@ -215,7 +216,7 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: false,
-                retryInfo: RetryInfo.RetryOnSameWorker(RetryReason.AzureWatsonExitCode));
+                retryInfo: RetryInfo.GetDefault(RetryReason.AzureWatsonExitCode));
         }
 
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
@@ -239,7 +240,7 @@ namespace BuildXL.Processes
                    result.ContainerConfiguration,
                    result.PipProperties,
                    result.TimedOut,
-                   retryInfo: RetryInfo.RetryOnSameWorker(RetryReason.MismatchedMessageCount));
+                   retryInfo: RetryInfo.GetDefault(RetryReason.MismatchedMessageCount));
 
         /// <summary>
         /// Indicates if the pip succeeded.

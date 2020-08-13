@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -238,8 +239,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(FileExistsOnDisk(rewrittenWriteTarget));
         }
 
-        [Fact]
-        public void CacheHitTest()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void CacheHitOrUpToDateTest(bool deleteFile)
         {
             // Momentarily store outputs to cache.
             Configuration.Schedule.StoreOutputsToCache = true;
@@ -252,7 +254,24 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Don't store output to cache now.
             Configuration.Schedule.StoreOutputsToCache = false;
 
-            RunScheduler().AssertCacheHit(scheduledProcess.Process.PipId);
+            if (deleteFile)
+            {
+                FileUtilities.DeleteFile(ArtifactToString(output));
+                RunScheduler().AssertPipResultStatus((scheduledProcess.Process.PipId, PipResultStatus.DeployedFromCache));
+            }
+            else
+            {
+                var result = RunScheduler();
+
+                if (!Configuration.Schedule.IncrementalScheduling)
+                {
+                    result.AssertPipResultStatus((scheduledProcess.Process.PipId, PipResultStatus.UpToDate));
+                }
+                else
+                {
+                    result.AssertNotScheduled();
+                }
+            }
 
             // No effect on what has been stored in cache.
             XAssert.IsTrue(FileContentExistsInArtifactCache(output));

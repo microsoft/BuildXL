@@ -61,7 +61,7 @@ namespace BuildXL.Storage
         /// Default time-to-live (TTL) for new entries to a <see cref="FileContentTable"/>.
         /// The TTL of an entry is the number of save / load round-trips until eviction (assuming it is not accessed within that time).
         /// </summary>
-        public const byte DefaultTimeToLive = 15;
+        public const byte DefaultTimeToLive = byte.MaxValue;
 
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.

@@ -449,7 +449,7 @@ namespace BuildXL.Scheduler
                 MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
-            var mayBeTracked = await TrackPipOutputAsync(operationContext, environment, copyFile.Destination, isSymlink: false);
+            var mayBeTracked = await TrackPipOutputAsync(operationContext, environment, copyFile.Destination);
 
             if (!mayBeTracked.Succeeded)
             {
@@ -793,7 +793,7 @@ namespace BuildXL.Scheduler
                                 tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                                 knownContentHash: contentHash,
                                 isSymlink: false)
-                            : await TrackPipOutputAsync(operationContext, environment, destinationFile, isSymlink: false);
+                            : await TrackPipOutputAsync(operationContext, environment, destinationFile);
 
                         if (!possiblyStored.Succeeded)
                         {
@@ -4655,8 +4655,7 @@ namespace BuildXL.Scheduler
                 bool isSymlink = reparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(reparsePointType.Result);
 
                 bool shouldStoreOutputToCache =
-                    ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) ||
-                    isRewrittenOutputFile)
+                    ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) || isRewrittenOutputFile)
                     && !isSymlink;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
@@ -4665,9 +4664,10 @@ namespace BuildXL.Scheduler
                         operationContext,
                         environment,
                         outputArtifact,
-                        environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
-                        isSymlink,
-                        output.IsUndeclaredFileRewrite);
+                        createHandleWithSequentialScan: environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
+                        isSymlink: isSymlink,
+                        shouldOutputBePreserved: shouldOutputBePreserved,
+                        isUndeclaredFileRewrite: output.IsUndeclaredFileRewrite);
 
                 if (!possiblyStoredOutputArtifact.Succeeded)
                 {
@@ -5098,6 +5098,7 @@ namespace BuildXL.Scheduler
             FileArtifact outputFileArtifact,
             bool createHandleWithSequentialScan = false,
             bool isSymlink = false,
+            bool shouldOutputBePreserved = false,
             bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(environment != null);
@@ -5113,8 +5114,8 @@ namespace BuildXL.Scheduler
                 // In tracking file, LocalDiskContentStore will call TryDiscoverAsync to compute the content hash of the file.
                 // TryDiscoverAsync uses FileContentTable to avoid re-hashing the file if the hash is already in the FileContentTable.
                 // Moreover, FileContentTable can enable so-called path mapping optimization that allows one to avoid opening handles and by-passing checking
-                // of the USN. However, here we are tracking a produced output. Thus, the known content hash should be ignored.
-                ignoreKnownContentHashOnDiscoveringContent: true,
+                // of the USN. However, here we are tracking a produced output. Thus, the known content hash should be ignored, unless the output should be preserved.
+                ignoreKnownContentHashOnDiscoveringContent: !shouldOutputBePreserved,
                 createHandleWithSequentialScan: createHandleWithSequentialScan,
                 isSymlink: isSymlink,
                 isUndeclaredFileRewrite: isUndeclaredFileRewrite);

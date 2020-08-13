@@ -636,7 +636,7 @@ namespace Test.BuildXL.Scheduler
                 context, 
                 cache: () => cache, 
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Enabled));
-            await new TestRunChecker(destination).VerifyDeployedFromCache(env2, createPip(env2), Contents);
+            await new TestRunChecker(destination).VerifyUpToDate(env2, createPip(env2), Contents);
         }
 
         [Fact]

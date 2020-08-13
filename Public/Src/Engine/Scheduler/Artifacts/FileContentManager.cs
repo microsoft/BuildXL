@@ -16,9 +16,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
 using BuildXL.Scheduler.ChangeAffectedOutput;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
@@ -29,7 +27,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 
@@ -2015,8 +2012,7 @@ namespace BuildXL.Scheduler.Artifacts
 
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
             using (await m_materializationSemaphore.AcquireAsync())
-            {
-                
+            {  
                 // Quickily fail pending placements when cancellation is requested
                 if (Context.CancellationToken.IsCancellationRequested)
                 {
@@ -2069,6 +2065,20 @@ namespace BuildXL.Scheduler.Artifacts
                         }
                         else
                         {
+                            var (checkExistsOnDisk, _, contentOnDiskInfo) = await CheckExistsContentOnDiskIfNeededAsync(
+                                outerContext,
+                                materializationFile.Artifact,
+                                state.PipInfo,
+                                state.MaterializingOutputs);
+
+                            if (checkExistsOnDisk
+                                && contentOnDiskInfo.HasValue
+                                && contentOnDiskInfo.Value.Hash == materializationFile.MaterializationInfo.Hash)
+                            {
+                                return WithLineInfo(
+                                    new Possible<ContentMaterializationResult>(new ContentMaterializationResult(ContentMaterializationOrigin.UpToDate, contentOnDiskInfo.Value)));
+                            }
+
                             bool canVirtualize = CanVirtualize(materializationFile);
                             // Try materialize content.
                             Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
@@ -2179,6 +2189,34 @@ namespace BuildXL.Scheduler.Artifacts
                 state: state);
         }
 
+        private async Task<(bool performedCheck, bool isPreservedOutputFile, TrackedFileContentInfo? contentInfo)> CheckExistsContentOnDiskIfNeededAsync(
+            OperationContext operationContext,
+            FileArtifact fileArtifact,
+            PipInfo pipInfo,
+            bool materializingOutputs)
+        {
+            bool isPreservedOutputFile = IsPreservedOutputFile(pipInfo.UnderlyingPip, materializingOutputs, fileArtifact);
+
+            bool shouldDiscoverContentOnDisk =
+                Configuration.Schedule.ReuseOutputsOnDisk ||
+                !Configuration.Schedule.StoreOutputsToCache ||
+                isPreservedOutputFile;
+
+            if (shouldDiscoverContentOnDisk)
+            {
+                using (operationContext.StartOperation(OperationCounter.FileContentManagerDiscoverExistingContent, fileArtifact))
+                {
+                    // Discover the existing file (if any) and get its content hash
+                    Possible<ContentDiscoveryResult, Failure>? existingContent = await LocalDiskContentStore.TryDiscoverAsync(fileArtifact);
+                    return existingContent.HasValue && existingContent.Value.Succeeded
+                        ? (true, isPreservedOutputFile, existingContent.Value.Result.TrackedFileContentInfo)
+                        : (true, isPreservedOutputFile, default);
+                }
+            }
+
+            return (false, isPreservedOutputFile, default);
+        }
+
         /// <summary>
         /// Attempt to bring multiple file contents into the local cache.
         /// </summary>
@@ -2207,9 +2245,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (state != null && EngineEnvironmentSettings.SkipExtraneousPins.Value)
                 {
                     // When actually materializing files, skip the pin and place directly.
-                    possibleResults = await PlaceFilesPinAsync(
-                        operationContext,
-                        state);
+                    possibleResults = await PlaceFilesPinAsync(operationContext, state);
                 }
                 else
                 {
@@ -2266,30 +2302,16 @@ namespace BuildXL.Scheduler.Artifacts
                             // Try to recover content that was wanted but not found in the cache
                             Interlocked.Increment(ref m_stats.FileRecoveryAttempts);
 
-                            Possible<ContentDiscoveryResult, Failure>? existingContent = null;
+                            var (checkExistsOnDisk, isPreservedOutputFile, contentOnDiskInfo) = await CheckExistsContentOnDiskIfNeededAsync(
+                                    operationContext,
+                                    fileArtifact,
+                                    pipInfo,
+                                    materializingOutputs);
 
-                            bool isPreservedOutputFile = IsPreservedOutputFile(pipInfo.UnderlyingPip, materializingOutputs, fileArtifact);
-                            bool shouldDiscoverContentOnDisk =
-                                Configuration.Schedule.ReuseOutputsOnDisk ||
-                                !Configuration.Schedule.StoreOutputsToCache ||
-                                isPreservedOutputFile;
-
-                            if (shouldDiscoverContentOnDisk)
+                            if (checkExistsOnDisk
+                                && contentOnDiskInfo.HasValue
+                                && contentOnDiskInfo.Value.Hash == contentHash)
                             {
-                                using (operationContext.StartOperation(OperationCounter.FileContentManagerDiscoverExistingContent, fileArtifact))
-                                {
-                                    // Discover the existing file (if any) and get its content hash
-                                    existingContent =
-                                        await LocalDiskContentStore.TryDiscoverAsync(fileArtifact);
-                                }
-                            }
-
-                            if (existingContent.HasValue &&
-                                existingContent.Value.Succeeded &&
-                                existingContent.Value.Result.TrackedFileContentInfo.FileContentInfo.Hash == contentHash)
-                            {
-                                Contract.Assert(shouldDiscoverContentOnDisk);
-
                                 targetLocationUpToDate = TargetUpToDate;
 
                                 if (isPreservedOutputFile || !Configuration.Schedule.StoreOutputsToCache)
@@ -2328,8 +2350,9 @@ namespace BuildXL.Scheduler.Artifacts
                             }
                             else
                             {
-                                if (shouldDiscoverContentOnDisk)
+                                if (checkExistsOnDisk)
                                 {
+                                    // Content was checked if it exists on disk or not, but it is non-existent.
                                     targetLocationUpToDate = TargetNotUpToDate;
                                 }
 
@@ -2483,7 +2506,7 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         private async Task<Possible<ContentAvailabilityBatchResult, Failure>> PlaceFilesPinAsync(
-            OperationContext operationContext, 
+            OperationContext operationContext,
             PipArtifactsState state)
         {
             var files = state.GetCacheMaterializationFiles();
@@ -2495,6 +2518,9 @@ namespace BuildXL.Scheduler.Artifacts
                 var fileAndIndex = files[i];
                 Func<int, Task> placeFile = async (int resultIndex) =>
                 {
+                    FileArtifact fileArtifact = fileAndIndex.materializationFile.Artifact;
+                    ContentHash contentHash = fileAndIndex.materializationFile.MaterializationInfo.Hash;
+
                     var result = await PlaceSingleFileAsync(
                         operationContext,
                         state,
@@ -2503,13 +2529,13 @@ namespace BuildXL.Scheduler.Artifacts
                     if (result.Succeeded)
                     {
                         state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
-                        m_host.ReportFileArtifactPlaced(fileAndIndex.materializationFile.Artifact, fileAndIndex.materializationFile.MaterializationInfo.IsUndeclaredFileRewrite);
-                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
+                        m_host.ReportFileArtifactPlaced(fileArtifact, fileAndIndex.materializationFile.MaterializationInfo.IsUndeclaredFileRewrite);
+                        results[resultIndex] = new ContentAvailabilityResult(contentHash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
                     }
                     else
                     {
                         allContentAvailable = false;
-                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss", result.Failure.InnerFailure);
+                        results[resultIndex] = new ContentAvailabilityResult(contentHash, false, 0, "ContentMiss", result.Failure.InnerFailure);
                     }
                 };
 

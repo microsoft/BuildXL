@@ -82,13 +82,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         protected override string GetSuccessString()
         {
-            return $"{DistributedPinCode}/{ReplicaCount}" + (string.IsNullOrEmpty(_extraMessage) ? "" : $"({_extraMessage})");
+            return $"{DistributedPinCode}/{ReplicaCount}" + (string.IsNullOrEmpty(_extraMessage) ? "" : $" ({_extraMessage})");
         }
 
         /// <inheritdoc />
         protected override string GetErrorString()
         {
-            return $"{DistributedPinCode}/{ReplicaCount}, " + base.GetErrorString() + (string.IsNullOrEmpty(_extraMessage) ? string.Empty : $"({_extraMessage})");
+            return $"{DistributedPinCode}/{ReplicaCount} " + base.GetErrorString() + (string.IsNullOrEmpty(_extraMessage) ? string.Empty : $" ({_extraMessage})");
         }
     }
 }

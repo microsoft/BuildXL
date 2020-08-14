@@ -108,7 +108,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return AddOrGetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, new OperationContext(context, cts), strongFingerprint, async () =>
+            return new OperationContext(context, cts).PerformOperationAsync(
+                Tracer.MemoizationStoreTracer,
+                async () =>
                 {
                     // TODO: Split this out into separate implementations for WriteThrough vs. WriteBehind (bug 1365340)
                     if (WriteThroughContentSession == null)
@@ -203,7 +205,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
                     await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
                     return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-                });
+
+                },
+                traceOperationStarted: true,
+                extraStartMessage: $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}",
+                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}");
         }
 
         private async Task<bool> CheckNeedToUpdateExistingValueAsync(

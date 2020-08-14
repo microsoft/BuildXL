@@ -51,17 +51,28 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         /// <inheritdoc />
         public Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return AddOrGetContentHashListCall.RunAsync(DistributedTracer, OperationContext(context), strongFingerprint, async () =>
-            {
-                // Metadata cache assumes no guarantees about the fingerprints added, hence invalidate the cache and serve the request using backing store
-                var cacheResult = await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint);
-                if (!cacheResult.Succeeded)
+            return WithOperationContext(
+                context,
+                cts,
+                operationContext =>
                 {
-                    context.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
-                }
+                    return operationContext.PerformOperationAsync(
+                        DistributedTracer,
+                        async () =>
+                        {
+                            // Metadata cache assumes no guarantees about the fingerprints added, hence invalidate the cache and serve the request using backing store
+                            var cacheResult = await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint);
+                            if (!cacheResult.Succeeded)
+                            {
+                                context.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
+                            }
 
-                return await _innerCacheSession.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashListWithDeterminism, cts, urgencyHint);
-            });
+                            return await _innerCacheSession.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashListWithDeterminism, cts, urgencyHint);
+                        },
+                        traceOperationStarted: true,
+                        extraStartMessage: $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}",
+                        extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}");
+                });
         }
 
         /// <inheritdoc />

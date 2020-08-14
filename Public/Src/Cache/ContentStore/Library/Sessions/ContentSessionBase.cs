@@ -69,7 +69,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     () => OpenStreamCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.OpenStreamRetries]),
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
-                    counter: BaseCounters[ContentSessionBaseCounters.OpenStream]));
+                    counter: BaseCounters[ContentSessionBaseCounters.OpenStream],
+                    extraEndMessage: result => $"Hash={contentHash}"));
         }
 
         /// <nodoc />

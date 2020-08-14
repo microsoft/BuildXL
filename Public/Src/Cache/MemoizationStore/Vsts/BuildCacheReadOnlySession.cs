@@ -622,50 +622,54 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            
-            return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, traceStart: false, asyncFunc: async () =>
-            {
-                // Check for pre-fetched data
-                ContentHashListWithDeterminism contentHashListWithDeterminism;
-
-                if (ContentHashListWithDeterminismCache.Instance.TryGetValue(
-                    CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
+            return new OperationContext(context, cts).PerformOperationAsync(
+                Tracer,
+                async () =>
                 {
-                    Tracer.RecordUseOfPrefetchedContentHashList();
-                    await TrackFingerprintAsync(
-                        context,
-                        strongFingerprint,
-                        contentHashListWithDeterminism.Determinism.ExpirationUtc).ConfigureAwait(false);
-                    return new GetContentHashListResult(contentHashListWithDeterminism);
-                }
+                    // Check for pre-fetched data
+                    ContentHashListWithDeterminism contentHashListWithDeterminism;
 
-                // No pre-fetched data. Need to query the server.
-                ObjectResult<ContentHashListWithCacheMetadata> responseObject =
-                    await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
+                    if (ContentHashListWithDeterminismCache.Instance.TryGetValue(
+                        CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
+                    {
+                        Tracer.RecordUseOfPrefetchedContentHashList();
+                        await TrackFingerprintAsync(
+                            context,
+                            strongFingerprint,
+                            contentHashListWithDeterminism.Determinism.ExpirationUtc).ConfigureAwait(false);
+                        return new GetContentHashListResult(contentHashListWithDeterminism);
+                    }
 
-                if (!responseObject.Succeeded)
-                {
-                    return new GetContentHashListResult(responseObject);
-                }
+                    // No pre-fetched data. Need to query the server.
+                    ObjectResult<ContentHashListWithCacheMetadata> responseObject =
+                        await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
 
-                ContentHashListWithCacheMetadata response = responseObject.Data;
-                if (response.ContentHashListWithDeterminism.ContentHashList == null)
-                {
-                    // Miss
-                    return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-                }
+                    if (!responseObject.Succeeded)
+                    {
+                        return new GetContentHashListResult(responseObject);
+                    }
 
-                GetContentHashListResult unpackResult = UnpackContentHashListWithDeterminismAfterGet(response, CacheId);
-                if (!unpackResult.Succeeded)
-                {
-                    return unpackResult;
-                }
+                    ContentHashListWithCacheMetadata response = responseObject.Data;
+                    if (response.ContentHashListWithDeterminism.ContentHashList == null)
+                    {
+                        // Miss
+                        return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
+                    }
 
-                SealIfNecessaryAfterGet(context, strongFingerprint, response);
+                    GetContentHashListResult unpackResult = UnpackContentHashListWithDeterminismAfterGet(response, CacheId);
+                    if (!unpackResult.Succeeded)
+                    {
+                        return unpackResult;
+                    }
 
-                await TrackFingerprintAsync(context, strongFingerprint, response.GetRawExpirationTimeUtc());
-                return new GetContentHashListResult(unpackResult.ContentHashListWithDeterminism);
-            });
+                    SealIfNecessaryAfterGet(context, strongFingerprint, response);
+
+                    await TrackFingerprintAsync(context, strongFingerprint, response.GetRawExpirationTimeUtc());
+                    return new GetContentHashListResult(unpackResult.ContentHashListWithDeterminism);
+                },
+                traceOperationStarted: true,
+                extraStartMessage: $"StrongFingerprint=({strongFingerprint})",
+                extraEndMessage: result => $"StrongFingerprint=({strongFingerprint})");
         }
 
         /// <nodoc />

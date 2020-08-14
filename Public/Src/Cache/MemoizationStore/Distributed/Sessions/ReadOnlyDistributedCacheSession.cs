@@ -122,46 +122,61 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         /// <inheritdoc />
         public Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return GetContentHashListCall.RunAsync(DistributedTracer, context, strongFingerprint, async () =>
-            {
-                GetContentHashListResult innerResult = null;
+            return WithOperationContext(
+                context,
+                cts,
+                operationContext => operationContext.PerformOperationAsync(
+                    DistributedTracer,
+                    operation: async () =>
+                               {
+                                   GetContentHashListResult innerResult = null;
 
-                // Get the value from the metadata cache or load the current inner value into it (and then return it)
-                var existing = await MetadataCache.GetOrAddContentHashListAsync(context, strongFingerprint, async fingerprint =>
-                {
-                    innerResult = await _innerCacheSession.GetContentHashListAsync(context, fingerprint, cts, urgencyHint);
-                    return innerResult;
-                });
+                                   // Get the value from the metadata cache or load the current inner value into it (and then return it)
+                                   var existing = await MetadataCache.GetOrAddContentHashListAsync(
+                                       context,
+                                       strongFingerprint,
+                                       async fingerprint =>
+                                       {
+                                           innerResult = await _innerCacheSession.GetContentHashListAsync(context, fingerprint, cts, urgencyHint);
+                                           return innerResult;
+                                       });
 
-                // Check to see if we need to need to read through to the inner value.
-                if (_readThroughMode == ReadThroughMode.ReadThrough &&
-                    existing.Succeeded &&
-                    !(existing.ContentHashListWithDeterminism.Determinism.IsDeterministic &&
-                      existing.ContentHashListWithDeterminism.Determinism.Guid == _innerCacheId))
-                {
-                    // Read through to the inner cache because the metadata cache's value is not guaranteed to be backed.
-                    if (innerResult == null)
-                    {
-                        // We did not already query the inner cache as part of the original query, so do that now.
-                        innerResult = await _innerCacheSession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
-                    }
+                                   // Check to see if we need to need to read through to the inner value.
+                                   if (_readThroughMode == ReadThroughMode.ReadThrough &&
+                                       existing.Succeeded &&
+                                       !(existing.ContentHashListWithDeterminism.Determinism.IsDeterministic &&
+                                         existing.ContentHashListWithDeterminism.Determinism.Guid == _innerCacheId))
+                                   {
+                                       // Read through to the inner cache because the metadata cache's value is not guaranteed to be backed.
+                                       if (innerResult == null)
+                                       {
+                                           // We did not already query the inner cache as part of the original query, so do that now.
+                                           innerResult = await _innerCacheSession.GetContentHashListAsync(
+                                               context,
+                                               strongFingerprint,
+                                               cts,
+                                               urgencyHint);
+                                       }
 
-                    if (innerResult != null && innerResult.Succeeded &&
-                        innerResult.ContentHashListWithDeterminism.Determinism.IsDeterministic)
-                    {
-                        // If the inner cache's value is now backed, clear the value from the metadata cache so that the
-                        // next read will load the backed value into the metadata cache (preventing the need for future read-throughs).
-                        await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint).IgnoreFailure();
-                    }
+                                       if (innerResult != null && innerResult.Succeeded &&
+                                           innerResult.ContentHashListWithDeterminism.Determinism.IsDeterministic)
+                                       {
+                                           // If the inner cache's value is now backed, clear the value from the metadata cache so that the
+                                           // next read will load the backed value into the metadata cache (preventing the need for future read-throughs).
+                                           await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint).IgnoreFailure();
+                                       }
 
-                    return innerResult;
-                }
-                else
-                {
-                    // Return the existing value in the metadata cache, or any error.
-                    return existing;
-                }
-            });
+                                       return innerResult;
+                                   }
+                                   else
+                                   {
+                                       // Return the existing value in the metadata cache, or any error.
+                                       return existing;
+                                   }
+                               },
+                    traceOperationStarted: true,
+                    extraStartMessage: $"StrongFingerprint=({strongFingerprint})",
+                    extraEndMessage: result => $"StrongFingerprint=({strongFingerprint}) {result.ContentHashListWithDeterminism.ToTraceString()}"));
         }
 
         /// <inheritdoc />

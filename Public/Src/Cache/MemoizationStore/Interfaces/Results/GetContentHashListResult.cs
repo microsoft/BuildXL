@@ -96,5 +96,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
             var hitOrMiss = ContentHashListWithDeterminism.ContentHashList != null ? "hit" : "miss";
             return $"Success {hitOrMiss} Determinism=[{ContentHashListWithDeterminism.Determinism}]";
         }
+
+        /// <inheritdoc />
+        protected override string GetSuccessString()
+        {
+            var contentHashes = ContentHashListWithDeterminism.ContentHashList.Hashes;
+            return $"{base.GetSuccessString()} Count={contentHashes.Count}" + (contentHashes.Count != 0 ? $" firstHash={contentHashes[0]}" : string.Empty);
+        }
     }
 }

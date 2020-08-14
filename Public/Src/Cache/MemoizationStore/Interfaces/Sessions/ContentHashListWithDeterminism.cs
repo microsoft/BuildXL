@@ -117,5 +117,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             return !left.Equals(right);
         }
+
+        /// <nodoc />
+        public string ToTraceString()
+        {
+            if (ContentHashList == null)
+            {
+                return null;
+            }
+
+            var hashes = ContentHashList.Hashes;
+            return $"Count={hashes.Count}" + (hashes.Count != 0 ? $" FirstHash={hashes[0]}" : string.Empty);
+        }
     }
 }

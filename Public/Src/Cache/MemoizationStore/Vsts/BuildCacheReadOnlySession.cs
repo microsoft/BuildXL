@@ -341,6 +341,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     var incorporateBlock = new ActionBlock<IEnumerable<StrongFingerprintAndExpiration>>(
                         async chunk =>
                         {
+                            var pinResult = await PinAllDedupContentAsync(new OperationContext(context, CancellationToken.None), chunk);
+                            if (!pinResult)
+                            {
+                                return;
+                            }
+
                             await ContentHashListAdapter.IncorporateStrongFingerprints(
                                 context,
                                 CacheNamespace,
@@ -432,11 +438,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     // results in, potentially, fanning out a massive number of "lifetime extend" requests to itemstore and blobstore, which can
                     // bring down the endpoint. Break this down into chunks so that multiple, load-balanced endpoints can share the burden.
 
-                    var fingerprintsWithExpiration = fingerprints.Select(strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration()));
+                    var fingerprintsWithExpiration =
+                        fingerprints
+                            .Select(strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration()))
+                            .ToList().AsReadOnly();
+
+                    var pinResult = await PinAllDedupContentAsync(context, fingerprintsWithExpiration);
+                    if (!pinResult)
+                    {
+                        return pinResult;
+                    }
+
                     await ContentHashListAdapter.IncorporateStrongFingerprints(
                         context,
                         CacheNamespace,
-                        new IncorporateStrongFingerprintsRequest(fingerprintsWithExpiration.ToList().AsReadOnly())
+                        new IncorporateStrongFingerprintsRequest(fingerprintsWithExpiration)
                     ).ConfigureAwait(false);
 
                     return BoolResult.Success;
@@ -453,6 +469,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 async () =>
                 {
                     var fingerprintWithExpiration = new StrongFingerprintAndExpiration(fingerprint, FingerprintTracker.GenerateNewExpiration());
+
+                    var pinResult = await PinAllDedupContentAsync(context, new StrongFingerprintAndExpiration[] { fingerprintWithExpiration });
+                    if (!pinResult)
+                    {
+                        return pinResult;
+                    }
                     
                     await ContentHashListAdapter.IncorporateStrongFingerprints(
                         context,
@@ -465,6 +487,39 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             // Ignoring the failure, because it was already traced if needed.
             result.IgnoreFailure();
+        }
+
+        private async Task<BoolResult> PinAllDedupContentAsync(OperationContext context, IEnumerable<StrongFingerprintAndExpiration> fingerprints)
+        {
+            // Pin the content manually if we're using DedupStore, as a workaround for the fact that BuildCache doesn't know how to talk to DedupStore
+            // and we want the content to be there even if we have to tell BuildCache that the ContentHashList is unbacked.
+            if (BackingContentSession is DedupContentSession dedupContentSession)
+            {
+                // TODO: optimize and run in parallel if needed.
+                foreach (var fingerprint in fingerprints)
+                {
+                    // TODO: Get the content hash list in a more efficient manner which does not require us to talk to BuildCache.
+                    var hashListResult = await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, fingerprint.StrongFingerprint);
+                    if (!hashListResult.Succeeded || hashListResult.Data?.ContentHashListWithDeterminism.ContentHashList == null)
+                    {
+                        return new BoolResult(hashListResult, "Failed to get content hash list when attempting to extend its conetnts' lifetimes.");
+                    }
+
+                    var expirationDate = new DateTime(Math.Max(hashListResult.Data.GetRawExpirationTimeUtc()?.Ticks ?? 0, fingerprint.ExpirationDateUtc.Ticks));
+
+                    var pinResults = await Task.WhenAll(await dedupContentSession.PinAsync(
+                        context,
+                        hashListResult.Data.ContentHashListWithDeterminism.ContentHashList.Hashes,
+                        expirationDate));
+
+                    if (pinResults.Any(r => !r.Succeeded))
+                    {
+                        return new BoolResult($"Failed to pin all pieces of content for fingerprint=[{fingerprint.StrongFingerprint}]");
+                    }
+                }
+            }
+
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />

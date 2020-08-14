@@ -120,7 +120,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 // Guaranteed content is only available for BlobSessions. (bug 144396)
                 _sealUnbackedContentHashLists = false;
 
-                // BlobBuildCacheHttpClient is incompatible with Dedup hashes. (bug 1458510)
+                // BlobBuildCacheHttpClient is incompatible with Dedup hashes.
+                // This is because BuildCache would not know to look for the blob in DedupStore instead of BlobStore
                 _useBlobContentHashLists = false;
             }
             else

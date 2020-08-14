@@ -18,7 +18,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc/>
         public YarnResolverSettings(IYarnResolverSettings resolverSettings, PathRemapper pathRemapper) : base(resolverSettings, pathRemapper)
         {
-            YarnLocation = resolverSettings.YarnLocation.HasValue? (FileArtifact?) pathRemapper.Remap(resolverSettings.YarnLocation.Value) : null;
+            YarnLocation = pathRemapper.Remap(resolverSettings.YarnLocation);
         }
 
         /// <inheritdoc/>

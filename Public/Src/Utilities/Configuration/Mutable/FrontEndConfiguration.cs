@@ -28,8 +28,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(pathRemapper != null);
 
             ProfileScript = template.ProfileScript;
-            ProfileReportDestination = template.ProfileReportDestination.HasValue ? (AbsolutePath?)pathRemapper.Remap(template.ProfileReportDestination.Value) : null;
-            FileToFileReportDestination = template.FileToFileReportDestination.HasValue ? (AbsolutePath?)pathRemapper.Remap(template.FileToFileReportDestination.Value) : null;
+            ProfileReportDestination = pathRemapper.Remap(template.ProfileReportDestination);
+            FileToFileReportDestination = pathRemapper.Remap(template.FileToFileReportDestination);
 
             EnableIncrementalFrontEnd = template.EnableIncrementalFrontEnd;
             EnableEvaluationThrottling = template.EnableEvaluationThrottling; 

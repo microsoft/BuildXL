@@ -97,6 +97,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
+        public AbsolutePath? Remap(AbsolutePath? path)
+        {
+            return path.HasValue ? (AbsolutePath?)Remap(path.Value) : null;
+        }
+
+        /// <nodoc />
         public List<AbsolutePath> Remap(IReadOnlyList<AbsolutePath> paths)
         {
             return m_oldPathTable == null ? new List<AbsolutePath>(paths) : new List<AbsolutePath>(paths.Select(Remap));
@@ -106,6 +112,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public FileArtifact Remap(FileArtifact file)
         {
             return m_oldPathTable == null || !file.IsValid ? file : FileArtifact.CreateSourceFile(Remap(file.Path));
+        }
+
+                /// <nodoc />
+        public FileArtifact? Remap(FileArtifact? file)
+        {
+            return file.HasValue ? (FileArtifact?)Remap(file.Value) : null;
         }
     }
 }

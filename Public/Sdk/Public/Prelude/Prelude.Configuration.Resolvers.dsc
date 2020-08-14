@@ -325,7 +325,8 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
      * variable won't cause a rebuild.
      */
-    environment?: Map<string, (PassthroughEnvironmentVariable | string)>;
+    environment?: Map<string, (PassthroughEnvironmentVariable | string)> 
+                | { [name:string]: (PassthroughEnvironmentVariable|string) };
 
     /**
      * For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted.

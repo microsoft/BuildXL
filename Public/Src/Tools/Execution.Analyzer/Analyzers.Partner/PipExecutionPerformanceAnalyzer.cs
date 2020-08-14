@@ -109,7 +109,7 @@ namespace BuildXL.Execution.Analyzer
                 var process = CachedGraph.PipGraph.GetPipFromPipId(processIdAndExecutionPerformance.Key) as Process;
                 Contract.Assert(process != null);
 
-                WriteColumn(process.GetDescription(CachedGraph.Context));
+                WriteColumn($"\"{process.GetDescription(CachedGraph.Context).Replace("\"", "\"\"")}\"");
                 WriteColumn(Math.Round(cpuStepDuration.TotalMinutes, 1).ToString());
                 WriteColumn(Math.Round(performance.ProcessExecutionTime.TotalMinutes, 1).ToString());
                 WriteColumn(Math.Round(performance.UserTime.TotalMinutes, 1).ToString());

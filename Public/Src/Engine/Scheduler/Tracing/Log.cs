@@ -2054,8 +2054,8 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
-                "Undeclared access on an output file: This pip accesses path '{4}', but '{5}' writes into it. " +
-                "Even though the undeclared access is allowed, it should only happen on a source file.")]
+                "Undeclared access on an output file: This pip reads path '{4}', but '{5}' writes into it. " +
+                "Consider declaring a dependency on the reader to the producer.")]
         public abstract void DependencyViolationWriteInUndeclaredSourceRead(
             LoggingContext context,
             long pipSemiStableHash,

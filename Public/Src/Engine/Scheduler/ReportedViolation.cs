@@ -63,10 +63,10 @@ namespace BuildXL.Scheduler
                     case DependencyViolationType.MissingSourceDependency:
                     case DependencyViolationType.UndeclaredReadCycle:
                     case DependencyViolationType.ReadUndeclaredOutput:
+                    case DependencyViolationType.WriteInUndeclaredSourceRead:
                         return SimplifiedViolationType.Read;
                     case DependencyViolationType.UndeclaredOutput:
                     case DependencyViolationType.WriteInSourceSealDirectory:
-                    case DependencyViolationType.WriteInUndeclaredSourceRead:
                     case DependencyViolationType.WriteInExistingFile:
                     case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
                     case DependencyViolationType.WriteOnAbsentPathProbe:

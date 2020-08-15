@@ -1007,8 +1007,10 @@ namespace BuildXL.Scheduler
             if (result.IsFound && result.Item.Value.processPip != pip.PipId)
             {
                 var relatedPipId = result.Item.Value.processPip;
+                Process related = null;
 
                 DependencyViolationType violationType;
+                AccessLevel accessLevel;
                 switch (result.Item.Value.accessType)
                 {
                     // There was another write, so this is a double write
@@ -1030,6 +1032,7 @@ namespace BuildXL.Scheduler
                             return;
                         }
 
+                        accessLevel = AccessLevel.Write;
                         if (access.IsTemporaryOutputFile)
                         {
                             // If it's a write at a temp file path, we need to check that there is dependency between the current pip
@@ -1054,7 +1057,6 @@ namespace BuildXL.Scheduler
                                             relatedPipId = producerPipId;
                                         }
 
-                                        violationType = DependencyViolationType.TempFileProducedByIndependentPips;
                                         badAccess = true;
                                         break;
                                     }
@@ -1097,7 +1099,13 @@ namespace BuildXL.Scheduler
                         // Log a verbose message explaining why the same-content check failed
                         LogDisallowedReasonIfNeeded(disallowedReason, pip, path, racyReader);
 
+                        // In this case seeing the writer triggered the violation, but we want to expose this to the user as a read violation, since this is almost always about a missing
+                        // dependency that needs declaration.
                         violationType = DependencyViolationType.WriteInUndeclaredSourceRead;
+                        accessLevel = AccessLevel.Read;
+                        related = pip;
+                        pip = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+
                         break;
                     // There was an absent file probe, so this is a write on an absent file probe
                     case DynamicFileAccessType.AbsentPathProbe:
@@ -1109,18 +1117,22 @@ namespace BuildXL.Scheduler
                             return;
                         }
 
+                        accessLevel = AccessLevel.Write;
                         violationType = DependencyViolationType.WriteOnAbsentPathProbe;
                         break;
                     default:
                         throw new InvalidOperationException(I($"Unexpected value {result.Item.Value.accessType}"));
                 }
 
-                var related = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                if (related == null)
+                {
+                    related = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                }
 
                 reportedViolations.Add(
                     HandleDependencyViolation(
                         violationType,
-                        AccessLevel.Write,
+                        accessLevel,
                         access.Path,
                         pip,
                         isAllowlistedViolation: false,
@@ -1262,11 +1274,11 @@ namespace BuildXL.Scheduler
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
-                            AccessLevel.Write,
+                            AccessLevel.Read,
                             undeclaredRead,
-                            pip,
+                            (Process) maybeProducer,
                             isAllowlistedViolation: false,
-                            related: maybeProducer,
+                            related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
                 }
@@ -1320,7 +1332,7 @@ namespace BuildXL.Scheduler
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
-                            AccessLevel.Write,
+                            AccessLevel.Read,
                             undeclaredRead,
                             pip,
                             isAllowlistedViolation: false,

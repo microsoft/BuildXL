@@ -932,7 +932,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 // Only perform this operation for distributed master.
                 var pip = runnable.Pip;
-                Logger.Log.DistributionExecutePipRequest(operationContext, pip.SemiStableHash, Name, runnable.Step.AsString());
+                Logger.Log.DistributionExecutePipRequest(operationContext, pip.FormattedSemiStableHash, Name, runnable.Step.AsString());
             }
 
             return scope;
@@ -953,7 +953,7 @@ namespace BuildXL.Scheduler.Distribution
             var pip = runnable.Pip;
             var executionResult = runnable.ExecutionResult;
 
-            Logger.Log.DistributionFinishedPipRequest(operationContext, pip.SemiStableHash, Name, runnable.Step.AsString());
+            Logger.Log.DistributionFinishedPipRequest(operationContext, pip.FormattedSemiStableHash, Name, runnable.Step.AsString());
 
             if (executionResult == null)
             {

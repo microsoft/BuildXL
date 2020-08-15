@@ -710,7 +710,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void DistributionExecutePipRequest(LoggingContext context, long pipSemiStableHash, string workerName, string step);
+        public abstract void DistributionExecutePipRequest(LoggingContext context, string pipSemiStableHash, string workerName, string step);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionFinishedPipRequest,
@@ -720,7 +720,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void DistributionFinishedPipRequest(LoggingContext context, long pipSemiStableHash, string workerName, string step);
+        public abstract void DistributionFinishedPipRequest(LoggingContext context, string pipSemiStableHash, string workerName, string step);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionMasterWorkerProcessOutputContent,

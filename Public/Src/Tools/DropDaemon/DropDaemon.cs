@@ -805,7 +805,10 @@ namespace Tool.DropDaemon
                 directoryContent = filteredContent;
             }
 
-            return (directoryContent.Select(file =>
+            return (directoryContent
+                // SharedOpaque directories might contain 'absent' output files. These are not real files, so we are excluding them.
+                .Where(file => file.ContentInfo.Hash != WellKnownContentHashes.AbsentFile || file.Artifact.IsSourceFile)
+                .Select(file =>
             {
                 // We need to convert '\' into '/' because this path would be a part of a drop url
                 // The dropPath can be an empty relative path (i.e. '.') which we need to remove since even though it is not a valid

@@ -5,14 +5,15 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
+using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
 
@@ -21,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <summary>
     ///     L3 ContentStore implemented against VSTS BlobStore
     /// </summary>
-    public sealed class BackingContentStore : IContentStore
+    public sealed class BackingContentStore : StartupShutdownBase
     {
         /// <nodoc />
         public enum SessionCounters
@@ -36,6 +37,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             /// </summary>
             PinSatisfiedInMemory
         }
+
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(BackingContentStore));
 
         private readonly CounterTracker _sessionCounterTracker = new CounterTracker();
         private readonly IAbsFileSystem _fileSystem;
@@ -61,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
-            bool useDedupStore = false)
+            bool useDedupStore)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(artifactHttpClientFactory != null);
@@ -74,10 +78,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            StartupStarted = true;
-
             BoolResult result;
             try
             {
@@ -87,32 +89,20 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return result;
                 }
 
-                if (_useDedupStore)
-                {
-                    _artifactHttpClient = await _artifactHttpClientFactory.CreateDedupStoreHttpClientAsync(context).ConfigureAwait(false);
-                }
-                else
-                {
-                    _artifactHttpClient = await _artifactHttpClientFactory.CreateBlobStoreHttpClientAsync(context).ConfigureAwait(false);
-                }
+                _artifactHttpClient = _useDedupStore
+                    ? (IArtifactHttpClient)await _artifactHttpClientFactory.CreateDedupStoreHttpClientAsync(context).ConfigureAwait(false)
+                    : await _artifactHttpClientFactory.CreateBlobStoreHttpClientAsync(context).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 result = new BoolResult(e);
             }
 
-            StartupCompleted = true;
             return result;
         }
 
         /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public void Dispose()
+        protected override void DisposeCore()
         {
             if (_artifactHttpClient is IBlobStoreHttpClient blobStoreHttpClient)
             {
@@ -120,59 +110,21 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
-        {
-            ShutdownStarted = true;
-            ShutdownCompleted = true;
-            return Task.FromResult(BoolResult.Success);
-        }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
+        /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(
-            Context context, string name, ImplicitPin implicitPin)
+        public CreateSessionResult<IBackingContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             if (_useDedupStore)
             {
-                return new CreateSessionResult<IReadOnlyContentSession>(new DedupReadOnlyContentSession(
-                    _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
-            }
-
-            return new CreateSessionResult<IReadOnlyContentSession>(new BlobReadOnlyContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
-        }
-
-        /// <inheritdoc />
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
-        {
-            if (_useDedupStore)
-            {
-                return new CreateSessionResult<IContentSession>(new DedupContentSession(
+                return new CreateSessionResult<IBackingContentSession>(new DedupContentSession(
                     context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
             }
 
-            return new CreateSessionResult<IContentSession>(new BlobContentSession(
+            return new CreateSessionResult<IBackingContentSession>(new BlobContentSession(
                 _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
         }
 
-        /// <inheritdoc />
-        public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_sessionCounterTracker.ToCounterSet()));
-
-        /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result) { }
+        /// <nodoc />
+        public GetStatsResult GetStats() => new GetStatsResult(_sessionCounterTracker.ToCounterSet());
     }
 }

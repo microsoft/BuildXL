@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <summary>
     /// IContentSession for DedupContentStore.
     /// </summary>
-    public class DedupContentSession : DedupReadOnlyContentSession, IContentSession
+    public class DedupContentSession : DedupReadOnlyContentSession, IBackingContentSession
     {
         private readonly VstsFileSystem _artifactFileSystem;
         private readonly IDedupUploadSession _uploadSession;

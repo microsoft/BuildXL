@@ -28,7 +28,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
-using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -45,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IReadOnlyContentSession for BlobBuildXL.ContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class BlobReadOnlyContentSession : ContentSessionBase
+    public class BlobReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
     {
         private enum Counters
         {
@@ -278,16 +277,20 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
-        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        {
+            var endDateTime = DateTime.UtcNow + TimeToKeepContent;
+            return PinCoreImplAsync(context, contentHashes, endDateTime);
+        }
+
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreImplAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime keepUntil)
         {
             try
             {
-                var endDateTime = DateTime.UtcNow + TimeToKeepContent;
-
                 return await Workflows.RunWithFallback(
                     contentHashes,
-                    hashes => CheckInMemoryCaches(hashes, endDateTime),
-                    hashes => UpdateBlobStoreAsync(context, hashes, endDateTime),
+                    hashes => CheckInMemoryCaches(hashes, keepUntil),
+                    hashes => UpdateBlobStoreAsync(context, hashes, keepUntil),
                     result => result.Succeeded);
             }
             catch (Exception ex)
@@ -581,6 +584,34 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 .Merge(_counters.ToCounterSet())
                 .Merge(_blobCounters.ToCounterSet());
             
+        }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<Task<PinResult>>> PinAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime keepUntil)
+        {
+            var results = await context.PerformNonResultOperationAsync(
+                Tracer,
+                () => PinCoreImplAsync(context, contentHashes, keepUntil),
+                counter: BaseCounters[ContentSessionBaseCounters.PinBulk],
+                traceOperationStarted: TraceOperationStarted,
+                traceErrorsOnly: TraceErrorsOnly,
+                extraEndMessage: results =>
+                {
+                    var resultString = string.Join(",", results.Select(task =>
+                    {
+                        // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
+                        var result = task.Result;
+                        return $"{contentHashes[result.Index].ToShortString()}:{result.Item}";
+                    }));
+
+                    return $"Count={contentHashes.Count}, KeepUntil=[{keepUntil}] Hashes=[{resultString}]";
+                });
+
+            return results.Select(task =>
+            {
+                var indexedResult = task.Result;
+                return Task.FromResult(indexedResult.Item);
+            });
         }
     }
 }

@@ -185,6 +185,11 @@ namespace BuildXL.Cache.BuildCacheAdapter
                     failures.Add(new IncorrectJsonConfigDataFailure($"{nameof(cacheConfig.CacheServiceFingerprintEndpoint)}=[{cacheConfig.CacheServiceFingerprintEndpoint}] is not a valid Uri."));
                 }
 
+                if (cacheConfig.DomainId < 0 || cacheConfig.DomainId > 99)
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"{nameof(cacheConfig.DomainId)} must be in the range [0,99]"));
+                }
+
                 return failures;
             });
         }

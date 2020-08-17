@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <summary>
     /// IContentSession for BlobContentStore.
     /// </summary>
-    public class BlobContentSession : BlobReadOnlyContentSession, IContentSession
+    public class BlobContentSession : BlobReadOnlyContentSession, IBackingContentSession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobContentSession" /> class.

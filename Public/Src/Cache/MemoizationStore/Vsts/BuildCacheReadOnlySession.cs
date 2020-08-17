@@ -76,7 +76,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         ///     Backing content session
         /// </summary>
-        protected readonly IContentSession BackingContentSession;
+        protected readonly IBackingContentSession BackingContentSession;
 
         /// <summary>
         ///     Optional write-through session to allow writing-behind to BlobStore
@@ -127,6 +127,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private Context _eagerFingerprintIncorporationTracingContext; // must be set at StartupAsync
         private readonly NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
 
+        /// <nodoc />
+        protected readonly bool ManuallyExtendContentLifetime;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="BuildCacheReadOnlySession"/> class.
         /// </summary>
@@ -151,6 +154,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
+        /// <param name="manuallyExtendContentLifetime">Whether to manually extend content lifetime when doing incorporate calls</param>
         public BuildCacheReadOnlySession(
             IAbsFileSystem fileSystem,
             string name,
@@ -158,7 +162,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             string cacheNamespace,
             Guid cacheId,
             IContentHashListAdapter contentHashListAdapter,
-            IContentSession backingContentSession,
+            IBackingContentSession backingContentSession,
             int maxFingerprintSelectorsToFetch,
             TimeSpan minimumTimeToKeepContentHashLists,
             TimeSpan rangeOfTimeToKeepContentHashLists,
@@ -172,7 +176,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool enableEagerFingerprintIncorporation,
             TimeSpan inlineFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
-            int eagerFingerprintIncorporationBatchSize)
+            int eagerFingerprintIncorporationBatchSize,
+            bool manuallyExtendContentLifetime)
         {
             Contract.Requires(name != null);
             Contract.Requires(contentHashListAdapter != null);
@@ -200,6 +205,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _maxDegreeOfParallelismForIncorporateRequests = maxDegreeOfParallelismForIncorporateRequests;
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
+
+            ManuallyExtendContentLifetime = manuallyExtendContentLifetime;
 
             FingerprintTracker = new FingerprintTracker(DateTime.UtcNow + minimumTimeToKeepContentHashLists, rangeOfTimeToKeepContentHashLists);
 
@@ -341,7 +348,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     var incorporateBlock = new ActionBlock<IEnumerable<StrongFingerprintAndExpiration>>(
                         async chunk =>
                         {
-                            var pinResult = await PinAllDedupContentAsync(new OperationContext(context, CancellationToken.None), chunk);
+                            var pinResult = await PinContentManuallyAsync(new OperationContext(context, CancellationToken.None), chunk);
                             if (!pinResult)
                             {
                                 return;
@@ -443,7 +450,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             .Select(strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration()))
                             .ToList().AsReadOnly();
 
-                    var pinResult = await PinAllDedupContentAsync(context, fingerprintsWithExpiration);
+                    var pinResult = await PinContentManuallyAsync(context, fingerprintsWithExpiration);
                     if (!pinResult)
                     {
                         return pinResult;
@@ -470,7 +477,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 {
                     var fingerprintWithExpiration = new StrongFingerprintAndExpiration(fingerprint, FingerprintTracker.GenerateNewExpiration());
 
-                    var pinResult = await PinAllDedupContentAsync(context, new StrongFingerprintAndExpiration[] { fingerprintWithExpiration });
+                    var pinResult = await PinContentManuallyAsync(context, new StrongFingerprintAndExpiration[] { fingerprintWithExpiration });
                     if (!pinResult)
                     {
                         return pinResult;
@@ -489,11 +496,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             result.IgnoreFailure();
         }
 
-        private async Task<BoolResult> PinAllDedupContentAsync(OperationContext context, IEnumerable<StrongFingerprintAndExpiration> fingerprints)
+        private async Task<BoolResult> PinContentManuallyAsync(OperationContext context, IEnumerable<StrongFingerprintAndExpiration> fingerprints)
         {
-            // Pin the content manually if we're using DedupStore, as a workaround for the fact that BuildCache doesn't know how to talk to DedupStore
-            // and we want the content to be there even if we have to tell BuildCache that the ContentHashList is unbacked.
-            if (BackingContentSession is DedupContentSession dedupContentSession)
+            // Pin the content manually as a workaround for the fact that BuildCache doesn't know how to talk to the backing content store due to it being
+            // dedup or in a non-default domain and we want the content to be there even if we have to tell BuildCache that the ContentHashList is unbacked.
+            if (ManuallyExtendContentLifetime)
             {
                 // TODO: optimize and run in parallel if needed.
                 foreach (var fingerprint in fingerprints)
@@ -505,9 +512,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         return new BoolResult(hashListResult, "Failed to get content hash list when attempting to extend its conetnts' lifetimes.");
                     }
 
-                    var expirationDate = new DateTime(Math.Max(hashListResult.Data.GetRawExpirationTimeUtc()?.Ticks ?? 0, fingerprint.ExpirationDateUtc.Ticks));
+                    var expirationDate = new DateTime(Math.Max(hashListResult.Data.GetRawExpirationTimeUtc()?.Ticks ?? 0, fingerprint.ExpirationDateUtc.Ticks), DateTimeKind.Utc);
 
-                    var pinResults = await Task.WhenAll(await dedupContentSession.PinAsync(
+                    var pinResults = await Task.WhenAll(await BackingContentSession.PinAsync(
                         context,
                         hashListResult.Data.ContentHashListWithDeterminism.ContentHashList.Hashes,
                         expirationDate));

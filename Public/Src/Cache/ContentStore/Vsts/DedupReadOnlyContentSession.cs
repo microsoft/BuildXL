@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IReadOnlyContentSession for DedupContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class DedupReadOnlyContentSession : ContentSessionBase
+    public class DedupReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
     {
         private enum Counters
         {

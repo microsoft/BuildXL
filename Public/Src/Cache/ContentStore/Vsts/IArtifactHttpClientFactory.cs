@@ -3,6 +3,7 @@
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 
 namespace BuildXL.Cache.ContentStore.Vsts

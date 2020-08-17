@@ -121,6 +121,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         public static TimeSpan DefaultInlineFingerprintIncorporationExpiry = TimeSpan.FromHours(8);
 
+        /// <nodoc />
+        public const byte DefaultDomainId = 0;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
         /// </summary>
@@ -298,5 +301,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         [DataMember]
         public int EagerFingerprintIncorporationNagleBatchSize { get; set; } = DefaultEagerFingerprintIncorporationNagleBatchSize;
+
+        /// <nodoc />
+        [DataMember]
+        public byte DomainId { get; set; } = DefaultDomainId;
     }
 }

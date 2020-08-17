@@ -113,7 +113,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 OverrideUnixFileAccessMode = OverrideUnixFileAccessMode,
                 ImplicitPin = ImplicitPin,
                 IgnorePinThresholdHours = IgnorePinThresholdHours,
-                PinInlineThresholdMinutes = PinInlineThresholdMinutes
+                PinInlineThresholdMinutes = PinInlineThresholdMinutes,
+                DomainId = DomainId,
             };
         }
     }

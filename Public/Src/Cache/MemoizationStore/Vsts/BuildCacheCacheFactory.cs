@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Vsts.Http;
+using Microsoft.VisualStudio.Services.BlobStore.Common;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {
@@ -31,11 +32,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(cacheConfig != null);
+
+            var domain = new ByteDomainId(cacheConfig.DomainId);
             return new BuildCacheCache(
                 fileSystem,
                 cacheConfig.CacheNamespace,
                 new BuildCacheHttpClientFactory(new Uri(cacheConfig.CacheServiceFingerprintEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), cacheConfig.UseAad),
-                new BackingContentStoreHttpClientFactory(new Uri(cacheConfig.CacheServiceContentEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), cacheConfig.UseAad),
+                new BackingContentStoreHttpClientFactory(new Uri(cacheConfig.CacheServiceContentEndpoint), vssCredentialsFactory, TimeSpan.FromMinutes(cacheConfig.HttpSendTimeoutMinutes), domain, cacheConfig.UseAad),
                 cacheConfig.MaxFingerprintSelectorsToFetch,
                 TimeSpan.FromDays(cacheConfig.DaysToKeepUnreferencedContent),
                 TimeSpan.FromMinutes(cacheConfig.PinInlineThresholdMinutes),
@@ -46,6 +49,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.FingerprintIncorporationEnabled,
                 cacheConfig.MaxDegreeOfParallelismForIncorporateRequests,
                 cacheConfig.MaxFingerprintsPerIncorporateRequest,
+                domain,
                 writeThroughContentStoreFunc,
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,

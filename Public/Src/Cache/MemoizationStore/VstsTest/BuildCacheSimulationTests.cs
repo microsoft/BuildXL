@@ -24,6 +24,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 using Xunit;
+using Microsoft.VisualStudio.Services.BlobStore.Common;
 
 // ReSharper disable ConvertClosureToMethodGroup
 namespace BuildXL.Cache.MemoizationStore.VstsTest
@@ -85,7 +86,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             IBuildCacheHttpClientFactory buildCacheHttpClientFactory =
                 new BuildCacheHttpClientFactory(new Uri(@"http://localhost:22085"), vssCredentialsFactory, TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultHttpSendTimeoutMinutes), false);
             IArtifactHttpClientFactory backingContentStoreHttpClientFactory =
-                new BackingContentStoreHttpClientFactory(new Uri(@"http://localhost:22084"), vssCredentialsFactory, TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultHttpSendTimeoutMinutes), false);
+                new BackingContentStoreHttpClientFactory(new Uri(@"http://localhost:22084"), vssCredentialsFactory, TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultHttpSendTimeoutMinutes), WellKnownDomainIds.OriginalDomainId, false);
 
             // Using a consistent path in the test directory allows tests to share content between
             // multiple callers.  Using FileSystemContentStore *will* require the callers to be serialized
@@ -113,6 +114,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 true,
                 5,
                 20,
+                new ByteDomainId(BuildCacheServiceConfiguration.DefaultDomainId),
                 writeThroughContentStoreFunc,
                 backingOption == BackingOption.WriteBehind,
                 storageOption == StorageOption.Blob);

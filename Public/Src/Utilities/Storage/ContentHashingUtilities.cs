@@ -27,7 +27,10 @@ namespace BuildXL.Storage
 
         private static ConcurrentDictionary<HashType, IContentHasher> s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
 
-        private static IContentHasher GetContentHasher(HashType hashType)
+        /// <summary>
+        /// Returns the <see cref="IContentHasher"/> for a given <see cref="HashType"/>
+        /// </summary>
+        public static IContentHasher GetContentHasher(HashType hashType)
         {
             if (hashType == HashInfo.HashType || hashType == HashType.Unknown)
             {

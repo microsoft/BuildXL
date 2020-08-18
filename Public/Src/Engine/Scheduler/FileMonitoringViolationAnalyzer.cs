@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -1185,15 +1186,8 @@ namespace BuildXL.Scheduler
             if ((writerDoubleWritePolicy & RewritePolicy.SafeSourceRewritesAreAllowed) != 0 &&
                 m_undeclaredReaders.TryGetValue(undeclaredRead, out var readers))
             {
-                // Retrieve the hash of the undeclared file. Observe in this case the hash should be always be retrieved from the cache since an undeclared read on that path already happened
-                var maybeUndeclaredSourceMaterializationInfo = m_fileContentManager.TryQueryUndeclaredInputContentAsync(undeclaredRead).GetAwaiter().GetResult();
-                Contract.Assert(maybeUndeclaredSourceMaterializationInfo.HasValue);
-
-                // Check if we have the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
-                var isSameContent = writeMaterializationInfo.Hash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;
-                   
                 // Make sure the ordering constraints for the readers can be satisfied
-                if (ReadersAreWellOrdered(readers, writerPipId, isSameContent, out racyReader))
+                if (ReadersAreWellOrdered(readers, writerPipId, undeclaredRead, writeMaterializationInfo.Hash, out racyReader))
                 {
                     allowedSameContentRewriteViolation = new ReportedViolation(isError: true, DependencyViolationType.WriteInUndeclaredSourceRead, undeclaredRead, writerPipId, relatedPipId: null, writerExecutablePath);
                     disallowedReason = SameContentRewriteDisallowedReason.None;
@@ -1223,32 +1217,51 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Make sure the ordering constraints for source/alien file readers wrt a rewrite can be satisfied
         /// </summary>
-        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, bool isSameContent, out PipId? racyReader)
+        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, AbsolutePath undeclaredRead, ContentHash writerHash, out PipId? racyReader)
         {
             bool hasNonOrderedReaders = false;
+            
+            // Here we track if we can assert if the written content we saw is the same/different than the content that was read.
+            // We can only assert this if there is a reader ordered before the writer. Otherwise we may not have had the chance to observe the original content.
+            bool? isSameContent = null;
+            
             racyReader = null;
+            
             foreach (PipId reader in readers)
             {
-                // if there is at least one read that is guaranteed to happen before the write, we can trust we observed the file content before the write happened
-                if (IsDependencyDeclared(writerPipId, reader))
+                var writerDependsOnReader = IsDependencyDeclared(writerPipId, reader);
+                // If this reader is ordered before the writer, we can determine isSameContent (if not determined already).
+                if (isSameContent == null && writerDependsOnReader)
                 {
+                    // Retrieve the hash of the undeclared file. Observe in this case the hash should be always be retrieved from the cache since an undeclared read on that path already happened
+                    var maybeUndeclaredSourceMaterializationInfo = m_fileContentManager.TryQueryUndeclaredInputContentAsync(undeclaredRead).GetAwaiter().GetResult();
+                    Contract.Assert(maybeUndeclaredSourceMaterializationInfo.HasValue);
+
+                    // Set the value that tells us if we saw the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
+                    isSameContent = writerHash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;
+
                     // If we saw the same content and there is a read before the write, that means we can trust we saw the before/after
                     // and there are actually no restrictions on the readers order
                     // So we can shortcut the validation
-                    if (isSameContent)
+                    if (isSameContent == true)
                     {
                         return true;
                     }
                 }
-                else if (!IsDependencyDeclared(reader, writerPipId))
+                else if (!writerDependsOnReader && !IsDependencyDeclared(reader, writerPipId))
                 {
                     hasNonOrderedReaders = true;
                     // This will just store the last racy one
                     racyReader = reader;
+                    // if we already determined the written content is not the same, then the first unordered reader is enough to say that readers are not well ordered
+                    if (isSameContent == false)
+                    {
+                        return false;
+                    }
                 }
             }
 
-            // If there are unordered readers, then we cannot guarantee they saw the same content.
+            // If there are unordered readers and we reached this point, then we cannot guarantee they saw the same content.
             return !hasNonOrderedReaders;
         }
 

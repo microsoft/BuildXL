@@ -1,6 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Collections;
+
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -63,6 +69,20 @@ namespace BuildXL.Utilities.Configuration
             }
 
             return 5_000;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="ConfigurationStatistics"/> based on the given configuration
+        /// </summary>
+        public static ConfigurationStatistics GetStatistics(this IConfiguration configuration)
+        {
+            // Get a stable list of the different kind of resolvers used in this build
+            IEnumerable<string> kinds = (configuration.Resolvers ?? CollectionUtilities.EmptyArray<IResolverSettings>())
+                .Select(resolver => resolver.Kind)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(kind => kind, StringComparer.Ordinal);
+
+            return new ConfigurationStatistics(kinds);
         }
     }
 }

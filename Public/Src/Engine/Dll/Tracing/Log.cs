@@ -2791,6 +2791,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_AllowDuplicateTemporaryDirectory enabled: Duplicate temporary directory detection between pips is disabled.")]
         public abstract void ConfigUnsafeAllowDuplicateTemporaryDirectory(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ScheduleConstructedWithConfiguration,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            EventTask = (int)Tasks.Engine,
+            Message = "Schedule constructed. Resolvers involved: [{frontendKinds}].")]
+        public abstract void ScheduleConstructedWithConfiguration(LoggingContext context, string frontendKinds);
     }
 
     /// <summary>

@@ -169,6 +169,7 @@ namespace BuildXL.Engine.Tracing
         ParsePhaseComplete = 2831,
         StartEvaluateValues = 2832,
         EndEvaluateValues = 2833,
+        ScheduleConstructedWithConfiguration = 2845,
         StartExecute = 2834,
         EndExecute = 2835,
 

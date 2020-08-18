@@ -2696,7 +2696,7 @@ namespace BuildXL.Engine
             }
 
             GraphReuseResult reuseResult = null;
-
+            
             if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule)
                 &&
                 ((IsGraphCacheConsumptionAllowed() && graphFingerprint != null) ||
@@ -2893,7 +2893,7 @@ namespace BuildXL.Engine
                         }
 
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
-
+                        
                         engineSchedule = EngineSchedule.Create(
                             loggingContext,
                             context: Context,
@@ -2955,7 +2955,7 @@ namespace BuildXL.Engine
                 }
 
                 Contract.Assert(engineSchedule != null);
-
+                
                 // When constructing the graph above, we exit early if the schedule phase is not requested. But if we
                 // didn't have to construct the engineSchedue, we wouldn't have early returned and still may not
                 // have the schedule phase.
@@ -3016,6 +3016,9 @@ namespace BuildXL.Engine
             // Need to thread through the process start time checking it from the currently running process is not
             // valid for server mode builds.
             engineSchedule.Scheduler.SetProcessStartTime(m_processStartTimeUtc);
+
+            // We are done scheduling. Log configuration statistics used for scheduling.
+            Logger.Log.ScheduleConstructedWithConfiguration(loggingContext, Configuration.GetStatistics().ResolverKinds);
 
             return reusedGraph ? ConstructScheduleResult.ReusedExistingGraph : ConstructScheduleResult.ConstructedNewGraph;
         }

@@ -528,7 +528,21 @@ namespace BuildXL.FrontEnd.Core
             {
                 try
                 {
-                    var existingContentHash = await ContentHashingUtilities.HashFileAsync(targetFilePath);
+                    // Make sure we honor the expectedContentHash.Value.HashType 
+                    // We compute the file's hash using the same hash type(algorithm) as the expected hash instead of the build's default hash type.
+                    // So the comparison of the existing hash and expected hash is meaningful.
+                    ContentHash existingContentHash;
+                    using (
+                        var fs = FileUtilities.CreateFileStream(
+                            targetFilePath,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.Delete | FileShare.Read,
+                            FileOptions.SequentialScan))
+                    {
+                        existingContentHash = await ContentHashingUtilities.HashContentStreamAsync(fs, expectedContentHash.Value.HashType);
+                    }
+
                     if (existingContentHash == expectedContentHash.Value)
                     {
                         m_logger.DownloadToolIsUpToDate(loggingContext, friendlyName, targetFilePath, expectedContentHash.Value.ToHex());

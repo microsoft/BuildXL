@@ -244,25 +244,31 @@ namespace BuildXL.FrontEnd.Download
             try
             {
                 var downloadFilePath = downloadData.DownloadedFilePath.ToString(m_context.PathTable);
-                // Check if the file already exists and matches the exected hash.
+                // Check if the file already exists and matches the expected hash.
                 if (File.Exists(downloadFilePath))
                 {
                     var expectedHashType = downloadData.ContentHash.HasValue
                         ? downloadData.ContentHash.Value.HashType
                         : HashTypeParser(downloadData.Settings.Hash);
-                   
-                    // Compare actual hash to compare if we need to download again.
-                    var actualHash = await GetContentHashAsync(downloadData.DownloadedFilePath, expectedHashType);
+                    
+                    // We don't record the file until we know it is the one used in this build.
+                    var recordFileAccess = false;
+                    var actualHash = await GetContentHashAsync(downloadData.DownloadedFilePath, expectedHashType, recordFileAccess);
 
+                    // Compare actual hash to compare if we need to download again.
                     // Compare against the static hash value.
                     if (downloadData.ContentHash.HasValue && actualHash == downloadData.ContentHash.Value)
                     {
+                        // Record the file with the build's default hasher.
+                        m_frontEndHost.Engine.RecordFrontEndFile(downloadData.DownloadedFilePath, Name);
                         return new EvaluationResult(FileArtifact.CreateSourceFile(downloadData.DownloadedFilePath));
                     }
 
                     var incrementalState = await DownloadIncrementalState.TryLoadAsync(m_logger, m_context, downloadData);
                     if (incrementalState != null && incrementalState.ContentHash == actualHash)
                     {
+                        // Record the file with the build's default hasher.
+                        m_frontEndHost.Engine.RecordFrontEndFile(downloadData.DownloadedFilePath, Name);
                         return new EvaluationResult(FileArtifact.CreateSourceFile(downloadData.DownloadedFilePath));
                     }
                 }
@@ -370,7 +376,9 @@ namespace BuildXL.FrontEnd.Download
         private async Task<EvaluationResult> ValidateAndStoreIncrementalDownloadStateAsync(DownloadData downloadData)
         {
             // If the hash is given in the download setting, use the corresponding hashType(hash algorithm) to get the content hash of the downloaded file.
-            var downloadedHash = await GetContentHashAsync(downloadData.DownloadedFilePath, HashTypeParser(downloadData.Settings.Hash));
+            // We don't record the file until we know it is the correct one and will be used in this build.
+            var recordFileAccess = false;
+            var downloadedHash = await GetContentHashAsync(downloadData.DownloadedFilePath, HashTypeParser(downloadData.Settings.Hash), recordFileAccess);
             
             if (downloadData.ContentHash.HasValue)
             {
@@ -400,6 +408,8 @@ namespace BuildXL.FrontEnd.Download
                 }
             }
 
+            // Record the file with the build's default hasher.
+            m_frontEndHost.Engine.RecordFrontEndFile(downloadData.DownloadedFilePath, Name);
             return new EvaluationResult(FileArtifact.CreateSourceFile(downloadData.DownloadedFilePath));
         }
 
@@ -770,10 +780,13 @@ namespace BuildXL.FrontEnd.Download
             return Task.FromResult<bool?>(true);
         }
 
-        private async Task<ContentHash> GetContentHashAsync(AbsolutePath path, HashType hashType = HashType.Unknown)
+        private async Task<ContentHash> GetContentHashAsync(AbsolutePath path, HashType hashType = HashType.Unknown, bool recordFile = true)
         {
-            m_frontEndHost.Engine.RecordFrontEndFile(path, Name);
-
+            if (recordFile)
+            {
+                m_frontEndHost.Engine.RecordFrontEndFile(path, Name);
+            }
+            
             // We don't call GetFileContentHashAsync() to get the existing hash, since it register the file. 
             // This has been done in RecordFrontEndFile with the default hasher, re-register it with the specified hasher will cause error.
             using (

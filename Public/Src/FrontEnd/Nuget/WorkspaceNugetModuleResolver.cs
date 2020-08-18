@@ -1677,15 +1677,13 @@ namespace BuildXL.FrontEnd.Nuget
             expectedHash = null;
             if (!string.IsNullOrEmpty(artifactLocation.Hash))
             {
-                if (!ContentHashingUtilities.TryParse(artifactLocation.Hash, out var contentHash))
+                if (!ContentHash.TryParse(artifactLocation.Hash, out var contentHash))
                 {
                     // TODO: better provenance for configuration settings.
                     Logger.Log.NugetDownloadInvalidHash(
                         m_context.LoggingContext,
                         "nuget.exe",
-                        artifactLocation.Hash,
-                        ContentHashingUtilities.HashInfo.HashType.ToString(),
-                        ContentHashingUtilities.HashInfo.ByteLength);
+                        artifactLocation.Hash);
                     return false;
                 }
 

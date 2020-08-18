@@ -40,9 +40,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public const int SerializedLength = MaxHashByteLength + 1;
 
+        /// <summary>
+        /// HashType.
+        /// </summary>
+        public readonly HashType _hashType;
+
         internal const char SerializedDelimiter = ':';
 
-        private readonly HashType _hashType;
         private readonly ReadOnlyFixedBytes _bytes;
 
         /// <summary>

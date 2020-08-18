@@ -47,8 +47,8 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventLevel = Level.Warning,
             Keywords = (ushort)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Configured downloadHash '{hash}' for tool '{toolName}' is invalid. Expected '{hashType}' with {length} bytes. Attempt to download tool without hash guard.")]
-        public abstract void NugetDownloadInvalidHash(LoggingContext context, string toolName, string hash, string hashType, int length);
+            Message = "Configured downloadHash '{hash}' for tool '{toolName}' is invalid. Attempt to download tool without hash guard.")]
+        public abstract void NugetDownloadInvalidHash(LoggingContext context, string toolName, string hash);
 
         [GeneratedEvent(
             (ushort)LogEventId.NugetFailedToCleanTargetFolder,

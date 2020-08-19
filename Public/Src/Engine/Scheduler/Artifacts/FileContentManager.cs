@@ -483,10 +483,21 @@ namespace BuildXL.Scheduler.Artifacts
                     case ArtifactMaterializationResult.Succeeded:
                         break;
                     case ArtifactMaterializationResult.PlaceFileFailed:
-                        Logger.Log.PipMaterializeDependenciesFromCacheFailure(
-                            operationContext,
-                            pip.GetDescription(Context),
-                            state.GetFailure().DescribeIncludingInnerFailures());
+                        if (state.InnerFailure is TimeoutForArtifactContentCacheFailure)
+                        {
+                            Logger.Log.PipMaterializeDependenciesFromCacheTimeoutFailure(
+                                operationContext,
+                                pip.GetDescription(Context),
+                                state.GetFailure().DescribeIncludingInnerFailures());
+                        }
+                        else
+                        {
+                            Logger.Log.PipMaterializeDependenciesFromCacheFailure(
+                                operationContext,
+                                pip.GetDescription(Context),
+                                state.GetFailure().DescribeIncludingInnerFailures());
+                        }
+
                         cacheMaterializationErrorLog(state);
                         break;
                     case ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure:

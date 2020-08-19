@@ -244,6 +244,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessPipProcessWeight(LoggingContext loggingContext, string pipDescription, int weight);
 
         [GeneratedEvent(
+            (ushort)LogEventId.IOPipExecutionStepTakeLong,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] It took longer than {limitMin} minutes to execute an I/O related pip execution step: {step} took {durationMin} minutes.")]
+        internal abstract void PipExecutionIOStepDelayed(LoggingContext loggingContext, string pipDescription, string step, int limitMin, int durationMin);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ProcessPipCacheHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -305,6 +314,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache: {errorMessage}")]
         internal abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipMaterializeDependenciesFromCacheTimeoutFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache due to timeout: {errorMessage}")]
+        internal abstract void PipMaterializeDependenciesFromCacheTimeoutFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure,

@@ -53,7 +53,7 @@ namespace BuildXL.Engine.Cache.Artifacts
     /// </remarks>
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public sealed class LocalDiskContentStore : ILocalDiskFileSystemView
-    {
+    {        
         private readonly PathTable m_pathTable;
         private readonly FileContentTable m_fileContentTable;
         private readonly DirectoryTranslator m_pathToNormalizedPathTranslator;

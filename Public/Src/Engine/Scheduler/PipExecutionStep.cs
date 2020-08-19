@@ -245,6 +245,24 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         }
 
         /// <summary>
+        /// Indicates if the pip execution step is mainly I/O related.
+        /// </summary>
+        public static bool IsIORelated(this PipExecutionStep step)
+        {
+            switch (step)
+            {
+                case PipExecutionStep.Start: // Hashing
+                case PipExecutionStep.CacheLookup:
+                case PipExecutionStep.MaterializeInputs:
+                case PipExecutionStep.MaterializeOutputs:
+                case PipExecutionStep.PostProcess:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
         /// Check whether it is valid to transition from one step to another pip execution step.
         /// </summary>
         public static bool CanTransitionTo(this PipExecutionStep fromStep, PipExecutionStep toStep)

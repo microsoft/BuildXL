@@ -26,6 +26,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
     /// </summary>
     public sealed class CacheCoreArtifactContentCache : IArtifactContentCache
     {
+        /// <summary>
+        /// Timeout for pin and materialize operations.
+        /// </summary>
+        public const int TimeoutDurationMin = 60;
+
         private readonly PossiblyOpenCacheSession m_cache;
 
         private readonly RootTranslator m_rootTranslator;
@@ -46,6 +51,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <inheritdoc />
         public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
         {
+            string opName = nameof(TryLoadAvailableContentAsync);
+
             // TODO: These conversions are silly.
             CasHash[] casHashes = new CasHash[hashes.Count];
             for (int i = 0; i < casHashes.Length; i++)
@@ -53,13 +60,23 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 casHashes[i] = new CasHash(new global::BuildXL.Cache.Interfaces.Hash(hashes[i]));
             }
 
-            Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryLoadAvailableContentAsync));
+            Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(opName);
             if (!maybeOpen.Succeeded)
             {
                 return maybeOpen.Failure;
             }
 
-            Possible<string, Failure>[] multiMaybePinned = await maybeOpen.Result.PinToCasAsync(casHashes);
+            Possible<string, Failure>[] multiMaybePinned;
+
+            try
+            {
+                multiMaybePinned = await maybeOpen.Result.PinToCasAsync(casHashes).WithTimeoutAsync(TimeSpan.FromMinutes(TimeoutDurationMin));
+            }
+            catch (TimeoutException)
+            {
+                return new TimeoutForArtifactContentCacheFailure(opName, TimeoutDurationMin);
+            }
+
             Contract.Assume(multiMaybePinned != null);
             Contract.Assume(multiMaybePinned.Length == casHashes.Length);
 
@@ -308,11 +325,19 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             //       Deleting links requires some care and magic, e.g. if a process has the file mapped.
             //       Correspondingly, IArtifactContentCache prescribes that materialization always produces a 'new' file.
 
-            var placeResult = await Helpers.RetryOnFailureAsync(
-                async lastAttempt =>
-                {
-                    return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash);
-                });
+            Possible<Unit, Failure> placeResult;
+            try
+            {
+                placeResult = await Helpers.RetryOnFailureAsync(
+                    async lastAttempt =>
+                    {
+                        return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash);
+                    }).WithTimeoutAsync(TimeSpan.FromMinutes(TimeoutDurationMin));
+            }
+            catch (TimeoutException)
+            {
+                return new TimeoutForArtifactContentCacheFailure(nameof(TryMaterializeAsync), TimeoutDurationMin);
+            }
 
             return placeResult;
         }

@@ -1259,6 +1259,7 @@ namespace BuildXL.Scheduler
         /// Number of times the VM or VmCommandProxy caused failures during Sandboxed Process Pip execution.
         /// </summary>
         VmExecutionRetriesCount,
+
     }
 
     /// <summary>

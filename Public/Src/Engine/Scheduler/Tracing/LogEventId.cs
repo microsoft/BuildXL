@@ -98,6 +98,7 @@ namespace BuildXL.Scheduler.Tracing
         PipStandardIOFailed = 316,
 
         PipRetryDueToExitedWithAzureWatsonExitCode = 317,
+        IOPipExecutionStepTakeLong = 318,
 
         // Shared: CacheMissAnalysisBatchResults = 325,
         DisallowedFileAccessInTopOnlySourceSealedDirectory = 378,
@@ -180,6 +181,7 @@ namespace BuildXL.Scheduler.Tracing
         TwoPhaseCacheEntryPublished = 2730,
         ConvertToRunnableFromCacheFailed = 2731,
         TwoPhasePublishingCacheEntryFailedError = 2732,
+        PipMaterializeDependenciesFromCacheTimeoutFailure = 2740,
 
         LogMismatchedDetoursErrorCount = 2922,
         PipExitedWithAzureWatsonExitCode = 2924,

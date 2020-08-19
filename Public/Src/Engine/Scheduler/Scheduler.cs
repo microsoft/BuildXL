@@ -78,7 +78,12 @@ namespace BuildXL.Scheduler
     [SuppressMessage("Microsoft.Maintainability", "CA1506")]
     public partial class Scheduler : IPipScheduler, IPipExecutionEnvironment, IFileContentManagerHost, IOperationTrackerHost, IDisposable
     {
-#region Constants
+        #region Constants
+
+        /// <summary>
+        /// The limit for I/O pip execution step to log a warning message.
+        /// </summary>
+        private const int PipExecutionIOStepDelayedLimitMin = 30;
 
         /// <summary>
         /// Ref count for pips which have executed already (distinct from ref count 0; ready to execute)
@@ -3540,6 +3545,13 @@ namespace BuildXL.Scheduler
                         runnablePip.StepStartTime.Ticks,
                         durationMs,
                         runnablePip.Pip.GetShortDescription(runnablePip.Environment.Context, withQualifer: false).Replace(@"\", @"\\").Replace("\"", "\\\""));
+                }
+
+                if (runnablePip.StepDuration.TotalMinutes > PipExecutionIOStepDelayedLimitMin && runnablePip.Step.IsIORelated())
+                {
+                    // None of I/O pip execution steps is supposed to take more than 15 minutes. However, there are some large Cosine pips whose inputs are materialized around 20m-25m.
+                    // That's why, we chose 30 minutes for the limit to log a warning message, so that we can keep track of the frequency. 
+                    Logger.Log.PipExecutionIOStepDelayed(runnablePip.OperationContext, runnablePip.Description, runnablePip.Step.ToString(), PipExecutionIOStepDelayedLimitMin, (int)runnablePip.StepDuration.TotalMinutes);
                 }
 
                 runnablePip.Observer.EndStep(runnablePip);

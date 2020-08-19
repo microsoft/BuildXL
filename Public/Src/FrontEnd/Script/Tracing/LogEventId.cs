@@ -345,6 +345,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         CGManifestValidationException = 9415,
         CGManifestGenerationException = 9416,
+
+        ReportBindingPatternInVariableDeclarationIsNowAllowed = 9417,
+
         // Obsolete syntax rules (starting from 9500)
 
         // Don't go beyond 9899

@@ -769,5 +769,14 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Module '{moduleName}' should not import itself.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void ReportModuleShouldNotImportItself(LoggingContext context, Location location, string moduleName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ReportBindingPatternInVariableDeclarationIsNowAllowed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Binding pattern in variable declarations '{bindingPattern}' is not allowed in DScript.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void ReportBindingPatternInVariableDeclarationIsNowAllowed(LoggingContext context, Location location, string bindingPattern);
     }
 }

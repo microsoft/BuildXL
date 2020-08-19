@@ -21952,7 +21952,7 @@ namespace TypeScript.Net.TypeChecking
             {
                 // In this case, we call GetSymbolOfNode instead of GetSymbolAtLocation because it is a declaration
                 var symbol = GetSymbolOfNode(node);
-                return GetTypeOfSymbol(symbol);
+                return symbol != null ? GetTypeOfSymbol(symbol) : null;
             }
 
             if (IsDeclarationName(node) != null)

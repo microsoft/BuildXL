@@ -213,8 +213,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             ForbidLogicInProjectsRule.CreateAndRegister(context);
             EnforceWellShapedRootNamespace.CreateAndRegister(context);
             ForbidModuleSelfReferencingRule.CreateAndRegister(context);
-
             ForbidMutableDataTypesInPublicSurface.CreateAndRegister(context);
+            ForbidBindingPatternInDeclarationRule.CreateAndRegister(context);
 
             // Configuration related rules.
             EnforceRootConfigStuctureRule.CreateAndRegister(context);

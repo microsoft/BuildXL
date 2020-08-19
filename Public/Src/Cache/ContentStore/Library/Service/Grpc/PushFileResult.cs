@@ -89,6 +89,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Status = CopyResultCode.Unknown;
         }
 
+        /// <nodoc />
+        public PushFileResult(CopyResultCode status, Exception exception, string? message = null)
+            : base(exception, message)
+        {
+            Contract.Requires(status != CopyResultCode.Success);
+
+            Status = status;
+        }
+
         /// <inheritdoc />
         public override bool Succeeded => Status.IsSuccess();
 

@@ -19,8 +19,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <param name="maxClientCount">Maximum number of clients to cache.</param>
         /// <param name="maxClientAgeMinutes">Maximum age of cached clients.</param>
         /// <param name="bufferSize">Buffer size used to read files from disk.</param>
-        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int? bufferSize = null)
-            : base(context, maxClientCount, maxClientAgeMinutes, (key) => new GrpcCopyClient(key, bufferSize))
+        /// <param name="copyTimeoutInSeconds">Timeout in seconds for copy operations</param>
+        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int? bufferSize = null, int? copyTimeoutInSeconds = null)
+            : base(context, maxClientCount, maxClientAgeMinutes, (key) => new GrpcCopyClient(key, bufferSize, copyTimeoutInSeconds))
         {
         }
 

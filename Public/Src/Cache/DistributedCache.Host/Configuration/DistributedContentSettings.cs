@@ -389,6 +389,13 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int MaxGrpcClientAgeMinutes { get; set; } = 55;
+
+        /// <summary>
+        /// Timeout for push/pull copy operations in seconds
+        /// </summary>
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? GrpcCopyConnectionTimeoutInSeconds { get; set; }
         #endregion
 
         #region Distributed Eviction

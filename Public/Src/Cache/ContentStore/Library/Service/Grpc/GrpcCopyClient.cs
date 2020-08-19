@@ -31,6 +31,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
+        private readonly TimeSpan _copyConnectionTimeout;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
@@ -43,12 +44,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize, int? copyTimeoutInSeconds)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
             _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _copyConnectionTimeout = copyTimeoutInSeconds.HasValue ? TimeSpan.FromSeconds(copyTimeoutInSeconds.Value) : ContentStore.Grpc.CopyConstants.DefaultConnectionTimeoutSeconds;
             Key = key;
         }
 
@@ -143,17 +145,26 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
-                {
-                    TraceId = context.TracingContext.Id.ToString(),
-                    HashType = (int)hash.HashType,
-                    ContentHash = hash.ToByteString(),
-                    Offset = 0,
-                    Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
-                };
+                                          {
+                                              TraceId = context.TracingContext.Id.ToString(),
+                                              HashType = (int)hash.HashType,
+                                              ContentHash = hash.ToByteString(),
+                                              Offset = 0,
+                                              Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
+                                          };
 
                 AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, cancellationToken: context.Token);
 
-                Metadata headers = await response.ResponseHeadersAsync;
+                Metadata headers;
+
+                try
+                {
+                    headers = await response.ResponseHeadersAsync.WithTimeoutAsync(_copyConnectionTimeout);
+                }
+                catch (TimeoutException t)
+                {
+                    return new CopyFileResult(CopyResultCode.ConnectionTimeoutError, t);
+                }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
                 // header collection. GRPC would throw an RpcException when we tried
@@ -286,8 +297,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 using var call = _client.PushFile(headers, cancellationToken: context.Token);
                 var requestStream = call.RequestStream;
+                Metadata responseHeaders;
 
-                var responseHeaders = await call.ResponseHeadersAsync;
+                try
+                {
+                    responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(_copyConnectionTimeout);
+
+                }
+                catch (TimeoutException t)
+                {
+                    return new PushFileResult(CopyResultCode.ConnectionTimeoutError, t);
+                }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
                 // header collection. To avoid an exception, exit early instead.

@@ -14,6 +14,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         Success,
 
         /// <summary>
+        /// The cause of the exception was connection timeout.
+        /// </summary>
+        ConnectionTimeoutError,
+
+        /// <summary>
         /// The cause of the exception was the destination path.
         /// </summary>
         DestinationPathError,

@@ -439,6 +439,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 host.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
+                            case CopyResultCode.ConnectionTimeoutError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
+                                Tracer.Warning(
+                                    context,
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
+                                host.ReportReputation(location, MachineReputation.Timeout);
+                                badContentLocations.Add(location);
+                                break;
                             case CopyResultCode.DestinationPathError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
                                 Tracer.Warning(

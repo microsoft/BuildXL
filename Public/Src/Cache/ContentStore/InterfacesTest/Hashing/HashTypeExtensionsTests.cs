@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
@@ -57,6 +58,40 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             foreach(var hashType in hashTypes)
             {
                 Analysis.IgnoreResult(hashType.IsValidDedup());
+            }
+        }
+
+        [Fact]
+        public void AssertChunkConfigForHashType()
+        {
+            var hashTypes = Enum.GetValues(typeof(HashType)).Cast<HashType>();
+            foreach(var hashType in hashTypes)
+            {
+                if (hashType.IsValidDedup())
+                {
+                   Analysis.IgnoreResult(hashType.GetChunkerConfiguration());
+                }
+                else
+                {
+                   Assert.Throws<NotImplementedException>(() => hashType.GetChunkerConfiguration());
+                }
+            }
+        }
+
+        [Fact]
+        public void AssertAvgChunkSizeForHashType()
+        {
+            var hashTypes = Enum.GetValues(typeof(HashType)).Cast<HashType>();
+            foreach(var hashType in hashTypes)
+            {
+                if (hashType.IsValidDedup())
+                {
+                    Analysis.IgnoreResult(hashType.GetAvgChunkSize());
+                }
+                else
+                {
+                    Assert.Throws<NotImplementedException>(() => hashType.GetAvgChunkSize());
+                }
             }
         }
     }

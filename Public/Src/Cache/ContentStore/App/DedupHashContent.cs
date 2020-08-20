@@ -34,9 +34,9 @@ namespace BuildXL.Cache.ContentStore.App
         public void DedupHashFile
             (
             [Required] string[] path,
+            [Required] string hashType,
             [DefaultValue(false)] bool chunks,
             [DefaultValue(false)] bool childNodes,
-            [DefaultValue(false)] bool rollingHash,
             [DefaultValue(FileSystemConstants.FileIOBufferSize)] int bufferSize,
             [DefaultValue((long)0)] long startOffset
             )
@@ -45,6 +45,11 @@ namespace BuildXL.Cache.ContentStore.App
 
             _displayChunks = chunks;
             _displayChildNodes = childNodes;
+
+            if (!Enum.TryParse(hashType, out HashType dedupHashType))
+            {
+                throw new ArgumentException($"HashType couldn't be inferred - {hashType}. Valid HashType is required.");
+            }
 
             var paths = new List<AbsolutePath>();
 
@@ -65,12 +70,11 @@ namespace BuildXL.Cache.ContentStore.App
             }
 
             var buffer = new byte[bufferSize];
-
-            using (var hasher = new DedupNodeHashAlgorithm(ChunkerConfiguration.Default, rollingHash ? DedupNodeTree.Algorithm.RollingHash : DedupNodeTree.Algorithm.MaximallyPacked))
+            using (var contentHasher = new DedupNodeOrChunkHashAlgorithm(new ManagedChunker(dedupHashType.GetChunkerConfiguration())))
             {
                 foreach (var p in paths)
                 {
-                    hasher.Initialize();
+                    contentHasher.Initialize();
                     TaskSafetyHelpers.SyncResultOnThreadPool(async () =>
                     {
                         using (Stream fs = await _fileSystem.OpenReadOnlySafeAsync(p, FileShare.Read | FileShare.Delete))
@@ -79,10 +83,10 @@ namespace BuildXL.Cache.ContentStore.App
                             int bytesRead;
                             while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
                             {
-                                hasher.TransformBlock(buffer, 0, bytesRead, null, 0);
+                                contentHasher.TransformBlock(buffer, 0, bytesRead, null, 0);
                             }
-                            hasher.TransformFinalBlock(new byte[0], 0, 0);
-                            DedupNode root = hasher.GetNode();
+                            contentHasher.TransformFinalBlock(new byte[0], 0, 0);
+                            DedupNode root = contentHasher.GetNode();
                             ulong offset = 0;
                             LogNode(true, string.Empty, root, p, ref offset);
                         }
@@ -105,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             if (displayChildNodes)
             {
-                var hash = new ContentHash(HashType.DedupNode, root.Hash);
+                var hash = "ROOT:" + root.HashString;
                 char newNodeChar = newNode ? '*' : 'd';
                 _logger.Always($"{indent}{hash} {newNodeChar} {path}");
             }

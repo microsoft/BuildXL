@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Vsts;
 using FluentAssertions;
@@ -17,19 +19,40 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Test
         [Theory]
         [InlineData(0)]
         [InlineData(1024)]
-        [InlineData(128*1024+1)] // Chunk size is 128 * 1024
-        public async Task CanGetHashFromFile(int fileLength)
+        [InlineData(2 * 64 *1024+1)] // File size is 128 * 1024 - max chunk is 64K * 2
+        public async Task CanGet64KChunkHashFromFile(int fileLength)
         {
-            using var stream = new MemoryStream(new byte[fileLength]);
-            var node = await DedupContentSession.GetDedupNodeFromFileAsync(HashType.Dedup64K, string.Empty, new TestFileSystem(stream), CancellationToken.None);
-            node.HashString.Should().NotBeNullOrEmpty();
+           using (var fileSystem = new PassThroughFileSystem())
+           using (var disposableDir = new DisposableDirectory(fileSystem))
+           {
+                var fileName = disposableDir.CreateRandomFileName();
+                fileSystem.WriteAllBytes(fileName, new byte[fileLength]);
+                var node = await DedupContentSession.GetDedupNodeFromFileAsync(HashType.Dedup64K, fileName.Path);
+                node.HashString.Should().NotBeNullOrEmpty();
+           }
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1024)]
+        [InlineData(2 * 1024 * 1024+1)] // File size is 1024 * 1024 - max chunk is 1024K * 2
+        public async Task CanGet1024kChunkHashFromFile(int fileLength)
+        {
+           using (var fileSystem = new PassThroughFileSystem())
+           using (var disposableDir = new DisposableDirectory(fileSystem))
+           {
+                var fileName = disposableDir.CreateRandomFileName();
+                fileSystem.WriteAllBytes(fileName, new byte[fileLength]);
+                var node = await DedupContentSession.GetDedupNodeFromFileAsync(HashType.Dedup1024K, fileName.Path);
+                node.HashString.Should().NotBeNullOrEmpty();
+           }
         }
 
         [MtaFact]
         public void ComChunkerWorksOnThreading()
         {
             Thread.CurrentThread.GetApartmentState().Should().Be(ApartmentState.MTA);
-            var chunker = new ComChunker(ChunkerConfiguration.Default);
+            var chunker = new ComChunker(ChunkerConfiguration.SupportedComChunkerConfiguration);
             Task.Run(() =>
             {
                 using var session = chunker.BeginChunking(chunk => { });

@@ -106,9 +106,6 @@ namespace Tool.DropDaemon
         }
 
         /// <nodoc/>
-        public override string ToString()
-        {
-            return FileId.ToString(m_file);
-        }
+        public override string ToString() => FileId.ToString(m_file);
     }
 }

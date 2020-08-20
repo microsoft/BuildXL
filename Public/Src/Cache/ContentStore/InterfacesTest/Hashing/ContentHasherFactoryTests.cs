@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                     continue;
                 }
 
-                if (hashType == HashType.DeprecatedVso0)
+                if (hashType == HashType.DeprecatedVso0 || hashType == HashType.DedupNode)
                 {
                     continue;
                 }

@@ -30,7 +30,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static IChunker Create(ChunkerConfiguration configuration)
         {
-            if (IsComChunkerSupported && ComChunkerLoadError.Value == null)
+            // Enforcing check earlier:
+            // Use COMchunker only IFF avgchunksize = 64K, Windows 64bit and the module is present.
+            // See 'IsComChunkerSupported'.
+            if (configuration.AvgChunkSize == ChunkerConfiguration.SupportedComChunkerConfiguration.AvgChunkSize &&
+                IsComChunkerSupported &&
+                ComChunkerLoadError.Value == null)
             {
                 try
                 {
@@ -49,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Returns whether or not this environment supports chunking via the COM library
         /// </summary>
         public static readonly bool IsComChunkerSupported =
-            (Environment.GetEnvironmentVariable("BUILDXL_TEST_FORCE_MANAGED_CHUNKER") != "1") &&
+            (Environment.GetEnvironmentVariable("BUILDXL_TEST_FORCE_MANAGED_CHUNKER") != "1") && // TODO: Get rid of COM Chunker.
             (IntPtr.Size == 8) && 
 #if NET_FRAMEWORK
             true;
@@ -62,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             try
             {
-                var chunker = new ComChunker(ChunkerConfiguration.Default);
+                var chunker = new ComChunker(ChunkerConfiguration.SupportedComChunkerConfiguration);
                 using var session = chunker.BeginChunking(chunk => { });
                 var content = new byte[1024 * 1024 + 1];
                 session.PushBuffer(content, 0, content.Length);

@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -14,10 +13,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
-using Microsoft.VisualStudio.Services.Content.Common;
 using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
 using VstsFileSystem = Microsoft.VisualStudio.Services.Content.Common.FileSystem;
 
@@ -85,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var dedupNode = await GetDedupNodeFromFileAsync(contentHash.HashType, path.Path, _artifactFileSystem, context.Token);
+                var dedupNode = await GetDedupNodeFromFileAsync(contentHash.HashType, path.Path);
                 var calculatedHash = dedupNode.ToContentHash(contentHash.HashType);
 
                 if (contentHash != calculatedHash)
@@ -131,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 var contentSize = GetContentSize(path);
-                var dedupNode = await GetDedupNodeFromFileAsync(hashType, path.Path, _artifactFileSystem, context.Token);
+                var dedupNode = await GetDedupNodeFromFileAsync(hashType, path.Path);
                 var contentHash = dedupNode.ToContentHash(hashType);
 
                 if (contentHash.HashType != hashType)
@@ -281,20 +280,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 innerCts));
         }
 
-        internal static Task<DedupNode> GetDedupNodeFromFileAsync(HashType hashType, string path, IFileSystem fileSystem, CancellationToken token)
+        /// <nodoc />
+        internal static async Task<DedupNode> GetDedupNodeFromFileAsync(HashType hashType, string path)
         {
-            switch(hashType)
+            var contentHasher = (DedupContentHasher<DedupNodeOrChunkHashAlgorithm>)ContentHashers.Get(hashType);
+            using (var stream = FileStreamUtility.OpenFileStreamForAsync(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
-                case HashType.Dedup64K:
-                    return ChunkerHelper.CreateFromFileAsync(
-                        fileSystem: fileSystem,
-                        path: path,
-                        cancellationToken: token,
-                        configureAwait: false); // TODO: Chunk size optimization - this will be replaced with a call that doesn't need to talk to blobstore.
-                case HashType.Dedup1024K:
-                    throw new NotImplementedException($"Hash type {hashType} is not supported."); // TODO: Chunk size optimization - this will be replaced with a call that doesn't need to talk to blobstore.
-                default:
-                    throw new ArgumentException($"Unexpected HashType '{hashType}' for DedupNode creation.");
+                return await contentHasher.HashContentAndGetDedupNodeAsync(stream);
             }
         }
     }

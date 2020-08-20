@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Deduplication node hash based on the chunk hash.
         /// </summary>
-        private sealed class DedupNodeOrChunkContentHasher : ContentHasher<DedupNodeOrChunkHashAlgorithm>
+        private sealed class DedupNodeOrChunkContentHasher : DedupContentHasher<DedupNodeOrChunkHashAlgorithm>
         {
             public DedupNodeOrChunkContentHasher()
                 : base(Instance)

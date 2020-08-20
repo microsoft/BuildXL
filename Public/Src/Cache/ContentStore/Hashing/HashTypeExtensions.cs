@@ -29,6 +29,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+        private static readonly Dictionary<HashType, NodeAlgorithmId> TypeToAlgorithmId =
+            new Dictionary<HashType, NodeAlgorithmId>()
+            {
+                {HashType.Dedup64K, NodeAlgorithmId.Node64K},
+                {HashType.Dedup1024K, NodeAlgorithmId.Node1024K},
+            };
+
+        private static readonly IReadOnlyDictionary<HashType, int> TypeToAvgChunkSize =
+            new Dictionary<HashType, int>()
+            {
+                {HashType.Dedup64K, 64 * 1024},
+                {HashType.Dedup1024K, 1024 * 1024},
+            };
+
         /// <summary>
         ///     Lookup a hash type by case-insensitive name string.
         /// </summary>
@@ -61,7 +75,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static bool Deserialize(this string value, out HashType hashType)
         {
             Contract.Requires(value != null);
-
             return NameToValue.TryGetValue(value, out hashType);
         }
 
@@ -90,6 +103,32 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 default:
                     throw new NotImplementedException($"Unsupported enum {hashType} of type {nameof(HashType)} encountered.");
             }
+        }
+
+        /// <nodoc />
+        public static ChunkerConfiguration GetChunkerConfiguration(this HashType hashType)
+        {
+            return hashType.IsValidDedup() ?
+                new ChunkerConfiguration(hashType.GetAvgChunkSize()) :
+                throw new NotImplementedException($"Unsupported enum {hashType} of type {nameof(HashType)} encountered.");
+        }
+
+        /// <nodoc />
+        public static int GetAvgChunkSize(this HashType hashType)
+        {
+            if (!hashType.IsValidDedup()) {throw new NotImplementedException($"{hashType.Serialize()} doesn't support chunking.");}
+            var hit = TypeToAvgChunkSize.TryGetValue(hashType, out var avgChunkSize);
+            if (!hit) {throw new NotImplementedException($"{nameof(GetAvgChunkSize)}: No average chunk size found for hash type {hashType.Serialize()}.");}
+            return avgChunkSize;
+        }
+
+        /// <nodoc />
+        public static NodeAlgorithmId GetNodeAlgorithmId(this HashType hashType)
+        {
+            if (!hashType.IsValidDedup()) {throw new NotImplementedException($"{hashType.Serialize()} doesn't support chunking.");}
+            var hit = TypeToAlgorithmId.TryGetValue(hashType, out var nodeAlgorithmId);
+            if (!hit) {throw new NotImplementedException($"{nameof(GetNodeAlgorithmId)}: No algorithm id found for hash type {hashType.Serialize()}.");}
+            return nodeAlgorithmId;
         }
     }
 }

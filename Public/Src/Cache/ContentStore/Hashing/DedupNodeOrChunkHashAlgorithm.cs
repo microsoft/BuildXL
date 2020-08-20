@@ -15,7 +15,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public class DedupNodeOrChunkHashAlgorithm : HashAlgorithm, IHashAlgorithmInputLength, IHashAlgorithmBufferPool
     {
         private readonly List<ChunkInfo> _chunks = new List<ChunkInfo>();
-        private readonly DedupNodeTree.Algorithm _treeAlgorithm;
         private readonly IChunker _chunker;
         private readonly DedupChunkHashAlgorithm _chunkHasher = new DedupChunkHashAlgorithm();
         private IChunkerSession? _session;
@@ -23,24 +22,26 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private bool _chunkingStarted;
         private long _bytesChunked;
         private DedupNode? _lastNode;
+        private const HashType NodeOrChunkTargetHashType = HashType.Dedup64K;
 
         /// <inheritdoc />
         public override int HashSize => 8 * DedupNode64KHashInfo.Length;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DedupNodeOrChunkHashAlgorithm"/> class.
+        /// GetHashType - retrieves the hash type configuration to use.
         /// </summary>
-        public DedupNodeOrChunkHashAlgorithm()
-            : this(DedupNodeTree.Algorithm.MaximallyPacked, Chunker.Create(ChunkerConfiguration.Default))
+        public virtual HashType DedupHashType => NodeOrChunkTargetHashType;
+
+        /// <nodoc />
+        public DedupNodeOrChunkHashAlgorithm() :
+            this(Chunker.Create(NodeOrChunkTargetHashType.GetChunkerConfiguration()))
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DedupNodeOrChunkHashAlgorithm"/> class.
-        /// </summary>
-        public DedupNodeOrChunkHashAlgorithm(DedupNodeTree.Algorithm treeAlgorithm, IChunker chunker)
+        /// <nodoc />
+        public DedupNodeOrChunkHashAlgorithm(IChunker chunker)
         {
-            _treeAlgorithm = treeAlgorithm;
+            if (!ChunkerConfiguration.IsValidChunkSize(chunker.Configuration)) {throw new NotImplementedException($"Unsupported chunk size specified: {chunker.Configuration.AvgChunkSize} in bytes.");}
             _chunker = chunker;
             Initialize();
         }
@@ -54,10 +55,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc/>
-        public Pool<byte[]>.PoolHandle GetBufferFromPool()
-        {
-            return _chunker.GetBufferFromPool();
-        }
+        public Pool<byte[]>.PoolHandle GetBufferFromPool() => _chunker.GetBufferFromPool();
 
         /// <summary>
         /// Creates a copy of the chunk list.
@@ -122,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             if (SingleChunkHotPath)
             {
-                Contract.Assert(_chunks.Count == 0, $"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
+                Contract.Check(_chunks.Count == 0)?.Assert($"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
                 Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
                 Contract.Assert(_session == null);
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
@@ -146,7 +144,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 }
                 else
                 {
-                    return DedupNodeTree.Create(_chunks, _treeAlgorithm);
+                    return DedupNodeTree.Create(_chunks);
                 }
             }
         }
@@ -184,19 +182,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
             else
             {
-                // TODO: Chunk size optimization: This gets replaced with a nicer Chunk config <--> hash type mapper to take care of this in the subsequent PRs.
-                if (_chunker.Configuration.AvgChunkSize == 1024 * 1024) // 1MB
-                {
-                    result[bytes.Length] = (byte)NodeAlgorithmId.Node1024K;
-                }
-                else if (_chunker.Configuration.AvgChunkSize == 64 * 1024) // 64K (default)
-                {
-                    result[bytes.Length] = (byte)NodeAlgorithmId.Node64K;
-                }
-                else
-                {
-                    throw new NotImplementedException($"Unsupported average chunk size specified (in bytes): {_chunker.Configuration.AvgChunkSize}.");
-                }
+                result[bytes.Length] = (byte)ChunkerConfiguration.GetNodeAlgorithmId(_chunker.Configuration);
             }
 
             return result;

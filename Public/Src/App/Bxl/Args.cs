@@ -398,26 +398,13 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableHistoricCommitMemoryProjection",
                             sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "enableDedup", // TODO: Chunk size optimization
-                            sign =>
-                            {
-                                if (sign)
-                                {
-                                    ContentHashingUtilities.SetDefaultHashType(HashType.Dedup64K);// Keep this as default for now.
-                                    cacheConfiguration.UseDedupStore = true;
-                                }
-                            }),
                         OptionHandlerFactory.CreateOption(
                             "hashType",
                             option =>
                             {
                                 var hashType = option.Value.FindHashTypeByName();
                                 ContentHashingUtilities.SetDefaultHashType(hashType);
-                                if (hashType.IsValidDedup())
-                                {
-                                    cacheConfiguration.UseDedupStore = true;
-                                }
+                                cacheConfiguration.UseDedupStore = hashType.IsValidDedup();
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",

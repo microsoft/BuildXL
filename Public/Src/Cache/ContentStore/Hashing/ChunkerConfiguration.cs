@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -9,12 +10,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     /// Structure that holds the configuration for the chunker
     /// </summary>
-    public struct ChunkerConfiguration
+    public readonly struct ChunkerConfiguration
     {
+        private static readonly IReadOnlyDictionary<int, NodeAlgorithmId> ChunkSizeToAlgorithmId =
+            new Dictionary<int, NodeAlgorithmId>()
+        {
+            {64 * 1024, NodeAlgorithmId.Node64K},
+            {1024 * 1024, NodeAlgorithmId.Node1024K},
+        };
+
         /// <summary>
-        /// This is the default that was used before the chunker was configurable.
+        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
+        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
         /// </summary>
-        public static readonly ChunkerConfiguration Default;
+        private const int OriginalPushBufferSize = 1024 * 1024;
 
         /// <summary>
         /// Smallest chunker the chunker will split.  Small files will be smaller than this.
@@ -33,25 +42,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         static ChunkerConfiguration()
         {
-            int avgChunkSize;
-            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_AVG_CHUNK_SIZE"), out avgChunkSize))
+            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_AVG_CHUNK_SIZE"), out var avgChunkSize))
             {
                 avgChunkSize = 64 * 1024;
             }
 
-            int minChunkSize;
-            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_MIN_CHUNK_SIZE"), out minChunkSize))
+            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_MIN_CHUNK_SIZE"), out var minChunkSize))
             {
                 minChunkSize = avgChunkSize / 2;
             }
 
-            int maxChunkSize;
-            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_MAX_CHUNK_SIZE"), out maxChunkSize))
+            if (!int.TryParse(Environment.GetEnvironmentVariable("BUILDXL_TEST_MAX_CHUNK_SIZE"), out var maxChunkSize))
             {
                 maxChunkSize = avgChunkSize * 2;
             }
 
-            Default = new ChunkerConfiguration(minChunkSize, avgChunkSize, maxChunkSize);
+            SupportedComChunkerConfiguration = new ChunkerConfiguration(minChunkSize, avgChunkSize, maxChunkSize);
         }
 
         /// <summary>
@@ -77,11 +83,26 @@ namespace BuildXL.Cache.ContentStore.Hashing
             MaxChunkSize = maxChunkSize;
         }
 
+        /// <nodoc />
+        public static NodeAlgorithmId GetNodeAlgorithmId(ChunkerConfiguration chunkerConfiguration)
+        {
+            var hit = ChunkSizeToAlgorithmId.TryGetValue(chunkerConfiguration.AvgChunkSize, out var nodeAlgorithmId);
+            if (!hit) {throw new NotImplementedException($"{nameof(GetNodeAlgorithmId)}: No algorithm id found for chunker with avg chnk size: {chunkerConfiguration.AvgChunkSize} bytes.");}
+            return nodeAlgorithmId;
+        }
+
+        /// <nodoc />
+        public static bool IsValidChunkSize(ChunkerConfiguration chunkerConfiguration)
+        {
+            return (
+                chunkerConfiguration.AvgChunkSize == HashType.Dedup64K.GetAvgChunkSize() ||
+                chunkerConfiguration.AvgChunkSize == HashType.Dedup1024K.GetAvgChunkSize());
+        }
+
         /// <summary>
-        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
-        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
+        /// This is the *ONLY* supported configuration for COMChunker.
         /// </summary>
-        private const int OriginalPushBufferSize = 1024 * 1024;
+        public static ChunkerConfiguration SupportedComChunkerConfiguration { get; private set; }
 
         /// <summary>
         /// Consumers should push buffers of at least this size when possible to prevent extra copying.

@@ -66,55 +66,75 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public HasherToken CreateToken() => new HasherToken(_algorithmsPool.Get());
 
-        /// <inheritdoc />
-        public async Task<ContentHash> GetContentHashAsync(StreamWithLength content)
+        /// <summary>
+        /// GetContentHashInternalAsync - for internal use only.
+        /// </summary>
+        /// <param name="content">Content stream with length.</param>
+        /// <returns>A tuple of content hash and dedup node.</returns>
+        protected async Task<(ContentHash, DedupNode?)> GetContentHashInternalAsync(StreamWithLength content)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                using (var hasherHandle = CreateToken()) 
+                using var hasherHandle = CreateToken();
+                var hasher = hasherHandle.Hasher;
+
+                IPoolHandle<byte[]> bufferHandle;
+                if (hasher is IHashAlgorithmBufferPool bufferPool)
                 {
-                    var hasher = hasherHandle.Hasher;
+                    bufferHandle = bufferPool.GetBufferFromPool();
+                }
+                else
+                {
+                    bufferHandle = _bufferPool.Get();
+                }
 
-                    IPoolHandle<byte[]> bufferHandle;
-                    if (hasher is IHashAlgorithmBufferPool bufferPool)
+                using (bufferHandle)
+                {
+                    var buffer = bufferHandle.Value;
+
+                    if (hasher is IHashAlgorithmInputLength sizeHint)
                     {
-                        bufferHandle = bufferPool.GetBufferFromPool();
+                        sizeHint.SetInputLength(content.Length - content.Stream.Position);
                     }
-                    else
+
+                    int bytesJustRead;
+
+                    do
                     {
-                        bufferHandle = _bufferPool.Get();
-                    }
-
-                    using (bufferHandle)
-                    {
-                        var buffer = bufferHandle.Value;
-
-                        if (hasher is IHashAlgorithmInputLength sizeHint)
-                        {
-                            sizeHint.SetInputLength(content.Length - content.Stream.Position);
-                        }
-
-                        int bytesJustRead;
-
+                        int totalBytesRead = 0;
+                        int bytesNeeded = buffer.Length - totalBytesRead;
                         do
                         {
-                            int totalBytesRead = 0;
-                            int bytesNeeded = buffer.Length - totalBytesRead;
-                            do
-                            {
-                                bytesJustRead = await content.Stream.ReadAsync(buffer, totalBytesRead, buffer.Length - totalBytesRead).ConfigureAwait(false);
-                                totalBytesRead += bytesJustRead;
-                                bytesNeeded -= bytesJustRead;
-                            } while (bytesNeeded > 0 && bytesJustRead != 0);
+                            bytesJustRead = await content.Stream.ReadAsync(buffer, totalBytesRead, buffer.Length - totalBytesRead).ConfigureAwait(false);
+                            totalBytesRead += bytesJustRead;
+                            bytesNeeded -= bytesJustRead;
+                        } while (bytesNeeded > 0 && bytesJustRead != 0);
 
-                            hasher.TransformBlock(buffer, 0, totalBytesRead, null, 0);
-                        } while (bytesJustRead > 0);
+                        hasher.TransformBlock(buffer, 0, totalBytesRead, null, 0);
+                    } while (bytesJustRead > 0);
 
-                        hasher.TransformFinalBlock(buffer, 0, 0);
-                        var hashBytes = hasher.Hash;
-                        return new ContentHash(Info.HashType, hashBytes);
+                    hasher.TransformFinalBlock(buffer, 0, 0);
+                    var hashBytes = hasher.Hash;
+
+                    // Retrieve the DedupNode before losing the hasher token.
+                    switch (Info.HashType)
+                    {
+                        case HashType.Dedup64K:
+                        case HashType.Dedup1024K:
+                            var contentHasher = (DedupNodeOrChunkHashAlgorithm)hasher;
+                            return (new ContentHash(Info.HashType, hashBytes), contentHasher.GetNode());
+                        case HashType.SHA1:
+                        case HashType.SHA256:
+                        case HashType.MD5:
+                        case HashType.Vso0:
+                        case HashType.DedupSingleChunk:
+                        case HashType.DedupNode:
+                        case HashType.Murmur:
+                            return (new ContentHash(Info.HashType, hashBytes), null);
+                        default:
+                            throw new NotImplementedException($"Unsupported hashtype: {Info.HashType} encountered when hashing content.");
                     }
                 }
             }
@@ -124,6 +144,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 Interlocked.Add(ref _ticks, stopwatch.Elapsed.Ticks);
                 Interlocked.Increment(ref _calls);
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<ContentHash> GetContentHashAsync(StreamWithLength content)
+        {
+            var (contentHash, _) = await GetContentHashInternalAsync(content);
+            return contentHash;
         }
 
         /// <inheritdoc />

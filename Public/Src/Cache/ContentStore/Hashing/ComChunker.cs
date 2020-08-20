@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             // The order in which these need to be set depends on whether we are going bigger or smaller
             // than the default.
-            if (config.MaxChunkSize < ChunkerConfiguration.Default.MaxChunkSize)
+            if (config.MaxChunkSize < ChunkerConfiguration.SupportedComChunkerConfiguration.MaxChunkSize)
             {
                 Array.Reverse(configures);
             }

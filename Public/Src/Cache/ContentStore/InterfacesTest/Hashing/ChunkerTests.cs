@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
@@ -17,11 +18,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         public void CanEnumerateChunksInChunk()
         {
             DedupNode rootFromhash;
-            using (var hasher = new DedupNodeHashAlgorithm())
+            using (var hasher = new DedupNodeOrChunkHashAlgorithm())
             {
                 hasher.SetInputLength(1);
                 hasher.ComputeHash(new byte[1]);
-                rootFromhash = hasher.GetNode().ChildNodes.Single();
+                rootFromhash = hasher.GetNode();
             }
 
             Assert.Equal(rootFromhash.HashString, rootFromhash.EnumerateChunkLeafsInOrder().Single().HashString);
@@ -30,17 +31,24 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void ChunksEnumeratedAsFileIsReadManaged()
         {
-            ChunksEnumeratedAsFileIsRead(() => new ManagedChunker(ChunkerConfiguration.Default));
+            var hashTypes = Enum.GetValues(typeof(HashType)).Cast<HashType>();
+            foreach(var hashType in hashTypes)
+            {
+                if (hashType.IsValidDedup())
+                {
+                   ChunksEnumeratedAsFileIsRead(() => new ManagedChunker(hashType.GetChunkerConfiguration()), hashType);
+                }
+            }
         }
 
         [MtaFact]
         [Trait("Category", "WindowsOSOnly")]
         public void ChunksEnumeratedAsFileIsReadCOM()
         {
-            ChunksEnumeratedAsFileIsRead(() => new ComChunker(ChunkerConfiguration.Default));
+            ChunksEnumeratedAsFileIsRead(() => new ComChunker(ChunkerConfiguration.SupportedComChunkerConfiguration), HashType.Dedup64K);
         }
 
-        private void ChunksEnumeratedAsFileIsRead(Func<IChunker> chunkerFactory)
+        private void ChunksEnumeratedAsFileIsRead(Func<IChunker> chunkerFactory, HashType hashType)
         {
             var chunks = new List<ChunkInfo>();
 
@@ -73,7 +81,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
             DedupNode rootFromhash;
             string[] actualChunkHashes;
-            using (var hasher = new DedupNodeHashAlgorithm())
+
+            using (var hasher = new DedupNodeOrChunkHashAlgorithm(Chunker.Create(hashType.GetChunkerConfiguration())))
             {
                 hasher.SetInputLength(bytes.Length);
                 hasher.ComputeHash(bytes);

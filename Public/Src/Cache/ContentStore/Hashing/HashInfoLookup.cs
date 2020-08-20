@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -13,26 +13,28 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public static class HashInfoLookup
     {
         private static readonly IReadOnlyDictionary<HashType, HashInfo> HashInfoByType = new Dictionary<HashType, HashInfo>
-            {
-                {HashType.SHA1, SHA1HashInfo.Instance},
-                {HashType.SHA256, SHA256HashInfo.Instance},
-                {HashType.MD5, MD5HashInfo.Instance},
-                {HashType.Vso0, VsoHashInfo.Instance},
-                {HashType.DedupSingleChunk, DedupSingleChunkHashInfo.Instance},
-                {HashType.DedupNode, DedupNodeHashInfo.Instance},
-                {HashType.Dedup64K, DedupNode64KHashInfo.Instance},
-                {HashType.Dedup1024K, DedupNodeOrChunk1024KHashInfo.Instance},
-                {HashType.DeprecatedVso0, VsoHashInfo.Instance},
-                {HashType.Murmur, MurmurHashInfo.Instance }
-            };
+        {
+            {HashType.SHA1, SHA1HashInfo.Instance},
+            {HashType.SHA256, SHA256HashInfo.Instance},
+            {HashType.MD5, MD5HashInfo.Instance},
+            {HashType.Vso0, VsoHashInfo.Instance},
+            {HashType.DedupSingleChunk, DedupSingleChunkHashInfo.Instance},
+            {HashType.Dedup64K, DedupNode64KHashInfo.Instance},
+            {HashType.Dedup1024K, Dedup1024KHashInfo.Instance},
+            {HashType.DeprecatedVso0, VsoHashInfo.Instance},
+            {HashType.Murmur, MurmurHashInfo.Instance},
+        };
 
         /// <summary>
         ///     Create a HashInfo instance from HashType.
         /// </summary>
         public static HashInfo Find(HashType hashType)
         {
-            Contract.Check(HashInfoByType.ContainsKey(hashType))?.Assert($"Invalid HashType passed for HashInfoLookup: [{hashType.ToString()}], hashCode: {hashType.GetHashCode()}");
-            return HashInfoByType[hashType];
+            var hit = HashInfoByType.TryGetValue(hashType, out var hashInfo);
+            if (!hit) {throw new NotImplementedException($"Invalid HashType passed for HashInfoLookup: {hashType.Serialize()}, hashCode: {hashType.GetHashCode()}");}
+#pragma warning disable CS8603 // Possible null reference return.
+            return hashInfo;
+#pragma warning restore CS8603 // Possible null reference return.
         }
 
         /// <summary>

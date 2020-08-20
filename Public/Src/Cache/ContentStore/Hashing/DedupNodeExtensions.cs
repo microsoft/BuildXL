@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     hash = node.GetDedupIdentifier(hashType).ToBlobIdentifier().Bytes;
                     break;
                 default:
-                    throw new ArgumentException($"Unexpected HashType '{hashType}' for DedupNode.");
+                    throw new NotImplementedException($"Unexpected HashType '{hashType}' for DedupNode.");
             }
 
             return new ContentHash(hashType, hash);
@@ -50,8 +50,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
             }
-            // TODO: Chunk size optimization - the hash-algo mapper will take care of this.
-            // for now use default.
             return new NodeDedupIdentifier(node.Hash, (NodeAlgorithmId)AlgorithmIdLookup.Find(hashType));
         }
 

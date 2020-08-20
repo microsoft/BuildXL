@@ -101,6 +101,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 .RunAsync(caller);
         }
 
+        /// <summary>
+        /// Track metric with a given name and a value in MDM.
+        /// </summary>
+        public void TrackMetric(string name, long value, string tracerName) => TracingContext.TrackMetric(name, value, tracerName);
+
         /// <nodoc />
         public T PerformOperation<T>(
             Tracer operationTracer,

@@ -1660,6 +1660,12 @@ namespace BuildXL.Processes
                                     m_containerConfiguration,
                                     pipProperties);
                             }
+                            else if (ShouldSandboxedProcessExecuteInVm && !exitedWithSuccessExitCode) {
+                                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                                    SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                                    RetryInfo.GetDefault(RetryReason.VmPipUnsuccessfulExit),
+                                    primaryProcessTimes: result.PrimaryProcessTimes);
+                            }
                         }
                     }
                 }

@@ -158,20 +158,6 @@ namespace ExternalToolTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExecutionRespectFailure()
-        {
-            ProcessBuilder builder = CreatePipBuilder(new[] {
-                Operation.ReadFile(CreateSourceFile()),
-                Operation.Fail(),
-                Operation.WriteFile(CreateOutputFileArtifact()) });
-            builder.Options |= Process.Options.RequiresAdmin;
-            ProcessWithOutputs process = SchedulePipBuilder(builder);
-
-            RunScheduler().AssertFailure();
-            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
-        }
-
-        [Fact]
         public void ExecutionRespectFileAccessManifest()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile(), doNotInfer: true), Operation.WriteFile(CreateOutputFileArtifact()) });

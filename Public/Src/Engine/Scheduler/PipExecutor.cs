@@ -1811,6 +1811,12 @@ namespace BuildXL.Scheduler
                         }
                     }
 
+                    if (result.RetryInfo?.RetryLocation == RetryLocation.DifferentWorker)
+                    {
+                        Logger.Log.PipProcessToBeRetriedOnDifferentWorker(operationContext,
+                            processDescription, result.RetryInfo.RetryReason.ToString());
+                    }
+
                     if (result.RetryInfo?.RetryReason == RetryReason.UserSpecifiedExitCode)
                     {
                         Contract.Assert(remainingUserRetries > 0);
@@ -1837,7 +1843,6 @@ namespace BuildXL.Scheduler
                             else // Case: RetryLocation.Both
                             {
                                 Logger.Log.PipProcessToBeRetriedOnDifferentWorker(operationContext,
-                                    InternalSandboxedProcessExecutionFailureRetryCountMax,
                                     processDescription, result.RetryInfo.RetryReason.ToString());
                                 break;
                             }

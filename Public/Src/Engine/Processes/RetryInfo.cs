@@ -94,6 +94,7 @@ namespace BuildXL.Processes
                 case RetryReason.ProcessStartFailure:
                 case RetryReason.TempDirectoryCleanupFailure:
                 case RetryReason.StoppedWorker:
+                case RetryReason.VmPipUnsuccessfulExit:
                     return RetryOnDifferentWorker(reason);
 
                 case RetryReason.OutputWithNoFileAccessFailed:
@@ -182,6 +183,11 @@ namespace BuildXL.Processes
         /// The sandboxed process may be retried due to failures caused during VM execution.
         /// </summary>
         VmExecutionError = 8,
+
+        /// <summary>
+        /// The sandboxed process may be retried due to unsuccessful exit code from the VM execution.
+        /// </summary>
+        VmPipUnsuccessfulExit = 9,
     }
 
     /// <summary>
@@ -214,7 +220,9 @@ namespace BuildXL.Processes
         /// </summary>
         public static bool IsPrepOrVmFailure(this RetryReason? retryReason)
         {
-            return retryReason.IsPrepRetryableFailure() || retryReason == RetryReason.VmExecutionError;
+            return retryReason.IsPrepRetryableFailure() || 
+                retryReason == RetryReason.VmExecutionError ||
+                retryReason == RetryReason.VmPipUnsuccessfulExit;
         }
 
         /// <summary>

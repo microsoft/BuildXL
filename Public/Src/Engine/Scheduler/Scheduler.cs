@@ -4235,8 +4235,8 @@ namespace BuildXL.Scheduler
                             {
                                 if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
                                 {
-                                    LogRetryOnDifferentWorkerErrors(executionResult.RetryInfo.RetryReason, operationContext, processRunnable.Process, processRunnable.Description);
-                                    Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToRetryableFailures);
+                                    Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description, 
+                                        processRunnable.Performance.RetryCountDueToRetryableFailures, executionResult.RetryInfo.RetryReason.ToString());
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
                                 }
                                 else
@@ -4444,19 +4444,6 @@ namespace BuildXL.Scheduler
         private bool ShouldCancelPip(RunnablePip runnablePip)
         {
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
-        }
-
-        private static void LogRetryOnDifferentWorkerErrors(RetryReason retryReason, OperationContext operationContext, Process pip, string processDescription)
-        {
-            switch (retryReason)
-            {
-                case RetryReason.VmExecutionError:
-                    Logger.Log.PipFailureDueToVmErrors(
-                        operationContext,
-                        pip.SemiStableHash,
-                        processDescription);
-                    return;
-            }
         }
 
         private List<string> FlagAndReturnScrubbableSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)

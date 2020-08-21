@@ -3625,8 +3625,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip will be retried due to a retryable failure: {cancellationReason}.")]
-        internal abstract void PipRetryDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, string cancellationReason);
+            Message = "[{pipDescription}] Pip will be retried due to a retryable failure: {retryReason}.")]
+        internal abstract void PipRetryDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, string retryReason);
 
         [GeneratedEvent(
             (ushort)LogEventId.EmptyWorkingSet,
@@ -3661,8 +3661,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip retried {retryLimit} times due to retryable failures. Maximum allowed retries per Pip can be changed by the bxl argument /maxRetriesDueToRetryableFailures:<int>.")]
-        internal abstract void ExcessivePipRetriesDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, int retryLimit);
+            Message = "[{pipDescription}] Pip retried {retryLimit} times and failed with Retry Reason: {retryReason}. Maximum allowed retries per Pip can be changed by the bxl argument /maxRetriesDueToRetryableFailures:<int>.")]
+        internal abstract void ExcessivePipRetriesDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, int retryLimit, string retryReason);
 
         [GeneratedEvent(
             (ushort)LogEventId.HandlePipStepOnWorkerFailed,
@@ -3688,17 +3688,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip failed {limit} times on the same worker due to '{reason}'. Will be retried on another worker.")]
-        public abstract void PipProcessToBeRetriedOnDifferentWorker(LoggingContext context, int limit, string pipDescription, string reason);
-
-        [GeneratedEvent(
-            (int)LogEventId.PipFailureDueToVmErrors,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip exited due to VM related failures. May have been retired on multiple workers before failing.")]
-        public abstract void PipFailureDueToVmErrors(LoggingContext context, long pipSemiStableHash, string pipDescription);
+            Message = "[{pipDescription}] Pip failed due to '{reason}'. Will be retried on another worker.")]
+        public abstract void PipProcessToBeRetriedOnDifferentWorker(LoggingContext context, string pipDescription, string reason);
     }
 }
 #pragma warning restore CA1823 // Unused field

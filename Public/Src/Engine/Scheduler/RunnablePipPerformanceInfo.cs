@@ -99,20 +99,18 @@ namespace BuildXL.Scheduler
 
         internal void Retried(RetryInfo pipRetryInfo)
         {
-            Contract.Requires(pipRetryInfo != null, "If retry occurs, we need to have a retry information (reason and location)");
+            Contract.Requires(pipRetryInfo?.RetryReason != null, "If retry occurs, we need to have a retry reason");
 
             switch (pipRetryInfo.RetryReason)
             {
                 case RetryReason.ResourceExhaustion:
                     RetryCountDueToLowMemory++;
                     break;
-                case RetryReason.VmExecutionError:
-                case RetryReason.ProcessStartFailure:
-                case RetryReason.TempDirectoryCleanupFailure:
-                    RetryCountDueToRetryableFailures++;
-                    break;
                 case RetryReason.StoppedWorker:
                     RetryCountDueToStoppedWorker++;
+                    break;
+                default:
+                    RetryCountDueToRetryableFailures++;
                     break;
             }
         }

@@ -926,43 +926,15 @@ namespace BuildXL.Scheduler
 
             // Static outputs under exclusive opaques are blocked by construction
             // Same for sealed source directories under exclusive opaques (not allowed at graph construction time)
-            // So the only cases left are:
-            // * The dynamic one. Observe that double writes are also not allowed by construction, so
+            // So the only cases left is the dynamic one. Observe that double writes are also not allowed by construction, so
             // this is effectively about writes in undeclared sources and absent file probes
-            // * Content under directory exclusions. Observe this case doesn't have a shared opaque correlate here since
-            // the detours-based approach for shared opaques already takes care of this just by not attributing the corresponding writes
-            // to the owning shared opaque directory
             foreach ((_, ReadOnlyArray<FileArtifactWithAttributes> directoryContent) in exclusiveOpaqueContent)
             {
                 foreach (FileArtifactWithAttributes fileArtifact in directoryContent)
                 {
                     var outputArtifactInfo = GetOutputMaterializationInfo(outputArtifactsInfo, fileArtifact.ToFileArtifact());
                     RegisterWriteInPathAndUpdateViolations(pip, fileArtifact, reportedViolations, outputArtifactInfo, out _);
-                    ReportExclusiveOpaqueExclusions(pip, reportedViolations, fileArtifact, outputDirectoryExclusionSet);
                 }
-            }
-        }
-
-        private void ReportExclusiveOpaqueExclusions(
-            Process pip,
-            List<ReportedViolation> reportedViolations,
-            FileArtifactWithAttributes fileArtifact,
-            HashSet<AbsolutePath> outputDirectoryExclusions)
-        {
-            // If an exclusive opaque file is under a directory exclusion, the violation is reported as an undeclared output. This matches
-            // the shared opaque case.
-            if (IsFileUnderAnExclusion(fileArtifact.Path, outputDirectoryExclusions, Context.PathTable))
-            {
-                reportedViolations.Add(
-                    HandleDependencyViolation(
-                        DependencyViolationType.UndeclaredOutput,
-                        AccessLevel.Write,
-                        fileArtifact.Path,
-                        pip,
-                        isAllowlistedViolation: false,
-                        related: null,
-                        // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
-                        pip.Executable.Path));
             }
         }
 
@@ -1787,27 +1759,6 @@ namespace BuildXL.Scheduler
             Contract.Requires(requestedAccess != RequestedAccess.None);
 
             return (requestedAccess & RequestedAccess.Write) != 0 ? AccessLevel.Write : AccessLevel.Read;
-        }
-
-        private static bool IsFileUnderAnExclusion(AbsolutePath path, HashSet<AbsolutePath> outputDirectoryExclusions, PathTable pathTable)
-        {
-            // If there are no exclusions, shortcut the search
-            if (outputDirectoryExclusions.Count == 0)
-            {
-                return false;
-            }
-
-            // TODO: Consider adding a cache, since it is likely there are many files under the same directory
-            foreach (var current in pathTable.EnumerateHierarchyBottomUp(path.Value))
-            {
-                var currentAsPath = new AbsolutePath(current);
-                if (outputDirectoryExclusions.Contains(currentAsPath))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>

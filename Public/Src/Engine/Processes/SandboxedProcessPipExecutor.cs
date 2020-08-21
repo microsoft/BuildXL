@@ -2292,10 +2292,15 @@ namespace BuildXL.Processes
 
                     foreach (DirectoryArtifact directory in pip.DirectoryOutputs)
                     {
+                        // Compute whether the output directory is under an exclusion. In that case we want to block writes, but configure the rest of the policy in the regular way so tools
+                        // can operate normally as long as they don't produce any outputs under it
+                        bool isUnderAnExclusion = (pip.OutputDirectoryExclusions.Any(exclusion => directory.Path.IsWithin(m_pathTable, exclusion)));
+                        
                         // We need to allow the real timestamp to be seen under a directory output (since these are outputs). If this directory output happens to share the root with
                         // a directory dependency (shared opaque case), this is overridden for specific input files when processing directory dependencies below
                         var values =
-                            FileAccessPolicy.AllowAll | // Symlink creation is allowed under opaques.
+                            // If under an exclusion, only allow reads. Otherwise all operations are allowed.
+                            (isUnderAnExclusion ? FileAccessPolicy.AllowReadAlways : FileAccessPolicy.AllowAll) |
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
                             (directory.IsSharedOpaque ? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
@@ -2308,6 +2313,9 @@ namespace BuildXL.Processes
 
                         // For exclusive opaques, we don't need reporting back and the content is discovered by enumerating the disk
                         var mask = directory.IsSharedOpaque ? FileAccessPolicy.MaskNothing : m_excludeReportAccessMask;
+                        
+                        // If the output directory is under an exclusion, block writes and symlink creation
+                        mask &= isUnderAnExclusion ? ~FileAccessPolicy.AllowWrite & ~FileAccessPolicy.AllowSymlinkCreation : FileAccessPolicy.MaskNothing;
 
                         var directoryPath = directory.Path;
 
@@ -2354,6 +2362,13 @@ namespace BuildXL.Processes
 
                             m_fileAccessManifest.AddScope(directory, mask: mask, values: values);
                         }
+                    }
+
+                    // Process exclusions
+                    foreach (AbsolutePath exclusion in pip.OutputDirectoryExclusions)
+                    {
+                        // We deny any writes (including symlink creation) and leave the rest of the policy as is
+                        m_fileAccessManifest.AddScope(exclusion, ~FileAccessPolicy.AllowWrite & ~FileAccessPolicy.AllowSymlinkCreation, FileAccessPolicy.Deny);
                     }
                 }
 
@@ -3948,10 +3963,7 @@ namespace BuildXL.Processes
             // Because of bottom-up search, if a pip declares nested shared opaque directories, the innermost directory
             // wins the ownership of a produced file.
 
-            // We need to consider opaque directory exclusions here. So if there are any exclusions configured, we can't start from the manifest
-            // path, since the exclusion can be configured to be under a given opaque root
-
-            var initialNode = m_pip.OutputDirectoryExclusions.Length == 0 ? access.ManifestPath.Value : accessPath.Value;
+            var initialNode = access.ManifestPath.Value;
 
             using var outputDirectoryExclusionSetWrapper = Pools.AbsolutePathSetPool.GetInstance();
             var outputDirectoryExclusionSet = outputDirectoryExclusionSetWrapper.Instance;
@@ -3963,29 +3975,15 @@ namespace BuildXL.Processes
             foreach (var currentNode in m_context.PathTable.EnumerateHierarchyBottomUp(initialNode))
             {
                 var currentPath = new AbsolutePath(currentNode);
-                
-                // if the path is under an exclusion, then it is not under a shared opaque
-                if (outputDirectoryExclusionSet.Contains(currentPath))
-                {
-                    sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
-                    return false;
-                }
 
-                // If we haven't found an owner yet, and the current path is a shared opaque root, then we found one
-                // Observe we may have found an owner already but we may be still searching upwards to make sure there 
-                // are no exclusions that would rule that out
-                if (!sharedDynamicDirectoryRoot.IsValid && dynamicWriteAccesses.ContainsKey(currentPath))
+                if (dynamicWriteAccesses.ContainsKey(currentPath))
                 {
                     sharedDynamicDirectoryRoot = currentPath;
-                    // If there are no exclusions, then we found an owning root and we can shortcut the search here
-                    if (outputDirectoryExclusionSet.Count == 0)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
-            return sharedDynamicDirectoryRoot.IsValid;
+            return false;
         }
 
         /// <summary>

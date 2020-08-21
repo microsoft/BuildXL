@@ -1970,6 +1970,11 @@ namespace IntegrationTest.BuildXL.Scheduler
                                 Operation.WriteFile(outputFile2, doNotInfer: true)
                             });
             builderA.AddOutputDirectory(opaqueDirArtifact, outputDirectoryKind);
+            // This although looking unrelated helps relaxing observed input processor
+            // to make sure violations are properly generated (otherwise if we miss blocking a write
+            // it can reach the processor and it will misinterpreted as a read and flag it, so we'll 
+            // see a violation but it is not the right one)
+            builderA.Options |= Process.Options.AllowUndeclaredSourceReads;
 
             // Set up an exclusion
             var exclusion = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, exclusionRelativePath));

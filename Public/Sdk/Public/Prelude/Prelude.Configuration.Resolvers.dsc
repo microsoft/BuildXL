@@ -376,6 +376,12 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     writingToStandardErrorFailsExecution?: boolean;
+
+    /**
+     * When set, writes under each project node_modules folder is blocked.
+     * Defaults to false.
+     */
+    blockWritesUnderNodeModules?: boolean;
 }
 
 /**

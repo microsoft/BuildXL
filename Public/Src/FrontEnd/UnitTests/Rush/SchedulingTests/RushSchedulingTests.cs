@@ -5,6 +5,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Rush;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -127,6 +128,22 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .DirectoryOutputs;
 
             XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => RushPipConstructor.UserProfile(project, PathTable) ==  outputDirectory.Path));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void BlockExclusionFlagIsHonored(bool blockWritesUnderNodeModules)
+        {
+            var project = CreateRushProject();
+
+            var exclusions = Start(new RushResolverSettings { BlockWritesUnderNodeModules = blockWritesUnderNodeModules })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .OutputDirectoryExclusions;
+
+            XAssert.Equals(blockWritesUnderNodeModules? 1 : 0, exclusions.Length);
         }
     }
 }

@@ -267,9 +267,12 @@ namespace BuildXL.FrontEnd.JavaScript
             // Each project is automatically allowed to write anything under its project root
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder), SealDirectoryKind.SharedOpaque);
 
-            // There shouldn't be any writes under node_modules. So exclude it explicitly, since that also avoids a usually expensive enumeration
-            // under node_modules when scrubbing. 
-            processBuilder.AddOutputDirectoryExclusion(project.NodeModulesFolder(m_context.PathTable));
+            if (m_resolverSettings.BlockWritesUnderNodeModules == true)
+            {
+                // There shouldn't be any writes under node_modules. So exclude it explicitly, since that also avoids a usually expensive enumeration
+                // under node_modules when scrubbing. 
+                processBuilder.AddOutputDirectoryExclusion(project.NodeModulesFolder(m_context.PathTable));
+            }
 
             // Some projects share their temp folder across their build scripts (e.g. build and test)
             // So we cannot make them share the temp folder with the infrastructure we have today

@@ -57,6 +57,14 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to false.
         /// </remarks>
         bool? WritingToStandardErrorFailsExecution { get; }
+
+        /// <summary>
+        /// When set, writes under each project node_modules folder is blocked.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false.
+        /// </remarks>
+        bool? BlockWritesUnderNodeModules { get; }
     }
 
     /// <nodoc/>

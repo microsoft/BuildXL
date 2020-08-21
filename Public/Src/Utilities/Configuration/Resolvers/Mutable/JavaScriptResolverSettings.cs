@@ -76,5 +76,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? WritingToStandardErrorFailsExecution { get; set;  }
+
+        /// <inheritdoc/>
+        public bool? BlockWritesUnderNodeModules { get; set; }
     }
 }

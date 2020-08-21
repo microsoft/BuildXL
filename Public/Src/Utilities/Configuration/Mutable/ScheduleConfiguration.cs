@@ -29,8 +29,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseHistoricalRamUsageInfo = true;
             ForceUseEngineInfoFromCache = false;
 
-            // It is well-known that CPU-bound tasks should be oversubscribed with 1.25 times the number of logical cores.
-            MaxProcesses = Environment.ProcessorCount * 5 / 4;
+            // In the past, we decided to use 1.25 * logicalCores to determine the concurrency for the process pips. 
+            // However, at that time, cachelookup, materialization, and other non-execute steps were all taking a slot from that. 
+            // As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
+            // After doing A/B testing on thousands of builds, using 1 instead of 1.25 multiplier decreases the load on the machine and improves the perf.
+            MaxProcesses = Environment.ProcessorCount;
             MaxIO = Math.Max(1, Environment.ProcessorCount / 4);
             MaxLightProcesses = 1000;
 

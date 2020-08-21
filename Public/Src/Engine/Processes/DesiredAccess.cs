@@ -9,9 +9,36 @@ namespace BuildXL.Processes
     /// <summary>
     /// The requested access to the file or device
     /// </summary>
+    /// <remarks>
+    /// See https://docs.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants for list of values
+    /// </remarks>
     [Flags]
     public enum DesiredAccess : uint
     {
+        /// <summary>
+        /// For a directory, the right to list the contents of the directory.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_LIST_DIRECTORY = 0x00000001,
+
+        /// <summary>
+        /// For a directory, the right to create a file in the directory.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_ADD_FILE = 0x00000002,
+
+        /// <summary>
+        /// For a directory, the right to create a subdirectory.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_ADD_SUBDIRECTORY = 0x00000004,
+
+        /// <summary>
+        /// The right to read extended file attributes.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_READ_EA = 0x00000008,
+
         /// <summary>
         /// Right to delete an object.
         /// </summary>
@@ -35,6 +62,24 @@ namespace BuildXL.Processes
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
         FILE_WRITE_EA = 0x00000010,
+
+        /// <summary>
+        /// For a native code file, the right to execute the file. This access right given to scripts may cause the script to be executable, depending on the script interpreter.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_EXECUTE = 0x00000020,
+
+        /// <summary>
+        /// For a directory, the right to delete a directory and all the files it contains, including read-only files.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_DELETE_CHILD = 0x00000040,
+
+        /// <summary>
+        /// The right to read file attributes.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_READ_ATTRIBUTES = 0x00000080,
 
         /// <summary>
         /// The right to write file attributes.

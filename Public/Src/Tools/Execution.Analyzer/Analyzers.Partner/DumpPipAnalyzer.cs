@@ -306,23 +306,44 @@ namespace BuildXL.Execution.Analyzer
 
         private XElement RenderReportedFileAccess(ReportedFileAccess data)
         {
-            return new XElement(
-                "div",
-                new XAttribute("class", "miniGroup"),
-                m_html.CreateRow("Path", data.Path),
-                m_html.CreateEnumRow("CreationDisposition", data.CreationDisposition),
-                m_html.CreateEnumRow("DesiredAccess", data.DesiredAccess),
-                m_html.CreateEnumRow("ShareMode", data.ShareMode),
-                m_html.CreateEnumRow("Status", data.Status),
-                m_html.CreateEnumRow("RequestedAccess", data.RequestedAccess),
-                m_html.CreateEnumRow("Operation", data.Operation),
-                m_html.CreateEnumRow("FlagsAndAttributes", data.FlagsAndAttributes),
-                m_html.CreateRow("Error", data.Error.ToString(CultureInfo.InvariantCulture)),
-                m_html.CreateRow("Usn", data.Usn.Value.ToString(CultureInfo.InvariantCulture)),
-                m_html.CreateRow("ManifestPath", data.ManifestPath),
-                m_html.CreateRow("Process", data.Process.ProcessId.ToString(CultureInfo.InvariantCulture)),
-                m_html.CreateRow("ExplicitlyReported", data.ExplicitlyReported),
-                m_html.CreateRow("EnumeratePattern", data.EnumeratePattern));
+            return new XElement("details",
+                new XElement("summary", data.Path + " " + RequestedAccessToString(data.RequestedAccess)),
+                new XElement(
+                    "div",
+                    new XAttribute("class", "miniGroup"),
+                    m_html.CreateRow("Path", data.Path),
+                    m_html.CreateEnumRow("CreationDisposition", data.CreationDisposition),
+                    m_html.CreateEnumRow("DesiredAccess", data.DesiredAccess),
+                    m_html.CreateEnumRow("ShareMode", data.ShareMode),
+                    m_html.CreateEnumRow("Status", data.Status),
+                    m_html.CreateEnumRow("RequestedAccess", data.RequestedAccess),
+                    m_html.CreateEnumRow("Operation", data.Operation),
+                    m_html.CreateEnumRow("FlagsAndAttributes", data.FlagsAndAttributes),
+                    m_html.CreateRow("Error", data.Error.ToString(CultureInfo.InvariantCulture)),
+                    m_html.CreateRow("Usn", data.Usn.Value.ToString(CultureInfo.InvariantCulture)),
+                    m_html.CreateRow("ManifestPath", data.ManifestPath),
+                    m_html.CreateRow("Process", data.Process.ProcessId.ToString(CultureInfo.InvariantCulture)),
+                    m_html.CreateRow("ExplicitlyReported", data.ExplicitlyReported),
+                    m_html.CreateRow("EnumeratePattern", data.EnumeratePattern))
+            );
+        }
+
+        private static string RequestedAccessToString(RequestedAccess requestedAccess)
+        {
+            switch (requestedAccess)
+            {
+                case RequestedAccess.Enumerate:
+                case RequestedAccess.EnumerationProbe:
+                    return "[Enumerate]";
+                case RequestedAccess.Probe:
+                    return "[Probe]";
+                case RequestedAccess.Read:
+                    return "[Read]";
+                case RequestedAccess.Write:
+                    return "[Write]";
+            }
+
+            return string.Empty;
         }
 
         private XElement RenderReportedProcess(ReportedProcess data)

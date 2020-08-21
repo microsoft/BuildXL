@@ -4353,14 +4353,21 @@ namespace BuildXL.Scheduler
 
                         foreach (var access in accesses)
                         {
-                            fileList.Add(access);
-                            FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
-
-                            allOutputs.Add(access);
-
-                            if (sharedOutputDirectoriesAreRedirected)
+                            if (!CheckForAllowedJunctionProduction(access.Path, operationContext, description, pathTable, processExecutionResult))
                             {
-                                PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
+                                enableCaching = false;
+                            }
+                            else
+                            {
+                                fileList.Add(access);
+                                FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
+
+                                allOutputs.Add(access);
+
+                                if (sharedOutputDirectoriesAreRedirected)
+                                {
+                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
+                                }
                             }
                         }
                     }

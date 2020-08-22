@@ -372,18 +372,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 ? PipData.Invalid
                 : PipDataBuilder.CreatePipData(context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description);
 
-            // Timeouts.
-            var timeout = Converter.ExtractOptionalInt(obj, m_toolTimeoutInMilliseconds);
-            if (timeout.HasValue)
-            {
-                processBuilder.Timeout = TimeSpan.FromMilliseconds(timeout.Value);
-            }
-            var warningTimeout = Converter.ExtractOptionalInt(obj, m_toolWarningTimeoutInMilliseconds);
-            if (warningTimeout.HasValue)
-            {
-                processBuilder.WarningTimeout = TimeSpan.FromMilliseconds(warningTimeout.Value);
-            }
-
             // Arguments.
             var arguments = Converter.ExtractArrayLiteral(obj, m_executeArguments);
             TransformerExecuteArgumentsProcessor.ProcessArguments(context, processBuilder, arguments);
@@ -784,8 +772,22 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 {
                     var cacheEntry = new CachedToolDefinition();
                     ProcessCachedTool(context, tool, cacheEntry);
+                    // Timeouts.
+                    var timeout = Converter.ExtractOptionalInt(tool, m_toolTimeoutInMilliseconds);
+                    if (timeout.HasValue)
+                    {
+                        cacheEntry.Timeout = TimeSpan.FromMilliseconds(timeout.Value);
+                    }
+                    var warningTimeout = Converter.ExtractOptionalInt(tool, m_toolWarningTimeoutInMilliseconds);
+                    if (warningTimeout.HasValue)
+                    {
+                        cacheEntry.WarningTimeout = TimeSpan.FromMilliseconds(warningTimeout.Value);
+                    }
                     return cacheEntry;
                 });
+
+            processBuilder.Timeout = cachedTool.Timeout;
+            processBuilder.WarningTimeout = cachedTool.WarningTimeout;
 
             processBuilder.Executable = cachedTool.Executable;
             processBuilder.ToolDescription = cachedTool.ToolDescription;

@@ -6,6 +6,13 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 const root = d`.`;
 const dynamicCodeCovString = "DynamicCodeCov";
 
+// QTest have its own logic to enfore the timeout. 
+// The internal QTest timeout = qTestTimeoutSec * qTestAttemptCount
+// The maximum value of qTestTimeoutSec is 600(10 mins) and qTestAttemptCount is 100. 
+// So the maxium runtime of QTest is 1000 mins.
+// BuildXL, therefore setting the timeout to 1005 mins, so QTest could have 5 mins for cleaning up.
+const qtestDefaultTimeoutInMilliseconds = 60300000; // 1005 mins
+
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
@@ -21,6 +28,7 @@ export const qTestTool: Transformer.ToolDefinition = {
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
+    timeoutInMilliseconds: qtestDefaultTimeoutInMilliseconds,
 };
 const defaultArgs: QTestArguments = {
     testAssembly: undefined,

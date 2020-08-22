@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -49,5 +50,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         /// <nodoc />
         public bool EnableTempDirectory { get; set; }
+
+        /// <nodoc />
+        public TimeSpan? Timeout { get; set; }
+
+        /// <nodoc />
+        public TimeSpan? WarningTimeout { get; set; }
     }
 }

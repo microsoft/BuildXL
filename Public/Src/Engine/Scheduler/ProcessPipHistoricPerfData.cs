@@ -45,7 +45,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The amount of kilobytes read/written
         /// </summary>
-        public readonly uint DiskIOInKB;
+        public readonly uint DiskIOInMB;
 
         /// <summary>
         /// Check if the structure was recently generated
@@ -66,17 +66,17 @@ namespace BuildXL.Scheduler
             DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds - executionPerformance.SuspendedDurationMs));
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
             MemoryCounters = executionPerformance.MemoryCounters;
-            DiskIOInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.IO.GetAggregateIO().TransferCount / 1024);
+            DiskIOInMB = (uint)Math.Min(uint.MaxValue, ByteSizeFormatter.ToMegabytes(executionPerformance.IO.GetAggregateIO().TransferCount));
             ProcessorsInPercents = executionPerformance.ProcessorsInPercents;
         }
 
-        private ProcessPipHistoricPerfData(byte timeToLive, uint durationInMs, ProcessMemoryCounters memoryCounters, ushort processorsInPercents, uint diskIOInKB)
+        private ProcessPipHistoricPerfData(byte timeToLive, uint durationInMs, ProcessMemoryCounters memoryCounters, ushort processorsInPercents, uint diskIOInMB)
         {
             m_entryTimeToLive = timeToLive;
             DurationInMs = durationInMs;
             MemoryCounters = memoryCounters;
             ProcessorsInPercents = processorsInPercents;
-            DiskIOInKB = diskIOInKB;
+            DiskIOInMB = diskIOInMB;
         }
 
         #endregion
@@ -94,7 +94,7 @@ namespace BuildXL.Scheduler
             writer.Write(DurationInMs);
             MemoryCounters.Serialize(writer);
             writer.Write(ProcessorsInPercents);
-            writer.Write(DiskIOInKB);
+            writer.Write(DiskIOInMB);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace BuildXL.Scheduler
                     (int)DurationInMs,
                     MemoryCounters.GetHashCode(),
                     (int)ProcessorsInPercents,
-                    (int)DiskIOInKB);
+                    (int)DiskIOInMB);
             }
         }
 
@@ -140,7 +140,7 @@ namespace BuildXL.Scheduler
                     DurationInMs == other.DurationInMs &&
                     MemoryCounters == other.MemoryCounters &&
                     ProcessorsInPercents == other.ProcessorsInPercents &&
-                    DiskIOInKB == other.DiskIOInKB;
+                    DiskIOInMB == other.DiskIOInMB;
         }
 
         /// <inherit />
@@ -172,7 +172,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ProcessPipHistoricPerfData MakeFresh()
         {
-            return new ProcessPipHistoricPerfData(DefaultTimeToLive, DurationInMs, MemoryCounters, ProcessorsInPercents, DiskIOInKB);
+            return new ProcessPipHistoricPerfData(DefaultTimeToLive, DurationInMs, MemoryCounters, ProcessorsInPercents, DiskIOInMB);
         }
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace BuildXL.Scheduler
             var durationResult = GetMergeResult(DurationInMs, other.DurationInMs);
             var memoryCountersResult = Merge(MemoryCounters, other.MemoryCounters);
             var processorInPercentResult = GetMergeResult(ProcessorsInPercents, other.ProcessorsInPercents);
-            var diskIOResult = GetMergeResult(DiskIOInKB, other.DiskIOInKB);
+            var diskIOResult = GetMergeResult(DiskIOInMB, other.DiskIOInMB);
 
             return new ProcessPipHistoricPerfData(DefaultTimeToLive, durationResult, memoryCountersResult, (ushort)processorInPercentResult, diskIOResult);
         }

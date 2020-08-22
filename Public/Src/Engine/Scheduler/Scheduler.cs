@@ -4323,7 +4323,9 @@ namespace BuildXL.Scheduler
                                 expectedMemoryCounters.PeakCommitSizeMb,
                                 peakCommitSizeMb,
                                 expectedMemoryCounters.AverageCommitSizeMb,
-                                averageCommitSizeMb);
+                                averageCommitSizeMb,
+                                (int)(processRunnable.HistoricPerfData?.DiskIOInMB ?? 0),
+                                (int)ByteSizeFormatter.ToMegabytes(executionResult.PerformanceInformation?.IO.GetAggregateIO().TransferCount ?? 0));
 
                             m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
                             m_totalAverageWorkingSetMb += (ulong)averageWorkingSetMb;

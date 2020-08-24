@@ -563,12 +563,12 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        private Task<FileContentTable> LoadOrCreateTable(byte entryTimeToLive = FileContentTable.DefaultTimeToLive)
+        private Task<FileContentTable> LoadOrCreateTable(ushort entryTimeToLive = FileContentTable.DefaultTimeToLive)
         {
             return FileContentTable.LoadOrCreateAsync(LoggingContext, GetFullPath(Table), entryTimeToLive: entryTimeToLive);
         }
 
-        private Task<FileContentTable> LoadTable(byte entryTimeToLive = FileContentTable.DefaultTimeToLive)
+        private Task<FileContentTable> LoadTable(ushort entryTimeToLive = FileContentTable.DefaultTimeToLive)
         {
             return FileContentTable.LoadAsync(LoggingContext, GetFullPath(Table), entryTimeToLive);
         }

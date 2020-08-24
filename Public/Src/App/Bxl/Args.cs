@@ -478,6 +478,9 @@ namespace BuildXL
                             "fileChangeTrackingInclusionRoot",
                             opt => cacheConfiguration.FileChangeTrackingInclusionRoots.Add(CommandLineUtilities.ParsePathOption(opt, pathTable))),
                         OptionHandlerFactory.CreateOption(
+                            "fileContentTableEntryTimeToLive",
+                            opt => cacheConfiguration.FileContentTableEntryTimeToLive = (ushort)CommandLineUtilities.ParseInt32Option(opt, 1, short.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "fileContentTableFile",
                             opt => layoutConfiguration.FileContentTableFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(

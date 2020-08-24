@@ -55,13 +55,13 @@ namespace BuildXL.Storage
     /// </remarks>
     public sealed class FileContentTable : IFileChangeTrackingObserver
     {
-        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 18);
+        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 19);
 
         /// <summary>
         /// Default time-to-live (TTL) for new entries to a <see cref="FileContentTable"/>.
         /// The TTL of an entry is the number of save / load round-trips until eviction (assuming it is not accessed within that time).
         /// </summary>
-        public const byte DefaultTimeToLive = byte.MaxValue;
+        public const ushort DefaultTimeToLive = byte.MaxValue;
 
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
@@ -92,7 +92,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// Creates a table that can durably store file -> content hash mappings. The table is initially empty.
         /// </summary>
-        private FileContentTable(LoggingContext loggingContext, bool isStub = false, byte entryTimeToLive = DefaultTimeToLive)
+        private FileContentTable(LoggingContext loggingContext, bool isStub = false, ushort entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(entryTimeToLive > 0);
             
@@ -115,7 +115,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// Creates a new instance of <see cref="FileContentTable"/>.
         /// </summary>
-        public static FileContentTable CreateNew(LoggingContext loggingContext, byte entryTimeToLive = DefaultTimeToLive)
+        public static FileContentTable CreateNew(LoggingContext loggingContext, ushort entryTimeToLive = DefaultTimeToLive)
         {
             return new FileContentTable(loggingContext, isStub: false, entryTimeToLive: entryTimeToLive);
         }
@@ -137,7 +137,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// Returns the number of save / load roundtrips without use allowed for an entry before it is evicted.
         /// </summary>
-        public byte EntryTimeToLive { get; }
+        public ushort EntryTimeToLive { get; }
 
         #region Content hash retrieval
 
@@ -562,7 +562,7 @@ namespace BuildXL.Storage
         /// re-thrown).
         /// </summary>
         /// <returns>A loaded table (possibly empty), or a newly created table (in the event of a load failure).</returns>
-        public static Task<FileContentTable> LoadOrCreateAsync(LoggingContext loggingContext, string fileContentTablePath, byte entryTimeToLive = DefaultTimeToLive)
+        public static Task<FileContentTable> LoadOrCreateAsync(LoggingContext loggingContext, string fileContentTablePath, ushort entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
             Contract.Requires(entryTimeToLive > 0);
@@ -582,7 +582,7 @@ namespace BuildXL.Storage
         public static Task<FileContentTable> LoadAsync(
             LoggingContext loggingContext,
             string fileContentTablePath,
-            byte entryTimeToLive = DefaultTimeToLive)
+            ushort entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
             Contract.Requires(entryTimeToLive > 0);
@@ -602,7 +602,7 @@ namespace BuildXL.Storage
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-        private static LoadResult TryLoadInternal(LoggingContext loggingContext, string fileContentTablePath, byte entryTimeToLive)
+        private static LoadResult TryLoadInternal(LoggingContext loggingContext, string fileContentTablePath, ushort entryTimeToLive)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
             Contract.Requires(entryTimeToLive > 0);
@@ -664,7 +664,7 @@ namespace BuildXL.Storage
 
                             long length = reader.ReadInt64();
 
-                            byte thisEntryTimeToLive = reader.ReadByte();
+                            ushort thisEntryTimeToLive = reader.ReadUInt16();
                             if (thisEntryTimeToLive == 0)
                             {
                                 return LoadResult.InvalidFormat(fileContentTablePath, "TTL value must be positive", sw.ElapsedMilliseconds);
@@ -863,21 +863,15 @@ namespace BuildXL.Storage
         [StructLayout(LayoutKind.Sequential)]
         private readonly struct Entry : IEquatable<Entry>
         {
-            // [0, 19]
             public readonly ContentHash Hash;
 
-            // [20, 20]
-            public readonly byte TimeToLive;
+            public readonly ushort TimeToLive;
 
-            // [21, 23] (three bytes of padding)
-
-            // [24, 31]
             public readonly Usn Usn;
 
-            // [32, 39]
             public readonly long Length;
 
-            public Entry(Usn usn, ContentHash hash, long length, byte timeToLive)
+            public Entry(Usn usn, ContentHash hash, long length, ushort timeToLive)
             {
                 Hash = hash;
                 TimeToLive = timeToLive;
@@ -885,7 +879,7 @@ namespace BuildXL.Storage
                 Length = length;
             }
 
-            public Entry WithTimeToLive(byte newTimeToLive)
+            public Entry WithTimeToLive(ushort newTimeToLive)
             {
                 return new Entry(usn: Usn, hash: Hash, length: Length, timeToLive: newTimeToLive);
             }

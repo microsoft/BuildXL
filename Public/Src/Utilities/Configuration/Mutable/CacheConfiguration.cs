@@ -78,7 +78,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool Incremental { get; set; }
 
         /// <inheritdoc />
-        public byte? FileContentTableEntryTimeToLive { get; set; }
+        public ushort? FileContentTableEntryTimeToLive { get; set; }
 
         /// <inheritdoc />
         public bool AllowFetchingCachedGraphFromContentCache { get; set; }

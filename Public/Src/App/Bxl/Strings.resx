@@ -1051,4 +1051,10 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ManageMemoryMode" xml:space="preserve">
     <value>Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory.</value>
   </data>
+  <data name="HelpText_DisplayHelp_FileContentTableEntryTimeToLive" xml:space="preserve">
+    <value>Time-to-live for file content table entries. Min value is 1, max value is 65535. Defaults to 255.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileContentTableFile" xml:space="preserve">
+    <value>Path to file content table to use. Defaults to FileContentTable in engine cache.</value>
+  </data>
 </root>

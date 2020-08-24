@@ -806,6 +806,16 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/fileContentTableFile:<path>",
+                Strings.HelpText_DisplayHelp_FileContentTableFile,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/fileContentTableEntryTimeToLive:<number>",
+                Strings.HelpText_DisplayHelp_FileContentTableEntryTimeToLive,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/adminRequiredProcessExecutionMode:<mode>",
                 Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
                 HelpLevel.Verbose);

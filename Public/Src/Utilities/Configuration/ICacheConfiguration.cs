@@ -93,7 +93,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The time to to live (number of build iterations) for entries to be retained without use before eviction
         /// </summary>
-        byte? FileContentTableEntryTimeToLive { get; set; }
+        ushort? FileContentTableEntryTimeToLive { get; set; }
 
         /// <summary>
         /// Allows for fetching cached graph from content cache.

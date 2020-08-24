@@ -124,6 +124,17 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// correctness, because a write may be ACKd before it is actually on disk, but it is much faster.
             /// </summary>
             public bool EnableFSync { get; set; }
+
+            /// <summary>
+            /// Enable dynamic level target sizes.
+            /// 
+            /// This helps keep space amplification at a factor of ~1.111 by manipulating the level sizes dynamically.
+            /// 
+            /// See: https://rocksdb.org/blog/2015/07/23/dynamic-level.html
+            /// See: https://rockset.com/blog/how-we-use-rocksdb-at-rockset/ (under Dynamic Level Target Sizes)
+            /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
+            /// </summary>
+            public bool LeveledCompactionDynamicLevelTargetSizes { get; set; }
         }
 
         /// <summary>
@@ -323,7 +334,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetCompression(Compression.Lz4)
 #endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
-                    .SetPrefixExtractor(SliceTransform.CreateNoOp());
+                    .SetPrefixExtractor(SliceTransform.CreateNoOp())
+                    .SetLevelCompactionDynamicLevelBytes(arguments.LeveledCompactionDynamicLevelTargetSizes);
 
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
 

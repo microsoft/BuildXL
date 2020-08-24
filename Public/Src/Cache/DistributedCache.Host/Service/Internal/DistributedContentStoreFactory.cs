@@ -220,7 +220,18 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionIntervalMinutes,
-                    v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
+                    v =>
+                    {
+                        if (v < 0)
+                        {
+                            throw new ArgumentException($"`{nameof(_distributedSettings.FullRangeCompactionIntervalMinutes)}` must be greater than or equal to 0");
+                        }
+
+                        if (v > 0)
+                        {
+                            dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v);
+                        }
+                    });
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionVariant,
                     v =>
@@ -235,6 +246,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionByteIncrementStep,
                     v => dbConfig.FullRangeCompactionByteIncrementStep = v);
+
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnableDynamicLevelTargetSizes, v => dbConfig.EnableDynamicLevelTargetSizes = v);
 
                 if (_distributedSettings.ContentLocationDatabaseLogsBackupEnabled)
                 {

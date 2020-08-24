@@ -547,8 +547,11 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? ContentLocationDatabaseLogsBackupRetentionMinutes { get; set; }
 
+        /// <remarks>
+        /// 0 means infinite here (i.e. there won't be any compactions)
+        /// </remarks>
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
+        [Validation.Range(0, int.MaxValue)]
         public double? FullRangeCompactionIntervalMinutes { get; set; }
 
         [DataMember]
@@ -557,6 +560,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, byte.MaxValue)]
         public byte? FullRangeCompactionByteIncrementStep { get; set; }
+
+        [DataMember]
+        public bool? ContentLocationDatabaseEnableDynamicLevelTargetSizes { get; set; }
 
         [DataMember]
         [Validation.Range(1, long.MaxValue)]

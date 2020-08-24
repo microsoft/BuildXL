@@ -178,5 +178,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateEntriesWithSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext, ContentLocationDatabase.EnumerationFilter, bool)"/>
         /// </summary>
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
+
+        /// <summary>
+        /// Enable dynamic level target sizes.
+        /// 
+        /// This helps keep space amplification at a factor of ~1.111 by manipulating the level sizes dynamically.
+        /// 
+        /// See: https://rocksdb.org/blog/2015/07/23/dynamic-level.html
+        /// See: https://rockset.com/blog/how-we-use-rocksdb-at-rockset/ (under Dynamic Level Target Sizes)
+        /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
+        /// </summary>
+        public bool EnableDynamicLevelTargetSizes { get; set; }
     }
 }

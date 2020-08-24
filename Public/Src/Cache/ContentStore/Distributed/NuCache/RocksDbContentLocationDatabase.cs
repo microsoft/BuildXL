@@ -249,6 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Since the writes to ClusterState are relatively few, we can make-do with disabling
                         // compaction here and pretending like we are using a read-only database.
                         DisableAutomaticCompactions = !IsDatabaseWriteable,
+                        LeveledCompactionDynamicLevelTargetSizes = _configuration.EnableDynamicLevelTargetSizes,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our

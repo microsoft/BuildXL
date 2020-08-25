@@ -15,9 +15,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public int PinMinUnverifiedCount { get; set; } = 3;
 
         /// <summary>
-        /// Trigger an asynchronous copy when the number of locations is between <see cref="PinMinUnverifiedCount"/> and <code>PinMinUnverifiedCount + StartCopyWhenPinMinUnverifiedCountThreshold</code>.
+        /// Trigger an asynchronous copy when the number of locations is between <see cref="PinMinUnverifiedCount"/> and <code>PinMinUnverifiedCount + AsyncCopyOnPinThreshold</code>.
         /// </summary>
-        public int StartCopyWhenPinMinUnverifiedCountThreshold { get; set; } = 0;
+        public int AsyncCopyOnPinThreshold { get; set; } = 0;
 
         /// <summary>
         /// Gets or sets the maximum number of simultaneous external file IO operations.

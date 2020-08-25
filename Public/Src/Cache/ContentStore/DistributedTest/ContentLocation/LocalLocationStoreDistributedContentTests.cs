@@ -1352,7 +1352,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 // or file loss to prevent pin better from kicking in.
                 s.IsPinBetterEnabled = true;
                 s.PinMinUnverifiedCount = 2;
-                s.StartCopyWhenPinMinUnverifiedCountThreshold = threshold;
+                s.AsyncCopyOnPinThreshold = threshold;
             };
 
             _overrideDistributedContentStooreSettings = s =>
@@ -1459,7 +1459,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 // or file loss to prevent pin better from kicking in.
                 s.IsPinBetterEnabled = true;
                 s.PinMinUnverifiedCount = 2;
-                s.StartCopyWhenPinMinUnverifiedCountThreshold = 1;
+                s.AsyncCopyOnPinThreshold = 1;
             };
 
             await RunTestAsync(

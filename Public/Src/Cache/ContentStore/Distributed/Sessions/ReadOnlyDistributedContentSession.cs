@@ -1060,7 +1060,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 // Triggering an async copy if the number of replicas are close to a PinMinUnverifiedCount threshold.
                 int threshold = Settings.PinConfiguration.PinMinUnverifiedCount +
-                                Settings.PinConfiguration.StartCopyWhenPinMinUnverifiedCountThreshold;
+                                Settings.PinConfiguration.AsyncCopyOnPinThreshold;
                 if (locations.Count < threshold)
                 {
                     Tracer.Info(operationContext, $"Starting asynchronous copy of the content for hash {remote.ContentHash.ToShortString()} because the number of locations '{locations.Count}' is less then a threshold of '{threshold}'.");

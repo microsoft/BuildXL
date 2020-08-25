@@ -445,8 +445,14 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? PinMinUnverifiedCount { get; set; }
 
+        /// <summary>
+        /// Obsolete: will be removed in favor of AsyncCopyOnPinThreshold.
+        /// </summary>
         [DataMember]
         public int? StartCopyWhenPinMinUnverifiedCountThreshold { get; set; }
+
+        [DataMember]
+        public int? AsyncCopyOnPinThreshold { get; set; }
 
         [DataMember]
         [Validation.Range(0, 1, minInclusive: false, maxInclusive: false)]

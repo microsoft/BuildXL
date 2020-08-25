@@ -1715,7 +1715,7 @@ namespace BuildXL.Engine
                     // Once output directories including MoveDeleteTempDirectory have been created,
                     // create a TempCleaner for cleaning all temp directories
                     m_tempCleaner = new TempCleaner(engineLoggingContext, tempDirectory: m_moveDeleteTempDirectory);
-
+                    
                     using (
                         var objFolderLock = FolderLock.Take(
                             engineLoggingContext,
@@ -2000,6 +2000,11 @@ namespace BuildXL.Engine
                                         Context,
                                         Configuration,
                                         phase);
+                                }
+
+                                if (TestHooks == null && !string.IsNullOrEmpty(PipEnvironment.RestrictedTemp))
+                                {
+                                    m_tempCleaner.RegisterDirectoryToDelete(PipEnvironment.RestrictedTemp, false);
                                 }
 
                                 // The file content table should now contain all of the hashes needed for this build.

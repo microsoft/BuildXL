@@ -1847,12 +1847,13 @@ namespace BuildXL.Scheduler.Tracing
           EventLevel = Level.Error,
           Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
           EventTask = (int)Tasks.PipExecutor,
-          Message = EventConstants.PipPrefix + "- Disallowed file accesses were detected (R = read, W = write):\r\n{2}")]
+          Message = EventConstants.PipPrefix + "- Disallowed file accesses were detected (R = read, W = write):\r\n{2} \r\nRestritTemp: {restritTemp}")]
         public abstract void FileMonitoringError(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string paths);
+            string paths,
+            string restritTemp);
 
         [GeneratedEvent(
             (int)LogEventId.FileMonitoringWarning,

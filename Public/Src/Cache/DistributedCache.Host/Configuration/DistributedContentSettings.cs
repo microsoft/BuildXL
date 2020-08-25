@@ -112,9 +112,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int RedisMemoizationExpiryTimeMinutes { get; set; } = 1500;
 
         [DataMember]
-        public string ContentAvailabilityGuarantee { get; set; }
-
-        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int RedisBatchPageSize { get; set; } = 500;
 
@@ -194,9 +191,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsRepairHandlingEnabled { get; set; } = false;
 
-        [DataMember]
-        public bool IsTouchEnabled { get; set; } = false;
-
+        /// <remarks>
+        /// This is used in CloudBuild
+        /// </remarks>
         [DataMember]
         public bool UseMdmCounters { get; set; } = true;
 
@@ -361,9 +358,13 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaxRetryCount { get; set; } = 32;
 
         #region Grpc Copier
+
         /// <summary>
         /// Whether or not GZip is enabled for GRPC copies.
         /// </summary>
+        /// <remarks>
+        /// This is used in CloudBuild
+        /// </remarks>
         [DataMember]
         public bool UseCompressionForCopies { get; set; } = false;
 
@@ -393,6 +394,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Timeout for push/pull copy operations in seconds
         /// </summary>
+        /// <remarks>
+        /// This is used in CloudBuild
+        /// </remarks>
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? GrpcCopyConnectionTimeoutInSeconds { get; set; }
@@ -406,13 +410,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? ReplicaCreditInMinutes { get; set; } = 180;
 
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MinReplicaCountToSafeEvict { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MinReplicaCountToImmediateEvict { get; set; }
         #endregion
 
         #region Bandwidth Check
@@ -572,10 +569,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; }
 
-        // Key Vault Settings
-        [DataMember]
-        public string KeyVaultSettingsString { get; set; }
-
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int SecretsRetrievalRetryCount { get; set; } = 5;
@@ -697,14 +690,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(-1, long.MaxValue)]
         public long ParallelHashingFileSizeBoundary { get; set; } = -1;
-
-        [DataMember]
-        [Validation.Range(-1, long.MaxValue)]
-        public long CacheFileExistenceTimeoutInCopySec { get; set; } = -1;
-
-        [DataMember]
-        [Validation.Range(-1, long.MaxValue)]
-        public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;
@@ -836,6 +821,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TouchContentHashLists { get; set; }
 
+        /// <remarks>
+        /// This is used in CloudBuild
+        /// </remarks>
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
         {
             if (AlternateDriveMap != null)

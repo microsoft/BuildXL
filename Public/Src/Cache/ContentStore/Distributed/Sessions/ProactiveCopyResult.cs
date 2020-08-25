@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         Success,
 
         /// <summary>
-        /// The hole proactive copy operation was skipped, for instance, because there is enough locations for a given hash.
+        /// The whole proactive copy operation was skipped, for instance, because there is enough locations for a given hash.
         /// </summary>
         Skipped,
 

@@ -50,6 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             GetLocationsSatisfiedFromRemote,
             PinUnverifiedCountSatisfied,
             StartCopyForPinWhenUnverifiedCountSatisfied,
+            ProactiveCopiesSkipped,
             ProactiveCopy_OutsideRingFromPreferredLocations,
             ProactiveCopyRetries,
         }
@@ -1227,6 +1228,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
             }
 
+            // Don't trace this case since it would add too much log traffic.
+            var replicatedLocations = info.Locations ?? CollectionUtilities.EmptyArray<MachineLocation>();
+            if (replicatedLocations.Count >= Settings.ProactiveCopyLocationsThreshold)
+            {
+                SessionCounters[Counters.ProactiveCopiesSkipped].Increment();
+                return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
+            }
+
             return context.PerformOperationAsync(
                 Tracer,
                 traceErrorsOnly: !Settings.TraceProactiveCopy,
@@ -1234,12 +1243,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var replicatedLocations = info.Locations ?? CollectionUtilities.EmptyArray<MachineLocation>();
-                        if (replicatedLocations.Count >= Settings.ProactiveCopyLocationsThreshold)
-                        {
-                            return ProactiveCopyResult.CopyNotRequiredResult;
-                        }
-
                         var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, reason);
 
                         var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);

@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier to handle copying files between two distributed instances
     /// </summary>
-    public class DistributedCopier : ITraceableAbsolutePathFileCopier
+    public class DistributedCopier : IAbsolutePathRemoteFileCopier
     {
         /// <inheritdoc />
         public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
@@ -27,13 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize)
-        {
-            return CopyToAsync(sourcePath, destinationStream, expectedContentSize, context.Token);
-        }
-
-        /// <inheritdoc />
-        public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
         {
             // NOTE: Assumes source is local
             Contract.Assert(sourcePath.IsLocal);
@@ -47,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             using (Stream s = FileUtilities.CreateAsyncFileStream(sourcePath.Path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                return await s.CopyToAsync(destinationStream, 81920, cancellationToken).ContinueWith(_ => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
+                return await s.CopyToAsync(destinationStream, 81920, context.Token).ContinueWith(_ => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
             }
         }
     }

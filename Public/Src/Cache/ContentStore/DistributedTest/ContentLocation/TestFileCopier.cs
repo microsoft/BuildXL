@@ -19,7 +19,7 @@ using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IAbsolutePathFileCopier, IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IContentCommunicationManager
+    public class TestFileCopier : IAbsolutePathRemoteFileCopier, IContentCommunicationManager
     {
         public AbsolutePath WorkingDirectory { get; set; }
 
@@ -42,14 +42,14 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public TimeSpan? CopyDelay;
         public Task<CopyFileResult> CopyToAsyncTask;
 
-        public Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
         {
-            var result = CopyToAsyncCore(sourcePath, destinationStream, expectedContentSize);
+            var result = CopyToAsyncCore(context, sourcePath, destinationStream, expectedContentSize, options);
             CopyToAsyncTask = result;
             return result;
         }
 
-        private async Task<CopyFileResult> CopyToAsyncCore(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize)
+        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
         {
             try
             {

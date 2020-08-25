@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _timeoutForProactiveCopies;
         private readonly int _maxRetryCount;
-        private readonly IFileCopier<T> _remoteFileCopier;
+        private readonly IRemoteFileCopier<T> _remoteFileCopier;
         private readonly IContentCommunicationManager _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public DistributedContentCopier(
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,
-            IFileCopier<T> fileCopier,
+            IRemoteFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
             IContentCommunicationManager copyRequester,
             IPathTransformer<T> pathTransformer,
@@ -375,11 +375,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 {
                                     ioGateWait = timeWaiting.TotalMilliseconds;
                                     ioGateCurrentCount = currentCount;
-
+                                    var copyToOptions = new CopyToOptions();
                                     return await TaskUtilities.AwaitWithProgressReporting(
-                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts),
+                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, copyToOptions),
                                         period: TimeSpan.FromMinutes(5),
-                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s."),
+                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{copyToOptions.TotalBytesCopied}]."),
                                         reportImmediately: false,
                                         reportAtEnd: false);
                                 }, cts),
@@ -560,7 +560,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             T location,
             AbsolutePath tempDestinationPath,
             ContentHashWithSizeAndLocations hashInfo,
-            CancellationToken cts)
+            CancellationToken cts,
+            CopyToOptions options)
         {
             try
             {
@@ -588,7 +589,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Use hashInfo.Size since if it is -1 we will not have resized the stream and it will disable an optimization in dedup hashers which depends on file size.
                         using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                         {
-                            var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);
+                            var copyFileResult = await _remoteFileCopier.CopyToAsync(
+                                new OperationContext(context, cts), location, hashingStream, hashInfo.Size,
+                                options);
                             copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
 
                             if (copyFileResult.Succeeded)
@@ -617,7 +620,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 else
                 {
-                    return await CopyFileAsync(_remoteFileCopier, location, tempDestinationPath, hashInfo.Size, overwrite: true, cancellationToken: cts);
+                    return await CopyFileAsync(
+                        new OperationContext(context, cts),
+                        _remoteFileCopier,
+                        location,
+                        tempDestinationPath,
+                        hashInfo.Size,
+                        overwrite: true,
+                        cancellationToken: cts,
+                        options: options);
                 }
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is IOException)
@@ -636,7 +647,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Override for testing.
         /// </summary>
-        protected virtual async Task<CopyFileResult> CopyFileAsync(IFileCopier<T> copier, T sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
+        protected virtual async Task<CopyFileResult> CopyFileAsync(
+            OperationContext context,
+            IRemoteFileCopier<T> copier,
+            T sourcePath,
+            AbsolutePath destinationPath,
+            long expectedContentSize,
+            bool overwrite,
+            CancellationToken cancellationToken,
+            CopyToOptions options)
         {
             const int DefaultBufferSize = 1024 * 80;
 
@@ -654,7 +673,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBufferSize, FileOptions.SequentialScan);
-            return await copier.CopyToAsync(sourcePath, stream, expectedContentSize, cancellationToken);
+            return await copier.CopyToAsync(context, sourcePath, stream, expectedContentSize, options);
         }
 
         private static int GetBufferSize(ContentHashWithSizeAndLocations hashInfo)

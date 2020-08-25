@@ -34,12 +34,12 @@ namespace BuildXL.Cache.Host.Service
         ///     which will be replaced cache-side.
         /// </summary>
         public Func<ILogger, (
-            IAbsolutePathFileCopier Copier,
+            IAbsolutePathRemoteFileCopier Copier,
             IAbsolutePathTransformer PathTransformer,
             IContentCommunicationManager CopyRequester)> BuildCopyInfrastructure { get; set; } = null;
 
         /// <nodoc />
-        public IAbsolutePathFileCopier Copier { get; internal set; }
+        public IAbsolutePathRemoteFileCopier Copier { get; internal set; }
 
         /// <nodoc />
         public IAbsolutePathTransformer PathTransformer { get; internal set; }
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.Host.Service
         /// <inheritdoc />
         public DistributedCacheServiceArguments(
             ILogger logger,
-            IAbsolutePathFileCopier copier,
+            IAbsolutePathRemoteFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
             IContentCommunicationManager copyRequester,
             IDistributedCacheServiceHost host,

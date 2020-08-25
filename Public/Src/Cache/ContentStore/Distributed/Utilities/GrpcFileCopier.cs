@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
-    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, IContentCommunicationManager, IDisposable
+    public class GrpcFileCopier : IAbsolutePathRemoteFileCopier, IContentCommunicationManager, IDisposable
     {
         private readonly Context _context;
         private readonly int _grpcPort;
@@ -102,20 +102,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
-        {
-            return CopyToAsync(new OperationContext(_context, cancellationToken), sourcePath, destinationStream, expectedContentSize);
-        }
-
-        /// <inheritdoc />
-        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize)
+        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
+            CopyToOptions options)
         {
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
             // Contact hard-coded port on source
             using var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression);
-            return await clientWrapper.Value.CopyToAsync(context, contentHash, destinationStream, context.Token);
+            return await clientWrapper.Value.CopyToAsync(context, contentHash, destinationStream, options, context.Token);
         }
 
         /// <inheritdoc />

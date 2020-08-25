@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.App
                     var finalPath = new AbsolutePath(destinationPath);
 
                     // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, hash, finalPath, CancellationToken.None)).Result;
+                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, hash, finalPath, options: null, CancellationToken.None)).Result;
                     if (!copyFileResult.Succeeded)
                     {
                         throw new CacheException(copyFileResult.ErrorMessage);

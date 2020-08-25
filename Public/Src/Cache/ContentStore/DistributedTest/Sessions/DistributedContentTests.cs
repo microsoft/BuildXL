@@ -52,7 +52,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            IAbsolutePathFileCopier fileCopier,
+            IAbsolutePathRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             int iteration,
@@ -64,7 +64,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly Context Context;
             public readonly Context[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
-            public readonly IAbsolutePathFileCopier FileCopier;
+            public readonly IAbsolutePathRemoteFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
             public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
@@ -76,7 +76,7 @@ namespace ContentStoreTest.Distributed.Sessions
             {
             }
 
-            public TestContext(Context context, IAbsolutePathFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration, bool traceStoreStatistics = false)
+            public TestContext(Context context, IAbsolutePathRemoteFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration, bool traceStoreStatistics = false)
             {
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
@@ -770,7 +770,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     context.Always($"Starting test iteration {iteration}");
 
                     var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
-                    IAbsolutePathFileCopier[] testFileCopiers;
+                    IAbsolutePathRemoteFileCopier[] testFileCopiers;
                     if (UseGrpcServer)
                     {
                         Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");

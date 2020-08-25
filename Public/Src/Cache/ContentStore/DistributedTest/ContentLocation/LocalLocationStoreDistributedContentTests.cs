@@ -212,7 +212,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected override (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            IAbsolutePathFileCopier fileCopier,
+            IAbsolutePathRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             int iteration,

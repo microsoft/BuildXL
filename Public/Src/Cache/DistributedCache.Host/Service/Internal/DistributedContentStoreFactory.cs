@@ -70,7 +70,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? ContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = new PassThroughFileSystem(_logger);
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings));
 
             _orderedResolvedCacheSettings = ResolveCacheSettingsInPrecedenceOrder(arguments);
             Contract.Assert(_orderedResolvedCacheSettings.Count != 0);

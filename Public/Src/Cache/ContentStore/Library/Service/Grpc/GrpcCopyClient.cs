@@ -7,18 +7,23 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -28,6 +33,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public sealed class GrpcCopyClient : StartupShutdownSlimBase
     {
+        private readonly IClock _clock;
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
@@ -47,6 +53,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize, int? copyTimeoutInSeconds)
         {
             GrpcEnvironment.InitializeIfNeeded();
+            _clock = SystemClock.Instance;
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
             _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
@@ -103,44 +110,44 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct)
+        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CopyToOptions? options, CancellationToken ct)
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
 
             using (var operationContext = TrackShutdown(context, ct))
             {
-                return await CopyToCoreAsync(operationContext, hash, streamFactory);
+                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream: true);
             }
         }
 
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CopyToOptions? options, CancellationToken ct)
         {
             using (var operationContext = TrackShutdown(context, ct))
             {
                 // If a stream is passed from the outside this operation should not be closing it.
-                return await CopyToCoreAsync(operationContext, hash, () => stream, closeStream: false);
+                return await CopyToCoreAsync(operationContext, hash, options, () => stream, closeStream: false);
             }
         }
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CancellationToken ct)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CopyToOptions? options, CancellationToken ct)
         {
             // Need to track shutdown to prevent invalid operation errors when the instance is used after it was shut down is called.
             using (var operationContext = TrackShutdown(context, ct))
             {
-                return await CopyToCoreAsync(operationContext, hash, streamFactory);
+                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream: true);
             }
         }
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, bool closeStream = true)
+        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, CopyToOptions? options, Func<Stream> streamFactory, bool closeStream)
         {
             try
             {
@@ -225,10 +232,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     switch (compression)
                     {
                         case CopyCompression.None:
-                            await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
+                            await StreamContentAsync(targetStream, response.ResponseStream, options, context.Token);
                             break;
                         case CopyCompression.Gzip:
-                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, context.Token);
+                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, options, context.Token);
                             break;
                         default:
                             throw new NotSupportedException($"CopyCompression {compression} is not supported.");
@@ -409,11 +416,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
-        private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct)
+        private async Task<(long chunks, long bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyToOptions? options, CancellationToken ct)
         {
-            Contract.Requires(targetStream != null);
-            Contract.Requires(replyStream != null);
-
             long chunks = 0L;
             long bytes = 0L;
             while (await replyStream.MoveNext(ct))
@@ -422,24 +426,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 CopyFileResponse reply = replyStream.Current;
                 bytes += reply.Content.Length;
                 reply.Content.WriteTo(targetStream);
+
+                options?.UpdateTotalBytesCopied(bytes);
             }
             return (chunks, bytes);
         }
 
-        private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct)
+        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyToOptions? options, CancellationToken ct)
         {
-            Contract.Requires(targetStream != null);
-            Contract.Requires(replyStream != null);
-
             long chunks = 0L;
             long bytes = 0L;
+
             using (var grpcStream = new BufferedReadStream(async () =>
             {
                 if (await replyStream.MoveNext(ct))
                 {
                     chunks++;
                     bytes += replyStream.Current.Content.Length;
-                    return replyStream.Current.Content.ToByteArray();
+                    var result = replyStream.Current.Content.ToByteArray();
+
+                    // TODO: use ByteString instead of making an extra copy. 1764215
+                    options?.UpdateTotalBytesCopied(bytes);
+
+                    return result;
                 }
                 else
                 {

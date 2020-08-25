@@ -189,7 +189,7 @@ namespace ContentStoreTest.Distributed.Stores
             public byte[] GetPathLocation(PathBase path) => new byte[] { };
         }
 
-        public class MockFileCopier : IFileCopier
+        public class MockFileCopier : IAbsolutePathRemoteFileCopier
         {
             public int CopyAttempts = 0;
 #pragma warning disable 649
@@ -198,7 +198,7 @@ namespace ContentStoreTest.Distributed.Stores
             public CopyFileResult[] CustomResults;
 
             /// <inheritdoc />
-            public Task<CopyFileResult> CopyToAsync(PathBase sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+            public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
             {
                 CopyAttempts++;
                 if (CustomResults != null)
@@ -213,7 +213,7 @@ namespace ContentStoreTest.Distributed.Stores
 #pragma warning restore 649
 
             /// <inheritdoc />
-            public Task<FileExistenceResult> CheckFileExistsAsync(PathBase path, TimeSpan timeout, CancellationToken cancellationToken)
+            public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
                 => Task.FromResult(CheckFileExistsAsyncResult);
         }
     }
@@ -226,7 +226,7 @@ namespace ContentStoreTest.Distributed.Stores
             AbsolutePath workingDirectory,
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,
-            IFileCopier<AbsolutePath> fileCopier,
+            IRemoteFileCopier<AbsolutePath> fileCopier,
             IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
             IContentCommunicationManager copyRequester,
             IPathTransformer<AbsolutePath> pathTransformer)
@@ -242,9 +242,19 @@ namespace ContentStoreTest.Distributed.Stores
         {
         }
 
-        protected override Task<CopyFileResult> CopyFileAsync(IFileCopier<AbsolutePath> copier, AbsolutePath sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
+        protected override async Task<CopyFileResult> CopyFileAsync(
+            OperationContext context,
+            IRemoteFileCopier<AbsolutePath> copier,
+            AbsolutePath sourcePath,
+            AbsolutePath destinationPath,
+            long expectedContentSize,
+            bool overwrite,
+            CancellationToken cancellationToken,
+            CopyToOptions options)
         {
-            return copier.CopyToAsync(sourcePath, null, expectedContentSize, cancellationToken);
+            // TODO: why the destination str
+            using var destinationStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1024);
+            return await copier.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize);
         }
 
         internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)

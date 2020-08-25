@@ -599,7 +599,7 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathFileCopier copier,
+            IAbsolutePathRemoteFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
             IContentCommunicationManager copyRequester,
             DistributedContentSettings dcs,

@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var copier = useDistributedGrpc
                         ? grpcCopier
-                        : (IAbsolutePathFileCopier)new DistributedCopier();
+                        : (IAbsolutePathRemoteFileCopier)new DistributedCopier();
 
                 LoggingSettings loggingSettings = null;
                 if (!string.IsNullOrEmpty(nLogConfigurationPath))

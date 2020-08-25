@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.App
             [Description("Cache root paths")] string[] paths,
             [DefaultValue(DefaultMaxConnections), Description(MaxConnectionsDescription)] uint maxConnections,
             [DefaultValue(DefaultGracefulShutdownSeconds), Description(GracefulShutdownSecondsDescription)] uint gracefulShutdownSeconds,
-            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
+            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] uint grpcPort,
             [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName,
             [DefaultValue(null), Description("Writable directory for service operations (use CWD if null)")] string dataRootPath,
             [DefaultValue(null), Description("Duration of inactivity after which a session will be timed out.")] double? unusedSessionTimeoutSeconds,
@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.App
             var cancellationTokenSource = new CancellationTokenSource();
 
 #if NET_FRAMEWORK
-            var configuration = new ServiceConfiguration(caches, serverDataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName);
+            var configuration = new ServiceConfiguration(caches, serverDataRootPath, maxConnections, gracefulShutdownSeconds, (int)grpcPort, grpcPortFileName);
             if (!configuration.IsValid)
             {
                 throw new CacheException($"Invalid service configuration, error=[{configuration.Error}]");

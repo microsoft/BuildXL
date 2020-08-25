@@ -1604,7 +1604,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     // Using normal (lower) limit if the number of adds exceeds the threshold.
                                     // Or using a "re-imaging" (higher) limit otherwise.
-                                    if (addedContent.Count > maximumAddsOnRemoveBatch )
+                                    if (addedContent.Count >= maximumAddsOnRemoveBatch )
                                     {
                                         limit = _configuration.ReconciliationMaxCycleSize;
                                     }

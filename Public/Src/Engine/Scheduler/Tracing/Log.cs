@@ -2405,7 +2405,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (int)LogEventId.FingerprintStoreGarbageCollectCanceled,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message = "Fingerprint store: Garbage collect for column {columnName} canceled after {timeLimit}. Garbage collection will resume on next build.")]

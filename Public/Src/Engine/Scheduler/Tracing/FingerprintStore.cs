@@ -527,12 +527,17 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// How long garbage collection can run before being cancelled.
         /// </summary>
-        private readonly TimeSpan m_garbageCollectionTimeLimit = TimeSpan.FromSeconds(10);
+        private readonly int m_garbageCollectionTimeLimitSec = 10;
 
         /// <summary>
         /// Provides classes the opportunity to cancel garbage collect due to factors external to the <see cref="FingerprintStore"/>.
         /// </summary>
         public CancellationTokenSource GarbageCollectCancellationToken { get; } = new CancellationTokenSource();
+
+        /// <summary>
+        /// Time when Fingerprint store is created.
+        /// </summary>
+        private readonly DateTime m_createTimeUtc;
 
         /// <summary>
         /// Extends a <see cref="List{T}"/> to represent the cache miss list.
@@ -853,6 +858,7 @@ namespace BuildXL.Scheduler.Tracing
 
         private FingerprintStore(KeyValueStoreAccessor accessor, TimeSpan? maxEntryAge, FingerprintStoreMode mode, LoggingContext loggingContext, CounterCollection<FingerprintStoreCounters> counters, FingerprintStoreTestHooks testHooks)
         {
+            m_createTimeUtc = DateTime.UtcNow;
             Accessor = accessor;
             m_mode = mode;
             Counters = counters ?? new CounterCollection<FingerprintStoreCounters>();
@@ -1471,9 +1477,16 @@ namespace BuildXL.Scheduler.Tracing
             {
                 var garbageCollectionTimestamp = DateTime.UtcNow;
 
+                // Limit max amount of time for GC. 
+                // Set the cancellation timer to 1/3 of the fingerprintstore in use time or m_garbageCollectionTimeLimitSec, whichever is smaller
+                // For test always use m_garbageCollectionTimeLimitSec 
+                var inUseDurationS1_3 = (int)(garbageCollectionTimestamp - m_createTimeUtc).TotalSeconds / 3; // 1/3 of fingerprint store in use time.
+                var timeLimit = m_testHooks != null
+                    ? m_garbageCollectionTimeLimitSec 
+                    : ( m_garbageCollectionTimeLimitSec < inUseDurationS1_3 ? m_garbageCollectionTimeLimitSec : inUseDurationS1_3 );
+
 #if !DEBUG
-                // Limit max amount of time for GC to 10 seconds
-                GarbageCollectCancellationToken.CancelAfter(m_garbageCollectionTimeLimit);
+                GarbageCollectCancellationToken.CancelAfter(TimeSpan.FromSeconds(timeLimit));
 #endif
 
                 // Each column is independent of the others, so they can be garbage collected in parallel
@@ -1500,7 +1513,7 @@ namespace BuildXL.Scheduler.Tracing
 
                     if (gcResult.Canceled && m_loggingContext != null)
                     {
-                        Logger.Log.FingerprintStoreGarbageCollectCanceled(m_loggingContext, column, m_garbageCollectionTimeLimit.ToString());
+                        Logger.Log.FingerprintStoreGarbageCollectCanceled(m_loggingContext, column, TimeSpan.FromSeconds(timeLimit).ToString());
                     }
 
                     Counters.AddToCounter(FingerprintStoreCounters.GarbageCollectionMaxEntryTime, maxEntryCollectTime);

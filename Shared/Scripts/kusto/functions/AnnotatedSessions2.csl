@@ -69,17 +69,17 @@ cluster('cbuild').database('Domino').dominoinvocation
 //      This event has categorized ExitKind (success, usererror, infrastructureerror, internalerror)
 //      as well as the ErrorBucket for errors that are categorized
 //
-cluster('cbuild').database('Domino').dominocompletion
-| where EventInfo_Time between (startDate .. endDate)
-| project SessionId, ErrorBucket, ExitKind, BucketMessage 
+    cluster('cbuild').database('Domino').dominocompletion
+    | where EventInfo_Time between (startDate .. endDate)
+    | project SessionId, ErrorBucket, ExitKind, BucketMessage 
 ) on SessionId 
 | join kind= leftouter (
 //
 // 3. Join against dominocatastrophicfailure to see if the invocation crashed
 // 
-cluster('cbuild').database('Domino').dominocatastrophicfailure
-| where EventInfo_Time between (startDate .. endDate)
-| project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
+    cluster('cbuild').database('Domino').dominocatastrophicfailure
+    | where EventInfo_Time between (startDate .. endDate)
+    | project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
 ) on SessionId 
 //
 // 4. Join against the CB data
@@ -96,23 +96,23 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
     // InfrastructureError sare treated as internal errors if 1ES owns the infrastructure the build was run on (CloudBuild)
     ExitKind == "InternalError" or (Infra == "CB" and ExitKind == "InfrastructureError"), 1,
     // Builds in CloudBuild should always have a corresponding dominocompletion event with a valid ExitKind. If they don't consider them an internal error (Unless CB has it marked as success)
-    ReturnCode != "" and ExitKind == "" and ReturnType != "Cancellation" and ReturnCode != "ExceededMaxBuildTime" and ReturnType != "Success", 1,
+    ReturnCode != "" and ExitKind == "" and ReturnType != "Cancellation"  and ReturnType != "Success", 1,
     0)
     // Correlates all bxl.exe invocations in the wider build session. Don't confuse this with "SessionId" which
     // is per bxl.exe invocation.
-    | extend UniqueSession = case(
+| extend UniqueSession = case(
     isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier,
         SessionId)
     // Assigns the internal error bucket for the domino.exe invocation.
-    | extend ErrorBucket_InternalErrorOnly = case(InternalError == 1, ErrorBucket, "")
-| extend ErrorMessage_InternalErrorOnly = case(InternalError == 1, BucketMessage, "")
+| extend ErrorBucket_InternalErrorOnly = case(InternalError == 1, ErrorBucket, "")
+| extend ErrorMessage_InternalErrorOnly = case(InternalError == 1, BucketMessage, "") 
 | extend Bucket = case(
     isnotempty(Exception), "Crash",
     isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
     isnotempty(ExitKind), "",
     // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
     // TODO - There should be some limit on when a build is bucketed with this since it may still be running
-        "zz_MissingDominoCompletionEvent") 
+    strcat("zz_MissingCompletion_",iff(ReturnCode in ("ExceededMaxBuildTime","TargetInternalFailure"), "Timeout", ReturnCode))) 
         // Parse the exception for relevant pieces to generate a suggested bug name
 | extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)

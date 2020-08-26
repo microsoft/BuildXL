@@ -133,7 +133,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Action<BuildXLWriter, AbsolutePath> pathWriter = null,
             Action<BuildXLWriter, StringId> stringWriter = null)
         {
-            if (OperatingSystemHelper.IsLinuxOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 preserveCasing = true;
             }

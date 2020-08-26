@@ -1960,7 +1960,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
-                                    if (state.InnerFailure?.GetType() == typeof(FailToDeleteForMaterializationFailure))
+                                    if (possiblyPlaced.Failure is FailToDeleteForMaterializationFailure)
                                     {
                                         userError = true;
                                     }

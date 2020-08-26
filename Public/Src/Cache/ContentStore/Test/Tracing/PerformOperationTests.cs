@@ -82,7 +82,35 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
                 Assert.False(true, "The operation should fail");
             }
             catch (TimeoutException)
-            {}
+            { }
+        }
+
+        [Fact]
+        public async Task TestPerformOperationTimeoutWithDelay()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            try
+            {
+                await context.PerformNonResultOperationAsync(
+                    tracer,
+                    async () =>
+                    {
+                        // This test case simulates a very synchronous pause in the thread.
+
+#pragma warning disable AsyncFixer02 // Long-running or blocking operations inside an async method
+                        Thread.Sleep(5_000);
+#pragma warning restore AsyncFixer02 // Long-running or blocking operations inside an async method
+
+                        await Task.Yield();
+                        return 42;
+                    },
+                    timeout: TimeSpan.FromSeconds(1));
+                Assert.False(true, "The operation should fail");
+            }
+            catch (TimeoutException)
+            { }
         }
 
         [Fact]
@@ -179,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
                     () =>
                     {
                         return new CustomResult();
-                        
+
                     })
                 .WithOptions(traceErrorsOnly: true)
                 .Run(caller: "FastOperation");
@@ -189,17 +217,17 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             fullOutput.Should().NotContain("FastOperation");
 
             // Running a slow operation now
-             result = context.CreateOperation(
-                    tracer,
-                    () =>
-                    {
+            result = context.CreateOperation(
+                   tracer,
+                   () =>
+                   {
                         // Making the operation intentionally slow.
                         Thread.Sleep(10);
-                        return new CustomResult();
-                        
-                    })
-                .WithOptions(traceErrorsOnly: true, silentOperationDurationThreshold: TimeSpan.FromMilliseconds(0))
-                .Run(caller: "SlowOperation");
+                       return new CustomResult();
+
+                   })
+               .WithOptions(traceErrorsOnly: true, silentOperationDurationThreshold: TimeSpan.FromMilliseconds(0))
+               .Run(caller: "SlowOperation");
 
             // Check that the exception's stack trace appears in the final output only ones.
             fullOutput = GetFullOutput();
@@ -225,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 
             // Running an operation that fails.
             string error = "My Error";
-            
+
             result = context.CreateOperation(
                     tracer,
                     () => new CustomResult(new BoolResult(error), error))

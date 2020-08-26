@@ -23,7 +23,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns an empty machine set.
         /// </summary>
-        public static readonly MachineIdSet Empty = ArrayMachineIdSet.EmptyInstance;
+        /// <remarks>
+        /// Using a property getter instead of a field to avoid static initialization issues that can cause NRE or contract violations because the field can still be null
+        /// in some very rare cases.
+        /// </remarks>
+        public static MachineIdSet Empty => ArrayMachineIdSet.EmptyInstance;
 
         /// <summary>
         /// Returns the format of a machine id set.

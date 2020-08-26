@@ -205,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     {
                                         // Existing entry was there. Merge the entries.
                                         entry = ContentLocationEntry.MergeEntries(entry, originalEntry);
-                                        results[indexedHash.Index] = entry;
+                                        Interlocked.Exchange(ref results[indexedHash.Index], entry);
                                         Interlocked.Increment(ref dualResultCount);
                                     }
 

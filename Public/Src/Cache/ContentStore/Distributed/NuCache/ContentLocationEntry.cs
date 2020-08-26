@@ -58,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         private ContentLocationEntry(MachineIdSet locations, long contentSize, UnixTime lastAccessTimeUtc, UnixTime? creationTimeUtc)
         {
+            Contract.RequiresNotNull(locations);
             Locations = locations;
             ContentSize = contentSize;
             LastAccessTimeUtc = lastAccessTimeUtc;

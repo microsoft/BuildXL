@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Utilities.Tasks;
@@ -197,14 +198,22 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        protected static Task<T> WithOptionalTimeoutAsync<T>(Task<T> task, TimeSpan? timeout)
+        protected static Task<T> WithOptionalTimeoutAsync<T>(Func<Task<T>> operation, TimeSpan? timeout, CancellationToken cancellationToken = default)
         {
             if (timeout == null)
             {
-                return task;
+                return operation();
             }
 
-            return task.WithTimeoutAsync(timeout.Value);
+            return TaskUtilities.WithTimeoutAsync(async ct =>
+                {
+                    // If the operation does any synchronous work before returning the task, our timeout mechanism
+                    // will never kick in. This yield is here to prevent that from happening.
+                    await Task.Yield();
+                    return await operation();
+                },
+                timeout.Value,
+                cancellationToken);
         }
 
         /// <nodoc />
@@ -213,7 +222,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             try
             {
-                return await WithOptionalTimeoutAsync(operation(), _timeout);
+                return await WithOptionalTimeoutAsync(operation, _timeout, _context.Token);
             }
             catch (Exception ex)
             {
@@ -234,13 +243,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
     public class PerformAsyncOperationNonResultBuilder<TResult> : PerformOperationBuilderBase<TResult, PerformAsyncOperationNonResultBuilder<TResult>>
     {
         /// <nodoc />
-        protected readonly Func<Task<TResult>> _asyncOperation;
+        protected readonly Func<Task<TResult>> AsyncOperation;
 
         /// <nodoc />
         public PerformAsyncOperationNonResultBuilder(OperationContext context, Tracer tracer, Func<Task<TResult>> operation, Func<TResult, ResultBase>? resultBaseFactory)
         : base(context, tracer, resultBaseFactory)
         {
-            _asyncOperation = operation;
+            AsyncOperation = operation;
         }
 
         /// <nodoc />
@@ -253,7 +262,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 try
                 {
-                    var result = await WithOptionalTimeoutAsync(_asyncOperation(), _timeout);
+                    var result = await WithOptionalTimeoutAsync(AsyncOperation, _timeout, _context.Token);
                     TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
                     return result;

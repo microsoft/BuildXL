@@ -914,6 +914,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // TODO: Its probably possible to do this by getting the max machine id in the locations set rather than enumerating all of them (bug 1365340)
                 var entry = entries[i];
+                Contract.AssertNotNull(entry);
+
                 foreach (var machineId in entry.Locations.EnumerateMachineIds())
                 {
                     if (!ClusterState.TryResolve(machineId, out _))

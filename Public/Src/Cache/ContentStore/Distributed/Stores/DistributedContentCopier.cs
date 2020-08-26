@@ -424,26 +424,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 break;
                             case CopyResultCode.FileNotFoundError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 missingContentLocations.Add(location);
                                 host.ReportReputation(location, MachineReputation.Missing);
                                 break;
                             case CopyResultCode.ServerUnavailable:
                             case CopyResultCode.UnknownServerError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyResultCode.ConnectionTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 badContentLocations.Add(location);
                                 break;
@@ -455,33 +446,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
                             case CopyResultCode.CopyTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyResultCode.CopyBandwidthTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyResultCode.InvalidHash:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} {copyFileResult}");
                                 break;
                             case CopyResultCode.Unknown:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
-                                Tracer.Warning(
-                                    context,
-                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                                 host.ReportReputation(location, MachineReputation.Bad);
                                 break;
                             default:
-                                lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized";
+                                lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized. Not trying another replica.";
                                 return (result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}").AsResult<PutResult>(), retry: true);
                         }
 
@@ -514,7 +493,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     // If this happens, we should fail this copy and move to the next location.
                                     Tracer.Warning(
                                         context,
-                                        $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}");
+                                        $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                     badContentLocations.Add(location);
                                     continue;
                                 }
@@ -538,6 +517,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             }
                         }
                     }
+
+                    Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                 }
                 finally
                 {

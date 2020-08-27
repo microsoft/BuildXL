@@ -58,7 +58,7 @@ namespace TypeScript.Net.Diagnostics
 
             var text = DiagnosticUtilities.GetLocaleSpecificMessage(message);
 
-            // arguments is a javascript concept!!
+            // arguments is a JavaScript concept!!
             if (args?.Length > 0)
             {
                 text = DiagnosticUtilities.FormatStringFromArgs(text, args);

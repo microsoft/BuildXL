@@ -196,5 +196,17 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void SpecifiedExportIsAReservedName(LoggingContext context, Location location, string symbol);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConstructingGraphScript,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = "The JavaScript project graph tool execution is: {script}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ConstructingGraphScript(LoggingContext context, string script);
+
+        
     }
 }

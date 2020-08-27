@@ -98,7 +98,7 @@ export const enum Target { eS3, eS5 }
  */
 @@public
 export interface Result {
-    // Generated javascript file
+    // Generated JavaScript file
     jsFile: File;
 
     // Generated .d.ts declaration file

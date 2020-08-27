@@ -7,12 +7,16 @@ export interface JavaScriptGraph {
     projects: JavaScriptProject[];
 }
 
+export interface ScriptCommands {
+    [task: string] : string
+}
+
 /**
  * A JavaScript project, with the information that is relevant to BuildXL
  */
 export interface JavaScriptProject {
     name: string;
-    availableScriptCommands: any;
+    availableScriptCommands: ScriptCommands;
     projectFolder: string;
     tempFolder: string;
     dependencies: string[];

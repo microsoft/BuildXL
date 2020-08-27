@@ -18189,13 +18189,13 @@ namespace TypeScript.Net.TypeChecking
                 var symbol = GetSymbolOfNode(node);
                 var localSymbol = node.LocalSymbol ?? symbol;
 
-                // Since the javascript won't do semantic analysis like typescript,
-                // if the javascript file comes before the typescript file and both contain same name functions,
-                // checkFunctionOrConstructorISymbol wouldn't be called if we didnt ignore javascript function.
+                // Since the JavaScript won't do semantic analysis like typescript,
+                // if the JavaScript file comes before the typescript file and both contain same name functions,
+                // checkFunctionOrConstructorISymbol wouldn't be called if we didnt ignore JavaScript function.
                 var firstDeclaration = ForEachUntil(
                     localSymbol.DeclarationList,
                     this,
-                    (declaration, @this) => // Get first non javascript  declaration
+                    (declaration, @this) => // Get first non JavaScript  declaration
                     {
                         return
                             declaration.Kind == node.Kind && !declaration.IsJavaScriptFile()

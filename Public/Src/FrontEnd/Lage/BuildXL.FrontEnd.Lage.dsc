@@ -7,10 +7,10 @@ import * as Managed from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
-namespace JavaScript {
+namespace Lage {
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "BuildXL.FrontEnd.JavaScript",
+        assemblyName: "BuildXL.FrontEnd.Lage",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
         references: [
@@ -32,12 +32,13 @@ namespace JavaScript {
             Script.dll,
             Core.dll,
             Sdk.dll,
+            JavaScript.dll
+        ],
+        runtimeContent:[
+            importFrom("BuildXL.Tools").JavaScript.LageGraphBuilder.deployment 
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Lage",
-            "Test.BuildXL.FrontEnd.Rush",
-            "Test.BuildXL.FrontEnd.Yarn",
-            "Test.BuildXL.FrontEnd.Core"
         ],
     });
 }

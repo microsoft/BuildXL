@@ -31,5 +31,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         SpecifiedPackageForExportDoesNotExist = 11914,
         RequestedExportIsNotPresent = 11915,
         SpecifiedExportIsAReservedName = 11916,
+        ConstructingGraphScript = 11917,
     }
 }

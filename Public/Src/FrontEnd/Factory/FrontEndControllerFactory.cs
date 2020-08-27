@@ -11,6 +11,7 @@ using BuildXL.FrontEnd.Download;
 using BuildXL.FrontEnd.Factory.Tracing;
 #if PLATFORM_WIN
 using BuildXL.FrontEnd.CMake;
+using BuildXL.FrontEnd.Lage;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Ninja;
 using BuildXL.FrontEnd.Rush;
@@ -284,6 +285,7 @@ namespace BuildXL.FrontEnd.Factory
             frontEndFactory.AddFrontEnd(new CMakeFrontEnd());
             frontEndFactory.AddFrontEnd(new RushFrontEnd());
             frontEndFactory.AddFrontEnd(new YarnFrontEnd());
+            frontEndFactory.AddFrontEnd(new LageFrontEnd());
 #endif
 
             if (!frontEndFactory.TrySeal(loggingContext))

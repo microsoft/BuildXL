@@ -302,6 +302,18 @@ interface YarnResolver extends JavaScriptResolver {
 }
 
 /**
+ * Resolver for Yarn project-level build execution
+ */
+interface LageResolver extends JavaScriptResolver {
+    kind: "Lage";
+
+    /**
+     * The default list of targets to run Lage with. i.e. 'build', 'test', 'ut' etc.
+     */
+    targets: string[];
+}
+
+/**
  * Base resolver for all JavaScript-like resolvers. E.g. Rush
  */
 interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
@@ -604,4 +616,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver | LageResolver;

@@ -18,7 +18,7 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Scheduler
 {
     /// <summary>
-    ///     Responsible for keeping track of started services.  Provides methods for staring
+    ///     Responsible for keeping track of started services.  Provides methods for starting
     ///     and shutting down service pips on demand (based on pip information in given pip graph).
     /// </summary>
     /// <remarks>

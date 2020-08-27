@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.JavaScript
         where TResolverSettings : class, IJavaScriptResolverSettings
     {
         /// <summary>
-        /// Name of the Bxl configuration file that can be dropped at the root of a javascript project
+        /// Name of the Bxl configuration file that can be dropped at the root of a JavaScript project
         /// </summary>
         internal const string BxlConfigurationFilename = "bxlconfig.json";
 
@@ -445,6 +445,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 m_resolverSettings.NodeExeLocation.Value.Path.ToString(m_context.PathTable) :
                 "node.exe";
             var toolArguments = GetGraphConstructionToolArguments(outputFile, toolLocation, toolPath, nodeExeLocation);
+
+            Tracing.Logger.Log.ConstructingGraphScript(m_context.LoggingContext, toolArguments);
 
             return FrontEndUtilities.RunSandboxedToolAsync(
                m_context,

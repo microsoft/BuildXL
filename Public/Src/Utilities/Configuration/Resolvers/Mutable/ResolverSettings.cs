@@ -72,6 +72,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new RushResolverSettings(rushResolver, pathRemapper);
                 case IYarnResolverSettings yarnResolver:
                     return new YarnResolverSettings(yarnResolver, pathRemapper);
+                case ILageResolverSettings lageResolver:
+                    return new LageResolverSettings(lageResolver, pathRemapper);
                 default:
                     Contract.Assume(false, "Unexpected type of resolver settings.");
                     return null;

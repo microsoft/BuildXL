@@ -11,7 +11,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 {
     /// <summary>
-    /// DScript has some additional restrictions for javascript literal numbers
+    /// DScript has some additional restrictions for JavaScript literal numbers
     /// - It doesn't support floating point. All 'number's in DScript are 32-bit integers.
     /// - It doesn't support 'infinity' values on overflow
     /// </summary>

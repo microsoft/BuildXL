@@ -324,7 +324,7 @@ namespace BuildXL.Scheduler.Tracing
 
         AllowedSameContentDoubleWrite = 5044,
         AllowedRewriteOnUndeclaredFile = 5055,
-        DisallowedSameContentRewriteOnUndeclaredFile = 5056,
+        DisallowedRewriteOnUndeclaredFile = 5056,
 
         InitiateWorkerRelease = 5045,
         WorkerReleasedEarly = 5046,

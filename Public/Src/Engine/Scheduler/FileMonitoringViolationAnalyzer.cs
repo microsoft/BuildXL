@@ -587,7 +587,7 @@ namespace BuildXL.Scheduler
                     LoggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(Context),
-                    AggregateAccessViolationPaths(errorPaths, Context.PathTable, getDescription),
+                    AggregateAccessViolationPaths(pip.PipId, errorPaths, Context.PathTable, getDescription),
                     PipEnvironment.RestrictedTemp);
             }
 
@@ -597,7 +597,7 @@ namespace BuildXL.Scheduler
                     LoggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(Context),
-                    AggregateAccessViolationPaths(warningPaths, Context.PathTable, getDescription));
+                    AggregateAccessViolationPaths(pip.PipId, warningPaths, Context.PathTable, getDescription));
             }
         }
 
@@ -618,7 +618,7 @@ namespace BuildXL.Scheduler
             warningPaths.UnionWith(warnings);
         }
 
-        internal static string AggregateAccessViolationPaths(HashSet<ReportedViolation> paths, PathTable pathTable, Func<PipId, string> getPipDescription)
+        internal static string AggregateAccessViolationPaths(PipId reportingPip, HashSet<ReportedViolation> paths, PathTable pathTable, Func<PipId, string> getPipDescription)
         {
             using (var wrap = Pools.GetStringBuilder())
             {
@@ -675,7 +675,7 @@ namespace BuildXL.Scheduler
                         }
 
                         // Write out the access information
-                        builder.AppendLine(worstAccess.RenderForDFASummary(pathTable));
+                        builder.AppendLine(worstAccess.RenderForDFASummary(reportingPip, pathTable));
                         legendText.Add(worstAccess.LegendText);
                     }
 
@@ -981,7 +981,6 @@ namespace BuildXL.Scheduler
             if (result.IsFound && result.Item.Value.processPip != pip.PipId)
             {
                 var relatedPipId = result.Item.Value.processPip;
-                Process related = null;
 
                 DependencyViolationType violationType;
                 AccessLevel accessLevel;
@@ -1070,15 +1069,13 @@ namespace BuildXL.Scheduler
                             return;
                         }
 
-                        // Log a verbose message explaining why the same-content check failed
+                        // Log a verbose message explaining why the the rewrite is not safe
                         LogDisallowedReasonIfNeeded(disallowedReason, pip, path, racyReader);
 
-                        // In this case seeing the writer triggered the violation, but we want to expose this to the user as a read violation, since this is almost always about a missing
+                        // In this case seeing the writer triggered the violation, but we want to expose this to the user as a missing dependency violation, since this is almost always about a missing
                         // dependency that needs declaration.
                         violationType = DependencyViolationType.WriteInUndeclaredSourceRead;
                         accessLevel = AccessLevel.Read;
-                        related = pip;
-                        pip = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                         break;
                     // There was an absent file probe, so this is a write on an absent file probe
@@ -1098,10 +1095,7 @@ namespace BuildXL.Scheduler
                         throw new InvalidOperationException(I($"Unexpected value {result.Item.Value.accessType}"));
                 }
 
-                if (related == null)
-                {
-                    related = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
-                }
+                var related = (Process)m_graph.HydratePip(relatedPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                 reportedViolations.Add(
                     HandleDependencyViolation(
@@ -1310,19 +1304,19 @@ namespace BuildXL.Scheduler
                         continue;
                     }
 
-                    var related = (Process)m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    var writer = (Process)m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                     
-                    // Log a verbose message explaining why the same-content check failed
-                    LogDisallowedReasonIfNeeded(disallowedReason, related, undeclaredRead, racyReader);
+                    // Log a verbose message explaining why the rewrite is not safe
+                    LogDisallowedReasonIfNeeded(disallowedReason, writer, undeclaredRead, racyReader);
 
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
                             AccessLevel.Read,
                             undeclaredRead,
-                            pip,
+                            writer,
                             isAllowlistedViolation: false,
-                            related: related,
+                            related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
                 }
@@ -1735,7 +1729,7 @@ namespace BuildXL.Scheduler
                     break;
             }
 
-            Logger.Log.DisallowedSameContentRewriteOnUndeclaredFile(LoggingContext, writerPip.SemiStableHash, writerPip.GetDescription(Context), undeclaredSource.ToString(Context.PathTable), detail);
+            Logger.Log.DisallowedRewriteOnUndeclaredFile(LoggingContext, writerPip.SemiStableHash, writerPip.GetDescription(Context), undeclaredSource.ToString(Context.PathTable), detail);
         }
 
         private ReportedViolation ReportReadUndeclaredOutput(

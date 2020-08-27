@@ -655,7 +655,7 @@ namespace Test.BuildXL.Scheduler
 
                 // Should not throw
                 Analysis.IgnoreResult(violation.ReportingType);
-                Analysis.IgnoreResult(violation.RenderForDFASummary(testContext.PathTable));
+                Analysis.IgnoreResult(violation.RenderForDFASummary(new PipId(1), testContext.PathTable));
                 Analysis.IgnoreResult(violation.LegendText);
             }
         }
@@ -690,7 +690,7 @@ namespace Test.BuildXL.Scheduler
                 violations.Add(new ReportedViolation(isError: false, type: violationType, path: path, violatorPipId: new PipId(1), PipId.Invalid, tool));
             }
 
-            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(violations, testContext.PathTable, (pipId) => "dummy");
+            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(new PipId(1), violations, testContext.PathTable, (pipId) => "dummy");
             string accessLine = result.Split(new string [] { Environment.NewLine}, StringSplitOptions.None)[1].TrimStart(' ');
 
             XAssert.IsTrue(accessLine.StartsWith(expectedPrefix), "Unexpected result: " + result);
@@ -715,7 +715,7 @@ namespace Test.BuildXL.Scheduler
             violations.Add(new ReportedViolation(isError: false, type: DependencyViolationType.WriteInExistingFile, path: pathB,
                 violatorPipId: new PipId(1), relatedPipId: PipId.Invalid, tool2));
 
-            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(violations, testContext.PathTable, (pipId) => "PLACEHOLDER PIP DESCRIPTION");
+            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(new PipId(1), violations, testContext.PathTable, (pipId) => "PLACEHOLDER PIP DESCRIPTION");
 
             // Should see a single instance of " W " for the write files legend even though there are 2 write violations
             string legendMarker = " = ";

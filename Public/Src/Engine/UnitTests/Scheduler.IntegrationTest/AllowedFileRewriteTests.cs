@@ -128,7 +128,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Run should fail because read content is not guaranteed to be consistent
             RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(LogEventId.DisallowedSameContentRewriteOnUndeclaredFile);
+            AssertVerboseEventLogged(LogEventId.DisallowedRewriteOnUndeclaredFile);
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
         }
 

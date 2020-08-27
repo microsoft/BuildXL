@@ -63,7 +63,6 @@ namespace BuildXL.Scheduler
                     case DependencyViolationType.MissingSourceDependency:
                     case DependencyViolationType.UndeclaredReadCycle:
                     case DependencyViolationType.ReadUndeclaredOutput:
-                    case DependencyViolationType.WriteInUndeclaredSourceRead:
                         return SimplifiedViolationType.Read;
                     case DependencyViolationType.UndeclaredOutput:
                     case DependencyViolationType.WriteInSourceSealDirectory:
@@ -74,6 +73,8 @@ namespace BuildXL.Scheduler
                         return SimplifiedViolationType.Write;
                     case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
                         return SimplifiedViolationType.Probe;
+                    case DependencyViolationType.WriteInUndeclaredSourceRead:
+                        return SimplifiedViolationType.MissingDependency;
                     default:
                         throw new NotImplementedException("Need to implement for: " + Type.ToString());
                 }
@@ -83,13 +84,23 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Renders the violation for display in the DFA summary
         /// </summary>
-        public string RenderForDFASummary(PathTable pathTable)
+        public string RenderForDFASummary(PipId reportingPip, PathTable pathTable)
         {
-            return $" {ReportingType.ToAbbreviation()} {Path.ToString(pathTable)}";
+            string subtype = string.Empty;
+            // For a missing dependency case, the reporting pip can be either the writer or the reader
+            if (ReportingType == SimplifiedViolationType.MissingDependency)
+            {
+                // On missing dependency, the violator is always the writer
+                var dependencyRole = reportingPip == ViolatorPipId ? SimplifiedViolationType.Write : SimplifiedViolationType.Read;
+                subtype = $"[{dependencyRole.ToAbbreviation().Trim()}]";
+            }
+            
+
+            return $" {ReportingType.ToAbbreviation()} {subtype}{Path.ToString(pathTable)}";
         }
 
         /// <summary>
-        /// Legend informaiton to display in the DFA summary
+        /// Legend information to display in the DFA summary
         /// </summary>
         public string LegendText
         {
@@ -105,6 +116,8 @@ namespace BuildXL.Scheduler
                         return $"{ReportingType.ToAbbreviation()} = Write";
                     case SimplifiedViolationType.DoubleWrite:
                         return $"{ReportingType.ToAbbreviation()} = Double Write";
+                    case SimplifiedViolationType.MissingDependency:
+                        return $"{ReportingType.ToAbbreviation()} = Missing dependency between a reader and a writer";
                     default:
                         throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
                 }
@@ -178,6 +191,9 @@ namespace BuildXL.Scheduler
 
         /// <nodoc/>
         DoubleWrite = 3,
+
+        /// <nodoc/>
+        MissingDependency = 4,
     }
 
     /// <nodoc/>
@@ -199,6 +215,8 @@ namespace BuildXL.Scheduler
                     return "W ";
                 case SimplifiedViolationType.DoubleWrite:
                     return "DW";
+                case SimplifiedViolationType.MissingDependency:
+                    return "MD";
                 default:
                     throw new NotImplementedException("Need to implement for: " + violation.ToString());
             }

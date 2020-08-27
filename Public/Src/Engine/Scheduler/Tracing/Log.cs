@@ -1919,14 +1919,14 @@ namespace BuildXL.Scheduler.Tracing
             string path);
 
         [GeneratedEvent(
-             (int)LogEventId.DisallowedSameContentRewriteOnUndeclaredFile,
+             (int)LogEventId.DisallowedRewriteOnUndeclaredFile,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
              Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
              EventTask = (int)Tasks.Scheduler,
              Message = PipDependencyAnalysisPrefix +
-                 "Same-content write on the undeclared file '{2}' was disallowed. {3}")]
-        public abstract void DisallowedSameContentRewriteOnUndeclaredFile(
+                 "Rewrite on the undeclared file '{2}' was disallowed. {3}")]
+        public abstract void DisallowedRewriteOnUndeclaredFile(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
@@ -2073,7 +2073,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
-                "Undeclared access on an output file: This pip reads path '{4}', but '{5}' writes into it. " +
+                "Undeclared access on an output file: This pip writes path '{4}', but '{5}' reads into it. " +
                 "Consider declaring a dependency on the reader to the producer.")]
         public abstract void DependencyViolationWriteInUndeclaredSourceRead(
             LoggingContext context,
@@ -2082,7 +2082,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipSpecPath,
             string pipWorkingDirectory,
             string path,
-            string producingPipDescription);
+            string readerPipDescription);
 
         [GeneratedEvent(
             (int)LogEventId.DependencyViolationWriteOnExistingFile,

@@ -69,14 +69,29 @@ namespace ContentStoreTest.Distributed.Sessions
             public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
             public readonly IList<IStartupShutdown> Servers;
+            public readonly int[] Ports;
             public readonly int Iteration;
 
             public TestContext(TestContext other)
-                : this(other.Context, other.FileCopier, other.Directories, other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(), other.Iteration, other._traceStoreStatistics)
+                : this(
+                      other.Context,
+                      other.FileCopier,
+                      other.Directories,
+                      other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(),
+                      other.Iteration,
+                      other.Ports,
+                      other._traceStoreStatistics)
             {
             }
 
-            public TestContext(Context context, IAbsolutePathRemoteFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration, bool traceStoreStatistics = false)
+            public TestContext(
+                Context context,
+                IAbsolutePathRemoteFileCopier fileCopier,
+                IList<DisposableDirectory> directories,
+                IList<(IContentStore store, IStartupShutdown server)> stores,
+                int iteration,
+                int[] ports,
+                bool traceStoreStatistics = false)
             {
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
@@ -87,8 +102,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 Stores = stores.Select(s => s.store).ToList();
                 Servers = stores.Select(s => s.server ?? s.store).ToList();
                 Iteration = iteration;
+                Ports = ports;
 
-                if (TestFileCopier != null)
+                if (TestFileCopier != null && Stores.Count > 1)
                 {
                     for (int i = 0; i < Stores.Count; i++)
                     {
@@ -770,8 +786,9 @@ namespace ContentStoreTest.Distributed.Sessions
                     context.Always($"Starting test iteration {iteration}");
 
                     var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
+
                     IAbsolutePathRemoteFileCopier[] testFileCopiers;
-                    if (UseGrpcServer)
+                    if (UseGrpcServer && storeCount > 1)
                     {
                         Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");
                         testFileCopiers = Enumerable.Range(0, 2).Select(i => new GrpcFileCopier(context, ports[i == 1 ? 0 : 1], maxGrpcClientCount: 1, maxGrpcClientAgeMinutes: 1)).ToArray();
@@ -791,7 +808,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 iteration: iteration,
                                 grpcPort: (uint)ports[directory.Index])).ToList();
 
-                    var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
+                    var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
 
                     await testContext.StartupAsync(implicitPin, storeToStartupLast);
 

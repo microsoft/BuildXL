@@ -12,7 +12,10 @@ using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
-    internal static class MultiLevelUtilities
+    /// <summary>
+    /// Utitlies for working with multi-level caches
+    /// </summary>
+    public static class MultiLevelUtilities
     {
         /// <summary>
         /// Processes given inputs with on first level then optionally calls subset for second level

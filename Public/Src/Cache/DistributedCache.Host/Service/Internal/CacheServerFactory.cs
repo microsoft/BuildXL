@@ -86,7 +86,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
-            Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, contentStoreSettings: default, distributedStore: null);
+            var resolvedCacheSettings = DistributedContentStoreFactory.ResolveCacheSettingsInPrecedenceOrder(_arguments);
+
+            Func<AbsolutePath, IContentStore> contentStoreFactory = path => DistributedContentStoreFactory.CreateLocalContentStore(
+                distributedSettings,
+                _arguments,
+                resolvedCacheSettings.Where(s => s.ResolvedCacheRootPath == path || s.ResolvedCacheRootPath.Path.StartsWith(path.Path, StringComparison.OrdinalIgnoreCase)).Single());
 
             if (distributedSettings?.EnableMetadataStore == true)
             {

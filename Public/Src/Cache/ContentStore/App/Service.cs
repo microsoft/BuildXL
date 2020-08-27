@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 #if !NET_FRAMEWORK
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
@@ -30,6 +31,7 @@ namespace BuildXL.Cache.ContentStore.App
             "Number of seconds to give clients to disconnect before connections are closed hard";
 
         private const string GrpcPortDescription = "The port number for spinning up a service with GRPC";
+        private const string RemoteGrpcPortDescription = "The port number for contacting a backing cache service";
 
         /// <summary>
         ///     Run the service verb.
@@ -49,8 +51,9 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Duration of inactivity after which a session will be timed out.")] double? unusedSessionTimeoutSeconds,
             [DefaultValue(null), Description("Duration of inactivity after which a session with a heartbeat will be timed out.")] double? unusedSessionHeartbeatTimeoutSeconds,
             [DefaultValue(false), Description("Stop running service")] bool stop,
-            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB
-            )
+            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
+            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(RemoteGrpcPortDescription)] int backingGrpcPort,
+            [DefaultValue(null), Description("Name of scenario for backing CAS service")] string backingScenario)
         {
             Initialize();
 
@@ -160,8 +163,14 @@ namespace BuildXL.Cache.ContentStore.App
             };
 
             var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, serverDataRootPath.Path, names[0], (uint)grpcPort);
+            localCasSettings.ServiceSettings.ScenarioName = _scenario;
 
             var distributedContentSettings = DistributedContentSettings.CreateDisabled();
+            if (backingGrpcPort != ServiceConfiguration.GrpcDisabledPort)
+            {
+                distributedContentSettings.BackingGrpcPort = backingGrpcPort;
+                distributedContentSettings.BackingScenario = backingScenario;
+            }
 
             var distributedCacheServiceConfiguration = new DistributedCacheServiceConfiguration(localCasSettings, distributedContentSettings);
 
@@ -171,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.App
             var distributedCacheServiceArguments = new DistributedCacheServiceArguments(
                 logger: _logger,
                 copier: null,
-                pathTransformer: null,
+                pathTransformer: new GrpcDistributedPathTransformer(_logger),
                 copyRequester: null,
                 host: new EnvironmentVariableHost(),
                 hostInfo: new HostInfo(null, null, new List<string>()),

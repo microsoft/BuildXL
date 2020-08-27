@@ -60,6 +60,18 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsDistributedContentEnabled { get; set; }
 
         /// <summary>
+        /// Grpc port for backing cache service instance
+        /// </summary>
+        [DataMember]
+        public int? BackingGrpcPort { get; set; } = null;
+
+        /// <summary>
+        /// Grpc port for backing cache service instance
+        /// </summary>
+        [DataMember]
+        public string BackingScenario { get; set; } = null;
+
+        /// <summary>
         /// The amount of time for nagling GetBulk (locations) for proactive copy operations
         /// </summary>
         [DataMember]

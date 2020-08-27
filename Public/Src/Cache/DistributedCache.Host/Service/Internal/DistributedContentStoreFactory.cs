@@ -21,7 +21,9 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -91,7 +93,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _redisMemoizationStoreFactory = new Lazy<RedisMemoizationStoreFactory>(() => CreateRedisCacheFactory());
         }
 
-        private static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
+        internal static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
         {
             var localCasSettings = arguments.Configuration.LocalCasSettings;
             var cacheSettingsByName = localCasSettings.CacheSettingsByCacheName;
@@ -279,18 +281,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var contentStoreSettings = FromDistributedSettings(_distributedSettings);
 
-            ConfigurationModel configurationModel = configurationModel
-                = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedSettings.Settings.CacheSizeQuotaString)));
-
             _logger.Debug("Creating a distributed content store");
 
             var contentStore =
                 new DistributedContentStore<AbsolutePath>(
                     resolvedSettings.MachineLocation,
                     resolvedSettings.ResolvedCacheRootPath,
-                    (checkLocal, distributedStore) =>
-                        ContentStoreFactory.CreateContentStore(_fileSystem, resolvedSettings.ResolvedCacheRootPath,
-                            contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel),
+                    (checkLocal, distributedStore) => CreateLocalContentStore(_distributedSettings, _arguments, resolvedSettings, distributedStore),
                     _redisMemoizationStoreFactory.Value,
                     _distributedContentStoreSettings,
                     distributedCopier: _copier,
@@ -361,6 +358,38 @@ namespace BuildXL.Cache.Host.Service.Internal
             ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, arguments.Logger);
 
             return distributedContentStoreSettings;
+        }
+
+        internal static IContentStore CreateLocalContentStore(
+            DistributedContentSettings settings,
+            DistributedCacheServiceArguments arguments,
+            ResolvedNamedCacheSettings resolvedSettings,
+            IDistributedLocationStore distributedStore = null)
+        {
+            settings = settings ?? DistributedContentSettings.CreateDisabled();
+            var contentStoreSettings = FromDistributedSettings(settings);
+
+            ConfigurationModel configurationModel
+                = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedSettings.Settings.CacheSizeQuotaString)));
+
+            var localStore = ContentStoreFactory.CreateContentStore(arguments.FileSystem, resolvedSettings.ResolvedCacheRootPath,
+                            contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel);
+
+            if (settings.BackingGrpcPort != null)
+            {
+                var backingStore = new ServiceClientContentStore(
+                    arguments.Logger,
+                    arguments.FileSystem,
+                    resolvedSettings.Name,
+                    new ServiceClientRpcConfiguration(settings.BackingGrpcPort.Value),
+                    arguments.Configuration.LocalCasSettings.CasClientSettings.RetryIntervalSecondsOnFailServiceCalls,
+                    arguments.Configuration.LocalCasSettings.CasClientSettings.RetryCountOnFailServiceCalls,
+                    scenario: settings.BackingScenario);
+
+                return new MultiLevelContentStore(localStore, backingStore);
+            }
+
+            return localStore;
         }
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)

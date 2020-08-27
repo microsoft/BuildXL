@@ -67,6 +67,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected const int ReplicaCreditInMinutes = 3;
         private const int InfiniteHeartbeatMinutes = 10_000;
 
+        private string _overrideScenarioName = null;
+
         protected bool _enableSecondaryRedis = false;
         protected bool _poolSecondaryRedisDatabase = true;
         protected bool _registerAdditionalLocationPerMachine = false;
@@ -317,7 +319,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     GrpcPort = grpcPort,
                     GrpcPortFileName = Guid.NewGuid().ToString(),
-                    ScenarioName = Guid.NewGuid().ToString(),
+                    ScenarioName = _overrideScenarioName ?? Guid.NewGuid().ToString(),
                     MaxProactivePushRequestHandlers = ProactivePushCountLimit,
                 }
             };
@@ -351,7 +353,12 @@ namespace ContentStoreTest.Distributed.Sessions
             if (UseGrpcServer)
             {
                 var server = (ILocalContentServer<IContentStore>)new CacheServerFactory(arguments).Create();
-                var store = ((MultiplexedContentStore)server.StoresByName["Default"]).PreferredContentStore;
+                IContentStore store = server.StoresByName["Default"];
+                if (store is MultiplexedContentStore multiplexedStore)
+                {
+                    store = multiplexedStore.PreferredContentStore;
+                }
+
                 return (store, server);
             }
             else
@@ -2306,6 +2313,86 @@ namespace ContentStoreTest.Distributed.Sessions
 #pragma warning disable AsyncFixer02
                     openStreamResult.Stream.Dispose();
 #pragma warning restore AsyncFixer02
+                });
+        }
+
+        [Fact]
+        public async Task MultiLevelContentStoreTests()
+        {
+            var remoteScenarioName = Guid.NewGuid().ToString();
+            _overrideScenarioName = remoteScenarioName;
+            UseGrpcServer = true;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                new Context(Logger),
+                1,
+                async remoteContext =>
+                {
+                    var remoteSessions = remoteContext.Sessions;
+                    var remotePutResult0 = await remoteSessions[0].PutRandomFileAsync(remoteContext, FileSystem, ContentHashType, false, 100, Token).ShouldBeSuccess();
+                    var remotePutResult1 = await remoteSessions[0].PutRandomFileAsync(remoteContext, FileSystem, ContentHashType, false, 100, Token).ShouldBeSuccess();
+
+                    OverrideTestRootDirectoryPath = TestRootDirectoryPath / "multilevel";
+                    _overrideScenarioName = Guid.NewGuid().ToString();
+                    ConfigureWithOneMaster(dcs =>
+                    {
+                        dcs.IsDistributedContentEnabled = false;
+                        dcs.BackingScenario = remoteScenarioName;
+                        dcs.BackingGrpcPort = remoteContext.Ports[0];
+                    });
+
+                    PutResult multiLevelPutResult = null;
+
+                    await RunTestAsync(
+                        new Context(Logger),
+                        1,
+                        async multiLevelContext =>
+                        {
+                            var multiLevelSessions = multiLevelContext.Sessions;
+
+                            // Verify pulling the content using place file
+                            var multiLevelPlaceFilePath = multiLevelContext.Directories[0].Path / "ml.randomfile";
+                            var placeFileResult = await multiLevelSessions[0].PlaceFileAsync(
+                                multiLevelContext,
+                                remotePutResult0.ContentHash,
+                                multiLevelPlaceFilePath,
+                                FileAccessMode.ReadOnly,
+                                FileReplacementMode.ReplaceExisting,
+                                FileRealizationMode.Any,
+                                Token).ShouldBeSuccess();
+
+                            placeFileResult.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithHardLink);
+
+                            // Link should only exist in local CAS and place file destination.
+                            FileSystem.GetHardLinkCount(multiLevelPlaceFilePath).Should().Be(2);
+
+                            // Verify pulling the content using open stream
+                            var streamResult = await multiLevelSessions[0].OpenStreamAsync(
+                                multiLevelContext,
+                                remotePutResult1.ContentHash,
+                                Token).ShouldBeSuccess();
+
+                            multiLevelPutResult = await multiLevelSessions[0].PutRandomFileAsync(remoteContext, FileSystem, ContentHashType, false, 100, Token).ShouldBeSuccess();
+                        },
+                        ensureLiveness: false);
+
+                    var remotePlaceFilePath = remoteContext.Directories[0].Path / "remote.randomfile";
+
+                    // Verify content is in remote store by placing the content
+                    var remotePlaceFileResult = await remoteSessions[0].PlaceFileAsync(
+                        remoteContext,
+                        multiLevelPutResult.ContentHash,
+                        remotePlaceFilePath,
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.ReplaceExisting,
+                        FileRealizationMode.Any,
+                        Token).ShouldBeSuccess();
+
+                    remotePlaceFileResult.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithHardLink);
+
+                    // Link should only exist in remote CAS and place file destination
+                    FileSystem.GetHardLinkCount(remotePlaceFilePath).Should().Be(2);
                 });
         }
 

@@ -1,0 +1,5 @@
+module({
+    name: "Sdk.MaterializationDaemon",
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [ p`Tool.MaterializationDaemonInterfaces.dsc`, p`Tool.MaterializationDaemonRunner.dsc`, p`Tool.MaterializationDaemonTool.dsc`]
+});

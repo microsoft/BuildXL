@@ -589,7 +589,7 @@ namespace Tool.ServicePipDaemon
         private static string ToPayload(ConfiguredCommand cmd) => ToPayload(cmd.Command.Name, cmd.Config);
 
         /// <nodoc/>
-        protected static void SetupThreadPoolAndServicePoint(int minWorkerThreads, int minIoThreads, int minServicePointParallelism)
+        protected static void SetupThreadPoolAndServicePoint(int minWorkerThreads, int minIoThreads, int? minServicePointParallelism)
         {
             int workerThreads, ioThreads;
             ThreadPool.GetMinThreads(out workerThreads, out ioThreads);
@@ -598,7 +598,10 @@ namespace Tool.ServicePipDaemon
             ioThreads = Math.Max(ioThreads, minIoThreads);
             ThreadPool.SetMinThreads(workerThreads, ioThreads);
 
-            ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism, ServicePointManager.DefaultConnectionLimit);
+            if (minServicePointParallelism.HasValue)
+            {
+                ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism.Value, ServicePointManager.DefaultConnectionLimit);
+            }
         }
     }
 }

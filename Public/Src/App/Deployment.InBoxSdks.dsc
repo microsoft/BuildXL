@@ -46,6 +46,15 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                                 }).deployment
                             ]
                         },
+                        {
+                            subfolder: "Sdk.Materialization",
+                            contents: [
+                                importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
+                                    targetFramework: "net472",
+                                    targetRuntime: "win-x64"
+                                }).deployment
+                            ]
+                        },
                     ])
                 ]
             }

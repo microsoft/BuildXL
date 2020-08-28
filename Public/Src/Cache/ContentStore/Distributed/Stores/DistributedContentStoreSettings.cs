@@ -253,6 +253,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int? ReplicaCreditInMinutes { get; set; }
 
         /// <summary>
+        /// Every time interval we trace a report on copy progression.
+        /// </summary>
+        public TimeSpan PeriodicCopyTracingInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
         /// The batch size used by the location store
         /// </summary>
         public int LocationStoreBatchSize { get; set; }

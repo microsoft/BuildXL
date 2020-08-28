@@ -316,6 +316,10 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int RestrictedCopyReplicaCount { get; set; } = 3;
 
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public double PeriodicCopyTracingIntervalMinutes { get; set; } = 5.0;
+
         /// <summary>
         /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
         /// Default to always wait for both instances to complete.

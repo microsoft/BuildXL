@@ -335,6 +335,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
                 RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                 CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
+                PeriodicCopyTracingInterval = TimeSpan.FromMinutes(distributedSettings.PeriodicCopyTracingIntervalMinutes),
                 AreBlobsSupported = redisContentLocationStoreConfiguration.AreBlobsSupported,
                 MaxBlobSize = redisContentLocationStoreConfiguration.MaxBlobSize,
                 DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),

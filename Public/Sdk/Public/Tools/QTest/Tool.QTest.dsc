@@ -17,11 +17,25 @@ const qTestToolsStaticDirectory = (() => {
 }
 )();
 
+const specs = [
+    f`Tool.QTestRunner.dsc`,
+    {file: f`LiteralFiles/package.config.dsc.literal`, targetFileName: a`package.config.dsc`},
+];
+
 @@public
 export const deployment: Deployment.Definition = {
     contents: [
-        f`Tool.QTestRunner.dsc`,
-        {file: f`LiteralFiles/package.config.dsc.literal`, targetFileName: a`package.config.dsc`},
+        ...specs,
         {subfolder: "bin", contents: [qTestToolsStaticDirectory]},
     ],
 };
+
+@@public
+export const evaluationOnlyDeployment: Deployment.Definition = {
+    contents: specs
+};
+
+@@public
+export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
+    return evaluationOnly? evaluationOnlyDeployment : deployment;
+}

@@ -91,6 +91,7 @@ namespace LanguageService.Server {
                             subfolder: a`bin`,
                             contents: [
                                 serverAssembly,
+                                importFrom("BuildXL.App").evaluationOnlySdks
                             ]
                         },
                         {

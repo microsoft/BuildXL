@@ -4,18 +4,21 @@
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
+const specs = [
+    f`Tool.MaterializationDaemonRunner.dsc`,
+    f`Tool.MaterializationDaemonInterfaces.dsc`,
+    {
+        file: f`LiteralFiles/package.config.dsc.literal`, 
+        targetFileName: a`package.config.dsc`},
+    {
+        file: f`LiteralFiles/Tool.MaterializationDaemonTool.dsc.literal`,
+        targetFileName: a`Tool.MaterializationDaemonTool.dsc`,
+    }];
+
 @@public
 export const deployment: Deployment.Definition = !BuildXLSdk.isDaemonToolingEnabled ? undefined : {
     contents: [
-        f`Tool.MaterializationDaemonRunner.dsc`,
-        f`Tool.MaterializationDaemonInterfaces.dsc`,
-        {
-            file: f`LiteralFiles/package.config.dsc.literal`, 
-            targetFileName: a`package.config.dsc`},
-        {
-            file: f`LiteralFiles/Tool.MaterializationDaemonTool.dsc.literal`,
-            targetFileName: a`Tool.MaterializationDaemonTool.dsc`,
-        },
+        ...specs,
         {
             subfolder: "bin",
             contents: [
@@ -24,3 +27,13 @@ export const deployment: Deployment.Definition = !BuildXLSdk.isDaemonToolingEnab
         },
     ],
 };
+
+@@public
+export const evaluationOnlyDeployment: Deployment.Definition = !BuildXLSdk.isDaemonToolingEnabled ? undefined : {
+    contents: specs
+};
+
+@@public
+export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
+    return evaluationOnly? evaluationOnlyDeployment : deployment;
+}

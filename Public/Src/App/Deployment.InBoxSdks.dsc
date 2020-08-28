@@ -4,10 +4,17 @@
 const sdkRoot = Context.getMount("SdkRoot").path;
 
 @@public
-export const inBoxSdks = createSdkDeploymentDefinition(false);
-export const inBoxServerSdks = createSdkDeploymentDefinition(true);
+export const inBoxSdks = createSdkDeploymentDefinition(false, false);
+@@public
+export const inBoxServerSdks = createSdkDeploymentDefinition(true, false);
 
-function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.Definition {
+/**
+ * Basic sdks without the binary tools, for evaluation purposes only
+ */
+@@public
+export const evaluationOnlySdks = createSdkDeploymentDefinition(false, true);
+
+function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly: boolean) : Deployment.Definition {
     return {
         contents: [
             {
@@ -21,29 +28,33 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                         subfolder: "Sdk.Transformers",
                         contents: glob(d`${sdkRoot}/Transformers`, "*.dsc")
                     },
+                    // If any new deployment is added below, please consider adding an 'evaluation only' version of it. This
+                    // consists of just the specs, but not binaries. The evaluation only SDK is used to deploy SDKs alongside
+                    // the VSCode plugin. The plugin only needs specs to evaluate, and adding binaries will make the vsix 
+                    // unnecessarily heavy.
                     ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
                         {
                             subfolder: "Sdk.QTest",
                             contents: [ 
-                                importFrom("BuildXL.Tools.QTest").deployment 
+                                importFrom("BuildXL.Tools.QTest").selectDeployment(evaluationOnly)
                             ]
                         },
                         {
                             subfolder: "Sdk.Drop",
-                            contents: [
+                            contents: [ 
                                 importFrom("BuildXL.Tools.DropDaemon").withQualifier({
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
-                                }).deployment
+                                }).selectDeployment(evaluationOnly)
                             ]
                         },
                         {
                             subfolder: "Sdk.Symbols",
                             contents: [
-                                importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                    targetFramework: "net472",
-                                    targetRuntime: "win-x64"
-                                }).deployment
+                                     importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                        targetFramework: "net472",
+                                        targetRuntime: "win-x64"
+                                    }).selectDeployment(evaluationOnly)
                             ]
                         },
                         {
@@ -52,7 +63,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                                 importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
-                                }).deployment
+                                }).selectDeployment(evaluationOnly)
                             ]
                         },
                     ])

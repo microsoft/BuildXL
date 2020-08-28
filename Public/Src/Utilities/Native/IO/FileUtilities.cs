@@ -345,6 +345,16 @@ namespace BuildXL.Native.IO
         }
 
         /// <summary>
+        /// Returns true if given file attributes denote a reparse point that points to a directory.
+        /// </summary>
+        public static bool IsDirectorySymlinkOrJunction(FileAttributes attributes) 
+        {
+            return
+                    ((attributes & FileAttributes.Directory) == FileAttributes.Directory) &&
+                    ((attributes & FileAttributes.ReparsePoint) != 0);
+        }
+
+        /// <summary>
         /// Checks if a directory exists.
         /// </summary>
         /// <remarks>

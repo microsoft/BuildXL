@@ -988,8 +988,7 @@ namespace BuildXL.Scheduler.Distribution
                     // may be changed due to cache convergence
                     Logger.Log.DistributionMasterWorkerProcessOutputContent(
                         operationContext,
-                        pip.SemiStableHash,
-                        runnable.Description,
+                        pip.FormattedSemiStableHash,
                         outputFile.fileArtifact.Path.ToString(runnable.Environment.Context.PathTable),
                         outputFile.fileInfo.Hash.ToHex(),
                         outputFile.fileInfo.ReparsePointInfo.ToString(),

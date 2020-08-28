@@ -2482,8 +2482,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 {
                                     Logger.Log.ScheduleCopyingPipInputToLocalStorage(
                                         operationContext,
-                                        pipInfo.SemiStableHash,
-                                        pipInfo.Description,
+                                        pipInfo.UnderlyingPip.FormattedSemiStableHash,
                                         hashLogStr,
                                         result: isAvailable,
                                         targetLocationUpToDate: targetLocationUpToDate,

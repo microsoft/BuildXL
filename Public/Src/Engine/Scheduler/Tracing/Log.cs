@@ -743,11 +743,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionMasterWorkerProcessOutputContent,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
+            Message = "[{formattedSemiStableHash}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
+        public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, string formattedSemiStableHash, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.InitiateWorkerRelease,
@@ -815,11 +815,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Storage,
-            Message = "[{pipDescription}] Ensured input '{contentHash}' available materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
+            Message = "[{formattedSemiStableHash}] Ensured input '{contentHash}' available materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipInputToLocalStorage(
             LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
+            string formattedSemiStableHash,
             string contentHash,
             bool result,
             string targetLocationUpToDate,

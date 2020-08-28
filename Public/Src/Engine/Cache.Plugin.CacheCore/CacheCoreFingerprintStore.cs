@@ -1,17 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -20,6 +23,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
     /// </summary>
     public sealed class CacheCoreFingerprintStore : ITwoPhaseFingerprintStore
     {
+        /// <summary>
+        /// Timeout for some fingerprint store operations.
+        /// </summary>
+        private const int TimeoutDurationMin = 5;
+
         private readonly ICacheSession m_cache;
 
         /// <nodoc />
@@ -52,7 +60,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private static async Task<Possible<PublishedEntryRef, Failure>> AdaptPublishedEntry(Task<Possible<StrongFingerprint, Failure>> cacheCoreEntryPromise, PublishedEntryRefLocality locality)
         {
-            Possible<StrongFingerprint, Failure> maybeFingerprint = await cacheCoreEntryPromise;
+            Possible<StrongFingerprint, Failure> maybeFingerprint = await PerformFingerprintCacheOperationAsync(()=> cacheCoreEntryPromise, nameof(AdaptPublishedEntry));
+
             if (maybeFingerprint.Succeeded)
             {
                 StrongFingerprint fingerprint = maybeFingerprint.Result;
@@ -107,7 +116,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 hashElement: new global::BuildXL.Cache.Interfaces.Hash(strongFingerprint.Hash),
                 cacheId: "Thin Air");
 
-            Possible<CasEntries, Failure> maybeEntry = await m_cache.GetCacheEntryAsync(reconstructedStrongFingerprint);
+            Possible<CasEntries, Failure> maybeEntry = await PerformFingerprintCacheOperationAsync(() => m_cache.GetCacheEntryAsync(reconstructedStrongFingerprint), nameof(TryGetCacheEntryAsync));
+
             if (maybeEntry.Succeeded)
             {
                 Contract.Assume(maybeEntry.Result != null, "Miss is supposed to be indicated with NoMatchingFingerprintFailure");
@@ -147,11 +157,13 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 entry.ToArray(h => new CasHash(new global::BuildXL.Cache.Interfaces.Hash(h))),
                 determinism);
 
-            Possible<FullCacheRecordWithDeterminism, Failure> maybePublished = await m_cache.AddOrGetAsync(
-                weak: new WeakFingerprintHash(new Hash(weakFingerprint.Hash)),
-                casElement: new CasHash(new Hash(pathSetHash)),
-                hashElement: new Hash(strongFingerprint.Hash),
-                hashes: adaptedHashes);
+            Possible<FullCacheRecordWithDeterminism, Failure> maybePublished = await PerformFingerprintCacheOperationAsync(
+                () => m_cache.AddOrGetAsync(
+                    weak: new WeakFingerprintHash(new Hash(weakFingerprint.Hash)),
+                    casElement: new CasHash(new Hash(pathSetHash)),
+                    hashElement: new Hash(strongFingerprint.Hash),
+                    hashes: adaptedHashes), 
+                nameof(TryPublishCacheEntryAsync));
 
             if (maybePublished.Succeeded)
             {
@@ -199,6 +211,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             {
                 return new Failure<string>("Cache entry is invalid; missing metadata reference");
             }
+        }
+
+        private static Task<Possible<TResult, Failure>> PerformFingerprintCacheOperationAsync<TResult>(Func<Task<Possible<TResult, Failure>>> func, string operationName)
+        {
+            return Utilities.PerformCacheOperationAsync(func, operationName, TimeoutDurationMin);
         }
     }
 }

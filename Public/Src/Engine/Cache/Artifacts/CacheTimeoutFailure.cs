@@ -6,14 +6,14 @@ using BuildXL.Utilities;
 namespace BuildXL.Engine.Cache.Artifacts
 {
     /// <summary>
-    /// Used to identify timeout failure for materialization or pin
+    /// Used to identify timeout failure for some cache and fingerprintstore operations.
     /// </summary>
-    public class TimeoutForArtifactContentCacheFailure : Failure
+    public class CacheTimeoutFailure : Failure
     {
         private readonly string m_failureMessage;
 
         /// <nodoc/>
-        public TimeoutForArtifactContentCacheFailure(string operation, int timeoutDurationMin, Failure innerFailure = null)
+        public CacheTimeoutFailure(string operation, int timeoutDurationMin, Failure innerFailure = null)
             : base(innerFailure) 
         {
             m_failureMessage = $"{operation} failed due to timeout: {timeoutDurationMin} minutes";

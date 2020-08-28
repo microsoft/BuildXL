@@ -483,7 +483,7 @@ namespace BuildXL.Scheduler.Artifacts
                     case ArtifactMaterializationResult.Succeeded:
                         break;
                     case ArtifactMaterializationResult.PlaceFileFailed:
-                        if (state.InnerFailure is TimeoutForArtifactContentCacheFailure)
+                        if (state.InnerFailure is CacheTimeoutFailure)
                         {
                             Logger.Log.PipMaterializeDependenciesFromCacheTimeoutFailure(
                                 operationContext,

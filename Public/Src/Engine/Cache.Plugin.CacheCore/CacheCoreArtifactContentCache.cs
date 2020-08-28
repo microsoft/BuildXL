@@ -29,7 +29,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// Timeout for pin and materialize operations.
         /// </summary>
-        public const int TimeoutDurationMin = 60;
+        public const int TimeoutDurationMin = 20;
 
         private readonly PossiblyOpenCacheSession m_cache;
 
@@ -74,7 +74,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             }
             catch (TimeoutException)
             {
-                return new TimeoutForArtifactContentCacheFailure(opName, TimeoutDurationMin);
+                return new CacheTimeoutFailure(opName, TimeoutDurationMin);
             }
 
             Contract.Assume(multiMaybePinned != null);
@@ -296,10 +296,12 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             }
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryMaterializeAsync));
-            Possible<string, Failure> maybePlaced = await maybeOpen.ThenAsync(cache => cache.ProduceFileAsync(
-                new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash)),
-                pathForCache,
-                GetFileStateForRealizationMode(fileRealizationModes)));
+            Possible<string, Failure> maybePlaced = await PerformArtifactCacheOperationAsync(
+                () => maybeOpen.ThenAsync(cache => cache.ProduceFileAsync(
+                    new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash)),
+                    pathForCache,
+                    GetFileStateForRealizationMode(fileRealizationModes))),
+                nameof(TryMaterializeAsync));
 
             if (!maybePlaced.Succeeded && maybePlaced.Failure.DescribeIncludingInnerFailures().Contains("File exists at destination"))
             {
@@ -325,19 +327,13 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             //       Deleting links requires some care and magic, e.g. if a process has the file mapped.
             //       Correspondingly, IArtifactContentCache prescribes that materialization always produces a 'new' file.
 
-            Possible<Unit, Failure> placeResult;
-            try
-            {
-                placeResult = await Helpers.RetryOnFailureAsync(
+            Possible<Unit, Failure> placeResult = await PerformArtifactCacheOperationAsync(
+                () => Helpers.RetryOnFailureAsync(
                     async lastAttempt =>
                     {
                         return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash);
-                    }).WithTimeoutAsync(TimeSpan.FromMinutes(TimeoutDurationMin));
-            }
-            catch (TimeoutException)
-            {
-                return new TimeoutForArtifactContentCacheFailure(nameof(TryMaterializeAsync), TimeoutDurationMin);
-            }
+                    }),
+                nameof(TryMaterializeAsync));
 
             return placeResult;
         }
@@ -381,16 +377,18 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             string expandedPath = GetExpandedPathForCache(path);
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
-            Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache =>
-                {
-                    var result = await Helpers.RetryOnFailureAsync(
-                        async lastAttempt =>
+            Possible<CasHash, Failure> maybeStored = await PerformArtifactCacheOperationAsync(
+                () => maybeOpen.ThenAsync(
+                        async cache =>
                         {
-                            return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes));
-                        });
-                    return result;
-                });
+                            var result = await Helpers.RetryOnFailureAsync(
+                                async lastAttempt =>
+                                {
+                                    return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes));
+                                });
+                            return result;
+                        }),
+                nameof(TryStoreAsync));
 
             return maybeStored.Then<ContentHash>(c => c.ToContentHash());
         }
@@ -401,27 +399,29 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             ContentHash contentHash)
         {
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
-            Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache =>
-                {
-                    Contract.Assert(content.CanSeek);
-                    long initialPos = content.Position;
-                    bool attempted = false;
-
-                    var result = await Helpers.RetryOnFailureAsync(
-                        async lastAttempt =>
-                        {
-                            if (attempted)
+            Possible<CasHash, Failure> maybeStored = await PerformArtifactCacheOperationAsync(
+                    () => maybeOpen.ThenAsync(
+                            async cache =>
                             {
-                                // Reset stream to initial position.
-                                content.Seek(initialPos, SeekOrigin.Begin);
-                            }
+                                Contract.Assert(content.CanSeek);
+                                long initialPos = content.Position;
+                                bool attempted = false;
 
-                            attempted = true;
-                            return await cache.AddToCasAsync(content, new CasHash(contentHash));
-                        });
-                    return result;
-                });
+                                var result = await Helpers.RetryOnFailureAsync(
+                                    async lastAttempt =>
+                                    {
+                                        if (attempted)
+                                        {
+                                            // Reset stream to initial position.
+                                            content.Seek(initialPos, SeekOrigin.Begin);
+                                        }
+
+                                        attempted = true;
+                                        return await cache.AddToCasAsync(content, new CasHash(contentHash));
+                                    });
+                                return result;
+                            }),
+                    nameof(TryStoreAsync));
 
             return maybeStored.Then<Unit>(
                 cacheReportedHash =>
@@ -472,8 +472,10 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <inheritdoc />
         public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return m_cache.Get(nameof(TryOpenContentStreamAsync))
-                .ThenAsync(cache => cache.GetStreamAsync(new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash))));
+            return PerformArtifactCacheOperationAsync(
+                () => m_cache.Get(nameof(TryOpenContentStreamAsync))
+                             .ThenAsync(cache => cache.GetStreamAsync(new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash)))),
+                nameof(TryOpenContentStreamAsync));
         }
 
         private static FileState GetFileStateForRealizationMode(FileRealizationMode mode)
@@ -489,6 +491,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 default:
                     throw Contract.AssertFailure("Unhandled FileRealizationMode");
             }
+        }
+
+        private static Task<Possible<TResult, Failure>> PerformArtifactCacheOperationAsync<TResult>(Func<Task<Possible<TResult, Failure>>> func, string operationName)
+        {
+            return Utilities.PerformCacheOperationAsync(func, operationName, TimeoutDurationMin);
         }
     }
 }

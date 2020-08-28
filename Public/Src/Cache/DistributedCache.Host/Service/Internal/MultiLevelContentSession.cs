@@ -33,13 +33,36 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <inheritdoc />
         protected override Task<PutResult> PutFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            return MultiLevelWriteAsync(session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
+            return MultiLevelWriteAsync(session => session.PutFileAsync(
+                operationContext,
+                contentHash,
+                path,
+                CoerceRealizationMode(realizationMode, session),
+                operationContext.Token,
+                urgencyHint));
         }
 
         /// <inheritdoc />
         protected override Task<PutResult> PutFileCoreAsync(OperationContext operationContext, HashType hashType, AbsolutePath path, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            return MultiLevelWriteAsync(session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
+            return MultiLevelWriteAsync(session => session.PutFileAsync(
+                operationContext,
+                hashType,
+                path,
+                CoerceRealizationMode(realizationMode, session),
+                operationContext.Token,
+                urgencyHint));
+        }
+
+        private FileRealizationMode CoerceRealizationMode(FileRealizationMode mode, IContentSession session)
+        {
+            // Backing session may likely be on a different volume. Don't enforce the same rules around FileRealizationMode.
+            if (mode == FileRealizationMode.HardLink && session == BackingSession)
+            {
+                return FileRealizationMode.Any;
+            }
+
+            return mode;
         }
 
         /// <inheritdoc />

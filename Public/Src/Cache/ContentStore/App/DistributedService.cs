@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.App
                     bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
                     gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
                     loggingSettings: loggingSettings,
-                    telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId));
+                    telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "DistributedService"));
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }
@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.App
         {
             public string BuildId => "Unknown";
 
-            public string ServiceName => "DistributedService";
+            public string ServiceName { get; }
 
             public string APEnvironment => "None";
 
@@ -146,10 +146,11 @@ namespace BuildXL.Cache.ContentStore.App
 
             public string ConfigurationId => "None";
 
-            public TelemetryFieldsProvider(string ring, string stamp)
+            public TelemetryFieldsProvider(string ring, string stamp, string serviceName)
             {
                 Ring = ring;
                 Stamp = stamp;
+                ServiceName = serviceName;
             }
         }
 

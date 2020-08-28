@@ -53,7 +53,13 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(false), Description("Stop running service")] bool stop,
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
             [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(RemoteGrpcPortDescription)] int backingGrpcPort,
-            [DefaultValue(null), Description("Name of scenario for backing CAS service")] string backingScenario)
+            [DefaultValue(null), Description("Name of scenario for backing CAS service")] string backingScenario,
+            [DefaultValue("None"), Description("Ring Id. Used only for telemetry.")] string ringId,
+            [DefaultValue("None"), Description("Stamp Id. Used only for telemetry.")] string stampId,
+            [DefaultValue(null), Description("nLog configuration path. If empty, it is disabled")] string nLogConfigurationPath,
+            [DefaultValue(null), Description("Whether to use Azure Blob logging or not")] string nLogToBlobStorageSecretName,
+            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath
+            )
         {
             Initialize();
 
@@ -172,7 +178,21 @@ namespace BuildXL.Cache.ContentStore.App
                 distributedContentSettings.BackingScenario = backingScenario;
             }
 
-            var distributedCacheServiceConfiguration = new DistributedCacheServiceConfiguration(localCasSettings, distributedContentSettings);
+            LoggingSettings loggingSettings = null;
+            if (!string.IsNullOrEmpty(nLogConfigurationPath))
+            {
+                loggingSettings = new LoggingSettings()
+                {
+                    NLogConfigurationPath = nLogConfigurationPath,
+                    Configuration = new AzureBlobStorageLogPublicConfiguration()
+                    {
+                        SecretName = nLogToBlobStorageSecretName,
+                        WorkspaceFolderPath = nLogToBlobStorageWorkspacePath,
+                    }
+                };
+            }
+
+            var distributedCacheServiceConfiguration = new DistributedCacheServiceConfiguration(localCasSettings, distributedContentSettings, loggingSettings);
 
             // Ensure the computed keyspace is computed based on the hostInfo's StampId
             distributedCacheServiceConfiguration.UseStampBasedIsolation = false;
@@ -187,7 +207,10 @@ namespace BuildXL.Cache.ContentStore.App
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,
                 configuration: distributedCacheServiceConfiguration,
-                keyspace: null);
+                keyspace: null)
+            {
+                TelemetryFieldsProvider = new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
+            };
 
             DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments).GetAwaiter().GetResult();
 

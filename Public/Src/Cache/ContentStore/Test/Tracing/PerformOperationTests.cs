@@ -27,6 +27,55 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public async Task TraceLongRunningOperationPeriodically()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var r = await context.PerformOperationAsync(
+                tracer,
+                async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return BoolResult.Success;
+                },
+                pendingOperationTracingInterval: TimeSpan.FromMilliseconds(100),
+                extraStartMessage: "Start message");
+            r.ShouldBeSuccess();
+
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().Contain("The operation 'TraceLongRunningOperationPeriodically' is not finished yet. Start message: Start message");
+        }
+
+        [Fact]
+        public async Task TraceLongRunningOperationPeriodicallyUsingDefaultSettings()
+        {
+            var oldInterval = DefaultTracingConfiguration.DefaultPendingOperationTracingInterval;
+            DefaultTracingConfiguration.DefaultPendingOperationTracingInterval = TimeSpan.FromMilliseconds(100);
+            try
+            {
+                var tracer = new Tracer("MyTracer");
+                var context = new OperationContext(new Context(TestGlobal.Logger));
+
+                var r = await context.PerformOperationAsync(
+                    tracer,
+                    async () =>
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+                        return BoolResult.Success;
+                    });
+                r.ShouldBeSuccess();
+
+                var fullOutput = GetFullOutput();
+                fullOutput.Should().Contain("The operation 'TraceLongRunningOperationPeriodicallyUsingDefaultSettings' is not finished yet");
+            }
+            finally
+            {
+                DefaultTracingConfiguration.DefaultPendingOperationTracingInterval = oldInterval;
+            }
+        }
+
+        [Fact]
         public async Task TestPerformOperationAsyncTimeout()
         {
             var tracer = new Tracer("MyTracer");

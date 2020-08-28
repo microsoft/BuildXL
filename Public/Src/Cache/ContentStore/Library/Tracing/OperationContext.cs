@@ -136,10 +136,21 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             Func<T, string>? extraEndMessage = null,
             TimeSpan? timeout = null,
             bool isCritical = false,
+            TimeSpan? pendingOperationTracingInterval = null,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical, timeout: timeout)
+                .WithOptions(
+                    counter,
+                    traceErrorsOnly,
+                    traceOperationStarted,
+                    traceOperationFinished,
+                    extraStartMessage,
+                    extraEndMessage,
+                    isCritical: isCritical,
+                    timeout: timeout,
+                    pendingOperationTracingInterval: pendingOperationTracingInterval,
+                    caller: caller)
                 .RunAsync(caller);
         }
 

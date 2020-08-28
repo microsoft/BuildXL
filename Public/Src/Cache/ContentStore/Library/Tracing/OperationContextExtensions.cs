@@ -22,6 +22,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// If an operation takes longer than this threshold it will be traced regardless of other flags or options.
         /// </summary>
         public static TimeSpan DefaultSilentOperationDurationThreshold { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// A default interval for periodically tracing pending operations.
+        /// </summary>
+        public static TimeSpan? DefaultPendingOperationTracingInterval { get; set; } = null;
     }
 
     /// <summary>
@@ -104,6 +109,16 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// </summary>
         protected TimeSpan? _timeout;
 
+        /// <summary>
+        /// An  interval for periodically tracing pending operations.
+        /// </summary>
+        protected TimeSpan? PendingOperationTracingInterval = DefaultTracingConfiguration.DefaultPendingOperationTracingInterval;
+
+        /// <summary>
+        /// A name of the caller used for tracing pending operations.
+        /// </summary>
+        protected string? Caller;
+
         /// <nodoc />
         protected PerformOperationBuilderBase(OperationContext context, Tracer tracer, Func<TResult, ResultBase>? resultBaseFactory)
         {
@@ -135,7 +150,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             Func<TResult, string>? endMessageFactory = null,
             TimeSpan? silentOperationDurationThreshold = null,
             bool isCritical = false,
-            TimeSpan? timeout = null)
+            TimeSpan? timeout = null,
+            TimeSpan? pendingOperationTracingInterval = null,
+            string? caller = null)
         {
             _counter = counter;
             _traceErrorsOnly = traceErrorsOnly;
@@ -146,6 +163,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             _silentOperationDurationThreshold = silentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
             _isCritical = isCritical;
             _timeout = timeout;
+            PendingOperationTracingInterval = pendingOperationTracingInterval ?? DefaultTracingConfiguration.DefaultPendingOperationTracingInterval;
+            Caller = caller;
             return (TBuilder)this;
         }
 
@@ -175,6 +194,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
                 _tracer.OperationFinished(_context, traceableResult, duration, message, caller, traceErrorsOnly: traceErrorsOnly);
             }
+        }
+
+        /// <nodoc />
+        protected void TracePendingOperation()
+        {
+            string extraStartMessage = !string.IsNullOrEmpty(_extraStartMessage) ? " Start message: " + _extraStartMessage : string.Empty;
+            _tracer.Debug(_context, $"The operation '{Caller}' is not finished yet.{extraStartMessage}");
         }
 
         /// <nodoc />
@@ -222,6 +248,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             try
             {
+                using var timer = CreatePeriodicTimerIfNeeded();
                 return await WithOptionalTimeoutAsync(operation, _timeout, _context.Token);
             }
             catch (Exception ex)
@@ -234,6 +261,24 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 return result;
             }
+        }
+
+        private Timer? CreatePeriodicTimerIfNeeded()
+        {
+            if (PendingOperationTracingInterval == null)
+            {
+                return null;
+            }
+
+            return new Timer(
+                state =>
+                {
+                    var @this = (PerformOperationBuilderBase<TResult, TBuilder>?)state;
+                    @this!.TracePendingOperation();
+                },
+                this,
+                PendingOperationTracingInterval.Value,
+                PendingOperationTracingInterval.Value);
         }
     }
 
@@ -301,13 +346,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         where TResult : ResultBase
     {
         /// <nodoc />
-        protected readonly Func<Task<TResult>> _asyncOperation;
+        protected readonly Func<Task<TResult>> AsyncOperation;
 
         /// <nodoc />
         public PerformAsyncOperationBuilder(OperationContext context, Tracer tracer, Func<Task<TResult>> operation)
         : base(context, tracer, r => r)
         {
-            _asyncOperation = operation;
+            AsyncOperation = operation;
         }
 
         /// <nodoc />
@@ -318,7 +363,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 TraceOperationStarted(caller!);
                 var stopwatch = StopwatchSlim.Start();
 
-                var result = await RunOperationAndConvertExceptionToErrorAsync(_asyncOperation);
+                var result = await RunOperationAndConvertExceptionToErrorAsync(AsyncOperation);
 
                 TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
@@ -380,7 +425,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 var stopwatch = StopwatchSlim.Start();
 
-                var result = await RunOperationAndConvertExceptionToErrorAsync(_asyncOperation);
+                var result = await RunOperationAndConvertExceptionToErrorAsync(AsyncOperation);
 
                 TraceInitializationFinished(result, stopwatch.Elapsed, caller!);
 

@@ -113,6 +113,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(null)]
             public string GrpcPortFileName { get; set; }
 
+            /// <nodoc />
+            [DefaultValue(false)]
+            public bool GrpcTraceOperationStarted { get; set; }
+
             /// <summary>
             /// The sensitivity of the cache session.
             /// </summary>
@@ -252,6 +256,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 RetryCount = cacheConfig.ConnectionRetryCount,
                 RetryIntervalSeconds = cacheConfig.ConnectionRetryIntervalSeconds,
+                TraceOperationStarted = cacheConfig.GrpcTraceOperationStarted,
             };
 
             MemoizationStore.Interfaces.Caches.ICache localCache;

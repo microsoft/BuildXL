@@ -45,6 +45,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         public RetryPolicy RetryPolicy => _retryPolicy.Value;
 
         /// <nodoc />
+        public bool TraceOperationStarted { get; set; }
+
+        /// <nodoc />
         public ServiceClientContentStoreConfiguration(
             string cacheName,
             ServiceClientRpcConfiguration rpcConfiguration,

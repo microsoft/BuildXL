@@ -65,6 +65,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
         private readonly ImplicitPin _implicitPin;
 
+        /// <inheritdoc />
+        protected override bool TraceOperationStarted => Configuration.TraceOperationStarted;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyServiceClientContentSession"/> class.
         /// </summary>

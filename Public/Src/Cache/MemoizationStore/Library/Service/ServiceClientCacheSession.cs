@@ -59,7 +59,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             return new GrpcCacheClient(sessionTracer, fileSystem, rpcConfiguration.GrpcPort, configuration.Scenario, rpcConfiguration.HeartbeatInterval);
         }
 
-        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null, string additionalStartMessage = null, bool traceOperationStarted = false) where TResult : ResultBase
+        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null, string additionalStartMessage = null) where TResult : ResultBase
         {
             return WithOperationContext(context, cts,
                 operationContext =>
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                                 retryCounter: retryCounter),
                         caller: caller,
                         counter: counter,
-                        traceOperationStarted: traceOperationStarted,
+                        traceOperationStarted: TraceOperationStarted,
                         extraStartMessage: additionalStartMessage,
                         traceErrorsOnly: traceErrorsOnly,
                         extraEndMessage: additionalStopMessage == null ? (Func<TResult, string>)null : _ => additionalStopMessage);
@@ -89,7 +89,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 (ctx, client) => client.AddOrGetContentHashListAsync(ctx, strongFingerprint, contentHashListWithDeterminism),
                 counter: _memoizationCounters[MemoizationStoreCounters.AddOrGetContentHashList],
                 retryCounter: _memoizationCounters[MemoizationStoreCounters.AddOrGetContentHashListRetries],
-                traceOperationStarted: true,
                 additionalStartMessage: $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}",
                 additionalStopMessage: $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}");
         }
@@ -103,7 +102,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 (ctx, client) => client.GetContentHashListAsync(ctx, strongFingerprint),
                 counter: _memoizationCounters[MemoizationStoreCounters.GetContentHashList],
                 retryCounter: _memoizationCounters[MemoizationStoreCounters.GetContentHashListRetries],
-                traceOperationStarted: true,
                 additionalStartMessage: $"StrongFingerprint=({strongFingerprint})",
                 additionalStopMessage: $"StrongFingerprint=({strongFingerprint})");
         }

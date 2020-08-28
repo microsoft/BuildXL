@@ -62,8 +62,6 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
         // Polynomial values
         const int PolynomialsLength = 256;
-        static readonly HashValueT[] g_arrPolynomialsTD = Rabin64Table.g_arrPolynomialsTD;
-        static readonly HashValueT[] g_arrPolynomialsTU = Rabin64Table.g_arrPolynomialsTU;
 
         // Parameters
         private readonly size_t m_nMinChunkSize;
@@ -72,8 +70,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
         private DWORD m_dwInitialChunkingHashMatchValue => g_dwChunkingHashMatchValue;
 
-        private readonly DWORD m_dwSmallestChunkingTruncateMask;
-        private readonly DWORD m_dwSmallestChunkingHashMatchValue;
+        private readonly HashMaskMatch _smallestMask;
 
         // State maintained across multiple FindRabinChunkBoundariesInternal() calls
         private HashValueT m_hash;               // Last hash value
@@ -82,12 +79,11 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
         private readonly OffsetT[] m_regressChunkLen;
         private OffsetT m_lastNonZeroChunkLen;
         private OffsetT m_numZeroRun;                       // Size of continuous zeros after last chunk. 
-                                                    // >= 0, a run is counted (# of consecutive zeros)
-                                                    // <  0, a run has been interrupted, i.e., encounter at least one none zero values. 
+                                                            // >= 0, a run is counted (# of consecutive zeros)
+                                                            // <  0, a run has been interrupted, i.e., encounter at least one none zero values. 
 
         // Regress hash values
-        private readonly DWORD[] m_arrRegressChunkingTruncateMask;             // Array of hash masks for the regression match
-        private readonly DWORD[] m_arrRegressChunkingHashMatchValue;           // Array of hash values for the regression matche
+        private readonly HashMaskMatch[] _regressionMasks;
 
         private size_t previouslyProcessedBytesAcrossCalls;
         private size_t lastChunkAbsoluteOffsetAcrossCalls;
@@ -96,6 +92,17 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
         private readonly Action<DedupBasicChunkInfo> chunkCallback;
 
         public IReadOnlyList<DedupBasicChunkInfo> Chunks => outOffsetsVector;
+
+        /// <summary>A mask + match value to compare a current hash value to. Colocating mask and match yields better cache locality.</summary>
+        private readonly struct HashMaskMatch
+        {
+            public HashMaskMatch(uint truncateMask, uint matchValue) => (_truncateMask, _matchValue) = (truncateMask, matchValue);
+
+            private readonly uint _truncateMask; // 0b0000...1111, where number of trailing 1's is the mask length.
+            private readonly uint _matchValue;   // 0b0000...xxxx, where x is a bit in the hash match value.
+
+            public bool IsMatch(ulong hash) => _matchValue == (hash & _truncateMask);
+        }
 
         public RegressionChunking(ChunkerConfiguration configuration, Action<DedupBasicChunkInfo> chunkCallback)
         {
@@ -107,11 +114,8 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
             m_history = new BYTE[m_nWindowSize];
             m_regressChunkLen = new OffsetT[m_nRegressSize];
-            m_arrRegressChunkingTruncateMask = new DWORD[m_nRegressSize];
-            m_arrRegressChunkingHashMatchValue = new DWORD[m_nRegressSize];
+            _regressionMasks = new HashMaskMatch[m_nRegressSize];
 
-            m_dwSmallestChunkingTruncateMask = 0;
-            m_dwSmallestChunkingHashMatchValue = 0;
             previouslyProcessedBytesAcrossCalls = 0;
             lastChunkAbsoluteOffsetAcrossCalls = 0;
 
@@ -134,16 +138,13 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
             // Initialize a set of mask & match value, each has one bit less than previous mask. 
             for (size_t regressIndex = 0; regressIndex < m_nRegressSize; regressIndex++)
             {
-                m_arrRegressChunkingTruncateMask[regressIndex] = dwChunkingTruncateMask;
-
-                m_arrRegressChunkingHashMatchValue[regressIndex] = dwChunkingHashMatchValue;
+                _regressionMasks[regressIndex] = new HashMaskMatch(dwChunkingTruncateMask, dwChunkingHashMatchValue);
 
                 dwChunkingTruncateMask >>= 1;
                 dwChunkingHashMatchValue &= dwChunkingTruncateMask;
             }
 
-            m_dwSmallestChunkingTruncateMask = dwChunkingTruncateMask;
-            m_dwSmallestChunkingHashMatchValue = dwChunkingHashMatchValue;
+            _smallestMask = new HashMaskMatch(dwChunkingTruncateMask, dwChunkingHashMatchValue);
         }
 
         public void PushBuffer(
@@ -242,6 +243,9 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
             ref size_t lastChunkAbsoluteOffsetParam                       // Temporary state between calls FindRabinChunkBoundariesInternal(). Offset of the last inserted chunk, relative to the overall buffer in FindRabinChunkBoundaries()
         )
         {
+            HashValueT[] g_arrPolynomialsTD = Rabin64Table.g_arrPolynomialsTD;
+            HashValueT[] g_arrPolynomialsTU = Rabin64Table.g_arrPolynomialsTU;
+
             unchecked
             {
                 NT_ASSERT(cbLen > 0);
@@ -319,12 +323,9 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
                 */
 
-                // smallest hash mask and match value
-                DWORD dwSmallestChunkingTruncateMask = m_dwSmallestChunkingTruncateMask;      // The smallest mask (default = 16-6 = 10 bits ) 
-                DWORD dwSmallestChunkingHashMatchValue = m_dwSmallestChunkingHashMatchValue;  // Used for chunking: if the least significant N bytes from the Rabin hash are equal to this value, we declare a "cut" (where N depends on the context)
 
-                DWORD[] arrRegressChunkingTruncateMask = m_arrRegressChunkingTruncateMask;
-                DWORD[] arrRegressChunkingHashMatchValue = m_arrRegressChunkingHashMatchValue;
+                HashMaskMatch smallestMask = _smallestMask;         // If the least significant N bytes from the Rabin hash are equal to this value, we declare a "cut" (N depends on the context)
+                HashMaskMatch[] regressionMasks = _regressionMasks; // Same as above, but for each regression step.
 
                 //
                 // Chunking loop
@@ -655,8 +656,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
                         // Advance hash calculation when the start is from the previous buffer, and the end is in the current buffer
                         // TODO:365262 potential perf improvement
-                        while (DDP_IS_VALID_POINTER((IntPtr)pEndWindow) &&
-                            (dwSmallestChunkingHashMatchValue != (hash & dwSmallestChunkingTruncateMask)) &&
+                        while (!smallestMask.IsMatch(hash) &&
                             pEndWindow < pEndPosUntilMax &&
                             initialStartWindow < 0)
                         {
@@ -680,17 +680,14 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
                         // Advance calculation while both window ends are in the same buffer
                         // TODO:365262 potential perf improvement
-                        while (DDP_IS_VALID_POINTER((IntPtr)pStartWindow) &&
-                               DDP_IS_VALID_POINTER((IntPtr)pEndWindow) &&
-                              (dwSmallestChunkingHashMatchValue != (hash & dwSmallestChunkingTruncateMask)) &&
-                                pEndWindow < pEndPosUntilMax)
+                        while (pEndWindow < pEndPosUntilMax && !smallestMask.IsMatch(hash))
                         {
                             // the main critical loop
                             hash ^= g_arrPolynomialsTU[*pStartWindow];
                             HashValueT origHash = hash;
                             hash <<= 8;
                             hash ^= *pEndWindow;
-                            hash ^= g_arrPolynomialsTD[(origHash >> 56) & 0xff];
+                            hash ^= g_arrPolynomialsTD[origHash >> 56];
 
                             pStartWindow++;
                             pEndWindow++;
@@ -710,7 +707,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
                         NT_ASSERT(chunkLen >= m_nMinChunkSize);
 
                         // Check if a hash-driven chunk cut was made (using the smallest hash/mask)
-                        if (dwSmallestChunkingHashMatchValue == (hash & dwSmallestChunkingTruncateMask))
+                        if (smallestMask.IsMatch(hash))
                         {
                             // TODO:365262 use a utility routine
                             OffsetT regressHashMismatchIndex = (OffsetT)m_nRegressSize - 1;
@@ -720,7 +717,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
                                 // TODO:365262 array index check
                                 // TODO:365262 Refactor to eliminate the confusing "offset by 1" difference between the two arrays
                                 m_regressChunkLen[regressHashMismatchIndex] = (OffsetT)chunkLen;
-                                if (arrRegressChunkingHashMatchValue[regressHashMismatchIndex] != (hash & arrRegressChunkingTruncateMask[regressHashMismatchIndex]))
+                                if (!regressionMasks[regressHashMismatchIndex].IsMatch(hash))
                                     break;
                             }
 

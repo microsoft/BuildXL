@@ -443,12 +443,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     chunks++;
                     bytes += replyStream.Current.Content.Length;
-                    var result = replyStream.Current.Content.ToByteArray();
 
-                    // TODO: use ByteString instead of making an extra copy. 1764215
                     options?.UpdateTotalBytesCopied(bytes);
 
-                    return result;
+                    return replyStream.Current.Content;
                 }
                 else
                 {

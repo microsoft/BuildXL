@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Protobuf;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -17,17 +18,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     internal class BufferedReadStream : Stream
     {
-        private readonly Func<Task<byte[]?>> _reader;
+        private readonly Func<Task<ByteString?>> _reader;
 
-        private byte[]? _storage; // buffer containing the next bytes to be read
+        private ByteString? _storage; // buffer containing the next bytes to be read
         private int _readPointer; // the next index to be read from the storage buffer
 
         private int _position; // total bytes that have been read
         private int _length; // total bytes that have been ingested
 
-        public BufferedReadStream(Func<Task<byte[]?>> reader)
+        public BufferedReadStream(Func<Task<ByteString?>> reader)
         {
-            Contract.Requires(reader != null);
             _reader = reader;
         }
 
@@ -75,7 +75,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 // Copy as many bytes as we can to the caller's buffer
                 var copyCount = Math.Min(count - totalCount, _storage.Length - _readPointer);
-                Array.Copy(_storage, _readPointer, buffer, writePointer, copyCount);
+                CopyToBuffer(_storage, buffer, copyCount, writePointer);
+
                 _readPointer += copyCount;
                 writePointer += copyCount;
                 totalCount += copyCount;
@@ -95,6 +96,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             Debug.Assert(totalCount == count);
             return totalCount;
+        }
+
+        private void CopyToBuffer(ByteString storage, byte[] buffer, int copyCount, int writePointer)
+        {
+#if NET_FRAMEWORK_462
+            // Using less efficient version for Net462
+            Array.Copy(storage.ToByteArray(), _readPointer, buffer, writePointer, copyCount);
+#else
+            storage.Span.Slice(_readPointer, copyCount)
+                .CopyTo(
+                    buffer.ToSpan(writePointer, copyCount));
+#endif
         }
 
         public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
@@ -119,4 +132,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public override long Position { get => _position; set => throw new NotSupportedException(); }
     }
 
+    internal static class SpanExtensions
+    {
+#if !NET_FRAMEWORK_462
+        public static Span<T> ToSpan<T>(this T[] array, int start, int length) => new Span<T>(array, start, length);
+#endif
+    }
 }

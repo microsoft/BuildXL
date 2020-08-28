@@ -6,16 +6,23 @@ namespace Library {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
+    export const systemMemoryPackage = 
+        BuildXLSdk.isFullFramework  ? importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg : importFrom("System.Memory").pkg;
+
+    @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore",
         sources: globR(d`.`,"*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Data.dll,
-                NetFx.System.Runtime.Serialization.dll
+                NetFx.System.Runtime.Serialization.dll,
+                NetFx.Netstandard.dll
             ),
 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            // Using System.Memory only for .net472, and not for net462
+            ...addIf(qualifier.targetFramework !== "net462", systemMemoryPackage),
             
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,

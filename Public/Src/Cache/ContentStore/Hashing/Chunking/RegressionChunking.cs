@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 #pragma warning disable SA1000
@@ -91,6 +92,8 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
         private readonly List<DedupBasicChunkInfo> outOffsetsVector = new List<DedupBasicChunkInfo>();
         private readonly Action<DedupBasicChunkInfo> chunkCallback;
 
+        private bool m_pushBufferCalled = false;
+
         public IReadOnlyList<DedupBasicChunkInfo> Chunks => outOffsetsVector;
 
         /// <summary>A mask + match value to compare a current hash value to. Colocating mask and match yields better cache locality.</summary>
@@ -158,8 +161,12 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
             ArraySegment<BYTE> buffer
         )
         {
+            // we do not trust successive calls, so ensure we only call it once
+            Contract.Assert(!m_pushBufferCalled);
+            m_pushBufferCalled = true;
+
             size_t size = (size_t)buffer.Count;
-            bool bNoMoreData = false;
+            bool bNoMoreData = true;
 
             if (size == 0)
             {
@@ -231,8 +238,11 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
         private void AddChunkInfo(DedupBasicChunkInfo chunkInfo)
         {
-            outOffsetsVector.Add(chunkInfo);
-            chunkCallback(chunkInfo);
+            if (chunkInfo.m_nChunkLength != 0)
+            {
+                outOffsetsVector.Add(chunkInfo);
+                chunkCallback(chunkInfo);
+            }
         }
 
         private unsafe void FindRabinChunkBoundariesInternal(

@@ -68,6 +68,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void FoundChunk(ChunkInfo chunk)
             {
+                Contract.Assert(chunk.Size != 0);
                 _chunksSeen.Add(chunk);
             }
 

@@ -97,12 +97,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void ChunkTranslate(DedupBasicChunkInfo chunk)
             {
-                if (chunk.m_nStartChunk == 0 && chunk.m_nChunkLength == 0)
-                {
-                    return;
-                }
-
                 Contract.Assert(_currentBuffer != null);
+                Contract.Assert(chunk.m_nChunkLength != 0);
                 Contract.Assert(_currentBuffer.Value.Array != null);
 
                byte[] hash = _parent._shaHasher.ComputeHash(

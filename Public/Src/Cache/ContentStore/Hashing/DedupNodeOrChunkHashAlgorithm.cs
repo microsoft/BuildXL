@@ -49,8 +49,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc/>
         public void SetInputLength(long expectedSize)
         {
-            Contract.Assert(!_chunkingStarted);
-            Contract.Assert(expectedSize >= 0);
+            Contract.Check(!_chunkingStarted)?.Assert($"{nameof(SetInputLength)}: chunking cannot start before input length is set {nameof(_chunkingStarted)}: {_chunkingStarted}");
+            Contract.Check(expectedSize >= 0)?.Assert($"{nameof(SetInputLength)}: expected size cannot be negative {nameof(expectedSize)}: {expectedSize}");
             _sizeHint = expectedSize;
         }
 
@@ -122,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 Contract.Check(_chunks.Count == 0)?.Assert($"Chunk count: {_chunks.Count} sizehint: {_sizeHint} chunker min chunk size: {_chunker.Configuration.MinChunkSize}");
                 Contract.Check(_bytesChunked == _sizeHint)?.Assert($"_bytesChunked != _sizeHint. _bytesChunked={_bytesChunked} _sizeHint={_sizeHint}");
-                Contract.Assert(_session == null);
+                Contract.Assert(_session == null, "Dedup session cannot be null.");
                 byte[] chunkHash = _chunkHasher.HashFinalInternal();
                 return new DedupNode(DedupNode.NodeType.ChunkLeaf, (ulong)_sizeHint, chunkHash, 0);
             }
@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {
                     // Content is small enough to track as a chunk.
                     var node = new DedupNode(_chunks.Single());
-                    Contract.Assert(node.Type == DedupNode.NodeType.ChunkLeaf);
+                    Contract.Check(node.Type == DedupNode.NodeType.ChunkLeaf)?.Assert($"{nameof(CreateNode)}: expected chunk leaf: {DedupNode.NodeType.ChunkLeaf} got {node.Type} instead.");
                     return node;
                 }
                 else
@@ -162,6 +162,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void SaveChunks(ChunkInfo chunk)
         {
+            Contract.Check(chunk.Size != 0)?.Assert($"{nameof(SaveChunks)}: chunk size cannot be zero. Size: {chunk.Size}");
             _chunks.Add(chunk);
         }
 

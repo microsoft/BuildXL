@@ -5926,7 +5926,12 @@ namespace BuildXL.Scheduler
                 LoadingTrackerResult loadingResult;
                 if (m_configuration.Engine.FileChangeTrackerInitializationMode == FileChangeTrackerInitializationMode.ForceRestart)
                 {
-                    m_fileChangeTracker = FileChangeTracker.StartTrackingChanges(loggingContext, m_journalState.VolumeMap, m_journalState.Journal, m_buildEngineFingerprint);
+                    m_fileChangeTracker = FileChangeTracker.StartTrackingChanges(
+                        loggingContext,
+                        m_journalState.VolumeMap,
+                        m_journalState.Journal,
+                        m_configuration.Engine.FileChangeTrackerSupersedeMode,
+                        m_buildEngineFingerprint);
                     loadingResult = null;
                 }
                 else
@@ -5935,6 +5940,7 @@ namespace BuildXL.Scheduler
                         loggingContext,
                         m_journalState.VolumeMap,
                         m_journalState.Journal,
+                        m_configuration.Engine.FileChangeTrackerSupersedeMode,
                         m_fileChangeTrackerFile.ToString(Context.PathTable),
                         m_buildEngineFingerprint,
                         out m_fileChangeTracker);

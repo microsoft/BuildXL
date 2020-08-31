@@ -169,7 +169,12 @@ namespace Test.BuildXL.Storage.Admin
                 var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);
                 XAssert.IsTrue(maybeJournal.Succeeded, "Could not connect to journal");
 
-                var fileChangeTracker = FileChangeTracker.StartTrackingChanges(loggingContext, volumeMap, maybeJournal.Result, null);
+                var fileChangeTracker = FileChangeTracker.StartTrackingChanges(
+                    loggingContext,
+                    volumeMap,
+                    maybeJournal.Result,
+                    global::BuildXL.Utilities.Configuration.FileChangeTrackerSupersedeMode.All,
+                    null);
 
                 return new ChangeTrackerSupport(
                     loggingContext,
@@ -195,6 +200,7 @@ namespace Test.BuildXL.Storage.Admin
                     m_loggingContext,
                     m_volumeMap,
                     m_journal,
+                    global::BuildXL.Utilities.Configuration.FileChangeTrackerSupersedeMode.All,
                     m_fileChangeTrackerPath.ToString(m_pathTable),
                     m_buildEngineFingerprint,
                     out m_fileChangeTracker);

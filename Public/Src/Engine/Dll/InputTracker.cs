@@ -174,6 +174,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             FileContentTable fileContentTable,
             JournalState journalState,
+            FileChangeTrackerSupersedeMode supersedeMode,
             CompositeGraphFingerprint graphFingerprint)
         {
             Contract.Requires(loggingContext != null);
@@ -184,7 +185,7 @@ namespace BuildXL.Engine
                 fileContentTable,
                 graphFingerprint,
                 journalState.IsEnabled
-                    ? FileChangeTracker.StartTrackingChanges(loggingContext, journalState.VolumeMap, journalState.Journal, graphFingerprint.BuildEngineHash.ToString())
+                    ? FileChangeTracker.StartTrackingChanges(loggingContext, journalState.VolumeMap, journalState.Journal, supersedeMode, graphFingerprint.BuildEngineHash.ToString())
                     : FileChangeTracker.CreateDisabledTracker(loggingContext),
                 true);
         }
@@ -993,7 +994,8 @@ namespace BuildXL.Engine
                 fileChangeTracker = FileChangeTracker.StartTrackingChanges(
                     loggingContext, 
                     journalState.VolumeMap, 
-                    journalState.Journal, 
+                    journalState.Journal,
+                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
             }
@@ -1003,6 +1005,7 @@ namespace BuildXL.Engine
                     loggingContext,
                     journalState.VolumeMap,
                     journalState.Journal,
+                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     changeTrackingStatePath,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     out fileChangeTracker);
@@ -1027,6 +1030,7 @@ namespace BuildXL.Engine
                         loggingContext,
                         journalState.VolumeMap,
                         journalState.Journal,
+                        configuration.Engine.FileChangeTrackerSupersedeMode,
                         graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                         atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
 
@@ -1067,6 +1071,7 @@ namespace BuildXL.Engine
                     loggingContext,
                     journalState.VolumeMap,
                     journalState.Journal,
+                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
             }

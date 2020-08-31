@@ -56,8 +56,8 @@ namespace BuildXL.CloudTest.Gvfs
             m_changeTracker = FileChangeTrackingSet.CreateForAllCapableVolumes(
                 loggingContext,
                 volumeMap,
-                m_journal
-            );
+                m_journal,
+                Utilities.Configuration.FileChangeTrackerSupersedeMode.All);
         }
 
         public virtual string GetPath(string path)

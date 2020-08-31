@@ -17,9 +17,9 @@ namespace BuildXL.Native.IO
         /// Run POSIX delete as the first attempt of deleting a file or an empty directory.
         /// </summary>
         /// <remarks>
-        /// This mode should be used when building with BuildXL on Unix. This mode used to be the default
-        /// for building on Windows. However, since a bug in RS5 that causes BuildXL to stop responding on calling POSIX delete,
-        /// BuildXL needs to downgrade the applicability of this mode from the first choice to fallback, i.e., <see cref="RunLast"/>.
+        /// This mode is the default when building with BuildXL on both Unix and Windows.
+        /// Previously, BuildXL downgraded it to RunLast when building on Windows due to bug in RS5. The bug is 2 years old
+        /// and now one can configure the mode from the command line if the bug resurfaces.
         /// </remarks>
         RunFirst,
 

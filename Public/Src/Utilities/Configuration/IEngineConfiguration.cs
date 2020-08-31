@@ -152,6 +152,11 @@ namespace BuildXL.Utilities.Configuration
         FileChangeTrackerInitializationMode FileChangeTrackerInitializationMode { get; }
 
         /// <summary>
+        /// Supersede mode for file change tracker.
+        /// </summary>
+        FileChangeTrackerSupersedeMode FileChangeTrackerSupersedeMode { get; }
+
+        /// <summary>
         /// Whether to track the builds in a textfile in the user folder.
         /// </summary>
         bool TrackBuildsInUserFolder { get; }

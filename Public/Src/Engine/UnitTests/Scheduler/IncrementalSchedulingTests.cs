@@ -14,7 +14,6 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
@@ -112,6 +111,80 @@ namespace Test.BuildXL.Scheduler
                 processes["P1"] = p1;
                 processes["P2"] = p2;
                 processes["P3"] = p3;
+            }
+        }
+
+        private void CreateGraphWithDirectoryOutputs(
+            Dictionary<string, NodeId> nodes = null,
+            Dictionary<string, FileArtifact> files = null,
+            Dictionary<string, DirectoryArtifact> directories = null,
+            Dictionary<string, Process> processes = null)
+        {
+            // S11  S12   S2 
+            // ^    ^     ^
+            // |    |     |
+            // P1 --+     P2
+            // ^          ^
+            // |          |
+            // D1         O2
+
+            PipProvenance sharedProvenance = CreateProvenance();
+            FileArtifact s11 = CreateSourceFile();
+            FileArtifact s12 = CreateSourceFile();
+            AbsolutePath d1 = CreateUniqueObjPath("D1");
+            FileArtifact d1O1 = FileArtifact.CreateOutputFile(d1.Combine(Context.PathTable, "O1"));
+            FileArtifact d1O2 = FileArtifact.CreateOutputFile(d1.Combine(Context.PathTable, "O2"));
+            FileArtifact s2 = CreateSourceFile();
+            FileArtifact o2 = CreateOutputFileArtifact();
+
+            var sealedOutputDirectories = new Dictionary<AbsolutePath, DirectoryArtifact>();
+
+            Process p1 = CreateProcess(
+                dependencies: new[] {s11, s12},
+                outputs: new FileArtifact[0],
+                outputDirectoryPaths: new[] {d1},
+                directoryOutputsToProduce: new[] {d1O1, d1O2},
+                resultingSealedOutputDirectories: sealedOutputDirectories,
+                tags: new[] {"P1"},
+                provenance: sharedProvenance);
+            PipGraphBuilder.AddProcess(p1);
+
+            Process p2 = CreateProcess(
+                dependencies: new[] {s2},
+                outputs: new[] {o2},
+                directoryDependencies: new DirectoryArtifact[0],
+                tags: new[] {"P2"},
+                provenance: sharedProvenance);
+            PipGraphBuilder.AddProcess(p2);
+
+            if (nodes != null)
+            {
+                nodes["S11"] = PipGraphBuilder.GetProducerNode(s11);
+                nodes["S12"] = PipGraphBuilder.GetProducerNode(s12);
+                nodes["S2"] = PipGraphBuilder.GetProducerNode(s2);
+                nodes["P1"] = p1.PipId.ToNodeId();
+                nodes["P2"] = p2.PipId.ToNodeId();
+            }
+
+            if (files != null)
+            {
+                files["S11"] = s11;
+                files["S12"] = s12;
+                files["S2"] = s2;
+                files["D1/O1"] = d1O1;
+                files["D1/O2"] = d1O2;
+                files["O2"] = o2;
+            }
+
+            if (directories != null)
+            {
+                directories["D1"] = sealedOutputDirectories[d1];
+            }
+
+            if (processes != null)
+            {
+                processes["P1"] = p1;
+                processes["P2"] = p2;
             }
         }
 
@@ -851,7 +924,14 @@ ENDLOCAL && EXIT /b 1
             out FileChangeTracker fileChangeTracker,
             out IIncrementalSchedulingState incrementalSchedulingState)
         {
-            FileChangeTracker.ResumeOrRestartTrackingChanges(LoggingContext, m_volumeMap, m_journal, fileChangeTrackerPath, engineFingerprint, out fileChangeTracker);
+            FileChangeTracker.ResumeOrRestartTrackingChanges(
+                LoggingContext,
+                m_volumeMap,
+                m_journal,
+                m_configuration.Engine.FileChangeTrackerSupersedeMode,
+                fileChangeTrackerPath,
+                engineFingerprint,
+                out fileChangeTracker);
             XAssert.IsTrue(fileChangeTracker.IsTrackingChanges);
 
             var factory = new IncrementalSchedulingStateFactory(LoggingContext);
@@ -1024,7 +1104,12 @@ ENDLOCAL && EXIT /b 1
             CreateBasicGraph(nodes, files);
 
             var pipGraph = PipGraphBuilder.Build();
-            FileChangeTracker tracker = FileChangeTracker.StartTrackingChanges(LoggingContext, m_volumeMap, m_journal, null);
+            FileChangeTracker tracker = FileChangeTracker.StartTrackingChanges(
+                LoggingContext,
+                m_volumeMap,
+                m_journal,
+                m_configuration.Engine.FileChangeTrackerSupersedeMode,
+                null);
             IIncrementalSchedulingState iss = CreateNewState(tracker.FileEnvelopeId, pipGraph);
 
             // Clear all nodes
@@ -1196,6 +1281,117 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsNotNull(iss);
 
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["C1"]));
+        }
+
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestIncrementalSchedulingWithOutputDirectoriesAsync()
+        {
+            IncrementalSchedulingSetup();
+
+            Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
+            Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
+            Dictionary<string, DirectoryArtifact> directories = new Dictionary<string, DirectoryArtifact>();
+            Dictionary<string, Process> processes = new Dictionary<string, Process>();
+
+            CreateGraphWithDirectoryOutputs(nodes, files, directories, processes);
+
+            bool runScheduler = await RunScheduler();
+            XAssert.IsTrue(runScheduler);
+
+            SchedulerTestHooks testHooks;
+            RootFilter filter;
+
+            ///////////// Scenario 1: Modify source files S11 and S2, but only filter in P2.
+
+            ModifyFile(files["S11"], "Modified S11");
+            ModifyFile(files["S2"], "Modified S2");
+
+            filter = CreateFilterForTags(
+                new[] {"P2"}.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)),
+                new StringId[0]);
+
+            runScheduler = await RunScheduler(
+                filter: filter,
+                testHooks: testHooks = new SchedulerTestHooks
+                {
+                    IncrementalSchedulingStateAfterJournalScanAction =
+                                                state =>
+                                                {
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+                                                }
+                });
+            XAssert.IsTrue(runScheduler);
+
+            var iss = testHooks.IncrementalSchedulingState;
+            XAssert.IsNotNull(iss);
+
+            ExpectPipsDone(LabelProcess(processes, "P2"));
+            ExpectPipsNotDone(LabelProcess(processes, "P1"));
+            ExpectPipResults(LabelProcessWithStatus(processes, "P2", PipResultStatus.Succeeded));
+
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+
+            ///////////// Scenario 2: Modify source files S12 and S2.
+
+            ModifyFile(files["S12"], "Modified S12");
+            ModifyFile(files["S2"], "Modified S2 again");
+
+            filter = CreateFilterForTags(
+                new[] {"P1", "P2"}.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)),
+                new StringId[0]);
+
+            runScheduler = await RunScheduler(
+                filter: filter,
+                testHooks: testHooks = new SchedulerTestHooks
+                {
+                    IncrementalSchedulingStateAfterJournalScanAction =
+                                                state =>
+                                                {
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+                                                }
+                });
+            XAssert.IsTrue(runScheduler);
+
+            iss = testHooks.IncrementalSchedulingState;
+            XAssert.IsNotNull(iss);
+
+            ExpectPipsDone(LabelProcess(processes, "P1"), LabelProcess(processes, "P2"));
+            ExpectPipResults(
+                LabelProcessWithStatus(processes, "P1", PipResultStatus.Succeeded),
+                LabelProcessWithStatus(processes, "P2", PipResultStatus.Succeeded));
+
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]));
+
+            ///////////// Scenario 3: No modification.
+
+            filter = CreateFilterForTags(
+                new[] {"P1", "P2"}.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)),
+                new StringId[0]);
+
+            runScheduler = await RunScheduler(
+                filter: filter,
+                testHooks: testHooks = new SchedulerTestHooks
+                {
+                    IncrementalSchedulingStateAfterJournalScanAction =
+                                                state =>
+                                                {
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]));
+                                                    XAssert.IsTrue(state.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]));
+                                                }
+                });
+            XAssert.IsTrue(runScheduler);
+
+            iss = testHooks.IncrementalSchedulingState;
+            XAssert.IsNotNull(iss);
+
+            ExpectPipsNotDone(LabelProcess(processes, "P1"), LabelProcess(processes, "P2"));
+            
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]));
         }
 
         [FactIfSupported(requiresJournalScan: true)]

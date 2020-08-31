@@ -2789,6 +2789,7 @@ namespace BuildXL.Engine
                                 loggingContext,
                                 FileContentTable,
                                 journalState,
+                                Configuration.Engine.FileChangeTrackerSupersedeMode,
                                 graphFingerprint.ExactFingerprint);
                         }
                     }

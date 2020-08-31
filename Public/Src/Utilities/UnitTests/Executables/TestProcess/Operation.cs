@@ -984,6 +984,10 @@ namespace Test.BuildXL.Executables.TestProcess
                     file = @"\\?\" + file.ToUpperInvariant();
                 }
 
+                // Ensure directory exists.
+                string directory = System.IO.Path.GetDirectoryName(file);
+                Directory.CreateDirectory(directory);
+
                 File.AppendAllText(file, content);
             }
             catch (UnauthorizedAccessException)

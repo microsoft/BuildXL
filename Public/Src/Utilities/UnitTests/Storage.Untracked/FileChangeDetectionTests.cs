@@ -10,6 +10,7 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -1669,7 +1670,7 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(Directory1, "Re-Hello");
             support.Track(Directory1, TrackingUpdateMode.Supersede);
 
-            // Despite trying to supersede, D1\ is not supersede-able because of the anti-dependencies underneath it.
+            // Despite trying to supersede, D1\ is not supersede-able because of renaming and the anti-dependencies underneath it.
             DetectedChanges changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(Removed(Directory1));
         }
@@ -1696,6 +1697,43 @@ namespace Test.BuildXL.Storage.Admin
             // Despite trying to supersede, membership should still be invalidated.
             DetectedChanges changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(Removed(Directory1), MembershipChanged(Directory1));
+        }
+
+        [TheoryIfSupported(requiresJournalScan: true)]
+        [InlineData(FileChangeTrackerSupersedeMode.All)]
+        [InlineData(FileChangeTrackerSupersedeMode.FileOnly)]
+        public void SupersedeRetrackingEffectiveOnDirectoryDeletionInAllSupersede(FileChangeTrackerSupersedeMode supersedeMode)
+        {
+            const string Directory = @"D";
+            const string File1 = @"D\F1";
+            const string File2 = @"D\F2";
+
+            ChangeDetectionSupport support = InitializeChangeDetectionSupport(supersedeMode);
+
+            CreateDirectory(Directory);
+            WriteFile(File1, "Stuff1");
+            WriteFile(File2, "Stuff2");
+            support.Track(File1);
+            support.Track(File2);
+
+            DeleteDirectory(Directory);
+
+            // Now recreate Directory and File1, then retrack with 'supersede'.
+            CreateDirectory(Directory);
+            WriteFile(File1, "Re-stuff1");
+            support.Track(File1, TrackingUpdateMode.Supersede);
+
+            DetectedChanges changedPaths = support.ProcessChanges();
+
+            if (supersedeMode == FileChangeTrackerSupersedeMode.All)
+            {
+                // Removal of Directory and File1 has been superseded. 
+                changedPaths.AssertChangedExactly(Removed(File2));
+            }
+            else if (supersedeMode == FileChangeTrackerSupersedeMode.FileOnly)
+            {
+                changedPaths.AssertChangedExactly(Removed(File1), Removed(File2), Removed(Directory));
+            }
         }
 
         #endregion
@@ -2233,7 +2271,7 @@ namespace Test.BuildXL.Storage.Admin
             }
         }
 
-        private ChangeDetectionSupport InitializeChangeDetectionSupport()
+        private ChangeDetectionSupport InitializeChangeDetectionSupport(FileChangeTrackerSupersedeMode supersedeMode = FileChangeTrackerSupersedeMode.All)
         {
             var loggingContext = new LoggingContext("Dummy", "Dummy");
             VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
@@ -2242,7 +2280,7 @@ namespace Test.BuildXL.Storage.Admin
             var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);
             XAssert.IsTrue(maybeJournal.Succeeded, "Could not connect to journal");
 
-            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, maybeJournal.Result);
+            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, maybeJournal.Result, supersedeMode);
 
             return new ChangeDetectionSupport(TemporaryDirectory, JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result), trackingSet);
         }

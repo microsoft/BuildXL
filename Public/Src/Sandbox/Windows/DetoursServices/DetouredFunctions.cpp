@@ -98,9 +98,10 @@ static bool AccessReparsePointTarget(
     _In_     DWORD                 dwDesiredAccess,
     _In_     DWORD                 dwFlagsAndAttributes)
 {
+    bool hasReparsePointFlag = FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
     return IsReparsePoint(lpFileName) // File is a reparse point.
-        && (!WantsProbeOnlyAccess(dwDesiredAccess) // It's not probe-only access.
-            || !FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes)); // It's a probe-only access, but no reparse point flag has been passed.
+        && (!WantsDeleteOnlyAccess(dwDesiredAccess) || !hasReparsePointFlag)  // It's not deletion of reparse point.
+        && (!WantsProbeOnlyAccess(dwDesiredAccess)  || !hasReparsePointFlag); // It's not only probing reparse point.
 }
 
 /// <summary>
@@ -330,14 +331,17 @@ static bool ShouldResolveReparsePointsInPath(
 
     CanonicalizedPath path = CanonicalizedPath::Canonicalize(lpFileName);
 
-    // BuildXL tries to delete files using the 'FILE_FLAG_DELETE_ON_CLOSE' attribute when opening a handle then closing it, before
-    // falling back to other strategies. If we try to delete a symbolic link, it's important to not do full resolving as only the link
+    // BuildXl can delete file by opening a handle using 'FILE_FLAG_DELETE_ON_CLOSE' attribute or 'DELETE' access (Posix delete).
+    // If we try to delete a symbolic link, it's important to not do full resolving as only the link
     // itself should be deleted, not its targets.
-    bool reparsePointDeletion = (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0 &&
-        (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
+    bool reparsePointDeletion =
+        ((dwDesiredAccess & DELETE) != 0 || (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0)
+        && (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
 
     if (reparsePointDeletion)
     {
+        // TODO: Deciding not to traverse symlink chain based on reparse point deletion is probably not correct
+        //       because the desired access can be set to read/write, which can be used to access the target.
         ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
         return false;
     }

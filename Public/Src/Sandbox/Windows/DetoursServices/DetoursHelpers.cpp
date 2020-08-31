@@ -357,6 +357,11 @@ bool WantsProbeOnlyAccess(DWORD access)
         && (access == 0 || (access & (FILE_READ_ATTRIBUTES | FILE_READ_EA)) != 0);
 }
 
+bool WantsDeleteOnlyAccess(DWORD access)
+{
+    return access == DELETE;
+}
+
 /* Indicates if a path contains a wildcard that may be interpreted by FindFirstFile / FindFirstFileEx. */
 bool PathContainsWildcard(LPCWSTR path) {
     for (WCHAR const* pch = path; *pch != L'\0'; pch++) {

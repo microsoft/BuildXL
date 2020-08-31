@@ -45,9 +45,9 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         public FileUtilitiesWin(LoggingContext loggingContext)
         {
-            m_fileSystem = new Windows.FileSystemWin(loggingContext);
+            m_fileSystem = new FileSystemWin(loggingContext);
             m_loggingContext = loggingContext;
-            PosixDeleteMode = PosixDeleteMode.RunLast;
+            PosixDeleteMode = PosixDeleteMode.RunFirst;
         }
 
         /// <inheritdoc />

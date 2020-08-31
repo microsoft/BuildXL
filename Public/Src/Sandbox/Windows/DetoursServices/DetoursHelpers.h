@@ -83,6 +83,7 @@ bool WantsWriteAccess(DWORD access);
 bool WantsReadAccess(DWORD access);
 bool WantsReadOnlyAccess(DWORD access);
 bool WantsProbeOnlyAccess(DWORD access);
+bool WantsDeleteOnlyAccess(DWORD access);
 
 bool PathContainsWildcard(LPCWSTR path);
 

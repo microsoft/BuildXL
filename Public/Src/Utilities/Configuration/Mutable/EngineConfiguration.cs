@@ -30,6 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ScrubDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
+            FileChangeTrackerSupersedeMode = FileChangeTrackerSupersedeMode.All;
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
             TrackGvfsProjections = false;
@@ -69,6 +70,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ScrubDirectories = pathRemapper.Remap(template.ScrubDirectories);
             CompressGraphFiles = template.CompressGraphFiles;
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
+            FileChangeTrackerSupersedeMode = template.FileChangeTrackerSupersedeMode;
             LogStatistics = template.LogStatistics;
             TrackBuildsInUserFolder = template.TrackBuildsInUserFolder;
             TrackGvfsProjections = template.TrackGvfsProjections;
@@ -147,6 +149,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public FileChangeTrackerInitializationMode FileChangeTrackerInitializationMode { get; set; }
+
+        /// <inheritdoc />
+        public FileChangeTrackerSupersedeMode FileChangeTrackerSupersedeMode { get; set; }
 
         /// <inheritdoc />
         public bool LogStatistics { get; set; }

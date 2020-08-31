@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -577,6 +578,103 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RenameFile(newPath, oldPath);
 
             RunScheduler().AssertNotScheduled(process.PipId);
+        }
+
+        [Fact]
+        public void ProducingOutputDirectoryShouldNotInvalidateIncrementalScheduling()
+        {
+            var outputDirectory = CreateOutputDirectoryArtifact();
+            var outputFileInOutputDirectory = CreateOutputFileArtifact(outputDirectory);
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile),
+                Operation.WriteFile(outputFileInOutputDirectory, doNotInfer: true)
+            });
+            builder.AddOutputDirectory(outputDirectory, SealDirectoryKind.Opaque);
+
+            var process = SchedulePipBuilder(builder).Process;
+
+            // 1st Run:
+            // - Run should results in a cache miss.
+            // - After the run, outputFileInOutputDirectory should be tracked with some USN-1.
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            ModifyFile(sourceFile);
+
+            // 2nd Run:
+            // - Run should results in a cache miss because source is modified.
+            // - After the run, outputFileInOutputDirectory should be tracked with USN-1, USN-2
+            //   but the supersession limit is set to USN-2, which means that any change with USN <= USN-2
+            //   will be ignored in the next build.
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            // 3rd Run:
+            // - Pip should not be scheduled.
+            // - During the journal scanning, file change tracker will see USN-X, USN-2 from the last checkpoint.
+            //   USN-X is the result of deleting the file before running the pip. However both USNs <= USN-2, and due to
+            //   supersession limit, both USNs are ignored.
+            RunScheduler().AssertNotScheduled(process.PipId);
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void ProducingNestedOutputDirectoryShouldNotInvalidateIncrementalScheduling(
+            bool runPosixDeleteFirst,
+            bool supersedeAllPaths)
+        {
+            var outputDirectory = CreateOutputDirectoryArtifact();
+            var outputFileInOutputDirectory = CreateOutputFileArtifact(outputDirectory.Path.Combine(Context.PathTable, "nested"));
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile),
+                Operation.WriteFile(outputFileInOutputDirectory, doNotInfer: true)
+            });
+            builder.AddOutputDirectory(outputDirectory, SealDirectoryKind.Opaque);
+
+            var process = SchedulePipBuilder(builder).Process;
+
+            var originalPosixDeleteMode = FileUtilities.PosixDeleteMode;
+            FileUtilities.PosixDeleteMode = runPosixDeleteFirst ? PosixDeleteMode.RunFirst : PosixDeleteMode.NoRun;
+
+            Configuration.Engine.FileChangeTrackerSupersedeMode = supersedeAllPaths
+                ? FileChangeTrackerSupersedeMode.All
+                : FileChangeTrackerSupersedeMode.FileOnly;
+
+            try
+            {
+                // 1st Run:
+                // - Run should results in a cache miss.
+                // - After the run, outputFileInOutputDirectory should be tracked with some USN-1.
+                RunScheduler(runNameOrDescription: "1st Run").AssertCacheMiss(process.PipId);
+
+                ModifyFile(sourceFile);
+
+                // 2nd Run:
+                // - Run should results in a cache miss because source is modified.
+                // - After the run, outputFileInOutputDirectory should be tracked with USN-1, USN-2
+                //   but the supersession limit is set to USN-2, which means that any change with USN <= USN-2
+                //   will be ignored in the next build.
+                RunScheduler(runNameOrDescription: "2nd Run").AssertCacheMiss(process.PipId);
+
+                var runResult = RunScheduler(runNameOrDescription: "3rd Run");
+
+                if (supersedeAllPaths && runPosixDeleteFirst)
+                {
+                    runResult.AssertNotScheduled(process.PipId);
+                }
+                else
+                {
+                    runResult.AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
+                }
+            }
+            finally
+            {
+                FileUtilities.PosixDeleteMode = originalPosixDeleteMode;
+            }
         }
 
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));

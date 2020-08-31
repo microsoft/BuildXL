@@ -11,6 +11,11 @@ namespace Storage.Untracked {
                 runWithUntrackedDependencies: true
             },
         },
+        // TODO: Switch to QTest.
+        //       The reason for using XUnit here is for debugging purpose.
+        //       When debugging a failed test, QTest throws exception in this test assembly, and
+        //       thus one cannot see the test result.
+        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Storage.Admin",
         sources: globR(d`.`, "*.cs"),
         references: [
@@ -18,6 +23,7 @@ namespace Storage.Untracked {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Utilities").Storage.dll,

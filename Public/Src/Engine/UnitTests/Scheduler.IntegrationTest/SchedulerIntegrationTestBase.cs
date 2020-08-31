@@ -368,6 +368,7 @@ namespace Test.BuildXL.Scheduler
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
             Action<TestScheduler> verifySchedulerPostRun = default,
+            string runNameOrDescription = null,
             CancellationToken cancellationToken = default)
         {
             if (m_graphWasModified || LastGraph == null)
@@ -388,6 +389,7 @@ namespace Test.BuildXL.Scheduler
                 performanceCollector: performanceCollector,
                 updateStatusTimerEnabled: updateStatusTimerEnabled,
                 verifySchedulerPostRun: verifySchedulerPostRun,
+                runNameOrDescription: runNameOrDescription,
                 cancellationToken: cancellationToken);
         }
 

@@ -69,6 +69,7 @@ namespace BuildXL.Execution.Analyzer
                 loggingContext,
                 null,
                 null,
+                default(Utilities.Configuration.FileChangeTrackerSupersedeMode?),
                 m_inputFile,
                 // if we do not pass the fingerprint, FileChangeTracker will not check for fingerprint match
                 null, 

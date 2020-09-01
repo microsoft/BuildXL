@@ -598,6 +598,12 @@ interface UntrackingSettings {
      * A relative path is interpreted as relative to the corresponding project root
      */
     untrackedDirectoryScopes?: (Directory | RelativePath)[];
+
+    /**
+     * Cones (directories and its recursive content) to flag as untracked for all projects in the build.
+     * The relative path is interepreted relative to each available project
+     */
+    untrackedGlobalDirectoryScopes?: RelativePath[];
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

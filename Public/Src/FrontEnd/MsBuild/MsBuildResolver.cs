@@ -296,7 +296,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 result.DotNetExeLocation, 
                 m_frontEndName, 
                 m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
-                m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables);
+                m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables,
+                filteredBuildFiles);
 
             var graphConstructor = new ProjectGraphToPipGraphConstructor<ProjectWithPredictions>(pipConstructor, m_host.Configuration.FrontEnd.MaxFrontEndConcurrency());
             var maybeScheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);

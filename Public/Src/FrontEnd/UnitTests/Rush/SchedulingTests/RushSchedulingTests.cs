@@ -145,5 +145,27 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             XAssert.Equals(blockWritesUnderNodeModules? 1 : 0, exclusions.Length);
         }
+
+        [Fact]
+        public void GlobalUntrackedDirectoryScopesAreHonored()
+        {
+            var projectB = CreateRushProject("@ms/B");
+            var projectA = CreateRushProject("@ms/A", dependencies: new[] { projectB });
+
+            var relativeScopeToUntrack = RelativePath.Create(StringTable, @"untracked\scope");
+
+            var untrackedScopes = Start(new RushResolverSettings
+                {
+                    UntrackedGlobalDirectoryScopes = new[] { relativeScopeToUntrack }
+                })
+                .Add(projectB)
+                .Add(projectA)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(projectA)
+                .UntrackedScopes;
+
+            // The untracked scope should be configured under every project root
+            XAssert.Contains(untrackedScopes, projectA.ProjectFolder.Combine(PathTable, relativeScopeToUntrack), projectB.ProjectFolder.Combine(PathTable, relativeScopeToUntrack));
+        }
     }
 }

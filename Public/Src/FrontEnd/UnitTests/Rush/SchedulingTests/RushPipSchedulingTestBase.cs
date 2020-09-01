@@ -106,7 +106,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             ModuleDefinition moduleDefinition,
             RushResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<string> userDefinedPassthroughVariables,
+            IEnumerable<JavaScriptProject> allProjects)
         {
             return new RushPipConstructor(
                 context,
@@ -116,7 +117,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 resolverSettings,
                 userDefinedEnvironment,
                 userDefinedPassthroughVariables,
-                CollectionUtilities.EmptyDictionary<string, IReadOnlyList<JavaScriptArgument>>());
+                CollectionUtilities.EmptyDictionary<string, IReadOnlyList<JavaScriptArgument>>(),
+                allProjects);
         }
     }
 }

@@ -33,6 +33,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UntrackedDirectoryScopes = resolverSettings.UntrackedDirectoryScopes;
             UntrackedFiles = resolverSettings.UntrackedFiles;
             UntrackedDirectories = resolverSettings.UntrackedDirectories;
+            UntrackedGlobalDirectoryScopes = resolverSettings.UntrackedGlobalDirectoryScopes;
             RunInContainer = resolverSettings.RunInContainer;
             MsBuildSearchLocations = resolverSettings.MsBuildSearchLocations;
             FileNameEntryPoints = resolverSettings.FileNameEntryPoints;
@@ -128,5 +129,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? UseManagedSharedCompilation { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
     }
 }

@@ -104,7 +104,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
             ModuleDefinition moduleDefinition,
             MsBuildResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<string> userDefinedPassthroughVariables,
+            IEnumerable<ProjectWithPredictions> allProjects)
         {
             return new PipConstructor(
                    context,
@@ -115,7 +116,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                    resolverSettings.ShouldRunDotNetCoreMSBuild() ? DotnetExe : AbsolutePath.Invalid,
                    nameof(MsBuildFrontEnd),
                    userDefinedEnvironment,
-                   userDefinedPassthroughVariables);
+                   userDefinedPassthroughVariables,
+                   allProjects);
         }
 
         protected override SchedulingResult<ProjectWithPredictions> ScheduleAll(

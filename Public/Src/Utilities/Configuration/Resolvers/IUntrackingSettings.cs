@@ -27,5 +27,11 @@ namespace BuildXL.Utilities.Configuration.Resolvers
         /// Directories to flag as untracked
         /// </summary>
         IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; }
+
+        /// <summary>
+        /// Cones (directories and its recursive content) to flag as untracked for all projects in the build.
+        /// The relative path is interepreted relative to each available project
+        /// </summary>
+        IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; }
     }
 }

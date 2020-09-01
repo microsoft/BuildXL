@@ -39,8 +39,9 @@ namespace BuildXL.FrontEnd.Rush
             IRushResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables,
-            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands) 
-        : base(context, frontEndHost, moduleDefinition, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables, customCommands)
+            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands,
+            IEnumerable<JavaScriptProject> allProjectsToBuild) 
+        : base(context, frontEndHost, moduleDefinition, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables, customCommands, allProjectsToBuild)
         {
             Contract.RequiresNotNull(rushConfiguration);
 

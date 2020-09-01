@@ -62,9 +62,10 @@ namespace BuildXL.FrontEnd.Rush
             RushConfiguration configuration, 
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment, 
             IEnumerable<string> userDefinedPassthroughVariables, 
-            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands)
+            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands,
+            IReadOnlyCollection<JavaScriptProject> allProjectsToBuild)
         {
-            return new RushPipConstructor(Context, host, moduleDefinition, configuration, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables, customCommands);
+            return new RushPipConstructor(Context, host, moduleDefinition, configuration, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables, customCommands, allProjectsToBuild);
         }
     }
 }

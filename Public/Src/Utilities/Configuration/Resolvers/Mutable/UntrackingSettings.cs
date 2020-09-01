@@ -17,5 +17,8 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
     }
 }

@@ -46,6 +46,7 @@ namespace BuildXL.FrontEnd.JavaScript
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
         private readonly IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> m_customCommands;
+        private readonly IEnumerable<AbsolutePath> m_allProjectRoots;
 
         /// <nodoc/>
         protected PathTable PathTable => m_context.PathTable;
@@ -68,7 +69,8 @@ namespace BuildXL.FrontEnd.JavaScript
             IJavaScriptResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables,
-            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands)
+            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands,
+            IEnumerable<JavaScriptProject> allProjectsToBuild)
         {
             Contract.RequiresNotNull(context);
             Contract.RequiresNotNull(frontEndHost);
@@ -77,6 +79,7 @@ namespace BuildXL.FrontEnd.JavaScript
             Contract.RequiresNotNull(userDefinedEnvironment);
             Contract.RequiresNotNull(userDefinedPassthroughVariables);
             Contract.RequiresNotNull(customCommands);
+            Contract.RequiresNotNull(allProjectsToBuild);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
@@ -85,6 +88,7 @@ namespace BuildXL.FrontEnd.JavaScript
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
             m_customCommands = customCommands;
+            m_allProjectRoots = allProjectsToBuild.Select(project => project.ProjectFolder);
         }
 
         /// <summary>
@@ -347,7 +351,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 processBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
             }
 
-            PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, project.ProjectFolder, processBuilder, m_resolverSettings);
+            PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, project.ProjectFolder, m_allProjectRoots, processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);
             processBuilder.SetStandardOutputFile(logDirectory.Combine(m_context.PathTable, "build.log"));

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 using System.Text;
@@ -71,14 +72,19 @@ namespace BuildXL.FrontEnd.Utilities
         /// Some FrontEnds allow configurable untracking of files, directories and directory scopes
         /// This method applies that configuration to the process builder
         /// </summary>
-        public static void UntrackUserConfigurableArtifacts(PathTable pathTable, AbsolutePath projectRoot, ProcessBuilder processBuilder, IUntrackingSettings settings)
+        public static void UntrackUserConfigurableArtifacts(PathTable pathTable, AbsolutePath currentProjectRoot, IEnumerable<AbsolutePath> allProjectRoots, ProcessBuilder processBuilder, IUntrackingSettings settings)
         {
-            Contract.Assert(settings != null);
+            Contract.AssertNotNull(settings);
+            Contract.Assert(currentProjectRoot.IsValid);
+            Contract.AssertNotNull(allProjectRoots);
+            Contract.AssertNotNull(processBuilder);
+            Contract.AssertNotNull(settings);
+
             if (settings.UntrackedDirectoryScopes != null)
             {
                 foreach (var untrackedDirectoryScopeUnion in settings.UntrackedDirectoryScopes)
                 {
-                    DirectoryArtifact untrackedDirectoryScope = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryScopeUnion, projectRoot);
+                    DirectoryArtifact untrackedDirectoryScope = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryScopeUnion, currentProjectRoot);
                     if (!untrackedDirectoryScope.IsValid)
                     {
                         continue;
@@ -91,7 +97,7 @@ namespace BuildXL.FrontEnd.Utilities
             {
                 foreach (var untrackedDirectoryUnion in settings.UntrackedDirectories)
                 {
-                    DirectoryArtifact untrackedDirectory = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryUnion, projectRoot);
+                    DirectoryArtifact untrackedDirectory = ResolveAbsoluteOrRelativeDirectory(pathTable, untrackedDirectoryUnion, currentProjectRoot);
 
                     if (!untrackedDirectory.IsValid)
                     {
@@ -110,6 +116,22 @@ namespace BuildXL.FrontEnd.Utilities
                         continue;
                     }
                     processBuilder.AddUntrackedFile(untrackedFile);
+                }
+            }
+
+            if (settings.UntrackedGlobalDirectoryScopes != null)
+            {
+                foreach(var relativeDirectory in settings.UntrackedGlobalDirectoryScopes)
+                {
+                    if (!relativeDirectory.IsValid)
+                    {
+                        continue;
+                    }
+
+                    foreach(var projectRoot in allProjectRoots)
+                    {
+                        processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(projectRoot.Combine(pathTable, relativeDirectory)));
+                    }
                 }
             }
         }

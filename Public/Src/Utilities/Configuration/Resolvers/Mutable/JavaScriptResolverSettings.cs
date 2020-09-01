@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UntrackedDirectoryScopes = resolverSettings.UntrackedDirectoryScopes;
             UntrackedFiles = resolverSettings.UntrackedFiles;
             UntrackedDirectories = resolverSettings.UntrackedDirectories;
+            UntrackedGlobalDirectoryScopes = resolverSettings.UntrackedGlobalDirectoryScopes;
             Environment = resolverSettings.Environment;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             NodeExeLocation = resolverSettings.NodeExeLocation;
@@ -79,5 +80,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? BlockWritesUnderNodeModules { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
     }
 }

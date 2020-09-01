@@ -335,7 +335,8 @@ namespace BuildXL.FrontEnd.JavaScript
             TGraphConfiguration graphConfiguration,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables,
-            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands)
+            IReadOnlyDictionary<string, IReadOnlyList<JavaScriptArgument>> customCommands,
+            IReadOnlyCollection<JavaScriptProject> allProjectsToBuild)
         {
             return new JavaScriptPipConstructor(
                 Context,
@@ -344,7 +345,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 resolverSettings,
                 userDefinedEnvironment,
                 userDefinedPassthroughVariables,
-                customCommands);
+                customCommands,
+                allProjectsToBuild);
         }
 
         private async Task<bool> EvaluateAllFilesAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId)
@@ -378,7 +380,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 result.JavaScriptGraph.Configuration,
                 m_javaScriptWorkspaceResolver.UserDefinedEnvironment, 
                 m_javaScriptWorkspaceResolver.UserDefinedPassthroughVariables, 
-                customCommands);
+                customCommands,
+                filteredBuildFiles);
 
             var graphConstructor = new ProjectGraphToPipGraphConstructor<JavaScriptProject>(pipConstructor, m_host.Configuration.FrontEnd.MaxFrontEndConcurrency());
 

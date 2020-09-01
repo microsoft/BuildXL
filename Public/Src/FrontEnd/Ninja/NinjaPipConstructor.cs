@@ -311,7 +311,7 @@ namespace BuildXL.FrontEnd.Ninja
 
             if (m_untrackingSettings != null)
             {
-                PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, processBuilder, m_untrackingSettings);
+                PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, projectRoot, m_moduleDefinition.Specs.Select(spec => spec.GetParent(m_context.PathTable)), processBuilder, m_untrackingSettings);
             }
 
             var programFilesDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));

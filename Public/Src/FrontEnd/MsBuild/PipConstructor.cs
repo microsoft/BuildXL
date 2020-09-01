@@ -62,6 +62,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
+        private readonly IEnumerable<AbsolutePath> m_allProjectRoots;
 
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
@@ -90,7 +91,8 @@ namespace BuildXL.FrontEnd.MsBuild
             AbsolutePath pathToDotnetExe,
             string frontEndName,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<string> userDefinedPassthroughVariables,
+            IEnumerable<ProjectWithPredictions> allProjects)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -101,6 +103,7 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             Contract.Requires(userDefinedEnvironment != null);
             Contract.Requires(userDefinedPassthroughVariables != null);
+            Contract.RequiresNotNull(allProjects);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
@@ -111,6 +114,7 @@ namespace BuildXL.FrontEnd.MsBuild
             m_frontEndName = frontEndName;
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
+            m_allProjectRoots = allProjects.Select(project => project.FullPath);
         }
 
         /// <summary>
@@ -758,7 +762,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
-            PipConstructionUtilities.UntrackUserConfigurableArtifacts(PathTable, projectRoot, processBuilder, m_resolverSettings);
+            PipConstructionUtilities.UntrackUserConfigurableArtifacts(PathTable, projectRoot, m_allProjectRoots, processBuilder, m_resolverSettings);
 
             // Git accesses should be ignored if .git directory is there
             var gitDirectory = Root.Combine(PathTable, ".git");

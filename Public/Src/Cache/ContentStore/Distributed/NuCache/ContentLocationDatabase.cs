@@ -105,8 +105,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Clock = clock;
             _configuration = configuration;
             _getInactiveMachines = getInactiveMachines;
-
-            _isMetadataGarbageCollectionEnabled = configuration.MetadataGarbageCollectionEnabled;
         }
 
         /// <summary>

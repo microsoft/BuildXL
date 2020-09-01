@@ -67,14 +67,21 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             if (!_ownsDatabase)
             {
-                return BoolResult.SuccessTask;
+                return BoolResult.Success;
             }
 
-            return Database.StartupAsync(context);
+            var result = await Database.StartupAsync(context);
+            if (!result)
+            {
+                return result;
+            }
+
+            Database.SetDatabaseMode(isDatabaseWriteable: true);
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />

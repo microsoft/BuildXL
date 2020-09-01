@@ -53,6 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ProactiveCopiesSkipped,
             ProactiveCopy_OutsideRingFromPreferredLocations,
             ProactiveCopyRetries,
+            ProactiveCopy_InsideRingCopies,
+            ProactiveCopy_InsideRingFullyReplicated,
         }
 
         internal CounterCollection<Counters> SessionCounters { get; } = new CounterCollection<Counters>();
@@ -1243,7 +1245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, reason);
+                        var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, replicatedLocations, reason);
 
                         var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);
 
@@ -1331,11 +1333,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             OperationContext context,
             ContentHash hash,
             bool tryBuildRing,
+            IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason)
         {
             // Get random machine inside build ring
             if (tryBuildRing && (Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
             {
+                SessionCounters[Counters.ProactiveCopy_InsideRingCopies].Increment();
+
                 if (_buildIdHash != null)
                 {
                     var candidates = _buildRingMachines
@@ -1344,8 +1349,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                     if (candidates.Length > 0)
                     {
-                        var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                        return PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
+                        candidates = candidates.Except(replicatedLocations).ToArray();
+                        if (candidates.Length > 0)
+                        {
+                            var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
+                            return PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
+                        }
+                        else
+                        {
+                            SessionCounters[Counters.ProactiveCopy_InsideRingFullyReplicated].Increment();
+                            return Task.FromResult(new PushFileResult($"All candidates in the build ring for build {_buildId} already have the content."));
+                        }
                     }
                     else
                     {

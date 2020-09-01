@@ -107,6 +107,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
         /// <nodoc />
         protected bool EnableProactiveCopy { get; set; } = false;
+        protected bool ProactiveCopyInsideRing { get; set; } = false;
+        protected int? ProactiveCopyLocationThreshold { get; set; } = null;
         protected int? ProactivePushCountLimit { get; set; }
         protected bool EnableProactiveReplication { get; set; } = false;
         protected bool ProactiveCopyOnPuts { get; set; } = true;
@@ -279,7 +281,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 MachineRisk = 0.0000001,
 
                 TraceProactiveCopy = true,
-                ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
+                ProactiveCopyMode = EnableProactiveCopy ? (ProactiveCopyInsideRing ? nameof(ProactiveCopyMode.InsideRing) : nameof(ProactiveCopyMode.OutsideRing)) : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = true,
                 EnableProactiveReplication = EnableProactiveReplication,
                 ProactiveCopyRejectOldContent = true,
@@ -292,6 +294,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 ContentLocationDatabaseOpenReadOnly = false,
                 DistributedCentralStorageImmutabilityOptimizations = true,
             };
+
+            if (ProactiveCopyLocationThreshold.HasValue)
+            {
+                settings.ProactiveCopyLocationsThreshold = ProactiveCopyLocationThreshold.Value;
+            }
 
             _overrideDistributed?.Invoke(settings);
 
@@ -834,6 +841,62 @@ namespace ContentStoreTest.Distributed.Sessions
                     getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
                 },
                 implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
+        public async Task ProactiveCopyInsideRingTest()
+        {
+            EnableProactiveCopy = true;
+            ProactiveCopyInsideRing = true;
+            ProactiveCopyOnPuts = true;
+            ProactiveCopyOnPins = true;
+            ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 3;
+            ConfigureWithOneMaster();
+
+            var buildId = Guid.NewGuid().ToString();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+
+                    // Insert random file #1 into worker #1
+                    var putResult = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash = putResult.ContentHash;
+
+                    var getBulkResult = await masterStore.GetBulkAsync(context, hash, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // Proactive copy should have replicated the content.
+                    getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                    var counters = sessions[0].GetCounters().ToDictionaryIntegral();
+                    counters["ProactiveCopy_InsideRingCopies.Count"].Should().Be(1);
+                    counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(0);
+
+                    // Pin the content. Should fail the proactive copy because there re no more build-ring machines available.
+                    await sessions[0].PinAsync(context, hash, CancellationToken.None).ShouldBeError();
+
+                    getBulkResult = await masterStore.GetBulkAsync(context, hash, GetBulkOrigin.Global).ShouldBeSuccess();
+                    getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                    counters = sessions[0].GetCounters().ToDictionaryIntegral();
+                    counters["ProactiveCopy_InsideRingCopies.Count"].Should().Be(2);
+                    counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(1);
+                },
+                implicitPin: ImplicitPin.None,
+                buildId: buildId);
         }
 
         [Theory]

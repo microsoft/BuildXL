@@ -36,6 +36,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using ContentStoreTest.Extensions;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -127,7 +128,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return new Context(Context, new Guid(idBytes));
             }
 
-            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast)
+            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)
             {
                 var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) =>
                 {
@@ -146,9 +147,14 @@ namespace ContentStoreTest.Distributed.Sessions
                     var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccessAsync();
                 }
 
-                Sessions = Stores.Select((store, id) => store.CreateSession(Context, "store" + id, implicitPin).Session).ToList();
+                Sessions = Stores.Select((store, id) => store.CreateSession(Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
                 await TaskSafetyHelpers.WhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
             }
+
+            protected static string GetSessionName(int id, string buildId) =>
+                buildId == null || id == 0 // Master should not be part of the build.
+                        ? $"store{id}"
+                        : $"store{id}{Constants.BuildIdPrefix}{buildId}";
 
             public virtual async Task ShutdownAsync()
             {
@@ -762,7 +768,8 @@ namespace ContentStoreTest.Distributed.Sessions
             TestContext outerContext = null,
             bool ensureLiveness = true,
             int? storeToStartupLast = null,
-            TestFileCopier testCopier = null)
+            TestFileCopier testCopier = null,
+            string buildId = null)
         {
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
@@ -810,7 +817,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
 
-                    await testContext.StartupAsync(implicitPin, storeToStartupLast);
+                    await testContext.StartupAsync(implicitPin, storeToStartupLast, buildId);
 
                     // This mode is meant to make sure that all machines are alive and ready to go
                     if (ensureLiveness)

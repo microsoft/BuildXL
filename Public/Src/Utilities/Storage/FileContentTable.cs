@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
+using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -765,6 +766,8 @@ namespace BuildXL.Storage
                     m_reason ?? string.Empty, 
                     m_loadedDurationMs, 
                     m_stackTrace == null ? string.Empty : Environment.NewLine + m_stackTrace);
+
+                Logger.Log.Statistic(loggingContext, new Statistic { Name = "FileContentTable.LoadDurationMs", Value = m_loadedDurationMs });
             }
         }
 

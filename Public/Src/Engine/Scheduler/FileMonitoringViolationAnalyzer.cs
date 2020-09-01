@@ -661,7 +661,11 @@ namespace BuildXL.Scheduler
                             // Collect any relatedNodes if applicable to display at the end of the message
                             if (thisAccess.RelatedPipId.HasValue && thisAccess.RelatedPipId.Value.IsValid)
                             {
-                                relatedNodes.Add(thisAccess.RelatedPipId.Value);
+                                // In some cases the reporting pip ended up as the related pip because there is a race 
+                                // between two offending pips (e.g. a missing dependency, involving a reader and a writer)
+                                // to flag as the violation. So make sure, when a related pip is present, that is different than
+                                // the reporting one
+                                relatedNodes.Add(reportingPip == thisAccess.RelatedPipId.Value? thisAccess.ViolatorPipId : thisAccess.RelatedPipId.Value);
                             }
 
                             if (i == 0)

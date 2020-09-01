@@ -95,6 +95,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newCapacity = null, string? redisKey = null)
+            : base(succeeded: true)
         {
             Hash = hash;
             BlobSize = blobSize;
@@ -159,6 +160,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public GetBlobResult(ContentHash hash, byte[]? blob)
+            : base(succeeded: true)
         {
             Hash = hash;
             Blob = blob;

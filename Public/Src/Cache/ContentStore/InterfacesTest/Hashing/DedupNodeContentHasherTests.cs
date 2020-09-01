@@ -7,7 +7,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
@@ -442,6 +441,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         {
             var r = new Random(Seed: 0);
             byte[] bytes = new byte[blockSize];
+            byte[] tempBytes = new byte[blockSize];
 
             using (var mgdHasher = new DedupNodeOrChunkHashAlgorithm(new ManagedChunker(hashType.GetChunkerConfiguration())))
             using (var comHasher = (Chunker.IsComChunkerSupported  && hashType == HashType.Dedup64K) ?
@@ -452,14 +452,26 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 mgdHasher.SetInputLength(totalLength);
                 comHasher?.SetInputLength(totalLength);
 
+                FillBufferWithTestContent(seed: r.Next(), bytes);
+
                 for (int i = 0; i < blockCount; i++)
                 {
-                    FillBufferWithTestContent(seed: r.Next(), bytes);
-
                     Task.WaitAll(
                         Task.Run(() => mgdHasher.TransformBlock(bytes, 0, bytes.Length, null, 0)),
-                        Task.Run(() => comHasher?.TransformBlock(bytes, 0, bytes.Length, null, 0))
+                        Task.Run(() => comHasher?.TransformBlock(bytes, 0, bytes.Length, null, 0)),
+                        // Filling the buffer for the next iteration in parallel with actual work
+                        // to speed up the tests.
+                        Task.Run(
+                            () =>
+                            {
+                                if (i < blockCount - 1)
+                                {
+                                    FillBufferWithTestContent(seed: r.Next(), tempBytes);
+                                }
+                            })
                     );
+
+                    swap(ref bytes, ref tempBytes);
                 }
 
                 mgdHasher.TransformFinalBlock(new byte[0], 0, 0);
@@ -477,6 +489,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 }
 
                 return node;
+            }
+
+            static void swap<T>(ref T left, ref T right) where T : class
+            {
+                T temp = left;
+                left = right;
+                right = temp;
             }
         }
     }
@@ -546,7 +565,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
     public class DedupContentHasherTestsCan1024KChunkReallyLargeFiles : DedupContentHasherTestsCanChunkLargeFilesBase
     {
         [MtaFact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration2")] // Using a different category name to allow all integration tests to run in parallel.
         public void Can1024KChunkReallyLargeFiles()
         {
             // We want to make sure this goes past uint.MaxValue == 4GB

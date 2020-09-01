@@ -104,6 +104,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 var lastFailureTimes = new DateTime[hashInfo.Locations.Count];
                 int attemptCount = 0;
+                int totalRetries = 0;
                 TimeSpan waitDelay = TimeSpan.Zero;
 
                 //DateTime defaults to 01/01/0001 when we initialize the array.
@@ -124,6 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var maxReplicaCount = attemptCount < _settings.CopyAttemptsWithRestrictedReplicas
                         ? _settings.RestrictedCopyReplicaCount
                         : int.MaxValue;
+                    maxReplicaCount = Math.Min(maxReplicaCount, hashInfo.Locations.Count);
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
@@ -135,9 +137,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         attemptCount,
                         waitDelay,
                         maxReplicaCount,
+                        totalRetries,
                         reason,
                         handleCopyAsync);
 
+                    totalRetries += maxReplicaCount;
                     if (putResult || cts.IsCancellationRequested)
                     {
                         break;
@@ -297,6 +301,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int attemptCount,
             TimeSpan waitDelay,
             int maxReplicaCount,
+            int totalRetries,
             CopyReason reason,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
@@ -310,16 +315,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string? lastErrorMessage = null;
 
-            var maxReplica = Math.Min(maxReplicaCount, hashInfo.Locations.Count);
-            for (int replicaIndex = 0; replicaIndex < maxReplica; replicaIndex++)
+            for (int replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
 
                 // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
                 // If we reach over maximum retries, return an put result stating so, and no longer retry
-                var totalRetryCount = attemptCount * hashInfo.Locations.Count + replicaIndex + 1;
-                if (totalRetryCount > _maxRetryCount)
+                var totalRetryCount = totalRetries + replicaIndex;
+                if (totalRetryCount >= _maxRetryCount)
                 {
                     Tracer.Debug(
                             context,

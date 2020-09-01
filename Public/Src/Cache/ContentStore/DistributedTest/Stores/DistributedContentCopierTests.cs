@@ -113,6 +113,55 @@ namespace ContentStoreTest.Distributed.Stores
             }
         }
 
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        public async Task CopyRetriesWithRestrictions(int retries)
+        {
+            var context = new Context(Logger);
+            var copyAttemptsWithRestrictedReplicas = 2;
+            var restrictedCopyReplicaCount = 3;
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero, retries, copyAttemptsWithRestrictedReplicas, restrictedCopyReplicaCount);
+                var machineLocations = new MachineLocation[] { new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation("") };
+
+                var hash = ContentHash.Random();
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 99,
+                    machineLocations);
+
+                mockFileCopier.CopyToAsyncResult = new CopyFileResult(CopyResultCode.UnknownServerError);
+                var result = await distributedCopier.TryCopyAndPutAsync(
+                    new OperationContext(context),
+                    hashWithLocations,
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 99)));
+
+                result.ShouldBeError();
+                int copyAttempts = 0;
+                for (var attemptCount = 0; attemptCount < retries; attemptCount++)
+                {
+                    var maxReplicaCount = attemptCount < copyAttemptsWithRestrictedReplicas
+                        ? restrictedCopyReplicaCount
+                        : int.MaxValue;
+
+                    copyAttempts += Math.Min(maxReplicaCount, machineLocations.Length);
+                }
+
+                if (copyAttempts < distributedCopier.Settings.MaxRetryCount)
+                {
+                    mockFileCopier.CopyAttempts.Should().Be(copyAttempts);
+                    result.ErrorMessage.Should().NotContain("Maximum total retries");
+                }
+                else
+                {
+                    mockFileCopier.CopyAttempts.Should().Be(distributedCopier.Settings.MaxRetryCount);
+                    result.ErrorMessage.Should().Contain("Maximum total retries");
+                }
+            }
+        }
+
         ///<summary>
         /// Test case for bug https://dev.azure.com/mseng/1ES/_boards/board/t/DavidW%20-%20Team/Stories/?workitem=1654106
         /// During the first attempt of copying from a list of locations, one of the locations returns a DestinationPathError.
@@ -157,7 +206,9 @@ namespace ContentStoreTest.Distributed.Stores
             IAbsFileSystem fileSystem,
             AbsolutePath rootDirectory,
             TimeSpan retryInterval,
-            int retries = 1)
+            int retries = 1,
+            int copyAttemptsWithRestrictedReplicas = 0,
+            int restrictedCopyReplicaCount = 3)
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
@@ -167,6 +218,8 @@ namespace ContentStoreTest.Distributed.Stores
                 new DistributedContentStoreSettings()
                 {
                     RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => retryInterval).ToArray(),
+                    CopyAttemptsWithRestrictedReplicas = copyAttemptsWithRestrictedReplicas,
+                    RestrictedCopyReplicaCount = restrictedCopyReplicaCount,
                     TrustedHashFileSizeBoundary = long.MaxValue // Disable trusted hash because we never actually move bytes and thus the hasher thinks there is a mismatch.
                 },
                 fileSystem,
@@ -232,9 +285,12 @@ namespace ContentStoreTest.Distributed.Stores
             IPathTransformer<AbsolutePath> pathTransformer)
             : base(settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance)
         {
+            Settings = settings;
             WorkingFolder = workingDirectory;
             PathTransformer = pathTransformer as NoOpPathTransformer;
         }
+
+        public DistributedContentStoreSettings Settings { get; }
 
         public AbsolutePath WorkingFolder { get; }
 

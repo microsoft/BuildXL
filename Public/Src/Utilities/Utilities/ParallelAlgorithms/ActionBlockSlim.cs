@@ -13,7 +13,7 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
     /// <summary>
-    /// Light-weight version of a non-dataflow block that invokes a provided <see cref="Action{T}"/> delegate for every data element received.
+    /// Light-weight version of a non-dataflow block that invokes a provided <see cref="Action{T}"/> delegate for every data element received in parallel with limited concurrency.
     /// </summary>
     public sealed class ActionBlockSlim<T>
     {
@@ -33,7 +33,13 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// </summary>
         private readonly TaskSourceSlim<object> m_schedulingCompletedTcs = TaskSourceSlim.Create<object>();
 
-        /// <nodoc />
+        /// <summary>
+        /// Creates an instance of the action block.
+        /// </summary>
+        /// <remarks>
+        /// Please use this constructor only for CPU intensive (non-asynchronous) callbacks.
+        /// If you need to control the concurrency for asynchronous operations, please use <see cref="CreateWithAsyncAction"/> helper.
+        /// </remarks>
         public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction)
             : this(degreeOfParallelism, t =>
             {

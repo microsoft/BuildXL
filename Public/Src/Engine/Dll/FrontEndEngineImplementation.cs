@@ -155,21 +155,21 @@ namespace BuildXL.Engine
                 directoryTranslator,
                 vfsCasRoot: configuration.Cache.VfsCasRoot);
 
-            m_localDiskContentStoreConcurrencyLimiter = new ActionBlockSlim<MaterializeFileRequest>(
+            m_localDiskContentStoreConcurrencyLimiter = ActionBlockSlim<MaterializeFileRequest>.CreateWithAsyncAction(
                 Environment.ProcessorCount,
-                request =>
+                async request =>
                 {
                     var requestCompletionSource = request.CompletionSource;
                     
                     try
                     {
-                        var materializeResult = m_localDiskContentStore.TryMaterializeAsync(
+                        var materializeResult = await m_localDiskContentStore.TryMaterializeAsync(
                             request.Cache,
                             request.FileRealizationModes,
                             request.Path,
                             request.ContentHash,
                             trackPath: request.TrackPath,
-                            recordPathInFileContentTable: request.RecordPathInFileContentTable).GetAwaiter().GetResult();
+                            recordPathInFileContentTable: request.RecordPathInFileContentTable);
 
                         requestCompletionSource.SetResult(materializeResult);
                     }

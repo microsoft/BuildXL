@@ -18,6 +18,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -29,7 +30,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// Timeout for pin and materialize operations.
         /// </summary>
-        public const int TimeoutDurationMin = 20;
+        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.ArtifactContentCacheOperationTimeout.Value ?? 30;
 
         private readonly PossiblyOpenCacheSession m_cache;
 

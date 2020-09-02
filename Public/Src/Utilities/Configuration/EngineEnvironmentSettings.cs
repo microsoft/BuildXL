@@ -233,6 +233,20 @@ namespace BuildXL.Utilities.Configuration
 
         #endregion
 
+        #region Cache-related timeouts
+
+        /// <summary>
+        /// Timeout for pin and materialize operations.
+        /// </summary>
+        public static readonly Setting<int?> ArtifactContentCacheOperationTimeout = CreateSetting("BuildXLArtifactContentCacheOperationTimeout", value => ParseInt32(value));
+
+        /// <summary>
+        /// Timeout for fingerprintstore operations.
+        /// </summary>
+        public static readonly Setting<int?> FingerprintStoreOperationTimeout = CreateSetting("BuildXLFingerprintStoreOperationTimeout", value => ParseInt32(value));
+
+        #endregion
+
         /// <summary>
         /// Enables runtime cache miss analyzer perform for all pips.
         /// </summary>

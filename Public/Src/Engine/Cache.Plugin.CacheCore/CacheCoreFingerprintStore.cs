@@ -14,6 +14,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
@@ -26,7 +27,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// Timeout for some fingerprint store operations.
         /// </summary>
-        private const int TimeoutDurationMin = 5;
+        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.FingerprintStoreOperationTimeout.Value ?? 10;
 
         private readonly ICacheSession m_cache;
 

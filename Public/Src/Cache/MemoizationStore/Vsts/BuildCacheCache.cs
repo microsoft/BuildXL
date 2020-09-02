@@ -87,6 +87,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
+        /// <param name="downloadBlobsUsingHttpClient"><see cref="BuildCacheServiceConfiguration.DownloadBlobsUsingHttpClient"/></param>
         public BuildCacheCache(
             IAbsFileSystem fileSystem,
             string cacheNamespace,
@@ -111,7 +112,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool enableEagerFingerprintIncorporation = false,
             TimeSpan inlineFingerprintIncorporationExpiry = default,
             TimeSpan eagerFingerprintIncorporationNagleInterval = default,
-            int eagerFingerprintIncorporationNagleBatchSize = 100)
+            int eagerFingerprintIncorporationNagleBatchSize = 100,
+            bool downloadBlobsUsingHttpClient = false)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(buildCacheHttpClientFactory != null);
@@ -123,7 +125,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
 
             _backingContentStore = new BackingContentStore(
-                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, pinInlineThreshold, ignorePinThreshold, useDedupStore);
+                new BackingContentStoreConfiguration()
+                {
+                    FileSystem = fileSystem,
+                    ArtifactHttpClientFactory = backingContentStoreHttpClientFactory,
+                    TimeToKeepContent = timeToKeepUnreferencedContent,
+                    PinInlineThreshold = pinInlineThreshold,
+                    IgnorePinThreshold = ignorePinThreshold,
+                    UseDedupStore = useDedupStore,
+                    DownloadBlobsUsingHttpClient = downloadBlobsUsingHttpClient
+                });
 
             _manuallyExtendContentLifetime = false;
 

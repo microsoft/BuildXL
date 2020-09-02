@@ -28,20 +28,18 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobContentSession" /> class.
         /// </summary>
-        /// <param name="fileSystem">Filesystem used to read/write files.</param>
+        /// <param name="configuration">Configuration.</param>
         /// <param name="name">Session name.</param>
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
-        /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobContentSession(
-            IAbsFileSystem fileSystem,
+            BackingContentStoreConfiguration configuration,
             string name,
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
-            TimeSpan timeToKeepContent,
             CounterTracker counterTracker)
-            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, counterTracker)
+            : base(configuration, name, implicitPin, blobStoreHttpClient, counterTracker)
         {
         }
 

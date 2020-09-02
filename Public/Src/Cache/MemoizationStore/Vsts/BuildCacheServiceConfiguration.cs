@@ -167,7 +167,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public int PinInlineThresholdMinutes { get; set; } = DefaultPinInlineThresholdMinutes;
 
         /// <summary>
-        /// Gets or sets the number of days to keep content before it is referenced by metadata.
+        /// Gets or sets the number of hours to keep content before it is referenced by metadata.
         /// </summary>
         [DataMember]
         public int IgnorePinThresholdHours { get; set; } = DefaultIgnorePinThresholdHours;
@@ -305,5 +305,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         [DataMember]
         public byte DomainId { get; set; } = DefaultDomainId;
+
+        /// <summary>
+        /// Gets whether basic HttpClient is used with downloading blobs from Azure blob store
+        /// as opposed to using Azure Storage SDK.
+        /// </summary>
+        /// <remarks>
+        /// There are known issues with timeouts, hangs, unobserved exceptions in the Azure
+        /// Storage SDK, so this is provided as potentially permanent workaround by performing
+        /// downloads using basic http requests.
+        /// </remarks>
+        [DataMember]
+        public bool DownloadBlobsUsingHttpClient { get; set; } = Environment.GetEnvironmentVariable("BUILD_CACHE_BLOB_USE_HTTPCLIENT") == "1";
+
     }
 }

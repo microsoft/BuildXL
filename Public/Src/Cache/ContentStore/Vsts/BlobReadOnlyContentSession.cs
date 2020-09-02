@@ -29,6 +29,7 @@ using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
+using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
@@ -83,10 +84,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         protected readonly ImplicitPin ImplicitPin;
 
+        /// <nodoc />
+        protected readonly BackingContentStoreConfiguration Configuration;
+
         /// <summary>
         ///     How long to keep content after referencing it.
         /// </summary>
-        protected readonly TimeSpan TimeToKeepContent;
+        protected TimeSpan TimeToKeepContent => Configuration.TimeToKeepContent;
 
         /// <summary>
         /// A tracer for tracking blob content calls.
@@ -113,33 +117,38 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly ParallelHttpDownload.DownloadConfiguration _parallelSegmentDownloadConfig;
 
         /// <summary>
+        /// Reused http client for http downloads
+        /// </summary>
+        private readonly HttpClient _httpClient = new HttpClient();
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="BlobReadOnlyContentSession"/> class.
         /// </summary>
-        /// <param name="fileSystem">Filesystem used to read/write files.</param>
+        /// <param name="configuration">Configuration.</param>
         /// <param name="name">Session name.</param>
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
-        /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobReadOnlyContentSession(
-            IAbsFileSystem fileSystem,
+            BackingContentStoreConfiguration configuration,
             string name,
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
-            TimeSpan timeToKeepContent,
             CounterTracker? counterTracker = null)
             : base(name, counterTracker)
         {
-            Contract.Requires(fileSystem != null);
+            Contract.Requires(configuration != null);
+            Contract.Requires(configuration.FileSystem != null);
             Contract.Requires(name != null);
             Contract.Requires(blobStoreHttpClient != null);
 
+            Configuration = configuration;
+
             ImplicitPin = implicitPin;
             BlobStoreHttpClient = blobStoreHttpClient;
-            TimeToKeepContent = timeToKeepContent;
             _parallelSegmentDownloadConfig = ParallelHttpDownload.DownloadConfiguration.ReadFromEnvironment(EnvironmentVariablePrefix);
 
-            TempDirectory = new DisposableDirectory(fileSystem);
+            TempDirectory = new DisposableDirectory(configuration.FileSystem);
 
             _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
             _blobCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);
@@ -376,7 +385,21 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private Task<long?> PlaceFileInternalAsync(
             OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
-            return AsyncHttpRetryHelper<long?>.InvokeAsync(
+#if PLATFORM_WIN
+            if (Configuration.DownloadBlobsUsingHttpClient)
+            {
+                return DownloadUsingHttpDownloaderAsync(context, contentHash, path);
+            }
+#endif
+
+            return DownloadUsingAzureBlobsAsync(context, contentHash, path, fileMode);
+        }
+
+        private async Task<long?> DownloadUsingAzureBlobsAsync(
+            OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
+        {
+
+            return await AsyncHttpRetryHelper<long?>.InvokeAsync(
                 async () =>
                 {
                     StreamWithRange? httpStream = null;
@@ -480,42 +503,81 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 context: context.TracingContext.Id.ToString());
         }
 
+#if PLATFORM_WIN
+        private async Task<long?> DownloadUsingHttpDownloaderAsync(OperationContext context, ContentHash contentHash, string path)
+        {
+            var downloader = new ManagedParallelBlobDownloader(
+                _parallelSegmentDownloadConfig,
+                new AppTraceSourceContextAdapter(context, Tracer.Name, SourceLevels.All),
+                VssClientHttpRequestSettings.Default.SessionId,
+                _httpClient);
+            var uri = await GetUriAsync(context, contentHash);
+            if (uri == null)
+            {
+                return null;
+            }
+
+            DownloadResult result = await downloader.DownloadAsync(path, uri.ToString(), knownSize: null, cancellationToken: context.Token);
+
+            if (result.HttpStatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+            else if (result.HttpStatusCode != HttpStatusCode.OK)
+            {
+                throw new ResultPropagationException(new ErrorResult($"Error in DownloadAsync({uri}) => [{path}]: HttpStatusCode={result.HttpStatusCode}. ErrorCode={result.ErrorCode}"));
+            }
+
+            return result.BytesDownloaded;
+        }
+#endif
+
         private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
+
+        private async Task<Uri?> GetUriAsync(OperationContext context, ContentHash contentHash)
+        {
+            if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
+            {
+                _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
+                var blobId = contentHash.ToBlobIdentifier();
+
+                var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
+                    context,
+                    "GetStreamInternal",
+                    innerCts => BlobStoreHttpClient.GetDownloadUrisAsync(
+                        new[] { ToVstsBlobIdentifier(blobId) },
+                        EdgeCache.NotAllowed,
+                        cancellationToken: innerCts),
+                    context.Token).ConfigureAwait(false);
+
+                if (mappings == null || !mappings.TryGetValue(ToVstsBlobIdentifier(blobId), out uri))
+                {
+                    return null;
+                }
+
+                DownloadUriCache.Instance.AddDownloadUri(contentHash, uri);
+            }
+            else
+            {
+                _blobCounters[Counters.VstsDownloadUriFetchedInMemory].Increment();
+            }
+
+            return uri.NotNullUri;
+        }
 
         private async Task<StreamWithRange?> GetStreamInternalAsync(OperationContext context, ContentHash contentHash, long offset, int? overrideStreamMinimumReadSizeInBytes)
         {
             Uri? azureBlobUri = default;
             try
             {
-                if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
+                azureBlobUri = await GetUriAsync(context, contentHash);
+                if (azureBlobUri == null)
                 {
-                    _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
-                    var blobId = contentHash.ToBlobIdentifier();
-
-                    var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
-                        context,
-                        "GetStreamInternal",
-                        innerCts => BlobStoreHttpClient.GetDownloadUrisAsync(
-                            new[] {ToVstsBlobIdentifier(blobId)},
-                            EdgeCache.NotAllowed,
-                            cancellationToken: innerCts),
-                        context.Token).ConfigureAwait(false);
-
-                    if (mappings == null || !mappings.TryGetValue(ToVstsBlobIdentifier(blobId), out uri))
-                    {
-                        return null;
-                    }
-
-                    DownloadUriCache.Instance.AddDownloadUri(contentHash, uri);
-                }
-                else
-                {
-                    _blobCounters[Counters.VstsDownloadUriFetchedInMemory].Increment();
+                    return null;
                 }
 
-                azureBlobUri = uri.NotNullUri;
                 return await GetStreamThroughAzureBlobsAsync(
-                    uri.NotNullUri,
+                    azureBlobUri,
                     offset,
                     overrideStreamMinimumReadSizeInBytes,
                     _parallelSegmentDownloadConfig.SegmentDownloadTimeout,
@@ -562,7 +624,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 new BlobRequestOptions()
                 {
                     MaximumExecutionTime = requestTimeout,
-                    
+
                     // See also:
                     // ParallelOperationThreadCount
                     // RetryPolicy
@@ -583,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return base.GetCounters()
                 .Merge(_counters.ToCounterSet())
                 .Merge(_blobCounters.ToCounterSet());
-            
+
         }
 
         /// <inheritdoc />

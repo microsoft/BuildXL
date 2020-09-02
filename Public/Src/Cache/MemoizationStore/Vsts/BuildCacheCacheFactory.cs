@@ -58,7 +58,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.EnableEagerFingerprintIncorporation,
                 cacheConfig.InlineFingerprintIncorporationExpiry,
                 cacheConfig.EagerFingerprintIncorporationNagleInterval,
-                cacheConfig.EagerFingerprintIncorporationNagleBatchSize);
+                cacheConfig.EagerFingerprintIncorporationNagleBatchSize,
+                downloadBlobsUsingHttpClient: cacheConfig.DownloadBlobsUsingHttpClient);
         }
     }
 }

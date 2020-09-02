@@ -42,39 +42,17 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override Tracer Tracer { get; } = new Tracer(nameof(BackingContentStore));
 
         private readonly CounterTracker _sessionCounterTracker = new CounterTracker();
-        private readonly IAbsFileSystem _fileSystem;
-        private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
-        private readonly TimeSpan _timeToKeepContent;
-        private readonly TimeSpan _pinInlineThreshold;
-        private readonly TimeSpan _ignorePinThreshold;
+        private readonly BackingContentStoreConfiguration _configuration;
         private IArtifactHttpClient _artifactHttpClient;
-        private readonly bool _useDedupStore;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BackingContentStore"/> class.
-        /// </summary>
-        /// <param name="fileSystem">Filesystem used to read/write files.</param>
-        /// <param name="artifactHttpClientFactory">Backing Store HTTP client factory.</param>
-        /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
-        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
-        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
-        /// <param name="useDedupStore">Determines whether or not DedupStore is used for content. Must be used in tandem with Dedup hashes.</param>
-        public BackingContentStore(
-            IAbsFileSystem fileSystem,
-            IArtifactHttpClientFactory artifactHttpClientFactory,
-            TimeSpan timeToKeepContent,
-            TimeSpan pinInlineThreshold,
-            TimeSpan ignorePinThreshold,
-            bool useDedupStore)
+        /// <nodoc />
+        public BackingContentStore(BackingContentStoreConfiguration configuration)
         {
-            Contract.Requires(fileSystem != null);
-            Contract.Requires(artifactHttpClientFactory != null);
-            _fileSystem = fileSystem;
-            _artifactHttpClientFactory = artifactHttpClientFactory;
-            _timeToKeepContent = timeToKeepContent;
-            _pinInlineThreshold = pinInlineThreshold;
-            _ignorePinThreshold = ignorePinThreshold;
-            _useDedupStore = useDedupStore;
+            Contract.Requires(configuration != null);
+            Contract.Requires(configuration.FileSystem != null);
+            Contract.Requires(configuration.ArtifactHttpClientFactory != null);
+
+            _configuration = configuration;
         }
 
         /// <inheritdoc />
@@ -83,15 +61,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
             BoolResult result;
             try
             {
-                result = await _artifactHttpClientFactory.StartupAsync(context);
+                result = await _configuration.ArtifactHttpClientFactory.StartupAsync(context);
                 if (!result.Succeeded)
                 {
                     return result;
                 }
 
-                _artifactHttpClient = _useDedupStore
-                    ? (IArtifactHttpClient)await _artifactHttpClientFactory.CreateDedupStoreHttpClientAsync(context).ConfigureAwait(false)
-                    : await _artifactHttpClientFactory.CreateBlobStoreHttpClientAsync(context).ConfigureAwait(false);
+                _artifactHttpClient = _configuration.UseDedupStore
+                    ? (IArtifactHttpClient)await _configuration.ArtifactHttpClientFactory.CreateDedupStoreHttpClientAsync(context).ConfigureAwait(false)
+                    : await _configuration.ArtifactHttpClientFactory.CreateBlobStoreHttpClientAsync(context).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -114,14 +92,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public CreateSessionResult<IBackingContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            if (_useDedupStore)
+            if (_configuration.UseDedupStore)
             {
+                // TODO: Change DedupContentSession to use BackingContentStoreConfiguration
                 return new CreateSessionResult<IBackingContentSession>(new DedupContentSession(
-                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
+                    context, _configuration.FileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _configuration.TimeToKeepContent, _configuration.PinInlineThreshold, _configuration.IgnorePinThreshold, _sessionCounterTracker.AddOrGetChildCounterTracker("Dedup.")));
             }
 
             return new CreateSessionResult<IBackingContentSession>(new BlobContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
+                _configuration, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _sessionCounterTracker.AddOrGetChildCounterTracker("Blob.")));
         }
 
         /// <nodoc />

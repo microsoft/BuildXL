@@ -493,6 +493,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
+            ApplyIfNotNull(_distributedSettings.UseRedisPreventThreadTheftFeature, value => configuration.UsePreventThreadTheftFeature = value);
+
             configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {

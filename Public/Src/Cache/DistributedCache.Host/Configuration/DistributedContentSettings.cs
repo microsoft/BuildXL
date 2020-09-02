@@ -132,6 +132,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? RedisConnectionErrorLimit { get; set; }
 
         [DataMember]
+        public bool? UseRedisPreventThreadTheftFeature { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? RedisReconnectionLimitBeforeServiceRestart { get; set; }
 

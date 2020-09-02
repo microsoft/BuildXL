@@ -47,7 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             _databasesToDispose.Add(localDatabase);
 
             var connectionStringProvider = new LiteralConnectionStringProvider(connectionString);
-            var redisFactory = RedisDatabaseFactory.CreateAsync(context, connectionStringProvider).GetAwaiter().GetResult();
+            var redisFactory = RedisDatabaseFactory.CreateAsync(context, connectionStringProvider, logSeverity: Severity.Unknown, usePreventThreadTheft: false).GetAwaiter().GetResult();
             var redisAdapter = new RedisDatabaseAdapter(redisFactory, keySpace: Guid.NewGuid().ToString());
 
             var memoizationDb = new RedisMemoizationDatabase(redisAdapter, _clock, _memoizationExpiryTime);

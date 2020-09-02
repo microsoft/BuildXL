@@ -22,7 +22,7 @@ namespace ContentStoreTest.Distributed.Redis
             var errorMessage = "error";
             var failingProvider = CreateFailingProvider(errorMessage);
             Func<Task<IConnectionMultiplexer>> createFunc =
-                () => RedisConnectionMultiplexer.CreateAsync(context, failingProvider);
+                () => RedisConnectionMultiplexer.CreateAsync(context, failingProvider, logSeverity: BuildXL.Cache.ContentStore.Interfaces.Logging.Severity.Unknown, usePreventThreadTheft: false);
             createFunc.Should().Throw<ArgumentException>().Where(e => e.Message.Contains(
                 $"Failed to get connection string from provider {failingProvider.GetType().Name}. {errorMessage}."));
         }

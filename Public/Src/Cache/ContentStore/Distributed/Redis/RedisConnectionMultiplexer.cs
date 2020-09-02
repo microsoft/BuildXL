@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Creates a <see cref="IConnectionMultiplexer"/> using given <see cref="IConnectionStringProvider"/>
         /// </summary>
-        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity = Severity.Unknown)
+        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity, bool usePreventThreadTheft)
         {
             if (TestConnectionMultiplexer != null)
             {
@@ -67,32 +67,47 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var multiplexerTask = Multiplexers.GetOrAdd(
                 endpoints,
-                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, logSeverity)));
+                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, logSeverity, usePreventThreadTheft)));
 
             return await multiplexerTask.Value;
         }
 
-        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(Context context, ConfigurationOptions options, Severity logSeverity)
+        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(Context context, ConfigurationOptions options, Severity logSeverity, bool usePreventThreadTheft)
         {
             var operationContext = new OperationContext(context);
             var endpoint = options.GetRedisEndpoint();
+
+            if (usePreventThreadTheft)
+            {
+                // See "Thread Theft" article for more details: https://stackexchange.github.io/StackExchange.Redis/ThreadTheft
+                // TLDR; when the feature is on all the continuations used inside the library are executed asynchronously.
+                ConnectionMultiplexer.SetFeatureFlag("preventthreadtheft", true);
+            }
 
             return await operationContext.PerformNonResultOperationAsync(
                 Tracer,
                 async () =>
                 {
                     context.Debug($"{nameof(RedisConnectionMultiplexer)}: Connecting to redis endpoint: {endpoint}");
-                    if (logSeverity != Severity.Unknown)
-                    {
-                        var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
-                        var logger = new TextWriterAdapter(replacementContext, logSeverity, component: "Redis.StackExchange");
-                        return await ConnectionMultiplexer.ConnectAsync(options, logger);
-                    }
-
-                    return await ConnectionMultiplexer.ConnectAsync(options);
+                    var result = await CreateMultiplexerCoreAsync(context, options, logSeverity);
+                    
+                    return result;
                 },
                 extraEndMessage: r => $"Endpoint: {endpoint}",
                 traceOperationStarted: false);
+        }
+
+        private static Task<ConnectionMultiplexer> CreateMultiplexerCoreAsync(Context context, ConfigurationOptions options, Severity logSeverity)
+        {
+            if (logSeverity != Severity.Unknown)
+            {
+                
+                var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
+                var logger = new TextWriterAdapter(replacementContext, logSeverity, component: "Redis.StackExchange");
+                return ConnectionMultiplexer.ConnectAsync(options, logger);
+            }
+
+            return ConnectionMultiplexer.ConnectAsync(options);
         }
 
         private static string AllowAdminIfNeeded(string connectionString)

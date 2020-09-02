@@ -95,6 +95,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public string? RedisGlobalStoreConnectionString { get; set; }
 
         /// <summary>
+        /// Gets or sets the flag to enable thread theft prevention feature.
+        /// </summary>
+        /// <remarks>
+        /// See this article about thread theft: https://stackexchange.github.io/StackExchange.Redis/ThreadTheft
+        /// Basically, this feature forces all the continuations running asynchronously, i.e. all the user code is detached from the redis library's code.
+        /// </remarks>
+        public bool UsePreventThreadTheftFeature { get; set; } = false;
+
+        /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
         public string? RedisGlobalStoreSecondaryConnectionString { get; set; }

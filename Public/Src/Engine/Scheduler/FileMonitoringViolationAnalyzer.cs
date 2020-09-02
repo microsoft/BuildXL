@@ -587,8 +587,7 @@ namespace BuildXL.Scheduler
                     LoggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(Context),
-                    AggregateAccessViolationPaths(pip.PipId, errorPaths, Context.PathTable, getDescription),
-                    PipEnvironment.RestrictedTemp);
+                    AggregateAccessViolationPaths(pip.PipId, errorPaths, Context.PathTable, getDescription));
             }
 
             if (warningPaths.Count > 0)

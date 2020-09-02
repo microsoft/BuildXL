@@ -1478,9 +1478,9 @@ namespace BuildXL.Scheduler.Tracing
                 var garbageCollectionTimestamp = DateTime.UtcNow;
 
                 // Limit max amount of time for GC. 
-                // Set the cancellation timer to 1/3 of the fingerprintstore in use time or m_garbageCollectionTimeLimitSec, whichever is smaller
+                // Set the cancellation timer to 1/10 of the fingerprintstore in use time or m_garbageCollectionTimeLimitSec, whichever is smaller
                 // For test always use m_garbageCollectionTimeLimitSec 
-                var inUseDurationS1_3 = (int)(garbageCollectionTimestamp - m_createTimeUtc).TotalSeconds / 3; // 1/3 of fingerprint store in use time.
+                var inUseDurationS1_3 = (int)(garbageCollectionTimestamp - m_createTimeUtc).TotalSeconds / 10; // 1/10 of fingerprint store in use time.
                 var timeLimit = m_testHooks != null
                     ? m_garbageCollectionTimeLimitSec 
                     : ( m_garbageCollectionTimeLimitSec < inUseDurationS1_3 ? m_garbageCollectionTimeLimitSec : inUseDurationS1_3 );

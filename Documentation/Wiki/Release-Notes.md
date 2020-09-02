@@ -1,6 +1,26 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200828.6.2 (Release [77557](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=77557)).  Released 9/02/2020
+- Scrub RestrictedTemp post build
+- Scrubber does not traverse directory junctions/symlinks anymore
+- Preserve path casing for all Unix systems inside of the observed path sets
+- Add Lage javascript frontend
+- Set shorter fingerprint store GC cancelation timer for short builds
+- Add timeout for fingerprintstore operations
+- Various bug fixes and optimizations
+
+# 0.1.0-20200822.0 (Release [76190](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=76190)).  Released 8/26/2020
+- [QTest] Increate QTest timeout pip so BuildXL doesn’t cancel a test run before dbs.qtest.exe can
+- Escaping for PipDescription in PipExecutionPerformanceAnalyzer
+- Fix semistable hash in some log events
+- Add ContentHasher counters
+- Stop drop uploading temp files within shared opaque directories
+- Misc changes to support chunk dedup
+- Added timeouts for various cache operations
+- More aggressive retries for pips running on Admin VM
+- Logging for per-pip expected and actual disk usage
+
 # 0.1.0-20200814.1 (Release [75164](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=75164)).  Released 8/19/2020
 - Retry processes that fail in VM
 - Use existing artifacts on disk during file materializations in dev mode

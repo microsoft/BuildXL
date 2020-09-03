@@ -87,11 +87,6 @@ namespace BuildXL.Scheduler
         public IDirectoryMembershipFingerprinter DirectoryMembershipFingerprinter { get; private set; }
 
         /// <summary>
-        /// Cache for checking path existence.
-        /// </summary>
-        public ConcurrentBigMap<AbsolutePath, PathExistence> PathExistenceCache { get; private set; }
-
-        /// <summary>
         /// Gets the service manager for launching services necessary to execute pips
         /// </summary>
         public ServiceManager ServiceManager { get; }
@@ -99,7 +94,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The file system view which tracks existence of files/directories in real/graph filesystems
         /// </summary>
-        public FileSystemView FileSystemView { get; }
+        public FileSystemView FileSystemView { get; internal set; }
 
         /// <summary>
         /// Gets the snapshot of the environment variables
@@ -142,7 +137,6 @@ namespace BuildXL.Scheduler
             ExecutionLog = executionLog;
             m_rootModuleConfiguration = configuration;
             m_directoryMembershipFingerprinterRuleSet = directoryMembershipFinterprinterRuleSet;
-            PathExistenceCache = new ConcurrentBigMap<AbsolutePath, PathExistence>();
             FileContentManager = fileContentManager;
             ServiceManager = serviceManager ?? ServiceManager.Default;
             PipEnvironment = new PipEnvironment(loggingContext);

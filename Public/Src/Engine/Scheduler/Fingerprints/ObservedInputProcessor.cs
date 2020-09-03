@@ -528,6 +528,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                         TObservation observation = observations[i];
                         AbsolutePath path = observationInfos[i].Path;
+                        var flags = observationInfos[i].ObservationFlags;
 
                         // Call GetAwaiter().GetResult() since we awaited above so we know the task has completed successfully
                         FileContentInfo? pathContentInfo = observationInfos[i].FileContentInfoTask.GetAwaiter().GetResult();
@@ -535,7 +536,6 @@ namespace BuildXL.Scheduler.Fingerprints
 
                         if (type == ObservedInputType.FileContentRead && !pathContentInfo.HasValue)
                         {
-                            var flags = observationInfos[i].ObservationFlags;
                             Contract.Assert(false, "If the access is a file content read, then the FileContentInfo cannot be null." +
                                 GetDiagnosticsInfo(path, pip, pathTable, directoryDependencyContentsFilePaths, sourceDirectoriesTopDirectoryOnly, sourceDirectoriesAllDirectories, flags));
                         }
@@ -555,7 +555,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         switch (type)
                         {
                             case ObservedInputType.AbsentPathProbe:
-                                maybeProposed = ObservedInput.CreateAbsentPathProbe(path);
+                                maybeProposed = ObservedInput.CreateAbsentPathProbe(path, flags);
 
                                 // We cannot add path resulting from absent path probe into dynamicallyObservedFiles.
                                 // Otherwise, the incremental scheduling cannot distinguish it from dynamic file reads.
@@ -663,9 +663,8 @@ namespace BuildXL.Scheduler.Fingerprints
                                         // TODO: We accomplish this for now by treating the null fingerprint specially; but this is kind of broken since that might mean "directory exists but empty", which can genuinely occur when looking at the real FS.
                                         maybeProposed = ObservedInput.CreateAbsentPathProbe(
                                             path,
+                                            flags,
                                             isSearchPath: isSearchPath,
-                                            isDirectoryPath: true,
-                                            directoryEnumeration: true,
                                             enumeratePatternRegex: enumeratePatternRegex);
                                     }
                                     else

@@ -186,7 +186,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.Mount)]
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public virtual void ValidateCachingUndefinedMount_Bug1087986()
         {
             // Absent file and directory in an undefined mount 
@@ -194,7 +194,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             DirectoryArtifact undefinedDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(SourceRootPrefix, TemporaryDirectory));
 
             ValidateCachingBehaviorUntrackedMount(undefinedFile, undefinedDir, undefinedMount: true);
-            AssertWarningEventLogged(SchedulerLogEventId.IgnoringUntrackedSourceFileNotUnderMount, 7);
+            AssertWarningEventLogged(SchedulerLogEventId.IgnoringUntrackedSourceFileNotUnderMount, 6); // The number of times we run the scheduler in ValidateCachingBehaviorUntrackedMount.
         }
 
         public void ValidateCachingBehaviorUntrackedMount(FileArtifact file, DirectoryArtifact dir, bool undefinedMount)
@@ -217,11 +217,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Create previously absent /dir
             Directory.CreateDirectory(ArtifactToString(dir));
 
-            if (undefinedMount)
-            {
-                //// TODO: Bug #1087986 - This is a miss for undefined mounts 
-                RunScheduler().AssertCacheMiss(pip.PipId);
-            }
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Modify /file

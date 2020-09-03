@@ -202,6 +202,19 @@ namespace Test.BuildXL.Scheduler.Utils
             State.FileContentManager = GetFileContentManager();
         }
 
+        /// <summary>
+        /// Between builds, we sometimes change the existence of source paths.
+        /// Using a pathexistencecache can cause issues in the builds using  
+        /// a shared execution environment.
+        /// That's why, we reset the filesystemview.
+        /// In the actual builds, pathexistencecache is always cleaned even for 
+        /// dev builds using server mode.
+        /// </summary>
+        internal void ResetFileSystemView()
+        {
+            State.FileSystemView = GetFileSystemView();
+        }
+
         private FileContentManager GetFileContentManager()
         {
             return new FileContentManager(this, m_operationTracker)
@@ -211,6 +224,11 @@ namespace Test.BuildXL.Scheduler.Utils
                 // instead they are just hashed normally
                 TrackFilesUnderInvalidMountsForTests = true
             };
+        }
+
+        private FileSystemView GetFileSystemView()
+        {
+            return new FileSystemView(Context.PathTable, PipGraphView, LocalDiskContentStore);
         }
 
         /// <nodoc />

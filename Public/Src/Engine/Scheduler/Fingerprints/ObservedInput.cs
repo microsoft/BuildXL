@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Processes;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
@@ -165,18 +166,18 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public static ObservedInput CreateAbsentPathProbe(
             AbsolutePath path,
+            ObservationFlags? flags = null,
             bool isSearchPath = false,
-            bool isDirectoryPath = false,
-            bool directoryEnumeration = false,
             string enumeratePatternRegex = null)
         {
             return new ObservedInput(
                 ObservedInputType.AbsentPathProbe,
                 path: path,
                 isSearchPath: isSearchPath,
-                isDirectoryPath: isDirectoryPath,
-                directoryEnumeration: directoryEnumeration,
-                enumeratePatternRegex: enumeratePatternRegex);
+                isDirectoryPath: flags?.HasFlag(ObservationFlags.DirectoryLocation) ?? false,
+                directoryEnumeration: flags?.HasFlag(ObservationFlags.Enumeration) ?? false,
+                enumeratePatternRegex: enumeratePatternRegex,
+                isFileProbe: flags?.HasFlag(ObservationFlags.FileProbe) ?? false);
         }
 
         /// <summary>

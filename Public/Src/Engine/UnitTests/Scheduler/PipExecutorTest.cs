@@ -2360,6 +2360,10 @@ EXIT /b 3
 
             // Reset the file content manager to ensure pip runs with clean materialization state
             env.ResetFileContentManager();
+
+            // Reset the file system view to make sure that we do not use a cached information for existence checks
+            env.ResetFileSystemView();
+
             var operationTracker = new OperationTracker(env.LoggingContext);
 
             PipResult result;

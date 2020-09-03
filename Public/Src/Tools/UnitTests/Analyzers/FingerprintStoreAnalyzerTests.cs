@@ -118,7 +118,7 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.FileContentRead,
+                ObservedInputConstants.ExistingFileProbe,
                 build1.Session.Id,
                 build1.Session.RelatedId);
         }
@@ -731,7 +731,7 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.FileContentRead).FileOutput;
+                ObservedInputConstants.ExistingFileProbe).FileOutput;
 
             FingerprintStoreEntry pipAEntry = default;
             FingerprintStoreSession(ResultToStoreDirectory(build2), store =>
@@ -754,7 +754,7 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.FileContentRead).FileOutput;
+                ObservedInputConstants.ExistingFileProbe).FileOutput;
 
             XAssert.AreEqual(correctOut1, correctOut2);
 

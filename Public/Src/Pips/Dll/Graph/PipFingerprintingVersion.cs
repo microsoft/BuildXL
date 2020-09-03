@@ -62,7 +62,8 @@ namespace BuildXL.Pips.Graph
         /// 85: Added WritingToStandardErrorFailsPip in Process.Options
         /// 86: Normalize casing of ObservedAccessedFileNames.
         /// 87: Changed the cleaning logic of SOD for retries.
+        /// 88: ObservationFlags are preserved for AbsentPathProbe.
         /// </remarks>
-        TwoPhaseV2 = 87,
+        TwoPhaseV2 = 88,
     }
 }

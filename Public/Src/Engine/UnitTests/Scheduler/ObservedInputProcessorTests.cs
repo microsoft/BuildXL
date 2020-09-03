@@ -285,6 +285,40 @@ namespace Test.BuildXL.Scheduler
                             proposedObservedInput.Type,
                             "Wrong type for path {0}",
                             observation.Path.ToString(Context.PathTable));
+
+                        XAssert.AreEqual(
+                            observation.IsDirectoryEnumeration,
+                            proposedObservedInput.DirectoryEnumeration,
+                            "Expected directoryEnumeration for path {0} - Type: {1}",
+                            observation.Path.ToString(Context.PathTable),
+                            observation.GetObservedInputType().ToString());
+
+                        if (observation.GetObservedInputType() != ObservedInputType.DirectoryEnumeration &&
+                            observation.GetObservedInputType() != ObservedInputType.ExistingDirectoryProbe)
+                        {
+                            // For ExistingDirectory probes, the directory location flag might be missing for the original 
+                            // reported access. If the path exists as a directory, we decide that it is a directory probe
+                            // regardless of IsDirectoryLocation flag. 
+
+                            // For DirectoryEnumeration as well, the directory location flag might be missing for the original 
+                            // reported access.
+
+                            // That's why, we do not do the following assertion for DirectoryEnumeration and ExistingDirectoryProbe.
+                            XAssert.AreEqual(
+                                observation.IsDirectoryLocation,
+                                proposedObservedInput.IsDirectoryPath,
+                                "Expected directoryPath for path {0} - Type: {1}",
+                                observation.Path.ToString(Context.PathTable),
+                                observation.GetObservedInputType().ToString());
+                        }
+
+                        XAssert.AreEqual(
+                            observation.IsSearchPathEnumeration,
+                            proposedObservedInput.IsSearchPath,
+                            "Expected searchPath for path {0} - Type: {1}",
+                            observation.Path.ToString(Context.PathTable),
+                            observation.GetObservedInputType().ToString());
+
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -843,6 +877,7 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.AreEqual(1, result.ObservedInputs.Length);
             XAssert.AreEqual(ObservedInputType.AbsentPathProbe, result.ObservedInputs[0].Type);
+            XAssert.AreEqual(true, result.ObservedInputs[0].IsDirectoryPath);
         }
 
         [Fact]

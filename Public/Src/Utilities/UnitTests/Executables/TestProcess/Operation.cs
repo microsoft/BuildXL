@@ -144,6 +144,11 @@ namespace Test.BuildXL.Executables.TestProcess
             CreateSymlink,
 
             /// <summary>
+            /// Type for creating a junction to a directory
+            /// </summary>
+            CreateJunction,
+
+            /// <summary>
             /// Type for creating a hardlink
             /// </summary>
             CreateHardlink,
@@ -431,6 +436,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.CreateSymlink:
                         DoCreateSymlink();
                         return;
+                    case Type.CreateJunction:
+                        DoCreateJunction();
+                        return;
                     case Type.CreateHardlink:
                         DoCreateHardlink();
                         return;
@@ -687,6 +695,15 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation CreateSymlink(FileOrDirectoryArtifact linkPath, string target, SymbolicLinkFlag symLinkFlag, bool doNotInfer = false)
         {
             return new Operation(Type.CreateSymlink, linkPath: linkPath, additionalArgs: target, symLinkFlag: symLinkFlag, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates a junction operation (windows only), fails on other operating systems
+        /// Requires process to run with elevated permissions for success
+        /// </summary>
+        public static Operation CreateJunction(FileOrDirectoryArtifact junctionPath, FileOrDirectoryArtifact targetPath, bool doNotInfer = false)
+        {
+            return new Operation(Type.CreateJunction, targetPath, linkPath: junctionPath, doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -1160,6 +1177,17 @@ namespace Test.BuildXL.Executables.TestProcess
             var linkPath = LinkPathAsString;
             FileUtilities.DeleteFile(linkPath);
             var maybeSymlink = FileUtilities.TryCreateSymbolicLink(linkPath, target, SymLinkFlag == SymbolicLinkFlag.FILE);
+            if (!maybeSymlink.Succeeded)
+            {
+                throw maybeSymlink.Failure.CreateException();
+            }
+        }
+        
+        private void DoCreateJunction()
+        {
+            Contract.Assert(!OperatingSystemHelper.IsUnixOS);
+
+            var maybeSymlink = FileUtilities.TryCreateReparsePointIfNotExistsOrTargetsDoNotMatch(LinkPathAsString, PathAsString, ReparsePointType.Junction, out var created);
             if (!maybeSymlink.Succeeded)
             {
                 throw maybeSymlink.Failure.CreateException();

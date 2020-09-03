@@ -21,7 +21,7 @@ namespace BuildXL.Native.IO
         UnixSymlink = 3,
 
         /// <nodoc />
-        MountPoint = 4,
+        Junction = 4,
 
         /// <nodoc />
         NonActionable = 5

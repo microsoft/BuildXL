@@ -314,7 +314,7 @@ namespace BuildXL.Scheduler
                         FileArtifact.CreateSourceFile(chainElement),
                         environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                         ignoreKnownContentHashOnDiscoveringContent: true,
-                        isSymlink: true);
+                        isReparsePoint: true);
 
                     if (!possiblyTracked.Succeeded)
                     {
@@ -341,7 +341,7 @@ namespace BuildXL.Scheduler
             // we are doing the check here using FileMaterializationInfo because 'source' might not be present on disk
             // (e.g., in case of lazyOutputMaterialization)
             var materializationInfo = environment.State.FileContentManager.GetInputContent(source);
-            if (!materializationInfo.ReparsePointInfo.IsSymlink)
+            if (!materializationInfo.ReparsePointInfo.IsActionableReparsePoint)
             {
                 return ReadOnlyArray<AbsolutePath>.Empty;
             }
@@ -792,7 +792,7 @@ namespace BuildXL.Scheduler
                                 destinationFile,
                                 tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                                 knownContentHash: contentHash,
-                                isSymlink: false)
+                                isReparsePoint: false)
                             : await TrackPipOutputAsync(operationContext, environment, destinationFile);
 
                         if (!possiblyStored.Succeeded)
@@ -1575,7 +1575,7 @@ namespace BuildXL.Scheduler
                     FileMaterializationInfo inputMaterializationInfo =
                         environment.State.FileContentManager.GetInputContent(artifactNeededPrivate);
 
-                    if (inputMaterializationInfo.ReparsePointInfo.IsSymlink)
+                    if (inputMaterializationInfo.ReparsePointInfo.IsActionableReparsePoint)
                     {
                         // Do nothing in case of re-writing a symlink --- a process can safely change
                         // symlink's target since it won't affect things in CAS.
@@ -1600,7 +1600,7 @@ namespace BuildXL.Scheduler
 
                             // Source should have been tracked by hash-source file pip, no need to retrack.
                             trackPath: false,
-                            isSymlink: false);
+                            isReparsePoint: false);
 
                         if (!maybeStored.Succeeded)
                         {
@@ -4163,26 +4163,26 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static bool CheckForAllowedJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
+        private static bool CheckForAllowedReparsePointProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult, IConfiguration configuration)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
                 return true;
             }
 
-            var pathstring = outputPath.ToString(pathTable);
-            var possibleReparsePointType = FileUtilities.TryGetReparsePointType(pathstring);
-            if (possibleReparsePointType.Succeeded && possibleReparsePointType.Result == ReparsePointType.MountPoint)
+            if (configuration.Sandbox.UnsafeSandboxConfiguration.IgnoreFullReparsePointResolving)
             {
-                // We don't support storing directory symlinks/junctions to the cache in Windows right now.
-                // We won't fail the pip
-                // We won't cache it either
-                Logger.Log.StorageJunctionInOutputDirectoryWarning(
-                    operationContext,
-                    description,
-                    pathstring);
-                processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
-                return false;
+                var pathstring = outputPath.ToString(pathTable);
+                var possibleReparsePointType = FileUtilities.TryGetReparsePointType(pathstring);
+                if (possibleReparsePointType.Succeeded && possibleReparsePointType.Result == ReparsePointType.DirectorySymlink)
+                {
+                    // We don't support storing directory symlinks to the cache on Windows unless full reparse point resolving is enabled.
+                    // 1. We won't fail the pip!
+                    // 2. We won't cache it either!
+                    Logger.Log.StorageReparsePointInOutputDirectoryWarning(operationContext, description, pathstring);
+                    processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
+                    return false;
+                }
             }
 
             return true;
@@ -4281,7 +4281,7 @@ namespace BuildXL.Scheduler
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
-                    if (!CheckForAllowedJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
+                    if (!CheckForAllowedReparsePointProduction(output.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
                     {
                         enableCaching = false;
                         continue;
@@ -4315,7 +4315,7 @@ namespace BuildXL.Scheduler
                             directoryArtifact,
                             handleFile: fileArtifact =>
                             {
-                                if (!CheckForAllowedJunctionProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
+                                if (!CheckForAllowedReparsePointProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
                                 {
                                     enableCaching = false;
                                     return;
@@ -4358,7 +4358,7 @@ namespace BuildXL.Scheduler
 
                         foreach (var access in accesses)
                         {
-                            if (!CheckForAllowedJunctionProduction(access.Path, operationContext, description, pathTable, processExecutionResult))
+                            if (!CheckForAllowedReparsePointProduction(access.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
                             {
                                 enableCaching = false;
                             }
@@ -4677,20 +4677,20 @@ namespace BuildXL.Scheduler
                     !isRewrittenOutputFile;
 
                 var reparsePointType = FileUtilities.TryGetReparsePointType(outputArtifact.Path.ToString(environment.Context.PathTable));
-                bool isSymlink = reparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(reparsePointType.Result);
+                bool isReparsePoint = reparsePointType.Succeeded && FileUtilities.IsReparsePointActionable(reparsePointType.Result);
 
                 bool shouldStoreOutputToCache =
                     ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) || isRewrittenOutputFile)
-                    && !isSymlink;
+                    && !isReparsePoint;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
-                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isSymlink)
+                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isReparsePoint)
                     : await TrackPipOutputAsync(
                         operationContext,
                         environment,
                         outputArtifact,
                         createHandleWithSequentialScan: environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
-                        isSymlink: isSymlink,
+                        isReparsePoint: isReparsePoint,
                         shouldOutputBePreserved: shouldOutputBePreserved,
                         isUndeclaredFileRewrite: output.IsUndeclaredFileRewrite);
 
@@ -5090,7 +5090,7 @@ namespace BuildXL.Scheduler
             Process process,
             FileArtifact outputFileArtifact,
             bool isUndeclaredFileRewrite,
-            bool isSymlink = false)
+            bool isReparsePoint = false)
         {
             Contract.Requires(environment != null);
             Contract.Requires(process != null);
@@ -5103,7 +5103,7 @@ namespace BuildXL.Scheduler
                         GetFileRealizationMode(environment, process, isUndeclaredFileRewrite),
                         outputFileArtifact.Path,
                         tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
-                        isSymlink: isSymlink,
+                        isReparsePoint: isReparsePoint,
                         isUndeclaredFileRewrite: isUndeclaredFileRewrite);
 
             if (!possiblyStored.Succeeded)
@@ -5122,7 +5122,7 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             FileArtifact outputFileArtifact,
             bool createHandleWithSequentialScan = false,
-            bool isSymlink = false,
+            bool isReparsePoint = false,
             bool shouldOutputBePreserved = false,
             bool isUndeclaredFileRewrite = false)
         {
@@ -5131,7 +5131,7 @@ namespace BuildXL.Scheduler
             // we cannot simply track rewritten files, we have to store them into cache
             // it's fine to just track rewritten symlinks though (all data required for
             // proper symlink materialization will be a part of cache metadata)
-            Contract.Requires(isSymlink || !IsRewriteOutputFile(environment, outputFileArtifact));
+            Contract.Requires(isReparsePoint || !IsRewriteOutputFile(environment, outputFileArtifact));
 
             var possiblyTracked = await environment.LocalDiskContentStore.TryTrackAsync(
                 outputFileArtifact,
@@ -5142,7 +5142,7 @@ namespace BuildXL.Scheduler
                 // of the USN. However, here we are tracking a produced output. Thus, the known content hash should be ignored, unless the output should be preserved.
                 ignoreKnownContentHashOnDiscoveringContent: !shouldOutputBePreserved,
                 createHandleWithSequentialScan: createHandleWithSequentialScan,
-                isSymlink: isSymlink,
+                isReparsePoint: isReparsePoint,
                 isUndeclaredFileRewrite: isUndeclaredFileRewrite);
 
             if (!possiblyTracked.Succeeded)

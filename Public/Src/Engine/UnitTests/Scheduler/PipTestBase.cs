@@ -1131,10 +1131,12 @@ namespace Test.BuildXL.Scheduler
                             case Operation.Type.WriteFileWithRetries:
                                 dao.Outputs.Add(op.Path.FileArtifact);
                                 break;
+
                             case Operation.Type.ReadAndWriteFile:
                                 dao.Outputs.Add(op.LinkPath.FileArtifact);
                                 dao.Dependencies.Add(op.Path.FileArtifact);
                                 break;
+
                             case Operation.Type.CreateHardlink:
                                 dao.Dependencies.Add(op.LinkPath.FileArtifact);
                                 dao.Outputs.Add(op.Path.FileArtifact);
@@ -1159,6 +1161,13 @@ namespace Test.BuildXL.Scheduler
                                 break;
 
                             case Operation.Type.CreateSymlink:
+                                if (op.LinkPath.IsFile)
+                                {
+                                    dao.Outputs.Add(op.LinkPath.FileArtifact);
+                                }
+                                break;
+
+                            case Operation.Type.CreateJunction:
                                 if (op.LinkPath.IsFile)
                                 {
                                     dao.Outputs.Add(op.LinkPath.FileArtifact);

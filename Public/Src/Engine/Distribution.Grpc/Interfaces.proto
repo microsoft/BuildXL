@@ -219,9 +219,11 @@ message FileArtifactKeyedHash
 
     enum GrpcReparsePointType {
         None = 0;
-        SymLink = 1;
-        MountPoint = 2;
-        NonActionable = 3;
+        FileSymlink = 1;
+        DirectorySymlink = 2;
+        UnixSymlink = 3;
+        Junction = 4;
+        NonActionable = 5;
     }
 
     // The reparse point type

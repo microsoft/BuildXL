@@ -20,10 +20,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
     [TestClassIfSupported(requiresSymlinkPermission: true)]
-    [Trait("Category", "SymlinkTests")]
-    public class SymlinkTests : SchedulerIntegrationTestBase
+    [Trait("Category", "ReparsePointTests")]
+    public class ReparsePointTests : SchedulerIntegrationTestBase
     {
-        public SymlinkTests(ITestOutputHelper output) : base(output)
+        public ReparsePointTests(ITestOutputHelper output) : base(output)
         {
             // Enable full symbolic link resolving for testing 
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
@@ -306,6 +306,65 @@ namespace IntegrationTest.BuildXL.Scheduler
             var existenceCheck = FileUtilities.TryProbePathExistence(directorySymlinkPath, followSymlink: true);
             XAssert.IsTrue(existenceCheck.Succeeded);
             XAssert.IsTrue(existenceCheck.Result == PathExistence.ExistsAsDirectory);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void ValidateCachingProducingJunctions()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = true;
+            DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            FileArtifact junction = new FileArtifact(CreateUniqueSourcePath("junction")).CreateNextWrittenVersion();
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.CreateJunction(junction, targetDir)
+            });
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // save junction target to compare to later
+            string junctionPath = ArtifactToString(junction);
+            string junctionPathTarget = GetReparsePointTarget(junctionPath);
+
+            Directory.Delete(junctionPath);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Check that the junction was replayed
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(junctionPath));
+            XAssert.IsTrue(IsJunction(junction));
+
+            // Check that junction still points to the same target
+            string replayedJunctionTarget = GetReparsePointTarget(junctionPath);
+            XAssert.AreEqual(junctionPathTarget, replayedJunctionTarget);
+        }
+
+        [Fact]
+        public void ValidateDeleteFileWorksForDirectorySymlinksAndJunctions()
+        {
+            DirectoryArtifact targetDirForSymlink = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            FileArtifact directorySymlink = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
+            var directorySymlinkPath = ArtifactToString(directorySymlink);
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directorySymlinkPath, ArtifactToString(targetDirForSymlink), isTargetFile: false));
+
+            FileUtilities.DeleteFile(directorySymlinkPath, waitUntilDeletionFinished: true);
+            var symDirExistence = FileUtilities.TryProbePathExistence(directorySymlinkPath, followSymlink: false);
+            XAssert.IsTrue(Directory.Exists(ArtifactToString(targetDirForSymlink)) && symDirExistence.Succeeded && symDirExistence.Result == PathExistence.Nonexistent);
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                DirectoryArtifact targetDirFoJunction = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+                FileArtifact junction = new FileArtifact(CreateUniqueSourcePath("junction")).CreateNextWrittenVersion();
+                var junctionPath = ArtifactToString(junction);
+                FileUtilities.CreateJunction(junctionPath, ArtifactToString(targetDirForSymlink));
+
+                FileUtilities.DeleteFile(junctionPath, waitUntilDeletionFinished: true);
+                var junctionExistence = FileUtilities.TryProbePathExistence(junctionPath, followSymlink: false);
+                XAssert.IsTrue(Directory.Exists(ArtifactToString(targetDirFoJunction)) && junctionExistence.Succeeded && junctionExistence.Result == PathExistence.Nonexistent);
+            }
         }
 
         [Theory]
@@ -626,26 +685,40 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void AllowProducingSymlinkToExistingEntries()
+        public void AllowProducingReparsePointsToExistingEntries()
         {
             FileArtifact file = new FileArtifact(CreateSourceFile());
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
 
+            DirectoryArtifact anotherDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            FileArtifact junction = new FileArtifact(CreateUniqueSourcePath("junction")).CreateNextWrittenVersion();
+
             FileArtifact fileSymlinkFile = new FileArtifact(CreateUniqueSourcePath("file_sym")).CreateNextWrittenVersion();
             FileArtifact directorySymlink = new FileArtifact(CreateUniqueSourcePath("dir_sym")).CreateNextWrittenVersion();
 
-            // Process creates symlinks
-            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            var ops = new System.Collections.Generic.List<Operation>()
             {
                 Operation.WriteFile(CreateOutputFileArtifact(prefix: "out")),
                 Operation.CreateSymlink(fileSymlinkFile, file, Operation.SymbolicLinkFlag.FILE),
                 Operation.CreateSymlink(directorySymlink, dir, Operation.SymbolicLinkFlag.DIRECTORY)
-            }).Process;
+            };
 
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                ops.Add(Operation.CreateJunction(junction, anotherDir));
+            }
+
+            // Process creates symlinks
+            Process pip = CreateAndSchedulePipBuilder(ops.ToArray()).Process;
             RunScheduler().AssertSuccess();
 
             ValidateFilesExistProcessWithSymlinkOutput(file, fileSymlinkFile);
-            ValidateFilesExistProcessWithSymlinkOutput(dir, directorySymlink, true);
+            ValidateFilesExistProcessWithSymlinkOutput(dir, directorySymlink, isDirectorySymlinkOrJunction: true);
+            
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                ValidateFilesExistProcessWithSymlinkOutput(anotherDir, junction, isDirectorySymlinkOrJunction: true);
+            }
         }
 
         [Feature(Features.SealedSourceDirectory)]
@@ -1206,10 +1279,10 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <param name="targetFile">underlying target file symlinkFile points to</param>
         /// <param name="symlinkFile">symlinkFile that is declared as output of pip</param>
-        protected void ValidateFilesExistProcessWithSymlinkOutput(FileOrDirectoryArtifact target, FileArtifact symlinkFile, bool isDirectorySymlink = false)
+        protected void ValidateFilesExistProcessWithSymlinkOutput(FileOrDirectoryArtifact target, FileArtifact symlinkFile, bool isDirectorySymlinkOrJunction = false)
         {
             // Check that /targetFile still exists as a file, not a symlink
-            XAssert.IsTrue(isDirectorySymlink ? FileUtilities.DirectoryExistsNoFollow(ArtifactToString(target)) : FileUtilities.FileExistsNoFollow(ArtifactToString(target)));
+            XAssert.IsTrue(isDirectorySymlinkOrJunction ? FileUtilities.DirectoryExistsNoFollow(ArtifactToString(target)) : FileUtilities.FileExistsNoFollow(ArtifactToString(target)));
             XAssert.IsFalse(new FileInfo(ArtifactToString(target)).Attributes.HasFlag(FileAttributes.ReparsePoint));
 
             // Sanity check that symlink path still exists. It's possible for this to be replaced with a copied file or remain a symlink.
@@ -1217,11 +1290,21 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var attrs = new FileInfo(ArtifactToString(symlinkFile)).Attributes;
             XAssert.IsTrue(attrs.HasFlag(FileAttributes.ReparsePoint));
-            XAssert.IsTrue(isDirectorySymlink ? attrs.HasFlag(FileAttributes.Directory) : !attrs.HasFlag(FileAttributes.Directory));
+            XAssert.IsTrue(isDirectorySymlinkOrJunction ? attrs.HasFlag(FileAttributes.Directory) : !attrs.HasFlag(FileAttributes.Directory));
         }
 
-        protected bool IsFileSymlink(FileArtifact file) => SymlinkTests.IsSymlink(ArtifactToString(file));
-        protected bool IsDirectorySymlink(FileArtifact dir) => SymlinkTests.IsSymlink(ArtifactToString(dir), true);
+        protected bool IsFileSymlink(FileArtifact file) => ReparsePointTests.IsSymlink(ArtifactToString(file));
+        protected bool IsDirectorySymlink(FileArtifact dir) => ReparsePointTests.IsSymlink(ArtifactToString(dir), true);
+        protected bool IsJunction(FileArtifact dir)
+        {
+            var reparsePointType = FileUtilities.TryGetReparsePointType(ArtifactToString(dir));
+            if (reparsePointType.Succeeded)
+            {
+                return reparsePointType.Result == ReparsePointType.Junction;
+            }
+
+            return false;
+        }
 
         internal static bool IsSymlink(string file, bool isDirectorySymlink = false)
         {

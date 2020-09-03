@@ -631,13 +631,13 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.StorageJunctionInOutputDirectoryWarning,
+            (ushort)LogEventId.StorageReparsePointInOutputDirectoryWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Pip produced a junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
-        public abstract void StorageJunctionInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
+            Message = "[{pipDescription}] Pip produced a reparse point '{reparsePointPath}', which is not supported. The pip will not be cached. Turning of the 'unsafe_IgnoreFullReparsePointResolving' flag will allow storing reparse points to cache properly.")]
+        public abstract void StorageReparsePointInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string reparsePointPath);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,

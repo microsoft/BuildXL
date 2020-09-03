@@ -624,7 +624,7 @@ namespace BuildXL.Scheduler.Artifacts
                             allowReadOnly: true,
                             materializationInfo: FileMaterializationInfo.CreateWithUnknownLength(hash),
                             materializationCompletion: TaskSourceSlim.Create<PipOutputOrigin>(),
-                            symlinkTarget: AbsolutePath.Invalid);
+                            reparsePointTarget: AbsolutePath.Invalid);
                     }
 
                     var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
@@ -689,7 +689,7 @@ namespace BuildXL.Scheduler.Artifacts
                     handleEntry: (entry, attributes) =>
                     {
                         var path = currentDirectoryPath.Combine(pathTable, entry);
-                        // must treat directory symlinks as files: recursing on directory symlinks can lead to infinite loops
+                        // must treat directory reparse points as files: recursing on directory reparse points can lead to infinite loops
                         if (!FileUtilities.IsDirectoryNoFollow(attributes))
                         {
                             var fileArtifact = FileArtifact.CreateOutputFile(path);
@@ -1411,29 +1411,19 @@ namespace BuildXL.Scheduler.Artifacts
                 return hash;
             }
 
-            FileMaterializationInfo? fileContentInfo;
-            AbsolutePath symlinkTarget = TryGetSymlinkTarget(fileArtifact);
-            if (symlinkTarget.IsValid)
-            {
-                fileContentInfo = GetOrComputeSymlinkInputContent(fileArtifact);
-            }
-            else
-            {
-                // for output files, call GetAndRecordFileContentHashAsyncCore directly which
-                // doesn't include checks for mount points used for source file hashing
-                TrackedFileContentInfo? trackedFileContentInfo = fileArtifact.IsSourceFile
-                    ? await GetAndRecordSourceFileContentHashAsync(operationContext, fileArtifact, declaredArtifact, allowUndeclaredSourceReads, consumerDescription)
-                    : await GetAndRecordFileContentHashAsyncCore(operationContext, fileArtifact, declaredArtifact, consumerDescription);
+            // for output files, call GetAndRecordFileContentHashAsyncCore directly which
+            // doesn't include checks for mount points used for source file hashing
+            TrackedFileContentInfo? trackedFileContentInfo = fileArtifact.IsSourceFile
+                ? await GetAndRecordSourceFileContentHashAsync(operationContext, fileArtifact, declaredArtifact, allowUndeclaredSourceReads, consumerDescription)
+                : await GetAndRecordFileContentHashAsyncCore(operationContext, fileArtifact, declaredArtifact, consumerDescription);
 
-                fileContentInfo = trackedFileContentInfo?.FileMaterializationInfo;
-            }
-
+            FileMaterializationInfo? fileContentInfo = trackedFileContentInfo?.FileMaterializationInfo;
             if (fileContentInfo.HasValue)
             {
                 if (!verifyingHash)
                 {
                     // Don't store the hash when performing verification
-                    ReportContent(fileArtifact, fileContentInfo.Value, symlinkTarget.IsValid ? PipOutputOrigin.NotMaterialized : PipOutputOrigin.UpToDate);
+                    ReportContent(fileArtifact, fileContentInfo.Value, PipOutputOrigin.UpToDate);
                 }
 
                 // Remove task now that content info is stored in m_fileArtifactContentHashes
@@ -1566,25 +1556,14 @@ namespace BuildXL.Scheduler.Artifacts
                             state.MaterializedDirectoryContents.Add(file);
                         }
 
-                        AddFileMaterialization(state, file, directoryAllowReadOnlyOverride, TryGetSymlinkTarget(file));
+                        AddFileMaterialization(state, file, directoryAllowReadOnlyOverride, AbsolutePath.Invalid);
                     }
                 }
                 else
                 {
-                    AddFileMaterialization(state, artifact.FileArtifact, allowReadOnlyOverride, TryGetSymlinkTarget(artifact.FileArtifact));
+                    AddFileMaterialization(state, artifact.FileArtifact, allowReadOnlyOverride, AbsolutePath.Invalid);
                 }
             }
-        }
-
-        private AbsolutePath TryGetSymlinkTarget(FileArtifact file)
-        {
-            if (file.IsOutputFile)
-            {
-                // Only source files can be declared as symlinks
-                return AbsolutePath.Invalid;
-            }
-
-            return AbsolutePath.Invalid;
         }
 
         private void MarkDirectoryMaterializations(PipArtifactsState state)
@@ -1642,17 +1621,17 @@ namespace BuildXL.Scheduler.Artifacts
         /// <param name="state">the state object containing the list of file materializations.</param>
         /// <param name="file">the file to materialize.</param>
         /// <param name="allowReadOnlyOverride">specifies whether the file is allowed to be read-only. If not specified, the host is queried.</param>
-        /// <param name="symlinkTarget">the target of the symlink (if file is registered symlink).</param>
+        /// <param name="reparsePointTarget">the target of the reparse point (if file is registered reparse point).</param>
         /// <param name="dependentFileIndex">the index of a file (in the list of materialized files) which requires the materialization of this file as
         /// a prerequisite (if any). This is used when restoring content into cache for a host materialized file (i.e. write file output).</param>
         private void AddFileMaterialization(
             PipArtifactsState state,
             FileArtifact file,
             bool? allowReadOnlyOverride,
-            AbsolutePath symlinkTarget,
+            AbsolutePath reparsePointTarget,
             int? dependentFileIndex = null)
         {
-            bool shouldMaterializeSourceFile = (IsDistributedWorker && SourceFileMaterializationEnabled) || symlinkTarget.IsValid;
+            bool shouldMaterializeSourceFile = (IsDistributedWorker && SourceFileMaterializationEnabled) || reparsePointTarget.IsValid;
 
             if (file.IsSourceFile && !shouldMaterializeSourceFile)
             {
@@ -1694,16 +1673,15 @@ namespace BuildXL.Scheduler.Artifacts
                     state.SetDependencyArtifactCompletion(dependentFileIndex.Value, materializationCompletion.Task);
                 }
 
-                // Don't query host for allow readonly for symlinks as this
-                // has no effect and host may not be aware of the file (source
-                // seal directory files)
-                if (symlinkTarget.IsValid)
+                // Don't query host for allow readonly for reparse points as this
+                // has no effect and host may not be aware of the file (source seal directory files)
+                if (reparsePointTarget.IsValid)
                 {
                     allowReadOnlyOverride = false;
                 }
 
-                FileMaterializationInfo materializationInfo = symlinkTarget.IsValid
-                    ? GetOrComputeSymlinkInputContent(file)
+                FileMaterializationInfo materializationInfo = reparsePointTarget.IsValid
+                    ? GetOrComputeReparsePointInputContent(file)
                     : GetInputContent(file);
 
 
@@ -1712,11 +1690,11 @@ namespace BuildXL.Scheduler.Artifacts
                     allowReadOnly: allowReadOnlyOverride ?? AllowFileReadOnly(file),
                     materializationInfo: materializationInfo,
                     materializationCompletion: materializationCompletion,
-                    symlinkTarget: symlinkTarget);
+                    reparsePointTarget: reparsePointTarget);
             }
         }
 
-        private FileMaterializationInfo GetOrComputeSymlinkInputContent(FileArtifact file)
+        private FileMaterializationInfo GetOrComputeReparsePointInputContent(FileArtifact file)
         {
             FileMaterializationInfo materializationInfo;
             if (!TryGetInputContent(file, out materializationInfo))
@@ -2015,7 +1993,7 @@ namespace BuildXL.Scheduler.Artifacts
             FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
             ContentHash hash = materializationInfo.Hash;
             PathAtom fileName = materializationInfo.FileName;
-            AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
+            AbsolutePath reparsePointTarget = materializationFile.ReparsePointTarget;
             // Read only is allowed if set on the materialization file and the file is not an allowed source rewrite: we don't want to make the
             // file readonly when placing it since the rewrite was allowed to begin with, in a source or alien file which was very likely not a readonly one.
             // The ultimate goal is to allow the file to continue to be rewritten in subsequent builds, if possible
@@ -2045,8 +2023,8 @@ namespace BuildXL.Scheduler.Artifacts
                 else
                 {
                     using (outerContext.StartOperation(
-                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.IsSymlink)
-                            ? PipExecutorCounter.TryMaterializeSymlinkDuration
+                        (reparsePointTarget.IsValid || materializationInfo.ReparsePointInfo.IsActionableReparsePoint)
+                            ? PipExecutorCounter.TryMaterializeReparsePointDuration
                             : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
                         file))
                     {
@@ -2099,7 +2077,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 path: file.Path,
                                 contentHash: hash,
                                 fileName: fileName,
-                                symlinkTarget: symlinkTarget,
+                                reparsePointTarget: reparsePointTarget,
                                 reparsePointInfo: materializationInfo.ReparsePointInfo);
 
                             if (possiblyPlaced.Succeeded)
@@ -2446,7 +2424,7 @@ namespace BuildXL.Scheduler.Artifacts
                                             state,
                                             otherFile,
                                             allowReadOnlyOverride: null,
-                                            symlinkTarget: AbsolutePath.Invalid,
+                                            reparsePointTarget: AbsolutePath.Invalid,
                                             // Ensure that the current file waits on the materialization before attempting its materialization.
                                             // This ensures that content is present in the cache
                                             dependentFileIndex: currentFileIndex);
@@ -2638,9 +2616,9 @@ namespace BuildXL.Scheduler.Artifacts
 
                 MaterializationFile materializationFile = state.MaterializationFiles[i];
                 FileArtifact file = materializationFile.Artifact;
-                bool createSymlink = materializationFile.CreateSymlink;
+                bool createReparsePoint = materializationFile.CreateReparsePoint;
 
-                if (file.IsSourceFile && !createSymlink)
+                if (file.IsSourceFile && !createReparsePoint)
                 {
                     // Start the task to hash input
                     state.HashTasks.Add(TryQueryContentAsync(
@@ -2652,7 +2630,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
                 else
                 {
-                    // Just store placeholder task for output files/symlinks since they are not verified
+                    // Just store placeholder task for output files/reparse points since they are not verified
                     state.HashTasks.Add(s_placeHolderFileHashTask);
                 }
             }
@@ -2663,7 +2641,7 @@ namespace BuildXL.Scheduler.Artifacts
                 FileArtifact file = materializationFile.Artifact;
                 var materializationInfo = materializationFile.MaterializationInfo;
                 var expectedHash = materializationInfo.Hash;
-                bool createSymlink = materializationFile.CreateSymlink;
+                bool createReparsePoint = materializationFile.CreateReparsePoint;
 
                 if (file.IsOutputFile ||
 
@@ -2671,8 +2649,8 @@ namespace BuildXL.Scheduler.Artifacts
                     // where source files declared inside output directories
                     state.MaterializedDirectoryContents.Contains(file.Path) ||
 
-                    // Don't verify if it is a symlink creation
-                    createSymlink)
+                    // Don't verify if it is a reparse point creation
+                    createReparsePoint)
                 {
                     // Only source files should be verified
                     continue;
@@ -3534,9 +3512,9 @@ namespace BuildXL.Scheduler.Artifacts
             public readonly bool AllowReadOnly;
             public readonly TaskSourceSlim<PipOutputOrigin> MaterializationCompletion;
             public Task PriorArtifactVersionCompletion;
-            public readonly AbsolutePath SymlinkTarget;
+            public readonly AbsolutePath ReparsePointTarget;
 
-            public bool CreateSymlink => SymlinkTarget.IsValid;
+            public bool CreateReparsePoint => ReparsePointTarget.IsValid;
 
             public MaterializationFile(
                 FileArtifact artifact,
@@ -3544,14 +3522,14 @@ namespace BuildXL.Scheduler.Artifacts
                 bool allowReadOnly,
                 TaskSourceSlim<PipOutputOrigin> materializationCompletion,
                 Task priorArtifactVersionCompletion,
-                AbsolutePath symlinkTarget)
+                AbsolutePath reparsePointTarget)
             {
                 Artifact = artifact;
                 MaterializationInfo = materializationInfo;
                 AllowReadOnly = allowReadOnly;
                 MaterializationCompletion = materializationCompletion;
                 PriorArtifactVersionCompletion = priorArtifactVersionCompletion;
-                SymlinkTarget = symlinkTarget;
+                ReparsePointTarget = reparsePointTarget;
             }
         }
 
@@ -3662,7 +3640,7 @@ namespace BuildXL.Scheduler.Artifacts
                 for (int i = 0; i < MaterializationFiles.Count; i++)
                 {
                     var file = MaterializationFiles[i];
-                    if (!(file.CreateSymlink || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
+                    if (!(file.CreateReparsePoint || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
                     {
                         m_filesAndContentHashes.Add((file, i));
                     }
@@ -3862,7 +3840,7 @@ namespace BuildXL.Scheduler.Artifacts
                 bool allowReadOnly,
                 in FileMaterializationInfo materializationInfo,
                 TaskSourceSlim<PipOutputOrigin> materializationCompletion,
-                AbsolutePath symlinkTarget)
+                AbsolutePath reparsePointTarget)
             {
                 Contract.Assert(PipInfo != null, "PipInfo must be set to materialize files");
 
@@ -3893,7 +3871,7 @@ namespace BuildXL.Scheduler.Artifacts
                         allowReadOnly,
                         materializationCompletion,
                         priorArtifactCompletion,
-                        symlinkTarget));
+                        reparsePointTarget));
                 }
                 else
                 {

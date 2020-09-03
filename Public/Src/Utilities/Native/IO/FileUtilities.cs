@@ -624,10 +624,10 @@ namespace BuildXL.Native.IO
 
         #region Soft- (Junction) and Hardlink functions
 
-        /// <see cref="IFileSystem.CreateJunction(string, string)"/>
-        public static void CreateJunction(string junctionPoint, string targetDir)
+        /// <see cref="IFileSystem.CreateJunction(string, string, bool)"/>
+        public static void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true)
         {
-            s_fileSystem.CreateJunction(junctionPoint, targetDir);
+            s_fileSystem.CreateJunction(junctionPoint, targetDir, createDirectoryForJunction);
         }
 
         /// <see cref="IFileSystem.TryCreateSymbolicLink(string, string, bool)"/>
@@ -637,23 +637,21 @@ namespace BuildXL.Native.IO
         }
 
         /// <summary>
-        /// Tries to create a symlink if it does not exist or targets do not match.
+        /// Tries to create a reparse point if it does not exist or targets do not match.
         /// </summary>
-        public static Possible<Unit> TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(string symlink, string symlinkTarget, bool isTargetFile, out bool created)
+        public static Possible<Unit> TryCreateReparsePointIfNotExistsOrTargetsDoNotMatch(string reparsePoint, string reparsePointTarget, ReparsePointType type, out bool created)
         {
             created = false;
-            var possibleReparsePoint = TryGetReparsePointType(symlink);
-
             bool shouldCreate = true;
 
-            if (possibleReparsePoint.Succeeded && IsReparsePointActionable(possibleReparsePoint.Result))
+            if (IsReparsePointActionable(type))
             {
                 var openResult = TryCreateOrOpenFile(
-                    symlink,
+                    reparsePoint,
                     FileDesiredAccess.GenericRead,
                     FileShare.Read | FileShare.Delete,
                     FileMode.Open,
-                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                     out SafeFileHandle handle);
 
                 if (openResult.Succeeded)
@@ -661,11 +659,12 @@ namespace BuildXL.Native.IO
                     using (handle)
                     {
                         // Do not attempt to convert the target path to absolute path - always compare raw targets
-                        var possibleExistingSymlinkTarget = TryGetReparsePointTarget(handle, symlink);
+                        var possibleExistingSymlinkTarget = TryGetReparsePointTarget(handle, reparsePoint);
+                        var possibleExistingSymlinkType = TryGetReparsePointType(reparsePoint);
 
-                        if (possibleExistingSymlinkTarget.Succeeded)
+                        if (possibleExistingSymlinkTarget.Succeeded && possibleExistingSymlinkType.Succeeded)
                         {
-                            shouldCreate = !string.Equals(symlinkTarget, possibleExistingSymlinkTarget.Result, StringComparison.OrdinalIgnoreCase);
+                            shouldCreate = !string.Equals(reparsePointTarget, possibleExistingSymlinkTarget.Result, StringComparison.OrdinalIgnoreCase) || type != possibleExistingSymlinkType.Result;
                         }
                     }
                 }
@@ -673,13 +672,28 @@ namespace BuildXL.Native.IO
 
             if (shouldCreate)
             {
-                s_fileUtilities.DeleteFile(symlink, waitUntilDeletionFinished: true);
-                CreateDirectory(Path.GetDirectoryName(symlink));
-                var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(symlink, symlinkTarget, isTargetFile: isTargetFile);
+                s_fileUtilities.DeleteFile(reparsePoint, waitUntilDeletionFinished: true);
 
-                if (!maybeSymbolicLink.Succeeded)
+                if (type == ReparsePointType.Junction)
                 {
-                    return maybeSymbolicLink.Failure;
+                    try
+                    {
+                        s_fileSystem.CreateJunction(reparsePoint, reparsePointTarget);
+                    }
+                    catch (Exception e)
+                    {
+                        return new Failure<Exception>(e);
+                    }
+                }
+                else
+                {
+                    CreateDirectory(Path.GetDirectoryName(reparsePoint));
+                    
+                    var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(reparsePoint, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
+                    if (!maybeSymbolicLink.Succeeded)
+                    {
+                        return maybeSymbolicLink.Failure;
+                    }
                 }
 
                 created = true;
@@ -704,12 +718,6 @@ namespace BuildXL.Native.IO
         public static bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
             return s_fileSystem.IsReparsePointActionable(reparsePointType);
-        }
-
-        /// <see cref="IFileSystem.IsReparsePointSymbolicLink(ReparsePointType)"/>
-        public static bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
-        {
-            return s_fileSystem.IsReparsePointSymbolicLink(reparsePointType);
         }
 
         /// <see cref="IFileSystem.TryGetReparsePointType(string)"/>

@@ -18,12 +18,12 @@ namespace BuildXL.Engine.Cache.Tracing
         StorageFailureToOpenFileForFlushOnIngress = 729,
 
         FailedOpenHandleToGetKnownHashDuringMaterialization = 732,
-        HashedSymlinkAsTargetPath = 733,
+        HashedReparsePointAsTargetPath = 733,
         
         ClosingFileStreamAfterHashingFailed = 735,
         StorageFailureToFlushFileOnDisk = 736,
         
-        StoreSymlinkWarning = 740,
+        // was StoreReparsePointWarning = 740,
         SerializingToPipFingerprintEntryResultInCorruptedData = 742,
         DeserializingCorruptedPipFingerprintEntry = 743,
 

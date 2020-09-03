@@ -70,7 +70,7 @@ namespace Tests.Linux {
                     "NonStandardOptionsTests",
                     "PreserveOutputsTests",
                     "PreserveOutputsReuseOutputsTests",
-                    "SymlinkTests",
+                    "ReparsePointTests",
                     "OpaqueDirectoryTests",
                     "SharedOpaqueDirectoryTests",
                     "StoreNoOutputsToCacheTests",

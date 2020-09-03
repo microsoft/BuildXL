@@ -111,7 +111,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             AbsolutePath path,
             ContentHash contentHash,
             PathAtom fileName = default,
-            AbsolutePath symlinkTarget = default,
+            AbsolutePath reparsePointTarget = default,
             ReparsePointInfo? reparsePointInfo = null,
             bool trackPath = true,
             bool recordPathInFileContentTable = true)
@@ -121,7 +121,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 ExpandedAbsolutePath expandedPath = Expand(path);
 
                 var reparsePointType = ReparsePointType.None;
-                if (reparsePointInfo == null && symlinkTarget.IsValid)
+                if (reparsePointInfo == null && reparsePointTarget.IsValid)
                 {
                     if (OperatingSystemHelper.IsUnixOS)
                     {
@@ -129,18 +129,16 @@ namespace BuildXL.Engine.Cache.Artifacts
                     }
                     else
                     {
-                        var existenceCheck = FileUtilities.TryProbePathExistence(symlinkTarget.ToString(m_pathTable), followSymlink: false);
-                        if (!existenceCheck.Succeeded)
+                        var reparsePointTypeCheck = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
+                        if (!reparsePointTypeCheck.Succeeded)
                         {
-                            return existenceCheck.Failure;
+                            return reparsePointTypeCheck.Failure;
                         }
 
-                        reparsePointType = existenceCheck.Result == PathExistence.ExistsAsFile 
-                            ? ReparsePointType.FileSymlink 
-                            : ReparsePointType.DirectorySymlink;
+                        reparsePointType = reparsePointTypeCheck.Result;
                     }
                     
-                    reparsePointInfo = ReparsePointInfo.Create(reparsePointType, symlinkTarget.ToString(m_pathTable));
+                    reparsePointInfo = ReparsePointInfo.Create(reparsePointType, reparsePointTarget.ToString(m_pathTable));
                 }
 
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
@@ -237,17 +235,17 @@ namespace BuildXL.Engine.Cache.Artifacts
                 }
                 else
                 {
-                    possibleMaterialization = CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget(), reparsePointInfo.Value.ReparsePointType);
+                    possibleMaterialization = CreateReparsePointIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget(), reparsePointInfo.Value.ReparsePointType);
                 }
 
-                bool isSymlink = symlinkTarget.IsValid || (reparsePointInfo != null && reparsePointInfo.Value.IsSymlink);
+                bool isReparsePoint = reparsePointTarget.IsValid || (reparsePointInfo != null && reparsePointInfo.Value.IsActionableReparsePoint);
 
                 Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(
                         expandedPath,
                         contentHash,
                         fileName,
-                        isSymlink,
+                        isReparsePoint,
                         trackPath: trackPath,
                         recordPathInFileContentTable: recordPathInFileContentTable));
 
@@ -259,19 +257,19 @@ namespace BuildXL.Engine.Cache.Artifacts
         private string ExpandFileName(ref PathAtom fileName) => fileName.IsValid ? fileName.ToString(m_pathTable.StringTable) : default;
 
         /// <summary>
-        /// Creates a symlink. SymlinkTarget must be a non-empty string.
+        /// Creates a reparse point. Reparse point targets must be a non-empty string.
         /// </summary>
-        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, string symlinkTarget, ReparsePointType type)
+        private Possible<Unit> CreateReparsePointIfNotExistsOrTargetMismatch(AbsolutePath reparsePoint, string reparsePointTarget, ReparsePointType type)
         {
-            Contract.Requires(!string.IsNullOrEmpty(symlinkTarget));
+            Contract.Requires(!string.IsNullOrEmpty(reparsePointTarget));
 
-            var source = Expand(symlink);
+            var source = Expand(reparsePoint);
             bool created;
 
-            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, symlinkTarget, type != ReparsePointType.DirectorySymlink, out created);
-            if (!maybeSymbolicLink.Succeeded)
+            var maybeReparsePoint = FileUtilities.TryCreateReparsePointIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, reparsePointTarget, type, out created);
+            if (!maybeReparsePoint.Succeeded)
             {
-                return new Failure<string>($"Failed to create symlink from '{source}' to '{symlinkTarget}'", maybeSymbolicLink.Failure);
+                return new Failure<string>($"Failed to create reparse point (type {type}) from '{source}' to '{reparsePointTarget}'", maybeReparsePoint.Failure);
             }
 
             return Unit.Void;
@@ -369,10 +367,9 @@ namespace BuildXL.Engine.Cache.Artifacts
             FileFlagsAndAttributes openFlags = FileFlagsAndAttributes.None
                 // Open for asynchronous I/O.
                 | FileFlagsAndAttributes.FileFlagOverlapped
-                // Open with reparse point flag even if file may not be a reparse point.
-                // For normal files, this flag is ignored.
+                // Open with reparse point flag even if file may not be a reparse point, for normal files, this flag is ignored.
                 | FileFlagsAndAttributes.FileFlagOpenReparsePoint
-                // Path can be directory symlink, and thus need FileFlagBackupSemantics otherwise access denied.
+                // Path can be reparse point with directory flag set, and thus we need the FileFlagBackupSemantics flag, otherwise access is denied.
                 | FileFlagsAndAttributes.FileFlagBackupSemantics;
 
             if (createHandleWithSequentialScan)
@@ -568,7 +565,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                         hash = ComputePathHash(finalLocation, out var isVirtual);
                                         contentPath = expandedPath;
                                         contentLength = finalLocation.Length;
-                                        Tracing.Logger.Log.HashedSymlinkAsTargetPath(m_loggingContext, expandedPath, finalLocation);
+                                        Tracing.Logger.Log.HashedReparsePointAsTargetPath(m_loggingContext, expandedPath, finalLocation);
                                     }
                                 }
                                 else
@@ -753,10 +750,10 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// This operation may fail due to I/O-related issues, such as lack of permissions to the destination.
         /// The stored file is tracked for changes and added to the file content table.
         ///
-        /// Caller can also specify whether the file to store is a symlink using <paramref name="isSymlink"/>.
-        /// If <paramref name="isSymlink"/> is left unspecified, then this method will try to check if the file is a symlink.
-        /// If the file is a symlink, then this method will log a warning because storing symlink to cache makes builds behave unexpectedly,
-        /// e.g., cache replays symlinks as concrete files, pip may not rebuild if symlink target is modified, pip may fail if symlink target
+        /// Caller can also specify whether the file to store is a reparse point using <paramref name="isReparsePoint"/>.
+        /// If <paramref name="isReparsePoint"/> is left unspecified, then this method will try to check if the file is a reparse point.
+        /// If the file is a reparse point, then this method will log a warning because storing reparse point to cache makes builds behave unexpectedly,
+        /// e.g., cache replays reparse point as concrete files, pip may not rebuild if reparse point target is modified, pip may fail if reparse point target
         /// is nonexistent, etc.
         /// </summary>
         public async Task<Possible<TrackedFileContentInfo>> TryStoreAsync(
@@ -766,7 +763,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool tryFlushPageCacheToFileSystem,
             ContentHash? knownContentHash = null,
             bool trackPath = true,
-            bool? isSymlink = null,
+            bool? isReparsePoint = null,
             bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(cache != null);
@@ -783,20 +780,15 @@ namespace BuildXL.Engine.Cache.Artifacts
             PathAtom fileName = possiblyPreparedFile.Result.FileName;
             expandedPath = expandedPath.WithFileName(m_pathTable, fileName);
 
-            if (!isSymlink.HasValue)
+            if (!isReparsePoint.HasValue)
             {
                 var possibleReparsePointType = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
-                isSymlink = possibleReparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(possibleReparsePointType.Result);
+                isReparsePoint = possibleReparsePointType.Succeeded && FileUtilities.IsReparsePointActionable(possibleReparsePointType.Result);
             }
 
-            if (isSymlink == true)
-            {
-                Tracing.Logger.Log.StoreSymlinkWarning(m_loggingContext, expandedPath.ExpandedPath);
-            }
-
-            // If path is a symlink, and the file realization mode is hard-link, then the cache will create
-            // a hardlink to the final target of the symlink. Thus, symlink production works under the assumption
-            // that the symlink is not a dangling symlink.
+            // If path is a reparse point, and the file realization mode is hard-link, then the cache will create
+            // a hardlink to the final target of the reparse point. Thus, reparse point production works under the assumption
+            // that the reparse point is not a dangling reparse point.
             if (knownContentHash.HasValue)
             {
                 // Applies only to CopyFile & rewritten files where we have already hashed the inputs to see if we should rerun the pip,
@@ -809,7 +801,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
                 return await possiblyStored.ThenAsync(
-                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
+                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isReparsePoint.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
             }
             else
             {
@@ -818,7 +810,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     expandedPath);
 
                 return await possiblyStored.ThenAsync(
-                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isSymlink.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
+                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isReparsePoint.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));
             }
         }
 
@@ -831,7 +823,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             ContentHash? knownContentHash = null,
             bool ignoreKnownContentHashOnDiscoveringContent = false,
             bool createHandleWithSequentialScan = false,
-            bool isSymlink = false,
+            bool isReparsePoint = false,
             bool isUndeclaredFileRewrite = false)
         {
             Contract.Requires(file.IsValid);
@@ -849,7 +841,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (knownContentHash.HasValue)
             {
-                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink, isUndeclaredFileRewrite);
+                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isReparsePoint, isUndeclaredFileRewrite);
             }
 
             var possibleDiscover = await TryDiscoverAsync(
@@ -961,7 +953,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             ExpandedAbsolutePath path,
             ContentHash hash,
             PathAtom fileName,
-            bool isSymlink,
+            bool isReparsePoint,
             bool trackPath = true,
             // For legacy reason, recordPathInFileContentTable is default to false because if trackPath is false,
             // then recordPathInFileContentTable used to automatically be false.
@@ -984,7 +976,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     {
                         var flags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
 
-                        if (isSymlink)
+                        if (isReparsePoint)
                         {
                             flags |= FileFlagsAndAttributes.FileFlagBackupSemantics;
                         }

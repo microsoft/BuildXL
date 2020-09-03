@@ -26,11 +26,6 @@ namespace BuildXL.Storage
         /// </summary>
         public bool IsActionableReparsePoint => ReparsePointType.IsActionable();
 
-        /// <summary>
-        /// Determines if this is a symlink or not.
-        /// </summary>
-        public bool IsSymlink => FileUtilities.IsReparsePointSymbolicLink(ReparsePointType);
-
         private ReparsePointInfo(ReparsePointType reparsePointType, string targetPath)
         {
             ReparsePointType = reparsePointType;
@@ -111,7 +106,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override string ToString()
         {
-            return I($"IsActionableReparsePoint: '{IsActionableReparsePoint}', IsSymlink: '{IsSymlink}', Target: '{GetReparsePointTarget() ?? ""}'");
+            return I($"IsActionableReparsePoint: '{IsActionableReparsePoint}', Type: '{ReparsePointType}', Target: '{GetReparsePointTarget() ?? ""}'");
         }
     }
 }

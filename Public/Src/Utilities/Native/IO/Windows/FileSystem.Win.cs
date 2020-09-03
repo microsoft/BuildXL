@@ -2387,11 +2387,16 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public void CreateJunction(string junctionPoint, string targetDir)
+        public void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true)
         {
             if (!Directory.Exists(ToLongPathIfExceedMaxPath(targetDir)))
             {
                 throw new IOException(I($"Target path '{targetDir}' does not exist or is not a directory."));
+            }
+
+            if (createDirectoryForJunction)
+            {
+                CreateDirectory(junctionPoint);
             }
 
             SafeFileHandle handle;
@@ -2414,15 +2419,15 @@ namespace BuildXL.Native.IO.Windows
                 byte[] targetDirBytes = Encoding.Unicode.GetBytes(NtPathPrefix + fullTargetDirPath);
 
                 REPARSE_DATA_BUFFER reparseDataBuffer = new REPARSE_DATA_BUFFER
-                                                        {
-                                                            ReparseTag = DwReserved0Flag.IO_REPARSE_TAG_MOUNT_POINT,
-                                                            ReparseDataLength = (ushort)(targetDirBytes.Length + 12),
-                                                            SubstituteNameOffset = 0,
-                                                            SubstituteNameLength = (ushort)targetDirBytes.Length,
-                                                            PrintNameOffset = (ushort)(targetDirBytes.Length + 2),
-                                                            PrintNameLength = 0,
-                                                            PathBuffer = new byte[0x3ff0],
-                                                        };
+                {
+                    ReparseTag = DwReserved0Flag.IO_REPARSE_TAG_MOUNT_POINT,
+                    ReparseDataLength = (ushort)(targetDirBytes.Length + 12),
+                    SubstituteNameOffset = 0,
+                    SubstituteNameLength = (ushort)targetDirBytes.Length,
+                    PrintNameOffset = (ushort)(targetDirBytes.Length + 2),
+                    PrintNameLength = 0,
+                    PathBuffer = new byte[0x3ff0],
+                };
 
                 Array.Copy(targetDirBytes, reparseDataBuffer.PathBuffer, targetDirBytes.Length);
 
@@ -2457,6 +2462,7 @@ namespace BuildXL.Native.IO.Windows
 
         private static OpenFileResult TryOpenReparsePoint(string reparsePoint, FileDesiredAccess accessMode, out SafeFileHandle reparsePointHandle)
         {
+            reparsePoint = reparsePoint + Path.DirectorySeparatorChar;
             reparsePointHandle = CreateFileW(
                 reparsePoint,
                 accessMode,
@@ -2795,7 +2801,7 @@ namespace BuildXL.Native.IO.Windows
                 dwCreationDisposition: FileMode.Open,
                 dwFlagsAndAttributes: FileFlagsAndAttributes.FileFlagBackupSemantics,
                 hTemplateFile: IntPtr.Zero);
-            
+
             nativeErrorCode = Marshal.GetLastWin32Error();
 
             if (handle.IsInvalid)
@@ -2870,7 +2876,7 @@ namespace BuildXL.Native.IO.Windows
                         break;
                     }
                 }
-                
+
             }
             else
             {
@@ -3030,9 +3036,9 @@ namespace BuildXL.Native.IO.Windows
             else
             {
                 // when not following symlinks --> treat symlinks as files regardless of what they point to
-                bool hasSymlinkFlag = ((attrs & FileAttributes.ReparsePoint) != 0);
+                bool hasReparsePointFlag = ((attrs & FileAttributes.ReparsePoint) != 0);
                 return
-                    hasSymlinkFlag ? PathExistence.ExistsAsFile :
+                    hasReparsePointFlag ? PathExistence.ExistsAsFile :
                     hasDirectoryFlag ? PathExistence.ExistsAsDirectory :
                     PathExistence.ExistsAsFile;
             }
@@ -3107,11 +3113,11 @@ namespace BuildXL.Native.IO.Windows
             bool followSymlinksToDirectories = false)
         {
             return EnumerateDirectoryEntries(
-                directoryPath, 
+                directoryPath,
                 recursive,
-                pattern, 
-                (path, name, attributes, IsReparsePointActionable) => handleEntry(path, name, attributes), 
-                isEnumerationForDirectoryDeletion, 
+                pattern,
+                (path, name, attributes, IsReparsePointActionable) => handleEntry(path, name, attributes),
+                isEnumerationForDirectoryDeletion,
                 followSymlinksToDirectories);
         }
 
@@ -3147,7 +3153,7 @@ namespace BuildXL.Native.IO.Windows
                         // reparse point types (tags), we make sure to not follow mount points and symbolic link ones - this is
                         // required to properly support directory symlinks.
                         var isActionableReparsePoint = IsReparsePointActionable(GetReparsePointTypeFromWin32FindData(findResult));
-                         
+
                         if (PathMatchSpecW(findResult.CFileName, pattern))
                         {
                             handleEntry(directoryPath, findResult.CFileName, findResult.DwFileAttributes, isActionableReparsePoint);
@@ -3387,7 +3393,7 @@ namespace BuildXL.Native.IO.Windows
         {
             return EnumerateDirectoryEntries(directoryPath, recursive: false, handleEntry: (currentDirectory, fileName, fileAttributes) => handleEntry(fileName, fileAttributes), isEnumerationForDirectoryDeletion);
         }
-        
+
         internal EnumerateDirectoryResult EnumerateDirectoryEntries(
             string directoryPath,
             bool recursive,
@@ -3396,7 +3402,7 @@ namespace BuildXL.Native.IO.Windows
         {
             return EnumerateDirectoryEntries(directoryPath, recursive, "*", handleEntry, isEnumerationForDirectoryDeletion);
         }
-        
+
         internal EnumerateDirectoryResult EnumerateDirectoryEntries(string directoryPath, Action<string, FileAttributes, bool> handleEntry, bool isEnumerationForDirectoryDeletion = false)
         {
             return EnumerateDirectoryEntries(directoryPath, recursive: false, handleEntry: (currentDirectory, fileName, fileAttributes, isActionableReparspoint) => handleEntry(fileName, fileAttributes, isActionableReparspoint), isEnumerationForDirectoryDeletion);
@@ -3488,13 +3494,12 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            return reparsePointType == ReparsePointType.FileSymlink 
-                || reparsePointType == ReparsePointType.DirectorySymlink 
-                || reparsePointType == ReparsePointType.MountPoint;
+            return reparsePointType == ReparsePointType.FileSymlink
+                || reparsePointType == ReparsePointType.DirectorySymlink
+                || reparsePointType == ReparsePointType.Junction;
         }
 
-        /// <inheritdoc />
-        public bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        private bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
         {
             return reparsePointType == ReparsePointType.FileSymlink || reparsePointType == ReparsePointType.DirectorySymlink;
         }
@@ -3531,7 +3536,7 @@ namespace BuildXL.Native.IO.Windows
             {
                 return findResult.DwReserved0 == (uint)DwReserved0Flag.IO_REPARSE_TAG_SYMLINK
                     ? ((findResult.DwFileAttributes & FileAttributes.Directory) != 0) ? ReparsePointType.DirectorySymlink : ReparsePointType.FileSymlink
-                    : ReparsePointType.MountPoint;
+                    : ReparsePointType.Junction;
             }
 
             return ReparsePointType.NonActionable;
@@ -3724,6 +3729,12 @@ namespace BuildXL.Native.IO.Windows
         {
             hr = 0;
             string toFullPath = ToLongPathIfExceedMaxPath(path);
+
+            // GetFullPathNameW returns the path prefixed with the dive letter followed bt the NtPrefix if its not removed e.g. B:\??\
+            if (GetPathType(path) == Win32AbsolutePathType.NtPrefixed)
+            {
+                toFullPath = toFullPath.Substring(NtPathPrefix.Length);
+            }
 
             int bufferSize = NativeIOConstants.MaxPath;
             StringBuilder sbFull = new StringBuilder(bufferSize);

@@ -9,9 +9,9 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
     [Feature(Features.IncrementalScheduling)]
     [TestClassIfSupported(requiresJournalScan: true, requiresSymlinkPermission: true)]
-    public class SymlinkTests_IncrementalScheduling : SymlinkTests
+    public class ReparsePointTests_IncrementalScheduling : ReparsePointTests
     {
-        public SymlinkTests_IncrementalScheduling(ITestOutputHelper output) : base(output)
+        public ReparsePointTests_IncrementalScheduling(ITestOutputHelper output) : base(output)
         {
             Configuration.Schedule.IncrementalScheduling = true;
             Configuration.Schedule.SkipHashSourceFile = false;

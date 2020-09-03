@@ -813,12 +813,6 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
-        {
-            return IsReparsePointActionable(reparsePointType);
-        }
-
-        /// <inheritdoc />
         public Possible<ReparsePointType> TryGetReparsePointType(string path)
         {
             return GetReparsePointType(path);
@@ -919,7 +913,7 @@ namespace BuildXL.Native.IO.Unix
         public unsafe NtStatus FlushPageCacheToFilesystem(SafeFileHandle handle) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public void CreateJunction(string junctionPoint, string targetDir) => throw new NotImplementedException();
+        public void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)

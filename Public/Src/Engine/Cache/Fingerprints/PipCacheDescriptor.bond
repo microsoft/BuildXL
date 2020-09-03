@@ -23,7 +23,7 @@ enum BondReparsePointType {
     FileSymlink,
     DirectorySymlink,
     UnixSymlink,
-    MountPoint,
+    Junction,
     NonActionable
 }
 

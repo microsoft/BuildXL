@@ -23,7 +23,7 @@ using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
-    [Trait("Category", "SymlinkTests")]
+    [Trait("Category", "ReparsePointTests")]
     public class DirectorySymlinkTests : SchedulerIntegrationTestBase
     {
         public readonly struct LookupSpec
@@ -1002,7 +1002,7 @@ Versions/sym-sym-A -> sym-A/
             XAssert.AreEqual(expected, maybePathExistence.Result, $"Wrong file existence for file '{file}'");
             if (isSymlink.HasValue)
             {
-                XAssert.AreEqual(isSymlink.Value, SymlinkTests.IsSymlink(file, isDirectorySymlink), $"Wrong symlink attribute for file '{file}'");
+                XAssert.AreEqual(isSymlink.Value, ReparsePointTests.IsSymlink(file, isDirectorySymlink), $"Wrong symlink attribute for file '{file}'");
             }
         }
     }

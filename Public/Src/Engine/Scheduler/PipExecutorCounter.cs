@@ -959,10 +959,10 @@ namespace BuildXL.Scheduler
         TryCreateSymlinkDuration,
 
         /// <summary>
-        /// The time spent to create symlink for file materialization.
+        /// The time spent to create a reparse point for file materialization.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        TryMaterializeSymlinkDuration,
+        TryMaterializeReparsePointDuration,
 
         /// <summary>
         /// The number of real filesystem directory enumerations.

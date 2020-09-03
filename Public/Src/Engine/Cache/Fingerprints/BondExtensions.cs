@@ -152,8 +152,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
                     return BondReparsePointType.DirectorySymlink;
                 case ReparsePointType.UnixSymlink:
                     return BondReparsePointType.UnixSymlink;
-                case ReparsePointType.MountPoint:
-                    return BondReparsePointType.MountPoint;
+                case ReparsePointType.Junction:
+                    return BondReparsePointType.Junction;
                 case ReparsePointType.NonActionable:
                     return BondReparsePointType.NonActionable;
                 default:
@@ -174,8 +174,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
                     return ReparsePointType.DirectorySymlink;
                 case BondReparsePointType.UnixSymlink:
                     return ReparsePointType.UnixSymlink;
-                case BondReparsePointType.MountPoint:
-                    return ReparsePointType.MountPoint;
+                case BondReparsePointType.Junction:
+                    return ReparsePointType.Junction;
                 case BondReparsePointType.NonActionable:
                     return ReparsePointType.NonActionable;
                 default:

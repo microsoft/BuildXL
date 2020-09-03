@@ -43,15 +43,6 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void StorageFailureToOpenFileForFlushOnIngress(LoggingContext context, string path, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.StoreSymlinkWarning,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "Storing symlink '{file}' to cache makes builds behave unexpectedly, e.g., cache replays symlinks as concrete files, pip may not rebuild if symlink target is modified, pip may fail if symlink target is nonexistent, etc.")]
-        internal abstract void StoreSymlinkWarning(LoggingContext loggingContext, string file);
-
-        [GeneratedEvent(
             (int)LogEventId.StorageFailureToFlushFileOnDisk,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -88,13 +79,13 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void TimeoutOpeningFileForHashing(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)LogEventId.HashedSymlinkAsTargetPath,
+            (int)LogEventId.HashedReparsePointAsTargetPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Storage,
-            Message = "The path '{0}' was a symbolic link, and it will be hashed based on its target's path, i.e., '{1}', rather than the target's content.")]
-        public abstract void HashedSymlinkAsTargetPath(LoggingContext context, string path, string targetPath);
+            Message = "The path '{0}' was a reparse point, and it will be hashed based on its target's path, i.e., '{1}', rather than the target's content.")]
+        public abstract void HashedReparsePointAsTargetPath(LoggingContext context, string path, string targetPath);
 
         [GeneratedEvent(
             (int)LogEventId.TemporalCacheEntryTrace,

@@ -41,6 +41,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        public static PerformAsyncOperationWithTimeoutBuilder<TResult> CreateOperationWithTimeout<TResult>(this OperationContext context, Tracer tracer, Func<OperationContext, Task<TResult>> operation, TimeSpan? timeout) where TResult : ResultBase
+        {
+            return new PerformAsyncOperationWithTimeoutBuilder<TResult>(context, tracer, operation)
+                .WithTimeout(timeout);
+        }
+
+        /// <nodoc />
         public static PerformAsyncOperationNonResultBuilder<TResult> CreateNonResultOperation<TResult>(this OperationContext context, Tracer tracer, Func<Task<TResult>> operation, Func<TResult, ResultBase>? resultBaseFactory = null)
         {
             return new PerformAsyncOperationNonResultBuilder<TResult>(context, tracer, operation, resultBaseFactory);
@@ -105,11 +112,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
         /// <summary>
-        /// An optional timeout for asynchronous operations.
-        /// </summary>
-        protected TimeSpan? _timeout;
-
-        /// <summary>
         /// An  interval for periodically tracing pending operations.
         /// </summary>
         protected TimeSpan? PendingOperationTracingInterval = DefaultTracingConfiguration.DefaultPendingOperationTracingInterval;
@@ -150,7 +152,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             Func<TResult, string>? endMessageFactory = null,
             TimeSpan? silentOperationDurationThreshold = null,
             bool isCritical = false,
-            TimeSpan? timeout = null,
             TimeSpan? pendingOperationTracingInterval = null,
             string? caller = null)
         {
@@ -162,7 +163,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             _endMessageFactory = endMessageFactory;
             _silentOperationDurationThreshold = silentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
             _isCritical = isCritical;
-            _timeout = timeout;
             PendingOperationTracingInterval = pendingOperationTracingInterval ?? DefaultTracingConfiguration.DefaultPendingOperationTracingInterval;
             Caller = caller;
             return (TBuilder)this;
@@ -224,32 +224,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        protected static Task<T> WithOptionalTimeoutAsync<T>(Func<Task<T>> operation, TimeSpan? timeout, CancellationToken cancellationToken = default)
-        {
-            if (timeout == null)
-            {
-                return operation();
-            }
-
-            return TaskUtilities.WithTimeoutAsync(async ct =>
-                {
-                    // If the operation does any synchronous work before returning the task, our timeout mechanism
-                    // will never kick in. This yield is here to prevent that from happening.
-                    await Task.Yield();
-                    return await operation();
-                },
-                timeout.Value,
-                cancellationToken);
-        }
-
-        /// <nodoc />
         protected async Task<T> RunOperationAndConvertExceptionToErrorAsync<T>(Func<Task<T>> operation)
             where T : ResultBase
         {
             try
             {
                 using var timer = CreatePeriodicTimerIfNeeded();
-                return await WithOptionalTimeoutAsync(operation, _timeout, _context.Token);
+                return await operation();
             }
             catch (Exception ex)
             {
@@ -263,7 +244,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             }
         }
 
-        private Timer? CreatePeriodicTimerIfNeeded()
+        /// <nodoc />
+        protected Timer? CreatePeriodicTimerIfNeeded()
         {
             if (PendingOperationTracingInterval == null)
             {
@@ -307,7 +289,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 try
                 {
-                    var result = await WithOptionalTimeoutAsync(AsyncOperation, _timeout, _context.Token);
+                    var result = await AsyncOperation();
                     TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
                     return result;
@@ -369,6 +351,92 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 return result;
             }
+        }
+    }
+
+    /// <summary>
+    /// A builder pattern used for perform operations with configurable tracings.
+    /// </summary>
+    public class PerformAsyncOperationWithTimeoutBuilder<TResult> : PerformOperationBuilderBase<TResult, PerformAsyncOperationWithTimeoutBuilder<TResult>>
+        where TResult : ResultBase
+    {
+        /// <summary>
+        /// An optional timeout for asynchronous operations.
+        /// </summary>
+        protected TimeSpan? _timeout;
+
+        /// <nodoc />
+        protected readonly Func<OperationContext, Task<TResult>> AsyncOperation;
+
+        /// <nodoc />
+        public PerformAsyncOperationWithTimeoutBuilder(OperationContext context, Tracer tracer, Func<OperationContext, Task<TResult>> operation)
+        : base(context, tracer, r => r)
+        {
+            AsyncOperation = operation;
+        }
+
+        /// <nodoc />
+        public PerformAsyncOperationWithTimeoutBuilder<TResult> WithTimeout(TimeSpan? timeout)
+        {
+            _timeout = timeout;
+            return this;
+        }
+
+        /// <nodoc />
+        public virtual async Task<TResult> RunAsync([CallerMemberName] string? caller = null)
+        {
+            using (_counter?.Start())
+            {
+                TraceOperationStarted(caller!);
+                var stopwatch = StopwatchSlim.Start();
+
+                var result = await RunOperationAndConvertExceptionToErrorAsync(AsyncOperation);
+
+                TraceOperationFinished(result, stopwatch.Elapsed, caller!);
+
+                return result;
+            }
+        }
+
+        /// <nodoc />
+        protected async Task<T> RunOperationAndConvertExceptionToErrorAsync<T>(Func<OperationContext, Task<T>> operation)
+            where T : ResultBase
+        {
+            try
+            {
+                using var timer = CreatePeriodicTimerIfNeeded();
+                return await WithOptionalTimeoutAsync(operation, _timeout, _context);
+            }
+            catch (Exception ex)
+            {
+                var result = new ErrorResult(ex).AsResult<T>();
+                if (_context.Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(ex))
+                {
+                    result.IsCancelled = true;
+                }
+
+                return result;
+            }
+        }
+
+        /// <nodoc />
+        protected static Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context)
+        {
+            if (timeout == null)
+            {
+                return operation(context);
+            }
+
+            return TaskUtilities.WithTimeoutAsync(async ct =>
+            {
+                // If the operation does any synchronous work before returning the task, our timeout mechanism
+                // will never kick in. This yield is here to prevent that from happening.
+                await Task.Yield();
+                var nestedContext = new OperationContext(context.TracingContext, ct);
+                return await operation(nestedContext);
+            },
+            timeout.Value,
+            context.Token);
         }
     }
 

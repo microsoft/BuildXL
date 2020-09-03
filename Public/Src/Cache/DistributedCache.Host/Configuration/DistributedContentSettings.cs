@@ -664,6 +664,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RestoreCheckpointTimeoutMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? UpdateClusterStateIntervalSeconds { get; set; }
 
         [DataMember]

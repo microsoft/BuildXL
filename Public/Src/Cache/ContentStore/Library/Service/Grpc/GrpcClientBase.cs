@@ -173,19 +173,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             // Can't use original session id, because it may have changed due to reconnect.
             var sessionId= sessionContext.Value.SessionId;
-            await operationContext.PerformOperationAsync(
+            await operationContext.PerformOperationWithTimeoutAsync(
                     Tracer,
-                    () => sendHeartbeatAsync(sessionContext.Value).WithTimeoutAsync(HeartbeatHardTimeout),
+                    nestedContext => sendHeartbeatAsync(nestedContext, sessionContext.Value),
+                    timeout: HeartbeatHardTimeout,
                     extraStartMessage: $"SessionId={sessionId}",
                     extraEndMessage: r => $"SessionId={sessionId}")
                 .IgnoreFailure(); // The error was already traced.
 
-            async Task<BoolResult> sendHeartbeatAsync(SessionContext localSessionContext)
+            async Task<BoolResult> sendHeartbeatAsync(OperationContext context, SessionContext localSessionContext)
             {
-                using var timeoutCancellationSource = new CancellationTokenSource(_heartbeatTimeout);
+                using var softTimeoutCancellationTokenSource = new CancellationTokenSource(_heartbeatTimeout);
+                using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, softTimeoutCancellationTokenSource.Token);
                 try
                 {
-                    HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = localSessionContext.CreateHeader() }, timeoutCancellationSource.Token);
+                    HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = localSessionContext.CreateHeader() }, cancellationTokenSource.Token);
 
                     // Check for null header here as a workaround to a known service bug, which returns null headers on successful heartbeats.
                     if (response?.Header != null && !response.Header.Succeeded)
@@ -202,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 catch (Exception ex)
                 {
-                    if (timeoutCancellationSource.IsCancellationRequested)
+                    if (cancellationTokenSource.IsCancellationRequested)
                     {
                         return new BoolResult(ex, $"Heartbeat timed out out after '{_heartbeatTimeout}'.");
                     }

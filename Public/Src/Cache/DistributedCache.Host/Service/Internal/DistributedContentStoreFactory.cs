@@ -470,6 +470,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.RestoreCheckpointIntervalMinutes,
                 value => checkpointConfiguration.RestoreCheckpointInterval = TimeSpan.FromMinutes(value));
+            ApplyIfNotNull(
+                _distributedSettings.RestoreCheckpointTimeoutMinutes,
+                value => checkpointConfiguration.RestoreCheckpointTimeout = TimeSpan.FromMinutes(value));
 
             ApplyIfNotNull(
                 _distributedSettings.UpdateClusterStateIntervalSeconds,

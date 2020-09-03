@@ -81,9 +81,9 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var tracer = new Tracer("MyTracer");
             var context = new OperationContext(new Context(TestGlobal.Logger));
 
-            var r = await context.PerformOperationAsync(
+            var r = await context.PerformOperationWithTimeoutAsync(
                 tracer,
-                async () =>
+                async nestedContext =>
                 {
                     await Task.Delay(TimeSpan.FromMinutes(1));
                     return BoolResult.Success;
@@ -100,9 +100,9 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var tracer = new Tracer("MyTracer");
             var context = new OperationContext(new Context(TestGlobal.Logger));
 
-            var r = await context.PerformOperationAsync(
+            var r = await context.PerformOperationWithTimeoutAsync(
                 tracer,
-                async () =>
+                async nestedContext =>
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(1));
                     return BoolResult.Success;
@@ -110,56 +110,6 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
                 timeout: TimeSpan.FromMinutes(10));
 
             r.ShouldBeSuccess();
-        }
-
-        [Fact]
-        public async Task TestPerformNonResultOperationAsyncTimeout()
-        {
-            var tracer = new Tracer("MyTracer");
-            var context = new OperationContext(new Context(TestGlobal.Logger));
-
-            try
-            {
-                await context.PerformNonResultOperationAsync(
-                    tracer,
-                    async () =>
-                    {
-                        await Task.Delay(TimeSpan.FromMinutes(1));
-                        return 42;
-                    },
-                    timeout: TimeSpan.FromMilliseconds(100));
-                Assert.False(true, "The operation should fail");
-            }
-            catch (TimeoutException)
-            { }
-        }
-
-        [Fact]
-        public async Task TestPerformOperationTimeoutWithDelay()
-        {
-            var tracer = new Tracer("MyTracer");
-            var context = new OperationContext(new Context(TestGlobal.Logger));
-
-            try
-            {
-                await context.PerformNonResultOperationAsync(
-                    tracer,
-                    async () =>
-                    {
-                        // This test case simulates a very synchronous pause in the thread.
-
-#pragma warning disable AsyncFixer02 // Long-running or blocking operations inside an async method
-                        Thread.Sleep(5_000);
-#pragma warning restore AsyncFixer02 // Long-running or blocking operations inside an async method
-
-                        await Task.Yield();
-                        return 42;
-                    },
-                    timeout: TimeSpan.FromSeconds(1));
-                Assert.False(true, "The operation should fail");
-            }
-            catch (TimeoutException)
-            { }
         }
 
         [Fact]

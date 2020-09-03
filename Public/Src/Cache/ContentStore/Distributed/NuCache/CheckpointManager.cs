@@ -323,9 +323,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             context = context.CreateNested(nameof(CheckpointManager));
             var checkpointId = checkpointState.CheckpointId;
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 _tracer,
-                async () =>
+                async nestedContext =>
                 {
                     bool successfullyUpdatedIncrementalState = false;
                     try
@@ -350,11 +350,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         using (new DisposableDirectory(_fileSystem, _checkpointStagingDirectory))
                         {
                             // Getting the checkpoint from the central store
-                            await _storage.TryGetFileAsync(context, checkpointId, checkpointFile, isImmutable: true).ThrowIfFailure();
+                            await _storage.TryGetFileAsync(nestedContext, checkpointId, checkpointFile, isImmutable: true).ThrowIfFailure();
 
                             if (isIncrementalCheckpoint)
                             {
-                                var incrementalRestoreResult = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
+                                var incrementalRestoreResult = await RestoreCheckpointIncrementalAsync(nestedContext, checkpointFile, extractedCheckpointDirectory);
                                 incrementalRestoreResult.ThrowIfFailure();
                             }
                             else
@@ -363,10 +363,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             }
 
                             // Restoring the checkpoint
-                            _database.RestoreCheckpoint(context, extractedCheckpointDirectory).ThrowIfFailure();
+                            _database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory).ThrowIfFailure();
 
                             // Save latest checkpoint info to file in case we get restarded and want to know about the previous checkpoint.
-                            WriteLatestCheckpoint(context, checkpointState);
+                            WriteLatestCheckpoint(nestedContext, checkpointState);
 
                             successfullyUpdatedIncrementalState = true;
                             return BoolResult.Success;
@@ -374,11 +374,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     finally
                     {
-                        ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
+                        ClearIncrementalCheckpointStateIfNeeded(nestedContext, successfullyUpdatedIncrementalState);
                     }
                 },
                 extraStartMessage: $"CheckpointId=[{checkpointId}]",
-                extraEndMessage: _ => $"CheckpointId=[{checkpointId}]");
+                extraEndMessage: _ => $"CheckpointId=[{checkpointId}]",
+                timeout: _configuration.RestoreCheckpointTimeout);
         }
 
         private void WriteLatestCheckpoint(OperationContext context, CheckpointState? checkpointState)

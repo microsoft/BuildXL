@@ -82,9 +82,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // UseReplicatedHashCoreAsync runs sequentially on different redis instances.
             // To prevent the potential hangs, forcing the timeout for all of them.
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                () => UseNonConcurrentReplicatedHashAsync(context, retryWindow, operation, addOperations, caller),
+                nestedContext => UseNonConcurrentReplicatedHashAsync(nestedContext, retryWindow, operation, addOperations, caller),
                 timeout: timeout,
                 traceErrorsOnly: true);
         }

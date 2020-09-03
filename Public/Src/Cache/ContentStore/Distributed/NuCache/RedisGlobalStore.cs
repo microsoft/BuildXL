@@ -591,24 +591,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
         {
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                async () =>
+                async nestedContext =>
                 {
                     Contract.Assert(sequencePoint.SequenceNumber != null);
 
                     var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, _configuration.PrimaryMachineLocation.ToString());
-                    Tracer.Debug(context, $"Saving checkpoint '{checkpoint}' into the central store.");
+                    Tracer.Debug(nestedContext, $"Saving checkpoint '{checkpoint}' into the central store.");
 
                     var slotNumber = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(
-                        context,
+                        nestedContext,
                         _configuration.RetryWindow,
                         RedisOperation.UploadCheckpoint,
                         (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount),
                         timeout: _configuration.ClusterRedisOperationTimeout)
                         .ThrowIfFailureAsync();
 
-                    Tracer.Debug(context, $"Saved checkpoint into slot '{slotNumber}'.");
+                    Tracer.Debug(nestedContext, $"Saved checkpoint into slot '{slotNumber}'.");
                     return BoolResult.Success;
                 },
                 Counters[GlobalStoreCounters.RegisterCheckpoint],
@@ -627,15 +627,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _ => throw new NotImplementedException($"Unexpected machine state transition to state: {state}"),
             };
 
-            return await context.PerformOperationAsync(
+            return await context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                async () =>
+                async nestedContext =>
                 {
                     var result = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                        context,
+                        nestedContext,
                         _configuration.RetryWindow,
                         RedisOperation.SetLocalMachineState,
-                        (batch, key) => CallHeartbeatAsync(context, ClusterState, batch, key, state),
+                        (batch, key) => CallHeartbeatAsync(nestedContext, ClusterState, batch, key, state),
                         timeout: _configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
 
                     return new Result<MachineState>(result.priorState);
@@ -650,9 +650,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                () => GetBlobAdapter(hash).PutBlobAsync(context, hash, blob),
+                nestedContext => GetBlobAdapter(hash).PutBlobAsync(nestedContext, hash, blob),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.PutBlob],
                 timeout: _configuration.BlobTimeout);
@@ -663,9 +663,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                () => GetBlobAdapter(hash).GetBlobAsync(context, hash),
+                nestedContext => GetBlobAdapter(hash).GetBlobAsync(nestedContext, hash),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.GetBlob],
                 timeout: _configuration.BlobTimeout);

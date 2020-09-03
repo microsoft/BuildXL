@@ -535,6 +535,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
 
         /// <summary>
+        /// Time after which a restore checkpoint operation is automatically cancelled.
+        /// </summary>
+        public TimeSpan? RestoreCheckpointTimeout { get; set; }
+
+        /// <summary>
         /// The interval by which LLS' heartbeat will update the cluster state. Default is to do it on every heartbeat.
         /// </summary>
         public TimeSpan? UpdateClusterStateInterval { get; set; }

@@ -74,6 +74,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         [CounterType(CounterType.Stopwatch)]
         GetAndDeserializeEventData,
 
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        DispatchBlobEventData,
+
         //
         // Send events counters
         //

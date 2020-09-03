@@ -180,34 +180,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private Task GetDeserializeAndDispatchBlobEventAsync(OperationContext context, BlobContentLocationEventData blobEvent, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
             int batchSize = -1;
+            TimeSpan? getAndDeserializedDuration = null;
+            TimeSpan? dispatchBlobEventDataDuration = null;
+
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
                     IReadOnlyList<ContentLocationEventData> eventDatas;
 
-                    using (counters[GetAndDeserializeEventData].Start())
+                    using (var timer = counters[GetAndDeserializeEventData].Start())
                     {
                         eventDatas = await getAndDeserializeLargeEventDataAsync();
+
+                        getAndDeserializedDuration = timer.Elapsed;
                     }
 
-                    batchSize = eventDatas.Count;
-                    foreach (var eventData in eventDatas)
+                    using (var timer = counters[DispatchBlobEventData].Start())
                     {
-                        if (eventData.Kind == EventKind.AddLocation
-                            || eventData.Kind == EventKind.AddLocationWithoutTouching
-                            || eventData.Kind == EventKind.RemoveLocation)
+                        batchSize = eventDatas.Count;
+                        foreach (var eventData in eventDatas)
                         {
-                            // Add or remove events only go through this code path if reconciling
-                            eventData.Reconciling = true;
+                            if (eventData.Kind == EventKind.AddLocation
+                                || eventData.Kind == EventKind.AddLocationWithoutTouching
+                                || eventData.Kind == EventKind.RemoveLocation)
+                            {
+                                // Add or remove events only go through this code path if reconciling
+                                eventData.Reconciling = true;
+                            }
+
+                            await DispatchAsync(context, eventData, counters);
                         }
 
-                        await DispatchAsync(context, eventData, counters);
+                        dispatchBlobEventDataDuration = timer.Elapsed;
                     }
 
                     return BoolResult.Success;
                 },
-                extraEndMessage: _ => $"Size=[{batchSize}]")
+                extraEndMessage: _ => $"BlobName={blobEvent.BlobId} Size=[{batchSize}] GetAndDeserializedDuration={getAndDeserializedDuration.GetValueOrDefault().TotalMilliseconds}ms DispatchBlobEventDuration={dispatchBlobEventDataDuration.GetValueOrDefault().TotalMilliseconds}ms")
                 .ThrowIfFailure();
 
             async Task<IReadOnlyList<ContentLocationEventData>> getAndDeserializeLargeEventDataAsync()

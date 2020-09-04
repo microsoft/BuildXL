@@ -2800,6 +2800,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Schedule constructed. Resolvers involved: [{frontendKinds}].")]
         public abstract void ScheduleConstructedWithConfiguration(LoggingContext context, string frontendKinds);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeSkipFlaggingSharedOpaqueOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_SkipFlaggingSharedOpaqueOutputs enabled: Shared opaque outputs won't be flagged. Subsequent builds will fail at identifying them as outputs and they won't be deleted before pips run.")]
+        public abstract void ConfigUnsafeSkipFlaggingSharedOpaqueOutputs(LoggingContext context);
     }
 
     /// <summary>

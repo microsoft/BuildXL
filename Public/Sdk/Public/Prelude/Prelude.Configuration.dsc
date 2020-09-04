@@ -328,6 +328,13 @@ interface UnsafeSandboxConfiguration {
      * Only has an effect on Windows-based OS. Mac sandbox already processes symlinks correctly.
      */
     processSymlinkedAccesses? : boolean;
+
+    /**
+     * When true, outputs produced under shared opaques won't be flagged as such.
+     * This means subsequent builds won't be able to recognize those as outputs and they won't be deleted before pips run.
+     * Defaults to false.
+     */
+    skipFlaggingSharedOpaqueOutputs?: boolean;
 }
 
 type DoubleWritePolicy =  

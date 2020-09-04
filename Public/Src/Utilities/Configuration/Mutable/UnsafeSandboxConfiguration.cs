@@ -76,6 +76,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
             ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
             ProcessSymlinkedAccesses = template.ProcessSymlinkedAccesses;
+            SkipFlaggingSharedOpaqueOutputs = template.SkipFlaggingSharedOpaqueOutputs;
         }
 
         /// <inheritdoc />
@@ -143,6 +144,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? ProcessSymlinkedAccesses { get; set; }
+
+        /// <inheritdoc/>
+        public bool? SkipFlaggingSharedOpaqueOutputs { get; set; }
 
     }
 }

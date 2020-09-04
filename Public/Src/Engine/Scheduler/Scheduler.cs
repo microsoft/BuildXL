@@ -4464,7 +4464,7 @@ namespace BuildXL.Scheduler
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
-            if (process.ExecutionResult?.SharedDynamicDirectoryWriteAccesses != null)
+            if (process.ExecutionResult?.SharedDynamicDirectoryWriteAccesses != null && !environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs())
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
@@ -6556,7 +6556,7 @@ namespace BuildXL.Scheduler
 
         private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
         {
-            if (IsPathUnderSharedOpaqueDirectory(path))
+            if (!m_configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() && IsPathUnderSharedOpaqueDirectory(path))
             {
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
                 return true;

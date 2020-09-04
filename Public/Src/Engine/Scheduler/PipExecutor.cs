@@ -695,7 +695,8 @@ namespace BuildXL.Scheduler
 
         private static void MakeSharedOpaqueOutputIfNeeded(IPipExecutionEnvironment environment, AbsolutePath path)
         {
-            if (environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
+            if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() && 
+                environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
             {
                 string expandedPath = path.ToString(environment.Context.PathTable);
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(expandedPath);

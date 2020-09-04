@@ -171,6 +171,13 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool? ProcessSymlinkedAccesses { get; }
 
+        /// <summary>
+        /// When true, outputs produced under shared opaques won't be flagged as such.
+        /// </summary>
+        /// <remarks>
+        /// This means subsequent builds won't be able to recognize those as outputs and they won't be deleted before pips run
+        /// </remarks>
+        bool? SkipFlaggingSharedOpaqueOutputs { get; }
 
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
@@ -228,6 +235,11 @@ namespace BuildXL.Utilities.Configuration
                 writer.Write(@this.ProcessSymlinkedAccesses.Value);
             }
             writer.Write(@this.IgnoreFullReparsePointResolving);
+            writer.Write(@this.SkipFlaggingSharedOpaqueOutputs.HasValue);
+            if (@this.SkipFlaggingSharedOpaqueOutputs.HasValue)
+            {
+                writer.Write(@this.SkipFlaggingSharedOpaqueOutputs.Value);
+            }
         }
 
         /// <nodoc/>
@@ -257,6 +269,7 @@ namespace BuildXL.Utilities.Configuration
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
                 ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
+                SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
             };
         }
 
@@ -287,8 +300,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
-                && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses());
-
+                && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses()
+                && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs()));
         }
 
         /// <nodoc />

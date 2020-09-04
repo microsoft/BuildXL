@@ -32,8 +32,6 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public SharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
-            // TODO: remove when the default changes.
-            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreUndeclaredAccessesUnderSharedOpaques = false;
         }
 
         /// <summary>

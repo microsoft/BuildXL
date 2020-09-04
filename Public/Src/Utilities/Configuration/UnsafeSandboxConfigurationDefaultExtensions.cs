@@ -19,6 +19,9 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public const bool DefaultProcessSymlinkedAccesses = false;
 
+        /// <nodoc/>
+        public const bool DefaultSkipFlaggingSharedOpaqueOutputs = false;
+
         // Extension methods
 
         /// <nodoc/>
@@ -34,6 +37,10 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool ProcessSymlinkedAccesses(this IUnsafeSandboxConfiguration configuration) =>
             (configuration.ProcessSymlinkedAccesses ?? DefaultProcessSymlinkedAccesses) && !OperatingSystemHelper.IsMacOS;
+
+        /// <nodoc/>
+        public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfiguration configuration) =>
+            (configuration.SkipFlaggingSharedOpaqueOutputs ?? DefaultSkipFlaggingSharedOpaqueOutputs);
 
     }
 }

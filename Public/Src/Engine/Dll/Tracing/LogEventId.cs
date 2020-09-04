@@ -114,7 +114,7 @@ namespace BuildXL.Engine.Tracing
         ConfigProbeDirectorySymlinkAsDirectory = 940,
         ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
         ConfigIgnoreFullReparsePointResolving = 942,
-
+        ConfigUnsafeSkipFlaggingSharedOpaqueOutputs = 943,
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,

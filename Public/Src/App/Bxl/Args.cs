@@ -1207,6 +1207,10 @@ namespace BuildXL
                                 }
                             },
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_SkipFlaggingSharedOpaqueOutputs",
+                            sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = sign; },
+                            isUnsafe: true),
                         // </ end unsafe options>
                          OptionHandlerFactory.CreateBoolOption(
                             "useCustomPipDescriptionOnConsole",

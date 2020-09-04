@@ -63,7 +63,8 @@ namespace BuildXL.Pips.Graph
         /// 86: Normalize casing of ObservedAccessedFileNames.
         /// 87: Changed the cleaning logic of SOD for retries.
         /// 88: ObservationFlags are preserved for AbsentPathProbe.
+        /// 89: Add unsafe sandbox option SkipFlaggingSharedOpaqueOutputs
         /// </remarks>
-        TwoPhaseV2 = 88,
+        TwoPhaseV2 = 89,
     }
 }

@@ -96,5 +96,28 @@ namespace BuildXL.Scheduler
         /// The total size of materialized outputs.
         /// </summary>
         public long TotalMaterializedOutputsSize;
+
+        /// <summary>
+        /// The total count of materialized inputs.
+        /// </summary>
+        public long TotalMaterializedInputsCount;
+
+        /// <summary>
+        /// The total count of materialized outputs.
+        /// </summary>
+        public long TotalMaterializedOutputsCount;
+
+        /// <summary>
+        /// The total count of expensive materialized input operations.
+        /// </summary>
+        public long TotalMaterializedInputsExpensiveCount;
+
+        /// <summary>
+        /// The total count of expensive materialized output operations.
+        /// </summary>
+        public long TotalMaterializedOutputsExpensiveCount;
+        
+
+
     }
 }

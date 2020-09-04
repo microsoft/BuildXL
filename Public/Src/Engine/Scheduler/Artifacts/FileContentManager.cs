@@ -2022,7 +2022,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
                 else
                 {
-                    using (outerContext.StartOperation(
+                    using (var op = outerContext.StartOperation(
                         (reparsePointTarget.IsValid || materializationInfo.ReparsePointInfo.IsActionableReparsePoint)
                             ? PipExecutorCounter.TryMaterializeReparsePointDuration
                             : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
@@ -2082,13 +2082,28 @@ namespace BuildXL.Scheduler.Artifacts
 
                             if (possiblyPlaced.Succeeded)
                             {
+                                // Materialization will fail after 30m due to timeout limit. At the same time,
+                                // we'd like to find out for how many operations the materialization takes more than 5 min.
+                                // We hard-coded this limit as we do not want to get it used by somewhere else in this class.
+                                bool longOperation = op.Duration.HasValue && op.Duration.Value.TotalMinutes > 5;
+
                                 if (state.MaterializingOutputs)
                                 {
                                     Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
+                                    Interlocked.Increment(ref m_stats.TotalMaterializedOutputsCount);
+                                    if (longOperation)
+                                    {
+                                        Interlocked.Increment(ref m_stats.TotalMaterializedOutputsExpensiveCount);
+                                    }
                                 }
                                 else
                                 {
                                     Interlocked.Add(ref m_stats.TotalMaterializedInputsSize, materializationInfo.Length);
+                                    Interlocked.Increment(ref m_stats.TotalMaterializedInputsCount);
+                                    if (longOperation)
+                                    {
+                                        Interlocked.Increment(ref m_stats.TotalMaterializedInputsExpensiveCount);
+                                    }
                                 }
                             }
 
@@ -3420,6 +3435,10 @@ namespace BuildXL.Scheduler.Artifacts
 
             statistics.Add(Statistics.TotalMaterializedInputsSize, m_stats.TotalMaterializedInputsSize);
             statistics.Add(Statistics.TotalMaterializedOutputsSize, m_stats.TotalMaterializedOutputsSize);
+            statistics.Add(Statistics.TotalMaterializedInputsCount, m_stats.TotalMaterializedInputsCount);
+            statistics.Add(Statistics.TotalMaterializedOutputsCount, m_stats.TotalMaterializedOutputsCount);
+            statistics.Add(Statistics.TotalMaterializedInputsExpensiveCount, m_stats.TotalMaterializedInputsExpensiveCount);
+            statistics.Add(Statistics.TotalMaterializedOutputsExpensiveCount, m_stats.TotalMaterializedOutputsExpensiveCount);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
         }

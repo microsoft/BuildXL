@@ -294,4 +294,16 @@
   <data name="TotalMaterializedOutputsSize" xml:space="preserve">
     <value>TotalMaterializedOutputsSize</value>
   </data>
+  <data name="TotalMaterializedInputsCount" xml:space="preserve">
+    <value>TotalMaterializedInputsCount</value>
+  </data>
+  <data name="TotalMaterializedInputsExpensiveCount" xml:space="preserve">
+    <value>TotalMaterializedInputsExpensiveCount</value>
+  </data>
+  <data name="TotalMaterializedOutputsCount" xml:space="preserve">
+    <value>TotalMaterializedOutputsCount</value>
+  </data>
+  <data name="TotalMaterializedOutputsExpensiveCount" xml:space="preserve">
+    <value>TotalMaterializedOutputsExpensiveCount</value>
+  </data>
 </root>

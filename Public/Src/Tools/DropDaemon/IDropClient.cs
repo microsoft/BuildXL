@@ -55,6 +55,9 @@ namespace Tool.DropDaemon
 
         /// <summary>Indicates that the file had to be uploaded.</summary>
         UploadedAndAssociated = 1,
+
+        /// <summary>Indicates that the file was skipped because a duplicate has already been encountered in the same batch.</summary>
+        SkippedAsDuplicate = 2,
     }
 
     /// <summary>

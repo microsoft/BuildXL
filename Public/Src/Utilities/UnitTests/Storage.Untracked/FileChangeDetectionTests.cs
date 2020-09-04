@@ -2090,7 +2090,7 @@ namespace Test.BuildXL.Storage.Admin
                 string path = GetFullPath(relative);
 
                 var calculator = DirectoryMembershipTrackingFingerprint.CreateCalculator();
-                var diff = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var diff = new HashSet<string>(OperatingSystemHelper.PathComparer);
 
                 Possible<FileChangeTrackingSet.EnumerationResult> possibleEnumeration = m_changeTrackingSet.TryEnumerateDirectoryAndTrackMembership(
                     path,
@@ -2151,7 +2151,7 @@ namespace Test.BuildXL.Storage.Admin
 
         private class DetectedChanges
         {
-            private readonly Dictionary<string, PathChanges> m_changedPaths = new Dictionary<string, PathChanges>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, PathChanges> m_changedPaths = new Dictionary<string, PathChanges>(OperatingSystemHelper.PathComparer);
             private readonly ChangeDetectionSupport m_support;
 
             private DetectedChanges(ChangeDetectionSupport support)
@@ -2198,7 +2198,7 @@ namespace Test.BuildXL.Storage.Admin
 
             public void AssertChangedExactly(params Tuple<PathChanges, string>[] relativePaths)
             {
-                Dictionary<string, PathChanges> expected = new Dictionary<string, PathChanges>(StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, PathChanges> expected = new Dictionary<string, PathChanges>(OperatingSystemHelper.PathComparer);
                 foreach (Tuple<PathChanges, string> expectedChangeRelative in relativePaths)
                 {
                     string fullPath = m_support.GetFullPath(expectedChangeRelative.Item2);
@@ -2266,7 +2266,7 @@ namespace Test.BuildXL.Storage.Admin
             {
                 string[] orderedPaths = m_changedPaths.Select(kvp => string.Format("{0} ({1})", kvp.Key, kvp.Value)).ToArray();
 
-                Array.Sort(orderedPaths, StringComparer.OrdinalIgnoreCase);
+                Array.Sort(orderedPaths, OperatingSystemHelper.PathComparer);
                 return string.Format(CultureInfo.InvariantCulture, "Actual changed paths:\r\n\t{0}", string.Join("\r\n\t", orderedPaths));
             }
         }

@@ -695,7 +695,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(contentDiscoveryResult.Succeeded);
 
             var substTargetPath = directoryTranslator.Translate(targetPath, harness.Context.PathTable);
-            var contentHash = ContentHashingUtilities.HashString(substTargetPath.ToString(harness.Context.PathTable).ToUpperInvariant());
+            var contentHash = ContentHashingUtilities.HashString(substTargetPath.ToString(harness.Context.PathTable).ToCanonicalizedPath());
 
             XAssert.AreEqual(contentHash, contentDiscoveryResult.Result.TrackedFileContentInfo.Hash);
         }
@@ -749,7 +749,7 @@ namespace Test.BuildXL.Engine.Cache
             Possible<ContentDiscoveryResult> contentDiscoveryResult = await harness.Store.TryDiscoverAsync(FileArtifact.CreateSourceFile(symlink));
             XAssert.IsTrue(contentDiscoveryResult.Succeeded);
 
-            var contentHash = ContentHashingUtilities.HashString(symLinkTarget.ToUpperInvariant());
+            var contentHash = ContentHashingUtilities.HashString(symLinkTarget.ToCanonicalizedPath());
             XAssert.AreEqual(contentHash, contentDiscoveryResult.Result.TrackedFileContentInfo.Hash);
 
             Directory.SetCurrentDirectory(currentDirectory);

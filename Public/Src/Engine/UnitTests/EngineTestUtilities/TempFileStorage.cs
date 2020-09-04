@@ -20,7 +20,7 @@ namespace Test.BuildXL.TestUtilities
     {
         private readonly bool m_canGetFileNames;
         private readonly List<string> m_fileNames = new List<string>();
-        private readonly HashSet<string> m_directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_directories = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly Dictionary<SandboxedProcessFile, string> m_sandboxedProcessFiles = new Dictionary<SandboxedProcessFile, string>();
         private volatile string m_rootDirectory;
 
@@ -273,7 +273,7 @@ namespace Test.BuildXL.TestUtilities
                 return false;
             }
 
-            return m_directories.Contains(directoryPath) || string.Equals(RootDirectory, directoryPath, StringComparison.OrdinalIgnoreCase);
+            return m_directories.Contains(directoryPath) || string.Equals(RootDirectory, directoryPath, OperatingSystemHelper.PathComparison);
         }
 
         private void AssertCanGetFileNames()

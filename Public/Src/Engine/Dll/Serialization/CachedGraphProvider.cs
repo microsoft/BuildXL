@@ -885,7 +885,7 @@ namespace BuildXL.Engine
             Contract.Requires(hasher != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(name));
 
-            name = name.ToUpperInvariant();
+            name = name.ToCanonicalizedEnvVar();
             comparedValue = InputTracker.NormalizeEnvironmentVariableValue(comparedValue).ToUpperInvariant();
             string value = InputTracker.NormalizeEnvironmentVariableValue(buildParameters.ContainsKey(name) ? buildParameters[name] : null).ToUpperInvariant();
 
@@ -914,12 +914,12 @@ namespace BuildXL.Engine
             Contract.Requires(!string.IsNullOrWhiteSpace(name));
 
             name = name.ToUpperInvariant();
-            comparedValue = comparedValue != null ? comparedValue.ToUpperInvariant() : NullPathMarker;
-            string value = mounts.TryGetValue(name, out IMount mountValue) && mountValue != null ? mountValue.Path.ToString(PathTable).ToUpperInvariant() : NullPathMarker;
+            comparedValue = comparedValue != null ? comparedValue.ToCanonicalizedPath() : NullPathMarker;
+            string value = mounts.TryGetValue(name, out IMount mountValue) && mountValue != null ? mountValue.Path.ToString(PathTable).ToCanonicalizedPath() : NullPathMarker;
 
             hasher.Add(name, value);
 
-            if (!string.Equals(comparedValue, value, StringComparison.OrdinalIgnoreCase) && ++mountInputDifferenceCount < InputDifferencesLimit)
+            if (!string.Equals(comparedValue, value, OperatingSystemHelper.PathComparison) && ++mountInputDifferenceCount < InputDifferencesLimit)
             {
                 var mismatch = new MismatchedMountInput(name, comparedValue, value);
                 Tracing.Logger.Log.MismatchInputInGraphInputDescriptor(m_loggingContext, providerContext.ToString(), hop, mismatch.ToString());

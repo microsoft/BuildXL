@@ -54,7 +54,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 var allEnvironmentVariables = Environment.GetEnvironmentVariables();
                 processEnvironmentUsed = true;
-                trackedEnv = new Dictionary<string, string>(allEnvironmentVariables.Count, StringComparer.OrdinalIgnoreCase);
+                trackedEnv = new Dictionary<string, string>(allEnvironmentVariables.Count, OperatingSystemHelper.EnvVarComparer);
                 foreach (var envVar in allEnvironmentVariables.Keys)
                 {
                     object value = allEnvironmentVariables[envVar];
@@ -66,7 +66,7 @@ namespace BuildXL.Utilities.Configuration
             }
 
             processEnvironmentUsed = false;
-            var trackedList = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var trackedList = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             var passthroughList = new List<string>();
 
             foreach (var kvp in rushResolverSettings.Environment)

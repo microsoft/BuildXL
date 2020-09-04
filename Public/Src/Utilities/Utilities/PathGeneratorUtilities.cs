@@ -21,14 +21,15 @@ namespace BuildXL.Utilities
         /// <param name="dirList">An optional parameter for a sequence of directories in the path
         /// that follow the root, where dirList[i+1] is the child directory of dirList[i]</param>
         public static string GetAbsolutePath(string driveLetter, params string[] dirList)
-        {          
-            string path = string.Empty;
+        {
+            string path;
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 if(driveLetter == null)
                 {
                     driveLetter = "x";
                 }
+
                 path = driveLetter + Path.VolumeSeparatorChar + Path.DirectorySeparatorChar + GetRelativePath(dirList);
             }
             else

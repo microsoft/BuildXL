@@ -280,7 +280,7 @@ namespace BuildXL.Engine
             /// <inheritdoc />
             public int Compare(EnvironmentVariableInput x, EnvironmentVariableInput y)
             {
-                return string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(x.Name, y.Name, OperatingSystemHelper.EnvVarComparison);
             }
         }
 
@@ -309,7 +309,7 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public bool Equals(EnvironmentVariableInput other)
         {
-            return string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase) &&
+            return string.Equals(Name, other.Name, OperatingSystemHelper.EnvVarComparison) &&
                    string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -356,7 +356,7 @@ namespace BuildXL.Engine
             /// <inheritdoc />
             public int Compare(MountInput x, MountInput y)
             {
-                return string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(x.Name, y.Name, OperatingSystemHelper.PathComparison);
             }
         }
 
@@ -382,7 +382,7 @@ namespace BuildXL.Engine
         }
 
         /// <inheritdoc />
-        public bool Equals(MountInput other) => string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase) && Path == other.Path;
+        public bool Equals(MountInput other) => string.Equals(Name, other.Name, OperatingSystemHelper.PathComparison) && Path == other.Path;
 
         /// <inheritdoc />
         public override bool Equals(object obj)

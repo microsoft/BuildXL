@@ -403,8 +403,8 @@ namespace Test.BuildXL.Scheduler.Utils
                     string.Join(
                         "|",
                         Directory.EnumerateFileSystemEntries(directoryPath.ToString(Context.PathTable))
-                            .Select(fullPath => Path.GetFileName(fullPath).ToUpperInvariant())
-                            .OrderBy(fileName => fileName, StringComparer.Ordinal));
+                            .Select(fullPath => Path.GetFileName(fullPath).ToCanonicalizedPath())
+                            .OrderBy(fileName => fileName, OperatingSystemHelper.PathComparer));
                 ContentHash listingHash = ContentHashingUtilities.HashBytes(Encoding.Unicode.GetBytes(canonicalizedDirectoryListing));
                 return new DirectoryFingerprint(listingHash);
             }

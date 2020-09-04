@@ -69,7 +69,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <inheritdoc />
         public void ReinitializeRealizationModeTracking()
         {
-            m_pathRealizationModes = new ConcurrentDictionary<string, FileRealizationMode>(StringComparer.OrdinalIgnoreCase);
+            m_pathRealizationModes = new ConcurrentDictionary<string, FileRealizationMode>(OperatingSystemHelper.PathComparer);
         }
 
         /// <nodoc />

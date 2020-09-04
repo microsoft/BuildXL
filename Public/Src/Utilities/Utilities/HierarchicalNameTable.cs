@@ -1951,7 +1951,7 @@ namespace BuildXL.Utilities
             /// </summary>
             public bool Validate(StringTable stringTable)
             {
-                return NodeMap.Validate(new NodeComparer(HierarchicalNameTable.CreateEqualityComparer(stringTable, IgnoreCase)));
+                return NodeMap.Validate(new NodeComparer(CreateEqualityComparer(stringTable, IgnoreCase)));
             }
         }
 

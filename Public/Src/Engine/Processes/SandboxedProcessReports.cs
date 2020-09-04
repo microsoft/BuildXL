@@ -36,7 +36,7 @@ namespace BuildXL.Processes
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_activeProcesses = new ConcurrentDictionary<uint, ReportedProcess>();
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new ConcurrentDictionary<uint, ReportedProcess>();
 
-        private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(OperatingSystemHelper.PathComparer);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
 
         [CanBeNull]

@@ -3989,11 +3989,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Checks if a path starts with a prefix, given the fact that the path may start with "\??\" or "\\?\".
         /// </summary>
-        private static bool PathStartsWith(string path, string prefix)
+        private static bool PathStartsWith(string path, string prefix, StringComparison? comparison = default)
         {
-            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                   || path.StartsWith(@"\??\" + prefix, StringComparison.OrdinalIgnoreCase)
-                   || path.StartsWith(@"\\?\" + prefix, StringComparison.OrdinalIgnoreCase);
+            comparison = comparison ?? OperatingSystemHelper.PathComparison;
+
+            return path.StartsWith(prefix, comparison.Value)
+                   || path.StartsWith(@"\??\" + prefix, comparison.Value)
+                   || path.StartsWith(@"\\?\" + prefix, comparison.Value);
         }
 
         private void RemoveEmptyOrInjectableFileAccesses(Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
@@ -4323,7 +4325,7 @@ namespace BuildXL.Processes
 
                 Func<string[], string> pathAggregator = (paths) =>
                     {
-                        Array.Sort(paths, StringComparer.OrdinalIgnoreCase);
+                        Array.Sort(paths, OperatingSystemHelper.PathComparer);
                         return string.Join(Environment.NewLine, paths);
                     };
 
@@ -4943,7 +4945,7 @@ namespace BuildXL.Processes
 
             static bool hasProcessName(ReportedProcess pr, string name)
             {
-                return string.Equals(Path.GetFileName(pr.Path), name, StringComparison.OrdinalIgnoreCase);
+                return string.Equals(Path.GetFileName(pr.Path), name, OperatingSystemHelper.PathComparison);
             }
 
             static string getProcessArgs(ReportedProcess pr)
@@ -5114,7 +5116,7 @@ namespace BuildXL.Processes
             result = false;
             foreach (var incrementalToolSuffix in m_incrementalToolFragments)
             {
-                if (toolPath.EndsWith(incrementalToolSuffix, StringComparison.OrdinalIgnoreCase))
+                if (toolPath.EndsWith(incrementalToolSuffix, OperatingSystemHelper.PathComparison))
                 {
                     result = true;
                     break;

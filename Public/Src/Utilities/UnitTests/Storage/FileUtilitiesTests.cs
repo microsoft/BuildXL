@@ -474,9 +474,9 @@ namespace Test.BuildXL.Storage
                 var chain = new List<string>();
                 FileUtilities.GetChainOfReparsePoints(handle, sourceLink, chain);
                 XAssert.AreEqual(3, chain.Count, "Chain of reparse points: " + string.Join(" -> ", chain));
-                XAssert.AreEqual(sourceLink.ToUpperInvariant(), TrimPathPrefix(chain[0].ToUpperInvariant()));
-                XAssert.AreEqual(intermediateLink.ToUpperInvariant(), TrimPathPrefix(chain[1].ToUpperInvariant()));
-                XAssert.AreEqual(targetFile.ToUpperInvariant(), TrimPathPrefix(chain[2].ToUpperInvariant()));
+                XAssert.AreEqual(sourceLink.ToCanonicalizedPath(), TrimPathPrefix(chain[0].ToCanonicalizedPath()));
+                XAssert.AreEqual(intermediateLink.ToCanonicalizedPath(), TrimPathPrefix(chain[1].ToCanonicalizedPath()));
+                XAssert.AreEqual(targetFile.ToCanonicalizedPath(), TrimPathPrefix(chain[2].ToCanonicalizedPath()));
             }
         }
 
@@ -779,7 +779,7 @@ namespace Test.BuildXL.Storage
             link = FL(link, target);
             var maybeActual = m_testFileSystem.TryResolveReparsePointRelativeTarget(link, target);
             XAssert.IsTrue(maybeActual.Succeeded, maybeActual.Succeeded ? string.Empty : maybeActual.Failure.Describe());
-            XAssert.AreEqual(expected.ToUpperInvariant(), maybeActual.Result.ToUpperInvariant());
+            XAssert.AreEqual(expected.ToCanonicalizedPath(), maybeActual.Result.ToCanonicalizedPath());
         }
 
         [Fact]

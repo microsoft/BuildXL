@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Utilities;
 
 namespace BuildXL.Storage.ChangeTracking
 {
@@ -37,7 +38,7 @@ namespace BuildXL.Storage.ChangeTracking
                 return false;
             }
 
-            return string.Equals(Path, other.Path, System.StringComparison.OrdinalIgnoreCase);
+            return string.Equals(Path, other.Path, OperatingSystemHelper.PathComparison);
         }
 
         /// <inheritdoc />

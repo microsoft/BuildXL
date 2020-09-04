@@ -470,7 +470,7 @@ namespace BuildXL.Native.IO
             Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
             Contract.Requires(!string.IsNullOrWhiteSpace(destinationPath));
 
-            if (string.Compare(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(sourcePath, destinationPath, OperatingSystemHelper.PathComparison) == 0)
             {
                 return Task.FromResult(FileDuplicationResult.Existed); // Nothing to do.
             }
@@ -664,7 +664,7 @@ namespace BuildXL.Native.IO
 
                         if (possibleExistingSymlinkTarget.Succeeded && possibleExistingSymlinkType.Succeeded)
                         {
-                            shouldCreate = !string.Equals(reparsePointTarget, possibleExistingSymlinkTarget.Result, StringComparison.OrdinalIgnoreCase) || type != possibleExistingSymlinkType.Result;
+                            shouldCreate = !string.Equals(reparsePointTarget, possibleExistingSymlinkTarget.Result, OperatingSystemHelper.PathComparison) || type != possibleExistingSymlinkType.Result;
                         }
                     }
                 }
@@ -1320,11 +1320,11 @@ namespace BuildXL.Native.IO
 
             string directoryHandlePath = GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
 
-            if (!string.Equals(referenceFullPath, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(referenceFullPath, directoryHandlePath, OperatingSystemHelper.PathComparison))
             {
                 string commonPath = referenceFullPath.Substring(2); // Include '\' of '<Drive>:\'  for searching.
                 substTarget = referenceFullPath.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
-                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
+                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, OperatingSystemHelper.PathComparison);
 
                 if (commonIndex == -1)
                 {

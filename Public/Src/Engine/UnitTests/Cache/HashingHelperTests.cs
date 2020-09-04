@@ -71,7 +71,7 @@ namespace Test.BuildXL.Engine.Cache
                     AbsolutePath path = AbsolutePath.Create(pt, FancyPath);
                     h.Add(path);
                 },
-                $"[Path][00000010]{FancyPath.ToUpperInvariant()}");
+                $"[Path][00000010]{FancyPath.ToCanonicalizedPath()}");
         }
 
         [Fact]
@@ -83,7 +83,7 @@ namespace Test.BuildXL.Engine.Cache
                 {
                     h.Add(AbsolutePath.Create(pt, absPath));
                 },
-                $"[Path][00000019]{absPath.ToUpperInvariant()}");
+                $"[Path][00000019]{absPath.ToCanonicalizedPath()}");
         }
 
         [Fact]
@@ -95,7 +95,7 @@ namespace Test.BuildXL.Engine.Cache
                 {
                     h.Add(AbsolutePath.Create(pt, absPath));
                 },
-                $"[Path][00000026]{absPath.ToUpperInvariant()}");
+                $"[Path][00000026]{absPath.ToCanonicalizedPath()}");
         }
 
         [Fact]
@@ -107,7 +107,7 @@ namespace Test.BuildXL.Engine.Cache
                 {
                     h.Add(AbsolutePath.Create(pt, absPath));
                 },
-                $"[Path][00000029]{absPath.ToUpperInvariant()}");
+                $"[Path][00000029]{absPath.ToCanonicalizedPath()}");
         }
 
         [Fact]
@@ -118,7 +118,7 @@ namespace Test.BuildXL.Engine.Cache
                 {
                     h.Add("Abc", AbsolutePath.Create(pt, FancyPath));
                 },
-                $"[[00000003]Abc:Path][00000010]{FancyPath.ToUpperInvariant()}");
+                $"[[00000003]Abc:Path][00000010]{FancyPath.ToCanonicalizedPath()}");
         }
 
         [Fact]
@@ -130,7 +130,7 @@ namespace Test.BuildXL.Engine.Cache
                     AbsolutePath path = AbsolutePath.Create(pt, FancyPath);
                     h.Add(path, ContentHashingUtilities.EmptyHash);
                 },
-                $"[HashedPath][00000010]{FancyPath.ToUpperInvariant()}|1E57CF2792A900D06C1CDFB3C453F35BC86F72788AA9724C96C929D1CC6B456A00");
+                $"[HashedPath][00000010]{FancyPath.ToCanonicalizedPath()}|1E57CF2792A900D06C1CDFB3C453F35BC86F72788AA9724C96C929D1CC6B456A00");
         }
 
         [Fact]
@@ -142,7 +142,7 @@ namespace Test.BuildXL.Engine.Cache
                     AbsolutePath path = AbsolutePath.Create(pt, FancyPath);
                     h.Add("Abc", path, ContentHashingUtilities.EmptyHash);
                 },
-                $"[[00000003]Abc:HashedPath][00000010]{FancyPath.ToUpperInvariant()}|1E57CF2792A900D06C1CDFB3C453F35BC86F72788AA9724C96C929D1CC6B456A00");
+                $"[[00000003]Abc:HashedPath][00000010]{FancyPath.ToCanonicalizedPath()}|1E57CF2792A900D06C1CDFB3C453F35BC86F72788AA9724C96C929D1CC6B456A00");
         }
 
         [Fact]

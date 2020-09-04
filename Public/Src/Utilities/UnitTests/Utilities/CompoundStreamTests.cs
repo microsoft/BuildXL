@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -18,7 +19,7 @@ namespace Test.BuildXL.Utilities
     public class CompoundStreamTests : XunitBuildXLTest
     {
         private Dictionary<string, ReadOnlyArray<byte>> m_fileSystem = 
-            new Dictionary<string, ReadOnlyArray<byte>>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, ReadOnlyArray<byte>>(OperatingSystemHelper.PathComparer);
 
         private const int CheckBytesUsingReadBufferSize = 1231;
 
@@ -54,7 +55,7 @@ namespace Test.BuildXL.Utilities
 
             var allFiles = m_fileSystem.Keys.ToArray();
 
-            var fileIdMap = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var fileIdMap = new ConcurrentDictionary<string, int>(OperatingSystemHelper.PathComparer);
             var filesWithIds = new BlockingCollection<string>();
 
             var zipLikePath = "ZipLikeCompoundStream";
@@ -96,7 +97,7 @@ namespace Test.BuildXL.Utilities
                 m_fileSystem[zipLikePath] = zipLikeFileStream.ToArray().ToReadOnlyArray();
             }
 
-            var readFileIdMap = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var readFileIdMap = new ConcurrentDictionary<string, int>(OperatingSystemHelper.PathComparer);
             var readFilesWithIds = new BlockingCollection<string>();
 
             using (var zipLikeStream = CompoundStream.OpenRead(() => OpenRead(zipLikePath)))

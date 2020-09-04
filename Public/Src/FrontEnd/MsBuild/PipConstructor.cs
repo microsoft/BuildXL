@@ -158,7 +158,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private IReadOnlyDictionary<string, string> CreateEnvironment(AbsolutePath logDirectory, ProjectWithPredictions project)
         {
-            var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var env = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
 
             //
             // Initial environment variables that may be overwritten by the outer environment.

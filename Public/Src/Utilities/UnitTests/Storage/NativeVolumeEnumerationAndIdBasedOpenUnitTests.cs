@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
+using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -197,7 +198,7 @@ namespace Test.BuildXL.Storage
                 ulong serial = FileUtilities.GetVolumeSerialNumberByHandle(directoryHandle);
                 VolumeGuidPath volumeGuidPath = volumePathsAndSerials.Single(t => t.Item2 == serial).Item1;
 
-                XAssert.IsTrue(directoryHandlePath.ToUpperInvariant().StartsWith(volumeGuidPath.Path.ToUpperInvariant()), "GUID path fo the volume should be a prefix of the path to the directory");
+                XAssert.IsTrue(directoryHandlePath.ToCanonicalizedPath().StartsWith(volumeGuidPath.Path.ToCanonicalizedPath()), "GUID path fo the volume should be a prefix of the path to the directory");
             }
         }
 

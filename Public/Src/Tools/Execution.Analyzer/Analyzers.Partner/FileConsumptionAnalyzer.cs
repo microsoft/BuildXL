@@ -307,7 +307,7 @@ namespace BuildXL.Execution.Analyzer
                 m_fileSizes.TryGetValue(path, out var size);
 
                 m_writerFiles.WriteLine("\"{0}\",{1},{2},{3}",
-                    path.ToString(PathTable).ToUpperInvariant(),
+                    path.ToString(PathTable).ToCanonicalizedPath(),
                     size,
                     PipTable.GetFormattedSemiStableHash(m_producedFiles[path].Producer),
                     string.Join(";", m_producedFiles[path].Consumers.Take(MaxConsumers).Select(pipId => PipTable.GetFormattedSemiStableHash(pipId))));

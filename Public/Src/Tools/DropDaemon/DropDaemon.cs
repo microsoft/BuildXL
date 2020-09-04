@@ -865,13 +865,13 @@ namespace Tool.DropDaemon
 
         private static (IEnumerable<DropItemForBuildXLFile>, string error) DedupeDropItems(IEnumerable<DropItemForBuildXLFile> dropItems)
         {
-            var dropItemsByDropPaths = new Dictionary<string, DropItemForBuildXLFile>(StringComparer.OrdinalIgnoreCase);
+            var dropItemsByDropPaths = new Dictionary<string, DropItemForBuildXLFile>(OperatingSystemHelper.PathComparer);
 
             foreach (var dropItem in dropItems)
             {
                 if (dropItemsByDropPaths.TryGetValue(dropItem.RelativeDropPath, out var existingDropItem))
                 {
-                    if (!string.Equals(dropItem.FullFilePath, existingDropItem.FullFilePath, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(dropItem.FullFilePath, existingDropItem.FullFilePath, OperatingSystemHelper.PathComparison))
                     {
                         return (
                           null,

@@ -142,7 +142,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </summary>
         protected virtual Dictionary<string, string> DoCreateEnvironment(JavaScriptProject project)
         {
-            var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var env = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
 
             //
             // Initial environment variables that may be overwritten by the outer environment.

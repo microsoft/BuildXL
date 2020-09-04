@@ -381,10 +381,10 @@ namespace BuildXL.Execution.Analyzer
     {
         private Pip m_pip;
 
-        private readonly HashSet<string> m_inputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> m_outputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> m_opaqueInputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> m_opaqueOutputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_inputFiles = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_outputFiles = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_opaqueInputDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_opaqueOutputDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly string m_executable = null;
         private readonly string m_stdInFile = null;
         private readonly string m_stdInData = null;
@@ -395,8 +395,8 @@ namespace BuildXL.Execution.Analyzer
         private readonly string m_arguments = null;
         private readonly HashSet<SealDirectoryStrings> m_sealDirectoryInputs = new HashSet<SealDirectoryStrings>(); // no opaques here
         private readonly HashSet<string> m_tags = new HashSet<string>();
-        private readonly HashSet<string> m_untrackedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> m_untrackedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_untrackedPaths = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_untrackedScopes = new HashSet<string>(OperatingSystemHelper.PathComparer);
         private readonly string m_writeFileContents = null;
         private readonly WriteFileEncoding m_writeFileEncoding = 0;
 

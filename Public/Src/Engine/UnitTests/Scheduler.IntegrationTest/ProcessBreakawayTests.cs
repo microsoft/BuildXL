@@ -99,7 +99,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // The source file under the full seal directory should be part of the path set for the pip
             XAssert.Contains(result.PathSets[pip.Process.PipId].Value.Paths.Select(pathEntry => pathEntry.Path), sourceInFullySealed);
             // There should be a single produced output (the mandatory one)
-            XAssert.IsTrue(EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToUpperInvariant().Contains(output.Path.ToString(Context.PathTable).ToUpperInvariant()));
+            XAssert.IsTrue(EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToCanonicalizedPath().Contains(output.Path.ToString(Context.PathTable).ToCanonicalizedPath()));
         }
 
         [Fact]
@@ -130,9 +130,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             var result = RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
 
             // there should be a single "produced output" message and it should be for the outer output file
-            var producedOutputLogMessage = EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToUpperInvariant();
-            XAssert.Contains(producedOutputLogMessage, ToString(outerOutputFile).ToUpperInvariant());
-            XAssert.ContainsNot(producedOutputLogMessage, ToString(innerOutputFile).ToUpperInvariant());
+            var producedOutputLogMessage = EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToCanonicalizedPath();
+            XAssert.Contains(producedOutputLogMessage, ToString(outerOutputFile).ToCanonicalizedPath());
+            XAssert.ContainsNot(producedOutputLogMessage, ToString(innerOutputFile).ToCanonicalizedPath());
 
             // 2nd run (no changes): success + up to date
             RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);

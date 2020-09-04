@@ -57,11 +57,11 @@ namespace BuildXL.Engine
         /// </remarks>
         public static IEnumerable<string> CollapsePaths(IEnumerable<string> paths)
         {
-            paths = paths.Select(path => (path.Length > 0 && path[path.Length - 1] == Path.DirectorySeparatorChar) ? path : path + @"\").OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+            paths = paths.Select(path => (path.Length > 0 && path[path.Length - 1] == Path.DirectorySeparatorChar) ? path : path + @"\").OrderBy(path => path, OperatingSystemHelper.PathComparer);
             string lastPath = null;
             foreach(var path in paths)
             {
-                if (lastPath == null || !path.StartsWith(lastPath, StringComparison.OrdinalIgnoreCase))
+                if (lastPath == null || !path.StartsWith(lastPath, OperatingSystemHelper.PathComparison))
                 {
                     // returned value should not have \ on end so that it matched with blockedpaths.
                     yield return path.Substring(0, path.Length - 1);
@@ -123,8 +123,8 @@ namespace BuildXL.Engine
             bool logRemovedFiles = true)
         {
             var finalPathsToScrub = CollapsePaths(pathsToScrub).ToList();
-            var finalBlockedPaths = new HashSet<string>(blockedPaths, StringComparer.OrdinalIgnoreCase);
-            var finalNonDeletableRootDirectories = new HashSet<string>(nonDeletableRootDirectories, StringComparer.OrdinalIgnoreCase);
+            var finalBlockedPaths = new HashSet<string>(blockedPaths, OperatingSystemHelper.PathComparer);
+            var finalNonDeletableRootDirectories = new HashSet<string>(nonDeletableRootDirectories, OperatingSystemHelper.PathComparer);
             if (mountPathExpander != null)
             {
                 finalNonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
@@ -176,8 +176,8 @@ namespace BuildXL.Engine
                 dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
                 period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
-                var deletableDirectoryCandidates = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-                var nondeletableDirectories = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                var deletableDirectoryCandidates = new ConcurrentDictionary<string, bool>(OperatingSystemHelper.PathComparer);
+                var nondeletableDirectories = new ConcurrentDictionary<string, bool>(OperatingSystemHelper.PathComparer);
                 var directoriesToEnumerate = new BlockingCollection<string>();
 
                 foreach (var path in pathsToScrub)
@@ -363,7 +363,7 @@ namespace BuildXL.Engine
                 }
 
                 // Collect all directories that need to be deleted.
-                var deleteableDirectories = new HashSet<string>(deletableDirectoryCandidates.Keys, StringComparer.OrdinalIgnoreCase);
+                var deleteableDirectories = new HashSet<string>(deletableDirectoryCandidates.Keys, OperatingSystemHelper.PathComparer);
                 deleteableDirectories.ExceptWith(nondeletableDirectories.Keys);
 
                 // Delete directories by considering only the top-most ones.

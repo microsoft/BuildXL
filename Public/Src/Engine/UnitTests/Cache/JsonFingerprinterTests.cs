@@ -267,7 +267,7 @@ namespace Test.BuildXL.Engine.Cache
         {
             // Normalize string paths to lower case since absolute path equivalency
             // depends on the hash and the path, but not casing
-            return path.ToString(PathTable).ToLowerInvariant();
+            return path.ToString(PathTable).ToCanonicalizedPath();
         }
     }
 }

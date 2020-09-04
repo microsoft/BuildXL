@@ -553,14 +553,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <nodoc/>
         public static void ArePathEqual(string expected, string actual)
         {
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                AreEqual(expected, actual);
-            }
-            else
-            {
-                AreEqual(expected.ToUpperInvariant(), actual.ToUpperInvariant());
-            }
+            AreEqual(expected.ToCanonicalizedPath(), actual.ToCanonicalizedPath());
         }
 
         private static string JoinNonEmpty(string separator, params string[] messages)

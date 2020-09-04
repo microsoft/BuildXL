@@ -34,7 +34,7 @@ namespace BuildXL.Utilities
         /// Initializes a new path table.
         /// </summary>
         public PathTable(StringTable stringTable)
-            : base(stringTable, ignoreCase: true, separator: System.IO.Path.DirectorySeparatorChar)
+            : base(stringTable, ignoreCase: !OperatingSystemHelper.IsPathComparisonCaseSensitive, separator: System.IO.Path.DirectorySeparatorChar)
         {
             Contract.RequiresNotNull(stringTable);
             ExpandedPathComparer = new ExpandedAbsolutePathComparer(ExpandedNameComparer);
@@ -44,13 +44,13 @@ namespace BuildXL.Utilities
         /// Initializes a new path table with a private string table.
         /// </summary>
         public PathTable(bool disableDebugTag = false)
-            : base(new StringTable(), ignoreCase: true, disableDebugTag: disableDebugTag, separator: System.IO.Path.DirectorySeparatorChar)
+            : base(new StringTable(), ignoreCase: !OperatingSystemHelper.IsPathComparisonCaseSensitive, disableDebugTag: disableDebugTag, separator: System.IO.Path.DirectorySeparatorChar)
         {
             ExpandedPathComparer = new ExpandedAbsolutePathComparer(ExpandedNameComparer);
         }
 
         private PathTable(SerializedState state, StringTable stringTable)
-            : base(state, stringTable, true, System.IO.Path.DirectorySeparatorChar)
+            : base(state, stringTable, ignoreCase: !OperatingSystemHelper.IsPathComparisonCaseSensitive, separator: System.IO.Path.DirectorySeparatorChar)
         {
             ExpandedPathComparer = new ExpandedAbsolutePathComparer(ExpandedNameComparer);
         }

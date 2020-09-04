@@ -25,8 +25,8 @@ namespace Test.BuildXL.StorageTestUtilities
         private readonly object m_lock = new object();
         private readonly bool m_verifyKnownIdentity;
 
-        public readonly HashSet<string> PathsWithTrackedExistence = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        public readonly HashSet<string> PathsWithTrackedMembership = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public readonly HashSet<string> PathsWithTrackedExistence = new HashSet<string>(OperatingSystemHelper.PathComparer);
+        public readonly HashSet<string> PathsWithTrackedMembership = new HashSet<string>(OperatingSystemHelper.PathComparer);
         public readonly HashSet<VersionedFileIdentity> TrackedFileIdentities = new HashSet<VersionedFileIdentity>();
 
         public FileChangeTrackingRecorder(bool verifyKnownIdentity)

@@ -265,9 +265,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
             string pathForCache = GetExpandedPathForCache(path);
             FileToDelete fileForCacheToDelete = (string.IsNullOrEmpty(pathForCache)
-                    || string.Equals(path.ExpandedPath, pathForCache, OperatingSystemHelper.IsUnixOS
-                            ? StringComparison.Ordinal
-                            : StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(path.ExpandedPath, pathForCache, OperatingSystemHelper.PathComparison))
                         ? FileToDelete.Invalid
                         : FileToDelete.Create(pathForCache);
 

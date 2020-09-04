@@ -32,7 +32,7 @@ namespace BuildXL.FrontEnd.Sdk
     {
         private HashSet<string> m_allowedBuildParameters;
 
-        private readonly Dictionary<string, string> m_environmentVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> m_environmentVariables = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
         private readonly IFileSystem m_fileSystem;
 
         /// <nodoc/>

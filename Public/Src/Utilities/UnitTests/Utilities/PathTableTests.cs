@@ -369,7 +369,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void CaseFolding()
+        public void CaseFoldingOnlyWhenPathComparisonCaseInsensitive()
         {
             var pt = new PathTable();
 
@@ -381,13 +381,29 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(A("c", "a", "b", "c"), id1.ToString(pt));
             XAssert.AreEqual(A("c", "X", "A", "B", "C"), id2.ToString(pt));
 
-            // we expect to find an existing path when using different casing
-            // AbsolutePath id3 = AbsolutePath.Create(pt, A("c","A","B","C"));
-            XAssert.AreEqual(id1, id3);
+            // we expect to find an existing path when using different casing.
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                XAssert.AreNotEqual(id1, id3);
+                XAssert.AreEqual(A("C", "A", "B", "C"), id3.ToString(pt));
+            }
+            else
+            {
+                XAssert.AreEqual(id1, id3);
+                XAssert.AreEqual(A("c", "a", "b", "c"), id3.ToString(pt));
+            }
 
             // and we expect for common paths to have "first one in wins" casing
             AbsolutePath id4 = AbsolutePath.Create(pt, A("C", "A", "B", "C", "D"));
-            XAssert.AreEqual(A("c", "a", "b", "c", "D"), id4.ToString(pt));
+
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                XAssert.AreEqual(A("C", "A", "B", "C", "D"), id4.ToString(pt));
+            }
+            else
+            {
+                XAssert.AreEqual(A("c", "a", "b", "c", "D"), id4.ToString(pt));
+            }
         }
 
         /// <summary>
@@ -465,7 +481,15 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(ap1, ap1Recreated);
             XAssert.AreEqual(ap2, ap2Recreated);
             XAssert.AreEqual(ap3, ap3Recreated);
-            XAssert.AreEqual(ap3, ap3CapsRecreated);
+
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                XAssert.AreEqual(ap3Caps, ap3CapsRecreated);
+            }
+            else
+            {
+                XAssert.AreEqual(ap3, ap3CapsRecreated);
+            }
 
             // Make sure a new path can be added
             string path4 = A("c", "a", "s", "d");
@@ -549,7 +573,7 @@ namespace Test.BuildXL.Utilities
 
             foreach (var path in paths.UnsafeGetList())
             {
-                var pathString = path.ToString(pt).ToUpperInvariant();
+                var pathString = path.ToString(pt).ToCanonicalizedPath();
                 var path2 = AbsolutePath.Create(pt2, pathString);
                 XAssert.AreEqual(path, path2);
             }

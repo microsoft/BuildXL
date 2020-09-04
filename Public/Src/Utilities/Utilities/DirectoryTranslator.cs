@@ -143,13 +143,13 @@ namespace BuildXL.Utilities
             bool hasPrefix = false;
             bool hasNtPrefix = false;
 
-            if (path.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(Prefix, OperatingSystemHelper.PathComparison))
             {
                 hasPrefix = true;
                 path = path.Substring(Prefix.Length);
             }
 
-            if (path.StartsWith(NtPrefix, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(NtPrefix, OperatingSystemHelper.PathComparison))
             {
                 hasNtPrefix = true;
                 path = path.Substring(NtPrefix.Length);
@@ -162,14 +162,14 @@ namespace BuildXL.Utilities
                 priorPath = path;
                 foreach (var translation in m_translations)
                 {
-                    if (path.StartsWith(translation.SourcePath, StringComparison.OrdinalIgnoreCase))
+                    if (path.StartsWith(translation.SourcePath, OperatingSystemHelper.PathComparison))
                     {
                         path = translation.TargetPath + path.Substring(translation.SourcePath.Length);
                         break;
                     }
 
                     if (path[path.Length - 1] != s_directorySeparatorChar &&
-                        string.Equals(path + s_directorySeparatorChar, translation.SourcePath, StringComparison.OrdinalIgnoreCase))
+                        string.Equals(path + s_directorySeparatorChar, translation.SourcePath, OperatingSystemHelper.PathComparison))
                     {
                         // Path can be a directory path without trailing '\'.
                         path = translation.TargetPath;
@@ -403,7 +403,7 @@ namespace BuildXL.Utilities
 
         private static string EnsureDirectoryPath(string path)
         {
-            if (!path.EndsWith(s_directorySeparatorChar.ToString(), StringComparison.OrdinalIgnoreCase))
+            if (!path.EndsWith(s_directorySeparatorChar.ToString(), OperatingSystemHelper.PathComparison))
             {
                 path += s_directorySeparatorChar.ToString();
             }

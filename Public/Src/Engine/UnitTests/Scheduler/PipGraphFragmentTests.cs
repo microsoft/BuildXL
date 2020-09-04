@@ -396,8 +396,8 @@ namespace Test.BuildXL.Scheduler
             Process processInGraph = graph.PipTable.HydratePip(pipId, PipQueryContext.PipGraphGetProducingPip) as Process;
             XAssert.IsNotNull(processInGraph);
 
-            string argumentsInFragment = processInFragment.Arguments.ToString(fragmentOrigin.Context.PathTable).ToUpperInvariant();
-            string argumentsInGraph = processInGraph.Arguments.ToString(Context.PathTable).ToUpperInvariant();
+            string argumentsInFragment = processInFragment.Arguments.ToString(fragmentOrigin.Context.PathTable);
+            string argumentsInGraph = processInGraph.Arguments.ToString(Context.PathTable);
 
             XAssert.AreEqual(argumentsInFragment, argumentsInGraph);
         }
@@ -432,8 +432,8 @@ namespace Test.BuildXL.Scheduler
                 XAssert.Fail("No arguments associated with pip");
             }
 
-            string expected = expectedArguments.ToString(Context.PathTable).ToUpperInvariant();
-            string actual = actualArguments.ToString(Context.PathTable).ToUpperInvariant();
+            string expected = expectedArguments.ToString(Context.PathTable);
+            string actual = actualArguments.ToString(Context.PathTable);
 
             XAssert.AreEqual(expected, actual);
         }

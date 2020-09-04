@@ -54,20 +54,20 @@ namespace Test.BuildXL.Utilities
 
                 using (var reader1 = new InliningReader(stream1, pt, leaveOpen: true))
                 {
-                    XAssert.AreEqual(A("C", "f", "g", "h1").ToUpperInvariant(), reader1.ReadAbsolutePath().ToString(pt).ToUpperInvariant());
-                    XAssert.AreEqual(A("C", "f", "g", "h").ToUpperInvariant(), reader1.ReadAbsolutePath().ToString(pt).ToUpperInvariant());
-                    XAssert.AreEqual("a1".ToUpperInvariant(), reader1.ReadPathAtom().ToString(pt.StringTable).ToUpperInvariant());
-                    XAssert.AreEqual("a".ToUpperInvariant(), reader1.ReadPathAtom().ToString(pt.StringTable).ToUpperInvariant());
+                    XAssert.AreEqual(A("C", "f", "g", "h1").ToCanonicalizedPath(), reader1.ReadAbsolutePath().ToString(pt).ToCanonicalizedPath());
+                    XAssert.AreEqual(A("C", "f", "g", "h").ToCanonicalizedPath(), reader1.ReadAbsolutePath().ToString(pt).ToCanonicalizedPath());
+                    XAssert.AreEqual("a1".ToCanonicalizedPath(), reader1.ReadPathAtom().ToString(pt.StringTable).ToCanonicalizedPath());
+                    XAssert.AreEqual("a".ToCanonicalizedPath(), reader1.ReadPathAtom().ToString(pt.StringTable).ToCanonicalizedPath());
                     XAssert.AreEqual("s1", reader1.ReadStringId().ToString(pt.StringTable));
                     XAssert.AreEqual("s", reader1.ReadStringId().ToString(pt.StringTable));
                 }
 
                 using (var reader2 = new InliningReader(stream2, pt, leaveOpen: true))
                 {
-                    XAssert.AreEqual(A("C", "f", "g", "h2").ToUpperInvariant(), reader2.ReadAbsolutePath().ToString(pt).ToUpperInvariant());
-                    XAssert.AreEqual(A("C", "f", "g", "h").ToUpperInvariant(), reader2.ReadAbsolutePath().ToString(pt).ToUpperInvariant());
-                    XAssert.AreEqual("a2".ToUpperInvariant(), reader2.ReadPathAtom().ToString(pt.StringTable).ToUpperInvariant());
-                    XAssert.AreEqual("a".ToUpperInvariant(), reader2.ReadPathAtom().ToString(pt.StringTable).ToUpperInvariant());
+                    XAssert.AreEqual(A("C", "f", "g", "h2").ToCanonicalizedPath(), reader2.ReadAbsolutePath().ToString(pt).ToCanonicalizedPath());
+                    XAssert.AreEqual(A("C", "f", "g", "h").ToCanonicalizedPath(), reader2.ReadAbsolutePath().ToString(pt).ToCanonicalizedPath());
+                    XAssert.AreEqual("a2".ToCanonicalizedPath(), reader2.ReadPathAtom().ToString(pt.StringTable).ToCanonicalizedPath());
+                    XAssert.AreEqual("a".ToCanonicalizedPath(), reader2.ReadPathAtom().ToString(pt.StringTable).ToCanonicalizedPath());
                     XAssert.AreEqual("s2", reader2.ReadStringId().ToString(pt.StringTable));
                     XAssert.AreEqual("s", reader2.ReadStringId().ToString(pt.StringTable));
                 }

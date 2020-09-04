@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.Core
     public sealed partial class FrontEndHostController : FrontEndHost, IFrontEndController
     {
         private Workspace m_buildIsCancelledWorkspace;
-        private readonly ConcurrentDictionary<string, int> m_frontEndPaths = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, int> m_frontEndPaths = new ConcurrentDictionary<string, int>(OperatingSystemHelper.PathComparer);
         private IInternalDefaultDScriptResolverSettings m_defaultDScriptResolverSettings;
         private readonly CycleDetectorStatistics m_cycleDetectorStatistics;
 

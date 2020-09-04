@@ -9,6 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -105,7 +106,7 @@ namespace BuildXL.Execution.Analyzer
                                 : (IEnumerable<ReportedFileAccess>)observedAccess.Value;
                             foreach (var access in accesses)
                             {
-                                writer.WriteLine("    Path = {0}", (access.Path ?? access.ManifestPath.ToString(PathTable)).ToUpperInvariant());
+                                writer.WriteLine("    Path = {0}", (access.Path ?? access.ManifestPath.ToString(PathTable)).ToCanonicalizedPath());
                                 writer.WriteLine("    {0}", access.Describe());
                             }
 

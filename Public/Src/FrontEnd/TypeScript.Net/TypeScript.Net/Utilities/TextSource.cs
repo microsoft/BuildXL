@@ -91,7 +91,7 @@ namespace TypeScript.Net
         /// <inheritdoc />
         public override CharacterCodes CharCodeAt(int tokenPos)
         {
-            return StringExtensions.CharCodeAt(m_text, tokenPos);
+            return Extensions.StringExtensions.CharCodeAt(m_text, tokenPos);
         }
 
         /// <inheritdoc />

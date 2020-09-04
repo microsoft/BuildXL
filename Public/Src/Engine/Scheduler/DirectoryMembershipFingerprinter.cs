@@ -221,8 +221,8 @@ namespace BuildXL.Scheduler
                 return DirectoryFingerprint.Zero;
             }
 
-            string orderedFileNames = string.Join(",", fileNames.OrderBy(a => a, StringComparer.OrdinalIgnoreCase));
-            byte[] nameBytes = Encoding.Unicode.GetBytes(orderedFileNames.ToUpperInvariant());
+            string orderedFileNames = string.Join(",", fileNames.OrderBy(a => a, OperatingSystemHelper.PathComparer));
+            byte[] nameBytes = Encoding.Unicode.GetBytes(orderedFileNames.ToCanonicalizedPath());
             var hash = ContentHashingUtilities.CreateFrom(MurmurHash3.Create(nameBytes, 0));
             return new DirectoryFingerprint(hash);
         }

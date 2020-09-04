@@ -853,7 +853,7 @@ namespace BuildXL.Processes
 
                     foreach (string allowedProcessName in m_allowedSurvivingChildProcessNames)
                     {
-                        if (string.Equals(Path.GetFileName(processPath), allowedProcessName, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(Path.GetFileName(processPath), allowedProcessName, OperatingSystemHelper.PathComparison))
                         {
                             allowed = true;
                             break;

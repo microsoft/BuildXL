@@ -2043,7 +2043,7 @@ namespace BuildXL.Engine
                     // The PreviousInputs file gets moved from an intermediate to a final location to specify whether
                     // the graph files are valid to be consumed. So the check to see whether it is up to date needs to
                     // happen on its finalized location, not the intermediate.
-                    if (finalPath.Equals(serializer.PreviousInputsFinalized, StringComparison.OrdinalIgnoreCase))
+                    if (finalPath.Equals(serializer.PreviousInputsFinalized, OperatingSystemHelper.PathComparison))
                     {
                         placementPath = serializer.PreviousInputsIntermediate;
                     }

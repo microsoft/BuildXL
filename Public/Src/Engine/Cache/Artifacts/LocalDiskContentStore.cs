@@ -696,7 +696,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             }
 
             isVirtual = false;
-            return ContentHashingUtilities.HashString(filePath.ToUpperInvariant());
+            return ContentHashingUtilities.HashString(filePath.ToCanonicalizedPath());
         }
 
         /// <summary>

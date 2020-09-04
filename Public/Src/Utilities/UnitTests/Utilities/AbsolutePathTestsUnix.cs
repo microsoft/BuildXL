@@ -3,10 +3,12 @@
 
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
+    [TestClassIfSupported(requiresUnixBasedOperatingSystem: true)]
     public sealed class AbsolutePathTestsUnix : XunitBuildXLTest
     {
         public AbsolutePathTestsUnix(ITestOutputHelper output)
@@ -14,7 +16,7 @@ namespace Test.BuildXL.Utilities
         {
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void IsInitialized()
         {
             AbsolutePath p = default(AbsolutePath);
@@ -26,7 +28,7 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(p.IsValid);
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void TryCreate()
         {
             var pt = new PathTable();
@@ -77,7 +79,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/usr", p.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void Equality()
         {
             var pt = new PathTable();
@@ -111,14 +113,23 @@ namespace Test.BuildXL.Utilities
             int h2 = a2.GetHashCode();
             XAssert.AreEqual(h1, h2);
 
-            // TODO: Case insensitive comparisons, currently we do not differentiate between casing!
             AbsolutePath a3DifferentCase = AbsolutePath.Create(pt, @"/usr/local/Bin");
-            XAssert.IsTrue(a3.Equals(a3DifferentCase));
-            XAssert.IsTrue(a3.Equals((object) a3DifferentCase));
-            XAssert.IsTrue(a3 == a3DifferentCase);
+
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                XAssert.IsFalse(a3.Equals(a3DifferentCase));
+                XAssert.IsFalse(a3.Equals((object)a3DifferentCase));
+                XAssert.IsFalse(a3 == a3DifferentCase);
+            }
+            else
+            {
+                XAssert.IsTrue(a3.Equals(a3DifferentCase));
+                XAssert.IsTrue(a3.Equals((object)a3DifferentCase));
+                XAssert.IsTrue(a3 == a3DifferentCase);
+            }
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void Combine()
         {
             var pt = new PathTable();
@@ -156,7 +167,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/home/root/documents", a2.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void Concat()
         {
             var pt = new PathTable();
@@ -166,7 +177,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/home", a2.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void RemoveExtension()
         {
             var pt = new PathTable();
@@ -231,7 +242,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(ap1, ap2);
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void ChangeExtension()
         {
             var pt = new PathTable();
@@ -300,7 +311,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/xyz/a", ap2.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void GetExtension()
         {
             var pt = new PathTable();
@@ -326,7 +337,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@".cpp", e1.ToString(pt.StringTable));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void GetName()
         {
             var pt = new PathTable();
@@ -335,7 +346,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"a", atom.ToString(pt.StringTable));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void GetParent()
         {
             var pt = new PathTable();
@@ -348,7 +359,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/a", parent.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void GetRoot()
         {
             var pt = new PathTable();
@@ -365,7 +376,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"/", root.ToString(pt));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void IsValidPathChar()
         {
             XAssert.IsTrue(AbsolutePath.IsValidAbsolutePathChar('a'));
@@ -381,7 +392,7 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(AbsolutePath.IsValidAbsolutePathChar('?'));
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void RelocateForm1()
         {
             // replace the file extension
@@ -422,7 +433,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public void RelocateForm2()
         {
             // replace the file extension
@@ -454,6 +465,23 @@ namespace Test.BuildXL.Utilities
                 XAssert.IsFalse(f1.IsWithin(pt, d2));
                 AbsolutePath f2 = f1.Relocate(pt, d2);
                 XAssert.AreEqual(@"/a/x/d.cpp", f2.ToString(pt));
+            }
+        }
+
+        [Fact]
+        public void TestCasing()
+        {
+            var pt = new PathTable();
+            AbsolutePath p1 = AbsolutePath.Create(pt, @"/a/b/c/d");
+            AbsolutePath p2 = AbsolutePath.Create(pt, @"/a/B/c/D");
+
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                XAssert.AreNotEqual(p1, p2);
+            }
+            else
+            {
+                XAssert.AreEqual(p1, p2);
             }
         }
     }

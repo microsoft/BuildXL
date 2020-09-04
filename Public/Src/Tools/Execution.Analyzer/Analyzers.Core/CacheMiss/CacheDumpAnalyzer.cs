@@ -264,7 +264,7 @@ namespace BuildXL.Execution.Analyzer
         {
             try
             {
-                return path.IsValid ? path.ToString(m_model.PathTable).ToUpperInvariant() : "<Unknown>";
+                return path.IsValid ? path.ToString(m_model.PathTable).ToCanonicalizedPath() : "<Unknown>";
             }
 #pragma warning disable ERP022 // TODO: This should really handle specific errors
             catch

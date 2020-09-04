@@ -74,7 +74,7 @@ namespace BuildXL.Execution.Analyzer
         {
             HashSet<(CaseInsensitiveString toolPath, AbsolutePath directoryPath)> toolAndEnumerations = new HashSet<(CaseInsensitiveString toolPath, AbsolutePath directoryPath)>();
             HashSet<AbsolutePath> enumeratedDirectories = new HashSet<AbsolutePath>();
-            HashSet<string> enumerationTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> enumerationTools = new HashSet<string>(OperatingSystemHelper.PathComparer);
 
             foreach (var observedInputEntry in m_observedInputsMap)
             {
@@ -120,7 +120,7 @@ namespace BuildXL.Execution.Analyzer
             var toolEnumerationList = toolAndEnumerations.ToList();
             toolEnumerationList.Sort((v1, v2) =>
             {
-                var result = StringComparer.OrdinalIgnoreCase.Compare(v1.toolPath.Value, v2.toolPath.Value);
+                var result = OperatingSystemHelper.PathComparer.Compare(v1.toolPath.Value, v2.toolPath.Value);
                 if (result != 0)
                 {
                     return result;
@@ -134,7 +134,7 @@ namespace BuildXL.Execution.Analyzer
                 using (var writer = new StreamWriter(outputStream))
                 {
                     writer.WriteLine("Directory Enumeration Tools:");
-                    foreach (var tool in enumerationTools.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+                    foreach (var tool in enumerationTools.OrderBy(s => s, OperatingSystemHelper.PathComparer))
                     {
                         writer.WriteLine(tool);
                     }
@@ -165,7 +165,7 @@ namespace BuildXL.Execution.Analyzer
                             return result;
                         }
 
-                        return StringComparer.OrdinalIgnoreCase.Compare(v1.Item1.Value, v2.Item1.Value);
+                        return OperatingSystemHelper.PathComparer.Compare(v1.Item1.Value, v2.Item1.Value);
                     });
 
                     writer.WriteLine();

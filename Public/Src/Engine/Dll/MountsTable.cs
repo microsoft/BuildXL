@@ -181,7 +181,7 @@ namespace BuildXL.Engine
             string envVariable = null, 
             bool allowCreateDirectory = false)
         {
-            envVariable = envVariable ?? mountName.ToUpperInvariant();
+            envVariable = envVariable ?? mountName.ToCanonicalizedEnvVar();
 
             if (!properties.TryGetValue(envVariable, out string redirectedPath))
             {

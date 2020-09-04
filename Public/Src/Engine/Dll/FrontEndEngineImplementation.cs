@@ -140,7 +140,7 @@ namespace BuildXL.Engine
                     configuration.FrontEnd.LogStatistics);
             }
 
-            m_allBuildParameters = new ConcurrentDictionary<string, TrackedValue>(StringComparer.OrdinalIgnoreCase);
+            m_allBuildParameters = new ConcurrentDictionary<string, TrackedValue>(OperatingSystemHelper.EnvVarComparer);
 
             foreach (var kvp in PopulateFromEnvironmentAndApplyOverrides(loggingContext, startupConfiguration.Properties).ToDictionary())
             {
@@ -466,7 +466,7 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public override void RestrictBuildParameters(IEnumerable<string> buildParameterNames)
         {
-            var dictionary = new Dictionary<string, TrackedValue>(StringComparer.OrdinalIgnoreCase);
+            var dictionary = new Dictionary<string, TrackedValue>(OperatingSystemHelper.EnvVarComparer);
             foreach (var buildParameterName in buildParameterNames)
             {
                 if (!dictionary.ContainsKey(buildParameterName))
@@ -690,7 +690,7 @@ namespace BuildXL.Engine
             Contract.Assume(m_visibleBuildParameters != null, "Environment variables must first be restricted");
             Contract.Assume(m_finishedBuildParameterTracking, "Tracking must be finished to access used state of environment variables.");
 
-            Dictionary<string, string> unused = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> unused = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
 
             Func<string, bool> isUsedByConfig =
                 name =>
@@ -729,7 +729,7 @@ namespace BuildXL.Engine
                 Contract.Assume(m_finishedBuildParameterTracking, "Tracking must be finished to access used state of environment variables.");
             }
 
-            Dictionary<string, string> impactingBuild = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> impactingBuild = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
 
             // Add the ones used by modules and specs
             foreach (var kvp in m_visibleBuildParameters)
@@ -771,7 +771,7 @@ namespace BuildXL.Engine
         /// </summary>
         public IReadOnlyDictionary<string, string> GetAllEnvironmentVariables()
         {
-            return m_allBuildParameters.ToDictionary(kv => kv.Key, kv => kv.Value.Value, StringComparer.OrdinalIgnoreCase);
+            return m_allBuildParameters.ToDictionary(kv => kv.Key, kv => kv.Value.Value, OperatingSystemHelper.EnvVarComparer);
         }
 
         internal sealed class TrackedValue

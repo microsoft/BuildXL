@@ -109,12 +109,10 @@ namespace Test.BuildXL.Processes
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
                     var inetCache = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache);
-                    return fileAccesses.Where(a => !a.StartsWith(inetCache, StringComparison.OrdinalIgnoreCase)).Select(a => a.ToUpperInvariant()).Distinct();
+                    fileAccesses = fileAccesses.Where(a => !a.StartsWith(inetCache, OperatingSystemHelper.PathComparison));
                 }
-                else
-                {
-                    return fileAccesses.Distinct();
-                }
+
+                return fileAccesses.Select(a => a.ToCanonicalizedPath()).Distinct();
             }
 
             int ComputeNumAccessedPaths(SandboxedProcessResult result)
@@ -375,7 +373,7 @@ namespace Test.BuildXL.Processes
 
             void ToFileNames(IEnumerable<ReportedProcess> processes, out HashSet<string> set, out string joined)
             {
-                set = new HashSet<string>(processes.Select(p => p.Path).Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
+                set = new HashSet<string>(processes.Select(p => p.Path).Select(Path.GetFileName), OperatingSystemHelper.PathComparer);
                 joined = string.Join(" ; ", set);
             }
         }

@@ -141,7 +141,7 @@ namespace BuildXL.Engine
                     extraneousSidebandFiles = allSidebandFiles
                         .Except(
                             processesWithSharedOpaqueDirectoryOutputs.Select(GetSidebandFile),
-                            StringComparer.OrdinalIgnoreCase)
+                            OperatingSystemHelper.PathComparer)
                         .ToArray();
                 }
 

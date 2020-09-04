@@ -79,7 +79,7 @@ namespace BuildXL.Storage
         /// The metadata is held separately to keep it in the same order as how content is actually laid out in the
         /// backing file. This detail isn't presently used but may be leveraged to read in chunks of the backing file.
         /// </remarks>
-        private readonly ConcurrentDictionary<string, int> m_filesByPath = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, int> m_filesByPath = new ConcurrentDictionary<string, int>(OperatingSystemHelper.PathComparer);
 
         /// <summary>
         /// The FileLocation metadata read in during initialization

@@ -73,7 +73,7 @@ namespace Test.BuildXL.Utilities
                         var readPath = reader.ReadAbsolutePath();
                         var readString = reader.ReadStringId();
 
-                        Assert.Equal(paths[i].ToString(pt).ToUpperInvariant(), readPath.ToString(pt2).ToUpperInvariant());
+                        Assert.Equal(paths[i].ToString(pt).ToCanonicalizedPath(), readPath.ToString(pt2).ToCanonicalizedPath());
                         Assert.Equal(strings[i].ToString(st), readString.ToString(st2));
                     }
                 }

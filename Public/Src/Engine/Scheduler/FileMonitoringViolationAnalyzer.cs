@@ -628,7 +628,7 @@ namespace BuildXL.Scheduler
 
                 // Handle each process observed to have file accesses
                 var accessesByProcesses = paths.ToMultiValueDictionary(item => item.ProcessPath, item => item);
-                foreach (var accessByProcess in accessesByProcesses.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
+                foreach (var accessByProcess in accessesByProcesses.OrderBy(item => item.Key.ToString(pathTable), OperatingSystemHelper.PathComparer))
                 {
                     var processPath = accessByProcess.Key;
                     var processAccessesByPath = accessByProcess.Value.ToMultiValueDictionary(item => item.Path, item => item);
@@ -636,7 +636,7 @@ namespace BuildXL.Scheduler
                     bool printedProcessHeaderRow = false;
 
                     // Handle each path accessed by that process
-                    foreach (var pathsAccessed in processAccessesByPath.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
+                    foreach (var pathsAccessed in processAccessesByPath.OrderBy(item => item.Key.ToString(pathTable), OperatingSystemHelper.PathComparer))
                     {
                         var path = pathsAccessed.Key;
                         if (!path.IsValid)

@@ -84,7 +84,7 @@ namespace BuildXL.Processes
         {
             return !(standardInputInfo is null)
                 && (ReferenceEquals(this, standardInputInfo)
-                    || (string.Equals(File, standardInputInfo.File, StringComparison.OrdinalIgnoreCase)
+                    || (string.Equals(File, standardInputInfo.File, OperatingSystemHelper.PathComparison)
                         && string.Equals(Data, standardInputInfo.Data)));
         }
 

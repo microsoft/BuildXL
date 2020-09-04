@@ -504,7 +504,7 @@ namespace BuildXL.Engine
                     || string.Equals(key, "windir", StringComparison.OrdinalIgnoreCase))
                 {
                     // Normalize %SystemRoot% and %WinDir%.
-                    commandLineConfiguration.Startup.Properties.Add(key.ToUpperInvariant(), value.ToUpperInvariant());
+                    commandLineConfiguration.Startup.Properties.Add(key.ToCanonicalizedEnvVar(), value.ToCanonicalizedPath());
                     continue;
                 }
 

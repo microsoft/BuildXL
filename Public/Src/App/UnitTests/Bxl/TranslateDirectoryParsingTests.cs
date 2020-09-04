@@ -140,8 +140,8 @@ namespace Test.BuildXL
 
             TranslateDirectoryData tdd = Args.ParseTranslatePathOption(m_pathTable, option);
 
-            XAssert.IsTrue(tdd.FromPath.ToString(m_pathTable).EndsWith(m_helloTestPath, StringComparison.OrdinalIgnoreCase));
-            XAssert.IsTrue(tdd.ToPath.ToString(m_pathTable).EndsWith(m_worldTestPath, StringComparison.OrdinalIgnoreCase));
+            XAssert.IsTrue(tdd.FromPath.ToString(m_pathTable).EndsWith(m_helloTestPath, OperatingSystemHelper.PathComparison));
+            XAssert.IsTrue(tdd.ToPath.ToString(m_pathTable).EndsWith(m_worldTestPath, OperatingSystemHelper.PathComparison));
         }
 
         [Fact]
@@ -153,8 +153,8 @@ namespace Test.BuildXL
 
             TranslateDirectoryData tdd = Args.ParseTranslatePathOption(m_pathTable, option);
 
-            XAssert.IsTrue(tdd.FromPath.ToString(m_pathTable).EndsWith(m_helloTestPath, StringComparison.OrdinalIgnoreCase));
-            XAssert.IsTrue(tdd.ToPath.ToString(m_pathTable).EndsWith(m_worldTestPath, StringComparison.OrdinalIgnoreCase));
+            XAssert.IsTrue(tdd.FromPath.ToString(m_pathTable).EndsWith(m_helloTestPath, OperatingSystemHelper.PathComparison));
+            XAssert.IsTrue(tdd.ToPath.ToString(m_pathTable).EndsWith(m_worldTestPath, OperatingSystemHelper.PathComparison));
         }
 
         [Fact]

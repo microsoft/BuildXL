@@ -807,8 +807,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.Delete(ArtifactToString(filecpp));
             FileArtifact filecppUpperCase = CreateFileArtifactWithName("FILE.CPP", ReadonlyRoot);
             WriteSourceFile(filecppUpperCase);
-            // Case does not matter
-            RunScheduler().AssertCacheHit(pip.PipId);
+            
+            var result = RunScheduler();
+
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                result.AssertCacheMiss(pip.PipId);
+            }
+            else
+            {
+                result.AssertCacheHit(pip.PipId);
+            }
 
             // Modify /readonly/a.txt
             File.WriteAllText(ArtifactToString(aTxtFile), "aTxtFile");

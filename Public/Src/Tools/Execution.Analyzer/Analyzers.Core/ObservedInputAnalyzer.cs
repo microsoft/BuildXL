@@ -9,6 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 
@@ -105,7 +106,7 @@ namespace BuildXL.Execution.Analyzer
                         {
                             foreach (var file in observedInput.OrderBy(item => item.Path.ToString(PathTable)))
                             {
-                                writer.WritePropertyName(file.Path.ToString(CachedGraph.Context.PathTable).ToUpperInvariant());
+                                writer.WritePropertyName(file.Path.ToString(CachedGraph.Context.PathTable).ToCanonicalizedPath());
 
                                 writer.WriteStartObject();
                                 WriteJsonProperty(writer, "ContentHash", file.Hash.ToString());

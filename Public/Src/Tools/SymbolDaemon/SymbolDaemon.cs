@@ -472,7 +472,7 @@ namespace Tool.SymbolDaemon
             }
             
             var files = maybeResult.Result
-                .Select(file => $"{file.FileName.ToUpperInvariant()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}")
+                .Select(file => $"{file.FileName.ToCanonicalizedPath()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}")
                 .ToList();
             files.Sort();
 

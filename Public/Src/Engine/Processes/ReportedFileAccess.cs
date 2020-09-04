@@ -231,7 +231,7 @@ namespace BuildXL.Processes
         public bool Equals(ReportedFileAccess other)
         {
             return ManifestPath == other.ManifestPath &&
-                   string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(Path, other.Path, OperatingSystemHelper.PathComparison) &&
                    RequestedAccess == other.RequestedAccess &&
                    Status == other.Status &&
                    Process == other.Process &&
@@ -242,7 +242,7 @@ namespace BuildXL.Processes
                    ShareMode == other.ShareMode &&
                    CreationDisposition == other.CreationDisposition &&
                    FlagsAndAttributes == other.FlagsAndAttributes &&
-                   string.Equals(EnumeratePattern, other.EnumeratePattern, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(EnumeratePattern, other.EnumeratePattern, OperatingSystemHelper.PathComparison) &&
                    Method == other.Method;
         }
 
@@ -759,8 +759,8 @@ namespace BuildXL.Processes
             unchecked
             {
                 return HashCodeHelper.Combine(
-                    string.IsNullOrEmpty(Path) ? ManifestPath.GetHashCode() : StringComparer.OrdinalIgnoreCase.GetHashCode(Path),
-                    string.IsNullOrEmpty(EnumeratePattern) ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(EnumeratePattern),
+                    string.IsNullOrEmpty(Path) ? ManifestPath.GetHashCode() : OperatingSystemHelper.PathComparer.GetHashCode(Path),
+                    string.IsNullOrEmpty(EnumeratePattern) ? 0 : OperatingSystemHelper.PathComparer.GetHashCode(EnumeratePattern),
                     Process != null ? (int)Process.ProcessId : 0,
                     (int)RequestedAccess,
                     (int)Status,

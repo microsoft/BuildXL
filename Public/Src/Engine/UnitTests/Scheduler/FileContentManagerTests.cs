@@ -280,18 +280,18 @@ namespace Test.BuildXL.Scheduler
             var directoryMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesAsync(directoryConsumer, harness.UntrackedOpContext);
             Assert.True(directoryMaterializationResult);
 
-            var filesAfterMaterialization = new HashSet<string>(Directory.GetFiles(dynamicOutputDirectory.Path.ToString(pathTable), "*.*", SearchOption.AllDirectories), StringComparer.OrdinalIgnoreCase);
+            var filesAfterMaterialization = new HashSet<string>(Directory.GetFiles(dynamicOutputDirectory.Path.ToString(pathTable), "*.*", SearchOption.AllDirectories), OperatingSystemHelper.PathComparer);
 
-            HashSet<string> dynamicDirectoryContentPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> dynamicDirectoryContentPaths = new HashSet<string>(OperatingSystemHelper.PathComparer);
             dynamicDirectoryContentPaths.UnionWith(dynamicDirectoryContents.Select(f => f.Path.ToString(pathTable)));
 
             // Check that the dynamic directory contents are the only remaining files
             Assert.Subset(dynamicDirectoryContentPaths, filesAfterMaterialization);
             Assert.Superset(dynamicDirectoryContentPaths, filesAfterMaterialization);
 
-            var directoriesAfterMaterialization = new HashSet<string>(Directory.GetDirectories(dynamicOutputDirectory.Path.ToString(pathTable), "*.*", SearchOption.AllDirectories), StringComparer.OrdinalIgnoreCase);
+            var directoriesAfterMaterialization = new HashSet<string>(Directory.GetDirectories(dynamicOutputDirectory.Path.ToString(pathTable), "*.*", SearchOption.AllDirectories), OperatingSystemHelper.PathComparer);
 
-            HashSet<string> dynamicDirectorySubDirectoryPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> dynamicDirectorySubDirectoryPaths = new HashSet<string>(OperatingSystemHelper.PathComparer);
             dynamicDirectorySubDirectoryPaths.UnionWith(dynamicDirectoryContents.Select(f => f.Path.GetParent(pathTable).ToString(pathTable)));
 
             // Don't count the root directory

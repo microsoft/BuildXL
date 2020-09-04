@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -15,7 +14,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public StartupConfiguration()
         {
             AdditionalConfigFiles = new List<AbsolutePath>();
-            Properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Properties = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             QualifierIdentifiers = new List<string>();
             ImplicitFilters = new List<string>();
             ABTestingArgs = new Dictionary<string, string>();

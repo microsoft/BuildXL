@@ -151,7 +151,7 @@ namespace BuildXL.Native.Processes.Windows
             // sort both by the keys
             // Windows 2000 requires the environment block to be sorted by the key
             // It will first converting the case the strings and do ordinal comparison.
-            Array.Sort(keys, values, StringComparer.OrdinalIgnoreCase);
+            Array.Sort(keys, values, OperatingSystemHelper.EnvVarComparer);
 
             using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
             {

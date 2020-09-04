@@ -370,8 +370,8 @@ namespace BuildXL.Utilities.Configuration
 
             private static ConcurrentDictionary<string, string> GetInitialVariables()
             {
-                ConcurrentDictionary<string, string> variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (DictionaryEntry entry in System.Environment.GetEnvironmentVariables())
+                ConcurrentDictionary<string, string> variables = new ConcurrentDictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
+                foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
                 {
                     variables[(string)entry.Key] = (string)entry.Value;
                 }

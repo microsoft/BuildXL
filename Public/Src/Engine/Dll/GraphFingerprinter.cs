@@ -218,11 +218,11 @@ namespace BuildXL.Engine
                     {
                         foreach (var configPath in configFiles
                             .Select(path => path.ToString(pathTable))
-                            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase))
+                            .OrderBy(c => c, OperatingSystemHelper.PathComparer))
                         {
                             AddContentHash(
                                 configHasher,
-                                configPath.ToUpperInvariant(),
+                                configPath.ToCanonicalizedPath(),
                                 fileContentTable.GetAndRecordContentHashAsync(configPath)
                                     .GetAwaiter()
                                     .GetResult()

@@ -1537,7 +1537,7 @@ namespace BuildXL
 
         private void SetEngineConfigurationVersionIfSpecified(CommandLineUtilities cl)
         {
-            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var properties = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
 
             foreach (CommandLineUtilities.Option opt in cl.Options)
             {

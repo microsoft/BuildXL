@@ -177,7 +177,7 @@ namespace BuildXL.Storage.ChangeTracking
             /// </summary>
             private static unsafe MurmurHash3 HashFileNameAndAttributes(string name, FileAttributes attributes)
             {
-                string caseNormalized = name.ToUpperInvariant();
+                string caseNormalized = name.ToCanonicalizedPath();
                 uint encodedLength = (uint)Encoding.Unicode.GetMaxByteCount(caseNormalized.Length);
                 uint seed = (attributes & FileAttributes.Directory) == 0 ? (byte)0 : (byte)1;
                 unsafe

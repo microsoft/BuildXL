@@ -55,7 +55,7 @@ namespace BuildXL.SandboxDemo
             var allAccesses = result
                 .FileAccesses
                 .Select(access => $"{(access.Status == FileAccessStatus.Denied ? "Denied" : "Allowed")} -> {RequestedAccessToString(access.RequestedAccess)} {access.GetPath(pathTable)}")
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                .Distinct(OperatingSystemHelper.PathComparer).ToList();
 
             Console.WriteLine($"Enumerated the directory '{args[0]}'. The following accesses were reported:");
             Console.WriteLine(string.Join(Environment.NewLine, allAccesses));

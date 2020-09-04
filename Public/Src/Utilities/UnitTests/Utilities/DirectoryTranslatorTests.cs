@@ -167,7 +167,7 @@ namespace Test.BuildXL.Utilities
             string expectedAbsolute = A(expected);
             string pathAbsolute = A(path);
 
-            XAssert.AreEqual(expectedAbsolute.ToUpperInvariant(), translator.Translate(pathAbsolute).ToUpperInvariant());
+            XAssert.AreEqual(expectedAbsolute.ToCanonicalizedPath(), translator.Translate(pathAbsolute).ToCanonicalizedPath());
         }
 
         private static DirectoryTranslator.RawInputTranslation CreateInputTranslation(PathTable pathTable, string[] source, string[] target)

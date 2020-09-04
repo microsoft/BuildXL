@@ -3,10 +3,12 @@
 
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class AbsolutePathTests : XunitBuildXLTest
     {
         public AbsolutePathTests(ITestOutputHelper output)
@@ -14,7 +16,7 @@ namespace Test.BuildXL.Utilities
         {
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void IsInitialized()
         {
             AbsolutePath p = default(AbsolutePath);
@@ -26,7 +28,7 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(p.IsValid);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void TryCreate()
         {
             var pt = new PathTable();
@@ -99,7 +101,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"\\srv\BBB", p.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void TryCreateWithDeviceOrNtPrefix()
         {            
             var pt = new PathTable();
@@ -136,7 +138,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(11, errorPosition);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void Equality()
         {
             var pt = new PathTable();
@@ -177,7 +179,7 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(a3 == a3DifferentCase);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void Combine()
         {
             var pt = new PathTable();
@@ -215,7 +217,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"C:\X\A\B", a2.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void Concat()
         {
             var pt = new PathTable();
@@ -225,7 +227,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"C:\AB", a2.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void RemoveExtension()
         {
             var pt = new PathTable();
@@ -290,7 +292,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(ap1, ap2);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void ChangeExtension()
         {
             var pt = new PathTable();
@@ -359,7 +361,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"c:\xyz\a", ap2.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void GetExtension()
         {
             var pt = new PathTable();
@@ -385,7 +387,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@".cpp", e1.ToString(pt.StringTable));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void GetName()
         {
             var pt = new PathTable();
@@ -394,7 +396,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"a", atom.ToString(pt.StringTable));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void GetParent()
         {
             var pt = new PathTable();
@@ -407,7 +409,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"c:\a", parent.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void GetRoot()
         {
             var pt = new PathTable();
@@ -428,7 +430,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"\\server", root.ToString(pt));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void IsValidPathChar()
         {
             XAssert.IsTrue(AbsolutePath.IsValidAbsolutePathChar('a'));
@@ -445,7 +447,7 @@ namespace Test.BuildXL.Utilities
             XAssert.IsFalse(AbsolutePath.IsValidAbsolutePathChar('?'));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void RelocateForm1()
         {
             // replace the file extension
@@ -486,7 +488,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void RelocateForm3Subst()
         {
             // leave the extension alone
@@ -500,7 +502,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void RelocateForm2()
         {
             // replace the file extension
@@ -535,7 +537,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void ToStringTests()
         {
             var backSlashedPath = @"c:\temp\test\test1.txt";

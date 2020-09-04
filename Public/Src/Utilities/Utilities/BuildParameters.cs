@@ -213,7 +213,7 @@ namespace BuildXL.Utilities
 
             private IBuildParameters Create(IEnumerable<KeyValuePair<string, string>> value)
             {
-                return CaseInsensitiveBuildParameters.PopulateFromDictionary(value, m_reporter);
+                return BuildParametersImpl.PopulateFromDictionary(value, m_reporter);
             }
         }
 
@@ -249,11 +249,11 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        ///     An implementation of <see cref="IBuildParameters"/> that treats parameter names as case-insensitive.
+        ///     An implementation of <see cref="IBuildParameters"/> that treats case-sensitivity of parameter names according to the operating systems.
         /// </summary>
-        private sealed class CaseInsensitiveBuildParameters : IBuildParameters
+        private sealed class BuildParametersImpl : IBuildParameters
         {
-            private static readonly StringComparer s_parametersKeyComparer = StringComparer.OrdinalIgnoreCase;
+            private static readonly StringComparer s_parametersKeyComparer = OperatingSystemHelper.EnvVarComparer;
 
             private readonly IReadOnlyDictionary<string, string> m_parameters;
             private readonly OnDuplicateParameter m_reporter;
@@ -298,7 +298,7 @@ namespace BuildXL.Utilities
                     result[kv.Key] = kv.Value;
                 }
 
-                return new CaseInsensitiveBuildParameters(result, CollectionUtilities.EmptyArray<DuplicateBuildParameter>(), m_reporter);
+                return new BuildParametersImpl(result, CollectionUtilities.EmptyArray<DuplicateBuildParameter>(), m_reporter);
             }
 
             /// <inheritdoc/>
@@ -321,7 +321,7 @@ namespace BuildXL.Utilities
                 return m_parameters.ContainsKey(key);
             }
 
-            private static CaseInsensitiveBuildParameters Deduplicate(IEnumerable<KeyValuePair<string, string>> parameters, OnDuplicateParameter reporter)
+            private static BuildParametersImpl Deduplicate(IEnumerable<KeyValuePair<string, string>> parameters, OnDuplicateParameter reporter)
             {
                 var duplicates = new List<DuplicateBuildParameter>();
 
@@ -339,10 +339,10 @@ namespace BuildXL.Utilities
                     }
                 }
 
-                return new CaseInsensitiveBuildParameters(result, duplicates.AsReadOnly(), reporter);
+                return new BuildParametersImpl(result, duplicates.AsReadOnly(), reporter);
             }
 
-            private CaseInsensitiveBuildParameters(IReadOnlyDictionary<string, string> parameters, IReadOnlyList<DuplicateBuildParameter> duplicates, OnDuplicateParameter reporter)
+            private BuildParametersImpl(IReadOnlyDictionary<string, string> parameters, IReadOnlyList<DuplicateBuildParameter> duplicates, OnDuplicateParameter reporter)
             {
                 m_reporter = reporter;
                 m_parameters = parameters;

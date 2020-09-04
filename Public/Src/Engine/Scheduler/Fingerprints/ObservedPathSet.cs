@@ -176,7 +176,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     string expanded = pathExpander?.ExpandPath(pathTable, entry.Path) ?? entry.Path.ToString(pathTable);
                     if (!preserveCasing)
                     {
-                        expanded = expanded.ToUpperInvariant();
+                        expanded = expanded.ToCanonicalizedPath();
                     }
 
                     int reuseCount = 0;
@@ -229,7 +229,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     var expandedFileName = entry.ToString(pathTable.StringTable);
                     if (!preserveCasing)
                     {
-                        expandedFileName = expandedFileName.ToUpperInvariant();
+                        expandedFileName = expandedFileName.ToCanonicalizedPath();
                     }
 
                     writer.Write(expandedFileName);

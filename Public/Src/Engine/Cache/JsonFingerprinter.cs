@@ -264,9 +264,7 @@ namespace BuildXL.Engine.Cache
             Contract.Requires(PathTable != null, "Cannot add AbsolutePaths to a JsonFingerprinter that was initialized without a PathTable.");
             string pathString = path.IsValid ? PathExpander.ExpandPath(PathTable, path) : "??Invalid";
 
-            // Normalize string paths to lower case since absolute path equivalency
-            // depends on the hash and the path, but not casing
-            return pathString.ToLowerInvariant();
+            return pathString.ToCanonicalizedPath();
         }
 
         /// <summary>

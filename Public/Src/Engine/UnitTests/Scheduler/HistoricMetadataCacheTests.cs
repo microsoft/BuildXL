@@ -219,8 +219,8 @@ namespace Test.BuildXL.Scheduler
             for (int i = 0; i < pathSet1.Paths.Length; i++)
             {
                 Assert.Equal(
-                    pathSet1.Paths[i].Path.ToString(pathTable1).ToUpperInvariant(),
-                    pathSet2.Paths[i].Path.ToString(pathTable2).ToUpperInvariant());
+                    pathSet1.Paths[i].Path.ToString(pathTable1).ToCanonicalizedPath(),
+                    pathSet2.Paths[i].Path.ToString(pathTable2).ToCanonicalizedPath());
             }
         }
 

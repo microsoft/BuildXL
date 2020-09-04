@@ -204,7 +204,7 @@ namespace BuildXL
         {
             string processName = Path.GetFileNameWithoutExtension(assemblyFullPath);
 
-            foreach (var processToKill in Process.GetProcessesByName(processName).Where(p => string.Equals(assemblyFullPath, p.MainModule.FileName, StringComparison.OrdinalIgnoreCase)))
+            foreach (var processToKill in Process.GetProcessesByName(processName).Where(p => string.Equals(assemblyFullPath, p.MainModule.FileName, OperatingSystemHelper.PathComparison)))
             {
                 try
                 {

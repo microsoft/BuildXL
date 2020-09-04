@@ -1326,7 +1326,7 @@ namespace Test.BuildXL.FingerprintStore
         /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
         /// when serializing to JSON.
         /// </summary>
-        private string ArtifactToPrint(FileOrDirectoryArtifact artifact) => Expander.ExpandPath(Context.PathTable, artifact.Path).ToLowerInvariant();
+        private string ArtifactToPrint(FileOrDirectoryArtifact artifact) => Expander.ExpandPath(Context.PathTable, artifact.Path).ToCanonicalizedPath();
 
         /// <summary>
         /// Encapsulates one "session" with a fingerprint store.

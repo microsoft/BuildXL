@@ -996,9 +996,10 @@ namespace Test.BuildXL.Executables.TestProcess
                 {
                     file = file.ToUpperInvariant();
                 }
+
                 if (AdditionalArgs == UseLongPathPrefix)
                 {
-                    file = @"\\?\" + file.ToUpperInvariant();
+                    file = @"\\?\" + file;
                 }
 
                 // Ensure directory exists.

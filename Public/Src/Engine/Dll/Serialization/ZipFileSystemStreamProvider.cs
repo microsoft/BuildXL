@@ -40,7 +40,7 @@ namespace BuildXL.Engine.Serialization
         /// <inheritdoc />
         public override Disposable<Stream> OpenReadStream(string path)
         {
-            if (path.StartsWith(ZipFilePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(ZipFilePath + Path.DirectorySeparatorChar, OperatingSystemHelper.PathComparison))
             {
                 return OpenArchiveForRead().ChainSelect(archive =>
                 {
@@ -68,7 +68,7 @@ namespace BuildXL.Engine.Serialization
                         m_pathToEntryNameMap = archive.Entries.ToDictionary(
                             entry => Path.Combine(ZipFilePath, entry.FullName.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)),
                             entry => entry.FullName,
-                            StringComparer.OrdinalIgnoreCase);
+                            OperatingSystemHelper.PathComparer);
                     }
 
                     return archive;

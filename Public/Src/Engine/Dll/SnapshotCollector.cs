@@ -84,7 +84,7 @@ namespace BuildXL.Engine
             m_loggingContext = loggingContext;
             m_snapshotFile = snapshotFile;
             m_snapshotMode = snapshotMode;
-            m_environmentVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            m_environmentVariables = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             m_mounts = new List<IMount>();
             m_files = new ConcurrentBag<AbsolutePath>();
             m_commandLineArguments = commandLineArguments;

@@ -9,6 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
@@ -209,7 +210,7 @@ namespace Test.BuildXL.TestUtilities
             {
                 Dictionary<string, int> pathCounters = m_eventsByPathCounter.GetOrAdd(
                     eventData.EventId,
-                    k => new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+                    k => new Dictionary<string, int>(OperatingSystemHelper.PathComparer));
 
                 lock (pathCounters)
                 {

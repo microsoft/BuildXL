@@ -72,7 +72,7 @@ namespace BuildXL.Utilities.Tracing
             Contract.RequiresNotNull(fromPath);
             Contract.RequiresNotNull(toPath);
 
-            String suffix = Path.DirectorySeparatorChar + string.Empty;
+            string suffix = Path.DirectorySeparatorChar + string.Empty;
             FromPath = fromPath.EndsWith(suffix, StringComparison.Ordinal) ? fromPath : fromPath + suffix;
             ToPath = toPath.EndsWith(suffix, StringComparison.Ordinal) ? toPath : toPath + suffix;
             m_listPool = new ObjectPool<List<int>>(() => new List<int>(), (list) => list.Clear());
@@ -106,7 +106,7 @@ namespace BuildXL.Utilities.Tracing
                 int startChar = 0;
                 while (startChar < text.Length)
                 {
-                    int found = text.IndexOf(FromPath, startChar, StringComparison.OrdinalIgnoreCase);
+                    int found = text.IndexOf(FromPath, startChar, OperatingSystemHelper.PathComparison);
                     if (found == -1)
                     {
                         break;

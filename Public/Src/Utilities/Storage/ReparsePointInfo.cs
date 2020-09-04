@@ -71,12 +71,8 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public bool Equals(ReparsePointInfo other)
         {
-            return ReparsePointType == other.ReparsePointType 
-                   &&  string.Equals(
-                           other.m_targetString,
-                           m_targetString,
-                           // paths are case-sensitive on Unix platforms
-                           OperatingSystemHelper.IsUnixOS ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+            return ReparsePointType == other.ReparsePointType
+                   && string.Equals(other.m_targetString, m_targetString, OperatingSystemHelper.PathComparison);
         }
 
         /// <inheritdoc />

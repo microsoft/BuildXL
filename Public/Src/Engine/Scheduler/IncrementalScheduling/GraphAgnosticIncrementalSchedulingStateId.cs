@@ -66,8 +66,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             return otherId != null
                 && string.Equals(m_machineName, otherId.m_machineName, StringComparison.Ordinal)
-                && string.Equals(m_substSource, otherId.m_substSource, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(m_substTarget, otherId.m_substTarget, StringComparison.OrdinalIgnoreCase);
+                && string.Equals(m_substSource, otherId.m_substSource, OperatingSystemHelper.PathComparison)
+                && string.Equals(m_substTarget, otherId.m_substTarget, OperatingSystemHelper.PathComparison);
         }
 
         /// <summary>
@@ -77,8 +77,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             return new GraphAgnosticIncrementalSchedulingStateId(
                 Environment.MachineName,
-                configuration.Logging.SubstSource.ToString(pathTable).ToUpperInvariant(),
-                configuration.Logging.SubstTarget.ToString(pathTable).ToUpperInvariant(),
+                configuration.Logging.SubstSource.ToString(pathTable).ToCanonicalizedPath(),
+                configuration.Logging.SubstTarget.ToString(pathTable).ToCanonicalizedPath(),
                 preserveOutputSalt);
         }
 

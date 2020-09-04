@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -116,7 +117,7 @@ namespace BuildXL.Execution.Analyzer
                             dirData.PipId.IsValid ? " " + CachedGraph.PipGraph.GetPipFromPipId(dirData.PipId).GetDescription(PipGraph.Context) : string.Empty);
 
                         writer.WriteLine("    EnumeratePatternRegex: {0}", dirData.EnumeratePatternRegex);
-                        dirData.Files.Sort(StringComparer.OrdinalIgnoreCase);
+                        dirData.Files.Sort(OperatingSystemHelper.PathComparer);
 
                         foreach (var file in dirData.Files)
                         {

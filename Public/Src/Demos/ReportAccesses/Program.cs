@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using BuildXL.Demo;
+using BuildXL.Utilities;
 
 namespace BuildXL.SandboxDemo
 {
@@ -36,7 +37,7 @@ namespace BuildXL.SandboxDemo
             var accessesByPath = result
                 .FileAccesses
                 .Select(access => access.GetPath(fileAccessReporter.PathTable))
-                .Distinct(StringComparer.OrdinalIgnoreCase);
+                .Distinct(OperatingSystemHelper.PathComparer);
 
             var displayAccesses = string.Join(Environment.NewLine, accessesByPath);
 

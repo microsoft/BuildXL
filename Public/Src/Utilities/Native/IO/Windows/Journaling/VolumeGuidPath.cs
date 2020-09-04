@@ -101,7 +101,7 @@ namespace BuildXL.Native.IO.Windows
                 return false;
             }
 
-            if (!path.StartsWith(VolumePrefix, StringComparison.OrdinalIgnoreCase))
+            if (!path.StartsWith(VolumePrefix, OperatingSystemHelper.PathComparison))
             {
                 return false;
             }
@@ -131,7 +131,7 @@ namespace BuildXL.Native.IO.Windows
         public bool Equals(VolumeGuidPath other)
         {
             return ReferenceEquals(m_path, other.m_path) ||
-                   (m_path != null && m_path.Equals(other.m_path, StringComparison.OrdinalIgnoreCase));
+                   (m_path != null && m_path.Equals(other.m_path, OperatingSystemHelper.PathComparison));
         }
 
         /// <inheritdoc />

@@ -182,7 +182,7 @@ namespace BuildXL.Scheduler
             {
                 hash = ContentHashingUtilities.CombineOrderIndependent(
                     hash,
-                    ContentHashingUtilities.HashString(searchPathToolSuffix.ToUpperInvariant()));
+                    ContentHashingUtilities.HashString(searchPathToolSuffix.ToCanonicalizedPath()));
             }
 
             return hash;
@@ -202,7 +202,7 @@ namespace BuildXL.Scheduler
             result = false;
             foreach (var searchPathToolSuffix in rootRuleSet.m_searchPathEnumerationToolFragments)
             {
-                if (toolPath.EndsWith(searchPathToolSuffix, System.StringComparison.OrdinalIgnoreCase))
+                if (toolPath.EndsWith(searchPathToolSuffix, OperatingSystemHelper.PathComparison))
                 {
                     result = true;
                     break;

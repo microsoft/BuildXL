@@ -92,8 +92,8 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public void OnInit()
         {
-            ChangedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            PossiblyChangedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            ChangedDirs = new HashSet<string>(OperatingSystemHelper.PathComparer);
+            PossiblyChangedPaths = new HashSet<string>(OperatingSystemHelper.PathComparer);
         }
 
         /// <inheritdoc />

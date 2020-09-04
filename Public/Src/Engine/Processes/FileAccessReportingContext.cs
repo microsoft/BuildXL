@@ -191,7 +191,7 @@ namespace BuildXL.Processes
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
 
-            if (path.StartsWith(PipEnvironment.RestrictedTemp, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(PipEnvironment.RestrictedTemp, OperatingSystemHelper.PathComparison))
             {
                 BuildXL.Processes.Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
                     m_loggingContext,

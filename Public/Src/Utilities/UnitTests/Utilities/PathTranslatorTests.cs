@@ -18,23 +18,30 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(" d", "src", "123", "bar"),
                 pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" b", "foo", "bar")));
+
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "bar"),
                 pt.Translate(PathGeneratorUtilities.GetAbsolutePath("b", "foo", "bar")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "bar  '") +
-                PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR"),
+                (OperatingSystemHelper.IsPathComparisonCaseSensitive
+                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
                 pt.Translate(PathGeneratorUtilities.GetAbsolutePath("b", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(" d", "src", "123", "bar  '") +
-                PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR"),
+                (OperatingSystemHelper.IsPathComparisonCaseSensitive
+                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
                 pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" b", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("where is my head", "src", "foo", "bar  '") +
-                PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR"),
+                (OperatingSystemHelper.IsPathComparisonCaseSensitive
+                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
                 pt.Translate(PathGeneratorUtilities.GetAbsolutePath("where is my head", "src", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
         }
 

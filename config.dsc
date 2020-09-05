@@ -81,8 +81,6 @@ config({
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0-alpha-5" },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0-alpha-5" },
 
-                { id: "EntityFramework", version: "6.0.0" },
-
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.5.0" },
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
@@ -91,18 +89,15 @@ config({
                 { id: "Microsoft.NETCore.Compilers", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.5.0",
                     dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                     dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                 },
                 { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.5.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "3.5.0" },
 
                 // Old code analysis libraries, for tests only
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0", alias: "Microsoft.CodeAnalysis.Common.Old" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
 
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.0.0" },
@@ -186,10 +181,8 @@ config({
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
                 { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
-                { id: "Microsoft.Data.OData", version: "5.8.4" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
-                { id: "Microsoft.Data.Edm", version: "5.8.2" },
 
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3" },
@@ -256,8 +249,6 @@ config({
                 { id: "ILRepack", version: "2.0.16" },
 
                 // VS language service
-                { id: "Desktop.Analyzers", version: "1.1.0" },
-                { id: "Microsoft.AnalyzerPowerPack", version: "1.0.1" },
                 { id: "System.Runtime.Analyzers", version: "1.0.1" },
                 { id: "System.Runtime.InteropServices.Analyzers", version: "1.0.1" },
                 { id: "System.Security.Cryptography.Hashing.Algorithms.Analyzers", version: "1.1.0" },
@@ -326,8 +317,6 @@ config({
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
                 { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
                 { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
-
-                { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
 
                 // Kusto SDK (for full framework)
                 { id: "Microsoft.Azure.Kusto.Data", version: "6.1.8" },

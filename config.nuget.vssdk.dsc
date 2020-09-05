@@ -3,10 +3,7 @@
 
 export const pkgs = [
     { id: "EnvDTE", version: "8.0.2" },
-    { id: "EnvDTE100", version: "10.0.0" },
     { id: "EnvDTE80", version: "8.0.3" },
-    { id: "EnvDTE90", version: "9.0.3" },
-    { id: "EnvDTE90a", version: "9.0.3" },
     { id: "Microsoft.VisualStudio.ComponentModelHost", version: "15.8.525" },
     { id: "Microsoft.VisualStudio.Composition", version: "14.2.19-pre" },
     { id: "Microsoft.VisualStudio.CoreUtility", version: "15.4.27004" },
@@ -49,13 +46,5 @@ export const pkgs = [
     { id: "stdole", version: "7.0.3303" },
     { id: "StreamJsonRpc", version: "1.4.128" },
     { id: "VSLangProj", version: "7.0.3301" },
-    { id: "VSLangProj100", version: "10.0.30320" },
-    { id: "VSLangProj110", version: "11.0.61031" },
-    { id: "VSLangProj140", version: "14.0.25030" },
-    { id: "VSLangProj150", version: "15.0.26229" },
-    { id: "VSLangProj157", version: "15.7.0" },
-    { id: "VSLangProj158", version: "15.8.0" },
     { id: "VSLangProj2", version: "7.0.5001" },
-    { id: "VSLangProj80", version: "8.0.50728" },
-    { id: "VSLangProj90", version: "9.0.30730" },
 ];

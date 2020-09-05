@@ -14,7 +14,6 @@ namespace VBCSCompilerLogger {
         sources: globR(d`.`, "*.cs"),
         references:[
             ...MSBuild.msbuildReferences,
-            importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
             importFrom("System.Collections.Immutable").pkg,
@@ -42,7 +41,6 @@ namespace VBCSCompilerLogger {
         sources: globR(d`.`, "*.cs"),
         references:[
             ...MSBuild.msbuildReferences,
-            importFrom("Microsoft.CodeAnalysis.VisualBasic.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.CSharp.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.Common.Old").pkg,
             importFrom("System.Collections.Immutable").pkg,

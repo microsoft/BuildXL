@@ -194,15 +194,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Desktop.Analyzers",
-          "Version": "1.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "DotNet.Glob",
           "Version": "2.0.3"
         }
@@ -230,15 +221,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "EntityFramework",
-          "Version": "6.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "EnvDTE",
           "Version": "8.0.2"
         }
@@ -248,35 +230,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "EnvDTE100",
-          "Version": "10.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "EnvDTE80",
           "Version": "8.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "EnvDTE90",
-          "Version": "9.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "EnvDTE90a",
-          "Version": "9.0.3"
         }
       }
     },
@@ -421,15 +376,6 @@
         "NuGet": {
           "Name": "JsonDiffPatch.Net",
           "Version": "2.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AnalyzerPowerPack",
-          "Version": "1.0.1"
         }
       }
     },
@@ -1094,33 +1040,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.VisualBasic",
-          "Version": "2.10.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.VisualBasic",
-          "Version": "3.5.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
-          "Version": "3.5.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Workspaces.Common",
           "Version": "3.5.0"
         }
@@ -1150,24 +1069,6 @@
         "NuGet": {
           "Name": "Microsoft.Composition",
           "Version": "1.0.30"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Data.Edm",
-          "Version": "5.8.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Data.OData",
-          "Version": "5.8.4"
         }
       }
     },
@@ -1437,15 +1338,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetAppHost",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.DotNetAppHost",
           "Version": "3.1.0"
         }
       }
@@ -1456,15 +1348,6 @@
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostPolicy",
           "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.DotNetHostResolver",
-          "Version": "2.2.0"
         }
       }
     },
@@ -1492,15 +1375,6 @@
         "NuGet": {
           "Name": "Microsoft.NETCore.Targets",
           "Version": "2.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.Windows.ApiSets",
-          "Version": "1.0.1"
         }
       }
     },
@@ -3758,80 +3632,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "VSLangProj100",
-          "Version": "10.0.30320"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj110",
-          "Version": "11.0.61031"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj140",
-          "Version": "14.0.25030"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj150",
-          "Version": "15.0.26229"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj157",
-          "Version": "15.7.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj158",
-          "Version": "15.8.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "VSLangProj2",
           "Version": "7.0.5001"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj80",
-          "Version": "8.0.50728"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VSLangProj90",
-          "Version": "9.0.30730"
         }
       }
     },
@@ -4037,35 +3839,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
           "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "2.2.0"
         }
       }
     },
@@ -4145,35 +3920,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
           "Version": "3.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "2.2.0"
         }
       }
     },

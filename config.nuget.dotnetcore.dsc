@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const coreVersion = "3.1.0";
-const coreVersionPreviousVersion = "2.2.0";
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
 
@@ -16,12 +15,10 @@ export const pkgs = [
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
-    { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "Microsoft.NETCore.DotNetHostResolver.220" },
 
     { id: "Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
 
     { id: "Microsoft.NETCore.DotNetAppHost", version: coreVersion },
-    { id: "Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
     // .NET Core win-x64 runtime deps
     { id: "Microsoft.NETCore.App.Host.win-x64", version: coreVersion, osSkip: [ "macOS", "unix" ] },
@@ -29,19 +26,11 @@ export const pkgs = [
     { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion, osSkip: [ "macOS", "unix" ] },
     { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion, osSkip: [ "macOS", "unix" ] },
 
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220", osSkip: [ "macOS", "unix" ] },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220", osSkip: [ "macOS", "unix" ] },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220", osSkip: [ "macOS", "unix" ] },
-
     // .NET Core osx-x64 runtime deps
     { id: "Microsoft.NETCore.App.Host.osx-x64", version: coreVersion },
     { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: coreVersion },
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
-
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersionPreviousVersion, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
     // .NET Core linux-x64 runtime deps
     { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: coreVersion },

@@ -553,6 +553,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Success Codes", pip.SuccessExitCodes.Select(code => code.ToString(CultureInfo.InvariantCulture))),
                     m_html.CreateRow("Semaphores", pip.Semaphores.Select(CreateSemaphore)),
                     m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel),
+                    m_html.CreateRow("PreserveOutputsAllowlist", pip.PreserveOutputAllowlist.Select(allowed => allowed.ToString(PathTable))),
                     m_html.CreateRow("ProcessOptions", pip.ProcessOptions.ToString()),
                     m_html.CreateRow("RetryExitCodes", string.Join(",", pip.RetryExitCodes))),
 

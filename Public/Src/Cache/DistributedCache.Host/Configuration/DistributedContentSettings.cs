@@ -320,7 +320,7 @@ namespace BuildXL.Cache.Host.Configuration
         public int RestrictedCopyReplicaCount { get; set; } = 3;
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
+        [Validation.Range(0, double.MaxValue)]
         public double PeriodicCopyTracingIntervalMinutes { get; set; } = 5.0;
 
         /// <summary>

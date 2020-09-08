@@ -14,7 +14,7 @@ namespace BuildXL.Pips.Graph
         public class WindowsOsDefaults
         {
             private readonly DirectoryArtifact[] m_untrackedDirectories;
-            
+
             private readonly DirectoryArtifact m_applicationDataPath;
             private readonly DirectoryArtifact m_localApplicationDataPath;
 
@@ -50,36 +50,55 @@ namespace BuildXL.Pips.Graph
                 {
                     foreach (var untrackedDirectory in m_untrackedDirectories)
                     {
-                        processBuilder.AddUntrackedDirectoryScope(untrackedDirectory);
+                        AddUntrackedScopeIfValid(untrackedDirectory, processBuilder);
                     }
                 }
 
                 if ((processBuilder.Options & Process.Options.DependsOnWindowsAppData) != 0)
                 {
-                    processBuilder.AddUntrackedDirectoryScope(m_applicationDataPath);
-                    processBuilder.AddUntrackedDirectoryScope(m_localApplicationDataPath);
+                    AddUntrackedScopeIfValid(m_applicationDataPath, processBuilder);
+                    AddUntrackedScopeIfValid(m_localApplicationDataPath, processBuilder);
                 }
 
                 if ((processBuilder.Options & Process.Options.DependsOnWindowsProgramData) != 0)
                 {
-                    processBuilder.AddUntrackedDirectoryScope(m_commonApplicationDataPath);
+                    AddUntrackedScopeIfValid(m_commonApplicationDataPath, processBuilder);
                 }
 
                 return true;
             }
 
+            /// <summary>
+            /// Some Windows Special Folders cannot be retrieved based on the state of the user profile. Only add them
+            /// if they were successfull retrieved.
+            /// </summary>
+            private void AddUntrackedScopeIfValid(DirectoryArtifact directoryArtifact, ProcessBuilder processBuilder)
+            {
+                if (directoryArtifact.IsValid)
+                {
+                    processBuilder.AddUntrackedDirectoryScope(directoryArtifact);
+                }
+            }
+
             private static DirectoryArtifact GetSpecialFolder(PathTable pathTable, Environment.SpecialFolder specialFolder, params string[] subFolders)
             {
-                var root = AbsolutePath.Create(pathTable, SpecialFolderUtilities.GetFolderPath(specialFolder));
-                if (subFolders != null)
+                // GetFolderPath will return empty paths for special folders that don't exist in the current user profile.
+                // Return DirectoryArtifact.Invalid for those folders so they can be omitted from being untracked when
+                // the system does not support them.
+                if (AbsolutePath.TryCreate(pathTable, SpecialFolderUtilities.GetFolderPath(specialFolder), out var root))
                 {
-                    foreach (var subFolder in subFolders)
+                    if (subFolders != null)
                     {
-                        root = root.Combine(pathTable, subFolder);
+                        foreach (var subFolder in subFolders)
+                        {
+                            root = root.Combine(pathTable, subFolder);
+                        }
                     }
+
+                    return DirectoryArtifact.CreateWithZeroPartialSealId(root);
                 }
 
-                return DirectoryArtifact.CreateWithZeroPartialSealId(root);
+                return DirectoryArtifact.Invalid;
             }
         }
     }

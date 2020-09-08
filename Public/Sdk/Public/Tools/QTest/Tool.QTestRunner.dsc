@@ -11,7 +11,8 @@ const dynamicCodeCovString = "DynamicCodeCov";
 // The maximum value of qTestTimeoutSec is 600(10 mins) and qTestAttemptCount is 100. 
 // So the maxium runtime of QTest is 1000 mins.
 // BuildXL, therefore setting the timeout to 1005 mins, so QTest could have 5 mins for cleaning up.
-const qtestDefaultTimeoutInMilliseconds = 60300000; // 1005 mins
+@@public
+export const qtestDefaultTimeoutInMilliseconds = 60300000; // 1005 mins
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {

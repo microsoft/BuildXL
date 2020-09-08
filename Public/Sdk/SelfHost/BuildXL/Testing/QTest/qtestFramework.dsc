@@ -26,6 +26,7 @@ export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
+    timeoutInMilliseconds: Qtest.qtestDefaultTimeoutInMilliseconds
 };
 
 @@public
@@ -183,7 +184,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAttemptCount: 1,
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
-        qTestTimeoutSec: 540,
+        qTestTimeoutSec: 600,
         useVsTest150: true,
         // Setting file can be passed through vstestSettingsFile or vstestSettingsFileForCoverage.
         // For BuildXL selfhost, ensure that the setting file disable parallelism. QTest by default run unit test methods in sequence,

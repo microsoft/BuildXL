@@ -277,6 +277,7 @@ export function runQTest(args: QTestArguments): Result {
             qTestDotNetFrameworkToString(args.qTestDotNetFramework)
         ),
         Cmd.flag("--qTestRetryOnFailure", args.qTestRetryOnFailure),
+        Cmd.option("--qTestRetryOnFailureMode ", args.qTestRetryOnFailureMode),
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
@@ -477,6 +478,12 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestLogs?: Directory;
     /** Specifies to automatically retry failing tests */
     qTestRetryOnFailure?: boolean;
+    /** Specifies to the mode under which to automatically retry failing tests:
+     *      'Full': Retry full test target.
+     *      'Failed': Retry only the failed test cases from the test target.
+     *      'None': Do not retry.
+    */
+    qTestRetryOnFailureMode?: "Full" | "Failed" | "None";
     /** Executes tests for specified number of times. A test is considered as passed So t
      * only when all attempts pass. Maximum allowed value is 100.*/
     qTestAttemptCount?: number;

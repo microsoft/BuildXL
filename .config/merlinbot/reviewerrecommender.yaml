@@ -1,0 +1,10 @@
+# Merlinbot config schema at https://1esdocs.azurewebsites.net/datainsights/merlinbot/extensions/reviewerrec.html
+# Enable/Disable recommender
+enabled: true
+# How many reviewers to add?
+maxReviewers: 1
+# Exclude files/paths in PR to be considered for recommendation  
+excludedPaths:
+  - .config\CloudBuild.FlakyTests.json*
+excludedReviewers:
+  - dannyvv@microsoft.com

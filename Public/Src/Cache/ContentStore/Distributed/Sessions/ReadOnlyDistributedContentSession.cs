@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <summary>
         /// The content session that actually stores content.
         /// </summary>
-        protected readonly IContentSession Inner;
+        public IContentSession Inner { get; }
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentSession<T>));

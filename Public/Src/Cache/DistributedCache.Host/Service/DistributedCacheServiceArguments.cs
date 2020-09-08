@@ -84,7 +84,8 @@ namespace BuildXL.Cache.Host.Service
             CancellationToken cancellation,
             string dataRootPath,
             DistributedCacheServiceConfiguration configuration,
-            string keyspace)
+            string keyspace,
+            IAbsFileSystem fileSystem = null)
         {
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(host);
@@ -100,7 +101,7 @@ namespace BuildXL.Cache.Host.Service
             Cancellation = cancellation;
             DataRootPath = dataRootPath;
             Configuration = configuration;
-            FileSystem = new PassThroughFileSystem(logger);
+            FileSystem = fileSystem ?? new PassThroughFileSystem(logger);
 
             Keyspace = ComputeKeySpace(hostInfo, configuration, keyspace);
         }

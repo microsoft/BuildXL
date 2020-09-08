@@ -58,13 +58,13 @@ namespace ContentStoreTest.Distributed.Sessions
             return new DistributedContentStore<AbsolutePath>(
                 localMachineLocation,
                 rootPath,
-                (contentStoreSettings, distributedStore) =>
+                (distributedStore) =>
                     new FileSystemContentStore(
                         FileSystem,
                         SystemClock.Instance,
                         rootPath,
                         configurationModel,
-                        settings: contentStoreSettings,
+                        settings: ContentStoreSettings.DefaultSettings,
                         distributedStore: distributedStore),
                 storeFactory,
                 settings: settings,

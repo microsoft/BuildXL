@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Flag for testing using local Redis instance.
         /// </summary>
-        internal bool DisposeContentStoreFactory = true;
+        internal bool DisposeContentLocationStoreFactory = true;
 
         internal IContentStore InnerContentStore { get; }
 
@@ -89,12 +89,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public DistributedContentStore(
             MachineLocation localMachineLocation,
             AbsolutePath localCacheRoot,
-            Func<ContentStoreSettings, IDistributedLocationStore, IContentStore> innerContentStoreFunc,
+            Func<IDistributedLocationStore, IContentStore> innerContentStoreFunc,
             IContentLocationStoreFactory contentLocationStoreFactory,
             DistributedContentStoreSettings settings,
             DistributedContentCopier<T> distributedCopier,
-            IClock clock = null,
-            ContentStoreSettings contentStoreSettings = null)
+            IClock clock = null)
         {
             Contract.Requires(settings != null);
 
@@ -104,10 +103,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _distributedCopier = distributedCopier;
             _copierWorkingDirectory = new DisposableDirectory(distributedCopier.FileSystem, localCacheRoot / "Temp");
 
-            contentStoreSettings ??= ContentStoreSettings.DefaultSettings;
             _settings = settings;
 
-            InnerContentStore = innerContentStoreFunc(contentStoreSettings, this);
+            InnerContentStore = innerContentStoreFunc(this);
         }
 
         AbsolutePath IDistributedContentCopierHost.WorkingFolder => _copierWorkingDirectory.Path;
@@ -469,7 +467,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             InnerContentStore.Dispose();
 
-            if (DisposeContentStoreFactory)
+            if (DisposeContentLocationStoreFactory)
             {
                 _contentLocationStoreFactory.Dispose();
             }

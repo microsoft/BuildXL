@@ -36,6 +36,8 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using ContentStoreTest.Extensions;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace ContentStoreTest.Distributed.Sessions
@@ -144,7 +146,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 if (storeToStartupLast.HasValue)
                 {
-                    var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccessAsync();
+                    var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccess();
                 }
 
                 Sessions = Stores.Select((store, id) => store.CreateSession(Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
@@ -218,10 +220,51 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public static implicit operator OperationContext(TestContext context) => new OperationContext(context);
 
-            public virtual DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
+            public virtual IContentSession GetSession(int idx)
             {
-                var session = Sessions[idx];
-                return (DistributedContentSession<AbsolutePath>)session;
+                return Sessions[idx];
+            }
+
+            public virtual DistributedContentSession<AbsolutePath> GetDistributedSession(int idx, bool primary = true)
+            {
+                return GetTypedSession<DistributedContentSession<AbsolutePath>>(idx, primary);
+            }
+
+            internal FileSystemContentSession GetFileSystemSession(int idx, bool primary = true)
+            {
+                return GetTypedSession<FileSystemContentSession>(idx, primary);
+            }
+
+            private TSession GetTypedSession<TSession>(int idx, bool primary)
+            {
+                var session = GetSession(idx);
+                while (!(session is TSession))
+                {
+                    var nextSession = UnwrapSession(session, primary);
+                    if (nextSession == session)
+                    {
+                        break;
+                    }
+
+                    session = nextSession;
+                }
+
+                return (TSession)session;
+            }
+
+            private static IContentSession UnwrapSession(IContentSession session, bool primary)
+            {
+                if (session is MultiplexedContentSession multiplexSession)
+                {
+                    var primarySession = multiplexSession.PreferredContentSession;
+                    session = (IContentSession)(primary ? primarySession : multiplexSession.SessionsByCacheRoot.Values.Where(s => s != primarySession).First());
+                }
+                else if (session is DistributedContentSession<AbsolutePath> distributedSession)
+                {
+                    session = distributedSession.Inner;
+                }
+
+                return session;
             }
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
@@ -233,9 +276,45 @@ namespace ContentStoreTest.Distributed.Sessions
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
 
-            internal IContentStore GetDistributedStore(int idx)
+            public virtual DistributedContentStore<AbsolutePath> GetDistributedStore(int idx, bool primary = true)
+            {
+                return GetTypedStore<DistributedContentStore<AbsolutePath>>(idx, primary);
+            }
+
+            internal FileSystemContentStore GetFileSystemStore(int idx, bool primary = true)
+            {
+                return GetTypedStore<FileSystemContentStore>(idx, primary);
+            }
+
+            private TStore GetTypedStore<TStore>(int idx, bool primary)
             {
                 var store = Stores[idx];
+                while (!(store is TStore))
+                {
+                    var nextStore = UnwrapStore(store, primary);
+                    if (nextStore == store)
+                    {
+                        break;
+                    }
+
+                    store = nextStore;
+                }
+
+                return (TStore)store;
+            }
+
+            private static IContentStore UnwrapStore(IContentStore store, bool primary)
+            {
+                if (store is MultiplexedContentStore multiplexStore)
+                {
+                    var primaryStore = multiplexStore.PreferredContentStore;
+                    store = primary ? primaryStore : multiplexStore.DrivesWithContentStore.Values.Where(s => s != primaryStore).First();
+                }
+                else if (store is DistributedContentStore<AbsolutePath> distributedStore)
+                {
+                    store = distributedStore.InnerContentStore;
+                }
+
                 return store;
             }
 
@@ -270,9 +349,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
             internal Task SyncAsync(int idx)
             {
-                var store = (DistributedContentStore<AbsolutePath>)Stores[idx];
-                var localContentStore = (FileSystemContentStore)store.InnerContentStore;
-                return localContentStore.Store.SyncAsync(this);
+                var store = GetFileSystemStore(idx);
+                return store.Store.SyncAsync(this);
             }
 
             public int GetFirstWorkerIndex()
@@ -417,7 +495,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 1,
                 async context =>
                 {
-                    var session = context.GetDistributedSession(0);
+                    var session = context.GetSession(0);
                     var store = (IRepairStore)context.Stores[0];
 
                     // Add random file to empty cache and update the content tracker
@@ -434,8 +512,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 1,
                 async context =>
                 {
-                    var session = context.GetDistributedSession(0);
-                    var contentLocationStore = session.ContentLocationStore;
+                    var session = context.GetSession(0);
+                    var contentLocationStore = context.GetLocationStore(0);
 
                     // Because the file is unique, trimming should remove the hash from the content tracker
                     var getResult = await contentLocationStore.GetBulkAsync(context, new[] { contentHash }, CancellationToken.None, UrgencyHint.Nominal);
@@ -509,8 +587,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 1,
                 async context =>
                 {
-                    var session = context.GetDistributedSession(0);
-                    var store = context.GetContentLocationStore(session);
+                    var session = context.GetSession(0);
+                    var store = context.GetLocationStore(0);
 
                     var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
 
@@ -546,9 +624,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 1,
                 async context =>
                 {
-                    var session = context.GetDistributedSession(0);
+                    var session = context.GetSession(0);
+                    var locationStore = context.GetLocationStore(0);
 
-                    var locationsResult = await session.ContentLocationStore.GetBulkAsync(
+                    var locationsResult = await locationStore.GetBulkAsync(
                         context,
                         contentHashes,
                         Token,
@@ -704,7 +783,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var sessions = context.Sessions;
 
-                        var openStreamResult = await context.GetDistributedSession(0).OpenStreamAsync(context, VsoHashInfo.Instance.EmptyHash, Token);
+                        var openStreamResult = await context.GetSession(0).OpenStreamAsync(context, VsoHashInfo.Instance.EmptyHash, Token);
 
                         openStreamResult.ShouldBeSuccess();
                         Assert.Equal(0, openStreamResult.Stream.Length);
@@ -725,7 +804,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var sessions = context.Sessions;
 
-                        await context.GetDistributedSession(0).PinAsync(context, VsoHashInfo.Instance.EmptyHash, Token).ShouldBeSuccess();
+                        await context.GetSession(0).PinAsync(context, VsoHashInfo.Instance.EmptyHash, Token).ShouldBeSuccess();
 
                         Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
@@ -744,7 +823,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var sessions = context.Sessions;
 
-                        var placeFileResult = (await context.GetDistributedSession(0).PlaceFileAsync(
+                        var placeFileResult = (await context.GetSession(0).PlaceFileAsync(
                             context,
                             new[] { new ContentHashWithPath(VsoHashInfo.Instance.EmptyHash, directory.CreateRandomFileName()) },
                             FileAccessMode.Write,
@@ -785,7 +864,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         testCopier.WorkingDirectory = indexedDirectories[0].Directory.Path;
                     }
 
-                    var testFileCopier = testCopier ?? outerContext?.TestFileCopier ?? new TestFileCopier()
+                    var testFileCopier = testCopier ?? outerContext?.TestFileCopier ?? new TestFileCopier(FileSystem)
                     {
                         WorkingDirectory = indexedDirectories[0].Directory.Path
                     };

@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -42,6 +43,13 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public TimeSpan? CopyDelay;
         public Task<CopyFileResult> CopyToAsyncTask;
 
+        private readonly IAbsFileSystem _fileSystem;
+
+        public TestFileCopier(IAbsFileSystem fileSystem = null)
+        {
+            _fileSystem = fileSystem ?? new PassThroughFileSystem();
+        }
+
         public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
         {
             var result = CopyToAsyncCore(context, sourcePath, destinationStream, expectedContentSize, options);
@@ -62,12 +70,12 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
                 FilesCopied.AddOrUpdate(sourcePath, p => sourcePath, (dest, prevPath) => prevPath);
 
-                if (!File.Exists(sourcePath.Path))
+                if (!_fileSystem.FileExists(sourcePath))
                 {
                     return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
                 }
 
-                using Stream s = GetStream(sourcePath, expectedContentSize);
+                using Stream s = await GetStreamAsync(sourcePath, expectedContentSize);
 
                 await s.CopyToAsync(destinationStream);
 
@@ -79,7 +87,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
         }
 
-        private Stream GetStream(AbsolutePath sourcePath, long expectedContentSize)
+        private async Task<Stream> GetStreamAsync(AbsolutePath sourcePath, long expectedContentSize)
         {
             Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
@@ -89,7 +97,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
             else
             {
-                s = File.OpenRead(sourcePath.Path);
+                s = await _fileSystem.OpenReadOnlySafeAsync(sourcePath, FileShare.Read);
             }
 
             return s;

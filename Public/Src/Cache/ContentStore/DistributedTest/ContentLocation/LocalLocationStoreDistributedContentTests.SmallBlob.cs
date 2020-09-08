@@ -39,7 +39,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 1,
                 async context =>
                 {
-                    var session = context.GetDistributedSession(0);
+                    var session = context.GetSession(0);
                     var redisStore = context.GetRedisGlobalStore(0);
 
                     await session.PutRandomAsync(context, HashType.Vso0, false, redisStore.Configuration.MaxBlobSize + 1, CancellationToken.None).ShouldBeSuccess();
@@ -58,10 +58,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 2,
                 async context =>
                 {
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     var putResult = await session0.PutRandomAsync(context, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
@@ -82,10 +82,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 2,
                 async context =>
                 {
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
@@ -113,7 +113,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 2,
                 async context =>
                 {
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
                     // Put a random file when small files in Redis feature is disabled.
@@ -121,7 +121,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.Equal(0, redisStore0.Counters[GlobalStoreCounters.PutBlob].Value);
                     var contentHash = putResult.ContentHash;
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     // Getting the file when small files in Redis feature is enabled.
@@ -145,10 +145,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var sessions = context.Sessions;
 
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     var file = ThreadSafeRandom.GetBytes(10);
@@ -175,10 +175,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var sessions = context.Sessions;
 
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     var putResult = await session0.PutRandomAsync(context, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
@@ -209,10 +209,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 2,
                 async context =>
                 {
-                    var session0 = context.GetDistributedSession(0);
+                    var session0 = context.GetSession(0);
                     var redisStore0 = context.GetRedisGlobalStore(0);
 
-                    var session1 = context.GetDistributedSession(1);
+                    var session1 = context.GetSession(1);
                     var redisStore1 = context.GetRedisGlobalStore(1);
 
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();

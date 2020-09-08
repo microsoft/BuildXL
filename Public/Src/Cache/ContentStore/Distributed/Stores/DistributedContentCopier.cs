@@ -644,20 +644,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             const int DefaultBufferSize = 1024 * 80;
 
-            if (!overwrite && File.Exists(destinationPath.Path))
+            if (!overwrite && FileSystem.FileExists(destinationPath))
             {
                 return new CopyFileResult(
                         CopyResultCode.DestinationPathError,
                         $"Destination file {destinationPath} exists but overwrite not specified.");
             }
 
-            var directoryPath = destinationPath.Parent!.Path;
-            if (!Directory.Exists(directoryPath))
+            var directoryPath = destinationPath.GetParent();
+            if (!FileSystem.DirectoryExists(directoryPath))
             {
-                Directory.CreateDirectory(directoryPath);
+                FileSystem.CreateDirectory(directoryPath);
             }
 
-            using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBufferSize, FileOptions.SequentialScan);
+            using var stream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
             return await copier.CopyToAsync(context, sourcePath, stream, expectedContentSize, options);
         }
 

@@ -70,7 +70,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? ContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
-            _fileSystem = new PassThroughFileSystem(_logger);
+            _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
             var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings));
 
@@ -167,11 +167,17 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
-                AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray(),
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists
             };
+
+            // Stop passing additional stores when fully transitioned to unified mode
+            // since all drives appear under the same machine id
+            if (_distributedSettings.GetMultiplexMode() != MultiplexMode.Unified)
+            {
+                redisContentLocationStoreConfiguration.AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray();
+            }
 
             ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisContentLocationStoreConfiguration.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);
@@ -277,25 +283,85 @@ namespace BuildXL.Cache.Host.Service.Internal
             return cacheFactory.CreateMemoizationStore(_logger);
         }
 
-        public DistributedContentStore<AbsolutePath> CreateContentStore(ResolvedNamedCacheSettings resolvedSettings)
+        public (IContentStore topLevelStore, DistributedContentStore<AbsolutePath> primaryDistributedStore) CreateTopLevelStore()
         {
-            var contentStoreSettings = FromDistributedSettings(_distributedSettings);
+            (IContentStore topLevelStore, DistributedContentStore<AbsolutePath> primaryDistributedStore) result = default;
 
+            if (_distributedSettings.GetMultiplexMode() == MultiplexMode.Legacy)
+            {
+                var multiplexedStore =
+                    CreateMultiplexedStore(settings =>
+                        CreateDistributedContentStore(settings, dls =>
+                            CreateFileSystemContentStore(settings, dls)));
+                result.topLevelStore = multiplexedStore;
+                result.primaryDistributedStore = (DistributedContentStore<AbsolutePath>)multiplexedStore.PreferredContentStore;
+            }
+            else
+            {
+                var distributedStore =
+                    CreateDistributedContentStore(OrderedResolvedCacheSettings[0], dls =>
+                        CreateMultiplexedStore(settings =>
+                            CreateFileSystemContentStore(settings, dls)));;
+                result.topLevelStore = distributedStore;
+                result.primaryDistributedStore = distributedStore;
+            }
+
+            return result;
+        }
+
+        public DistributedContentStore<AbsolutePath> CreateDistributedContentStore(
+            ResolvedNamedCacheSettings resolvedSettings,
+            Func<IDistributedLocationStore, IContentStore> innerStoreFactory)
+        {
             _logger.Debug("Creating a distributed content store");
 
             var contentStore =
                 new DistributedContentStore<AbsolutePath>(
                     resolvedSettings.MachineLocation,
                     resolvedSettings.ResolvedCacheRootPath,
-                    (checkLocal, distributedStore) => CreateLocalContentStore(_distributedSettings, _arguments, resolvedSettings, distributedStore),
+                    distributedStore => innerStoreFactory(distributedStore),
                     _redisMemoizationStoreFactory.Value,
                     _distributedContentStoreSettings,
                     distributedCopier: _copier,
-                    clock: _arguments.Overrides.Clock,
-                    contentStoreSettings: contentStoreSettings);
+                    clock: _arguments.Overrides.Clock);
 
             _logger.Debug("Created Distributed content store.");
             return contentStore;
+        }
+
+        public IContentStore CreateFileSystemContentStore(ResolvedNamedCacheSettings resolvedCacheSettings, IDistributedLocationStore distributedStore)
+        {
+            var contentStoreSettings = FromDistributedSettings(_distributedSettings);
+
+            ConfigurationModel configurationModel
+                = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedCacheSettings.Settings.CacheSizeQuotaString)));
+
+            return ContentStoreFactory.CreateContentStore(_fileSystem, resolvedCacheSettings.ResolvedCacheRootPath,
+                        contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel);
+        }
+
+        public MultiplexedContentStore CreateMultiplexedStore(Func<ResolvedNamedCacheSettings, IContentStore> createContentStore)
+        {
+            var cacheConfig = _arguments.Configuration;
+            var distributedSettings = cacheConfig.DistributedContentSettings;
+            var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var resolvedCacheSettings in OrderedResolvedCacheSettings)
+            {
+                _logger.Debug($"Using [{resolvedCacheSettings.Settings.CacheRootPath}]'s settings: {resolvedCacheSettings.Settings}");
+
+                drivesWithContentStore[resolvedCacheSettings.Drive] = createContentStore(resolvedCacheSettings);
+            }
+
+            if (string.IsNullOrEmpty(cacheConfig.LocalCasSettings.PreferredCacheDrive))
+            {
+                var knownDrives = string.Join(",", OrderedResolvedCacheSettings.Select(cacheSetting => cacheSetting.Drive));
+                throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
+            }
+
+            return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive,
+                // None legacy mode attempts operation on all stores
+                tryAllSessions: distributedSettings.GetMultiplexMode() != MultiplexMode.Legacy);
         }
 
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(

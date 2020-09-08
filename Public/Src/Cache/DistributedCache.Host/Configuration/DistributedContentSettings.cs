@@ -844,6 +844,15 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
+        [DataMember]
+        [Validation.Enum(typeof(MultiplexMode))]
+        public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Legacy);
+
+        public MultiplexMode GetMultiplexMode()
+        {
+            return (MultiplexMode)Enum.Parse(typeof(MultiplexMode), MultiplexStoreMode);
+        }
+
         #endregion        
         /// <summary>
         /// The map of drive paths to alternate paths to access them
@@ -868,5 +877,62 @@ namespace BuildXL.Cache.Host.Configuration
                 return new Dictionary<string, string>();
             }
         }
+    }
+
+    internal class JsonStringEnumConverter
+    {
+    }
+
+    /// <summary>
+    /// Specifies which multiplexing cache topology to use multiplex between drives.
+    /// </summary>
+    public enum MultiplexMode
+    {
+        /// <summary>
+        /// Defines the legacy multiplexing mode with a single multiplexed store at the root
+        /// 
+        ///     MultiplexedContentStore
+        ///         DistributedContentStore (LLS Machine Location = D:\)
+        ///             FileSystemContentStore (D:\)
+        ///         DistributedContentStore (LLS Machine Location = K:\)
+        ///             FileSystemContentStore (K:\)
+        ///
+        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [K:\])
+        /// </summary>
+        Legacy,
+
+        /// <summary>
+        /// Defines the transitioning multiplexing mode with root distributed store nesting multiplexed file system stores
+        /// but still maintaining LLS machine locations for all drives 
+        ///
+        ///     DistributedContentStore (LLS Machine Location = D:\)
+        ///         MultiplexedContentStore
+        ///             FileSystemContentStore (D:\)
+        ///             FileSystemContentStore (K:\)
+        ///
+        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [K:\])
+        ///     
+        ///     Keeps same LLS settings so it continues to heartbeat to keep K:\ (secondary) drive alive
+        ///     During reconcile, content from K:\ drive will be added to D:\ (primary) machine location
+        ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
+        /// </summary>
+        Transitional,
+
+        /// <summary>
+        /// Defines the transitioning multiplexing mode with root distributed store nesting multiplexed file system stores
+        /// with only a single lls machine location for the primary drive
+        ///
+        ///     DistributedContentStore (LLS Machine Location = D:\)
+        ///         MultiplexedContentStore
+        ///             FileSystemContentStore (D:\)
+        ///             FileSystemContentStore (K:\)
+        ///
+        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [])
+        ///
+        ///     Finally, LLS settings only mention the single primary (D:\) machine location, and all content for the machine (on all drives) is
+        ///     now registered under that machine location after going through the Transitional state.
+        ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
+        /// </summary>
+        Unified
     }
 }

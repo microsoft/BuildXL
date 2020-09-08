@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -13,10 +14,41 @@ using BuildXL.Utilities.Collections;
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
-    /// Utitlies for working with multi-level caches
+    /// Utilities for operations against multi-level caches
     /// </summary>
     public static class MultiLevelUtilities
     {
+        /// <summary>
+        /// Processes given inputs with on first level then optionally calls subset for second level
+        /// </summary>
+        /// <remarks>
+        /// * Call first function in given inputs
+        /// * Call specified inputs (based on first function results) with second function
+        /// * Fix indices for results of second function
+        /// * Merge the results
+        /// </remarks>
+        public static Task<IEnumerable<Task<Indexed<TResult>>>> RunManyLevelAsync<TSession, TSource, TResult>(
+            IReadOnlyList<TSession> sessions,
+            IReadOnlyList<TSource> inputs,
+            Func<TSession, IReadOnlyList<TSource>, Task<IEnumerable<Task<Indexed<TResult>>>>> runAsync,
+            Func<TResult, bool> useResult)
+        {
+            Contract.Requires(sessions.Count != 0);
+
+            Task<IEnumerable<Task<Indexed<TResult>>>> results = runAsync(sessions[0], inputs);
+
+            foreach (var session in sessions.Skip(1))
+            {
+                results = RunMultiLevelAsync(
+                    inputs,
+                    h => results,
+                    hashes => runAsync(session, hashes),
+                    useResult);
+            }
+
+            return results;
+        }
+
         /// <summary>
         /// Processes given inputs with on first level then optionally calls subset for second level
         /// </summary>

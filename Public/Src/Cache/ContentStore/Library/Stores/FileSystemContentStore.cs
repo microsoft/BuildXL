@@ -187,10 +187,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<IReadOnlyList<ContentInfo>> GetContentInfoAsync(CancellationToken token)
+        public async Task<IEnumerable<ContentInfo>> GetContentInfoAsync(CancellationToken token)
         {
             // TODO: add cancellation support for EnumerateContentInfoAsync
-            return Store.EnumerateContentInfoAsync();
+            return await Store.EnumerateContentInfoAsync();
         }
 
         /// <inheritdoc />

@@ -233,16 +233,16 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             public MetadataTestContext(TestContext other)
                 : base(other)
             {
-                Caches = other.Stores.Select(store => new DistributedOneLevelCache(store, (DistributedContentStore<AbsolutePath>)store, Guid.NewGuid(), passContentToMemoization: false)).ToList();
+                Caches = other.Stores.Select((store, i) => new DistributedOneLevelCache(store, other.GetDistributedStore(i), Guid.NewGuid(), passContentToMemoization: false)).ToList();
             }
 
             public ICacheSession GetMasterCacheSession() => CacheSessions[GetMasterIndex()];
 
             public ICacheSession GetFirstWorkerCacheSession() => CacheSessions[GetFirstWorkerIndex()];
 
-            public override DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
+            public override IContentSession GetSession(int idx)
             {
-                return (DistributedContentSession<AbsolutePath>)((OneLevelCacheSession)CacheSessions[idx]).ContentSession;
+                return ((OneLevelCacheSession)CacheSessions[idx]).ContentSession;
             }
 
             public override async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)

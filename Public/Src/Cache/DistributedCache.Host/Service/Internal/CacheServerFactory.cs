@@ -138,25 +138,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             var cacheConfig = _arguments.Configuration;
             var factory = CreateDistributedContentStoreFactory();
 
-            Func<AbsolutePath, MultiplexedContentStore> contentStoreFactory = path =>
-            {
-                var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var resolvedCacheSettings in factory.OrderedResolvedCacheSettings)
-                {
-                    _logger.Debug($"Using [{resolvedCacheSettings.Settings.CacheRootPath}]'s settings: {resolvedCacheSettings.Settings}");
-
-                    drivesWithContentStore[resolvedCacheSettings.Drive] = factory.CreateContentStore(resolvedCacheSettings);
-                }
-
-                if (string.IsNullOrEmpty(cacheConfig.LocalCasSettings.PreferredCacheDrive))
-                {
-                    var knownDrives = string.Join(",", factory.OrderedResolvedCacheSettings.Select(cacheSetting => cacheSetting.Drive));
-                    throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
-                }
-
-                return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
-            };
+            // NOTE: This relies on the assumption that when creating a distributed server,
+            // there is only one call to create a cache so we simply create the cache here and ignore path
+            // below in factory delegates since the logic for creating path based caches is included in the
+            // call to CreateTopLevelStore
+            var topLevelAndPrimaryStore = factory.CreateTopLevelStore();
 
             if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
@@ -164,16 +150,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     if (distributedSettings.EnableDistributedCache)
                     {
-                        var contentStore = contentStoreFactory(path);
-                        return new DistributedOneLevelCache(contentStore,
-                            (DistributedContentStore<AbsolutePath>)contentStore.PreferredContentStore,
+                        return new DistributedOneLevelCache(topLevelAndPrimaryStore.topLevelStore,
+                            topLevelAndPrimaryStore.primaryDistributedStore,
                             Guid.NewGuid(),
                             passContentToMemoization: true);
                     }
                     else
                     {
                         return new OneLevelCache(
-                            contentStoreFunc: () => contentStoreFactory(path),
+                            contentStoreFunc: () => topLevelAndPrimaryStore.topLevelStore,
                             memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                             Guid.NewGuid(),
                             passContentToMemoization: true);
@@ -197,7 +182,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _fileSystem,
                     _logger,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
-                    contentStoreFactory,
+                    path => topLevelAndPrimaryStore.topLevelStore,
                     localServerConfiguration);
             }
         }

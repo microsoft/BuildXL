@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Enumerate all content currently in the cache. Returns list of hashes and their respective size.
         /// </summary>
-        Task<IReadOnlyList<ContentInfo>> GetContentInfoAsync(CancellationToken token);
+        Task<IEnumerable<ContentInfo>> GetContentInfoAsync(CancellationToken token);
 
         /// <summary>
         /// Gets whether the local content store contains the content specified by the hash

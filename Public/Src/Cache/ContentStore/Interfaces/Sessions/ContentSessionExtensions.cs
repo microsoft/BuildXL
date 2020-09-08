@@ -209,21 +209,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 
             using (var directory = new DisposableDirectory(fileSystem))
             {
-                var c = context.CreateNested(nameof(ContentSessionExtensions));
-
-                // TODO: Fix this to work with size > int.Max (bug 1365340)
-                var data = ThreadSafeRandom.GetBytes((int)size);
                 var path = directory.CreateRandomFileName();
-                fileSystem.WriteAllBytes(path, data);
-
-                if (!provideHash)
-                {
-                    return await session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
-                }
-
-                var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
-                return await session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
+                return await session.PutRandomFileAsync(context, fileSystem, path, hashType, provideHash, size, ct);
             }
+        }
+
+        /// <summary>
+        ///     Put a randomly-sized content from a file into the store.
+        /// </summary>
+        public static async Task<PutResult> PutRandomFileAsync(
+            this IContentSession session,
+            Context context,
+            IAbsFileSystem fileSystem,
+            AbsolutePath path,
+            HashType hashType,
+            bool provideHash,
+            long size,
+            CancellationToken ct)
+        {
+            Contract.RequiresNotNull(session);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(fileSystem);
+
+            var c = context.CreateNested(nameof(ContentSessionExtensions));
+
+            // TODO: Fix this to work with size > int.Max (bug 1365340)
+            var data = ThreadSafeRandom.GetBytes((int)size);
+            fileSystem.WriteAllBytes(path, data);
+
+            if (!provideHash)
+            {
+                return await session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
+            }
+
+            var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
+            return await session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
         }
     }
 }

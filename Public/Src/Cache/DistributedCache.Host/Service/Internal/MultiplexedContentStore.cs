@@ -19,146 +19,103 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
     // TODO: move it to the library?
-    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler, IPushFileHandler
+    public class MultiplexedContentStore : StartupShutdownBase, IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler, IPushFileHandler, ILocalContentStore
     {
-        private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
-        private readonly string _preferredCacheDrive;
+        /// <nodoc />
+        public Dictionary<string, IContentStore> DrivesWithContentStore { get; }
+
+        public string PreferredCacheDrive { get; }
+
+        /// <summary>
+        /// Indicates whether to use all sessions rather than only the primary for session read operations
+        /// </summary>
+        public bool TryAllSesssions { get; }
+
+        private ContentStoreTracer StoreTracer { get; } = new ContentStoreTracer(nameof(MultiplexedContentStore));
 
         public IContentStore PreferredContentStore { get; }
 
-        /// <summary>
-        /// Execution tracer for the session.
-        /// </summary>
-        protected readonly ContentSessionTracer SessionTracer = new ContentSessionTracer(nameof(MultiplexedContentSession));
+        /// <inheritdoc />
+        protected override Tracer Tracer => StoreTracer;
 
-        /// <summary>
-        /// Execution tracer for the readonly session.
-        /// </summary>
-        protected readonly ContentSessionTracer ReadOnlySessionTracer = new ContentSessionTracer(nameof(MultiplexedReadOnlyContentSession));
-
-        /// <summary>
-        ///     Execution tracer.
-        /// </summary>
-        protected readonly ContentStoreTracer Tracer = new ContentStoreTracer(nameof(MultiplexedContentStore));
-
-        private bool _disposed;
-
-        public MultiplexedContentStore(Dictionary<string, IContentStore> drivesWithContentStore, string preferredCacheDrive)
+        public MultiplexedContentStore(Dictionary<string, IContentStore> drivesWithContentStore, string preferredCacheDrive, bool tryAllSessions)
         {
             Contract.Requires(!string.IsNullOrEmpty(preferredCacheDrive), "preferredCacheDrive should not be null or empty.");
             Contract.Requires(drivesWithContentStore?.Count > 0, "drivesWithContentStore should not be null or empty.");
             Contract.Check(drivesWithContentStore.ContainsKey(preferredCacheDrive))?.Requires($"drivesWithContentStore should contain '{preferredCacheDrive}'.");
-            _drivesWithContentStore = drivesWithContentStore;
-            _preferredCacheDrive = preferredCacheDrive;
+            DrivesWithContentStore = drivesWithContentStore;
+            PreferredCacheDrive = preferredCacheDrive;
             PreferredContentStore = drivesWithContentStore[preferredCacheDrive];
+            TryAllSesssions = tryAllSessions;
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return StartupCall<ContentStoreTracer>.RunAsync(Tracer, context, async () =>
+            var finalResult = BoolResult.Success;
+
+            var stores = DrivesWithContentStore.Values.ToArray();
+            for (var i = 0; i < stores.Length; i++)
             {
-                StartupStarted = true;
-                var finalResult = BoolResult.Success;
+                var startupResult = await stores[i].StartupAsync(context).ConfigureAwait(false);
 
-                var stores = _drivesWithContentStore.Values.ToArray();
-                for (var i = 0; i < stores.Length; i++)
+                if (!startupResult.Succeeded)
                 {
-                    var startupResult = await stores[i].StartupAsync(context).ConfigureAwait(false);
-
-                    if (!startupResult.Succeeded)
+                    finalResult = startupResult;
+                    for (var j = 0; j < i; j++)
                     {
-                        finalResult = startupResult;
-                        for (var j = 0; j < i; j++)
+                        var shutdownResult = await stores[j].ShutdownAsync(context).ConfigureAwait(false);
+                        if (!shutdownResult.Succeeded)
                         {
-                            var shutdownResult = await stores[j].ShutdownAsync(context).ConfigureAwait(false);
-                            if (!shutdownResult.Succeeded)
-                            {
-                                finalResult = new BoolResult(finalResult, shutdownResult.ErrorMessage);
-                            }
+                            finalResult = new BoolResult(finalResult, shutdownResult.ErrorMessage);
                         }
                     }
                 }
-
-                StartupCompleted = true;
-                return finalResult;
-            });
-        }
-
-        /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
-        {
-            return ShutdownCall<ContentStoreTracer>.RunAsync(Tracer, context, async () =>
-            {
-                ShutdownStarted = true;
-                var finalResult = BoolResult.Success;
-
-                foreach (var store in _drivesWithContentStore.Values)
-                {
-                    if (store.StartupCompleted && !store.ShutdownCompleted)
-                    {
-                        // Shutdown is available only when the store started up successfully and wasn't shut down yet.
-                        var result = await store.ShutdownAsync(context).ConfigureAwait(false);
-                        if (!result)
-                        {
-                            finalResult = new BoolResult(finalResult, result.ErrorMessage);
-                        }
-                    }
-                }
-
-                ShutdownCompleted = true;
-                return finalResult;
-            });
-
-        }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                Dispose(true);
-                _disposed = true;
             }
+
+            return finalResult;
         }
 
-        /// <summary>
-        ///     Protected implementation of Dispose pattern.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            if (disposing)
+            var finalResult = BoolResult.Success;
+
+            foreach (var store in DrivesWithContentStore.Values)
             {
-                foreach (IContentStore store in _drivesWithContentStore.Values)
+                if (store.StartupCompleted && !store.ShutdownCompleted)
                 {
-                    store.Dispose();
+                    // Shutdown is available only when the store started up successfully and wasn't shut down yet.
+                    var result = await store.ShutdownAsync(context).ConfigureAwait(false);
+                    if (!result)
+                    {
+                        finalResult = new BoolResult(finalResult, result.ErrorMessage);
+                    }
                 }
+            }
+
+            return finalResult;
+        }
+
+        protected override void DisposeCore()
+        {
+            foreach (IContentStore store in DrivesWithContentStore.Values)
+            {
+                store.Dispose();
             }
         }
 
         /// <nodoc />
         public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateReadOnlySessionCall.Run(Tracer, new OperationContext(context), name, () =>
+            return CreateReadOnlySessionCall.Run(StoreTracer, new OperationContext(context), name, () =>
             {
                 var sessions = new Dictionary<string, IReadOnlyContentSession>(StringComparer.OrdinalIgnoreCase);
-                foreach (KeyValuePair<string, IContentStore> entry in _drivesWithContentStore)
+                foreach (KeyValuePair<string, IContentStore> entry in DrivesWithContentStore)
                 {
                     var result = entry.Value.CreateReadOnlySession(context, name, implicitPin);
                     if (!result.Succeeded)
@@ -173,7 +130,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     sessions.Add(entry.Key, result.Session);
                 }
 
-                var multiCacheSession = new MultiplexedReadOnlyContentSession(ReadOnlySessionTracer, sessions, name, _preferredCacheDrive);
+                var multiCacheSession = new MultiplexedReadOnlyContentSession(sessions, name, this);
                 return new CreateSessionResult<IReadOnlyContentSession>(multiCacheSession);
             });
         }
@@ -181,10 +138,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <nodoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSessionCall.Run(Tracer, new OperationContext(context), name, () =>
+            return CreateSessionCall.Run(StoreTracer, new OperationContext(context), name, () =>
             {
                 var sessions = new Dictionary<string, IReadOnlyContentSession>(StringComparer.OrdinalIgnoreCase);
-                foreach (KeyValuePair<string, IContentStore> entry in _drivesWithContentStore)
+                foreach (KeyValuePair<string, IContentStore> entry in DrivesWithContentStore)
                 {
                     var result = entry.Value.CreateSession(context, name, implicitPin);
                     if (!result.Succeeded)
@@ -199,7 +156,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     sessions.Add(entry.Key, result.Session);
                 }
 
-                var multiCacheSession = new MultiplexedContentSession(SessionTracer, sessions, name, _preferredCacheDrive);
+                var multiCacheSession = new MultiplexedContentSession(sessions, name, this);
                 return new CreateSessionResult<IContentSession>(multiCacheSession);
             });
         }
@@ -208,14 +165,12 @@ namespace BuildXL.Cache.Host.Service.Internal
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
             return GetStatsCall<ContentStoreTracer>.RunAsync(
-               Tracer,
+               StoreTracer,
                new OperationContext(context),
                async () =>
                {
                    CounterSet aggregatedCounters = new CounterSet();
-                   aggregatedCounters.Merge(SessionTracer.GetCounters(), $"{nameof(MultiplexedContentStore)}.");
-
-                   foreach (var kvp in _drivesWithContentStore)
+                   foreach (var kvp in DrivesWithContentStore)
                    {
                        var stats = await kvp.Value.GetStatsAsync(context);
                        if (stats.Succeeded)
@@ -229,46 +184,51 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
         {
-            return RemoveFromTrackerCall<ContentStoreTracer>.RunAsync(Tracer, new OperationContext(context), async () =>
+            using (var operationContext = TrackShutdown(context, CancellationToken.None))
             {
-                var removeTaskByStore = new Dictionary<string, Task<StructResult<long>>>();
-
-                foreach (var kvp in _drivesWithContentStore)
-                {
-                    if (kvp.Value is IRepairStore store)
+                return await operationContext.Context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
                     {
-                        removeTaskByStore.Add(kvp.Key, store.RemoveFromTrackerAsync(context));
-                    }
-                }
+                        var removeTaskByStore = new Dictionary<string, Task<StructResult<long>>>();
 
-                await Task.WhenAll(removeTaskByStore.Values);
+                        foreach (var kvp in DrivesWithContentStore)
+                        {
+                            if (kvp.Value is IRepairStore store)
+                            {
+                                removeTaskByStore.Add(kvp.Key, store.RemoveFromTrackerAsync(context));
+                            }
+                        }
 
-                var sb = new StringBuilder();
-                long filesTrimmed = 0;
-                foreach (var kvp in removeTaskByStore)
-                {
-                    var removeFromTrackerResult = await kvp.Value;
-                    if (removeFromTrackerResult.Succeeded)
-                    {
-                        filesTrimmed += removeFromTrackerResult.Data;
-                    }
-                    else
-                    {
-                        sb.Concat($"{kvp.Key} repair handling failed, error=[{removeFromTrackerResult}]", "; ");
-                    }
-                }
+                        await Task.WhenAll(removeTaskByStore.Values);
 
-                if (sb.Length > 0)
-                {
-                    return new StructResult<long>(sb.ToString());
-                }
-                else
-                {
-                    return new StructResult<long>(filesTrimmed);
-                }
-            });
+                        var sb = new StringBuilder();
+                        long filesTrimmed = 0;
+                        foreach (var kvp in removeTaskByStore)
+                        {
+                            var removeFromTrackerResult = await kvp.Value;
+                            if (removeFromTrackerResult.Succeeded)
+                            {
+                                filesTrimmed += removeFromTrackerResult.Data;
+                            }
+                            else
+                            {
+                                sb.Concat($"{kvp.Key} repair handling failed, error=[{removeFromTrackerResult}]", "; ");
+                            }
+                        }
+
+                        if (sb.Length > 0)
+                        {
+                            return new StructResult<long>(sb.ToString());
+                        }
+                        else
+                        {
+                            return new StructResult<long>(filesTrimmed);
+                        }
+                    });
+            }
         }
 
         /// <inheritdoc />
@@ -326,14 +286,14 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private IEnumerable<TStore> GetStoresInOrder<TStore>()
         {
-            if (_drivesWithContentStore[_preferredCacheDrive] is TStore store)
+            if (DrivesWithContentStore[PreferredCacheDrive] is TStore store)
             {
                 yield return store;
             }
 
-            foreach (var kvp in _drivesWithContentStore)
+            foreach (var kvp in DrivesWithContentStore)
             {
-                if (kvp.Key == _preferredCacheDrive)
+                if (kvp.Key == PreferredCacheDrive)
                 {
                     // Already yielded the preferred cache
                     continue;
@@ -353,7 +313,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (!deleteOptions.DeleteLocalOnly)
             {
                 var mapping = new Dictionary<string, DeleteResult>();
-                foreach (var kvp in _drivesWithContentStore)
+                foreach (var kvp in DrivesWithContentStore)
                 {
                     var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, deleteOptions);
                     if (deleteResult is DistributedDeleteResult distributedDelete)
@@ -372,7 +332,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             int code = (int)DeleteResult.ResultCode.ContentNotFound;
 
-            foreach (var kvp in _drivesWithContentStore)
+            foreach (var kvp in DrivesWithContentStore)
             {
                 var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, deleteOptions);
                 if (deleteResult.Succeeded)
@@ -392,7 +352,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result)
         {
-            foreach (var kvp in _drivesWithContentStore)
+            foreach (var kvp in DrivesWithContentStore)
             {
                 kvp.Value.PostInitializationCompleted(context, result);
             }
@@ -419,6 +379,57 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             return false;
+        }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<ContentInfo>> GetContentInfoAsync(CancellationToken token)
+        {
+            var contentInfos = Enumerable.Empty<ContentInfo>();
+
+            foreach (var store in GetStoresInOrder<ILocalContentStore>())
+            {
+                contentInfos = contentInfos.Concat(await store.GetContentInfoAsync(token));
+            }
+
+            return contentInfos;
+        }
+
+        /// <inheritdoc />
+        public bool Contains(ContentHash hash)
+        {
+            foreach (var store in GetStoresInOrder<ILocalContentStore>())
+            {
+                if (store.Contains(hash))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc />
+        public bool TryGetContentInfo(ContentHash hash, out ContentInfo info)
+        {
+            foreach (var store in GetStoresInOrder<ILocalContentStore>())
+            {
+                if (store.TryGetContentInfo(hash, out info))
+                {
+                    return true;
+                }
+            }
+
+            info = default;
+            return false;
+        }
+
+        /// <inheritdoc />
+        public void UpdateLastAccessTimeIfNewer(ContentHash hash, DateTime newLastAccessTime)
+        {
+            foreach (var store in GetStoresInOrder<ILocalContentStore>())
+            {
+                store.UpdateLastAccessTimeIfNewer(hash, newLastAccessTime);
+            }
         }
     }
 }

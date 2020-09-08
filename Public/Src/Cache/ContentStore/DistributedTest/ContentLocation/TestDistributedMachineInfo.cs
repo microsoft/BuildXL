@@ -55,7 +55,7 @@ namespace ContentStoreTest.Distributed
             return Directory.TryGetFileInfo(hash, out _);
         }
 
-        public Task<IReadOnlyList<ContentInfo>> GetContentInfoAsync(CancellationToken token)
+        public Task<IEnumerable<ContentInfo>> GetContentInfoAsync(CancellationToken token)
         {
             throw new NotImplementedException();
         }

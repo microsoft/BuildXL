@@ -8,175 +8,137 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
-    public class MultiplexedReadOnlyContentSession : IReadOnlyContentSession, IHibernateContentSession
+    public class MultiplexedReadOnlyContentSession : StartupShutdownBase, IReadOnlyContentSession, IHibernateContentSession
     {
-        protected readonly IReadOnlyContentSession PreferredContentSession;
-        protected readonly IDictionary<string, IReadOnlyContentSession> SessionsByCacheRoot;
+        /// <nodoc />
+        public readonly IReadOnlyContentSession PreferredContentSession;
 
-        /// <summary>
-        ///     Call tracer for this and derived classes.
-        /// </summary>
-        protected readonly ContentSessionTracer Tracer;
+        /// <nodoc />
+        public readonly IDictionary<string, IReadOnlyContentSession> SessionsByCacheRoot;
+        protected readonly MultiplexedContentStore Store;
 
-        private bool _disposed;
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(MultiplexedContentSession));
+
+        /// <inheritdoc />
+        public string Name { get; }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="MultiplexedReadOnlyContentSession"/> class.
         /// </summary>
         public MultiplexedReadOnlyContentSession(
-            ContentSessionTracer tracer,
             Dictionary<string, IReadOnlyContentSession> sessionsByCacheRoot,
             string name,
-            string preferredCacheDrive)
+            MultiplexedContentStore store)
         {
             Contract.Requires(name != null);
-            Contract.Requires(preferredCacheDrive != null);
             Contract.Requires(sessionsByCacheRoot != null);
             Contract.Requires(sessionsByCacheRoot.Count > 0);
 
             Name = name;
-            Tracer = tracer;
             SessionsByCacheRoot = sessionsByCacheRoot;
+            Store = store;
 
-            if (!SessionsByCacheRoot.TryGetValue(preferredCacheDrive, out PreferredContentSession))
+            if (!SessionsByCacheRoot.TryGetValue(store.PreferredCacheDrive, out PreferredContentSession))
             {
-                throw new ArgumentException(nameof(preferredCacheDrive));
+                throw new ArgumentException(nameof(store.PreferredCacheDrive));
             }
         }
 
         /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
-        public string Name { get; }
-
-        /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return StartupCall<ContentSessionTracer>.RunAsync(
-                Tracer,
-                context,
-                async () =>
+            var finalResult = BoolResult.Success;
+
+            var sessions = SessionsByCacheRoot.Values.ToArray();
+            for (var i = 0; i < sessions.Length; i++)
+            {
+                var canHibernate = sessions[i] is IHibernateContentSession ? "can" : "cannot";
+                Tracer.Debug(context, $"Session {sessions[i].Name} {canHibernate} hibernate");
+                var startupResult = await sessions[i].StartupAsync(context).ConfigureAwait(false);
+
+                if (!startupResult.Succeeded)
                 {
-                    StartupStarted = true;
-
-                    var finalResult = BoolResult.Success;
-
-                    var sessions = SessionsByCacheRoot.Values.ToArray();
-                    for (var i = 0; i < sessions.Length; i++)
+                    finalResult = startupResult;
+                    for (var j = 0; j < i; j++)
                     {
-                        var canHibernate = sessions[i] is IHibernateContentSession ? "can" : "cannot";
-                        Tracer.Debug(context, $"Session {sessions[i].Name} {canHibernate} hibernate");
-                        var startupResult = await sessions[i].StartupAsync(context).ConfigureAwait(false);
-
-                        if (!startupResult.Succeeded)
+                        var shutdownResult = await sessions[j].ShutdownAsync(context).ConfigureAwait(false);
+                        if (!shutdownResult.Succeeded)
                         {
-                            finalResult = startupResult;
-                            for (var j = 0; j < i; j++)
-                            {
-                                var shutdownResult = await sessions[j].ShutdownAsync(context).ConfigureAwait(false);
-                                if (!shutdownResult.Succeeded)
-                                {
-                                    finalResult = new BoolResult(finalResult, shutdownResult.ErrorMessage);
-                                }
-                            }
+                            finalResult = new BoolResult(finalResult, shutdownResult.ErrorMessage);
                         }
                     }
-
-                    StartupCompleted = true;
-                    return finalResult;
-                });
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
-        {
-            return ShutdownCall<ContentSessionTracer>.RunAsync(
-                Tracer,
-                context,
-                async () =>
-                {
-                    ShutdownStarted = true;
-                    var finalResult = BoolResult.Success;
-
-                    foreach (var session in SessionsByCacheRoot.Values)
-                    {
-                        var result = await session.ShutdownAsync(context).ConfigureAwait(false);
-                        if (!result.Succeeded)
-                        {
-                            finalResult = new BoolResult(finalResult, result.ErrorMessage);
-                        }
-                    }
-
-                    ShutdownCompleted = true;
-                    return finalResult;
-                });
-        }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            Dispose(true);
-            GC.SuppressFinalize(this);
-
-            _disposed = true;
-        }
-
-        /// <summary>
-        ///     Dispose pattern.
-        /// </summary>
-        private void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                foreach (var session in SessionsByCacheRoot.Values)
-                {
-                    session.Dispose();
                 }
             }
+
+            return finalResult;
         }
 
+        /// <inheritdoc />
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            var finalResult = BoolResult.Success;
+
+            foreach (var session in SessionsByCacheRoot.Values)
+            {
+                var result = await session.ShutdownAsync(context).ConfigureAwait(false);
+                if (!result.Succeeded)
+                {
+                    finalResult = new BoolResult(finalResult, result.ErrorMessage);
+                }
+            }
+
+            return finalResult;
+        }
+
+        /// <inheritdoc />
+        protected override void DisposeCore()
+        {
+            foreach (var session in SessionsByCacheRoot.Values)
+            {
+                session.Dispose();
+            }
+        }
+
+        /// <inheritdoc />
         public Task<PinResult> PinAsync(
             Context context,
             ContentHash contentHash,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return PreferredContentSession.PinAsync(context, contentHash, cts, urgencyHint);
+            return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, PinResult>(
+                session => session.PinAsync(context, contentHash, cts, urgencyHint),
+                (r1, r2) => r1.Succeeded ? r1 : r2,
+                shouldBreak: r => r.Succeeded);
         }
 
+        /// <inheritdoc />
         public Task<OpenStreamResult> OpenStreamAsync(
             Context context,
             ContentHash contentHash,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return PreferredContentSession.OpenStreamAsync(context, contentHash, cts, urgencyHint);
+            return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, OpenStreamResult>(
+                session => session.OpenStreamAsync(context, contentHash, cts, urgencyHint),
+                (r1, r2) => r1.Succeeded ? r1 : r2,
+                shouldBreak: r => r.Succeeded);
         }
 
+        /// <inheritdoc />
         public Task<PlaceFileResult> PlaceFileAsync(
             Context context,
             ContentHash contentHash,
@@ -187,16 +149,25 @@ namespace BuildXL.Cache.Host.Service.Internal
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return GetCache(path).PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+            return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, PlaceFileResult>(
+                session => session.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                (r1, r2) => r1.Succeeded ? r1 : r2,
+                shouldBreak: r => r.Succeeded,
+                pathHint: path);
         }
 
+        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
             Context context,
             IReadOnlyList<ContentHash> contentHashes,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return PreferredContentSession.PinAsync(context, contentHashes, cts, urgencyHint);
+            return MultiLevelUtilities.RunManyLevelAsync(
+                GetSessionsInOrder<IReadOnlyContentSession>().ToArray(),
+                contentHashes,
+                (session, hashes) => session.PinAsync(context, hashes, cts, urgencyHint),
+                p => p.Succeeded);
         }
 
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
@@ -204,19 +175,26 @@ namespace BuildXL.Cache.Host.Service.Internal
             IReadOnlyList<ContentHash> contentHashes, 
             PinOperationConfiguration config)
         {
-            return PreferredContentSession.PinAsync(context, contentHashes, config);
+            return MultiLevelUtilities.RunManyLevelAsync(
+                GetSessionsInOrder<IReadOnlyContentSession>().ToArray(),
+                contentHashes,
+                (session, hashes) => session.PinAsync(context, hashes, config),
+                p => p.Succeeded);
         }
 
-        protected IReadOnlyContentSession GetCache(AbsolutePath path)
+        protected TCache GetCache<TCache>(AbsolutePath path = null)
         {
-            var drive = Path.GetPathRoot(path.Path);
-
-            if (SessionsByCacheRoot.TryGetValue(drive, out var contentSession))
+            if (path != null)
             {
-                return contentSession;
+                var drive = Path.GetPathRoot(path.Path);
+
+                if (SessionsByCacheRoot.TryGetValue(drive, out var contentSession))
+                {
+                    return (TCache)contentSession;
+                }
             }
 
-            return PreferredContentSession;
+            return (TCache)PreferredContentSession;
         }
 
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
@@ -228,31 +206,125 @@ namespace BuildXL.Cache.Host.Service.Internal
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            throw new NotImplementedException();
+            return MultiLevelUtilities.RunManyLevelAsync(
+                GetSessionsInOrder<IReadOnlyContentSession>().ToArray(),
+                hashesWithPaths,
+                (session, hashes) => session.PlaceFileAsync(context, hashes, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                p => p.Succeeded);
         }
 
         /// <inheritdoc />
         public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
         {
-            return PreferredContentSession is IHibernateContentSession session
-                ? session.EnumeratePinnedContentHashes()
-                : Enumerable.Empty<ContentHash>();
+            return PerformAggregateSessionOperationAsync<IHibernateContentSession, Result<IEnumerable<ContentHash>>>(
+                session =>
+                {
+                    var hashes = session.EnumeratePinnedContentHashes();
+                    return Task.FromResult(Result.Success(hashes));
+                },
+                (r1, r2) => Result.Success(r1.Value.Concat(r2.Value)),
+                shouldBreak: r => false).GetAwaiter().GetResult().Value;
         }
 
         /// <inheritdoc />
         public Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
         {
-            return PreferredContentSession is IHibernateContentSession session
-                ? session.PinBulkAsync(context, contentHashes)
-                : BoolResult.SuccessTask;
+            return PerformAggregateSessionOperationAsync<IHibernateContentSession, BoolResult>(
+                async session =>
+                {
+                    await session.PinBulkAsync(context, contentHashes);
+                    return BoolResult.Success;
+                },
+                (r1, r2) => r1 & r2,
+                shouldBreak: r => false);
         }
 
         /// <inheritdoc />
         public Task<BoolResult> ShutdownEvictionAsync(Context context)
         {
-            return PreferredContentSession is IHibernateContentSession session
-                ? session.ShutdownEvictionAsync(context)
-                : BoolResult.SuccessTask;
+            return PerformAggregateSessionOperationAsync<IHibernateContentSession, BoolResult>(
+                session => session.ShutdownEvictionAsync(context),
+                (r1, r2) => r1 & r2,
+                shouldBreak: r => false);
+        }
+
+        private IEnumerable<TSession> GetSessionsInOrder<TSession>(AbsolutePath path = null)
+        {
+            var drive = path != null ? Path.GetPathRoot(path.Path) : Store.PreferredCacheDrive;
+
+            if (SessionsByCacheRoot[drive] is TSession session)
+            {
+                yield return session;
+            }
+
+            if (!Store.TryAllSesssions)
+            {
+                yield break;
+            }
+
+            foreach (var kvp in SessionsByCacheRoot)
+            {
+                if (StringComparer.OrdinalIgnoreCase.Equals(kvp.Key, drive))
+                {
+                    // Already yielded the preferred cache
+                    continue;
+                }
+
+                if (kvp.Value is TSession otherSession)
+                {
+                    yield return otherSession;
+                }
+            }
+        }
+
+        private async Task<TResult> PerformSessionOperationAsync<TSession, TResult>(Func<TSession, Task<TResult>> executeAsync)
+            where TResult : ResultBase
+        {
+            TResult result = null;
+
+            foreach (var session in GetSessionsInOrder<TSession>())
+            {
+                result = await executeAsync(session);
+
+                if (result.Succeeded)
+                {
+                    return result;
+                }
+            }
+
+            return result ?? new ErrorResult($"Could not find a content session which implements {typeof(TSession).Name} in {nameof(MultiplexedContentSession)}.").AsResult<TResult>();
+        }
+
+        private async Task<TResult> PerformAggregateSessionOperationAsync<TSession, TResult>(
+            Func<TSession, Task<TResult>> executeAsync,
+            Func<TResult, TResult, TResult> aggregate,
+            Func<TResult, bool> shouldBreak,
+            AbsolutePath pathHint = null)
+            where TResult : class
+        {
+            TResult result = null;
+
+            // Go through all the sessions
+            foreach (var session in GetSessionsInOrder<TSession>(pathHint))
+            {
+                var priorResult = result;
+                result = await executeAsync(session);
+
+                // Aggregate with previous result
+                if (priorResult != null)
+                {
+                    result = aggregate(priorResult, result);
+                }
+
+                // If result is sufficient, stop trying other stores and return result
+                if (shouldBreak(result))
+                {
+                    return result;
+                }
+            }
+
+            Contract.Check(result != null)?.Assert($"Could not find a content session which implements {typeof(TSession).Name} in {nameof(MultiplexedContentSession)}.");
+            return result;
         }
     }
 }

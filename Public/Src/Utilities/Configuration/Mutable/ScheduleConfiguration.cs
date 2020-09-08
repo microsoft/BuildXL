@@ -81,6 +81,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableSetupCostWhenChoosingWorker = true;
             EnableLessAggresiveMemoryProjection = false;
             MaxRetriesDueToRetryableFailures = 5;
+
+            PluginLocations = new List<AbsolutePath>();
         }
 
         /// <nodoc />
@@ -157,6 +159,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxRetriesDueToRetryableFailures = template.MaxRetriesDueToRetryableFailures;
             EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
             ManageMemoryMode = template.ManageMemoryMode;
+            EnablePlugin = template.EnablePlugin;
+            PluginLocations = pathRemapper.Remap(template.PluginLocations);
         }
 
         /// <inheritdoc />
@@ -382,5 +386,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? DisableCompositeOpaqueFilters { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnablePlugin { get; set; }
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<AbsolutePath> PluginLocations { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<AbsolutePath> IScheduleConfiguration.PluginLocations => PluginLocations;
     }
 }

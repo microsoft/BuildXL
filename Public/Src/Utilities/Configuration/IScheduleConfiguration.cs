@@ -389,5 +389,15 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary option. For A/B testing purposes only.
         /// </summary>
         bool? DisableCompositeOpaqueFilters { get; }
+        
+        /// <summary>
+        /// Enable plugin mode
+        /// </summary>
+        bool? EnablePlugin { get; }
+
+        /// <summary>
+        /// Paths to load plugins
+        /// </summary>
+        IReadOnlyList<AbsolutePath> PluginLocations { get; }
     }
 }

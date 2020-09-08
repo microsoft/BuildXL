@@ -1060,4 +1060,10 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_FileContentTableFile" xml:space="preserve">
     <value>Path to file content table to use. Defaults to FileContentTable in engine cache.</value>
   </data>
+  <data name="HelpText_DisplayHelp_EnablePlugins" xml:space="preserve">
+    <value>When enabled, plugins are allowed to be loaded. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PluginPaths" xml:space="preserve">
+    <value>Specify a list of plugin paths that be loaded -  each path is seperated by ";'. Defaults to empty list</value>
+  </data>
 </root>

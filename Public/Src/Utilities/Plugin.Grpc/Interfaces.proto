@@ -1,0 +1,31 @@
+﻿syntax = "proto3";
+
+package BuildXL.Plugin.Grpc;
+import "Messages.proto";
+
+service PluginService
+{
+    rpc Start(PluginMessage)  returns (PluginMessageResponse) {};
+    rpc Stop(PluginMessage)   returns (PluginMessageResponse) {};
+    rpc SupportedOperation(PluginMessage) returns (PluginMessageResponse) {};
+    rpc Send(PluginMessage)   returns (PluginMessageResponse) {};
+}
+
+message PluginMessage
+{
+    oneof payload
+    {
+        Noop noop = 1;
+        LogParseMessage logParseMessage = 3;
+    }
+}
+
+message PluginMessageResponse
+{
+    bool status = 1;
+    oneof payload 
+    {
+        SupportedOperationResponse supportedOperationResponse = 2;
+        LogParseMessageResponse logParseMessageResponse = 3;
+    }
+}

@@ -28,6 +28,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Plugin;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
@@ -167,9 +168,9 @@ namespace BuildXL.Scheduler
 
         private const int SealDirectoryContentFilterTimeoutMs = 1_000; // 1s 
 
-#endregion Constants
+        #endregion Constants
 
-#region State
+        #region State
 
         /// <summary>
         /// Configuration. Ideally shouldn't be used because it reads config state not related to the scheduler.
@@ -495,6 +496,9 @@ namespace BuildXL.Scheduler
         [CanBeNull]
         private ApiServer m_apiServer;
 
+        [CanBeNull]
+        private PluginManager m_pluginManager;
+
         /// <summary>
         /// Tracker for drop pips.
         /// </summary>
@@ -716,9 +720,9 @@ namespace BuildXL.Scheduler
             return IncrementalSchedulingState != null && IncrementalSchedulingState.DirtyNodeTracker.IsNodeCleanAndMaterialized(pipId.ToNodeId());
         }
 
-#endregion State
+        #endregion State
 
-#region Members: Fingerprinting, Content Hashing, and Output Caching
+        #region Members: Fingerprinting, Content Hashing, and Output Caching
 
         /// <summary>
         /// Manages materialization and tracking of source and output content.
@@ -853,9 +857,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly LoggingContext m_loggingContext;
 
-#endregion
+        #endregion
 
-#region Ready Queue
+        #region Ready Queue
 
         /// <summary>
         /// Ready queue of executable pips.
@@ -864,9 +868,9 @@ namespace BuildXL.Scheduler
 
         private PipQueue OptionalPipQueueImpl => m_pipQueue as PipQueue;
 
-#endregion
+        #endregion
 
-#region Statistics
+        #region Statistics
 
         private ulong m_totalPeakWorkingSetMb;
         private ulong m_totalAverageWorkingSetMb;
@@ -1189,6 +1193,7 @@ namespace BuildXL.Scheduler
             OperationTracker = new OperationTracker(loggingContext, this);
             m_fileContentManager = new FileContentManager(this, OperationTracker);
             m_apiServer = null;
+            m_pluginManager = null;
 
             m_writableDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1318,8 +1323,8 @@ namespace BuildXL.Scheduler
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
             // Only initialize the symlink resolver if the corresponding flag is on.
-            SymlinkedAccessResolver = m_configuration.Sandbox.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses() ? 
-                new SymlinkedAccessResolver(context, directoryTranslator) : 
+            SymlinkedAccessResolver = m_configuration.Sandbox.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses() ?
+                new SymlinkedAccessResolver(context, directoryTranslator) :
                 null;
         }
 
@@ -1375,9 +1380,9 @@ namespace BuildXL.Scheduler
                     args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, message, args) : message));
         }
 
-#endregion Constructor
+        #endregion Constructor
 
-#region Execution
+        #region Execution
 
         /// <summary>
         /// Returns a Boolean indicating if the scheduler has so far been successful in executing pips.
@@ -1416,6 +1421,13 @@ namespace BuildXL.Scheduler
                         Logger = CreateLoggerForApiServer(loggingContext),
                     });
                 m_apiServer.Start(loggingContext);
+            }
+
+            if (m_configuration.Schedule.EnablePlugin == true)
+            {
+                m_pluginManager = new PluginManager(loggingContext, m_configuration.Logging.LogsDirectory.ToString(Context.PathTable),
+                                                    m_configuration.Schedule.PluginLocations.Select(path => path.ToString(Context.PathTable)));
+                m_pluginManager.Start();
             }
 
             m_chooseWorkerCpu = new ChooseWorkerCpu(
@@ -1504,6 +1516,11 @@ namespace BuildXL.Scheduler
                 if (m_apiServer != null)
                 {
                     await m_apiServer.Stop();
+                }
+
+                if (m_pluginManager != null)
+                {
+                    await m_pluginManager.Stop();
                 }
 
                 await StopIpcProvider();
@@ -1817,9 +1834,9 @@ namespace BuildXL.Scheduler
             long processPipsSkippedExecutionDueToCacheOnly = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsSkippedExecutionDueToCacheOnly);
             // The master keeps track of total cache miss counter across workers but not for individual miss reasons,
             // so don't check the sum for distributed builds
-            if (!IsDistributedBuild && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly ) != cacheMissSum)
+            if (!IsDistributedBuild && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
             {
-                BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " + 
+                BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " +
                     "ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
             }
 
@@ -1923,6 +1940,15 @@ namespace BuildXL.Scheduler
             statistics.Add("TotalAverageWorkingSetMb", (long)m_totalAverageWorkingSetMb);
             statistics.Add("TotalPeakCommitSizeMb", (long)m_totalPeakCommitSizeMb);
             statistics.Add("TotalAverageCommitSizeMb", (long)m_totalAverageCommitSizeMb);
+
+            if (m_pluginManager != null)
+            {
+                statistics.Add(Statistics.PluginLoadingTime, (long)m_pluginManager.PluginLoadingTime);
+                statistics.Add(Statistics.PluginTotalProcessTime, (long)m_pluginManager.PluginTotalProcessTime);
+                statistics.Add(Statistics.PluginLoadedSuccessfulCounts, (long)m_pluginManager.PluginLoadedSuccessfulCount);
+                statistics.Add(Statistics.PluginLoadedFailureCounts, (long)m_pluginManager.PluginLoadedFailureCount);
+                statistics.Add(Statistics.PluginProcessedRequestCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
+            }
 
             m_chooseWorkerCpu?.LogStats(statistics);
 
@@ -2522,7 +2548,7 @@ namespace BuildXL.Scheduler
                 // we add ProcessWorkingSetMb to the current available ram. 
                 LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb + m_perfInfo.ProcessWorkingSetMB;
             }
-            
+
             if (perfInfo.RamUsagePercentage != null)
             {
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
@@ -2665,11 +2691,11 @@ namespace BuildXL.Scheduler
 
                     // Get the megabytes to free
                     var desiredRamMbToFree = (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100;
-                    
+
                     resourceManager.TryManageResources(desiredRamMbToFree, defaultManageMemoryMode);
                 }
             }
-            else if (perfInfo.RamUsagePercentage.HasValue 
+            else if (perfInfo.RamUsagePercentage.HasValue
                     && m_configuration.Schedule.MaximumRamUtilizationPercentage > perfInfo.RamUsagePercentage.Value
                     && resourceManager.NumSuspended > 0)
             {
@@ -2680,7 +2706,7 @@ namespace BuildXL.Scheduler
                 // 90% memory - current percent = availableRamForResume
                 // When it is resumed, start from the larger execution time. 
 
-                var desiredRamPercentToUse = m_configuration.Schedule.MaximumRamUtilizationPercentage - perfInfo.RamUsagePercentage.Value; 
+                var desiredRamPercentToUse = m_configuration.Schedule.MaximumRamUtilizationPercentage - perfInfo.RamUsagePercentage.Value;
 
                 // Ensure percentage is in valid percent range [0, 100]
                 desiredRamPercentToUse = Math.Max(0, Math.Min(100, desiredRamPercentToUse));
@@ -2778,7 +2804,7 @@ namespace BuildXL.Scheduler
                 m_pipRetryCountersDueToNetworkFailures[runnablePip.Performance.RetryCountDueToStoppedWorker]++;
             }
 
-            if(runnablePip.Performance.RetryCountDueToLowMemory > 0)
+            if (runnablePip.Performance.RetryCountDueToLowMemory > 0)
             {
                 m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.Performance.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
             }
@@ -3096,7 +3122,7 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            var directoryOutputs = executionResult.DirectoryOutputs.Select(tuple => 
+            var directoryOutputs = executionResult.DirectoryOutputs.Select(tuple =>
                 (tuple.directoryArtifact, ReadOnlyArray<FileArtifact>.From(tuple.fileArtifactArray.Select(faa => faa.ToFileArtifact()))));
             ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
             {
@@ -4198,7 +4224,7 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Requires(executionResult.RetryInfo != null, $"Retry Information is required for all retry cases. IsTerminating: {m_scheduleTerminating}");
                         RetryReason? retryReason = executionResult.RetryInfo.RetryReason;
-                        
+
                         if (worker.IsLocal)
                         {
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
@@ -4235,7 +4261,7 @@ namespace BuildXL.Scheduler
                             {
                                 if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
                                 {
-                                    Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description, 
+                                    Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description,
                                         processRunnable.Performance.RetryCountDueToRetryableFailures, executionResult.RetryInfo.RetryReason.ToString());
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
                                 }
@@ -4245,7 +4271,7 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         }
-                        
+
                         return processRunnable.SetPipResult(executionResult.Result);
                     }
 
@@ -4299,7 +4325,7 @@ namespace BuildXL.Scheduler
                     if (!IsDistributedWorker)
                     {
                         var expectedMemoryCounters = processRunnable.ExpectedMemoryCounters.Value;
-                    
+
                         int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                         int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
                         int peakCommitSizeMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitSizeMb ?? 0;
@@ -4936,6 +4962,10 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        PluginManager IPipExecutionEnvironment.PluginManager => m_pluginManager;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IConfiguration IPipExecutionEnvironment.Configuration => m_configuration;
 
         /// <inheritdoc />
@@ -5072,7 +5102,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-#region Critical Path Logging
+        #region Critical Path Logging
 
         private void LogCriticalPath(Dictionary<string, long> statistics, [CanBeNull] BuildSummary buildSummary)
         {
@@ -5542,7 +5572,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-#endregion Critical Path Logging
+        #endregion Critical Path Logging
 
         /// <summary>
         /// Given the execution performance of a just-completed pip, records its performance info for future schedules
@@ -5608,9 +5638,9 @@ namespace BuildXL.Scheduler
                    m_artificialCacheMissOptions.ShouldHaveArtificialMiss(pip.SemiStableHash);
         }
 
-#endregion Execution
+        #endregion Execution
 
-#region Runtime Initialization
+        #region Runtime Initialization
 
         /// <summary>
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips
@@ -5712,8 +5742,8 @@ namespace BuildXL.Scheduler
                             case SandboxKind.MacOsDetours:
                             case SandboxKind.MacOsHybrid:
                             {
-                                sandboxConnection = 
-                                    (ISandboxConnection) new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind,
+                                sandboxConnection =
+                                    (ISandboxConnection)new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind,
                                         isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
 
                                 break;
@@ -6215,7 +6245,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-#endregion Runtime Initialization
+        #endregion Runtime Initialization
 
         /// <summary>
         /// Records the final content hashes (by path; no rewrite count) of the given <see cref="SealDirectory" /> pip's contents.
@@ -6271,7 +6301,7 @@ namespace BuildXL.Scheduler
                         // produced by an upstream pip (ProcessPip/SealDirectoryPip respectively). At this point,
                         // FileContentManager knows the content of this directory artifact.
                         var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
-                        aggregatedContent.AddRange(memberContents.Select(member => 
+                        aggregatedContent.AddRange(memberContents.Select(member =>
                             FileArtifactWithAttributes.Create(member, FileExistence.Required, m_fileContentManager.IsAllowedFileRewriteOutput(member.Path))));
                     }
 
@@ -6319,9 +6349,9 @@ namespace BuildXL.Scheduler
                         })
                 });
             }
-        }        
+        }
 
-#region IFileContentManagerHost Members
+        #region IFileContentManagerHost Members
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         LoggingContext IFileContentManagerHost.LoggingContext => m_executePhaseLoggingContext;
@@ -6615,9 +6645,9 @@ namespace BuildXL.Scheduler
                 });
         }
 
-#endregion IFileContentManagerHost Members
+        #endregion IFileContentManagerHost Members
 
-#region IOperationTrackerHost Members
+        #region IOperationTrackerHost Members
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         string IOperationTrackerHost.GetDescription(in FileOrDirectoryArtifact artifact)
@@ -6648,9 +6678,9 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-#endregion IOperationTrackerHost Members
+        #endregion IOperationTrackerHost Members
 
-#region Event Logging
+        #region Event Logging
 
         private delegate void PipProvenanceEvent(
             LoggingContext loggingContext,
@@ -6954,9 +6984,9 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-#endregion Event Logging
+        #endregion Event Logging
 
-#region Helpers
+        #region Helpers
 
         private PipRuntimeInfo GetPipRuntimeInfo(PipId pipId)
         {
@@ -6978,9 +7008,9 @@ namespace BuildXL.Scheduler
             return info;
         }
 
-#endregion Helpers
+        #endregion Helpers
 
-#region Schedule Requests
+        #region Schedule Requests
 
         /// <summary>
         /// Retrieves the list of pips of a particular type that are in the provided state
@@ -7427,7 +7457,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-#endregion
+        #endregion
 
         /// <inheritdoc />
         public void Dispose()
@@ -7448,6 +7478,7 @@ namespace BuildXL.Scheduler
             m_performanceAggregator?.Dispose();
             m_ipcProvider.Dispose();
             m_apiServer?.Dispose();
+            m_pluginManager?.Dispose();
 
             m_pipTwoPhaseCache?.CloseAsync().GetAwaiter().GetResult();
         }

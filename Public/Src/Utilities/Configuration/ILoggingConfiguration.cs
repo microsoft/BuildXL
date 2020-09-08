@@ -313,6 +313,11 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath PipOutputLog { get; }
 
         /// <summary>
+        /// Log file with plugin messages
+        /// </summary>
+        AbsolutePath PluginLog { get; }
+
+        /// <summary>
         /// How frequently BuildXL needs to sample the usage of resources and queues.
         /// </summary>
         int StatusFrequencyMs { get; }

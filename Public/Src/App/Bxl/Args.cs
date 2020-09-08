@@ -1301,6 +1301,14 @@ namespace BuildXL
                                 }
                             }
                         ),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enablePlugins",
+                            sign => schedulingConfiguration.EnablePlugin = sign),
+
+                        OptionHandlerFactory.CreateOption(
+                            "pluginPaths",
+                            opt => schedulingConfiguration.PluginLocations.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
+
                         /////////// ATTENTION
                         // When you insert new options, maintain the alphabetical order as much as possible, at least
                         // according to the long names of the options. For details, please read the constraints specified as notes

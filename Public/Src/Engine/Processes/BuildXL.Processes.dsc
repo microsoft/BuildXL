@@ -34,6 +34,8 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Plugin.dll,
+            importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],

@@ -1725,7 +1725,8 @@ namespace BuildXL.Scheduler
                         changeAffectedInputs: changeAffectedInputs,
                         detoursListener: detoursEventListener,
                         symlinkedAccessResolver: environment.SymlinkedAccessResolver,
-                        staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs);
+                        staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
+                        pluginManager: environment.PluginManager);
 
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>

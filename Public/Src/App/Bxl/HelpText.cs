@@ -1203,6 +1203,14 @@ namespace BuildXL
             hw.WriteOption("/numRetryFailedPipsOnAnotherWorker:<int>",
                Strings.HelpText_DisplayHelp_NumberofFailedPipRetry);
 
+            hw.WriteOption("/enablePlugins[+|-]",
+               Strings.HelpText_DisplayHelp_EnablePlugins,
+               HelpLevel.Verbose);
+
+            hw.WriteOption("/pluginPaths:<path>",
+               Strings.HelpText_DisplayHelp_PluginPaths,
+               HelpLevel.Verbose);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

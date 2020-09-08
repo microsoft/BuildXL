@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
+using BuildXL.Plugin;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
@@ -125,6 +126,8 @@ namespace BuildXL.Processes
         private readonly bool m_warningRegexIsDefault;
 
         private readonly string m_workingDirectory;
+
+        private readonly PluginManager m_pluginManager;
 
         private string m_standardDirectory;
 
@@ -252,7 +255,8 @@ namespace BuildXL.Processes
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
             SymlinkedAccessResolver symlinkedAccessResolver = null,
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null)
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
+            PluginManager pluginManager = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -325,6 +329,7 @@ namespace BuildXL.Processes
             m_processIdListener = processIdListener;
             m_pipEnvironment = pipEnvironment;
             m_pipDataRenderer = pipDataRenderer ?? new PipFragmentRenderer(m_pathTable);
+            m_pluginManager = pluginManager;
 
             if (pip.WarningRegex.IsValid)
             {
@@ -4551,6 +4556,10 @@ namespace BuildXL.Processes
                 HandleErrorsFromTool(standardError);
                 HandleErrorsFromTool(standardOutput);
 
+                //send the mesage to plugin if there is log parsing plugin available
+                standardError = await PluginEP_ProcessStdOutAndErrorAsync(standardError, true);
+                standardOutput = await PluginEP_ProcessStdOutAndErrorAsync(standardOutput, false);
+
                 LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasTruncated, standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered);
 
                 return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
@@ -4617,6 +4626,10 @@ namespace BuildXL.Processes
                             HandleErrorsFromTool(stdError);
                             HandleErrorsFromTool(stdOut);
 
+                            //send the mesage to plugin if there is log parsing plugin available
+                            stdError = await PluginEP_ProcessStdOutAndErrorAsync(stdError, true);
+                            stdOut = await PluginEP_ProcessStdOutAndErrorAsync(stdOut, false);
+
                             // For the last iteration, check if error was truncated
                             if (errorReader.Peek() == -1 && outReader.Peek() == -1)
                             {
@@ -4635,7 +4648,19 @@ namespace BuildXL.Processes
             }
         }
 
-        private void LogPipProcessError(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr, string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
+        private async Task<string> PluginEP_ProcessStdOutAndErrorAsync(string message, bool isErrorOutput)
+        {
+            if (m_pluginManager != null)
+            {
+                var parsedResult = await m_pluginManager.LogParseAsync(message, isErrorOutput);
+                return parsedResult.Succeeded ? parsedResult.Result.ParsedMessage : message;
+            }
+
+            return message;
+        }
+
+        private void LogPipProcessError(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr, 
+                                        string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
         {
             string outputTolog;
             string outputPathsToLog;
@@ -4753,6 +4778,10 @@ namespace BuildXL.Processes
 
                         bool stdOutEmpty = string.IsNullOrWhiteSpace(stdOut);
                         bool stdErrorEmpty = string.IsNullOrWhiteSpace(stdError);
+
+                        //send the mesage to plugin if there is log parsing plugin available
+                        stdError = await PluginEP_ProcessStdOutAndErrorAsync(stdError, true);
+                        stdOut = await PluginEP_ProcessStdOutAndErrorAsync(stdOut, false);
 
                         string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
                             (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +

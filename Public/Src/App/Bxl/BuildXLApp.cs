@@ -41,6 +41,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using TracingLogEventId = BuildXL.Tracing.LogEventId;
 using PipsLogEventId = BuildXL.Pips.Tracing.LogEventId;
+using PluginLogEventId = BuildXL.Plugin.Tracing.LogEventId;
 using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 
 using Strings = bxl.Strings;
@@ -223,6 +224,8 @@ namespace BuildXL
                 ConfigureCacheMissLogging(pathTable, mutableConfig);
             }
 
+            ConfigurePluginLogging(pathTable, mutableConfig);
+
             m_configuration = mutableConfig;
             m_initialConfiguration = mutableConfig;
 
@@ -264,6 +267,25 @@ namespace BuildXL
                     (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreSavingFailed,
                     (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreToCompareTrace,
                     (int)BuildXL.Scheduler.Tracing.LogEventId.SuccessLoadFingerprintStoreToCompare
+                },
+                null));
+        }
+
+        private static void ConfigurePluginLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        {
+            mutableConfig.Logging.CustomLog.Add(
+                mutableConfig.Logging.PluginLog,
+                (new[]
+                {
+                    (int)PluginLogEventId.PluginManagerStarting,
+                    (int)PluginLogEventId.PluginManagerLoadingPlugin,
+                    (int)PluginLogEventId.PluginManagerLogMessage,
+                    (int)PluginLogEventId.PluginManagerLoadingPluginsFinished,
+                    (int)PluginLogEventId.PluginManagerSendOperation,
+                    (int)PluginLogEventId.PluginManagerResponseReceived,
+                    (int)PluginLogEventId.PluginManagerShutDown,
+                    (int)PluginLogEventId.PluginManagerForwardedPluginClientMessage,
+                    (int)PluginLogEventId.PluginManagerErrorMessage
                 },
                 null));
         }
@@ -1286,6 +1308,7 @@ namespace BuildXL
                     global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
+                    global::BuildXL.Plugin.ETWLogger.Log,
                }.Concat(
                 FrontEndControllerFactory.GeneratedEventSources
             );

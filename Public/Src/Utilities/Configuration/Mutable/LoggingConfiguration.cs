@@ -324,7 +324,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public AbsolutePath RpcLog { get; set; }
 
         /// <inheritdoc />
-        public AbsolutePath PipOutputLog { get; set; }
+        public AbsolutePath PipOutputLog { get; set; } 
+        
+        /// <inheritdoc />
+        public AbsolutePath PluginLog { get; set; }
 
         /// <inheritdoc />
         public int StatusFrequencyMs { get; set; }

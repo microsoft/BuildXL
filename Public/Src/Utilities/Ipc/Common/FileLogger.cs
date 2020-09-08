@@ -73,6 +73,7 @@ namespace BuildXL.Ipc.Common
 
             var message = Prefix + LoggerExtensions.Format(level, format, args);
             m_writer.WriteLine(message);
+            m_writer.Flush();
         }
 
         /// <nodoc />

@@ -10,6 +10,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
@@ -169,6 +170,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         [NotNull]
         IIpcProvider IpcProvider { get; }
+
+        /// <summary>
+        /// PluginManager, used to load and manage plugins.
+        /// </summary>
+        [NotNull]
+        PluginManager PluginManager { get; }
 
         /// <summary>
         /// Kernel connection, needed to instrument sandboxed processes / pips on macOS

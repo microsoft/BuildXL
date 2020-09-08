@@ -779,6 +779,11 @@ namespace BuildXL.Engine
             {
                 logging.HistoricMetadataCacheLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, EngineSerializer.HistoricMetadataCacheLocation);
             }
+
+            if (!logging.PluginLog.IsValid)
+            {
+                logging.PluginLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.PluginLog);
+            }
         }
 
         /// <summary>

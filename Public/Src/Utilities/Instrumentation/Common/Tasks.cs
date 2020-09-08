@@ -61,12 +61,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         public const EventTask ExecutionAnalyzers = (EventTask)22;
 
+        public const EventTask Plugin = (EventTask)23;
+
         /// <summary>
         /// Highest-ordinal task.
         /// </summary>
         /// <remarks>
         /// This must be updated when a task is added.
         /// </remarks>
-        public const EventTask Max = ExecutionAnalyzers;
+        public const EventTask Max = Plugin;
     }
 }

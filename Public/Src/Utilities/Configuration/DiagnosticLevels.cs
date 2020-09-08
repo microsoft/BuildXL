@@ -96,5 +96,10 @@ namespace BuildXL.Utilities.Configuration
         /// Critical paths
         /// </summary>
         CriticalPaths = 1 << Instrumentation.Common.Tasks.CriticalPaths,
+
+        /// <summary>
+        /// Plugin
+        /// </summary>
+        Plugin = 1 << Instrumentation.Common.Tasks.Plugin,
     }
 }

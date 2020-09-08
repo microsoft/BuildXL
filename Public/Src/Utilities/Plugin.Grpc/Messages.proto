@@ -1,0 +1,38 @@
+syntax = "proto3";
+package BuildXL.Plugin.Grpc;
+
+message Noop
+{
+}
+
+message SupportedOperationResponse
+{
+    enum SupportedOperation{
+        LogParse = 0;
+    }
+    repeated SupportedOperation operation = 1;
+}
+
+enum LogType
+{
+    Error = 0;
+    StandardOutput = 1;
+    None = 2;
+}
+
+message LogParseMessage
+{
+    LogType logType = 1;
+    string message = 2;
+}
+
+message LogParseMessageResponse
+{
+    LogType logType = 1;
+    LogParseResult logParseResult = 2;
+}
+
+message LogParseResult
+{
+    string parsedMessage = 1;
+}

@@ -34,6 +34,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             ...importFrom("BuildXL.Utilities").Native.securityDlls

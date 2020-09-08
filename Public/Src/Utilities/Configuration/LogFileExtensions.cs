@@ -76,7 +76,12 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// A file containing rpc log entries
         /// </summary>
-        public const string RpcLog = ".DistributionRpc.log";
+        public const string RpcLog = ".DistributionRpc.log"; 
+        
+        /// <summary>
+        /// A file containing plugin log entries
+        /// </summary>
+        public const string PluginLog = ".Plugin.log";
 
         /// <summary>
         /// A folder for cache miss information

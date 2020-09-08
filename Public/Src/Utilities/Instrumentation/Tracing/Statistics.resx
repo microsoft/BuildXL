@@ -294,6 +294,21 @@
   <data name="TotalMaterializedOutputsSize" xml:space="preserve">
     <value>TotalMaterializedOutputsSize</value>
   </data>
+  <data name="PluginLoadedFailureCounts" xml:space="preserve">
+    <value>PluginLoadedFailureCounts</value>
+  </data>
+  <data name="PluginLoadedSuccessfulCounts" xml:space="preserve">
+    <value>PluginLoadedSuccessfulCounts</value>
+  </data>
+  <data name="PluginLoadingTime" xml:space="preserve">
+    <value>PluginLoadingTime</value>
+  </data>
+  <data name="PluginProcessedRequestCounts" xml:space="preserve">
+    <value>PluginProcessedRequestCounts</value>
+  </data>
+  <data name="PluginTotalProcessTime" xml:space="preserve">
+    <value>PluginTotalProcessTime</value>
+  </data>
   <data name="TotalMaterializedInputsCount" xml:space="preserve">
     <value>TotalMaterializedInputsCount</value>
   </data>

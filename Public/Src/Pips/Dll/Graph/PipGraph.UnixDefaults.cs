@@ -14,7 +14,7 @@ namespace BuildXL.Pips.Graph
     partial class PipGraph
     {
         /// <nodoc />
-        public class MacOsDefaults // TODO: rename to UnixDefaults
+        public class UnixDefaults
         {
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
@@ -41,7 +41,7 @@ namespace BuildXL.Pips.Graph
             private readonly DirectoryArtifact[] m_untrackedDirectories;
 
             /// <nodoc />
-            public MacOsDefaults(PathTable pathTable, IMutablePipGraph pipGraph)
+            public UnixDefaults(PathTable pathTable, IMutablePipGraph pipGraph)
             {
                 m_provenance = new PipProvenance(
                     0,
@@ -110,6 +110,7 @@ namespace BuildXL.Pips.Graph
                         //     dynamically loaded libraries is not necessarily going to stay the same.
                         UnixPaths.UsrLib,
                         UnixPaths.LibLinuxGnu,
+                        UnixPaths.Lib64,
                     }
                     .Select(p => DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, p))
                     .ToArray();

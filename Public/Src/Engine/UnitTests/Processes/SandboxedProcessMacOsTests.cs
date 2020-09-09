@@ -24,9 +24,9 @@ using static BuildXL.Interop.Unix.Sandbox.AccessReport;
 namespace Test.BuildXL.Processes
 {
     [TestClassIfSupported(requiresMacOperatingSystem: true)]
-    public class SandboxedProcessUnixTest : SandboxedProcessTestBase
+    public class SandboxedProcessMacOsTest : SandboxedProcessTestBase
     {
-        public SandboxedProcessUnixTest(ITestOutputHelper output)
+        public SandboxedProcessMacOsTest(ITestOutputHelper output)
             : base(output) { }
 
         private sealed class Connection : ISandboxConnection

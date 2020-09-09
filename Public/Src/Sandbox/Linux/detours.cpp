@@ -126,9 +126,29 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
     return result.restore();
 })
 
+INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
+    auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, fd);
+    return bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
+})
+
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
     auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
     return bxl->check_and_fwd_fopen(check, (FILE*)NULL, pathname, mode);
+})
+
+INTERPOSE(FILE*, fopen64, const char *pathname, const char *mode)({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    return bxl->check_and_fwd_fopen64(check, (FILE*)NULL, pathname, mode);
+})
+
+INTERPOSE(FILE*, freopen, const char *pathname, const char *mode, FILE *stream)({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    return bxl->check_and_fwd_freopen(check, (FILE*)NULL, pathname, mode, stream);
+})
+
+INTERPOSE(FILE*, freopen64, const char *pathname, const char *mode, FILE *stream)({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    return bxl->check_and_fwd_freopen64(check, (FILE*)NULL, pathname, mode, stream);
 })
 
 INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
@@ -176,6 +196,15 @@ INTERPOSE(int, faccessat, int dirfd, const char *pathname, int mode, int flags)(
     return bxl->check_and_fwd_faccessat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
 
+static AccessCheckResult ReportFileOpen(BxlObserver *bxl, std::string &pathStr, int oflag)
+{
+    mode_t pathMode = bxl->get_mode(pathStr.c_str());
+    IOEvent event(
+        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
+        pathStr, bxl->GetProgramPath(), pathMode, false);
+    return bxl->report_access(__func__, event);
+}
+
 INTERPOSE(int, open, const char *path, int oflag, ...)({
     va_list args;
     va_start(args, oflag);
@@ -183,13 +212,19 @@ INTERPOSE(int, open, const char *path, int oflag, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path(path);
-    mode_t pathMode = bxl->get_mode(pathStr.c_str());
-    IOEvent event(
-        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
-        pathStr, bxl->GetProgramPath(), pathMode, false);
-    auto check = bxl->report_access(__func__, event);
-
+    AccessCheckResult check = ReportFileOpen(bxl, pathStr, oflag);
     return bxl->check_and_fwd_open(check, ERROR_RETURN_VALUE, path, oflag, mode);
+})
+
+INTERPOSE(int, open64, const char *path, int oflag, ...)({
+    va_list args;
+    va_start(args, oflag);
+    mode_t mode = va_arg(args, mode_t);
+    va_end(args);
+
+    std::string pathStr = bxl->normalize_path(path);
+    AccessCheckResult check = ReportFileOpen(bxl, pathStr, oflag);
+    return bxl->check_and_fwd_open64(check, ERROR_RETURN_VALUE, path, oflag, mode);
 })
 
 INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
@@ -199,17 +234,23 @@ INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
-    mode_t pathMode = bxl->get_mode(pathStr.c_str());
-    IOEvent event(
-        pathMode == 0 && (flags & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
-        pathStr, bxl->GetProgramPath(), pathMode, false);
-    auto check = bxl->report_access(__func__, event);
+    AccessCheckResult check = ReportFileOpen(bxl, pathStr, flags);
+    return bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode);
+})
 
+INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
+    va_list args;
+    va_start(args, flags);
+    mode_t mode = va_arg(args, mode_t);
+    va_end(args);
+
+    std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
+    AccessCheckResult check = ReportFileOpen(bxl, pathStr, flags);
     return bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode);
 })
 
 INTERPOSE(int, creat, const char *pathname, mode_t mode)({
-    return open(pathname, O_CREAT | O_WRONLY | O_TRUNC);
+    return open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
 })
 
 INTERPOSE(ssize_t, write, int fd, const void *buf, size_t bufsiz)({

@@ -18,10 +18,8 @@ INC_FLAGS = $(foreach d, $(INC), -I$d)
 CXXFLAGS = -c -fPIC --std=c++17 $(INC_FLAGS) 
 DBGFLAGS = -g -Og -D_DEBUG
 RELFLAGS = -O3 -D_NDEBUG
-LDFLAGS  = -ldl -lpthread
 
-src = \
-	$(wildcard *.cpp) \
+commonSrc = \
 	$(wildcard ../MacOs/Interop/Sandbox/Data/*.cpp) \
 	$(wildcard ../MacOs/Interop/Sandbox/Handlers/*.cpp) \
 	../MacOs/Interop/Sandbox/Sandbox.cpp \
@@ -32,17 +30,28 @@ src = \
 	../Windows/DetoursServices/PolicySearch.cpp \
 	../Windows/DetoursServices/StringOperations.cpp
 
-dbgobj = $(src:.cpp=.d.o)
-relobj = $(src:.cpp=.r.o)
-dbgdep = $(dbgobj:.o=.deps)
-reldep = $(relobj:.o=.deps)
-dep = $(dbgdep) $(reldep)
+detoursSrc = \
+	bxl_observer.cpp \
+	detours.cpp
 
-%.d.deps: %.cpp
-	@$(CPP) $(CXXFLAGS) $(DBGFLAGS) $< -MM -MT $(@:.deps=.o) > $@
+auditSrc = \
+	bxl_observer.cpp \
+	audit.cpp
 
-%.r.deps: %.cpp
-	@$(CPP) $(CXXFLAGS) $(RELFLAGS) $< -MM -MT $(@:.deps=.o) > $@
+commonObj = $(commonSrc:.cpp=.d.o) $(commonSrc:.cpp=.r.o)
+detoursObj = $(detoursSrc:.cpp=.detours.d.o) $(detoursSrc:.cpp=.detours.r.o)
+auditObj = $(auditSrc:.cpp=.d.o) $(auditSrc:.cpp=.r.o)
+allObj = $(detoursObj) $(auditObj) $(commonObj)
+allDep = $(allObj:.o=.deps)
+
+%.deps: %.cpp
+	@$(CPP) $(CXXFLAGS) $< -MM -MT $(@:.deps=.o) > $@
+
+%.detours.d.o: %.cpp
+	$(CXX) -DENABLE_INTERPOSING $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
+
+%.detours.r.o: %.cpp
+	$(CXX) -DENABLE_INTERPOSING $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
 %.d.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
@@ -51,30 +60,33 @@ dep = $(dbgdep) $(reldep)
 	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
 all: debug release
-debug: prep bin/debug/libDetours.so
-release: prep bin/release/libDetours.so
+debug: prep bin/debug/libDetours.so bin/debug/libBxlAudit.so
+release: prep bin/release/libDetours.so bin/release/libBxlAudit.so
 
 prep:
 	@mkdir -p bin/debug bin/release
 
-main: $(dbgobj)
-	$(CXX) $^ -o bin/debug/main $(LDFLAGS)
+bin/release/libDetours.so: $(filter %.r.o, $(commonObj) $(detoursObj))
+	$(CXX) -shared $^ -o bin/release/libDetours.so -ldl -lpthread
 
-bin/release/libDetours.so: $(relobj)
-	$(CXX) -shared $^ -o bin/release/libDetours.so $(LDFLAGS)
+bin/debug/libDetours.so: $(filter %.d.o, $(commonObj) $(detoursObj))
+	$(CXX) -shared $^ -o bin/debug/libDetours.so -ldl -lpthread
 
-bin/debug/libDetours.so: $(dbgobj)
-	$(CXX) -shared $^ -o bin/debug/libDetours.so $(LDFLAGS)
+bin/release/libBxlAudit.so: $(filter %.r.o, $(commonObj) $(auditObj))
+	$(CXX) -shared $^ -o bin/release/libBxlAudit.so -ldl
 
--include $(dep)
+bin/debug/libBxlAudit.so: $(filter %.d.o, $(commonObj) $(auditObj))
+	$(CXX) -shared $^ -o bin/debug/libBxlAudit.so -ldl
+
+-include $(allDep)
 
 .PHONY: clean
 clean:
-	rm -rf $(dbgobj) $(relobj) bin/*
+	rm -rf $(allObj) bin/*
 
 .PHONY: cleandep
 cleandep:
-	rm -f $(dep)
+	rm -f $(allDep)
 
 .PHONY: cleanall
 cleanall: cleandep clean

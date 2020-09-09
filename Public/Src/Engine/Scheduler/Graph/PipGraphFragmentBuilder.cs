@@ -51,7 +51,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private PipGraph.WindowsOsDefaults m_windowsOsDefaults;
-        private PipGraph.MacOsDefaults m_macOsDefaults;
+        private PipGraph.UnixDefaults m_unixDefaults;
         private readonly object m_osDefaultLock = new object();
         private int m_nextPipId = 0;
 
@@ -213,18 +213,18 @@ namespace BuildXL.Scheduler.Graph
             // TODO: This is a copy from PipGraph.Builder. Refactor it!
             if (OperatingSystemHelper.IsUnixOS)
             {
-                if (m_macOsDefaults == null)
+                if (m_unixDefaults == null)
                 {
                     lock (m_osDefaultLock)
                     {
-                        if (m_macOsDefaults == null)
+                        if (m_unixDefaults == null)
                         {
-                            m_macOsDefaults = new PipGraph.MacOsDefaults(m_pipExecutionContext.PathTable, this);
+                            m_unixDefaults = new PipGraph.UnixDefaults(m_pipExecutionContext.PathTable, this);
                         }
                     }
                 }
 
-                return m_macOsDefaults.ProcessDefaults(processBuilder);
+                return m_unixDefaults.ProcessDefaults(processBuilder);
             }
             else
             {

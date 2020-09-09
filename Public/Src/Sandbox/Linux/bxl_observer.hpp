@@ -3,6 +3,14 @@
 
 #pragma once
 
+#include "dirent.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <limits.h>
 #include <stddef.h>
 
@@ -20,15 +28,36 @@ using namespace std;
 
 extern const char *__progname;
 
+// CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxDetours.cs
 #define BxlEnvFamPath "__BUILDXL_FAM_PATH"
 #define BxlEnvLogPath "__BUILDXL_LOG_PATH"
 #define BxlEnvRootPid "__BUILDXL_ROOT_PID"
 
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
-#define GEN_FN_DEF_REAL(ret, name, ...)                                         \
-    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
-    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+#ifdef ENABLE_INTERPOSING
+    #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
+        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+        const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+
+    #define MAKE_BODY(B) \
+        B \
+    }
+
+    #define INTERPOSE(ret, name, ...) \
+    ret name(__VA_ARGS__) { \
+        BxlObserver *bxl = BxlObserver::GetInstance(); \
+        BXL_LOG_DEBUG(bxl, "Intercepted %s", #name); \
+        MAKE_BODY
+#else
+    #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
+        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+        const fn_real_##name real_##name = (fn_real_##name)name;
+
+    #define IGNORE_BODY(B)
+
+    #define INTERPOSE(ret, name, ...) IGNORE_BODY
+#endif 
 
 #define GEN_FN_DEF(ret, name, ...) \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__) \
@@ -53,16 +82,6 @@ extern const char *__progname;
             return fwd_##name(args...).restore();                               \
         }                                                                       \
     }
-
-#define MAKE_BODY(B) \
-    B \
-}
-
-#define INTERPOSE(ret, name, ...) \
-ret name(__VA_ARGS__) { \
-    BxlObserver *bxl = BxlObserver::GetInstance(); \
-    BXL_LOG_DEBUG(bxl, "Intercepted %s", #name); \
-    MAKE_BODY
 
 #define _fatal(fmt, ...) do { real_fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
 #define fatal(msg) _fatal("%s", msg)
@@ -191,6 +210,11 @@ public:
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
 
     void report_exec(const char *syscallName, const char *procName, const char *file);
+    void report_audit_objopen(const char *fullpath)
+    {
+        IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, fullpath, progFullPath_, S_IFREG);
+        report_access("la_objopen", event, /* checkCache */ true);
+    }
 
     AccessCheckResult report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int oflags = 0);
@@ -268,7 +292,9 @@ public:
     GEN_FN_DEF(int, execve, const char *, char *const[], char *const[])
     GEN_FN_DEF(int, execvp, const char *, char *const[])
     GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[])
-    GEN_FN_DEF(int, statfs, const char *, struct statfs *)
+#ifdef ENABLE_INTERPOSING
+    GEN_FN_DEF(int, statfs, const char *, struct statfs *buf);
+#endif
     GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *)
     GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*)
     GEN_FN_DEF(int, __xstat, int, const char *, struct stat *)
@@ -277,7 +303,11 @@ public:
     GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);
     GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*)
     GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int)
+    GEN_FN_DEF(FILE*, fdopen, int, const char *)
     GEN_FN_DEF(FILE*, fopen, const char *, const char *)
+    GEN_FN_DEF(FILE*, fopen64, const char *, const char *)
+    GEN_FN_DEF(FILE*, freopen, const char *, const char *, FILE *)
+    GEN_FN_DEF(FILE*, freopen64, const char *, const char *, FILE *)
     GEN_FN_DEF(size_t, fread, void*, size_t, size_t, FILE*)
     GEN_FN_DEF(size_t, fwrite, const void*, size_t, size_t, FILE*)
     GEN_FN_DEF(int, fclose, FILE*)
@@ -289,6 +319,7 @@ public:
     GEN_FN_DEF(int, access, const char *, int)
     GEN_FN_DEF(int, faccessat, int, const char *, int, int)
     GEN_FN_DEF(int, creat, const char *, mode_t)
+    GEN_FN_DEF(int, open64, const char *, int, mode_t)
     GEN_FN_DEF(int, open, const char *, int, mode_t)
     GEN_FN_DEF(int, openat, int, const char *, int, mode_t)
     GEN_FN_DEF(int, close, int)

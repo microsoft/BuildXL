@@ -61,7 +61,7 @@ namespace BuildXL.Pips.Graph
             private readonly IConfiguration m_configuration;
 
             private readonly Lazy<WindowsOsDefaults> m_windowsOsDefaults;
-            private readonly Lazy<MacOsDefaults> m_macOsDefaults;
+            private readonly Lazy<UnixDefaults> m_unixDefaults;
 
             #region State
 
@@ -211,7 +211,7 @@ namespace BuildXL.Pips.Graph
                 m_configuration = configuration;
 
                 m_windowsOsDefaults = Lazy.Create(() => new WindowsOsDefaults(Context.PathTable));
-                m_macOsDefaults = Lazy.Create(() => new MacOsDefaults(Context.PathTable, this));
+                m_unixDefaults = Lazy.Create(() => new UnixDefaults(Context.PathTable, this));
 
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
@@ -369,7 +369,7 @@ namespace BuildXL.Pips.Graph
             internal bool ApplyCurrentOsDefaultsInternal(ProcessBuilder processBuilder, bool untrackInsteadSourceSeal)
             {
                 return OperatingSystemHelper.IsUnixOS
-                    ? m_macOsDefaults.Value.ProcessDefaults(processBuilder, untrackInsteadSourceSeal)
+                    ? m_unixDefaults.Value.ProcessDefaults(processBuilder, untrackInsteadSourceSeal)
                     : m_windowsOsDefaults.Value.ProcessDefaults(processBuilder);
             }
 

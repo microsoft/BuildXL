@@ -373,6 +373,7 @@ namespace BuildXL.Interop.Unix
         public const string EtcOsRelease              = "/etc/os-release"; // symlink on Linux
         public const string EtcMasterPasswd           = "/etc/master.passwd";
         public const string LibLinuxGnu               = "/lib/x86_64-linux-gnu";
+        public const string Lib64                     = "/lib64";
         public const string Library                   = "/Library";
         public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
         public const string Private                   = "/private";

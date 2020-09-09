@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
@@ -122,6 +123,38 @@ namespace Test.BuildXL.Processes
                 ExpectAccess(AbsentFile(yDir, "probe1"), exists: false),
                 ExpectAccess(AbsentFile(yDir, "probe2"), exists: false),
                 ExpectDeniedAccess(AbsentFile(xDir, "abc"), exists: false));
+        }
+
+        [Fact]
+        public async Task TestDynamicallyLoadedLibrariesReportedOnLinux()
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return;
+            }
+
+            var proc = ToProcess(Operation.Echo("hi"));
+            var info = ToProcessInfo(proc, nameof(TestDynamicallyLoadedLibrariesReportedOnLinux));
+            info.FileAccessManifest.ReportFileAccesses = true;
+            info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+            using ISandboxedProcess process = await StartProcessAsync(info);
+            var result = await process.GetResultAsync();
+            XAssert.AreEqual(0, result.ExitCode);
+            var accesses = result.FileAccesses
+                .Select(fa => fa.GetPath(Context.PathTable))
+                .Where(p => p.EndsWith(".so"))
+                .Select(p => Path.GetFileName(p))
+                .Select(n => n.Contains('-') ? n.Substring(0, n.IndexOf('-')) + ".so" : n)
+                .Distinct()
+                .ToHashSet();
+            XAssert.Contains(accesses, new[]
+            {
+                "ld.so", "libc.so", "libdl.so", "libm.so", "libpthread.so", "librt.so",
+                "libclrjit.so", "libcoreclr.so", "libcoreclrtraceptprovider.so",
+                "libhostfxr.so", "libhostpolicy.so", "libmscordaccore.so", "libmscordbi.so",
+            });
+
+            XAssert.ContainsNot(accesses, new[] { "libDetours.so" });
         }
 
         private FileArtifact ToUpper(FileArtifact file)

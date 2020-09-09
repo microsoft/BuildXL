@@ -459,6 +459,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             pipBuilder.EnableTempDirectory();
             pipBuilder.AdditionalTempDirectories = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(new AbsolutePath[] { additionalTempDirectory });
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                pipBuilder.AddUntrackedDirectoryScope(Context.PathTable, "/usr/local/lib/");
+            }
 
             var processWithOutputs = SchedulePipBuilder(pipBuilder);
             var result = RunScheduler();

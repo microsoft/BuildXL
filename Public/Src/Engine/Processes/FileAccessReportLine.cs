@@ -97,6 +97,8 @@ namespace BuildXL.Processes
         internal static bool TryParse(
             ref string line,
             out uint processId,
+            out uint id,
+            out uint correlationId,
             out ReportedFileOperation operation,
             out RequestedAccess requestedAccess,
             out FileAccessStatus status,
@@ -119,6 +121,7 @@ namespace BuildXL.Processes
             requestedAccess = RequestedAccess.None;
             status = FileAccessStatus.None;
             processId = error = 0;
+            id = correlationId = 0;
             usn = default;
             explicitlyReported = false;
             desiredAccess = 0;
@@ -171,6 +174,8 @@ namespace BuildXL.Processes
 
                 if (
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out processId) &&
+                    uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out id) &&
+                    uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out correlationId) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var requestedAccessValue) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var statusValue) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var explicitlyReportedValue) &&
@@ -245,7 +250,7 @@ namespace BuildXL.Processes
         /// </remarks>
         internal static string GetReportLineForAugmentedFileAccess(
             ReportedFileOperation reportedFileOperation, 
-            uint processId, 
+            uint processId,
             RequestedAccess requestedAccess, 
             FileAccessStatus fileAccessStatus, 
             uint errorCode, 
@@ -261,20 +266,22 @@ namespace BuildXL.Processes
             var result = new System.Text.StringBuilder();
 
             result.Append($"{(int)ReportType.AugmentedFileAccess},{reportedFileOperation}:");
-            result.Append($"{processId.ToString("x")}|");
-            result.Append($"{((byte)requestedAccess).ToString("x")}|");
-            result.Append($"{((byte)fileAccessStatus).ToString("x")}|");
+            result.Append($"{processId:x}|");
+            result.Append($"{SandboxedProcessReports.FileAccessNoId:x}|"); // no id.
+            result.Append($"{SandboxedProcessReports.FileAccessNoId:x}|"); // no correlation id.
+            result.Append($"{(byte)requestedAccess:x}|");
+            result.Append($"{(byte)fileAccessStatus:x}|");
             // '1' makes the access look as explicitly reported, but this actually doesn't matter since it will get
             // set based on the manifest policy upon reception
             result.Append("1|");
-            result.Append($"{errorCode.ToString("x")}|");
-            result.Append($"{usn.Value.ToString("x")}|");
-            result.Append($"{((uint)desiredAccess).ToString("x")}|");
-            result.Append($"{((uint)shareMode).ToString("x")}|");
-            result.Append($"{((uint)creationDisposition).ToString("x")}|");
-            result.Append($"{((uint)flagsAndAttributes).ToString("x")}|");
+            result.Append($"{errorCode:x}|");
+            result.Append($"{usn.Value:x}|");
+            result.Append($"{(uint)desiredAccess:x}|");
+            result.Append($"{(uint)shareMode:x}|");
+            result.Append($"{(uint)creationDisposition:x}|");
+            result.Append($"{(uint)flagsAndAttributes:x}|");
             // The manifest path is always written as invalid
-            result.Append($"{AbsolutePath.Invalid.Value.Value.ToString("x")}|");
+            result.Append($"{AbsolutePath.Invalid.Value.Value:x}|");
             result.Append(absolutePath);
 
             if (!string.IsNullOrEmpty(enumeratePattern))

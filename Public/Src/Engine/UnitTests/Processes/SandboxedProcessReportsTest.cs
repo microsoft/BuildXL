@@ -20,9 +20,9 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void TestParseFileAccessReportLineFencePost()
         {
-            var line = "Process:1|1|1|1|1|1|1|1|1|1|1|1";
-            XAssert.AreEqual(12, line.Split('|').Length);
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1";
+            XAssert.AreEqual(14, line.Split('|').Length);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsTrue(ok, error);
         }
 
@@ -55,28 +55,32 @@ namespace Test.BuildXL.Processes
             line = line.Substring(splitIndex + 1);
 
             var ok = FileAccessReportLine.TryParse(
-                ref line, 
-                out var processId, 
-                out var operation, 
-                out var requestedAccess, 
-                out var status, 
-                out var explicitlyReported, 
-                out var error, 
-                out var usn, 
-                out var desiredAccess, 
-                out var shareMode, 
-                out var creationDisposition, 
-                out var flags, 
-                out var absolutePath, 
-                out var path, 
-                out var enumeratePattern, 
-                out var processArgs, 
+                ref line,
+                out var processId,
+                out var id,
+                out var correlationId,
+                out var operation,
+                out var requestedAccess,
+                out var status,
+                out var explicitlyReported,
+                out var error,
+                out var usn,
+                out var desiredAccess,
+                out var shareMode,
+                out var creationDisposition,
+                out var flags,
+                out var absolutePath,
+                out var path,
+                out var enumeratePattern,
+                out var processArgs,
                 out string errorMessage);
 
             XAssert.IsTrue(ok, errorMessage);
 
             XAssert.AreEqual(ReportedFileOperation.Process, operation);
             XAssert.AreEqual(1234u, processId);
+            XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, id);
+            XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, correlationId);
             XAssert.AreEqual(RequestedAccess.Enumerate, requestedAccess);
             XAssert.AreEqual(FileAccessStatus.Allowed, status);
             XAssert.AreEqual(true, explicitlyReported);

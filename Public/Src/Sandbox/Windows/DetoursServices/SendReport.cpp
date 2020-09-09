@@ -102,11 +102,13 @@ void ReportFileAccess(
     size_t filterLength = wcslen(filterStr); // in characters
     size_t fileProcessCommandLineLength = wcslen(g_currentProcessCommandLine); // in characters
     size_t operationLen = wcslen(fileOperationContext.Operation); // in characters
-    size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 100; // in characters
+    size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 116; // in characters
 
-    // Adding 100 should be enough for now since the max values for the members of the message are:
+    // Adding 116 should be enough for now since the max values for the members of the message are:
     // ReportType_FileAccess � 1 char
     // g_currentProcessId � 8 chars
+    // FileOperationContext.Id � 8 chars
+    // FileOperationContext.CorrelationId � 8 chars
     // accessCheckResult.RequestedAccess � 1 char
     // status � 1 char
     // (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit) � 1 char(0 or 1)
@@ -120,9 +122,9 @@ void ReportFileAccess(
     // filename separately added
     // filterStr separately added
     // g_currentProcessCommandLine � separately added
-    // 13 chars for | chars
+    // 15 chars for | chars
     // 5 chars for �, �  � : � �\r� �\n� �\0� chars
-    // Total : 94 characters.
+    // Total : 112 characters.
 
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
     assert(report.get());
@@ -144,10 +146,12 @@ void ReportFileAccess(
         std::replace(commandLine.begin(), commandLine.end(), L'\r', L' ');
         std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
 
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
             ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
+            fileOperationContext.Id,
+            fileOperationContext.CorrelationId,
             accessCheckResult.Access,
             status,
             (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),
@@ -164,10 +168,12 @@ void ReportFileAccess(
     }
     else
     {
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
             ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
+            fileOperationContext.Id,
+            fileOperationContext.CorrelationId,
             accessCheckResult.Access,
             status,
             (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),

@@ -32,6 +32,8 @@ public:
     DWORD ShareMode;
     DWORD CreationDisposition;
     DWORD FlagsAndAttributes;
+    unsigned long Id;
+    unsigned long CorrelationId;
 
     FileOperationContext(
         StrType lpOperation,
@@ -45,7 +47,9 @@ public:
         DesiredAccess(dwDesiredAccess),
         ShareMode(dwShareMode),
         CreationDisposition(dwCreationDisposition),
-        FlagsAndAttributes(dwFlagsAndAttributes)
+        FlagsAndAttributes(dwFlagsAndAttributes),
+        Id(GetNextId()),
+        CorrelationId(NoId)
     {}
     
     // Creates a call context for an operation on a path that reads existing content.
@@ -72,8 +76,18 @@ public:
             lpPath);
     }
 
+    void Correlate(const FileOperationContext& other)
+    {
+        CorrelationId = other.Id;
+    }
+
     FileOperationContext(const FileOperationContext& other) = default;
     FileOperationContext& operator=(const FileOperationContext&) = default;
+
+private:
+    // CODESYNC: Public\Src\Engine\Processes\SandboxedProcessReports.cs
+    static const unsigned long NoId = 0UL;
+    static unsigned long GetNextId();
 };
 
 enum FileExistence {

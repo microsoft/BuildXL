@@ -60,9 +60,185 @@ namespace BuildXL.Processes
     public abstract class IDetoursEventListener
     {
         /// <summary>
+        /// File access data.
+        /// </summary>
+        public struct FileAccessData
+        {
+            /// <summary>
+            /// Pip id.
+            /// </summary>
+            public long PipId { get; set; }
+            
+            /// <summary>
+            /// Pip description.
+            /// </summary>
+            public string PipDescription { get; set; }
+
+            /// <summary>
+            /// Operation the performed the file access.
+            /// </summary>
+            public ReportedFileOperation Operation { get; set; }
+
+            /// <summary>
+            /// Requested access.
+            /// </summary>
+            public RequestedAccess RequestedAccess { get; set; }
+
+            /// <summary>
+            /// File access status.
+            /// </summary>
+            public FileAccessStatus Status { get; set; }
+
+            /// <summary>
+            /// True if file access is explicitly reported.
+            /// </summary>
+            public bool ExplicitlyReported { get; set; }
+            
+            /// <summary>
+            /// Process id.
+            /// </summary>
+            public uint ProcessId { get; set; }
+
+            /// <summary>
+            /// Id of file access.
+            /// </summary>
+            public uint Id { get; set; }
+
+            /// <summary>
+            /// Correlation id of file access.
+            /// </summary>
+            public uint CorrelationId { get; set; }
+            
+            /// <summary>
+            /// Error code of the operation.
+            /// </summary>
+            public uint Error { get; set; }
+
+            /// <summary>
+            /// Desired access.
+            /// </summary>
+            public DesiredAccess DesiredAccess { get; set; }
+            
+            /// <summary>
+            /// Requested sharing mode.
+            /// </summary>
+            public ShareMode ShareMode { get; set; }
+
+            /// <summary>
+            /// Create disposition, i.e., action to take on file that exists or does not exist.
+            /// </summary>
+            public CreationDisposition CreationDisposition { get; set; }
+            
+            /// <summary>
+            /// File flags and attributes.
+            /// </summary>
+            public FlagsAndAttributes FlagsAndAttributes { get; set; }
+            
+            /// <summary>
+            /// Path being accessed.
+            /// </summary>
+            public string Path { get; set; }
+
+            /// <summary>
+            /// Process arguments.
+            /// </summary>
+            public string ProcessArgs { get; set; }
+
+            /// <summary>
+            /// Whether the file access is augmented.
+            /// </summary>
+            public bool IsAnAugmentedFileAccess { get; set; }
+        }
+
+        /// <summary>
+        /// Process data.
+        /// </summary>
+        public struct ProcessData
+        {
+            /// <summary>
+            /// Pip id.
+            /// </summary>
+            public long PipId { get; set; }
+
+            /// <summary>
+            /// Pip description.
+            /// </summary>
+            public string PipDescription { get; set; }
+
+            /// <summary>
+            /// Process name.
+            /// </summary>
+            public string ProcessName { get; set; }
+
+            /// <summary>
+            /// Process id.
+            /// </summary>
+            public uint ProcessId { get; set; }
+
+            /// <summary>
+            /// Parent process id.
+            /// </summary>
+            public uint ParentProcessId { get; set; }
+
+            /// <summary>
+            /// Creation date time.
+            /// </summary>
+            public DateTime CreationDateTime { get; set; }
+
+            /// <summary>
+            /// Exit date time.
+            /// </summary>
+            public DateTime ExitDateTime { get; set; }
+
+            /// <summary>
+            /// Kernel time.
+            /// </summary>
+            public TimeSpan KernelTime { get; set; }
+
+            /// <summary>
+            /// User name.
+            /// </summary>
+            public TimeSpan UserTime { get; set; }
+            
+            /// <summary>
+            /// Exit code.
+            /// </summary>
+            public uint ExitCode { get; set; }
+            
+            /// <summary>
+            /// IO counters.
+            /// </summary>
+            public Native.IO.IOCounters IoCounters { get; set; }
+        }
+
+        /// <summary>
+        /// Debug data.
+        /// </summary>
+        public struct DebugData
+        {
+            /// <summary>
+            /// Pip id.
+            /// </summary>
+            public long PipId { get; set; }
+
+            /// <summary>
+            /// Pip description.
+            /// </summary>
+            public string PipDescription { get; set; }
+
+            /// <summary>
+            /// Debug message.
+            /// </summary>
+            public string DebugMessage { get; set; }
+        }
+
+        /// <summary>
         /// Version of the interface
         /// </summary>
-        public const uint Version = 1;
+        /// <remarks>
+        /// 2: Wrap individual arguments of API into structs to avoid breaking changes when adding a new argument.
+        /// </remarks>
+        public const uint Version = 2;
 
         // By default the handling is set store the data in the SandboxedProcessReports collection only.
         private MessageHandlingFlags m_messageHandlingFlags = MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect;
@@ -70,75 +246,20 @@ namespace BuildXL.Processes
         /// <summary>
         /// Called to handle FileAccess message.
         /// </summary>
-        /// <param name="pipId">The pip id</param>
-        /// <param name="pipDescription">The pip descruption</param>
-        /// <param name="operation">The operation</param>
-        /// <param name="requestedAccess">The requested access</param>
-        /// <param name="status">The status of the access request</param>
-        /// <param name="explicitlyReported">Is it an explicit report</param>
-        /// <param name="processId">The process ID that made the access.</param>
-        /// <param name="error">Error code of the operation</param>
-        /// <param name="desiredAccess">The desired access</param>
-        /// <param name="shareMode">The share mode</param>
-        /// <param name="creationDisposition">The creation disposition</param>
-        /// <param name="flagsAndAttributes">The flags and attributes</param>
-        /// <param name="path">The path being accessed</param>
-        /// <param name="processArgs">The process arguments</param>
-        /// <param name="isAnAugmentedFileAccess">Whether the file access was augmented</param>
-        public abstract void HandleFileAccess(
-            long pipId,
-            string pipDescription,
-            ReportedFileOperation operation,
-            RequestedAccess requestedAccess,
-            FileAccessStatus status,
-            bool explicitlyReported,
-            uint processId,
-            uint error,
-            DesiredAccess desiredAccess,
-            ShareMode shareMode,
-            CreationDisposition creationDisposition,
-            FlagsAndAttributes flagsAndAttributes,
-            string path,
-            string processArgs,
-            bool isAnAugmentedFileAccess);
+        /// <param name="fileAccessData">File access data.</param>
+        public abstract void HandleFileAccess(FileAccessData fileAccessData);
 
         /// <summary>
         /// Called to handle a debug message from detours.
         /// </summary>
-        /// <param name="pipId">The pip id.</param>
-        /// <param name="pipDescription">The pip description</param>
-        /// <param name="debugMessage">The debug message</param>
-        public abstract void HandleDebugMessage(
-            long pipId,
-            string pipDescription,
-            string debugMessage);
+        /// <param name="debugData">Debug data.</param>
+        public abstract void HandleDebugMessage(DebugData debugData);
 
         /// <summary>
         /// Called to handle process data.
         /// </summary>
-        /// <param name="pipId">The pip id</param>
-        /// <param name="pipDescription">The pip description</param>
-        /// <param name="processName">The process name</param>
-        /// <param name="processId">The process id</param>
-        /// <param name="creationDateTime">The creation date and time</param>
-        /// <param name="exitDateTime">The exit date</param>
-        /// <param name="kernelTime">The kernel time</param>
-        /// <param name="userTime">The user time</param>
-        /// <param name="exitCode">The exit code</param>
-        /// <param name="ioCounters">The IO Counters for the process</param>
-        /// <param name="parentProcessId">The parent process id</param>
-        public abstract void HandleProcessData(
-            long pipId,
-            string pipDescription,
-            string processName,
-            uint processId,
-            DateTime creationDateTime,
-            DateTime exitDateTime,
-            TimeSpan kernelTime,
-            TimeSpan userTime,
-            uint exitCode,
-            Native.IO.IOCounters ioCounters,
-            uint parentProcessId);
+        /// <param name="processData">Process data.</param>
+        public abstract void HandleProcessData(ProcessData processData);
 
         /// <summary>
         /// Called to handle detouring status message.
@@ -150,19 +271,13 @@ namespace BuildXL.Processes
         /// </summary>
         /// <returns>The message handling flags</returns>
         /// <remarks>By default the handling is set store the data in the SandboxedProcessReports collection only.</remarks>
-        public MessageHandlingFlags GetMessageHandlingFlags()
-        {
-            return m_messageHandlingFlags;
-        }
+        public MessageHandlingFlags GetMessageHandlingFlags() => m_messageHandlingFlags;
 
         /// <summary>
         /// Sets the flags that are used to handle different message types
         /// </summary>
         /// <param name="flags">The message handling flags</param>
         /// <remarks>By default the handling is set store the data in the SandboxedProcessReports collection only.</remarks>
-        public void SetMessageHandlingFlags(MessageHandlingFlags flags)
-        {
-            m_messageHandlingFlags = flags;
-        }
+        public void SetMessageHandlingFlags(MessageHandlingFlags flags) => m_messageHandlingFlags = flags;
     }
 }

@@ -417,7 +417,7 @@ namespace BuildXL.Processes
 
             if (DetoursListener != null)
             {
-                DetoursListener.HandleDebugMessage(PipSemiStableHash, PipDescription, fullMessage);
+                DetoursListener.HandleDebugMessage(new IDetoursEventListener.DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = fullMessage });
             }
 
             if (LoggingContext != null)

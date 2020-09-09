@@ -830,7 +830,7 @@ namespace BuildXL.Processes
         private static readonly int s_maxRequestedAccess = Enum.GetValues(typeof(RequestedAccess)).Cast<RequestedAccess>().Max(e => (int)e);
 
         private bool ReportProvider(
-            ref AccessReport report, out uint processId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
+            ref AccessReport report, out uint processId, out uint id, out uint correlationId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
             out bool explicitlyReported, out uint error, out Usn usn, out DesiredAccess desiredAccess, out ShareMode shareMode, out CreationDisposition creationDisposition,
             out FlagsAndAttributes flagsAndAttributes, out AbsolutePath manifestPath, out string path, out string enumeratePattern, out string processArgs, out string errorMessage)
         {
@@ -838,6 +838,8 @@ namespace BuildXL.Processes
             checked
             {
                 processId = (uint)report.Pid;
+                id = SandboxedProcessReports.FileAccessNoId;
+                correlationId = SandboxedProcessReports.FileAccessNoId;
 
                 if (!FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
                 {

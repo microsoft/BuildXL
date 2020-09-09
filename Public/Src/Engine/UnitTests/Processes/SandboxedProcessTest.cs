@@ -35,7 +35,7 @@ namespace Test.BuildXL.Processes
 
         private sealed class MyListener : IDetoursEventListener
         {
-            private ISet<string> m_fileAccesses = new HashSet<string>();
+            private readonly ISet<string> m_fileAccesses = new HashSet<string>();
 
             public IEnumerable<string> FileAccesses => m_fileAccesses;
             public int FileAccessPathCount => m_fileAccesses.Count;
@@ -44,27 +44,27 @@ namespace Test.BuildXL.Processes
             public int ProcessDataMessageCount { get; private set; }
             public int ProcessDetouringStatusMessageCount { get; private set; }
 
-            public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage)
+            public override void HandleDebugMessage(DebugData debugData)
             {
                 DebugMessageCount++;
             }
 
-            public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs, bool isAnAugmentedFileAccess)
+            public override void HandleFileAccess(FileAccessData fileAccessData)
             {
-                if (operation == ReportedFileOperation.Process)
+                if (fileAccessData.Operation == ReportedFileOperation.Process)
                 {
                     ProcessMessageCount++;
                 }
 
-                m_fileAccesses.Add(path);
+                m_fileAccesses.Add(fileAccessData.Path);
             }
 
-            public override void HandleProcessData(long pipId, string pipDescription, string processName, uint processId, DateTime creationDateTime, DateTime exitDateTime, TimeSpan kernelTime, TimeSpan userTime, uint exitCode, IOCounters ioCounters, uint parentProcessId)
+            public override void HandleProcessData(ProcessData processData)
             {
                 ProcessDataMessageCount++;
             }
 
-            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data)
+            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData processDetouringStatusData)
             {
                 ProcessDetouringStatusMessageCount++;
             }

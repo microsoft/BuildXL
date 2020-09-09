@@ -16,6 +16,7 @@ using namespace std;
 #include "ResolvedPathCacheTests.h"
 #include "Tests.h"
 #include "Timestamps.h"
+#include "CorrelationCalls.h"
 #include "Utils.h"
 
 // ----------------------------------------------------------------------------
@@ -24,186 +25,6 @@ using namespace std;
 
 #define ERROR_WRONG_NUM_ARGS    1
 #define ERROR_INVALID_COMMAND   2
-
-typedef enum _FILE_INFORMATION_CLASS_EXTRA {
-    FileFullDirectoryInformation = 2,
-    FileBothDirectoryInformation,
-    FileBasicInformation,
-    FileStandardInformation,
-    FileInternalInformation,
-    FileEaInformation,
-    FileAccessInformation,
-    FileNameInformation,
-    FileRenameInformation,
-    FileLinkInformation,
-    FileNamesInformation,
-    FileDispositionInformation,
-    FilePositionInformation,
-    FileFullEaInformation,
-    FileModeInformation,
-    FileAlignmentInformation,
-    FileAllInformation,
-    FileAllocationInformation,
-    FileEndOfFileInformation,
-    FileAlternateNameInformation,
-    FileStreamInformation,
-    FilePipeInformation,
-    FilePipeLocalInformation,
-    FilePipeRemoteInformation,
-    FileMailslotQueryInformation,
-    FileMailslotSetInformation,
-    FileCompressionInformation,
-    FileObjectIdInformation,
-    FileCompletionInformation,
-    FileMoveClusterInformation,
-    FileQuotaInformation,
-    FileReparsePointInformation,
-    FileNetworkOpenInformation,
-    FileAttributeTagInformation,
-    FileTrackingInformation,
-    FileIdBothDirectoryInformation,
-    FileIdFullDirectoryInformation,
-    FileValidDataLengthInformation,
-    FileShortNameInformation,
-    FileIoCompletionNotificationInformation,
-    FileIoStatusBlockRangeInformation,
-    FileIoPriorityHintInformation,
-    FileSfioReserveInformation,
-    FileSfioVolumeInformation,
-    FileHardLinkInformation,
-    FileProcessIdsUsingFileInformation,
-    FileNormalizedNameInformation,
-    FileNetworkPhysicalNameInformation,
-    FileIdGlobalTxDirectoryInformation,
-    FileIsRemoteDeviceInformation,
-    FileUnusedInformation,
-    FileNumaNodeInformation,
-    FileStandardLinkInformation,
-    FileRemoteProtocolInformation,
-    FileRenameInformationBypassAccessCheck,
-    FileLinkInformationBypassAccessCheck,
-    FileVolumeNameInformation,
-    FileIdInformation,
-    FileIdExtdDirectoryInformation,
-    FileReplaceCompletionInformation,
-    FileHardLinkFullIdInformation,
-    FileIdExtdBothDirectoryInformation,
-    FileDispositionInformationEx,
-    FileRenameInformationEx,
-    FileRenameInformationExBypassAccessCheck,
-    FileDesiredStorageClassInformation,
-    FileStatInformation,
-    FileMemoryPartitionInformation,
-    FileStatLxInformation,
-    FileCaseSensitiveInformation,
-    FileLinkInformationEx,
-    FileLinkInformationExBypassAccessCheck,
-    FileStorageReserveIdInformation,
-    FileCaseSensitiveInformationForceAccessCheck,
-    FileMaximumInformation
-} FILE_INFORMATION_CLASS_EXTRA, *PFILE_INFORMATION_CLASS_EXTRA;
-
-typedef struct _FILE_LINK_INFORMATION {
-    BOOLEAN ReplaceIfExists;
-    HANDLE  RootDirectory;
-    ULONG   FileNameLength;
-    WCHAR   FileName[1];
-} FILE_LINK_INFORMATION, *PFILE_LINK_INFORMATION;
-
-typedef struct _FILE_LINK_INFORMATION_EX {
-    union {
-        BOOLEAN ReplaceIfExists;
-        ULONG Flags;
-    };
-    HANDLE  RootDirectory;
-    ULONG   FileNameLength;
-    WCHAR   FileName[1];
-} FILE_LINK_INFORMATION_EX, *PFILE_LINK_INFORMATION_EX;
-
-typedef struct _FILE_RENAME_INFORMATION {
-    BOOLEAN ReplaceIfExists;
-    HANDLE RootDirectory;
-    ULONG FileNameLength;
-    WCHAR FileName[1];
-} FILE_RENAME_INFORMATION, *PFILE_RENAME_INFORMATION;
-
-extern "C" {
-    NTSTATUS NTAPI ZwSetInformationFile(
-        _In_  HANDLE                 FileHandle,
-        _Out_ PIO_STATUS_BLOCK       IoStatusBlock,
-        _In_  PVOID                  FileInformation,
-        _In_  ULONG                  Length,
-        _In_  FILE_INFORMATION_CLASS FileInformationClass);
-
-    NTSTATUS NTAPI ZwCreateFile(
-        _Out_    PHANDLE            FileHandle,
-        _In_     ACCESS_MASK        DesiredAccess,
-        _In_     POBJECT_ATTRIBUTES ObjectAttributes,
-        _Out_    PIO_STATUS_BLOCK   IoStatusBlock,
-        _In_opt_ PLARGE_INTEGER     AllocationSize,
-        _In_     ULONG              FileAttributes,
-        _In_     ULONG              ShareAccess,
-        _In_     ULONG              CreateDisposition,
-        _In_     ULONG              CreateOptions,
-        _In_opt_ PVOID              EaBuffer,
-        _In_     ULONG              EaLength);
-
-    NTSTATUS NTAPI ZwOpenFile(
-        _Out_ PHANDLE            FileHandle,
-        _In_  ACCESS_MASK        DesiredAccess,
-        _In_  POBJECT_ATTRIBUTES ObjectAttributes,
-        _Out_ PIO_STATUS_BLOCK   IoStatusBlock,
-        _In_  ULONG              ShareAccess,
-        _In_  ULONG              OpenOptions);
-
-    NTSTATUS NTAPI ZwClose(_In_ HANDLE FileHandle);
-}
-
-static BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target)
-{
-    size_t targetLength = target.length();
-    size_t targetLengthInBytes = targetLength * sizeof(WCHAR);
-    size_t bufferSize = sizeof(FILE_RENAME_INFO) + targetLengthInBytes;
-    auto const buffer = make_unique<char[]>(bufferSize);
-    auto const fri = reinterpret_cast<PFILE_RENAME_INFO>(buffer.get());
-    fri->ReplaceIfExists = TRUE;
-    fri->FileNameLength = (ULONG)targetLengthInBytes;
-    fri->RootDirectory = nullptr;
-    wmemcpy(fri->FileName, target.c_str(), targetLength);
-
-    return SetFileInformationByHandle(
-        hFile,
-        FILE_INFO_BY_HANDLE_CLASS::FileRenameInfo,
-        fri,
-        (DWORD)bufferSize);
-}
-
-static NTSTATUS ZwSetRenameFileByHandle(HANDLE hFile, LPCWSTR targetName)
-{
-    wstring target;
-    if (!TryGetNtFullPath(targetName, target))
-    {
-        return (NTSTATUS)STATUS_INVALID_HANDLE;
-    }
-
-    size_t targetLength = target.length();
-    size_t targetLengthInBytes = targetLength * sizeof(WCHAR);
-    size_t bufferSize = sizeof(FILE_RENAME_INFORMATION) + targetLengthInBytes;
-    auto const buffer = make_unique<char[]>(bufferSize);
-    auto const fri = reinterpret_cast<PFILE_RENAME_INFORMATION>(buffer.get());
-    fri->ReplaceIfExists = TRUE;
-    fri->FileNameLength = (ULONG)targetLengthInBytes;
-    fri->RootDirectory = nullptr;
-    wmemcpy(fri->FileName, target.c_str(), targetLength);
-
-    IO_STATUS_BLOCK ioStatusBlock;
-    return ZwSetInformationFile(
-        hFile,
-        &ioStatusBlock,
-        fri,
-        (ULONG)bufferSize,
-        (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
-}
 
 // Generic tests.
 int CallPipeTest()
@@ -1329,6 +1150,23 @@ static void LoggingTests(const string& verb)
 #undef IF_COMMAND
 }
 
+static void CorrelationCallTests(const string& verb)
+{
+#define IF_COMMAND1(NAME)   { if (verb == #NAME) { exit(NAME()); } }
+#define IF_COMMAND2(NAME)   { if (verb == ("2" ## #NAME)) { NAME(); NAME(); exit(ERROR_SUCCESS); } }
+#define IF_COMMAND(NAME)    { IF_COMMAND1(NAME); IF_COMMAND2(NAME); }
+
+    IF_COMMAND(CorrelateCopyFile);
+    IF_COMMAND(CorrelateCreateHardLink);
+    IF_COMMAND(CorrelateMoveFile);
+    IF_COMMAND(CorrelateMoveDirectory);
+    IF_COMMAND(CorrelateRenameDirectory);
+
+#undef IF_COMMAND1
+#undef IF_COMMAND2
+#undef IF_COMMAND
+}
+
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1351,6 +1189,7 @@ int main(int argc, char **argv)
 
     LoggingTests(verb);
     SymlinkTests(verb);
+    CorrelationCallTests(verb);
     GenericTests(verb);
 
 #undef IF_COMMAND

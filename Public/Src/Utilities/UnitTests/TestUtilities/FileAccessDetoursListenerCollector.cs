@@ -37,28 +37,28 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <inheritdoc/>
-        public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs, bool isAnAugmentedFileAccess)
+        public override void HandleFileAccess(FileAccessData fileAccessData)
         {
-            if (AbsolutePath.TryCreate(m_pathTable, path, out AbsolutePath absolutePath))
+            if (AbsolutePath.TryCreate(m_pathTable, fileAccessData.Path, out AbsolutePath absolutePath))
             {
                 m_fileAccessPaths.Add(absolutePath);
             }
 
-            m_allFileAccessPaths.Add(path);
+            m_allFileAccessPaths.Add(fileAccessData.Path);
         }
 
         /// <inheritdoc/>
-        public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage)
+        public override void HandleDebugMessage(DebugData debugData)
         {
         }
 
         /// <inheritdoc/>
-        public override void HandleProcessData(long pipId, string pipDescription, string processName, uint processId, DateTime creationDateTime, DateTime exitDateTime, TimeSpan kernelTime, TimeSpan userTime, uint exitCode, IOCounters ioCounters, uint parentProcessId)
+        public override void HandleProcessData(ProcessData processData)
         {
         }
 
         /// <inheritdoc/>
-        public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data)
+        public override void HandleProcessDetouringStatus(ProcessDetouringStatusData processDetouringStatusData)
         {
         }
     }

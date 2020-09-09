@@ -89,3 +89,49 @@ BOOLEAN TestCreateSymbolicLinkA(_In_ LPCSTR lpSymlinkFileName, _In_ LPCSTR lpTar
 
     return res;
 }
+
+BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target)
+{
+    size_t targetLength = target.length();
+    size_t targetLengthInBytes = targetLength * sizeof(WCHAR);
+    size_t bufferSize = sizeof(FILE_RENAME_INFO) + targetLengthInBytes;
+    auto const buffer = make_unique<char[]>(bufferSize);
+    auto const fri = reinterpret_cast<PFILE_RENAME_INFO>(buffer.get());
+    fri->ReplaceIfExists = TRUE;
+    fri->FileNameLength = (ULONG)targetLengthInBytes;
+    fri->RootDirectory = nullptr;
+    wmemcpy(fri->FileName, target.c_str(), targetLength);
+
+    return SetFileInformationByHandle(
+        hFile,
+        FILE_INFO_BY_HANDLE_CLASS::FileRenameInfo,
+        fri,
+        (DWORD)bufferSize);
+}
+
+NTSTATUS ZwSetRenameFileByHandle(HANDLE hFile, LPCWSTR targetName)
+{
+    wstring target;
+    if (!TryGetNtFullPath(targetName, target))
+    {
+        return (NTSTATUS)STATUS_INVALID_HANDLE;
+    }
+
+    size_t targetLength = target.length();
+    size_t targetLengthInBytes = targetLength * sizeof(WCHAR);
+    size_t bufferSize = sizeof(FILE_RENAME_INFORMATION) + targetLengthInBytes;
+    auto const buffer = make_unique<char[]>(bufferSize);
+    auto const fri = reinterpret_cast<PFILE_RENAME_INFORMATION>(buffer.get());
+    fri->ReplaceIfExists = TRUE;
+    fri->FileNameLength = (ULONG)targetLengthInBytes;
+    fri->RootDirectory = nullptr;
+    wmemcpy(fri->FileName, target.c_str(), targetLength);
+
+    IO_STATUS_BLOCK ioStatusBlock;
+    return ZwSetInformationFile(
+        hFile,
+        &ioStatusBlock,
+        fri,
+        (ULONG)bufferSize,
+        (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
+}

@@ -31,6 +31,7 @@ namespace Processes.Detours {
                 f`PipExecutorDetoursTest.cs`,
                 f`SandboxedProcessPipExecutorTest.cs`,
                 f`SandboxedProcessPipExecutorWindowsCallTest.cs`,
+                f`SandboxedProcessPipExecutorCorrelationCallTest.cs`,
                 f`ValidationDataCreator.cs`,
                 f`FileAccessManifestTreeTest.cs`,
                 f`SandboxedProcessInfoTest.cs`,

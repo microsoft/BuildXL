@@ -6663,43 +6663,33 @@ namespace Test.BuildXL.Processes.Detours
                 m_accumulator = acc;
             }
 
-            public override void HandleFileAccess(long pipId, string pipDescription, 
-                ReportedFileOperation operation, RequestedAccess requestedAccess, 
-                FileAccessStatus status, bool explicitlyReported, 
-                uint processId, uint error,
-                DesiredAccess desiredAccess, ShareMode shareMode, 
-                CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, 
-                string path, string processArgs, bool isAnAugmentedFileAccess)
+            public override void HandleFileAccess(FileAccessData fileAccessData)
             {
                 var reportedAccess = new ReportedFileAccess(
-                    operation,
+                    fileAccessData.Operation,
                     new ReportedProcess(1, m_executable.ToString(m_context.PathTable)),
-                    requestedAccess,
-                    status,
-                    explicitlyReported,
-                    error,
+                    fileAccessData.RequestedAccess,
+                    fileAccessData.Status,
+                    fileAccessData.ExplicitlyReported,
+                    fileAccessData.Error,
                     new Usn(0),
-                    desiredAccess,
-                    shareMode,
-                    creationDisposition,
-                    flagsAndAttributes,
+                    fileAccessData.DesiredAccess,
+                    fileAccessData.ShareMode,
+                    fileAccessData.CreationDisposition,
+                    fileAccessData.FlagsAndAttributes,
                     m_executable,
-                    path,
+                    fileAccessData.Path,
                     "",
                     FileAccessStatusMethod.PolicyBased);
 
                 m_accumulator?.Invoke(reportedAccess);
             }
 
-            public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage) { }
+            public override void HandleDebugMessage(DebugData debugData) { }
 
-            public override void HandleProcessData(long pipId, string pipDescription, 
-                string processName, uint processId, 
-                DateTime creationDateTime, DateTime exitDateTime, 
-                TimeSpan kernelTime, TimeSpan userTime,
-                uint exitCode, IOCounters ioCounters, uint parentProcessId) { }
+            public override void HandleProcessData(ProcessData processData) { }
 
-            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data) { }
+            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData processDetouringStatusData) { }
         };
 
         [FactIfSupported(requiresSymlinkPermission: true)]

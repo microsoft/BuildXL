@@ -1381,6 +1381,7 @@ static bool ValidateMoveDirectory(
                 // we reflect that in the report
                 FILE_ATTRIBUTE_NORMAL | (fileAttributes & FILE_ATTRIBUTE_DIRECTORY),
                 file.c_str());
+            destinationOpContext.Correlate(sourceOpContext);
 
             PolicyResult destPolicyResult;
 
@@ -1661,6 +1662,7 @@ NTSTATUS HandleFileRenameInformation(
         CREATE_ALWAYS,
         flagsAndAttributes,
         targetPath.c_str());
+    destinationOpContext.Correlate(sourceOpContext);
 
     PolicyResult destPolicyResult;
 
@@ -2107,6 +2109,7 @@ NTSTATUS HandleFileNameInformation(
         CREATE_ALWAYS,
         flagsAndAttributes,
         targetPath.c_str());
+    destinationOpContext.Correlate(sourceOpContext);
 
     PolicyResult destPolicyResult;
 
@@ -3136,6 +3139,8 @@ BOOL WINAPI Detoured_CopyFileExW(
         CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
         lpNewFileName);
+    destinationOpContext.Correlate(sourceOpContext);
+
     PolicyResult destPolicyResult;
     if (!destPolicyResult.Initialize(lpNewFileName))
     {
@@ -3404,6 +3409,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         CREATE_ALWAYS,
         flagsAndAttributes,
         lpNewFileName == NULL ? L"" : lpNewFileName);
+    destinationOpContext.Correlate(sourceOpContext);
 
     PolicyResult destPolicyResult;
 
@@ -3769,6 +3775,7 @@ BOOL WINAPI Detoured_CreateHardLinkW(
         CREATE_NEW,
         FILE_ATTRIBUTE_NORMAL,
         lpFileName);
+    destinationOpContext.Correlate(sourceOpContext);
 
     PolicyResult destPolicyResult;
     if (!destPolicyResult.Initialize(lpFileName))
@@ -4545,6 +4552,7 @@ static BOOL RenameUsingSetFileInformationByHandle(
         CREATE_ALWAYS,
         flagsAndAttributes,
         targetFileName.c_str());
+    destinationOpContext.Correlate(sourceOpContext);
 
     PolicyResult destPolicyResult;
 

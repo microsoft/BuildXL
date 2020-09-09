@@ -15,6 +15,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
+using static BuildXL.Processes.IDetoursEventListener;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
@@ -27,6 +28,9 @@ namespace BuildXL.Processes
     /// </remarks>
     internal sealed class SandboxedProcessReports
     {
+        // CODESYNC: Public\Src\Sandbox\Windows\DetoursServices\FileAccessHelpers.h
+        public const uint FileAccessNoId = 0;
+
         private static readonly Dictionary<string, ReportType> s_reportTypes = Enum
             .GetValues(typeof(ReportType))
             .Cast<ReportType>()
@@ -157,6 +161,8 @@ namespace BuildXL.Processes
         public delegate bool FileAccessReportProvider<T>(
             ref T data,
             out uint processId,
+            out uint id,
+            out uint correlationId,
             out ReportedFileOperation operation,
             out RequestedAccess requestedAccess,
             out FileAccessStatus status,
@@ -258,13 +264,13 @@ namespace BuildXL.Processes
                 case ReportType.DebugMessage:
                 if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
                 {
-                    m_detoursEventListener.HandleDebugMessage(PipSemiStableHash, PipDescription, data);
+                    m_detoursEventListener.HandleDebugMessage(new DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = data });
                 }
 
                 Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
                 break;
                 case ReportType.WindowsCall:
-                throw new NotImplementedException(I($"{ReportType.WindowsCall.ToString()} report type is not supported."));
+                throw new NotImplementedException(I($"{ReportType.WindowsCall} report type is not supported."));
                 case ReportType.ProcessData:
                 if (!ProcessDataReportLineReceived(data, out errorMessage))
                 {
@@ -515,18 +521,20 @@ namespace BuildXL.Processes
             // If there is a listener registered and not a process message and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.ProcessDataNotify) != 0)
             {
-                m_detoursEventListener.HandleProcessData(
-                    PipSemiStableHash,
-                    PipDescription,
-                    processName,
-                    processId,
-                    creationDateTime,
-                    exitDateTime,
-                    kernelTime,
-                    userTime,
-                    exitCode,
-                    ioCounters,
-                    parentProcessId);
+                m_detoursEventListener.HandleProcessData(new IDetoursEventListener.ProcessData
+                {
+                    PipId = PipSemiStableHash,
+                    PipDescription = PipDescription,
+                    ProcessName = processName,
+                    ProcessId = processId,
+                    ParentProcessId = parentProcessId,
+                    CreationDateTime = creationDateTime,
+                    ExitDateTime = exitDateTime,
+                    KernelTime = kernelTime,
+                    UserTime = userTime,
+                    ExitCode = exitCode,
+                    IoCounters = ioCounters
+                });
             }
 
             // In order to store the ProcessData information, the processId has to be added to
@@ -559,6 +567,8 @@ namespace BuildXL.Processes
         private bool TryParseAugmentedFileAccess(
             ref string data,
             out uint processId,
+            out uint id,
+            out uint correlationId,
             out ReportedFileOperation operation,
             out RequestedAccess requestedAccess,
             out FileAccessStatus status,
@@ -578,22 +588,24 @@ namespace BuildXL.Processes
             // An augmented file access has the same structure as a regular one, so let's call
             // the usual parser
             var result = FileAccessReportLine.TryParse(
-                ref data, 
-                out processId, 
-                out operation, 
-                out requestedAccess, 
-                out status, 
-                out explicitlyReported, 
-                out error, 
-                out usn, 
-                out desiredAccess, 
-                out shareMode, 
-                out creationDisposition, 
-                out flagsAndAttributes, 
-                out manifestPath, 
-                out path, 
-                out enumeratePattern, 
-                out processArgs, 
+                ref data,
+                out processId,
+                out id,
+                out correlationId,
+                out operation,
+                out requestedAccess,
+                out status,
+                out explicitlyReported,
+                out error,
+                out usn,
+                out desiredAccess,
+                out shareMode,
+                out creationDisposition,
+                out flagsAndAttributes,
+                out manifestPath,
+                out path,
+                out enumeratePattern,
+                out processArgs,
                 out errorMessage);
 
             // Augmented file accesses never have the manifest path set, since there is no easy access to the manifest for 
@@ -637,6 +649,8 @@ namespace BuildXL.Processes
             if (!parser(
                 ref data,
                 out var processId,
+                out var id,
+                out var correlationId,
                 out var operation,
                 out var requestedAccess,
                 out var status,
@@ -665,22 +679,26 @@ namespace BuildXL.Processes
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {
-                m_detoursEventListener.HandleFileAccess(
-                    PipSemiStableHash,
-                    PipDescription,
-                    operation,
-                    requestedAccess,
-                    status,
-                    explicitlyReported,
-                    processId,
-                    error,
-                    desiredAccess,
-                    shareMode,
-                    creationDisposition,
-                    flagsAndAttributes,
-                    path,
-                    processArgs,
-                    isAnAugmentedFileAccess);
+                m_detoursEventListener.HandleFileAccess(new IDetoursEventListener.FileAccessData
+                {
+                    PipId = PipSemiStableHash,
+                    PipDescription = PipDescription,
+                    Operation = operation,
+                    RequestedAccess = requestedAccess,
+                    Status = status,
+                    ExplicitlyReported = explicitlyReported,
+                    ProcessId = processId,
+                    Id = id,
+                    CorrelationId = correlationId,
+                    Error = error,
+                    DesiredAccess = desiredAccess,
+                    ShareMode = shareMode,
+                    CreationDisposition = creationDisposition,
+                    FlagsAndAttributes = flagsAndAttributes,
+                    Path = m_manifest.DirectoryTranslator?.Translate(path) ?? path,
+                    ProcessArgs = processArgs,
+                    IsAnAugmentedFileAccess = isAnAugmentedFileAccess
+                });
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.

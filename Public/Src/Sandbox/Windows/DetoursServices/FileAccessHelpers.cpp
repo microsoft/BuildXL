@@ -4,6 +4,7 @@
 #include "stdafx.h"
 
 #include <string>
+#include <atomic>
 
 #include "CanonicalizedPath.h"
 #include "DataTypes.h"
@@ -59,4 +60,9 @@ void FileReadContext::InferExistenceFromError(DWORD error) {
 
 void FileReadContext::InferExistenceFromNtStatus(NTSTATUS status) {
     InferExistenceFromError(RtlNtStatusToDosError(status));
+}
+
+unsigned long FileOperationContext::GetNextId() {
+    static std::atomic_ulong uid { NoId };
+    return ++uid;
 }

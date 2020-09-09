@@ -420,7 +420,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        protected static Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context)
+        public static Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context)
         {
             if (timeout == null)
             {

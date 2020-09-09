@@ -231,10 +231,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 isInsideRing,
                 CopyReason.None,
                 ProactiveCopyLocationSource.None,
-                result => CopyResultCode.Unknown);
+                result => CopyResultCode.Unknown,
+                getTimeoutResult: () => new BoolResult("Operation timed out"));
         }
 
-        private Task<TResult> PerformProactiveCopyAsync<TResult>(
+        private async Task<TResult> PerformProactiveCopyAsync<TResult>(
             OperationContext context,
             Func<OperationContext, Task<TResult>> func,
             ContentHash hash,
@@ -242,33 +243,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             bool isInsideRing,
             CopyReason reason,
             ProactiveCopyLocationSource source,
-            Func<TResult, CopyResultCode> statusFunc) where TResult : ResultBase
+            Func<TResult, CopyResultCode> statusFunc,
+            Func<TResult> getTimeoutResult) where TResult : ResultBase
         {
-            return _proactiveCopyIoGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
-                {
-                    using var cts = new CancellationTokenSource();
-                    cts.CancelAfter(_timeoutForProactiveCopies);
-                    // Creating new operation context with a new token, but the newly created context 
-                    // still would have the same tracing context to simplify proactive copy trace analysis.
-                    var innerContext = context.WithCancellationToken(cts.Token);
-                    return await context.PerformOperationAsync(
-                        Tracer,
-                        operation: () => func(innerContext),
-                        traceOperationStarted: false,
-                        extraEndMessage: result =>
-                             $"Code={statusFunc(result)} " +
-                             $"ContentHash={hash.ToShortString()} " +
-                             $"TargetLocation=[{targetLocation}] " +
-                             $"InsideRing={isInsideRing} " +
-                             $"CopyReason={reason} " +
-                             $"LocationSource={source} " +
-                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - currentCount} " +
-                             $"IOGate.Wait={timeWaiting.TotalMilliseconds}ms. " +
-                             $"Timeout={_timeoutForProactiveCopies} " +
-                             $"TimedOut={cts.Token.IsCancellationRequested}"
-                    );
-                },
-                context.Token);
+            TimeSpan ioGateWaitTime = default;
+            int ioGateCurrentCount = default;
+
+            return await context.PerformOperationAsync(
+                Tracer,
+                operation: () => _proactiveCopyIoGate.GatedOperationAsync((timeWaiting, currentCount) =>
+                    {
+                        ioGateWaitTime = timeWaiting;
+                        ioGateCurrentCount = currentCount;
+                        return context.WithTimeoutAsync(func, _timeoutForProactiveCopies, getTimeoutResult);
+                    },
+                    context.Token),
+                traceOperationStarted: false,
+                extraEndMessage: result =>
+                    $"Code={statusFunc(result)} " +
+                    $"ContentHash={hash.ToShortString()} " +
+                    $"TargetLocation=[{targetLocation}] " +
+                    $"InsideRing={isInsideRing} " +
+                    $"CopyReason={reason} " +
+                    $"LocationSource={source} " +
+                    $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - ioGateCurrentCount} " +
+                    $"IOGate.Wait={ioGateWaitTime.TotalMilliseconds}ms. " +
+                    $"Timeout={_timeoutForProactiveCopies}");
         }
 
         /// <summary>
@@ -284,7 +284,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 isInsideRing,
                 reason,
                 source,
-                result => result.Status);
+                result => result.Status,
+                getTimeoutResult: () => PushFileResult.TimedOut());
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

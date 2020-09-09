@@ -59,10 +59,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <summary>
         /// Creates new instance with a given <see cref="CancellationToken"/> without creating nested tracing context.
         /// </summary>
-        public OperationContext WithCancellationToken(CancellationToken linkedCancellationToken)
+        public CancellableOperationContext WithCancellationToken(CancellationToken linkedCancellationToken)
         {
-            var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
-            return new OperationContext(TracingContext, token);
+            return new CancellableOperationContext(this, linkedCancellationToken);
         }
 
         /// <nodoc />
@@ -70,6 +69,20 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
             return new OperationContext(new Context(TracingContext, caller), token);
+        }
+
+        /// <nodoc />
+        public async Task<T> WithTimeoutAsync<T>(Func<OperationContext, Task<T>> func, TimeSpan timeout, Func<T> getTimeoutResult)
+            where T : ResultBase
+        {
+            try
+            {
+                return await PerformAsyncOperationWithTimeoutBuilder<T>.WithOptionalTimeoutAsync(func, timeout, this);
+            }
+            catch (TimeoutException)
+            {
+                return getTimeoutResult();
+            }
         }
 
         /// <summary>

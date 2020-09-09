@@ -38,7 +38,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             return _checker.CheckBandwidthAtIntervalAsync(
                 context,
                 // NOTE: We need to pass through the token from bandwidth checker to ensure copy cancellation for insufficient bandwidth gets triggered.
-                token => _inner.CopyToAsync(context.WithCancellationToken(token), sourcePath, destinationStream, expectedContentSize, options),
+                async token => // Use async/await to avoid disposing the context prematurely
+                {
+                    using var innerContext = context.WithCancellationToken(token);
+                    return await _inner.CopyToAsync(innerContext, sourcePath, destinationStream, expectedContentSize, options);
+                },
                 options);
         }
     }

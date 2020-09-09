@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 #nullable enable
@@ -35,6 +36,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public static PushFileResult PushSucceeded()
             => new PushFileResult(CopyResultCode.Success);
+
+        /// <nodoc />
+        public static PushFileResult TimedOut()
+            => new PushFileResult(CopyResultCode.CopyTimeoutError);
 
         /// <nodoc />
         internal static PushFileResult Rejected(RejectionReason rejectionReason)
@@ -133,6 +138,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public static bool QualifiesForRetry(this CopyResultCode status)
-            => !status.IsSuccess() && (status.IsRejection() || status == CopyResultCode.ServerUnavailable);
+            => !status.IsSuccess() && (status.IsRejection() || status == CopyResultCode.ServerUnavailable || status == CopyResultCode.CopyTimeoutError);
     }
 }

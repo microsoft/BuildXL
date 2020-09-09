@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// Timeout for some fingerprint store operations.
         /// </summary>
-        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.FingerprintStoreOperationTimeout.Value ?? 60;
+        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.FingerprintStoreOperationTimeout.Value ?? 60 * 6;
 
         private readonly ICacheSession m_cache;
 

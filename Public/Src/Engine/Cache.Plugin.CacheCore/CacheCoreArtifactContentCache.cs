@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <summary>
         /// Timeout for pin and materialize operations.
         /// </summary>
-        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.ArtifactContentCacheOperationTimeout.Value ?? 30;
+        public readonly static int TimeoutDurationMin = EngineEnvironmentSettings.ArtifactContentCacheOperationTimeout.Value ?? 60 * 6;
 
         private readonly PossiblyOpenCacheSession m_cache;
 

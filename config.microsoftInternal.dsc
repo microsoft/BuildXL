@@ -51,7 +51,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
-    { id: "NodeJs", version: "13.3.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
     // Officially mantained CB package that contains Yarn. Used for Yarn tests.
@@ -72,7 +71,6 @@ export const resolver = {
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
             f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
-            f`Private/InternalSdk/NodeJs/module.config.dsc`,
             f`Private/InternalSdk/Windows.Sdk/module.config.dsc`
         ),
 

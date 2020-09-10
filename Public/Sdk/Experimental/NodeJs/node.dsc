@@ -49,9 +49,9 @@ namespace Node {
         return Transformer.execute(execArgs);
     }
 
-    const nodeWinDir = "node-v13.3.0-win-x64";
-    const nodeOsxDir = "node-v13.3.0-darwin-x64";
-    const nodeLinuxDir = "node-v13.3.0-linux-x64";
+    const nodeWinDir = "node-v14.10.0-win-x64";
+    const nodeOsxDir = "node-v14.10.0-darwin-x64";
+    const nodeLinuxDir = "node-v14.10.0-linux-x64";
 
     function getNodeTool() : Transformer.ToolDefinition {
         const host = Context.getCurrentHost();

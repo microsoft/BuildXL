@@ -1969,7 +1969,14 @@ namespace BuildXL.Processes
             if (!string.IsNullOrWhiteSpace(allMatches))
             {
                 string[] matchedProperties = allMatches.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                return (Success: true, PipProperties: matchedProperties.ToDictionary(val => val, val => 1));
+                Dictionary<string, int> propertiesDictionary = new Dictionary<string, int>(matchedProperties.Length);
+                foreach (var property in matchedProperties)
+                {
+                    // Guard against duplicates in properties but only count the property once for the pip
+                    propertiesDictionary[property] = 1;
+                }
+
+                return (Success: true, PipProperties: propertiesDictionary);
             }
 
             return (Success: true, PipProperties: null);

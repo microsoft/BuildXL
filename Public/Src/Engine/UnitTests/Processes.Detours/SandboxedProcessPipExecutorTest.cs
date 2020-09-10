@@ -2021,6 +2021,8 @@ namespace Test.BuildXL.Processes.Detours
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
                 arguments.Add("/d");
                 arguments.Add("/c");
+                // Make sure to handle the case of a pip emitting duplicate properties
+                arguments.Add("echo PipProperty_Foo_EndProperty");
                 arguments.Add("echo PipProperty_Foo_EndProperty");
                 using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
                 {

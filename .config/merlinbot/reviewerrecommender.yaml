@@ -5,6 +5,6 @@ enabled: true
 maxReviewers: 1
 # Exclude files/paths in PR to be considered for recommendation  
 excludedPaths:
-  - .config\CloudBuild.FlakyTests.json*
+  - ^.config\\CloudBuild.FlakyTests.json*
 excludedReviewers:
   - dannyvv@microsoft.com

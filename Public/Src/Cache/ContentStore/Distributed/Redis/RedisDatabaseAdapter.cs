@@ -98,34 +98,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        TouchBulk,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        TrimBulk,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        TrimOrGetLastAccessTime,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        GetContentLocationMap,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        CheckMasterForLocations,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        UpdateBulk,
-        
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        TrimBulkRemote,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
         GetCheckpoint,
 
         /// <nodoc />
@@ -143,10 +115,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         RunQueryWithExpiryBump,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ScanEntriesWithLastAccessTime,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -605,9 +573,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         internal class RedisRetryPolicy : ITransientErrorDetectionStrategy
         {
             private readonly Action<Exception>? _exceptionObserver;
+            private readonly bool _treatObjectDisposedExceptionAsTransient;
 
             /// <nodoc />
-            public RedisRetryPolicy(Action<Exception>? exceptionObserver = null) => _exceptionObserver = exceptionObserver;
+            public RedisRetryPolicy(Action<Exception>? exceptionObserver, bool treatObjectDisposedExceptionAsTransient)
+                => (_exceptionObserver, _treatObjectDisposedExceptionAsTransient) = (exceptionObserver, treatObjectDisposedExceptionAsTransient);
 
             /// <inheritdoc />
             public bool IsTransient(Exception ex)
@@ -628,6 +598,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
                 if (ex is RedisTimeoutException)
                 {
+                    return true;
+                }
+
+                if (ex is ObjectDisposedException && _treatObjectDisposedExceptionAsTransient)
+                {
+                    // The multiplexer can be closed during the call causing the call to fail with ObjectDisposeException.
+                    // This is a transient issue, because the new multiplexer is created and the next call
+                    // may succeed.
                     return true;
                 }
 

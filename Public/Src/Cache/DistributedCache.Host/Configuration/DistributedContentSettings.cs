@@ -151,6 +151,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? CancelBatchWhenMultiplexerIsClosed { get; set; }
 
         [DataMember]
+        public bool? TreatObjectDisposedExceptionAsTransient { get; set; }
+
+        [DataMember]
         [Validation.Range(-1, int.MaxValue)]
         public int? RedisGetBlobTimeoutMilliseconds { get; set; }
 

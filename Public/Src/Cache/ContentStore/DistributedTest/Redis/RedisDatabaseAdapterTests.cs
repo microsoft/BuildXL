@@ -40,7 +40,7 @@ namespace ContentStoreTest.Distributed.Redis
             : base(output)
         {
         }
-
+        
         [Fact]
         public async Task BatchIsCancelledOnReconnectForOtherOperation()
         {
@@ -143,6 +143,39 @@ namespace ContentStoreTest.Distributed.Redis
         {
             var tracer = new Tracer("Tracer");
             return dbAdapter.ExecuteBatchAsResultAsync(context, tracer, b => b.GetCheckpointsInfoAsync("Key", DateTime.UtcNow), RedisOperation.Batch);
+        }
+
+        [Fact]
+        public async Task ExecuteBatchOperationRetriesOnObjectDisposedException()
+        {
+            // Setup test DB configured to fail 2nd query with Redis Exception
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData)
+                         {
+                             FailingQuery = 2,
+                             ExceptionTypeToThrow = typeof(ObjectDisposedException),
+                         };
+
+            // Setup Redis DB adapter
+            var testConn = MockRedisDatabaseFactory.CreateConnection(testDb);
+            var dbAdapter = new RedisDatabaseAdapter(
+                await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), testConn),
+                new RedisDatabaseAdapterConfiguration(DefaultKeySpace, treatObjectDisposedExceptionAsTransient: true));
+
+            // Create a batch query 
+            var redisBatch = dbAdapter.CreateBatchOperation(RedisOperation.All);
+            var first = redisBatch.StringGetAsync("first");
+            var second = redisBatch.StringGetAsync("second");
+
+            // Execute the batch
+            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default).ShouldBeSuccess();
+
+            // Adapter is expected to retry the entire batch if single call fails
+            Assert.True(testDb.BatchCalled);
+            Assert.Null(first.Exception);
+            Assert.Null(second.Exception);
+            Assert.Equal(4, testDb.Calls);
+            Assert.Equal("one", await first);
+            Assert.Equal("two", await second);
         }
 
         [Fact]

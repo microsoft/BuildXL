@@ -113,6 +113,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool CancelBatchWhenMultiplexerIsClosed { get; set; } = false;
 
         /// <summary>
+        /// Whether to treat <see cref="ObjectDisposedException"/> in <see cref="RedisDatabaseAdapter"/> as a transient error and retry the operation or not.
+        /// </summary>
+        public bool TreatObjectDisposedExceptionAsTransient { get; set; } = false;
+
+        /// <summary>
         /// Timeout for GetBlob/PutBlob operations.
         /// </summary>
         public TimeSpan BlobTimeout { get; set; } = TimeSpan.FromSeconds(1);

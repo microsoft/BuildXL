@@ -37,15 +37,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.CancelBatchWhenMultiplexerIsClosed"/>
         public bool CancelBatchWhenMultiplexerIsClosed { get; }
 
+        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TreatObjectDisposedExceptionAsTransient"/>
+        public bool TreatObjectDisposedExceptionAsTransient { get; }
+
         public RetryPolicy CreateRetryPolicy(Action<Exception> onRedidException)
         {
             if (_retryCount != null)
             {
-                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException), _retryCount.Value);
+                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException, TreatObjectDisposedExceptionAsTransient), _retryCount.Value);
             }
             else
             {
-                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException), RetryStrategy.DefaultExponential);
+                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException, TreatObjectDisposedExceptionAsTransient), RetryStrategy.DefaultExponential);
             }
         }
 
@@ -58,7 +61,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             int? retryCount = null,
             string? databaseName = null,
             TimeSpan? minReconnectInterval = null,
-            bool cancelBatchWhenMultiplexerIsClosed = false)
+            bool cancelBatchWhenMultiplexerIsClosed = false,
+            bool treatObjectDisposedExceptionAsTransient = false)
         {
             _retryCount = retryCount;
             KeySpace = keySpace;
@@ -69,6 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             DatabaseName = databaseName ?? "Default";
             MinReconnectInterval = minReconnectInterval ?? TimeSpan.Zero;
             CancelBatchWhenMultiplexerIsClosed = cancelBatchWhenMultiplexerIsClosed;
+            TreatObjectDisposedExceptionAsTransient = treatObjectDisposedExceptionAsTransient;
         }
     }
 }

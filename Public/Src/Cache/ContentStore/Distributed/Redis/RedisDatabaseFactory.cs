@@ -110,14 +110,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     {
                         context.Debug("Shutting down current connection multiplexer.");
 
-                        // The clients already notified about the cancellation so we just
-                        // need to re-create a cancellation token source.
-                        _resetConnectionMultiplexerCts = new CancellationTokenSource();
-
                         await _connectionMultiplexerShutdownFunc(_connectionMultiplexer);
 
                         context.Debug("Creating new multiplexer instance.");
-                        _connectionMultiplexer = await _connectionMultiplexerFactory();
+
+                        var newConnectionMultiplexer = await _connectionMultiplexerFactory();
+
+                        // Using volatile operation to prevent the instruction reordering.
+                        // We really want the cts change to be the last one.
+                        Volatile.Write(ref _connectionMultiplexer, newConnectionMultiplexer);
+
+                        // Need to change the source at the end to avoid the race condition when
+                        // another thread can see a non-canceled CancellationTokenSource
+                        // and at the end still get an old connection multiplexer.
+                        _resetConnectionMultiplexerCts = new CancellationTokenSource();
                     }
                 }
             }

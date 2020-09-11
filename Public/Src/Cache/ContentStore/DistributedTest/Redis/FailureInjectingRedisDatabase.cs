@@ -18,6 +18,8 @@ namespace ContentStoreTest.Distributed.Redis
 
         public bool ThrowRedisException { private get; set; } = true;
 
+        public Type ExceptionTypeToThrow { get; set; } = null;
+
         public int Calls { get; private set; }
 
         public FailureInjectingRedisDatabase(IClock clock, IDictionary<RedisKey, RedisValue> initialData = null)
@@ -52,7 +54,11 @@ namespace ContentStoreTest.Distributed.Redis
                     _fail = false;
                 }
 
-                if (ThrowRedisException)
+                if (ExceptionTypeToThrow != null)
+                {
+                    throw (Exception)FormatterServices.GetUninitializedObject(ExceptionTypeToThrow);
+                }
+                else if (ThrowRedisException)
                 {
                     // RedisException doesn't have any public constructors so creating an object without trying to call constructors
                     Type exceptionType = typeof(RedisException);

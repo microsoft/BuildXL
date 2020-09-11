@@ -33,14 +33,21 @@ namespace BuildXL.Processes
         /// </remarks>
         public bool DisableSandboxing { get; }
 
+        /// <summary>
+        /// An option to disable reporting dynamically loaded shared libraries.
+        /// Provided because enabling auditing may add considerable overhead.
+        /// </summary>
+        public bool DisableAuditing { get; }
+
         /// <nodoc />
-        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false)
+        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false, bool disableAuditing = false)
         {
             Contract.RequiresNotNull(rootJail);
             RootJail = rootJail;
             UserId = userId;
             GroupId = groupId;
             DisableSandboxing = disableSandboxing;
+            DisableAuditing = disableAuditing;
         }
 
         /// <nodoc />
@@ -50,6 +57,7 @@ namespace BuildXL.Processes
             writer.Write(UserId, (w, v) => w.WriteCompact(v));
             writer.Write(GroupId, (w, v) => w.WriteCompact(v));
             writer.Write(DisableSandboxing);
+            writer.Write(DisableAuditing);
         }
 
         /// <nodoc />
@@ -59,7 +67,8 @@ namespace BuildXL.Processes
                 rootJail: reader.ReadString(),
                 userId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
                 groupId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
-                disableSandboxing: reader.ReadBoolean());
+                disableSandboxing: reader.ReadBoolean(),
+                disableAuditing: reader.ReadBoolean());
         }
     }
 }

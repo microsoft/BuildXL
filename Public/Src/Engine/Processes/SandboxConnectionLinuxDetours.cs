@@ -475,6 +475,10 @@ namespace BuildXL.Processes
             if (info.Process.RootJailInfo?.DisableSandboxing != true)
             {
                 yield return ("LD_PRELOAD", CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile) + ":$LD_PRELOAD");
+            }
+
+            if (info.Process.RootJailInfo?.DisableAuditing != true)
+            {
                 yield return ("LD_AUDIT", CopyToRootJailIfNeeded(info.Process.RootJail, AuditLibFile) + ":$LD_AUDIT");
             }
         }

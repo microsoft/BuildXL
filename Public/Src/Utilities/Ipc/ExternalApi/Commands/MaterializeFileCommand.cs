@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities;
 
@@ -21,8 +20,6 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// <nodoc />
         public MaterializeFileCommand(FileArtifact fileId, string fullFilePath)
         {
-            Contract.Requires(fileId.IsValid);
-
             File = fileId;
             FullFilePath = fullFilePath;
         }
@@ -42,16 +39,22 @@ namespace BuildXL.Ipc.ExternalApi.Commands
 
         internal override void InternalSerialize(BinaryWriter writer)
         {
-            writer.Write(File.Path.RawValue);
-            writer.Write(File.RewriteCount);
+            writer.Write(File.IsValid);
+            if (File.IsValid)
+            {
+                writer.Write(File.Path.RawValue);
+                writer.Write(File.RewriteCount);
+            }
             writer.Write(FullFilePath);
         }
 
         internal static Command InternalDeserialize(BinaryReader reader)
         {
-            var file = new FileArtifact(
-                new AbsolutePath(reader.ReadInt32()),
-                reader.ReadInt32());
+            var file = reader.ReadBoolean()
+                ? new FileArtifact(
+                    new AbsolutePath(reader.ReadInt32()),
+                    reader.ReadInt32())
+                : FileArtifact.Invalid;
             return new MaterializeFileCommand(file, reader.ReadString());
         }
     }

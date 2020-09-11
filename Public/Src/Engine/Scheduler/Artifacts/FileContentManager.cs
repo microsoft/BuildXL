@@ -187,6 +187,8 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         private readonly ConcurrentBigSet<AbsolutePath> m_allowedFileRewriteOutputs = new ConcurrentBigSet<AbsolutePath>();
 
+        private readonly ConcurrentBigSet<AbsolutePath> m_pathsWithoutFileArtifact = new ConcurrentBigSet<AbsolutePath>();
+
         #endregion
 
         #region External State (i.e. passed into constructor)
@@ -1032,6 +1034,25 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
             }
+        }
+
+        /// <summary>
+        /// Attempts to materialize a sealed file given its path.
+        /// </summary>
+        /// <remarks>
+        /// NOTE: this only works for sealed files (i.e., files where path->artifact mapping is known to FileContentManager).
+        /// If FileArtifact value cannot be inferred, the call will fail (even if the path already exists).
+        /// </remarks>
+        public async Task<ArtifactMaterializationResult> TryMaterializeSealedFileAsync(AbsolutePath outputFilePath)
+        {
+            if (!m_sealedFiles.TryGetValue(outputFilePath, out var fileArtifact))
+            {
+                // cannot infer FileArtifact value
+                m_pathsWithoutFileArtifact.Add(outputFilePath);
+                return ArtifactMaterializationResult.None;
+            }
+
+            return await TryMaterializeFileAsync(fileArtifact);
         }
 
         /// <summary>
@@ -3383,6 +3404,8 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void LogStats(LoggingContext loggingContext)
         {
+            CheckPathsWithNoFileArtifacts(loggingContext);
+
             Logger.Log.StorageCacheContentHitSources(loggingContext, m_cacheContentSource);
 
             Dictionary<string, long> statistics = new Dictionary<string, long> { { Statistics.TotalCacheSizeNeeded, m_stats.TotalCacheSizeNeeded } };
@@ -3446,6 +3469,30 @@ namespace BuildXL.Scheduler.Artifacts
         private Task<PipOutputOrigin> ToTask(PipOutputOrigin origin)
         {
             return m_originTasks[(int)origin];
+        }
+
+        private void CheckPathsWithNoFileArtifacts(LoggingContext loggingContext)
+        {
+            using var pooledList = Pools.GetAbsolutePathList();
+            var pathsWithAvailableArtifacts = pooledList.Instance;
+
+            foreach (var path in m_pathsWithoutFileArtifact.UnsafeGetList())
+            {
+                if (m_sealedFiles.ContainsKey(path))
+                {
+                    // m_sealedFiles now contains the path, but the path was not there when FileContentManager
+                    // received TryMaterializeSealedFileAsync(AbsolutePath) call.
+                    pathsWithAvailableArtifacts.Add(path);
+                }
+            }
+
+            if (pathsWithAvailableArtifacts.Count > 0)
+            {
+                Logger.Log.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(
+                    loggingContext,
+                    pathsWithAvailableArtifacts.Count,
+                    $"{Environment.NewLine}{string.Join(Environment.NewLine, pathsWithAvailableArtifacts.Select(p => p.ToString(Context.PathTable)))}");
+            }
         }
 
         /// <summary>

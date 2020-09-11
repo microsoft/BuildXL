@@ -150,23 +150,37 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Executes <see cref="MaterializeFileCommand"/>.  First check that <see cref="MaterializeFileCommand.File"/>
-        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync"/>.
+        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync(FileArtifact)"/>.
+        /// If provided <see cref="MaterializeFileCommand.File"/> is not valid, no checks are done, and the call is delegated
+        /// to <see cref="FileContentManager.TryMaterializeSealedFileAsync(AbsolutePath)"/>
         /// </summary>
         private async Task<IIpcResult> ExecuteMaterializeFileAsync(MaterializeFileCommand cmd)
         {
             Contract.Requires(cmd != null);
 
-            // for extra safety, check that provided file path and file id match
+            // If the FileArtifact was provided, for extra safety, check that provided file path and file id match
             AbsolutePath filePath;
             bool isValidPath = AbsolutePath.TryCreate(m_context.PathTable, cmd.FullFilePath, out filePath);
-            if (!isValidPath || !cmd.File.Path.Equals(filePath))
+            if (cmd.File.IsValid && (!isValidPath || !cmd.File.Path.Equals(filePath)))
             {
                 return new IpcResult(
                     IpcResultStatus.ExecutionError,
                     "file path ids differ; file = " + cmd.File.Path.ToString(m_context.PathTable) + ", file path = " + cmd.FullFilePath);
+            }            
+            // If only path was provided, check that it's a valid path.
+            else if (!cmd.File.IsValid && !filePath.IsValid)
+            {
+                return new IpcResult(
+                   IpcResultStatus.ExecutionError,
+                   $"failed to create AbsolutePath from '{cmd.FullFilePath}'");
             }
 
-            var result = await m_fileContentManager.TryMaterializeFileAsync(cmd.File);
+            var result = cmd.File.IsValid
+                ? await m_fileContentManager.TryMaterializeFileAsync(cmd.File)
+                // If file artifact is unknown, try materializing using only the file path.
+                // This method has lower chance of success, since it depends on FileContentManager's
+                // ability to infer FileArtifact associated with this path.
+                : await m_fileContentManager.TryMaterializeSealedFileAsync(filePath);
             bool succeeded = result == ArtifactMaterializationResult.Succeeded;
             string absoluteFilePath = cmd.File.Path.ToString(m_context.PathTable);
 
@@ -174,7 +188,12 @@ namespace BuildXL.Scheduler
             // (i.e., the "ErrorBucket") instead of whatever fallout ends up happening (e.g., IPC pip fails)
             if (!succeeded)
             {
-                Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, result.ToString());
+                // For sealed files, materialization might not have succeeded because a path is not known to BXL.
+                // In such a case, do not log an error, and let the caller deal with the failure.
+                if (cmd.File.IsValid || result != ArtifactMaterializationResult.None)
+                {
+                    Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, cmd.File.IsValid, result.ToString());
+                }
             }
             else
             {

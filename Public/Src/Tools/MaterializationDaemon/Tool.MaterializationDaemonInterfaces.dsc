@@ -3,6 +3,9 @@
 
 import {Transformer} from "Sdk.Transformers";
 
+/**
+ * Common args for service pips.
+ */
 @@public
 export interface ConnectionArguments extends Transformer.RunnerArguments{
     /** Number of retries to connect to a running MaterializationDaemon process. */
@@ -23,14 +26,39 @@ export interface ConnectionArguments extends Transformer.RunnerArguments{
     /** Process execution warning timeout, before BuildXL issues a warning. */
     warningTimeoutInMilliseconds?: number;
 
-     /** Where to save console output. */
-     consoleOutput?: Path;
+    /** Where to save console output. */
+    consoleOutput?: Path;
+}
+
+/**
+ * Definition of an external manifest parser tool.
+ * 
+ * The daemon will deligate parsing of manifest files to this tool.
+ * For each file, it will launch the tool (start a new process) and will read the response from tool's StdOut.
+ * The tool is expected to exit with '0' exit code; any other exit code is interpreted as a tool failure.
+ * 
+ * The order of arguments:
+ * <exePath> /i:<manifest file path> <additionalCommandLineArguments>
+ */
+@@public
+export interface ManifestParserTool {
+    /** Executable path. */
+    exePath: string;
+
+    /** Optional command line arguments  */
+    additionalCommandLineArguments?: string;
 }
 
 @@public
 export interface ServiceStartArguments extends ConnectionArguments {
     /** Maximum number of files to materialize concurrently */
     maxDegreeOfParallelism? : number;
+
+    /** Environment variables to forward to the daemon */
+    forwardEnvironmentVars?: string[];
+
+    /** An external parser. */
+    manifestParser?: ManifestParserTool;
 }
 
 /** 
@@ -52,13 +80,27 @@ export interface ServiceStartResult extends Result {
 }
 
 /**
+ * A directory with manifest files.
+ */
+@@public
+export interface ManifestFileDirectory {
+    /** Input directory. */
+    directory: SharedOpaqueDirectory;
+
+    /** Optional regex that filters in manifest files inside of a provided directory. 
+     *  If no filter is specified, the daemon assumes that the directory is already filtered.
+    */
+    contentFilter?: string;
+}
+
+/**
  * Operations provided by a runner.
  */
 @@public
 export interface MaterializationRunner {
     startDaemon: (args: ServiceStartArguments) => ServiceStartResult;
 
-    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: SharedOpaqueDirectory[]) => Result; 
+    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]) => Result; 
 }
 
 /**

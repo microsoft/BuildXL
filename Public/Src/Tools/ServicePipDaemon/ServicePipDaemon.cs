@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
@@ -30,18 +31,21 @@ namespace Tool.ServicePipDaemon
     public abstract class ServicePipDaemon : IDisposable, IIpcOperationExecutor
     {
         /// <nodoc/>
-        protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
+        public const string LogPrefix = "(SPD) ";
 
-        private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
-
-        /// <summary>Initialized commands</summary>
-        protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
+        /// <nodoc/>
+        protected const string IncludeAllFilter = ".*";
 
         private const string LogFileName = "ServiceDaemon";
         private const char ResponseFilePrefix = '@';
 
         /// <nodoc/>
-        public const string LogPrefix = "(SPD) ";
+        protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
+
+        /// <summary>Initialized commands</summary>
+        protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
+
+        private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
 
         /// <summary>Daemon configuration.</summary>
         public DaemonConfig Config { get; }
@@ -601,6 +605,26 @@ namespace Tool.ServicePipDaemon
             if (minServicePointParallelism.HasValue)
             {
                 ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism.Value, ServicePointManager.DefaultConnectionLimit);
+            }
+        }
+
+        /// <summary>
+        /// Takes a list of strings and returns a initialized regular expressions
+        /// </summary>
+        protected static (Regex[], string error) InitializeFilters(string[] filters)
+        {
+            try
+            {
+                var initializedFilters = filters.Select(
+                    filter => filter == IncludeAllFilter
+                        ? null
+                        : new Regex(filter, RegexOptions.IgnoreCase));
+
+                return (initializedFilters.ToArray(), null);
+            }
+            catch (Exception e)
+            {
+                return (null, e.ToString());
             }
         }
     }

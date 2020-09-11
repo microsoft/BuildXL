@@ -2987,8 +2987,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') failed. Reason: {reason}.")]
-        internal abstract void ErrorApiServerMaterializeFileFailed(LoggingContext loggingContext, string file, string reason);
+            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}', IsFileArtifactValid: {isArtifactValid}) failed. Reason: {reason}.")]
+        internal abstract void ErrorApiServerMaterializeFileFailed(LoggingContext loggingContext, string file, bool isArtifactValid, string reason);
 
         [GeneratedEvent(
             (ushort)LogEventId.ApiServerReportStatisticsExecuted,
@@ -3692,6 +3692,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip failed due to '{reason}'. Will be retried on another worker.")]
         public abstract void PipProcessToBeRetriedOnDifferentWorker(LoggingContext context, string pipDescription, string reason);
+
+        [GeneratedEvent(
+           (ushort)LogEventId.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Error,
+           Keywords = (int)Keywords.UserMessage,
+           EventTask = (ushort)Tasks.Scheduler,
+           Message = "FileArtifacts for the following path(s) (count={count}) were not available at the time of file materialization request was received but they were available at the end of a build:{paths}")]
+        internal abstract void FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(LoggingContext loggingContext, int count, string paths);
     }
 }
 #pragma warning restore CA1823 // Unused field

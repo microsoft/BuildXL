@@ -123,7 +123,7 @@ namespace BuildXL.Utilities.CLI
                     null;
                 if (matchedOption == null && !ignoreInvalidOptions)
                 {
-                    diagnostics.Add(Inv("Configuration flag '{0}' not found", parsedOption.Key));
+                    diagnostics.Add(Inv("Configuration flag '{0}' is not supported", parsedOption.Key));
                 }
                 else if (matchedOption != null)
                 {

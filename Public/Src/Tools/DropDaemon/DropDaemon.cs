@@ -21,7 +21,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
-using Microsoft.VisualStudio.Services.Graph;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -37,8 +36,6 @@ namespace Tool.DropDaemon
     public sealed class DropDaemon : ServicePipDaemon.ServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
-
-        private const string IncludeAllFilter = ".*";
 
         /// <summary>Prefix for the error message of the exception that gets thrown when a symlink is attempted to be added to drop.</summary>
         internal const string SymlinkAddErrorMessagePrefix = "SymLinks may not be added to drop: ";
@@ -223,7 +220,7 @@ namespace Tool.DropDaemon
                    daemon.Completion.GetAwaiter().GetResult();
                    return 0;
                }
-           });        
+           });
 
         internal static readonly Command StartDaemonCmd = RegisterCommand(
            name: "start-daemon",
@@ -581,7 +578,7 @@ namespace Tool.DropDaemon
             }
             catch (DropServiceException e)
             {
-                var status = e.Message.Contains("already exists") 
+                var status = e.Message.Contains("already exists")
                     ? IpcResultStatus.InvalidInput
                     : IpcResultStatus.TransmissionError;
                 return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, status);
@@ -697,7 +694,7 @@ namespace Tool.DropDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}"));
             }
 
-            (Regex[] initializedFilters, string filterInitError) = InitializeDirectoryFilters(directoryFilters);
+            (Regex[] initializedFilters, string filterInitError) = InitializeFilters(directoryFilters);
             if (filterInitError != null)
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
@@ -751,23 +748,6 @@ namespace Tool.DropDaemon
             }
 
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
-        }
-
-        private static (Regex[], string error) InitializeDirectoryFilters(string[] filters)
-        {
-            try
-            {
-                var initializedFilters = filters.Select(
-                    filter => filter == IncludeAllFilter
-                        ? null
-                        : new Regex(filter, RegexOptions.Compiled | RegexOptions.IgnoreCase));
-
-                return (initializedFilters.ToArray(), null);
-            }
-            catch (Exception e)
-            {
-                return (null, e.ToString());
-            }
         }
 
         private static async Task<(DropItemForBuildXLFile[], string error)> CreateDropItemsForDirectoryAsync(

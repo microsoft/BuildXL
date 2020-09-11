@@ -15,16 +15,17 @@ export const runner: MaterializationRunner = {
     )
     => {
         return startService(
-            overrideServerMoniker(<CombinedArguments>args),
+            overrideServerMoniker(<CombinedArguments>applyDefaults(args)),
             "start",
-            "stop"
+            "stop",
+            "finalize"
         );
     },
     
     loadManifestsAndMaterializeFiles: registerManifest,
 };
 
-function startService(args: CombinedArguments, startCommand: string, shutdownCmdName: string): ServiceStartResult {
+function startService(args: CombinedArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName: string): ServiceStartResult {
     const moniker = Transformer.getNewIpcMoniker();
 
     const connectArgs = <CombinedArguments><ConnectionArguments>{maxConnectRetries: args.maxConnectRetries, connectRetryDelayMillis: args.connectRetryDelayMillis, ipcMoniker: moniker};
@@ -34,11 +35,18 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
         overrideMoniker(args, moniker)
     );
     const shutdownCmd = getExecuteArguments(shutdownCmdName, connectArgs);
+    const finalizeCmd = getIpcArguments(
+        connectArgs, 
+        finalizationCmdName, 
+        connectArgs, 
+        ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
+            mustRunOnMaster: true
+        }));
 
     const result = Transformer.createService(
         serviceStartCmd.merge<Transformer.CreateServiceArguments>({
             serviceShutdownCmd: shutdownCmd,
-            serviceFinalizationCmds: [],
+            serviceFinalizationCmds: [finalizeCmd],
         })
     );
     
@@ -49,7 +57,7 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
     };
 }
 
-function registerManifest(startResult: ServiceStartResult, args : ConnectionArguments, directories: SharedOpaqueDirectory[]): Result {
+function registerManifest(startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]): Result {
     Contract.requires(
         startResult !== undefined,
         "result of starting the daemon must be provided"
@@ -57,8 +65,9 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
 
     const directoryMessageBody = directories.length !== 0
         ? [
-            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
-            Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),            
+            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir.directory))),
+            Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir.directory))),
+            Cmd.options("--directoryFilter ", directories.map(dir => dir.contentFilter || ".*")),
           ]
         : []; 
 
@@ -77,7 +86,7 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
             lazilyMaterializedDependencies: [
                 // Current contract is that input SODs contain only manifest files.
                 // To be extra safe, we are not going to materialize anything, and let the daemon be in charge of manifest materialization.
-                ...directories,
+                ...directories.map(d => d.directory),
             ],
             // The daemon is about materialization on the orchestrator machine, so naturually, all the IPC pips run there.
             mustRunOnMaster: true
@@ -132,16 +141,21 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
         arguments: [
             Cmd.argument(command),
             Cmd.option("--moniker ", args.ipcMoniker),
-            Cmd.option("--ipcServerMoniker ", args.ipcServerMoniker),            
-            Cmd.option("--maxDegreeOfParallelism ", args.maxDegreeOfParallelism),            
+            Cmd.option("--ipcServerMoniker ", args.ipcServerMoniker),
+            Cmd.option("--maxDegreeOfParallelism ", args.maxDegreeOfParallelism),
+            Cmd.option("--parserExe ", args.manifestParser !== undefined ? args.manifestParser.exePath : undefined),
+            Cmd.option("--parserExeArgs ", args.manifestParser !== undefined ? args.manifestParser.additionalCommandLineArguments : undefined),
             Cmd.option("--maxConnectRetries ", args.maxConnectRetries),
             Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
-            Cmd.option("--logDir ", materializationDaemonLogDirectory.path),            
+            Cmd.option("--logDir ", materializationDaemonLogDirectory.path),
         ],
         consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
         dependencies: [
             ...(args.dependencies || []),
         ],
+        unsafe: {
+            passThroughEnvironmentVariables: (args.forwardEnvironmentVars || []),
+        },
     };
 }
 
@@ -173,4 +187,18 @@ function getIpcArguments(serviceStartInfo: ServiceStartResult, command: string, 
     };
 
     return overrideIpcArgs !== undefined ? overrideIpcArgs(ipcArgs) : ipcArgs;
+}
+
+function applyDefaults(args: ServiceStartArguments): ServiceStartArguments {
+    const defaults : ServiceStartArguments = {
+        maxConnectRetries: 10,
+        connectRetryDelayMillis: 3000,
+        timeoutInMilliseconds: 5 * 60 * 60 * 1000,
+        warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,
+
+        maxDegreeOfParallelism: 10,
+        forwardEnvironmentVars: ["_NTTREE"]
+    };
+
+    return defaults.merge(args);
 }

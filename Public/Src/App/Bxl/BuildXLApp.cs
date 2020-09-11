@@ -1910,6 +1910,12 @@ namespace BuildXL
                 NativeMethods.LaunchDebuggerIfAttached();
             }
 
+            if (IsKnownUnobservedException(exception))
+            {
+                // Avoid crashing on well know innocuous unobserved exceptions
+                return;
+            }
+
             // Given some conditions like running out of disk space, many threads may start crashing at once.
             // We will give the first thread a chance to emit some telemetry and inform the user, but with multiple
             // threads blocked here (with arbitrary stacks below), we are possibly deadlocked. So, all threads but
@@ -2079,6 +2085,21 @@ namespace BuildXL
 
                 Environment.Exit(ExitCode.FromExitKind(ExitKind.InternalError));
             }
+        }
+
+        private static bool IsKnownUnobservedException(Exception exception)
+        {
+            if (exception is AggregateException ae && ae.InnerException is Exception inner)
+            {
+                // Ignore known issue with unobserved task exceptions from redis layer until its fixed.
+                // Work item: 1768860
+                if (inner.Message.Contains("StackExchange.Redis.Redis"))
+                {
+                    // This case covers: RedisTimeoutException, StackExchange.Redis.RedisConnectionException and potentially similar issues from the redis layer.
+                    return true;
+                }
+            }
+            return false;
         }
 
         private EngineState RunEngine(

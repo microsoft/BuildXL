@@ -277,8 +277,11 @@ export function runQTest(args: QTestArguments): Result {
             "--qtestDotNetFramework ",
             qTestDotNetFrameworkToString(args.qTestDotNetFramework)
         ),
-        Cmd.flag("--qTestRetryOnFailure", args.qTestRetryOnFailure),
-        Cmd.option("--qTestRetryOnFailureMode ", args.qTestRetryOnFailureMode),
+        Cmd.option(
+            "--qTestRetryOnFailureMode ",
+            args.qTestRetryOnFailureMode !== undefined
+            ? args.qTestRetryOnFailureMode
+            : args.qTestRetryOnFailure ? "Failed" : undefined),
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(

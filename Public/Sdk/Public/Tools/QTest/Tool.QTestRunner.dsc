@@ -274,6 +274,10 @@ export function runQTest(args: QTestArguments): Result {
             qTestPlatformToString(args.qTestPlatform)
         ),
         Cmd.option(
+            "--buildPlatform ",
+            qTestPlatformToString(args.qTestPlatform)
+        ),
+        Cmd.option(
             "--qtestDotNetFramework ",
             qTestDotNetFrameworkToString(args.qTestDotNetFramework)
         ),
@@ -374,7 +378,8 @@ export function runQTest(args: QTestArguments): Result {
             Cmd.option("--qTestContextInfo ", Artifact.none(qTestContextInfoFile)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
-            Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
+            Cmd.flag("--logging", true),
+            Cmd.option("--buildPlatform ", qTestPlatformToString(args.qTestPlatform))
         ];
 
         Transformer.execute({

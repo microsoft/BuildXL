@@ -39,22 +39,16 @@ namespace BuildXL.Ipc.ExternalApi.Commands
 
         internal override void InternalSerialize(BinaryWriter writer)
         {
-            writer.Write(File.IsValid);
-            if (File.IsValid)
-            {
-                writer.Write(File.Path.RawValue);
-                writer.Write(File.RewriteCount);
-            }
+            writer.Write(File.Path.RawValue);
+            writer.Write(File.RewriteCount);
             writer.Write(FullFilePath);
         }
 
         internal static Command InternalDeserialize(BinaryReader reader)
         {
-            var file = reader.ReadBoolean()
-                ? new FileArtifact(
-                    new AbsolutePath(reader.ReadInt32()),
-                    reader.ReadInt32())
-                : FileArtifact.Invalid;
+            var file = new FileArtifact(
+                new AbsolutePath(reader.ReadInt32()),
+                reader.ReadInt32());
             return new MaterializeFileCommand(file, reader.ReadString());
         }
     }

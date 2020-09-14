@@ -21,6 +21,12 @@ namespace BuildXL.Utilities
         private static readonly char s_directorySeparatorChar = PathFormatter.GetPathSeparator(PathFormat.HostOs);
 
         /// <summary>
+        /// The name of the environment variable holding the directory translation values passed to BuildXL from the command line.
+        /// This is primarily used to inject directory translation tuples into our test processes in the CloudBuild CI scenario.
+        /// </summary>
+        internal const string TranslatedDirectoriesEnvironmentVariable = "BUILDXL_TRANSLATED_DIRECTORIES";
+
+        /// <summary>
         /// Translations.
         /// </summary>
         public IEnumerable<Translation> Translations => m_translations;
@@ -223,6 +229,35 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Returns a tuple containing the environment variable name and a properly formatted value which can be used to
+        /// augment an execution environment with directory translations, also see <see cref="TranslatedDirectoriesEnvironmentVariable"/>
+        /// </summary>
+        public static (string variable, string value) GetEnvironmentVaribleRepresentationForTranslations(IReadOnlyList<Translation> translations)
+        {
+            return (TranslatedDirectoriesEnvironmentVariable, $"{string.Join(";", translations.Select(t => t.SourcePath + "|" + t.TargetPath))}");
+        }
+
+        /// <summary>
+        /// Add all directory translations found in the environment <see cref="TranslatedDirectoriesEnvironmentVariable"/> to the current set of translations
+        /// </summary>
+        public void AddDirectoryTranslationFromEnvironment(string injectedEnvironment = null)
+        {
+            var translatedDirectoriesFromEnvironment = injectedEnvironment ?? Environment.GetEnvironmentVariable(TranslatedDirectoriesEnvironmentVariable);
+            if (!Sealed && !string.IsNullOrEmpty(translatedDirectoriesFromEnvironment))
+            {
+                var directories = translatedDirectoriesFromEnvironment.Split(new string[] { ";" }, StringSplitOptions.None);
+                foreach (var entry in directories)
+                {
+                    var values = entry.Split(new string[] { "|" }, StringSplitOptions.None);
+                    if (values.Length == 2)
+                    {
+                        AddTranslation(values[0], values[1]);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Translates the path based on the added translations.
         /// </summary>
         public AbsolutePath Translate(AbsolutePath path, PathTable pathTable)
@@ -316,7 +351,7 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// This method returns true if the junction condition is satisfied. The junction condition of directory
         /// translation is satisfied if, for any file in the source directory, that file is reachable through the corresponding
-        /// target directory. This check is done by writing a file into the source directory, and verifying that the file 
+        /// target directory. This check is done by writing a file into the source directory, and verifying that the file
         /// can be read from the target directory, and the contents match. Moreover, the file name and the content are randomized using GUID.
         /// </remarks>
         public static bool TestForJunctions(PathTable pathTable, IEnumerable<RawInputTranslation> translations, out string error)
@@ -381,7 +416,7 @@ namespace BuildXL.Utilities
             {
                 error = string.Join(Environment.NewLine, errors);
             }
-            
+
             return errors.Count == 0;
         }
 
@@ -437,6 +472,20 @@ namespace BuildXL.Utilities
             /// Target path.
             /// </summary>
             public string TargetPath { get; }
+
+            /// <nodoc/>
+            public override bool Equals(object obj)
+            {
+                return (obj is Translation)
+                    && ((Translation)obj).SourcePath.Equals(SourcePath)
+                    && ((Translation)obj).TargetPath.Equals(TargetPath);
+            }
+
+            /// <nodoc/>
+            public override int GetHashCode()
+            {
+                return SourcePath.GetHashCode() ^ TargetPath.GetHashCode();
+            }
         }
 
         /// <summary>

@@ -131,7 +131,7 @@ namespace Test.BuildXL.Scheduler
 
             // Disable currently enabled unsafe option.
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = false;
-            
+
             // Populate file system capabilities.
             // Here, for example, we use copy-on-write instead of hardlinks when Unix file system supports copy-on-write.
             // Particular tests can override this by setting Configuration.Engine.UseHardlinks.
@@ -468,7 +468,9 @@ namespace Test.BuildXL.Scheduler
                 subst = FileUtilities.GetSubstDriveAndPath(substSource, substTarget);
             }
 
-            // Seal the translator if not sealed
+            DirectoryTranslator.AddDirectoryTranslationFromEnvironment();
+
+            // Seal the translator if not sealed yet
             DirectoryTranslator.Seal();
 
             // .....................................................................................
@@ -671,9 +673,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
-            string sharedOpaqueDir, 
-            FileArtifact fileToProduceStatically, 
-            FileArtifact sourceFileToRead, 
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
             params Operation[] additionalOperations)
         {
             return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, additionalOperations));
@@ -765,7 +767,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
         }
 
-        protected string GetSidebandFile(ScheduleRunResult result, Process process) 
+        protected string GetSidebandFile(ScheduleRunResult result, Process process)
             => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
 
         protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)

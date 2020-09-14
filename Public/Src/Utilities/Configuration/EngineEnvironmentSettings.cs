@@ -36,7 +36,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> MaxNumPipsForCacheMissAnalysis = CreateSetting("MaxNumPipsForCacheMissAnalysis", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
-        /// The maximum number of RPC 
+        /// The maximum number of RPC
         /// </summary>
         public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
 
@@ -86,7 +86,7 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");
-        
+
         /// <summary>
         /// Indicates whether the application should fail fast on critical exceptions occurred in the cache codebase.
         /// </summary>
@@ -132,7 +132,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> InlineWorkerXLGHandling = CreateSetting("BuildXLInlineWorkerXLGHandling", value => value == "1");
 
         /// <summary>
-        /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities 
+        /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
         /// </summary>
@@ -210,7 +210,7 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
-        
+
         /// <summary>
         /// An artificial delay in reporting notifications to force batching
         /// </summary>
@@ -261,7 +261,7 @@ namespace BuildXL.Utilities.Configuration
         /// Disables retries due to detours failures
         /// </summary>
         public static readonly Setting<bool> DisableDetoursRetries = CreateSetting("BuildXLDisableDetoursRetries", value => value == "1");
-        
+
         /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>

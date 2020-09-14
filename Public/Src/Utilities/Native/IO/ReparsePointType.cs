@@ -16,7 +16,7 @@ namespace BuildXL.Native.IO
 
         /// <nodoc />
         DirectorySymlink = 2,
-        
+
         /// <nodoc />
         UnixSymlink = 3,
 

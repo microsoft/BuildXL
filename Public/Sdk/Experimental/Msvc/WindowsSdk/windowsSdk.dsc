@@ -24,6 +24,7 @@ namespace UM {
             lib.getFile(r`advapi32.lib`),
             lib.getFile(r`kernel32.lib`),
             lib.getFile(r`ntdll.lib`),
+            lib.getFile(r`pathcch.lib`),
             lib.getFile(r`uuid.lib`)
         ])
     ];

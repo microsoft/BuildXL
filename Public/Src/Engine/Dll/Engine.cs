@@ -441,6 +441,7 @@ namespace BuildXL.Engine
             {
                 mutableInitialConfig.Startup.EnsurePropertiesWhenRunInCloudBuild();
                 ApplyTemporaryHackWhenRunInCloudBuild(pathTable, mutableInitialConfig);
+                InjectDirectoryTranslationValuesIntoEnvironment(pathTable, mutableInitialConfig);
             }
 
             if (mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot.IsValid && !OperatingSystemHelper.IsUnixOS)
@@ -544,6 +545,20 @@ namespace BuildXL.Engine
                     commandLineConfiguration.Startup.Properties.Add(key, replacedValue);
                 }
             }
+        }
+
+        /// <summary>
+        /// The CloudBuild CI setup runs with several directory translations in place to enable transparent caching over the use of junctions. When full reparse point
+        /// resolving is enabled, the junction target values would cause DFAs in some of our test suites. We inject the directory translations into the environment here,
+        /// so tests can use that data and detours behaves properly / does not resolve reparse points that are affected by directory translations.
+        /// </summary>
+        private static void InjectDirectoryTranslationValuesIntoEnvironment(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
+        {
+            var environmentVariable = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(
+                commandLineConfiguration.Engine.DirectoriesToTranslate.Select(d => new DirectoryTranslator.Translation(d.FromPath.ToString(pathTable), d.ToPath.ToString(pathTable)) ).ToList());
+
+            Environment.SetEnvironmentVariable(environmentVariable.variable, environmentVariable.value);
+            commandLineConfiguration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Add(environmentVariable.variable);
         }
 
         private static AbsolutePath AppendNoIndexSuffixToLayoutDirectoryIfNeeded(PathTable pathTable, AbsolutePath directory, ILayoutConfiguration layout, bool inTestMode)
@@ -720,7 +735,7 @@ namespace BuildXL.Engine
             }
 
             if (logging.LogTracer)
-            { 
+            {
                 logging.TraceLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Trace);
             }
 
@@ -1151,7 +1166,7 @@ namespace BuildXL.Engine
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
                 mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
 
-                // Spec cache is disabled as most builds are happening on SSDs. 
+                // Spec cache is disabled as most builds are happening on SSDs.
                 mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
 
                 if (mutableConfig.Logging.Environment == ExecutionEnvironment.OsgLab &&
@@ -1720,7 +1735,7 @@ namespace BuildXL.Engine
                     // Once output directories including MoveDeleteTempDirectory have been created,
                     // create a TempCleaner for cleaning all temp directories
                     m_tempCleaner = new TempCleaner(engineLoggingContext, tempDirectory: m_moveDeleteTempDirectory);
-                    
+
                     using (
                         var objFolderLock = FolderLock.Take(
                             engineLoggingContext,
@@ -2707,7 +2722,7 @@ namespace BuildXL.Engine
             }
 
             GraphReuseResult reuseResult = null;
-            
+
             if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule)
                 &&
                 ((IsGraphCacheConsumptionAllowed() && graphFingerprint != null) ||
@@ -2905,7 +2920,7 @@ namespace BuildXL.Engine
                         }
 
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
-                        
+
                         engineSchedule = EngineSchedule.Create(
                             loggingContext,
                             context: Context,
@@ -2967,7 +2982,7 @@ namespace BuildXL.Engine
                 }
 
                 Contract.Assert(engineSchedule != null);
-                
+
                 // When constructing the graph above, we exit early if the schedule phase is not requested. But if we
                 // didn't have to construct the engineSchedue, we wouldn't have early returned and still may not
                 // have the schedule phase.

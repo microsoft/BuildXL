@@ -25,7 +25,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public ReparsePointTests(ITestOutputHelper output) : base(output)
         {
-            // Enable full symbolic link resolving for testing 
+            // Enable full symbolic link resolving for testing
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
         }
 
@@ -374,7 +374,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
 
-            string requestedTarget = usingDirectorySymlinks 
+            string requestedTarget = usingDirectorySymlinks
                 ? R("..", "..", "NonExistentDirectory")
                 : R("..", "..", "NonExistentDirectory", "SomeFile");
 
@@ -607,7 +607,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkFile) : IsFileSymlink(symlinkFile));
             XAssert.AreEqual(ArtifactToString(targetB), symlinkTarget);
             var replayedSymlinkTarget = GetReparsePointTarget(ArtifactToString(symlinkFile));
-            
+
             XAssert.AreEqual(symlinkTarget, replayedSymlinkTarget);
 
             if (!usingDirectorySymlinks)
@@ -714,7 +714,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             ValidateFilesExistProcessWithSymlinkOutput(file, fileSymlinkFile);
             ValidateFilesExistProcessWithSymlinkOutput(dir, directorySymlink, isDirectorySymlinkOrJunction: true);
-            
+
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 ValidateFilesExistProcessWithSymlinkOutput(anotherDir, junction, isDirectorySymlinkOrJunction: true);
@@ -1112,8 +1112,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // Mac/Unix does not support junctions.
                 return;
             }
-            
-            // When handling junctions, use the old default behavior
+
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = ignoreFullReparsePointResolving;
 
             // If junction, then the prefix should be '..\' instead of '..\..\'
@@ -1168,11 +1167,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             builder.AddInputDirectory(sealedTargetDirectory.Directory);
-            
-            if (!ignoreFullReparsePointResolving || OperatingSystemHelper.IsUnixOS)    
+
+            if (!ignoreFullReparsePointResolving || OperatingSystemHelper.IsUnixOS)
             {
                 builder.AddInputFile(FileArtifact.CreateSourceFile(linkFile));
-                
+
                 // Specify /Enlist/Source/linkFile and /Enlist/Source as input files, they are both reparse points
                 builder.AddInputFile(FileArtifact.CreateSourceFile(sourceDirectory));
                 builder.AddInputFile(sourceFile);
@@ -1182,7 +1181,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 SealDirectory sealedSourceDirectory = CreateAndScheduleSealDirectory(sourceDirectory, SealDirectoryKind.SourceAllDirectories);
                 builder.AddInputDirectory(sealedSourceDirectory.Directory);
             }
-            
+
             ProcessWithOutputs processWithOutputs = SchedulePipBuilder(builder);
 
             if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
@@ -1192,6 +1191,13 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // the real path instead of the subst path.
                 DirectoryTranslator = new DirectoryTranslator();
                 DirectoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            // When full reparse point resolving is enabled and junctions are being used, we have to add a
+            // directory translation for each reparse point (in this case a junction) we don't want to resolve
+            if (!ignoreFullReparsePointResolving && useJunction)
+            {
+                DirectoryTranslator.AddTranslation(currentIntermediateDirectory.ToString(pathTable), sourceDirectory.ToString(pathTable));
             }
 
             RunScheduler().AssertSuccess().AssertCacheMiss(processWithOutputs.Process.PipId);
@@ -1210,7 +1216,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(linkFile.ToString(pathTable), relativeTarget, isTargetFile: true));
 
             RunScheduler().AssertSuccess().AssertCacheMiss(processWithOutputs.Process.PipId);
-            
+
             if (useJunction && ignoreFullReparsePointResolving)
             {
                 // Re-route /Enlist/Source ==> Intermediate/CurrentY should result in cache miss.
@@ -1267,7 +1273,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             Directory.Delete(symlinkDir);
             // Let's make sure the target is still there
             XAssert.IsTrue(FileUtilities.FileExistsNoFollow(Path.Combine(targetDirectory, symlinkFile.Path.GetName(Context.PathTable).ToString(Context.StringTable))));
-            
+
             // Next run should be a cache miss
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
         }

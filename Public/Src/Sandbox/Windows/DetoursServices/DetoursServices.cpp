@@ -230,6 +230,7 @@ PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFro
 unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob = nullptr;
 PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples = nullptr;
+unordered_set<std::wstring>* g_pManifestTranslatePathLookupTable = nullptr;
 
 PManifestInternalDetoursErrorNotificationFileString g_manifestInternalDetoursErrorNotificationFileString;
 LPCTSTR g_internalDetoursErrorNotificationFile = nullptr;
@@ -1060,6 +1061,11 @@ static bool DllProcessDetach()
         delete g_pManifestTranslatePathTuples;
     }
 
+    if (g_pManifestTranslatePathLookupTable != nullptr)
+    {
+        delete g_pManifestTranslatePathLookupTable;
+    }
+
     if (g_pDetouredProcessInjector != nullptr)
     {
         delete g_pDetouredProcessInjector;
@@ -1133,6 +1139,7 @@ static bool DllProcessAttach()
 
     g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
+    g_pManifestTranslatePathLookupTable = new unordered_set<std::wstring>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 
     int error;
@@ -1372,6 +1379,7 @@ static bool DllProcessAttach()
 
     g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
+    g_pManifestTranslatePathLookupTable = new unordered_set<std::wstring>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 
     return true;

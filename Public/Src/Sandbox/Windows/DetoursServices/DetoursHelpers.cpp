@@ -35,7 +35,7 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
 {
     outFileName.assign(inFileName);
 
-    if (g_pManifestTranslatePathTuples->empty()) 
+    if (g_pManifestTranslatePathTuples->empty())
     {
         // Nothing to translate.
         return;
@@ -49,7 +49,7 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
 
     CanonicalizedPath canonicalizedPath = CanonicalizedPath::Canonicalize(inFileName.c_str());
     std::wstring tempStr(canonicalizedPath.GetPathString());
-    
+
     // If the canonicalized string is null or empty, just return. No need to do anything.
     if (tempStr.empty() || tempStr.c_str() == nullptr)
     {
@@ -96,14 +96,14 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
             bool mayBeDirectoryPath = false;
 
             int comp = lowCaseFinalPath.compare(0, targetLen, lowCaseTargetPath);
-            
+
             if (comp != 0)
             {
                 // The path to be translated can be a directory path that does not have trailing '\\'.
-                
-                if (lowCaseFinalPath.back() != L'\\' 
-                    && lowCaseTargetPath.back() == L'\\' 
-                    && lowCaseFinalPath.length() == (targetLen - 1)) 
+
+                if (lowCaseFinalPath.back() != L'\\'
+                    && lowCaseTargetPath.back() == L'\\'
+                    && lowCaseFinalPath.length() == (targetLen - 1))
                 {
                     std::wstring lowCaseFinalPathWithBs = lowCaseFinalPath + L'\\';
                     comp = lowCaseFinalPathWithBs.compare(0, targetLen, lowCaseTargetPath);
@@ -234,7 +234,7 @@ bool GetSpecialCaseRulesForSpecialTools(
     case SpecialProcessKind::CCDocGen:
     case SpecialProcessKind::CCRefGen:
     case SpecialProcessKind::CCRewrite:
-        // The cc-line of tools like to find pdb files by using the pdb path embedded in a dll/exe. 
+        // The cc-line of tools like to find pdb files by using the pdb path embedded in a dll/exe.
         // If the dll/exe was built with different roots, then this results in somewhat random file accesses.
         if (HasSuffix(absolutePath, absolutePathLength, L".pdb")) {
 #if SUPER_VERBOSE
@@ -331,7 +331,7 @@ bool GetSpecialCaseRulesForCoverageAndSpecialDevices(
         policy = FileAccessPolicy_AllowAll;
         return true;
     }
-    
+
     return false;
 }
 
@@ -428,7 +428,7 @@ bool LocateFileAccessManifest(
 ///
 /// Run through the tree and perform integrity checks on everything reachable in the tree,
 /// to detect the possibility of data corruption in the tree.
-/// 
+///
 /// This check is O(m) where m is the number of entries in the manifest.
 /// Only use it for debugging when a corrupted binary structure is suspected.
 #pragma warning( push )
@@ -622,14 +622,14 @@ static void LoadSubstituteProcessExecutionPluginDll()
     assert(g_SubstituteProcessExecutionPluginDllPath != nullptr);
 
     Dbg(L"Loading substitute process plugin DLL at '%s'", g_SubstituteProcessExecutionPluginDllPath);
-    
+
     g_SubstituteProcessExecutionPluginDllHandle = LoadLibraryW(g_SubstituteProcessExecutionPluginDllPath);
 
     if (g_SubstituteProcessExecutionPluginDllHandle != nullptr)
     {
         g_SubstituteProcessExecutionPluginFunc = GetSubstituteProcessExecutionPluginFunc();
 
-        if (g_SubstituteProcessExecutionPluginFunc == nullptr) 
+        if (g_SubstituteProcessExecutionPluginFunc == nullptr)
         {
             FreeLibrary(g_SubstituteProcessExecutionPluginDllHandle);
         }
@@ -659,7 +659,7 @@ bool ParseFileAccessManifest(
     assert(payload != nullptr);
 
     std::wstring initErrorMessage;
-    if (!g_pDetouredProcessInjector->Init(reinterpret_cast<const byte *>(payload), initErrorMessage)) 
+    if (!g_pDetouredProcessInjector->Init(reinterpret_cast<const byte *>(payload), initErrorMessage))
     {
         // Error initializing injector due to incorrect content of payload.
         std::wstring initError = L"Error initializing process injector: ";
@@ -711,7 +711,7 @@ bool ParseFileAccessManifest(
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_12, L"Error protecting payload in virtual memory: exit(-54).", DETOURS_WINDOWS_LOG_MESSAGE_12);
         return false;
     }
-    
+
     if (VirtualProtect(g_manifestSizePtr, sizeof(DWORD), PAGE_READONLY, &oldProtection) == 0)
     {
         // Error protecting the memory for the payloadSize.
@@ -798,13 +798,30 @@ bool ParseFileAccessManifest(
                 *p = towlower(*p);
             }
         }
-        
+
         std::wstring translateTo(L"");
         AppendStringFromWriteChars(payloadBytes, offset, translateTo);
 
         if (!translateFrom.empty() && !translateTo.empty())
         {
             g_pManifestTranslatePathTuples->push_back(new TranslatePathTuple(translateFrom, translateTo));
+
+            if (translateFrom.back() == L'\\')
+            {
+                translateFrom.pop_back();
+            }
+
+            std::transform(translateFrom.begin(), translateFrom.end(), translateFrom.begin(), std::towupper);
+
+            if (translateTo.back() == L'\\')
+            {
+                translateTo.pop_back();
+            }
+
+            std::transform(translateTo.begin(), translateTo.end(), translateTo.begin(), std::towupper);
+
+            g_pManifestTranslatePathLookupTable->insert(translateFrom);
+            g_pManifestTranslatePathLookupTable->insert(translateTo);
         }
     }
 
@@ -993,7 +1010,7 @@ bool ParseFileAccessManifest(
     FileReadContext fileReadContext;
     fileReadContext.Existence = FileExistence::Existent; // Clearly this process started somehow.
     fileReadContext.OpenedDirectory = false;
-    
+
     AccessCheckResult readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, fileReadContext);
 
     ReportFileAccess(
@@ -1113,9 +1130,9 @@ bool EnumerateDirectory(
                 filesAndDirectories.push_back(std::make_pair(path, ffd.dwFileAttributes));
 
                 if (recursive) {
-                    
+
                     bool isDirectory = (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                    
+
                     if (isDirectory && treatReparsePointAsFile) {
                         isDirectory = (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
                     }
@@ -1270,7 +1287,7 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
     if (*cursor == L'\"')
     {
         start = ++cursor;
- 
+
         while (*cursor && *cursor != L'\"')
         {
             ++cursor;
@@ -1283,7 +1300,7 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
         applicationNamePath.assign(start, length);
         return GetCanonicalizedApplicationPath(applicationNamePath.c_str());
     }
-    else 
+    else
     {
         // Skip past space and tab.
         while (*cursor && (*cursor == L' ' || *cursor == L'\t'))
@@ -1291,7 +1308,7 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
             ++cursor;
         }
 
-        do 
+        do
         {
             start = cursor;
             length = 0;
@@ -1302,7 +1319,7 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
                 ++cursor;
                 ++length;
             }
-            
+
             // Look for the first whitespace/tab.
             while (*cursor && *cursor != L' ' && *cursor != L'\t')
             {
@@ -1313,14 +1330,14 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
             CanonicalizedPath imagePath;
             applicationNamePath.append(start, length);
 
-            if (GetRootLength(applicationNamePath.c_str()) > 0) 
+            if (GetRootLength(applicationNamePath.c_str()) > 0)
             {
                 if (TryFindImagePath(applicationNamePath, imagePath))
                 {
                     return imagePath;
                 }
             }
-            else 
+            else
             {
                 // For non-rooted path, check path existence using SearchFullPath.
                 imagePath = GetCanonicalizedApplicationPath(applicationNamePath.c_str());
@@ -1332,5 +1349,5 @@ CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWS
         } while (*cursor);
 
         return CanonicalizedPath();
-    }    
+    }
 }

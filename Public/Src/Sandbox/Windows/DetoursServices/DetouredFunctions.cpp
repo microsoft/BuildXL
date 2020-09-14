@@ -13,6 +13,8 @@
 #include "SubstituteProcessExecution.h"
 #include "UnicodeConverter.h"
 
+#include <Pathcch.h>
+
 using std::map;
 using std::vector;
 using std::wstring;
@@ -286,7 +288,7 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
 
 Success:
 
-    status = IgnoreFullReparsePointResolving() ? true : reparsePointType == IO_REPARSE_TAG_SYMLINK;
+    status = true;
     goto Epilogue;
 
 Error:
@@ -310,7 +312,7 @@ Epilogue:
 /// </summary>
 /// <remarks>
 /// Given a path this function traverses it from left to right, checking if any components
-/// are of type 'reparse point'. As soon as an entry of that type is found, a positive result 
+/// are of type 'reparse point'. As soon as an entry of that type is found, a positive result
 /// is returned, indicating that the path needs further processing to properly indicate all
 /// potential reparse point targets as file accesses upstream.
 /// </remarks>
@@ -361,7 +363,7 @@ static bool ShouldResolveReparsePointsInPath(
     auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
 
     errno_t err = _wsplitpath_s(
-        path.GetPathStringWithoutTypePrefix(), 
+        path.GetPathStringWithoutTypePrefix(),
         drive.get(),     _MAX_DRIVE,
         directory.get(), _MAX_EXTENDED_DIR_LENGTH,
         file_name.get(), _MAX_FNAME,
@@ -384,7 +386,7 @@ static bool ShouldResolveReparsePointsInPath(
         resolver.append(L"\\");
         resolver.append(next);
 
-        if (TryGetReparsePointTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
+        if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
         {
             ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
             return true;
@@ -397,7 +399,7 @@ static bool ShouldResolveReparsePointsInPath(
     resolver.append(file_name.get());
     resolver.append(extension.get());
 
-    if (TryGetReparsePointTarget(resolver.c_str(), INVALID_HANDLE_VALUE, target))
+    if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
     {
         ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
         return true;
@@ -851,7 +853,7 @@ static bool EnforceReparsePointAccess(
         bool isDir = IsPathToDirectory(lpReparsePointPath, false);
         if (isDir && !isFullyResolvedPath)
         {
-            // Always report intermediate reparse point target results (junctions and directory symbolic links only) as probes or reads, only the fully resolved path 
+            // Always report intermediate reparse point target results (junctions and directory symbolic links only) as probes or reads, only the fully resolved path
             // or intermediate symbolic files are reported with the original desired access
             dwDesiredAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? dwDesiredAccess : (GENERIC_READ | FILE_READ_DATA);
         }
@@ -907,7 +909,7 @@ static bool EnforceReparsePointAccess(
             // │   ├── sym-A     -> A
             // │   └── sym-sym-A -> sym-A
             // │
-            // ├── sym-Versions_A_file     -> Versions/A/file 
+            // ├── sym-Versions_A_file     -> Versions/A/file
             // └── sym-Versions_sym-A_file -> Versions/sym-A/file
             //
             // Example #1: Reading a directory via symlink: Versions/sym-sym-A should report the following accesses:
@@ -966,11 +968,34 @@ static bool EnforceReparsePointAccess(
     return ret;
 }
 
+static inline bool PathContainedInPathTranslations(wstring path, bool canonicalize = false)
+{
+    if (path.empty())
+    {
+        return false;
+    }
+
+    if (canonicalize)
+    {
+        CanonicalizedPath normalized = CanonicalizedPath::Canonicalize(path.c_str());
+        path = std::wstring(normalized.GetPathStringWithoutTypePrefix());
+    }
+
+    if (path.back() == L'\\')
+    {
+        path.pop_back();
+    }
+
+    std::transform(path.begin(), path.end(), path.begin(), std::towupper);
+
+    return g_pManifestTranslatePathLookupTable->find(path) != g_pManifestTranslatePathLookupTable->end();
+}
+
 /// <summary>
 /// Resolves all reparse points potentially contained in a path and enforces allowed accesses for all found matches and optionally the final resolved path.
 /// </summary>
 /// <remarks>
-/// This function first canonicalizes the input path, then splits it by its path components to then analyze each component to check if it is a reparse 
+/// This function first canonicalizes the input path, then splits it by its path components to then analyze each component to check if it is a reparse
 /// point. If that is the case, the target of the reparse point is used to gradually resolve the input and transform it into its final form.
 /// </remarks>
 static bool ResolveAllReparsePointsAndEnforceAccess(
@@ -986,7 +1011,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     const bool enforceAccessForResolvedPath = true)
 {
     bool success = true;
-    CanonicalizedPath normalized;
+    auto normalized = std::make_unique<wchar_t[]>(_MAX_EXTENDED_PATH_LENGTH);
     const wchar_t* input = (wchar_t*)path.GetPathStringWithoutTypePrefix();
 
     vector<wstring> order;
@@ -1008,13 +1033,13 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
 
         if (err != 0)
         {
-            Dbg(L"EnforceChainOfReparsePointAccesses: _wsplitpath_s failed: %d", err);
+            Dbg(L"ResolveAllReparsePointsAndEnforceAccess: _wsplitpath_s failed: %d", err);
             return false;
         }
 
         bool reparsepoint_found = false;
 
-        wstring target;
+        wstring target = L"";
         wstring resolved = drive.get();
 
         wchar_t* context;
@@ -1022,17 +1047,18 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
 
         while (next)
         {
-            resolved.append(L"\\");
+            resolved += L"\\";
+            resolved += next;
 
-            wstring temp = resolved;
-            temp.append(next);
-
-            if (TryGetReparsePointTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
+            bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target);
+            bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
+            if (result && !isFilteredPath)
             {
-                order.push_back(temp);
-                resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
+                order.push_back(resolved);
+                resolvedPaths.emplace(resolved, ResolvedPathType::Intermediate);
+
                 success &= EnforceReparsePointAccess(
-                    temp,
+                    resolved,
                     dwDesiredAccess,
                     dwShareMode,
                     dwCreationDisposition,
@@ -1047,31 +1073,29 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
                 }
                 else
                 {
-                    resolved.append(target);
+                    resolved = resolved.substr(0, resolved.length() - lstrlenW(next));
+                    resolved += target;
                 }
 
                 reparsepoint_found = true;
             }
-            else
-            {
-                resolved.append(next);
-            }
 
             next = wcstok_s(nullptr, L"\\/", &context);
+            target = L"";
         }
 
-        resolved.append(L"\\");
+        resolved += L"\\";
+        resolved += file_name.get();
+        resolved += extension.get();
 
-        wstring temp = resolved;
-        temp.append(file_name.get());
-        temp.append(extension.get());
-
-        if (!reparsepoint_found && TryGetReparsePointTarget(temp.c_str(), INVALID_HANDLE_VALUE, target))
+        bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target);
+        bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
+        if (result && !isFilteredPath && !reparsepoint_found)
         {
-            order.push_back(temp);
-            resolvedPaths.emplace(temp, ResolvedPathType::Intermediate);
+            order.push_back(resolved);
+            resolvedPaths.emplace(resolved, ResolvedPathType::Intermediate);
             success &= EnforceReparsePointAccess(
-                temp,
+                resolved,
                 dwDesiredAccess,
                 dwShareMode,
                 dwCreationDisposition,
@@ -1086,30 +1110,29 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             }
             else
             {
-                resolved.append(target);
+                resolved = resolved.substr(0, resolved.length() - lstrlenW(file_name.get()) - lstrlenW(extension.get()));
+                resolved += target;
             }
 
-            normalized = CanonicalizedPath::Canonicalize(resolved.c_str());
-            if (!normalized.IsNull())
+            HRESULT res = PathCchCanonicalizeEx(normalized.get(), _MAX_EXTENDED_PATH_LENGTH, resolved.c_str(), PATHCCH_ALLOW_LONG_PATHS);
+            if (res == S_OK)
             {
-                input = normalized.GetPathStringWithoutTypePrefix();
+                input = normalized.get();
                 continue;
             }
             else
             {
-                Dbg(L"EnforceChainOfReparsePointAccesses: CanonicalizedPath::Canonicalize failed for %s", resolved.c_str());
+                Dbg(L"ResolveAllReparsePointsAndEnforceAccess: PathCchCanonicalizeEx failed for %s", resolved.c_str());
                 return false;
             }
         }
         else
         {
-            resolved.append(file_name.get());
-            resolved.append(extension.get());
-
-            normalized = CanonicalizedPath::Canonicalize(resolved.c_str());
-            if (!normalized.IsNull())
+            HRESULT res = PathCchCanonicalizeEx(normalized.get(), _MAX_EXTENDED_PATH_LENGTH, resolved.c_str(), PATHCCH_ALLOW_LONG_PATHS);
+            if (res == S_OK)
             {
-                input = normalized.GetPathStringWithoutTypePrefix();
+                input = normalized.get();
+
                 if (reparsepoint_found)
                 {
                     continue;
@@ -1121,7 +1144,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
                         resolvedPath->assign(input);
                     }
 
-                    order.push_back(temp);
+                    order.push_back(input);
                     resolvedPaths.emplace(input, ResolvedPathType::FullyResolved);
 
                     if (enforceAccessForResolvedPath)
@@ -1141,7 +1164,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             }
             else
             {
-                Dbg(L"EnforceChainOfReparsePointAccesses: CanonicalizedPath::Canonicalize failed for %s", resolved.c_str());
+                Dbg(L"ResolveAllReparsePointsAndEnforceAccess: PathCchCanonicalizeEx failed for %s", resolved.c_str());
                 return false;
             }
         }
@@ -2671,6 +2694,15 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     error = GetLastError();
 
+    FileReadContext readContext;
+    readContext.InferExistenceFromError(error);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(
+        error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE,
+        lpFileName,
+        dwDesiredAccess,
+        dwFlagsAndAttributes,
+        &policyResult);
+
     if (ShouldResolveReparsePointsInPath(lpFileName, dwDesiredAccess, dwFlagsAndAttributes))
     {
         // Even though the process CreateFile the file with FILE_FLAG_OPEN_REPARSE_POINT, we need to follow the chain of symlinks
@@ -2695,20 +2727,9 @@ HANDLE WINAPI Detoured_CreateFileW(
 
         if (!IgnoreFullReparsePointResolving())
         {
-            // We only report directory symlinks contained in the path and the final target path in this case
-            SetLastError(error);
-            return handle;
+            goto Epilogue;
         }
     }
-
-    FileReadContext readContext;
-    readContext.InferExistenceFromError(error);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(
-        error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE,
-        lpFileName,
-        dwDesiredAccess,
-        dwFlagsAndAttributes,
-        &policyResult);
 
     if (WantsReadAccess(dwDesiredAccess))
     {
@@ -2782,6 +2803,8 @@ HANDLE WINAPI Detoured_CreateFileW(
             policyResult.GetCanonicalizedPath().GetPathString(), dwDesiredAccess, policyResult.GetPolicy());
         MaybeBreakOnAccessDenied();
     }
+
+Epilogue:
 
     if (accessCheck.ShouldDenyAccess())
     {
@@ -3370,7 +3393,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
             lpData,
             dwFlags);
     }
-    
+
     bool moveDirectory = false;
     DWORD flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 
@@ -4208,10 +4231,10 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
         // for FirstFileExW on the final resolved path too, otherwise the build engine is oblivious
         // to changes made inside that target path and skips directory fingerprinting.
         HANDLE handle = ReportFindFirstFileExWAccesses(resolvedPath.c_str(),
-            fInfoLevelId, 
-            lpFindFileData, 
-            fSearchOp, 
-            lpSearchFilter, 
+            fInfoLevelId,
+            lpFindFileData,
+            fSearchOp,
+            lpSearchFilter,
             dwAdditionalFlags);
 
         if (handle == INVALID_HANDLE_VALUE)
@@ -4220,7 +4243,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
             return INVALID_HANDLE_VALUE;
         }
     }
-     
+
     return ReportFindFirstFileExWAccesses(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
 }
 

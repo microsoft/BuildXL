@@ -33,7 +33,7 @@ namespace Test.BuildXL.Processes.Detours
              sure we don't break compatibility for our partners relying on this. Once directory symlink support is the default,
              these tests need to be adjusted.
      */
-    
+
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed partial class SandboxedProcessPipExecutorTest
     {
@@ -100,6 +100,8 @@ namespace Test.BuildXL.Processes.Detours
             {
                 directoryTranslator.AddTranslation(substSource, substTarget);
             }
+
+            directoryTranslator.AddDirectoryTranslationFromEnvironment();
 
             if (directoriesToTranslate != null)
             {
@@ -6699,7 +6701,7 @@ namespace Test.BuildXL.Processes.Detours
             var pathTable = context.PathTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
-            {               
+            {
                 var targetDirectory = tempFiles.GetDirectory(pathTable, "SourceDirectory");
                 var targetDirectoryArtifact = CreateDirectory(pathTable, targetDirectory);
                 var expandedDirectoryPath = targetDirectory.Expand(pathTable).ToString();
@@ -6830,7 +6832,7 @@ namespace Test.BuildXL.Processes.Detours
                     disableDetours: false,
                     context: context,
                     pip: process,
-                    errorString: out errorString, 
+                    errorString: out errorString,
                     unexpectedFileAccessesAreErrors: false,
                     ignoreFullReparsePointResolving: false);
 
@@ -6840,7 +6842,7 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     // Intermediate directory symbolic links are always reported with Read access only
                     (directorySymlinkAbsolutePath, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    // Make sure that both the output file and the symbolic file pointing to it have the same RequestedAccess 
+                    // Make sure that both the output file and the symbolic file pointing to it have the same RequestedAccess
                     // as specified in the native 'CallValidateFileSymlinkAccesses()' test harness
                     (fileSymlinkAbsolutePath, RequestedAccess.ReadWrite, FileAccessStatus.Denied),
                     (outputFile, RequestedAccess.ReadWrite, FileAccessStatus.Denied)

@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -13,10 +15,7 @@ namespace Test.BuildXL.Utilities
 {
     public sealed class DirectoryTranslatorTests : XunitBuildXLTest
     {
-        public DirectoryTranslatorTests(ITestOutputHelper output)
-            : base(output)
-        {
-        }
+        public DirectoryTranslatorTests(ITestOutputHelper output) : base(output) {}
 
         // insert a null for drive if unix because we need to translate dirs and not drives
         private string[] getAtoms(string[] atoms)
@@ -36,12 +35,13 @@ namespace Test.BuildXL.Utilities
             var pathTable = context.PathTable;
 
             DirectoryTranslator.RawInputTranslation[] translations = new[]
-                               {
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "C", "foo", "bar" }), getAtoms(new string[] {"A"})),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "d","foo","bar" }))
-                               };
+            {
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "C", "foo", "bar" }), getAtoms(new string[] {"A"})),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "d","foo","bar" }))
+            };
+
             string error;
             XAssert.IsTrue(DirectoryTranslator.ValidateDirectoryTranslation(pathTable, translations, out error));
         }
@@ -53,12 +53,13 @@ namespace Test.BuildXL.Utilities
             var pathTable = context.PathTable;
 
             DirectoryTranslator.RawInputTranslation[] translations = new[]
-                                {
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "d", "foo", "bar" }), getAtoms(new string[] { "E" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "C" }), getAtoms(new string[] { "D" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" }))
-                               };
+            {
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "d", "foo", "bar" }), getAtoms(new string[] { "E" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "C" }), getAtoms(new string[] { "D" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" }))
+            };
+
             string error;
             XAssert.IsTrue(DirectoryTranslator.ValidateDirectoryTranslation(pathTable, translations, out error));
         }
@@ -70,19 +71,19 @@ namespace Test.BuildXL.Utilities
             var pathTable = context.PathTable;
 
             DirectoryTranslator.RawInputTranslation[] translations = new[]
-                                 {
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] {"d","foo","bar"}), getAtoms(new string[] {"E" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "C" }), getAtoms(new string[] { "A" })),
-                                   CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" }))
-                                 };
-                string error;
-                XAssert.IsFalse(DirectoryTranslator.ValidateDirectoryTranslation(pathTable, translations, out error));
-                XAssert.AreEqual(@"cycle in directory translations '" + A(getAtoms(new string[] { "A" })) +
-                        "' < '" + A(getAtoms(new string[] { "B" })) +
-                        "' < '" + A(getAtoms(new string[] { "C" })) +
-                        "' < '" + A(getAtoms(new string[] { "A" })) + "'", error);
+            {
+                CreateInputTranslation(pathTable, getAtoms(new string[] {"d","foo","bar"}), getAtoms(new string[] {"E" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "A" }), getAtoms(new string[] { "B" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "C" }), getAtoms(new string[] { "A" })),
+                CreateInputTranslation(pathTable, getAtoms(new string[] { "B" }), getAtoms(new string[] { "C" }))
+            };
 
+            string error;
+            XAssert.IsFalse(DirectoryTranslator.ValidateDirectoryTranslation(pathTable, translations, out error));
+            XAssert.AreEqual(@"cycle in directory translations '" + A(getAtoms(new string[] { "A" })) +
+                    "' < '" + A(getAtoms(new string[] { "B" })) +
+                    "' < '" + A(getAtoms(new string[] { "C" })) +
+                    "' < '" + A(getAtoms(new string[] { "A" })) + "'", error);
         }
 
         [Fact]
@@ -92,11 +93,11 @@ namespace Test.BuildXL.Utilities
             var pathTable = context.PathTable;
 
             var translations = new[]
-                               {
-                                   CreateInputTranslation(pathTable, new string[] { "K","dbs","sh","dtb","b" }, new string[] { "d","dbs","sh","dtb","0629_120346" }),
-                                   CreateInputTranslation(pathTable, new string[] { "d", "dbs","sh","dtb","0629_120346","Build" }, new string[] { "d", "dbs","el","dtb","Build" }),
-                                   CreateInputTranslation(pathTable, new string[] { "d","dbs","sh","dtb","0629_120346","Target" }, new string[] { "d", "dbs","el","dtb","Target" })
-                               };
+            {
+                CreateInputTranslation(pathTable, new string[] { "K","dbs","sh","dtb","b" }, new string[] { "d","dbs","sh","dtb","0629_120346" }),
+                CreateInputTranslation(pathTable, new string[] { "d", "dbs","sh","dtb","0629_120346","Build" }, new string[] { "d", "dbs","el","dtb","Build" }),
+                CreateInputTranslation(pathTable, new string[] { "d","dbs","sh","dtb","0629_120346","Target" }, new string[] { "d", "dbs","el","dtb","Target" })
+            };
 
             string error;
             XAssert.IsTrue(DirectoryTranslator.ValidateDirectoryTranslation(pathTable, translations, out error));
@@ -110,6 +111,38 @@ namespace Test.BuildXL.Utilities
             AssertEqualTranslatedPath(translator, pathTable, new string[] { "d", "dbs", "sh", "dtb", "0629_120346" }, new string[] { "K", "dbs", "sh", "dtb", "b" });
             AssertEqualTranslatedPath(translator, new string[] { @"\\?\d", "dbs", "el", "dtb", "Build", "x64", "debug", "perl.cmd" }, new string[] { @"\\?\K", "dbs", "sh", "dtb", "b", "Build", "x64", "debug", "perl.cmd" });
             AssertEqualTranslatedPath(translator, new string[] { @"\??\d", "dbs", "el", "dtb", "Build", "x64", "debug", "perl.cmd" }, new string[] { @"\??\K", "dbs", "sh", "dtb", "b", "Build", "x64", "debug", "perl.cmd" });
+        }
+
+        [Fact]
+        public void TestDirectoryTranslatorEnvironmentInjection()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            var someDir = X("/c/some/dir");
+            var anotherDir = X("/c/another/dir");
+            var differentDir = X("/d/different/dir");
+            var differentVolume = X("/e/different/volume");
+
+            var translations = new[]
+            {
+                new DirectoryTranslator.Translation(someDir, anotherDir),
+                new DirectoryTranslator.Translation(differentDir, differentVolume)
+            };
+
+            var environmentVariable = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(translations);
+            XAssert.Equals(DirectoryTranslator.TranslatedDirectoriesEnvironmentVariable, environmentVariable.variable);
+            XAssert.Equals(environmentVariable.value, $"{someDir}|{anotherDir};{differentDir}|{differentVolume}");
+
+            var translator = new DirectoryTranslator();
+            translator.AddDirectoryTranslationFromEnvironment(environmentVariable.value);
+
+            // The directory translator calls EnsureDirectoryPath() when adding translations, adding the directory seperator char, lets remove
+            // it so SequenceEqual can be used conviniently
+            var sanitizedTranslations = translator.Translations.Select(t => 
+                new DirectoryTranslator.Translation(t.SourcePath.Substring(0, t.SourcePath.Length - 1), t.TargetPath.Substring(0, t.TargetPath.Length - 1)));
+
+            XAssert.IsTrue(Enumerable.SequenceEqual(sanitizedTranslations, translations));
         }
 
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -179,8 +212,8 @@ namespace Test.BuildXL.Utilities
         }
 
         private DirectoryTranslator.RawInputTranslation CreateInputTranslationWithJunction(
-            PathTable pathTable, 
-            string[] relativeSource, 
+            PathTable pathTable,
+            string[] relativeSource,
             string[] relativeTarget,
             bool createSourceDirectory = true,
             bool createTargetDirectory = true,

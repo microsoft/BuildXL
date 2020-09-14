@@ -207,6 +207,10 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseNativeBlobEnumeration { get; set; } = false;
 
         [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? ReserveSpaceTimeoutInMinutes { get; set; }
+
+        [DataMember]
         public bool IsRepairHandlingEnabled { get; set; } = false;
 
         /// <remarks>

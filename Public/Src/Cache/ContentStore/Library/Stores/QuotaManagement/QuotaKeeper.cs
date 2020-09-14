@@ -729,7 +729,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                         if (request is ReserveSpaceRequest reserveRequest)
                         {
                             // When the reservation succeeds, the reserved size should fit under the hard limit (unless sensitive sessions are presented).
-                            Contract.Check(!IsAboveHardLimit(reserveRequest.ReserveSize, out var message))?.Assert($"Reservation request is successful but still below hard quota. {message}");
+                            if (IsAboveHardLimit(reserveRequest.ReserveSize, out var message))
+                            {
+                                string errorMessage = $"Reservation request is successful but still above hard quota. {message}";
+                                // Even though this should not be happening, we noticed that in some cases it does happen.
+                                // And to unblock the reservation requests we still need to complete the request.
+                                request.Failure(errorMessage);
+                            }
                         }
 
                         // The order matters here: we need to change the instance state first before completing the request.

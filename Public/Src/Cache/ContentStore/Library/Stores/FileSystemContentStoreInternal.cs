@@ -932,7 +932,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
-                    var txn = await QuotaKeeper.ReserveAsync(contentSize);
+                    var txn = await ReserveAsync(contentSize);
                     FileSystem.CreateDirectory(primaryPath.GetParent());
 
                     if (!await onContentNotInCache(primaryPath))
@@ -2126,7 +2126,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
                 // Create a new replica
-                var txn = await QuotaKeeper.ReserveAsync(info.FileSize);
+                var txn = await ReserveAsync(info.FileSize);
                 await RetryOnUnexpectedReplicaAsync(
                     context,
                     () => SafeCopyFileAsync(
@@ -2182,6 +2182,23 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             return hardLinkResult;
+        }
+
+        private async Task<ReserveTransaction> ReserveAsync(long size)
+        {
+            Contract.Requires(QuotaKeeper != null);
+
+            try
+            {
+                // It is safe to pass ReserveTimeout, because if the timeout is not configured
+                // then ReserveTimeout equals to InfiniteTimeSpan and in that case
+                // WithTimeoutAsync will just ignore it.
+                return await QuotaKeeper.ReserveAsync(size).WithTimeoutAsync(_settings.ReserveTimeout);
+            }
+            catch (TimeoutException e)
+            {
+                throw new CacheException($"Failed to reserve space for content size=[{size}] in '{_settings.ReserveTimeout}'", e);
+            }
         }
 
         private async Task SafeCopyFileAsync(

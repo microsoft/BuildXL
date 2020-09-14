@@ -10,12 +10,10 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Management;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using BuildXL.Interop;
-using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.Unix.Memory;
@@ -891,134 +889,137 @@ namespace BuildXL.Utilities
                 }
 
                 MachinePerfInfo perfInfo = default(MachinePerfInfo);
-
-                using (var sbPool = Pools.GetStringBuilder())
-                using (var sbPool2 = Pools.GetStringBuilder())
+                unchecked
                 {
-                    StringBuilder consoleSummary = sbPool.Instance;
-                    StringBuilder logFileSummary = sbPool2.Instance;
-
-                    perfInfo.CpuUsagePercentage = SafeConvert.ToInt32(MachineCpu.Latest);
-                    consoleSummary.AppendFormat("CPU:{0}%", perfInfo.CpuUsagePercentage);
-                    logFileSummary.AppendFormat("CPU:{0}%", perfInfo.CpuUsagePercentage);
-                    if (MachineTotalPhysicalMB.Latest > 0)
+                    
+                    using (var sbPool = Pools.GetStringBuilder())
+                    using (var sbPool2 = Pools.GetStringBuilder())
                     {
-                        var availableRam = SafeConvert.ToInt32(MachineAvailablePhysicalMB.Latest);
-                        var totalRam = SafeConvert.ToInt32(MachineTotalPhysicalMB.Latest);
+                        StringBuilder consoleSummary = sbPool.Instance;
+                        StringBuilder logFileSummary = sbPool2.Instance;
 
-                        var ramUsagePercentage = SafeConvert.ToInt32(((100.0 * (totalRam - availableRam)) / totalRam));
-                        Contract.Assert(ramUsagePercentage >= 0 && ramUsagePercentage <= 100);
+                        perfInfo.CpuUsagePercentage = SafeConvert.ToInt32(MachineCpu.Latest);
+                        consoleSummary.AppendFormat("CPU:{0}%", perfInfo.CpuUsagePercentage);
+                        logFileSummary.AppendFormat("CPU:{0}%", perfInfo.CpuUsagePercentage);
+                        if (MachineTotalPhysicalMB.Latest > 0)
+                        {
+                            var availableRam = SafeConvert.ToInt32(MachineAvailablePhysicalMB.Latest);
+                            var totalRam = SafeConvert.ToInt32(MachineTotalPhysicalMB.Latest);
 
-                        perfInfo.RamUsagePercentage = ramUsagePercentage;
-                        perfInfo.TotalRamMb = totalRam;
-                        perfInfo.AvailableRamMb = availableRam;
-                        consoleSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
-                        logFileSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
-                    }
+                            var ramUsagePercentage = SafeConvert.ToInt32(((100.0 * (totalRam - availableRam)) / totalRam));
+                            Contract.Assert(ramUsagePercentage >= 0 && ramUsagePercentage <= 100);
 
-                    if (ModifiedPagelistMB.Latest > 0)
-                    {
-                        perfInfo.ModifiedPagelistMb = SafeConvert.ToInt32(ModifiedPagelistMB.Latest);
-                    }
+                            perfInfo.RamUsagePercentage = ramUsagePercentage;
+                            perfInfo.TotalRamMb = totalRam;
+                            perfInfo.AvailableRamMb = availableRam;
+                            consoleSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
+                            logFileSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
+                        }
 
-                    if (FreePagelistMB.Latest > 0)
-                    {
-                        perfInfo.FreePagelistMb = SafeConvert.ToInt32(FreePagelistMB.Latest);
-                    }
+                        if (ModifiedPagelistMB.Latest > 0)
+                        {
+                            perfInfo.ModifiedPagelistMb = SafeConvert.ToInt32(ModifiedPagelistMB.Latest);
+                        }
 
-                    if (StandbyPagelistMB.Latest > 0)
-                    {
-                        perfInfo.StandbyPagelistMb = SafeConvert.ToInt32(StandbyPagelistMB.Latest);
-                    }
+                        if (FreePagelistMB.Latest > 0)
+                        {
+                            perfInfo.FreePagelistMb = SafeConvert.ToInt32(FreePagelistMB.Latest);
+                        }
 
-                    if (perfInfo.TotalRamMb.HasValue)
-                    {
-                        perfInfo.EffectiveAvailableRamMb = perfInfo.AvailableRamMb.Value + (perfInfo.ModifiedPagelistMb ?? 0);
-                        perfInfo.EffectiveRamUsagePercentage = SafeConvert.ToInt32(100.0 * (perfInfo.TotalRamMb.Value - perfInfo.EffectiveAvailableRamMb.Value) / perfInfo.TotalRamMb.Value);
-                    }
+                        if (StandbyPagelistMB.Latest > 0)
+                        {
+                            perfInfo.StandbyPagelistMb = SafeConvert.ToInt32(StandbyPagelistMB.Latest);
+                        }
 
-                    if (CommitLimitMB.Latest > 0)
-                    {
-                        var commitUsed = SafeConvert.ToInt32(CommitUsedMB.Latest);
-                        var commitLimit = SafeConvert.ToInt32(CommitLimitMB.Latest);
-                        var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitUsed) / commitLimit));
+                        if (perfInfo.TotalRamMb.HasValue)
+                        {
+                            perfInfo.EffectiveAvailableRamMb = SafeConvert.ToInt32(perfInfo.AvailableRamMb.Value + (perfInfo.ModifiedPagelistMb ?? 0));
+                            perfInfo.EffectiveRamUsagePercentage = SafeConvert.ToInt32(100.0 * (perfInfo.TotalRamMb.Value - perfInfo.EffectiveAvailableRamMb.Value) / perfInfo.TotalRamMb.Value);
+                        }
 
-                        perfInfo.CommitUsagePercentage = commitUsagePercentage;
-                        perfInfo.CommitUsedMb = commitUsed;
-                        perfInfo.CommitLimitMb = commitLimit;
-                    }
+                        if (CommitLimitMB.Latest > 0)
+                        {
+                            var commitUsed = SafeConvert.ToInt32(CommitUsedMB.Latest);
+                            var commitLimit = SafeConvert.ToInt32(CommitLimitMB.Latest);
+                            var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitUsed) / commitLimit));
 
-                    if (MachineBandwidth.Latest > 0)
-                    {
-                        perfInfo.MachineBandwidth = (long)MachineBandwidth.Latest;
-                        perfInfo.MachineKbitsPerSecSent = MachineKbitsPerSecSent.Latest;
-                        perfInfo.MachineKbitsPerSecReceived = MachineKbitsPerSecReceived.Latest;
-                    }
+                            perfInfo.CommitUsagePercentage = commitUsagePercentage;
+                            perfInfo.CommitUsedMb = commitUsed;
+                            perfInfo.CommitLimitMb = commitLimit;
+                        }
 
-                    int diskIndex = 0;
-                    perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
-                    foreach (var disk in DiskStats)
-                    {
-                        var availableSpaceGb = SafeConvert.ToInt32(disk.AvailableSpaceGb.Latest);
-                        perfInfo.DiskAvailableSpaceGb[diskIndex] = availableSpaceGb;
-                        diskIndex++;
-                    }
+                        if (MachineBandwidth.Latest > 0)
+                        {
+                            perfInfo.MachineBandwidth = SafeConvert.ToLong(MachineBandwidth.Latest);
+                            perfInfo.MachineKbitsPerSecSent = MachineKbitsPerSecSent.Latest;
+                            perfInfo.MachineKbitsPerSecReceived = MachineKbitsPerSecReceived.Latest;
+                        }
 
-                    if (!OperatingSystemHelper.IsUnixOS)
-                    {
-                        perfInfo.DiskUsagePercentages = new int[DiskStats.Count];
-                        perfInfo.DiskQueueDepths = new int[DiskStats.Count];
-
-                        string worstDrive = "N/A";
-                        int highestActiveTime = -1;
-                        int highestQueueDepth = 0;
-
-                        // Loop through and find the worst looking disk
-                        diskIndex = 0;
+                        int diskIndex = 0;
+                        perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
                         foreach (var disk in DiskStats)
                         {
-                            if (disk.ReadTime.Maximum == 0)
-                            {
-                                perfInfo.DiskUsagePercentages[diskIndex] = 0;
-                                perfInfo.DiskQueueDepths[diskIndex] = 0;
-                                diskIndex++;
-                                // Don't consider samples unless some activity has been registered
-                                continue;
-                            }
-
-                            var activeTime = disk.CalculateActiveTime(lastOnly: true);
-                            var queueDepth = SafeConvert.ToInt32(disk.QueueDepth.Latest);
-                            perfInfo.DiskUsagePercentages[diskIndex] = activeTime;
-                            perfInfo.DiskQueueDepths[diskIndex] = queueDepth;
+                            var availableSpaceGb = SafeConvert.ToInt32(disk.AvailableSpaceGb.Latest);
+                            perfInfo.DiskAvailableSpaceGb[diskIndex] = availableSpaceGb;
                             diskIndex++;
+                        }
 
-                            logFileSummary.Append(FormatDiskUtilization(disk.Drive, activeTime));
+                        if (!OperatingSystemHelper.IsUnixOS)
+                        {
+                            perfInfo.DiskUsagePercentages = new int[DiskStats.Count];
+                            perfInfo.DiskQueueDepths = new int[DiskStats.Count];
 
-                            if (activeTime > highestActiveTime)
+                            string worstDrive = "N/A";
+                            int highestActiveTime = -1;
+                            int highestQueueDepth = 0;
+
+                            // Loop through and find the worst looking disk
+                            diskIndex = 0;
+                            foreach (var disk in DiskStats)
                             {
-                                worstDrive = disk.Drive;
-                                highestActiveTime = activeTime;
-                                highestQueueDepth = queueDepth;
+                                if (disk.ReadTime.Maximum == 0)
+                                {
+                                    perfInfo.DiskUsagePercentages[diskIndex] = 0;
+                                    perfInfo.DiskQueueDepths[diskIndex] = 0;
+                                    diskIndex++;
+                                    // Don't consider samples unless some activity has been registered
+                                    continue;
+                                }
+
+                                var activeTime = disk.CalculateActiveTime(lastOnly: true);
+                                var queueDepth = SafeConvert.ToInt32(disk.QueueDepth.Latest);
+                                perfInfo.DiskUsagePercentages[diskIndex] = activeTime;
+                                perfInfo.DiskQueueDepths[diskIndex] = queueDepth;
+                                diskIndex++;
+
+                                logFileSummary.Append(FormatDiskUtilization(disk.Drive, activeTime));
+
+                                if (activeTime > highestActiveTime)
+                                {
+                                    worstDrive = disk.Drive;
+                                    highestActiveTime = activeTime;
+                                    highestQueueDepth = queueDepth;
+                                }
+                            }
+
+                            if (highestActiveTime != -1)
+                            {
+                                consoleSummary.Append(FormatDiskUtilization(worstDrive, highestActiveTime));
                             }
                         }
 
-                        if (highestActiveTime != -1)
-                        {
-                            consoleSummary.Append(FormatDiskUtilization(worstDrive, highestActiveTime));
-                        }
+                        perfInfo.ProcessCpuPercentage = SafeConvert.ToInt32(ProcessCpu.Latest);
+                        logFileSummary.AppendFormat(" DominoCPU:{0}%", perfInfo.ProcessCpuPercentage);
+
+                        perfInfo.ProcessWorkingSetMB = SafeConvert.ToInt32(ProcessWorkingSetMB.Latest);
+                        logFileSummary.AppendFormat(" DominoRAM:{0}MB", perfInfo.ProcessWorkingSetMB);
+
+                        perfInfo.ConsoleResourceSummary = consoleSummary.ToString();
+                        perfInfo.LogResourceSummary = logFileSummary.ToString();
                     }
 
-                    perfInfo.ProcessCpuPercentage = SafeConvert.ToInt32(ProcessCpu.Latest);
-                    logFileSummary.AppendFormat(" DominoCPU:{0}%", perfInfo.ProcessCpuPercentage);
-
-                    perfInfo.ProcessWorkingSetMB = SafeConvert.ToInt32(ProcessWorkingSetMB.Latest);
-                    logFileSummary.AppendFormat(" DominoRAM:{0}MB", perfInfo.ProcessWorkingSetMB);
-
-                    perfInfo.ConsoleResourceSummary = consoleSummary.ToString();
-                    perfInfo.LogResourceSummary = logFileSummary.ToString();
+                    return perfInfo;
                 }
-
-                return perfInfo;
             }
 
             private static string FormatDiskUtilization(string drive, int activeTime)

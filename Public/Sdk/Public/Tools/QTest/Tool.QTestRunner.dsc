@@ -274,18 +274,10 @@ export function runQTest(args: QTestArguments): Result {
             qTestPlatformToString(args.qTestPlatform)
         ),
         Cmd.option(
-            "--buildPlatform ",
-            qTestPlatformToString(args.qTestPlatform)
-        ),
-        Cmd.option(
             "--qtestDotNetFramework ",
             qTestDotNetFrameworkToString(args.qTestDotNetFramework)
         ),
-        Cmd.option(
-            "--qTestRetryOnFailureMode ",
-            args.qTestRetryOnFailureMode !== undefined
-            ? args.qTestRetryOnFailureMode
-            : args.qTestRetryOnFailure ? "Failed" : undefined),
+        Cmd.flag("--qTestRetryOnFailure", args.qTestRetryOnFailure),
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
@@ -378,8 +370,7 @@ export function runQTest(args: QTestArguments): Result {
             Cmd.option("--qTestContextInfo ", Artifact.none(qTestContextInfoFile)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
-            Cmd.flag("--logging", true),
-            Cmd.option("--buildPlatform ", qTestPlatformToString(args.qTestPlatform))
+            Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
         ];
 
         Transformer.execute({
@@ -487,12 +478,6 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestLogs?: Directory;
     /** Specifies to automatically retry failing tests */
     qTestRetryOnFailure?: boolean;
-    /** Specifies to the mode under which to automatically retry failing tests:
-     *      'Full': Retry full test target.
-     *      'Failed': Retry only the failed test cases from the test target.
-     *      'None': Do not retry.
-    */
-    qTestRetryOnFailureMode?: "Full" | "Failed" | "None";
     /** Executes tests for specified number of times. A test is considered as passed So t
      * only when all attempts pass. Maximum allowed value is 100.*/
     qTestAttemptCount?: number;

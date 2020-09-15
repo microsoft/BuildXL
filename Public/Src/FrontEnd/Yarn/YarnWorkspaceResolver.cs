@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.FrontEnd.JavaScript;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Yarn.ProjectGraph;
 using BuildXL.Utilities;
@@ -21,6 +22,11 @@ namespace BuildXL.FrontEnd.Yarn
         /// </summary>
         protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\YarnGraphBuilder\main.js");
 
+        /// <summary>
+        /// Yarn graph needs Bxl to interpret how script commands are related to each other
+        /// </summary>
+        protected override bool ApplyBxlExecutionSemantics() => true;
+
         /// <inheritdoc/>
         public YarnWorkspaceResolver() : base(KnownResolverKind.YarnResolverKind)
         {
@@ -37,36 +43,10 @@ namespace BuildXL.FrontEnd.Yarn
                 return true;
             }
 
-            finalYarnLocation = AbsolutePath.Invalid;
-
             // If the location was not provided, let's try to see if Yarn is under %PATH%
             string paths = buildParameters["PATH"];
 
-            AbsolutePath foundPath = AbsolutePath.Invalid;
-            foreach (string path in paths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var nonEscapedPath = path.Trim('"');
-                // Sometimes PATH is not well-formed, so make sure we can actually recognize an absolute path there
-                if (AbsolutePath.TryCreate(m_context.PathTable, nonEscapedPath, out var absolutePath))
-                {
-                    AbsolutePath pathToYarn = absolutePath.Combine(m_context.PathTable, "yarn");
-                    if (m_host.Engine.FileExists(pathToYarn))
-                    {
-                        foundPath = pathToYarn;
-                        break;
-                    }
-
-                    // In some windows installations, only yarn.cmd exists
-                    pathToYarn = absolutePath.Combine(m_context.PathTable, "yarn.cmd");
-                    if (m_host.Engine.FileExists(pathToYarn))
-                    {
-                        foundPath = pathToYarn;
-                        break;
-                    }
-                }
-            }
-
-            if (!foundPath.IsValid)
+            if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, new[] { "yarn", "yarn.cmd"}, out finalYarnLocation))
             {
                 failure = "A location for 'yarn' is not explicitly specified. However, 'yarn' doesn't seem to be part of PATH. You can either specify the location explicitly using 'yarnLocation' field in " +
                     $"the Yarn resolver configuration, or make sure 'yarn' is part of your PATH. Current PATH is '{paths}'.";
@@ -74,7 +54,6 @@ namespace BuildXL.FrontEnd.Yarn
             }
 
             failure = string.Empty;
-            finalYarnLocation = foundPath;
 
             // Just verbose log this
             Tracing.Logger.Log.UsingYarnAt(m_context.LoggingContext, resolverSettings.Location(m_context.PathTable), finalYarnLocation.ToString(m_context.PathTable));

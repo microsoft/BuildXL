@@ -1,6 +1,7 @@
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as BxlConfig from './BuildXLConfigurationReader';
 
 import { serializeGraph } from "./GraphSerializer";
 import {JavaScriptGraph, ScriptCommands, JavaScriptProject} from './BuildGraph';
@@ -13,7 +14,8 @@ if (process.argv.length < 5) {
 // argv[0] is 'node', argv[1] is 'main.js'
 const repoFolder = process.argv[2];
 const outputGraphFile = process.argv[3];
-const targets : string = process.argv[4];
+const npmLocation = process.argv[4];
+const targets : string = process.argv[5];
 
 /**
  * Result output of `lage info`
@@ -52,18 +54,20 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
     const projects = lage.data.packageTasks.map(task => {
       let commands : ScriptCommands = {}
       
-      // all commands are called build...
-      commands["build"] = task.command.join(" ");
+      commands[task.task] = task.command.join(" ");
   
+      let projectFolder = path.join(repoFolder, task.workingDirectory);
+
+      let bxlConfig : BxlConfig.BuildXLConfiguration = BxlConfig.getBuildXLConfiguration(repoFolder, projectFolder);
+
       let project = {
         name: task.id,
-        projectFolder: path.join(repoFolder, task.workingDirectory),
+        projectFolder: projectFolder,
         dependencies: task.dependencies,
         availableScriptCommands: commands,
         tempFolder: repoFolder,
-        // $TODO: Allow bxl config values to be threaded through.
-        outputDirectories: [],
-        sourceFiles: []
+        outputDirectories: bxlConfig.outputDirectories,
+        sourceFiles: bxlConfig.sourceFiles
       };
   
       return project;
@@ -76,9 +80,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 
 
 try {
-    // $TODO: WE assume for now that NPM is on the path. We'll likely need to resolve npm in the WorkspaceResolver and pass it as an argument
-    // when we start to run on cloudbuild.
-    const script  = `npm run lage --silent -- info ${targets} --reporter json`;
+    const script  = `${npmLocation} run lage --silent -- info ${targets} --reporter json`;
     console.log(`Starting lage export: ${script}`);
     const lageOutput = execSync(script).toString();
   

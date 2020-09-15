@@ -425,7 +425,7 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 var flattenedJavaScriptGraph = serializer.Deserialize<GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration>>(reader);
 
-                Possible<JavaScriptGraph<TGraphConfiguration>> graph = ResolveGraph(flattenedJavaScriptGraph);
+                Possible<JavaScriptGraph<TGraphConfiguration>> graph = ApplyBxlExecutionSemantics() ? ResolveGraphWithExecutionSemantics(flattenedJavaScriptGraph) : ResolveGraphWithoutExecutionSemantics(flattenedJavaScriptGraph);
 
                 return graph.Then(graph => new Possible<(JavaScriptGraph<TGraphConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration>)>((graph, flattenedJavaScriptGraph)));
             }
@@ -469,7 +469,15 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <returns></returns>
         protected abstract string GetGraphConstructionToolArguments(AbsolutePath outputFile, AbsolutePath toolLocation, AbsolutePath bxlGraphConstructionToolPath, string nodeExeLocation);
 
-        private Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraph(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)
+        /// <summary>
+        /// Whether the graph produced by the corresponding graph construction tool needs BuildXL to add execution semantics.
+        /// </summary>
+        /// <remarks>
+        /// If not, bxl will define the graph based on the specification of 'execute'
+        /// </remarks>
+        protected abstract bool ApplyBxlExecutionSemantics();
+
+        private Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraphWithExecutionSemantics(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)
         {
             var resolvedProjects = new Dictionary<(string projectName, string command), (JavaScriptProject JavaScriptProject, DeserializedJavaScriptProject deserializedJavaScriptProject)>(flattenedJavaScriptGraph.Projects.Count * m_computedCommands.Count);
 
@@ -487,16 +495,9 @@ namespace BuildXL.FrontEnd.JavaScript
                         continue;
                     }
 
-                    var javaScriptProject = JavaScriptProject.FromDeserializedProject(command, deserializedProject.AvailableScriptCommands[command], deserializedProject, m_context.PathTable);
-
-                    if (!ValidateDeserializedProject(javaScriptProject, out string failure))
+                    if (!TryValidateAndCreateProject(command, deserializedProject, out JavaScriptProject javaScriptProject, out Failure failure))
                     {
-                        Tracing.Logger.Log.ProjectGraphConstructionError(
-                            m_context.LoggingContext,
-                            m_resolverSettings.Location(m_context.PathTable),
-                            $"The project '{deserializedProject.Name}' defined in '{deserializedProject.ProjectFolder.ToString(m_context.PathTable)}' is invalid. {failure}");
-
-                        return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                        return failure;
                     }
 
                     // Here we check for duplicate projects
@@ -506,7 +507,7 @@ namespace BuildXL.FrontEnd.JavaScript
                             $"Duplicate project name '{javaScriptProject.Name}' defined in '{javaScriptProject.ProjectFolder.ToString(m_context.PathTable)}' " +
                             $"and '{resolvedProjects[(javaScriptProject.Name, command)].JavaScriptProject.ProjectFolder.ToString(m_context.PathTable)}' for script command '{command}'");
                     }
-                    
+
                     resolvedProjects.Add((javaScriptProject.Name, command), (javaScriptProject, deserializedProject));
                 }
             }
@@ -565,6 +566,82 @@ namespace BuildXL.FrontEnd.JavaScript
             return new JavaScriptGraph<TGraphConfiguration>(
                 new List<JavaScriptProject>(resolvedProjects.Values.Select(kvp => kvp.JavaScriptProject)), 
                 flattenedJavaScriptGraph.Configuration);
+        }
+
+        private Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraphWithoutExecutionSemantics(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)
+        {
+            var resolvedProjects = new Dictionary<string, (JavaScriptProject JavaScriptProject, DeserializedJavaScriptProject deserializedJavaScriptProject)>(flattenedJavaScriptGraph.Projects.Count);
+
+            foreach (var deserializedProject in flattenedJavaScriptGraph.Projects)
+            {
+                Contract.Assert(deserializedProject.AvailableScriptCommands.Count == 1, "If the graph builder tool is already adding the execution semantics, each deserialized project should only have one script command");
+                string command = deserializedProject.AvailableScriptCommands.Keys.Single();
+
+                if (!TryValidateAndCreateProject(command, deserializedProject, out JavaScriptProject javaScriptProject, out Failure failure))
+                {
+                    return failure;
+                }
+
+                // Here we check for duplicate projects
+                if (resolvedProjects.ContainsKey((javaScriptProject.Name)))
+                {
+                    return new JavaScriptProjectSchedulingFailure(javaScriptProject,
+                        $"Duplicate project name '{javaScriptProject.Name}' defined in '{javaScriptProject.ProjectFolder.ToString(m_context.PathTable)}' " +
+                        $"and '{resolvedProjects[javaScriptProject.Name].JavaScriptProject.ProjectFolder.ToString(m_context.PathTable)}' for script command '{command}'");
+                }
+
+                resolvedProjects.Add(javaScriptProject.Name, (javaScriptProject, deserializedProject));
+            }
+
+            // Now resolve dependencies
+            foreach (var kvp in resolvedProjects)
+            {
+                JavaScriptProject javaScriptProject = kvp.Value.JavaScriptProject;
+                DeserializedJavaScriptProject deserializedProject = kvp.Value.deserializedJavaScriptProject;
+
+                var projectDependencies = new List<JavaScriptProject>();
+                foreach (string dependency in deserializedProject.Dependencies)
+                {
+                    // When the execution semantics is provided by the graph builder tool, it is expected to be complete
+                    if (!resolvedProjects.TryGetValue(dependency, out var value))
+                    {
+                        return new JavaScriptProjectSchedulingFailure(javaScriptProject,
+                            $"Project dependency '{dependency}' is missing. Dependency required by '{javaScriptProject.ProjectFolder.ToString(m_context.PathTable)}'");
+                    }
+
+                    projectDependencies.Add(value.JavaScriptProject);
+                }
+
+                javaScriptProject.SetDependencies(projectDependencies);
+            }
+
+            return new JavaScriptGraph<TGraphConfiguration>(
+                new List<JavaScriptProject>(resolvedProjects.Values.Select(kvp => kvp.JavaScriptProject)),
+                flattenedJavaScriptGraph.Configuration);
+        }
+
+        private bool TryValidateAndCreateProject(
+            string command, 
+            DeserializedJavaScriptProject deserializedProject, 
+            out JavaScriptProject javaScriptProject,
+            out Failure failure)
+        {
+            javaScriptProject = JavaScriptProject.FromDeserializedProject(command, deserializedProject.AvailableScriptCommands[command], deserializedProject, m_context.PathTable);
+
+            if (!ValidateDeserializedProject(javaScriptProject, out string reason))
+            {
+                Tracing.Logger.Log.ProjectGraphConstructionError(
+                    m_context.LoggingContext,
+                    m_resolverSettings.Location(m_context.PathTable),
+                    $"The project '{deserializedProject.Name}' defined in '{deserializedProject.ProjectFolder.ToString(m_context.PathTable)}' is invalid. {reason}");
+
+                failure =  new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                return false;
+            }
+
+            failure = null;
+
+            return true;
         }
 
         private bool ValidateDeserializedProject(JavaScriptProject project, out string failure)

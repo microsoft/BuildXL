@@ -14,6 +14,6 @@ namespace BuildXL.FrontEnd.Lage.Tracing
         None = 0,
 
         // reserved 12200 .. 12300 for Lage front-end
-        UsingLageAt = 12200,
+        UsingNpmAt = 12200,
     }
 }

@@ -14,26 +14,16 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc/>
         public LageResolverSettings()
         {
-            Targets = new List<string>();
         }
 
         /// <nodoc/>
         public LageResolverSettings(ILageResolverSettings template, PathRemapper pathRemapper) 
         : base(template, pathRemapper)
         {
-            Targets = new List<string>(template.Targets.Count);
-            foreach (var target in template.Targets)
-            {
-                Targets.Add(target);
-            }
+            NpmLocation = pathRemapper.Remap(template.NpmLocation);
         }
-    
-        /// <nodoc />
-        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<string> Targets { get; set; }
 
-        /// <inheritdoc />
-        IReadOnlyList<string> ILageResolverSettings.Targets => Targets;
-
+        /// <inheritdoc/>
+        public FileArtifact? NpmLocation { get; set; }
     }
 }

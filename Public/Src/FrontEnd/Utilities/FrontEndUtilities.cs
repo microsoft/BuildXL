@@ -394,5 +394,50 @@ namespace BuildXL.FrontEnd.Utilities
 
             return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);
         }
+
+        /// <summary>
+        /// Tries to find if any of the tool names provided can be found under a collection of paths
+        /// </summary>
+        public static bool TryFindToolInPath(
+            FrontEndContext context, 
+            FrontEndHost host, 
+            string paths, 
+            IEnumerable<string> toolNamesToFind, 
+            out AbsolutePath location)
+        {
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(host);
+            Contract.RequiresNotNullOrEmpty(paths);
+            Contract.RequiresNotNull(toolNamesToFind);
+
+            location = AbsolutePath.Invalid;
+
+            AbsolutePath foundPath = AbsolutePath.Invalid;
+            foreach (string path in paths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var nonEscapedPath = path.Trim('"');
+                // Sometimes paths are not well-formed, so make sure we can actually recognize an absolute path there
+                if (AbsolutePath.TryCreate(context.PathTable, nonEscapedPath, out var absolutePath))
+                {
+                    foreach (var toolName in toolNamesToFind)
+                    {
+                        AbsolutePath pathToTool = absolutePath.Combine(context.PathTable, toolName);
+                        if (host.Engine.FileExists(pathToTool))
+                        {
+                            foundPath = pathToTool;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!foundPath.IsValid)
+            {
+                return false;
+            }
+
+            location = foundPath;
+            return true;
+        }
     }
 }

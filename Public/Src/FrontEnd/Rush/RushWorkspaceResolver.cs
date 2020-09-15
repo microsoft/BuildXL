@@ -22,6 +22,11 @@ namespace BuildXL.FrontEnd.Rush
         /// </summary>
         protected override RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\RushGraphBuilder\main.js");
 
+        /// <summary>
+        /// Rush graph needs Bxl to interpret how script commands are related to each other
+        /// </summary>
+        protected override bool ApplyBxlExecutionSemantics() => true;
+
         /// <inheritdoc/>
         public RushWorkspaceResolver() : base(KnownResolverKind.RushResolverKind)
         {

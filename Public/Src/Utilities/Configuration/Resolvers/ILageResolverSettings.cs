@@ -10,7 +10,12 @@ namespace BuildXL.Utilities.Configuration
     /// </summary>
     public interface ILageResolverSettings : IJavaScriptResolverSettings
     {
-        /// <nodoc/>
-        IReadOnlyList<string> Targets {get;}
+        /// <summary>
+        /// The location of NPM.  If not provided, BuildXL will try to look for it under PATH.
+        /// </summary>
+        /// <remarks>
+        /// Npm is used to get Lage during graph construction
+        /// </remarks>
+        FileArtifact? NpmLocation { get; }
     }
 }

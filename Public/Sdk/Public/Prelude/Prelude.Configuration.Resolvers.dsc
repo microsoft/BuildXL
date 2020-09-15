@@ -268,7 +268,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
 /**
  * Resolver for Rush project-level build execution
  */
-interface RushResolver extends JavaScriptResolver {
+interface RushResolver extends JavaScriptResolverWithExecutionSemantics {
     kind: "Rush";
 
     /**
@@ -292,7 +292,7 @@ interface RushResolver extends JavaScriptResolver {
 /**
  * Resolver for Yarn project-level build execution
  */
-interface YarnResolver extends JavaScriptResolver {
+interface YarnResolver extends JavaScriptResolverWithExecutionSemantics {
     kind: "Yarn";
 
     /**
@@ -302,15 +302,21 @@ interface YarnResolver extends JavaScriptResolver {
 }
 
 /**
- * Resolver for Yarn project-level build execution
+ * Resolver for Lage project-level build execution
  */
 interface LageResolver extends JavaScriptResolver {
     kind: "Lage";
 
     /**
-     * The default list of targets to run Lage with. i.e. 'build', 'test', 'ut' etc.
+     * The script command names to execute.
      */
-    targets: string[];
+    execute?: string[];
+
+    /**
+     * The location of NPM.  If not provided, BuildXL will try to look for it under PATH.
+     *  Npm is used to get Lage during graph construction.
+     */
+    npmLocation?: File;
 }
 
 /**
@@ -358,20 +364,6 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
     additionalOutputDirectories?: (Path | RelativePath)[];
 
     /**
-     * The list of command script names to execute on each project. 
-     * Dependencies across commands can be specified. If a simple string is provided in the list, the command with that name will depend 
-     * on the command that precedes it on the list, or if it is the first one, on the same command of all its project dependencies.
-     * For example: if project A defines commands: ["build", "test"] and project A declares B and C as project dependencies, then 
-     * the build command of A will depend on the build command of both B and C. The test command of A will depend on the build command of A.
-     * Additionally, finer grained dependencies can be specified using a JavaScriptCommand. In this case, a list of dependencies for each command
-     * can be explicitly provided, indicating whether the dependency is on a command on the same project (local) or on a command on all the project 
-     * dependencies (project). The specified order in the list is irrelevant for JavaScriptCommands.
-     * If not provided, ["build"] is used.
-     * Any command specified here that doesn't have a corresponding script is ignored.
-     */
-    execute?: (string | JavaScriptCommand)[];
-
-    /**
      * Defines a collection of custom JavaScript commands that can later be used as part of 'execute'.
      */
     customCommands?: JavaScriptCustomCommand[];
@@ -394,6 +386,26 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     blockWritesUnderNodeModules?: boolean;
+}
+
+/**
+ * The list of commands to execute can be specified with finer-grained detail
+ */
+interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
+{
+    /**
+     * The list of command script names to execute on each project. 
+     * Dependencies across commands can be specified. If a simple string is provided in the list, the command with that name will depend 
+     * on the command that precedes it on the list, or if it is the first one, on the same command of all its project dependencies.
+     * For example: if project A defines commands: ["build", "test"] and project A declares B and C as project dependencies, then 
+     * the build command of A will depend on the build command of both B and C. The test command of A will depend on the build command of A.
+     * Additionally, finer grained dependencies can be specified using a JavaScriptCommand. In this case, a list of dependencies for each command
+     * can be explicitly provided, indicating whether the dependency is on a command on the same project (local) or on a command on all the project 
+     * dependencies (project). The specified order in the list is irrelevant for JavaScriptCommands.
+     * If not provided, ["build"] is used.
+     * Any command specified here that doesn't have a corresponding script is ignored.
+     */
+    execute?: (string | JavaScriptCommand)[];   
 }
 
 /**

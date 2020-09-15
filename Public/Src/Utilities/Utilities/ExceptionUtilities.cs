@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
@@ -43,6 +44,34 @@ namespace BuildXL.Utilities
         public static bool IsRecoverableIoException(this Exception exception)
         {
             return exception is UnauthorizedAccessException || exception is SecurityException || exception is IOException || exception is Win32Exception;
+        }
+
+        /// <summary>
+        /// Returns true if a given exception is a known exception that should be ignored when handling unobserved task exceptions.
+        /// </summary>
+        public static bool IsKnownUnobservedException(Exception exception)
+        {
+            string knownExceptionText = "StackExchange.Redis.Redis";
+            if (exception is AggregateException ae)
+            {
+                ae = ae.Flatten();
+                // Ignore known issue with unobserved task exceptions from redis layer until its fixed.
+                // Work item: 1768860
+
+                // Ignoring the AggregateException if any of the nested exceptions are coming from Redis layer.
+                // This case covers: StackExchange.Redis.RedisTimeoutException, StackExchange.Redis.RedisConnectionException
+                // and potentially similar issues from the redis layer.
+                if (ae.InnerExceptions.Any((e => e.ToString().Contains(knownExceptionText))))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                return exception.ToString().Contains(knownExceptionText);
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -1910,7 +1910,7 @@ namespace BuildXL
                 NativeMethods.LaunchDebuggerIfAttached();
             }
 
-            if (IsKnownUnobservedException(exception))
+            if (ExceptionUtilities.IsKnownUnobservedException(exception))
             {
                 // Avoid crashing on well know innocuous unobserved exceptions
                 return;
@@ -2085,21 +2085,6 @@ namespace BuildXL
 
                 Environment.Exit(ExitCode.FromExitKind(ExitKind.InternalError));
             }
-        }
-
-        private static bool IsKnownUnobservedException(Exception exception)
-        {
-            if (exception is AggregateException ae && ae.InnerException is Exception inner)
-            {
-                // Ignore known issue with unobserved task exceptions from redis layer until its fixed.
-                // Work item: 1768860
-                if (inner.Message.Contains("StackExchange.Redis.Redis"))
-                {
-                    // This case covers: RedisTimeoutException, StackExchange.Redis.RedisConnectionException and potentially similar issues from the redis layer.
-                    return true;
-                }
-            }
-            return false;
         }
 
         private EngineState RunEngine(

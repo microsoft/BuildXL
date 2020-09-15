@@ -41,7 +41,9 @@ namespace ContentStoreTest.Distributed.Stores
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
+            _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration() {
+                MaxClientCount = 1024
+            });
         }
 
         [Fact]

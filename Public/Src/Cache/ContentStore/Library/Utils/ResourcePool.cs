@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -23,14 +24,16 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <typeparam name="TKey">Identifier for a given resource.</typeparam>
     /// <typeparam name="TObject">Type of the pooled object.</typeparam>
     public class ResourcePool<TKey, TObject> : IDisposable
-        where TKey: notnull
+        where TKey : notnull
         where TObject : IStartupShutdownSlim
     {
+        private readonly Context _context;
+        private readonly Func<TKey, TObject> _resourceFactory;
+
         private readonly int _maxResourceCount;
         private readonly int _maximumAgeInMinutes;
-        private readonly Context _context;
+        private readonly bool _enableInstanceInvalidation;
         private readonly Dictionary<TKey, ResourceWrapper<TObject>> _resourceDict;
-        private readonly Func<TKey, TObject> _resourceFactory;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(initialCount: 1);
         private readonly IClock _clock;
 
@@ -38,6 +41,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         private bool _disposed;
 
         internal CounterCollection<ResourcePoolCounters> Counter { get; } = new CounterCollection<ResourcePoolCounters>();
+
+        private readonly ConcurrentQueue<ResourceWrapper<TObject>> _shutdownQueue = new ConcurrentQueue<ResourceWrapper<TObject>>();
 
         /// <summary>
         /// Cache of objects.
@@ -47,11 +52,14 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="maxAgeMinutes">Maximum age of cached clients.</param>
         /// <param name="resourceFactory">Constructor for a new resource.</param>
         /// <param name="clock">Clock to use for TTL</param>
-        public ResourcePool(Context context, int maxResourceCount, int maxAgeMinutes, Func<TKey, TObject> resourceFactory, IClock? clock = null)
+        /// <param name="enableInstanceInvalidation">Allow callers to invalidate instances</param>
+        public ResourcePool(Context context, int maxResourceCount, int maxAgeMinutes, Func<TKey, TObject> resourceFactory, IClock? clock = null, bool enableInstanceInvalidation = false)
         {
             _context = context;
             _maxResourceCount = maxResourceCount;
             _maximumAgeInMinutes = maxAgeMinutes;
+            _enableInstanceInvalidation = enableInstanceInvalidation;
+
             _clock = clock ?? SystemClock.Instance;
 
             _resourceDict = new Dictionary<TKey, ResourceWrapper<TObject>>(_maxResourceCount);
@@ -75,8 +83,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // NOTE: if dispose has happened at this point, we will fail to take the semaphore
                 using (await _semaphore.WaitTokenAsync())
                 {
-                    // Remove anything that has expired.
-                    await CleanupAsync(force: false, numberToRelease: int.MaxValue);
+                    // Remove anything that has expired or been invalidated.
+                    await CleanupAsync();
 
                     ResourceWrapper<TObject> returnWrapper;
 
@@ -87,19 +95,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     }
                     else
                     {
-                        // Start resource "GC" if the cache is full
-                        if (_resourceDict.Count >= _maxResourceCount)
-                        {
-                            // Attempt to remove whatever resource was used last.
-                            await CleanupAsync(force: true, numberToRelease: 1);
-
-                            if (_resourceDict.Count >= _maxResourceCount)
-                            {
-                                throw Contract.AssertFailure($"Failed to make space for new resource. Count={_resourceDict.Count}, Max={_maxResourceCount}");
-                            }
-                        }
-
-                        returnWrapper = new ResourceWrapper<TObject>(() => _resourceFactory(key), _context);
+                        returnWrapper = CreateResourceWrapper(key);
                         _resourceDict.Add(key, returnWrapper);
                     }
 
@@ -116,43 +112,74 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
+        /// <nodoc />
+        protected ResourceWrapper<TObject> CreateResourceWrapper(TKey key, bool shutdownOnDispose = false)
+        {
+            return new ResourceWrapper<TObject>(() => _resourceFactory(key), _context, shutdownOnDispose);
+        }
+
         /// <summary>
         /// Free resources which are no longer in use and older than <see cref="_maximumAgeInMinutes"/> minutes.
         /// </summary>
-        /// <param name="force">Whether last use time should be ignored.</param>
-        /// <param name="numberToRelease">Max amount of resources you want to release.</param>
-        private async Task CleanupAsync(bool force, int numberToRelease)
+        private async Task CleanupAsync()
         {
             var earliestLastUseTime = _clock.UtcNow - TimeSpan.FromMinutes(_maximumAgeInMinutes);
             var shutdownTasks = new List<Task<BoolResult>>();
 
             using (var sw = Counter[ResourcePoolCounters.Cleanup].Start())
             {
-                var amountRemoved = 0;
                 var initialCount = _resourceDict.Count;
 
-                foreach (var kvp in _resourceDict.OrderBy(kvp => kvp.Value.LastUseTime))
+                // First remove everything that's either expired or invalid
+                foreach (var kvp in _resourceDict.ToList())
                 {
-                    if (amountRemoved >= numberToRelease)
+                    if (kvp.Value.LastUseTime > earliestLastUseTime && (!_enableInstanceInvalidation || !kvp.Value.Invalid))
                     {
-                        break;
+                        // If the resource is within its lifetime, and it's not invalid (when invalidation is enabled),
+                        // we can skip it.
+                        continue;
                     }
 
-                    if (!force && kvp.Value.LastUseTime > earliestLastUseTime)
-                    {
-                        break;
-                    }
+                    _resourceDict.Remove(kvp.Key);
+                    _shutdownQueue.Enqueue(kvp.Value);
+                }
 
-                    var resourceValue = kvp.Value.Resource.Value;
-
-                    // If the resource is approved for shutdown, queue it to shutdown.
-                    if (kvp.Value.TryMarkForShutdown(force, earliestLastUseTime))
+                // Now prune until we are within quota
+                var resourceRemovalTarget = _resourceDict.Count - _maxResourceCount;
+                if (resourceRemovalTarget > 0)
+                {
+                    foreach (var kvp in _resourceDict.OrderBy(kvp => kvp.Value.LastUseTime))
                     {
+                        if (resourceRemovalTarget <= 0)
+                        {
+                            break;
+                        }
+
                         _resourceDict.Remove(kvp.Key);
+                        _shutdownQueue.Enqueue(kvp.Value);
 
-                        // Shutting down all the resources in parallel
-                        shutdownTasks.Add(resourceValue.ShutdownAsync(_context));
-                        amountRemoved++;
+                        resourceRemovalTarget--;
+                    }
+                }
+
+                var maxShutdownAttempts = _shutdownQueue.Count;
+                while (maxShutdownAttempts-- > 0 && _shutdownQueue.TryDequeue(out var instance))
+                {
+                    if (instance.TryMarkForShutdown(force: true, earliestLastUseTime))
+                    {
+                        if (!instance.IsValueCreated)
+                        {
+                            // We can avoid shutting down instances that aren't even created
+                            Counter[ResourcePoolCounters.Cleaned].Increment();
+                            continue;
+                        }
+
+                        shutdownTasks.Add(instance.Value.ShutdownAsync(_context));
+                    }
+                    else
+                    {
+                        // We'll need to retry later
+                        _shutdownQueue.Enqueue(instance);
                     }
                 }
 
@@ -168,11 +195,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 Counter[ResourcePoolCounters.Cleaned].Add(shutdownTasks.Count);
 
                 _tracer.Debug(_context, $"Cleaned {shutdownTasks.Count} of {initialCount} in {sw.Elapsed.TotalMilliseconds}ms");
-
-                if (force && amountRemoved < numberToRelease)
-                {
-                    throw Contract.AssertFailure($"Failed to force-clean. Cleaned {amountRemoved} of the {numberToRelease} requested");
-                }
             }
         }
 
@@ -188,7 +210,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 _disposed = true;
 
-                var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).ToArray();
+                var queuedShutdownTasks = _shutdownQueue.Select(instance => instance.Value.ShutdownAsync(_context));
+                var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).Concat(queuedShutdownTasks).ToArray();
                 ShutdownGrpcClientsAsync(shutdownTasks).GetAwaiter().GetResult();
             }
 

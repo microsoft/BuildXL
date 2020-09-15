@@ -16,6 +16,9 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <typeparam name="TObject">The wrapped type.</typeparam>
     public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IStartupShutdownSlim
     {
+        private readonly bool _shutdownOnDispose;
+        private readonly Context _context;
+
         internal DateTime LastUseTime;
         private int _uses;
         internal readonly Lazy<TObject> Resource;
@@ -35,10 +38,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public TObject Value => Resource.Value;
 
+        /// <nodoc />
+        public bool Invalid { get; private set; }
+
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ResourceWrapper(Func<TObject> resourceFactory, Context context)
+        public ResourceWrapper(Func<TObject> resourceFactory, Context context, bool shutdownOnDispose = false)
         {
             LastUseTime = DateTime.MinValue;
             Resource = new Lazy<TObject>(() => {
@@ -46,6 +52,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                 var result = resource.StartupAsync(context).ThrowIfFailure().GetAwaiter().GetResult();
                 return resource;
             });
+
+            _shutdownOnDispose = shutdownOnDispose;
+            _context = context;
         }
 
         /// <summary>
@@ -77,6 +86,12 @@ namespace BuildXL.Cache.ContentStore.Utils
             return false;
         }
 
+        /// <nodoc />
+        public void Invalidate()
+        {
+            Invalid = true;
+        }
+
         /// <summary>
         /// Attempt to prepare the resource for shutdown, based on current uses and last use time.
         /// </summary>
@@ -103,6 +118,11 @@ namespace BuildXL.Cache.ContentStore.Utils
             lock (this)
             {
                 _uses--;
+            }
+
+            if (_shutdownOnDispose && Resource.IsValueCreated)
+            {
+                _ = Value.ShutdownAsync(_context).GetAwaiter().GetResult();
             }
         }
     }

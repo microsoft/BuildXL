@@ -77,6 +77,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             for (var i = 0; i < resourceCount; i++)
             {
                 using var wrapper = await pool.CreateAsync(new Key(i));
+                Assert.True(wrapper.Value.StartupStarted);
                 wrappers.Add(wrapper);
             }
             
@@ -125,6 +126,11 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 resources.Add((wrapper.Value));
             }
 
+            // We actually do the cleanup during the next operation
+            using (var wrapper = await pool.CreateAsync(new Key(maxCapacity)))
+            {
+            }
+
             Assert.Equal(1, pool.Counter[ResourcePoolCounters.Cleaned].Value);
             Assert.Equal(maxCapacity + 1, pool.Counter[ResourcePoolCounters.Created].Value);
 
@@ -134,6 +140,28 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             }
 
             Assert.True(resources.First().ShutdownCompleted);
+        }
+
+        [Fact]
+        public async Task ValidateInvalidation()
+        {
+            var maxCapacity = 10;
+            var clock = new MemoryClock();
+            var maxAgeMinutes = maxCapacity + 10; // No resources should expire.
+            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), maxResourceCount: maxCapacity, maxAgeMinutes, resourceFactory: _ => new Resource(), clock, enableInstanceInvalidation: true);
+
+            using (var wrapper = await pool.CreateAsync(new Key(1)))
+            {
+                wrapper.Invalidate();
+            }
+
+            // We actually do the cleanup during the next operation
+            using (var wrapper = await pool.CreateAsync(new Key(2)))
+            {
+            }
+
+            Assert.Equal(1, pool.Counter[ResourcePoolCounters.Cleaned].Value);
+            Assert.Equal(2, pool.Counter[ResourcePoolCounters.Created].Value);
         }
 
         [Fact]

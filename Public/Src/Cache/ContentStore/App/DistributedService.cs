@@ -76,9 +76,16 @@ namespace BuildXL.Cache.ContentStore.App
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
                             grpcPort: grpcPort,
-                            maxGrpcClientCount: dcs.MaxGrpcClientCount,
-                            maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
-                            useCompression: dcs.UseCompressionForCopies);
+                            useCompression: dcs.UseCompressionForCopies,
+                            new Service.Grpc.GrpcCopyClientCacheConfiguration()
+                            {
+                                MaxClientCount = dcs.MaxGrpcClientCount,
+                                MaxClientAgeMinutes = dcs.MaxGrpcClientAgeMinutes,
+                                CopyTimeoutSeconds = dcs.GrpcCopyConnectionTimeoutInSeconds,
+                                EnableInstanceInvalidation = dcs.GrpcCopyClientCacheEnableInstanceInvalidation ?? false,
+                                DisableInstanceCaching = dcs.GrpcCopyClientCacheDisableInstanceCaching ?? false,
+                            },
+                            invalidateGrpcClientsOnCopyFailures: dcs.GrpcFileCopierInvalidateGrpcClientsOnCopyFailures);
 
                 var copier = useDistributedGrpc
                         ? grpcCopier

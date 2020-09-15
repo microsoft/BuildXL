@@ -394,12 +394,28 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseCompressionForCopies { get; set; } = false;
 
+        [DataMember]
+        public bool GrpcFileCopierInvalidateGrpcClientsOnCopyFailures { get; set; } = false;
+
         /// <summary>
         /// Upper bound on number of cached GRPC clients.
         /// </summary>
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int MaxGrpcClientCount { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Maximum cached age for GRPC clients.
+        /// </summary>
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int MaxGrpcClientAgeMinutes { get; set; } = 55;
+
+        [DataMember]
+        public bool? GrpcCopyClientCacheEnableInstanceInvalidation { get; set; }
+
+        [DataMember]
+        public bool? GrpcCopyClientCacheDisableInstanceCaching { get; set; }
 
         [DataMember]
         public bool UseUnsafeByteStringConstruction { get; set; } = false;
@@ -409,13 +425,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool ShutdownEvictionBeforeHibernation { get; set; } = false;
-
-        /// <summary>
-        /// Maximum cached age for GRPC clients.
-        /// </summary>
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaxGrpcClientAgeMinutes { get; set; } = 55;
 
         /// <summary>
         /// Timeout for push/pull copy operations in seconds

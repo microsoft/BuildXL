@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -17,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Size of the buffer for FileStreams opened by this class
         /// </summary>
-        public const int DefaultFileStreamBufferSize = 4 * 1024;
+        public static int DefaultFileStreamBufferSize => FileSystemDefaults.DefaultFileStreamBufferSize;
 
         /// <summary>
         /// Creates an empty file at a given path.
@@ -107,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// Unlike <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<StreamWithLength> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = DefaultFileStreamBufferSize)
+        public static async Task<StreamWithLength> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
         {
             var stream = await fileSystem.OpenAsync(path, fileAccess, fileMode, share, options, bufferSize);
             if (stream == null)

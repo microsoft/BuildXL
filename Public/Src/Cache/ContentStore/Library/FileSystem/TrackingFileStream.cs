@@ -1,21 +1,41 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
 using System.Threading;
-using JetBrains.Annotations;
+using System.Threading.Tasks;
+using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {
     /// <summary>
-    /// Special tracking file stream that fails with more readable error message if unhandled error occurs in the finalizer of the instance.
+    /// Special tracking file stream that fails with more readable error message if unhandled error occurs in the finalizer of the instance and the time spent reading/writing a file.
     /// </summary>
-    internal class TrackingFileStream : FileStream
+    public class TrackingFileStream : FileStream
     {
+        private long _readDurationInTicks;
+        private long _writeDurationInTicks;
+
+        /// <summary>
+        /// The number of constructed instances.
+        /// </summary>
         public static long Constructed;
+
+        /// <summary>
+        /// The number of properly closed instances.
+        /// </summary>
         public static long ProperlyClosed;
+
+        /// <summary>
+        /// The number of leaked instances (i.e. the number of called finalizers of this type).
+        /// </summary>
         public static long Leaked;
+
+        /// <summary>
+        /// The path to the the last leaked file.
+        /// </summary>
         public static string? LastLeakedFilePath;
 
         private string? _path;
@@ -29,6 +49,16 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 _path = value;
             }
         }
+
+        /// <summary>
+        /// A total time spent reading this file.
+        /// </summary>
+        public TimeSpan ReadDuration => TimeSpan.FromTicks(_readDurationInTicks);
+
+        /// <summary>
+        /// A total time spent writing to this file.
+        /// </summary>
+        public TimeSpan WriteDuration => TimeSpan.FromTicks(_writeDurationInTicks);
 
         /// <inheritdoc />
         public TrackingFileStream(string path, FileMode mode)
@@ -100,6 +130,43 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             base.Close();
         }
 
+        /// <inheritdoc />
+        public override int Read(byte[] array, int offset, int count)
+        {
+            var stopwatch = StopwatchSlim.Start();
+
+            var result = base.Read(array, offset, count);
+
+            Interlocked.Add(ref _readDurationInTicks,  stopwatch.Elapsed.Ticks);
+            return result;
+        }
+
+        /// <inheritdoc />
+        public override void Write(byte[] array, int offset, int count)
+        {
+            var stopwatch = StopwatchSlim.Start();
+            base.Write(array, offset, count);
+            Interlocked.Add(ref _writeDurationInTicks, stopwatch.Elapsed.Ticks);
+        }
+
+        /// <inheritdoc />
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            var stopwatch = StopwatchSlim.Start();
+            var result = await base.ReadAsync(buffer, offset, count, cancellationToken);
+            Interlocked.Add(ref _readDurationInTicks, stopwatch.Elapsed.Ticks);
+            return result;
+        }
+
+        /// <inheritdoc />
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            var stopwatch = StopwatchSlim.Start();
+            await base.WriteAsync(buffer, offset, count, cancellationToken);
+            Interlocked.Add(ref _writeDurationInTicks, stopwatch.Elapsed.Ticks);
+        }
+
+        /// <nodoc />
         ~TrackingFileStream()
         {
             Interlocked.Increment(ref Leaked);

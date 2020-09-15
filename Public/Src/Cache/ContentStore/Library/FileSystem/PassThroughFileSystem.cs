@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
@@ -462,6 +463,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             try
             {
+                if (FileSystemDefaults.UseAsynchronousFileStreamOptionByDefault)
+                {
+                    options |= FileOptions.Asynchronous;
+                }
+
                 if (OperatingSystemHelper.IsUnixOS)
                 {
                     return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -398,6 +399,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
+                                (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - ioGateCurrentCount} " +
                                 $"IOGate.Wait={ioGateWait}ms " +
                                 (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
@@ -579,6 +581,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 new OperationContext(context, cts), location, hashingStream, hashInfo.Size,
                                 options);
                             copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
+                            TrackTimeSpentWritingToDisk(copyFileResult, fileStream);
 
                             if (copyFileResult.Succeeded)
                             {
@@ -630,6 +633,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
+        private void TrackTimeSpentWritingToDisk(CopyFileResult copyFileResult, Stream fileStream)
+        {
+            if (fileStream is TrackingFileStream tfs)
+            {
+                copyFileResult.TimeSpentWritingToDisk = tfs.WriteDuration;
+
+                _counters.AddToCounter(DistributedContentCopierCounters.WriteToDisk, tfs.WriteDuration);
+            }
+        }
+
         /// <summary>
         /// Override for testing.
         /// </summary>
@@ -659,7 +672,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             using var stream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
-            return await copier.CopyToAsync(context, sourcePath, stream, expectedContentSize, options);
+            var result = await copier.CopyToAsync(context, sourcePath, stream, expectedContentSize, options);
+
+            TrackTimeSpentWritingToDisk(result, stream);
+
+            return result;
         }
 
         private static int GetBufferSize(ContentHashWithSizeAndLocations hashInfo)
@@ -797,6 +814,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             /// <nodoc />
             [CounterType(CounterType.Stopwatch)]
             RemoteCopyFile,
+
+            [CounterType(CounterType.Stopwatch)]
+            WriteToDisk,
 
             /// <nodoc />
             RemoteBytes,

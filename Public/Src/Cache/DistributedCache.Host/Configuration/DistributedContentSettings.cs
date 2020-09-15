@@ -753,6 +753,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         [DataMember]
+        public bool? UseAsynchronousFileStreamOptionByDefault { get; set; }
+
+        [DataMember]
         public bool TraceProactiveCopy { get; set; } = false;
 
         [DataMember]
@@ -797,6 +800,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public TimeSpan? LogIncrementalStatsInterval { get; set; }
+
+        [DataMember]
+        public string[] IncrementalStatisticsCounterNames { get; set; }
 
         /// <summary>
         /// Gets or sets the time period between logging machine-specific performance statistics.

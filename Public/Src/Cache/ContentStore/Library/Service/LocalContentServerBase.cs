@@ -76,6 +76,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new Dictionary<string, AbsolutePath>();
         private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new ConcurrentDictionary<int, DisposableDirectory>();
+        private readonly Dictionary<string, bool> _incrementalStatisticsKeyStatus = new Dictionary<string, bool>();
 
         /// <summary>
         /// Used by <see cref="LogIncrementalStatsAsync"/> to avoid re-entrancy.
@@ -289,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Service
                         message => Tracer.Debug(context, $"[{CheckForExpiredSessionsName}] message"));
 
                     _logIncrementalStatsTimer = new IntervalTimer(
-                        () => LogIncrementalStatsAsync(context),
+                        () => LogIncrementalStatsAsync(context, logAtShutdown: false),
                         Config.LogIncrementalStatsInterval);
 
                     _logMachineStatsTimer = new IntervalTimer(
@@ -325,7 +326,7 @@ namespace BuildXL.Cache.ContentStore.Service
             _grpcServer.Start();
         }
 
-        private async Task LogIncrementalStatsAsync(OperationContext context)
+        private async Task LogIncrementalStatsAsync(OperationContext context, bool logAtShutdown)
         {
             if (Interlocked.CompareExchange(ref _loggingIncrementalStats, 1, 0) != 0)
             {
@@ -349,6 +350,12 @@ namespace BuildXL.Cache.ContentStore.Service
                     foreach (var counter in counters)
                     {
                         var key = counter.Key;
+
+                        if (!logAtShutdown && !PrintStatisticsForKey(key))
+                        {
+                            continue;
+                        }
+
                         var value = counter.Value;
                         var incrementalValue = value;
                         statistics[key] = value;
@@ -358,7 +365,11 @@ namespace BuildXL.Cache.ContentStore.Service
                             incrementalValue -= oldValue;
                         }
 
-                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{incrementalValue}]", component: Name, operation: "IncrementalStatistics");
+                        context.TracingContext.TraceMessage(
+                            Severity.Info,
+                            $"{key}=[{incrementalValue}]",
+                            component: Name,
+                            operation: "IncrementalStatistics");
                         context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
                     }
                 }
@@ -369,6 +380,18 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 Volatile.Write(ref _loggingIncrementalStats, 0);
             }
+        }
+
+        private bool PrintStatisticsForKey(string key)
+        {
+            if (_incrementalStatisticsKeyStatus.TryGetValue(key, out bool shouldPrint))
+            {
+                return shouldPrint;
+            }
+
+            shouldPrint = Config.IncrementalStatsCounterNames.Any(name => key.EndsWith(name));
+            _incrementalStatisticsKeyStatus[key] = shouldPrint;
+            return shouldPrint;
         }
 
         private void TraceLeakedFilePath(OperationContext context)
@@ -539,7 +562,7 @@ namespace BuildXL.Cache.ContentStore.Service
             // Don't trace statistics if configured and only if startup was successful.
             if (Tracer.EnableTraceStatisticsAtShutdown && StartupCompleted)
             {
-                await LogIncrementalStatsAsync(context);
+                await LogIncrementalStatsAsync(context, logAtShutdown: false);
             }
 
             // Stop the session expiration timer.

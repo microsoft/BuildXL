@@ -286,7 +286,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 gzipBarrierSizeForGrpcCopies: localCasSettings.ServiceSettings.GzipBarrierSizeForGrpcCopies,
                 proactivePushCountLimit: localCasSettings.ServiceSettings.MaxProactivePushRequestHandlers,
                 logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
-                logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval);
+                logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval,
+                logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames);
         }
 
         private static void WriteContentStoreConfigFile(string cacheSizeQuotaString, AbsolutePath rootPath, IAbsFileSystem fileSystem)

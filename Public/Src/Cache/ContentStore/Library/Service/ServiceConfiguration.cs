@@ -62,7 +62,8 @@ namespace BuildXL.Cache.ContentStore.Service
             int? gzipBarrierSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
             TimeSpan? logIncrementalStatsInterval = null,
-            TimeSpan? logMachineStatsInterval = null
+            TimeSpan? logMachineStatsInterval = null,
+            string[]? logIncrementalStatsCounterNames = null
             )
         {
             Contract.Requires(namedCacheRoots != null);
@@ -79,6 +80,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogMachineStatsInterval = logMachineStatsInterval;
             LogIncrementalStatsInterval = logIncrementalStatsInterval;
             _namedCacheRoots = new Dictionary<string, AbsolutePath>();
+            IncrementalStatsCounterNames = logIncrementalStatsCounterNames?? new string[0];
             Initialize();
         }
 
@@ -186,6 +188,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <inheritdoc cref="LocalServerConfiguration.LogIncrementalStatsInterval"/>
         public TimeSpan? LogIncrementalStatsInterval { get; set; }
+
+        /// <inheritdoc cref="LocalServerConfiguration.IncrementalStatsCounterNames"/>
+        public string[] IncrementalStatsCounterNames { get; set; }
 
         /// <summary>
         /// Gets the verb on ContentStoreApp.exe to use.

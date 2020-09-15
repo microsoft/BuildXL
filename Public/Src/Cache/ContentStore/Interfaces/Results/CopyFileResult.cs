@@ -83,6 +83,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public TimeSpan? TimeSpentHashing { get; set; }
 
         /// <summary>
+        /// Optional timespan describing the time spent writing file to disk.
+        /// </summary>
+        public TimeSpan? TimeSpentWritingToDisk { get; set; }
+
+        /// <summary>
         /// Gets the source of the exception for the file copy (whether it was local or remote).
         /// </summary>
         public readonly CopyResultCode Code;

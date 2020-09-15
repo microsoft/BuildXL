@@ -24,7 +24,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
@@ -45,6 +44,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         OptimizedByteStringConstructionInStreamContent,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        StreamContentReadFromDiskDuration,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        StreamContentDuration,
     }
 
     /// <summary>
@@ -356,10 +363,22 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             _tracer,
                             () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{context.Host}].")
+                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{context.Host}], ReadTime=[{GetFileIODuration(result.Stream)}].",
+                            counter: Counters[GrpcContentServerCounters.StreamContentDuration])
                         .IgnoreFailure(); // The error was already logged.
                 }
             }
+        }
+
+        private string GetFileIODuration(Stream? resultStream)
+        {
+            if (resultStream is TrackingFileStream tfs)
+            {
+                Counters.AddToCounter(GrpcContentServerCounters.StreamContentReadFromDiskDuration, tfs.ReadDuration);
+                return $"{tfs.ReadDuration.TotalMilliseconds}ms";
+            }
+
+            return string.Empty;
         }
 
         /// <summary>
@@ -558,7 +577,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             return (chunks, bytes);
 
-            static async Task<int> readNextChunk(Stream input, byte[] buffer, CancellationToken token) { return await input.ReadAsync(buffer, 0, buffer.Length, token); }
+            static async Task<int> readNextChunk(Stream input, byte[] buffer, CancellationToken token)
+            {
+                var result = await input.ReadAsync(buffer, 0, buffer.Length, token);
+                return result;
+            }
         }
 
         private (ByteString result, bool bufferReused) CreateByteStringForStreamContent(byte[] buffer, int chunkSize)

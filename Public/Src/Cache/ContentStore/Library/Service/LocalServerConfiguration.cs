@@ -53,6 +53,7 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
         }
 
         /// <nodoc />
@@ -68,6 +69,7 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
             return this;
         }
 
@@ -88,6 +90,14 @@ namespace BuildXL.Cache.ContentStore.Service
         /// Gets or sets the time period between logging incremental stats
         /// </summary>
         public TimeSpan LogIncrementalStatsInterval { get; set; } = DefaultLogIncrementalStatsInterval;
+
+        /// <summary>
+        /// A list of counters that will be printed as part of incremental statistics.
+        /// </summary>
+        /// <remarks>
+        /// The name should just be the counter name itself, like 'RemoteCopyFile' and not 'DistributedContentCopier.DistributedContentCopierCounters.RemoteCopyFile'.
+        /// </remarks>
+        public string[] IncrementalStatsCounterNames { get; set; } = new string[0];
 
         /// <nodoc />
         public static TimeSpan DefaultLogMachineStatsInterval { get; } = TimeSpan.FromMinutes(1);

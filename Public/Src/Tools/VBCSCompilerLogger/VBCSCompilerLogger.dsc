@@ -15,6 +15,7 @@ namespace VBCSCompilerLogger {
         references:[
             ...MSBuild.msbuildReferences,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
+            importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,
@@ -43,6 +44,7 @@ namespace VBCSCompilerLogger {
             ...MSBuild.msbuildReferences,
             importFrom("Microsoft.CodeAnalysis.CSharp.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.Common.Old").pkg,
+            importFrom("Microsoft.CodeAnalysis.VisualBasic.Old").pkg,
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

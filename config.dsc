@@ -89,6 +89,7 @@ config({
                 { id: "Microsoft.NETCore.Compilers", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.5.0",
                     dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                     dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
@@ -98,6 +99,7 @@ config({
                 // Old code analysis libraries, for tests only
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0", alias: "Microsoft.CodeAnalysis.Common.Old" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
 
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.0.0" },

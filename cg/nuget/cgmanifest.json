@@ -1040,6 +1040,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.VisualBasic",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.VisualBasic",
+          "Version": "3.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Workspaces.Common",
           "Version": "3.5.0"
         }

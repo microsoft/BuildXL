@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.VisualBasic;
 
 namespace VBCSCompilerLogger
 {
@@ -63,10 +64,13 @@ namespace VBCSCompilerLogger
                 case LanguageNames.CSharp:
                     result = CSharpCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory);
                     break;
+                case LanguageNames.VisualBasic:
+                    result = VisualBasicCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory);
+                    break;
                 default:
                     throw new InvalidOperationException($"Unexpected language '{language}'");
             }
-
+            
             return result;
         }
 

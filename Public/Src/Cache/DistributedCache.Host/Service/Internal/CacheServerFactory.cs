@@ -299,10 +299,5 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             casConfig.Write(fileSystem, rootPath).GetAwaiter().GetResult();
         }
-
-        private static string GetRoot(AbsolutePath rootPath)
-        {
-            return Path.GetPathRoot(rootPath.Path);
-        }
     }
 }

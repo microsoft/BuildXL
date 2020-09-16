@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             var cacheSettingsByName = localCasSettings.CacheSettingsByCacheName;
 
             Dictionary<string, string> cacheNamesByDrive =
-                cacheSettingsByName.ToDictionary(x => Path.GetPathRoot(x.Value.CacheRootPath), x => x.Key, StringComparer.OrdinalIgnoreCase);
+                cacheSettingsByName.ToDictionary(x => new AbsolutePath(x.Value.CacheRootPath).GetPathRoot(), x => x.Key, StringComparer.OrdinalIgnoreCase);
 
             var result = new List<ResolvedNamedCacheSettings>();
 

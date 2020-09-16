@@ -186,8 +186,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             if (path != null)
             {
-                var drive = Path.GetPathRoot(path.Path);
-
+                var drive = path.GetPathRoot();
                 if (SessionsByCacheRoot.TryGetValue(drive, out var contentSession))
                 {
                     return (TCache)contentSession;
@@ -250,7 +249,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private IEnumerable<TSession> GetSessionsInOrder<TSession>(AbsolutePath path = null)
         {
-            var drive = path != null ? Path.GetPathRoot(path.Path) : Store.PreferredCacheDrive;
+            var drive = path != null ? path.GetPathRoot() : Store.PreferredCacheDrive;
+
+            if (!SessionsByCacheRoot.ContainsKey(drive))
+            {
+                drive = Store.PreferredCacheDrive;
+            }
 
             if (SessionsByCacheRoot[drive] is TSession session)
             {

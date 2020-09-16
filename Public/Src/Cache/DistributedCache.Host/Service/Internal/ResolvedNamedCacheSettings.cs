@@ -26,7 +26,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <summary>
         /// The drive root of the cache
         /// </summary>
-        public string Drive => Path.GetPathRoot(ResolvedCacheRootPath.Path);
+        public string Drive => ResolvedCacheRootPath.GetPathRoot();
 
         /// <summary>
         /// The specified settings for the cache

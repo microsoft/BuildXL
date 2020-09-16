@@ -60,7 +60,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // TODO: Should remove this, after measuring this doesn't happens.  If the drive layout doesn't match capability 
                 //       we'd rather fail.
                 AbsolutePath rootPath = @this.GetCacheRootPathWithScenario(kvp.Key);
-                string root = Path.GetPathRoot(rootPath.Path);
+                string root = rootPath.GetPathRoot();
 
                 if (!checkDriveExists(root))
                 {

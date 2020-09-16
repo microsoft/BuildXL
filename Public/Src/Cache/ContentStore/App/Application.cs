@@ -623,7 +623,7 @@ namespace BuildXL.Cache.ContentStore.App
                 cacheName: cacheName,
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
-            localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
+            localCasSettings.PreferredCacheDrive = new AbsolutePath(cacheRootPath).GetPathRoot();
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
                 grpcThreadPoolSize: null);
 

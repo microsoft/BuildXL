@@ -26,6 +26,27 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         public const string ValidUncRootPath = @"\\host\dir";
     }
 
+    public class AbsolutePathTests
+    {
+        [Fact]
+        [Trait("Category", "WindowsOSOnly")] 
+        public void TestGetPathRoot()
+        {
+            ExpectPathRoot(@"d:\test\file.txt", @"d:\");
+            ExpectPathRoot(@"\\?\d:\test\file.txt", @"d:\");
+            ExpectPathRoot(@"\\?\J:\test\file.txt", @"J:\");
+            ExpectPathRoot(@"\\?\J:\test\", @"J:\");
+            ExpectPathRoot(@"\\?\Z:\", @"Z:\");
+            ExpectPathRoot(@"L:\", @"L:\");
+        }
+
+        private void ExpectPathRoot(string path, string expectedRoot)
+        {
+            var absPath = new AbsolutePath(path);
+            Assert.Equal(absPath.GetPathRoot(), expectedRoot);
+        }
+    }
+
     public class AbsolutePathConstructorTests
     {
         [Fact]

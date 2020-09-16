@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.App
             _logger.Always("Flushing disk and waiting for it to settle...");
             try
             {
-                var driveRoot = Path.GetPathRoot(root);
+                var driveRoot = new AbsolutePath(root).GetPathRoot();
                 if (driveRoot != null)
                 {
                     _fileSystem.FlushVolume(driveRoot[0]);

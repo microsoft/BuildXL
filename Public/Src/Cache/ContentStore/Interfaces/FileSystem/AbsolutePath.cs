@@ -173,6 +173,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <summary>
+        /// Gets the root directory for the path (excluding any long path prefixes)
+        /// </summary>
+        public string GetPathRoot()
+        {
+            return System.IO.Path.GetPathRoot(GetPathWithoutLongPathPrefix())!;
+        }
+
+        /// <summary>
         /// Removes leading long path prefix from the <paramref name="path"/> if necessary.
         /// </summary>
         public static string RemoveLongPathPrefixIfNeeded(string path)

@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200914.5.2 (Release [78915](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=78915)).  Released 9/16/2020
+-	Enable full reparse point resolving in Detours
+-	Materialization daemon prep work
+-	Add plugin support
+-	Add file based service lifetime manager
+-	Support caching pips producing junctions as outputs
+-	Various bug fixes
+
 # 0.1.0-20200828.6.2 (Release [77557](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=77557)).  Released 9/02/2020
 - Scrub RestrictedTemp post build
 - Scrubber does not traverse directory junctions/symlinks anymore

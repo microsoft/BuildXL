@@ -759,7 +759,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 var smallFileResult = await ContentLocationStore.GetBlobAsync(operationContext, hashInfo.ContentHash);
 
-                if (smallFileResult.Succeeded && smallFileResult.Found && smallFileResult.Blob != null)
+                if (smallFileResult.Succeeded && smallFileResult.Blob != null)
                 {
                     using (var stream = new MemoryStream(smallFileResult.Blob))
                     {

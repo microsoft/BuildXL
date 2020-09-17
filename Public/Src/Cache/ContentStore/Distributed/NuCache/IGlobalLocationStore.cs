@@ -150,11 +150,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public ContentHash Hash { get; }
 
-        /// <summary>
-        /// True if the blob is found.
-        /// </summary>
-        public bool Found => Blob != null;
-
         /// <nodoc />
         public byte[]? Blob { get; }
 
@@ -191,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (Succeeded)
             {
-                return $"Hash=[{Hash.ToShortString()}], Found={Found}";
+                return $"Hash=[{Hash.ToShortString()}] Size=[{Blob?.Length ?? -1}]";
             }
 
             return base.ToString();

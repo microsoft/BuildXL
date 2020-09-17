@@ -53,9 +53,9 @@ namespace BuildXL.Engine.Cache.Artifacts
                 {
                     // Only query inner cache if there are hashes whose availabilty is unknown
                     var possibleBatchResult = await m_innerCache.TryLoadAvailableContentAsync(uniqueUnknownAvailabilityHashes);
-                    if (!possibleBatchResult.Succeeded || uniqueUnknownAvailabilityHashes == hashes)
+                    if (!possibleBatchResult.Succeeded)
                     {
-                        // If not successful or the hashes are the same as original hashes just return the result
+                        // If not successful just return the result
                         return possibleBatchResult;
                     }
 
@@ -72,6 +72,13 @@ namespace BuildXL.Engine.Cache.Artifacts
                             // Mark the hash as available for subsequent operations
                             m_availableContent.TryAdd(result.Hash, result.SourceCache);
                         }
+                    }
+
+                    if (uniqueUnknownAvailabilityHashes == hashes)
+                    {
+                        // If the hashes are the same as original hashes just return the result
+                        // now that availability map has been updated.
+                        return possibleBatchResult;
                     }
                 }
 

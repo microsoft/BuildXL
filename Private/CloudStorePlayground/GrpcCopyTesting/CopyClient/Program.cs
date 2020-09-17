@@ -2,6 +2,7 @@
 using Grpc.Core;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Threading.Tasks;
 using Helloworld;
 
@@ -11,32 +12,9 @@ namespace CopyClient
     {
         static void Main(string[] args)
         {
+            Console.WriteLine("Type push <path> to copy a file to the server.");
+            Console.WriteLine("Type pull <path> to copy a file from the server.");
             MainAsync(args).Wait();
-        }
-
-        private static MemoryStream Decompress (string file)
-        {
-            using (FileStream stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
-            {
-                using (GZipStream unzipper = new GZipStream(stream, CompressionMode.Decompress, true))
-                {
-                    MemoryStream output = new MemoryStream();
-                    unzipper.CopyTo(output);
-                    return output;
-                }
-            }
-        }
-
-        private static void Compress (MemoryStream input, string file)
-        {
-            using (FileStream stream = new FileStream(file, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
-            {
-                using (GZipStream zipper = new GZipStream(stream, System.IO.Compression.CompressionLevel.Fastest, true))
-                {
-                    input.CopyTo(zipper);
-                    zipper.Flush();
-                }
-            }
         }
 
         static async Task MainAsync (string[] args)
@@ -46,10 +24,35 @@ namespace CopyClient
 
             while (true)
             {
-                Console.WriteLine("Enter name:");
-                string name = Console.ReadLine();
+                try
+                {
+                    Console.Write("*");
+                    string command = Console.ReadLine();
+                    string[] arguments = command.Split(" ");
+                    if (arguments.Length != 2) continue;
+                    string name = arguments[1];
 
-                await client.Copy(name);              
+                    using (CancellationTokenSource cts = new CancellationTokenSource())
+                    {
+                        CopyResult result;
+                        switch (arguments[0])
+                        {
+                            case "push":
+                                result = await client.Write(name, cts.Token);
+                                break;
+                            case "pull":
+                                result = await client.Read(name, cts.Token);
+                                break;
+                            default:
+                                continue;
+                        }
+                         Console.WriteLine(result);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
             }
         }
     }

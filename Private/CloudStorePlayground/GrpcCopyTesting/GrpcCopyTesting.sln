@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27428.2043
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30406.217
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtoGen", "ProtoGen\ProtoGen.csproj", "{CD24884E-A343-46A1-A66E-CFAE7301DA15}"
 EndProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopyShared", "CopyShared\CopyShared.csproj", "{C993E344-CE57-44E7-95F9-56433486674A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{4840A1F1-0F9A-4B1B-951D-5FB3CF0186C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4840A1F1-0F9A-4B1B-951D-5FB3CF0186C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4840A1F1-0F9A-4B1B-951D-5FB3CF0186C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C993E344-CE57-44E7-95F9-56433486674A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C993E344-CE57-44E7-95F9-56433486674A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C993E344-CE57-44E7-95F9-56433486674A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C993E344-CE57-44E7-95F9-56433486674A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

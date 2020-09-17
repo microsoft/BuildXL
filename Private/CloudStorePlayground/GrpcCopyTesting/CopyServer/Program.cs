@@ -8,7 +8,16 @@ namespace CopyServer
     {
         static void Main(string[] args)
         {
-            CopierImplementation implementation = new CopierImplementation();
+            CopierImplementation implementation;
+            if (args.Length > 0 && !String.IsNullOrEmpty(args[0]))
+            {
+                CopierImplementationMode mode = Enum.Parse<CopierImplementationMode>(args[0]);
+                implementation = new CopierImplementation(mode);
+            }
+            else
+            {
+                implementation = new CopierImplementation();
+            }
 
             ChannelOption[] options = new ChannelOption[] {  };
             Server server = new Server(options)

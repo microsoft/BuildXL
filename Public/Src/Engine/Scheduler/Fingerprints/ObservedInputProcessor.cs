@@ -401,7 +401,12 @@ namespace BuildXL.Scheduler.Fingerprints
                             Possible<PathExistence> maybeType;
                             using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorTryProbeForExistenceDuration, fakeArtifact))
                             {
-                                maybeType = environment.TryProbeAndTrackForExistence(path, pip, isReadOnly: observationsUnderSourceSealDirectories.Contains(i), trackPathExistence: trackFileChanges);
+                                maybeType = environment.TryProbeAndTrackForExistence(
+                                    path,
+                                    pip,
+                                    observationFlags,
+                                    isReadOnly: observationsUnderSourceSealDirectories.Contains(i),
+                                    trackPathExistence: trackFileChanges);
                             }
 
                             if (!maybeType.Succeeded)
@@ -1230,7 +1235,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Probes a path for existence
         /// </summary>
-        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence);
+        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence);
 
         /// <summary>
         /// Gets the fingerprint of a directory
@@ -1656,7 +1661,7 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pooledPipFileSystem?.Dispose();
         }
 
-        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence = true)
+        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = true)
         {
             // ****************** CAUTION *********************
             // The logic below is replicated conservatively in IncrementalSchedulingState.ProcessNewlyPresentPath.
@@ -1716,14 +1721,34 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
                 else
                 {
+                    Contract.Assert(fullGraphExistExistence.Result == PathExistence.Nonexistent);
+
+                    if (m_env.Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque &&
+                        (flags & ObservationFlags.Enumeration) == 0 &&
+                        (flags & ObservationFlags.DirectoryLocation) != 0 &&
+                        (flags & ObservationFlags.FileProbe) != 0 &&
+                        IsPathUnderOutputDirectory(path))
+                    {
+                        // If a non-existent directory is probed without an enumeration under an opaque (i.e. output) directory,
+                        // we allow it to exist as directory.
+                        // Here is a reason why we do this: we have two pips without any execution ordering between two.
+                        // Pip1 probes a directory: "opaque/childDir".
+                        // Pip2 produces a file under that directory: "opaque/childDir/output.txt".
+                        // If Pip1 executes before Pip2, then Pip1 has an AbsentPathProbe for probing "opaque/childDir".
+                        // In the next run, if Pip2 executes before Pip1, Pip1 has an ExistingDirectoryProbe for "opaque/childDir",
+                        // so it will get a miss because the parent directories of outputs are added to Output/Graph file system after Pip2 is executed.
+                        // To avoid such cache misses, we treat absent directories as existent only for probing without enumeration.
+                        Counters.IncrementCounter(PipExecutorCounter.NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe);
+                        return PathExistence.ExistsAsDirectory;
+                    }
+
                     // Generally speaking, if the full graph file system doesn't know about a given directory, that means there are no known inputs
                     // underneath and it is safe to return that the directory does not exist: this makes the pip fingerprint stable across changes in directories
                     // that pips are not allowed to read anyway. However, when undeclared source reads mode is on, we need to return what the real file system
                     // is seeing since there might be undeclared inputs underneath
                     // Observe this behavior is in sync wrt incremental scheduling: in case of undeclared reads, we are only returning that the directory exists when
                     // it actually exists in the real filesystem
-                    Contract.Assert(fullGraphExistExistence.Result == PathExistence.Nonexistent);
-                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads? existence : PathExistence.Nonexistent;
+                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads ? existence : PathExistence.Nonexistent;
                 }
             }
 

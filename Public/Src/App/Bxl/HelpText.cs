@@ -829,6 +829,12 @@ namespace BuildXL
                 "/vmConcurrencyLimit:<max number of processes executed in VM>",
                 Strings.HelpText_DisplayHelp_VmConcurrencyLimit,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/treatAbsentDirectoryAsExistentUnderOpaque[+|-]",
+                Strings.HelpText_DisplayHelp_TreatAbsentDirectoryAsExistentUnderOpaque,
+                HelpLevel.Verbose);
+
             #endregion
 
             hw.WriteBanner(

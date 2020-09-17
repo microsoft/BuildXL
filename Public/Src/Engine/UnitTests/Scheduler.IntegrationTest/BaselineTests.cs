@@ -677,6 +677,60 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        [Feature(Features.DirectoryProbe)]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // we currently cannot simulate directory probes for macOS.
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ValidateTreatAbsentDirectoryAsExistentUnderOpaque(bool disableTreatAbsentDirectoryAsExistentUnderOpaque)
+        {
+            if (disableTreatAbsentDirectoryAsExistentUnderOpaque)
+            {
+                // Only set it in case of disableTreatAbsentDirectoryAsExistentUnderOpaque, 
+                // so that we can also test the default behavior.
+                Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque = false;
+            }
+
+            // Pip1 probes a directory: "opaque/childDir".
+            // Pip2 produces a file under a regular or shared opaque directory probe: "opaque/childDir/output".
+            // If Pip1 executes before Pip2, then Pip1 has an AbsentPathProbe for probing "opaque/childDir. 
+            // In the next run, if Pip2 executes before Pip1, Pip1 has an ExistingDirectoryProbe for "opaque/childDir", 
+            // so it will get a miss because the parent directories of outputs are added to Output / Graph file system after Pip2 is executed.
+
+            // Incremental scheduling does not seem compatible with constraintExecutionOrder feature
+            Configuration.Schedule.IncrementalScheduling = false;
+
+            string opaqueDir = Path.Combine(ObjectRoot, "opaqueDir");
+            var dirUnderOpaque = CreateOutputDirectoryArtifact(opaqueDir);
+
+            Process pip1 = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.DirProbe(dirUnderOpaque),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(dirUnderOpaque), doNotInfer: true)
+            });
+
+            builder.AddOutputDirectory(AbsolutePath.Create(Context.PathTable, opaqueDir), kind: SealDirectoryKind.Opaque);
+            var pip2 = SchedulePipBuilder(builder).Process;
+
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip1, pip2) }).AssertCacheMiss(pip1.PipId);
+
+            var secondRunResult = RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip2, pip1) });
+            if (Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque)
+            {
+                secondRunResult.AssertCacheHit(pip1.PipId, pip2.PipId);
+            }
+            else
+            {
+                // If pip2 executes before pip1, then dirUnderOpaque probe would be ExistingDirectoryProbe
+                // instead of AbsentPathProbe. It would result in a cache miss.
+                secondRunResult.AssertCacheMiss(pip1.PipId);
+            }
+        }
+
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Theory]

@@ -1007,6 +1007,9 @@ namespace BuildXL
                             "translateDirectory",
                             opt => ParseTranslateDirectoriesOption(pathTable, opt, engineConfiguration.DirectoriesToTranslate)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "treatAbsentDirectoryAsExistentUnderOpaque",
+                            sign => schedulingConfiguration.TreatAbsentDirectoryAsExistentUnderOpaque = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "treatDirectoryAsAbsentFileOnHashingInputContent",
                             sign => schedulingConfiguration.TreatDirectoryAsAbsentFileOnHashingInputContent = sign),
                         OptionHandlerFactory.CreateBoolOption(

@@ -134,6 +134,11 @@ namespace Test.BuildXL.Executables.TestProcess
             Probe,
 
             /// <summary>
+            /// Type for probing a dir
+            /// </summary>
+            DirectoryProbe,
+
+            /// <summary>
             /// Type for enumerating a directory
             /// </summary>
             EnumerateDir,
@@ -430,6 +435,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.Probe:
                         DoProbe();
                         return;
+                    case Type.DirectoryProbe:
+                        DoDirProbe();
+                        return;
                     case Type.EnumerateDir:
                         DoEnumerateDir();
                         return;
@@ -664,6 +672,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Probe(FileOrDirectoryArtifact path, bool doNotInfer = false)
         {
             return new Operation(Type.Probe, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates a probe operation
+        /// </summary>
+        public static Operation DirProbe(FileOrDirectoryArtifact path)
+        {
+            return new Operation(Type.DirectoryProbe, path, doNotInfer: false);
         }
 
         /// <summary>
@@ -1148,6 +1164,12 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoProbe()
         {
             File.Exists(PathAsString);
+        }
+
+        private void DoDirProbe()
+        {
+            // Trailing backslash is needed for BuildXL to interpret it as a directory probe.
+            Directory.Exists(PathAsString + (OperatingSystemHelper.IsUnixOS ? "/" : @"\"));
         }
 
         private void DoEnumerateDir()

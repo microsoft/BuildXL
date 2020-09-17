@@ -1260,6 +1260,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         VmExecutionRetriesCount,
 
+        /// <summary>
+        /// Number of times non-existent directory probes for paths under opaque directories
+        /// re-classified as existing directory probes.
+        /// </summary>
+        NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe
     }
 
     /// <summary>

@@ -808,7 +808,7 @@ namespace Test.BuildXL.Scheduler
                     return m_harness.m_sealedSourceDirectories.TryGetValue(directoryArtifact, out allDirectories);
                 }
 
-                public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence = false)
+                public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = false)
                 {
                     return m_harness.m_virtualFileSystem.TryProbeForExistence(path);
                 }

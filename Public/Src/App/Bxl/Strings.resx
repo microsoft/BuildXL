@@ -1066,4 +1066,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_PluginPaths" xml:space="preserve">
     <value>Specify a list of plugin paths that be loaded -  each path is seperated by ";'. Defaults to empty list</value>
   </data>
+  <data name="HelpText_DisplayHelp_TreatAbsentDirectoryAsExistentUnderOpaque" xml:space="preserve">
+    <value>Treats absent directory as existent when it is probed and the path is under an opaque directory. Defaults to true. </value>
+  </data>
 </root>

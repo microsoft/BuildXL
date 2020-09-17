@@ -83,6 +83,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxRetriesDueToRetryableFailures = 5;
 
             PluginLocations = new List<AbsolutePath>();
+            TreatAbsentDirectoryAsExistentUnderOpaque = true;
         }
 
         /// <nodoc />
@@ -161,6 +162,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ManageMemoryMode = template.ManageMemoryMode;
             EnablePlugin = template.EnablePlugin;
             PluginLocations = pathRemapper.Remap(template.PluginLocations);
+            TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
         }
 
         /// <inheritdoc />
@@ -389,11 +391,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? EnablePlugin { get; set; }
+
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public List<AbsolutePath> PluginLocations { get; set; }
 
         /// <inheritdoc />
         IReadOnlyList<AbsolutePath> IScheduleConfiguration.PluginLocations => PluginLocations;
+
+        /// <inheritdoc />
+        public bool TreatAbsentDirectoryAsExistentUnderOpaque { get; set; }
     }
 }

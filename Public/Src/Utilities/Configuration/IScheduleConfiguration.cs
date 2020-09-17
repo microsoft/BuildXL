@@ -399,5 +399,10 @@ namespace BuildXL.Utilities.Configuration
         /// Paths to load plugins
         /// </summary>
         IReadOnlyList<AbsolutePath> PluginLocations { get; }
+
+        /// <summary>
+        /// Treats absent directory as existent when it is probed and the path is under an opaque directory
+        /// </summary>
+        bool TreatAbsentDirectoryAsExistentUnderOpaque { get; }
     }
 }

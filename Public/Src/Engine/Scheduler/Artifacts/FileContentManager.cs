@@ -1922,9 +1922,6 @@ namespace BuildXL.Scheduler.Artifacts
                         state.PlacementTasks.Add(Task.Run(
                             async () =>
                             {
-                                // Wait for the prior version of the file artifact to finish materialization
-                                await materializationFile.PriorArtifactVersionCompletion;
-
                                 if (Context.CancellationToken.IsCancellationRequested)
                                 {
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
@@ -2029,6 +2026,9 @@ namespace BuildXL.Scheduler.Artifacts
                     var possiblyPlaced = new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure());
                     return WithLineInfo(possiblyPlaced);
                 }
+
+                // Wait for the prior version of the file artifact to finish materialization
+                await materializationFile.PriorArtifactVersionCompletion;
                 
                 if (m_host.CanMaterializeFile(file))
                 {

@@ -694,10 +694,10 @@ namespace Tool.DropDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}"));
             }
 
-            (Regex[] initializedFilters, string filterInitError) = InitializeFilters(directoryFilters);
-            if (filterInitError != null)
+            var possibleFilters = InitializeFilters(directoryFilters);
+            if (!possibleFilters.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
             }
 
             var dropFileItemsKeyedByIsAbsent = Enumerable
@@ -724,7 +724,7 @@ namespace Tool.DropDaemon
                 directoryPaths,
                 directoryIds,
                 directoryDropPaths,
-                initializedFilters);
+                possibleFilters.Result);
 
             if (error != null)
             {

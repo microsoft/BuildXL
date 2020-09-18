@@ -23,6 +23,8 @@ export const runner: MaterializationRunner = {
     },
     
     loadManifestsAndMaterializeFiles: registerManifest,
+
+    materializeOutputDirectories: materializeDirectories,
 };
 
 function startService(args: CombinedArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName: string): ServiceStartResult {
@@ -86,6 +88,44 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
             lazilyMaterializedDependencies: [
                 // Current contract is that input SODs contain only manifest files.
                 // To be extra safe, we are not going to materialize anything, and let the daemon be in charge of manifest materialization.
+                ...directories.map(d => d.directory),
+            ],
+            // The daemon is about materialization on the orchestrator machine, so naturually, all the IPC pips run there.
+            mustRunOnMaster: true
+        })
+    );
+}
+
+function materializeDirectories(startResult: ServiceStartResult, args : ConnectionArguments, directories: FilteredOpaqueDirectory[]): Result {
+    Contract.requires(
+        startResult !== undefined,
+        "result of starting the daemon must be provided"
+    );
+
+    const directoryMessageBody = directories.length !== 0
+    ? [
+        Cmd.options("--directory ", directories.map(dir => Artifact.input(dir.directory))),
+        Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir.directory))),
+        Cmd.options("--directoryFilter ", directories.map(dir => (dir.contentFilter && dir.contentFilter.regex) || ".*")),
+        Cmd.options("--directoryFilterKind ", directories.map(dir => (dir.contentFilter && dir.contentFilter.kind) || "Include")),
+      ]
+    : [];
+
+    const combinedArgs = args.merge<CombinedArguments>({
+        ipcServerMoniker: Transformer.getIpcServerMoniker(),
+    });
+
+    return executeDaemonCommand(
+        startResult,
+        "materializeDirectories",
+        combinedArgs,
+        ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
+            messageBody: [
+                ...directoryMessageBody,
+            ],
+            lazilyMaterializedDependencies: [
+                // We might not need all the content of the idrectories, so don't materialize anything on the engine side
+                // and let the daemon be in charge of materialization.
                 ...directories.map(d => d.directory),
             ],
             // The daemon is about materialization on the orchestrator machine, so naturually, all the IPC pips run there.
@@ -196,7 +236,7 @@ function applyDefaults(args: ServiceStartArguments): ServiceStartArguments {
         timeoutInMilliseconds: 5 * 60 * 60 * 1000,
         warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,
 
-        maxDegreeOfParallelism: 10,
+        maxDegreeOfParallelism: 100,
         forwardEnvironmentVars: ["_NTTREE"]
     };
 

@@ -53,7 +53,7 @@ namespace Tool.MaterializationDaemon
         {
             ShortName = "mdp",
             HelpText = "Maximum number of files to materialize concurrently",
-            IsRequired = false,
+            IsRequired = true,
             DefaultValue = MaterializationDaemonConfig.DefaultMaxDegreeOfParallelism,
         });
 
@@ -78,7 +78,16 @@ namespace Tool.MaterializationDaemon
             ShortName = "dcf",
             HelpText = "Directory content filter (only files that match the filter are considered to be manifest files).",
             DefaultValue = null,
-            IsRequired = false,
+            IsRequired = true,
+            IsMultiValue = true,
+        });
+
+        internal static readonly StrOption DirectoryContentFilterKind = RegisterMaterializationConfigOption(new StrOption("directoryFilterKind")
+        {
+            ShortName = "dcfk",
+            HelpText = "Directory content filter kind (i.e., include/exclude).",
+            DefaultValue = null,
+            IsRequired = true,
             IsMultiValue = true,
         });
 
@@ -101,7 +110,7 @@ namespace Tool.MaterializationDaemon
         internal static readonly Command StartCmd = RegisterCommand(
             name: "start",
             description: "Starts the server process.",
-            options: MaterializationConfigOptions.Union(new[] { IpcServerMonikerOptional }),
+            options: new Option[] { IpcServerMonikerOptional, MaxDegreeOfParallelism, ManifestParserExeLocation, ManifestParserAdditionalArgs },
             needsIpcClient: false,
             clientAction: (conf, _) =>
             {
@@ -144,7 +153,7 @@ namespace Tool.MaterializationDaemon
                return result;
            });
 
-        internal static readonly Command FinalizeDropCmd = RegisterCommand(
+        internal static readonly Command FinalizeCmd = RegisterCommand(
             name: "finalize",
             description: "Logs final file materialization statuses",
             clientAction: SyncRPCSend,
@@ -155,6 +164,20 @@ namespace Tool.MaterializationDaemon
                 materializationDaemon.LogMaterializationStatuses();
                 materializationDaemon.Logger.Verbose("[FINALIZE] Finished");
                 return Task.FromResult(IpcResult.Success());
+            });
+
+        internal static readonly Command MaterializeDirectoriesCmd = RegisterCommand(
+            name: "materializeDirectories",
+            description: "Materializes content of given output directories",
+            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, DirectoryContentFilter, DirectoryContentFilterKind },
+            clientAction: SyncRPCSend,
+            serverAction: async (conf, daemon) =>
+            {
+                var materializationDaemon = daemon as MaterializationDaemon;
+                materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] Started");
+                var result = await materializationDaemon.MaterializeDirectoriesAsync(conf);
+                materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] " + result);
+                return result;
             });
 
         #endregion
@@ -232,18 +255,20 @@ namespace Tool.MaterializationDaemon
                 return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
             }
 
-            (Regex[] initializedFilters, string filterInitError) = InitializeFilters(directoryFilters);
-            if (filterInitError != null)
+            var possibleFilters = InitializeFilters(directoryFilters);
+            if (!possibleFilters.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
             }
 
-            (List<SealedDirectoryFile> manifestFiles, string error) = await CollectManifestFilesAsync(directoryPaths, directoryIds, initializedFilters);
-            if (error != null)
+            var initializedFilters = possibleFilters.Result;
+            var possibleManifestFiles = await GetUniqueFilteredDirectoryContentAsync(directoryPaths, directoryIds, initializedFilters);
+            if (!possibleManifestFiles.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, error);
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleManifestFiles.Failure.Describe());
             }
 
+            var manifestFiles = possibleManifestFiles.Result;
             List<string> filesToMaterialize = null;
             try
             {
@@ -255,13 +280,13 @@ namespace Tool.MaterializationDaemon
                         await MaterializeFileAsync(manifest.Artifact, manifest.FileName, ignoreMaterializationFailures: false);
                     });
 
-                (List<string> files, string parsingError) = await ParseManifestFilesAsync(manifestFiles);
-                if (parsingError != null)
+                var possibleFiles = await ParseManifestFilesAsync(manifestFiles);
+                if (!possibleFiles.Succeeded)
                 {
-                    return new IpcResult(IpcResultStatus.ExecutionError, parsingError);
+                    return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
                 }
 
-                filesToMaterialize = files;
+                filesToMaterialize = possibleFiles.Result;
 
                 await m_actionQueue.ForEachAsync(
                     filesToMaterialize,
@@ -284,35 +309,110 @@ namespace Tool.MaterializationDaemon
                     e.ToStringDemystified());
             }
 
+            // Note: we are not claiming here that all the files in filesToMaterialize were materialized cause we are ignoring materialization failures.
+            // The real materialization status will be logged during execution of the Finalize command.
             return IpcResult.Success(
-                $"Materialized files ({filesToMaterialize.Count}):{Environment.NewLine}{string.Join(Environment.NewLine, filesToMaterialize)}");
+                $"Processed paths ({filesToMaterialize.Count}):{Environment.NewLine}{string.Join(Environment.NewLine, filesToMaterialize)}");
         }
 
-        private async Task<(List<SealedDirectoryFile>, string error)> CollectManifestFilesAsync(string[] directoryPaths, string[] directoryIds, Regex[] contentFilters)
+        private async Task<IIpcResult> MaterializeDirectoriesAsync(ConfiguredCommand conf)
         {
-            var extractManifestsTasks = Enumerable
-                .Range(0, directoryPaths.Length)
-                .Select(i => GetManifestsFromDirectoryAsync(directoryPaths[i], directoryIds[i], contentFilters[i])).ToArray();
+            var directoryPaths = Directory.GetValues(conf.Config).ToArray();
+            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
+            var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
+            var directoryFilterKinds = DirectoryContentFilterKind.GetValues(conf.Config).ToArray();
 
-            var extractManifestsResults = await TaskUtilities.SafeWhenAll(extractManifestsTasks);
-            if (extractManifestsResults.Any(r => r.error != null))
+            if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryFilters.Length || directoryPaths.Length != directoryFilterKinds.Length)
             {
-                return (null, string.Join("; ", extractManifestsResults.Where(r => r.error != null).Select(r => r.error)));
+                return new IpcResult(
+                    IpcResultStatus.InvalidInput,
+                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #directoryFilters = {directoryFilters.Length}, #directoryFilterKinds = {directoryFilterKinds.Length}"));
             }
 
-            return (extractManifestsResults.SelectMany(r => r.Item1).ToList(), null);
+            if (ApiClient == null)
+            {
+                return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
+            }
+
+            var possibleFilters = InitializeFilters(directoryFilters);
+            if (!possibleFilters.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
+            }
+
+            var possibleFilterKinds = ParseFilterKinds(directoryFilterKinds);
+            if (!possibleFilterKinds.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, possibleFilterKinds.Failure.Describe());
+            }
+
+            var initializedFilters = possibleFilters.Result;
+            var filterKinds = possibleFilterKinds.Result;
+            var possibleFiles = await GetUniqueFilteredDirectoryContentAsync(directoryPaths, directoryIds, initializedFilters, filterKinds);
+            if (!possibleFiles.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
+            }
+
+            var filesToMaterialize = possibleFiles.Result;
+            try
+            {
+                await m_actionQueue.ForEachAsync(
+                   filesToMaterialize,
+                   async (file, i) =>
+                   {
+                       await MaterializeFileAsync(file.Artifact, file.FileName, ignoreMaterializationFailures: false);
+                   });
+            }
+            catch (Exception e)
+            {
+                return new IpcResult(
+                   IpcResultStatus.GenericError,
+                   e.ToStringDemystified());
+            }
+
+            return IpcResult.Success(
+                $"Materialized files ({filesToMaterialize.Count}):{Environment.NewLine}{string.Join(Environment.NewLine, filesToMaterialize.Select(f => f.FileName))}");
         }
 
-        private async Task<(List<SealedDirectoryFile>, string error)> GetManifestsFromDirectoryAsync(
+        /// <summary>
+        /// Collects filtered content of all directories and dedupes the list before returning it.
+        /// </summary>
+        private async Task<Possible<List<SealedDirectoryFile>>> GetUniqueFilteredDirectoryContentAsync(
+            string[] directoryPaths,
+            string[] directoryIds,
+            Regex[] contentFilters,
+            FilterKind[] filterKinds = null)
+        {
+            // TODO: add counter to measure the time spent getting dir content
+            var getContentTasks = Enumerable
+                .Range(0, directoryPaths.Length)
+                .Select(i => GetDirectoryContentAndApplyFilterAsync(directoryPaths[i], directoryIds[i], contentFilters[i], filterKinds?[i] ?? FilterKind.Include)).ToArray();
+
+            var getContentResults = await TaskUtilities.SafeWhenAll(getContentTasks);
+            if (getContentResults.Any(r => !r.Succeeded))
+            {
+                return new Failure<string>(string.Join("; ", getContentResults.Where(r => !r.Succeeded).Select(r => r.Failure.Describe())));
+            }
+
+            // dedupe collected files using file artifact as a key
+            var dedupedFiles = getContentResults.SelectMany(res => res.Result).GroupBy(file => file.Artifact).Select(group => group.First());
+
+            return dedupedFiles.ToList();
+        }
+
+        private async Task<Possible<List<SealedDirectoryFile>>> GetDirectoryContentAndApplyFilterAsync(
             string directoryPath,
             string directoryId,
-            Regex contentFilter)
+            Regex contentFilter,
+            FilterKind filterKind)
         {
             var directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryId);
+            // TODO: Consider doing filtering on the engine side
             var possibleContent = await ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
             if (!possibleContent.Succeeded)
             {
-                return (null, I($"Failed to get the content of a directory artifact ({directoryId}, {directoryPath}){Environment.NewLine}{possibleContent.Failure.Describe()}"));
+                return new Failure<string>(I($"Failed to get the content of a directory artifact ({directoryId}, {directoryPath}){Environment.NewLine}{possibleContent.Failure.Describe()}"));
             }
 
             var content = possibleContent.Result;
@@ -320,15 +420,16 @@ namespace Tool.MaterializationDaemon
 
             if (contentFilter != null)
             {
-                var filteredContent = content.Where(file => contentFilter.IsMatch(file.FileName)).ToList();
-                Logger.Verbose("[dirId='{0}'] Filter '{1}' excluded {2} file(s) out of {3}", directoryId, contentFilter, content.Count - filteredContent.Count, content.Count);
+                var isIncludeFilter = filterKind == FilterKind.Include;
+                var filteredContent = content.Where(file => contentFilter.IsMatch(file.FileName) == isIncludeFilter).ToList();
+                Logger.Verbose("[dirId='{0}'] Filter ('{1}', {4}) excluded {2} file(s) out of {3}", directoryId, contentFilter, content.Count - filteredContent.Count, content.Count, filterKind);
                 content = filteredContent;
             }
 
-            return (content, null);
+            return content;
         }
 
-        private async Task<(List<string>, string error)> ParseManifestFilesAsync(List<SealedDirectoryFile> manifestFiles)
+        private async Task<Possible<List<string>>> ParseManifestFilesAsync(List<SealedDirectoryFile> manifestFiles)
         {
             var parseManifestTasks = Enumerable
                 .Range(0, manifestFiles.Count)
@@ -338,16 +439,16 @@ namespace Tool.MaterializationDaemon
                     : ParseManifestFileUsingInternaParser(manifestFiles[i].FileName))
                 .ToArray();
 
-            var parseManifestResults = await TaskUtilities.SafeWhenAll(parseManifestTasks);
-            if (parseManifestResults.Any(r => r.error != null))
+            var possibleParseManifestResults = await TaskUtilities.SafeWhenAll(parseManifestTasks);
+            if (possibleParseManifestResults.Any(res => !res.Succeeded))
             {
-                return (null, string.Join("; ", parseManifestResults.Where(r => r.error != null).Select(r => r.error)));
+                return new Failure<string>(string.Join("; ", possibleParseManifestResults.Where(res => !res.Succeeded).Select(r => r.Failure.Describe())));
             }
 
-            return (parseManifestResults.SelectMany(r => r.Item1).ToList(), null);
+            return possibleParseManifestResults.SelectMany(r => r.Result).ToList();
         }
 
-        private async Task<(List<string>, string error)> ParseManifestFileUsingExtenalParserAsync(string manifestFilePath)
+        private async Task<Possible<List<string>>> ParseManifestFileUsingExtenalParserAsync(string manifestFilePath)
         {
             var process = CreateParserProcess(manifestFilePath);
 
@@ -372,31 +473,31 @@ namespace Tool.MaterializationDaemon
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
                             var stdErr = $"{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
-                            return (null, $"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
+                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
                         }
 
                         if (!int.TryParse(result[0], out var expectedCount))
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
-                            return (null, $"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Failed to parse tool output {stdOut}");
+                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Failed to parse tool output {stdOut}");
                         }
 
                         if (expectedCount != result.Count - 1)
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
-                            return (null, $"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Output line count does not match the expected count {stdOut}");
+                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Output line count does not match the expected count {stdOut}");
                         }
 
                         result.RemoveAt(0);
                         Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, result)}");
 
-                        return (result, null);
+                        return result;
                     }
                 }
             }
             catch (Exception e)
             {
-                return (null, e.DemystifyToString());
+                return new Failure<string>(e.DemystifyToString());
             }
         }
 
@@ -418,7 +519,7 @@ namespace Tool.MaterializationDaemon
             };
         }
 
-        private Task<(List<string>, string error)> ParseManifestFileUsingInternaParser(string manifestFilePath)
+        private Task<Possible<List<string>>> ParseManifestFileUsingInternaParser(string manifestFilePath)
         {
             try
             {
@@ -426,11 +527,11 @@ namespace Tool.MaterializationDaemon
                 var files = parser.ExtractFiles();
                 Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, files)}");
 
-                return Task.FromResult<(List<string>, string error)>((files, null));
+                return Task.FromResult<Possible<List<string>>>(files);
             }
             catch (Exception e)
             {
-                return Task.FromResult<(List<string>, string error)>((null, e.DemystifyToString()));
+                return Task.FromResult<Possible<List<string>>>(new Failure<string>(e.DemystifyToString()));
             }
         }
 
@@ -492,6 +593,29 @@ namespace Tool.MaterializationDaemon
                     Environment.NewLine,
                     string.Join(Environment.NewLine, failedPaths));
             }
+        }
+
+        private Possible<FilterKind[]> ParseFilterKinds(string[] filterKinds)
+        {
+            var res = new FilterKind[filterKinds.Length];
+            for (int i = 0; i < filterKinds.Length; i++)
+            {
+                if (!Enum.TryParse(filterKinds[i], out FilterKind parsedValue))
+                {
+                    return new Failure<string>(I($"Failed to convert '{filterKinds[i]}' into a FilterKind value."));
+                }
+
+                res[i] = parsedValue;
+            }
+
+            return res;
+        }
+
+        private enum FilterKind : byte
+        {
+            Include,
+
+            Exclude
         }
     }
 }

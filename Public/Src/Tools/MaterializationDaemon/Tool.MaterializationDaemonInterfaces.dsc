@@ -94,13 +94,42 @@ export interface ManifestFileDirectory {
 }
 
 /**
+ * Filter definition for an output directory.
+ */
+@@public
+export interface OpaqueDirectoryContentFilter {
+    /** Whether this is an include or exclude filter. */
+    kind : "Include" | "Exclude",
+
+    /** A regular expression defining the files to be included/excluded. */
+    regex : string,
+}
+
+/**
+ * An output directory with an optional content filter.
+ */
+@@public
+export interface FilteredOpaqueDirectory {
+    /** Directory. */
+    directory: OpaqueDirectory;
+
+    /** Optional filter that restricts directory content. */
+    contentFilter?: OpaqueDirectoryContentFilter;
+}
+
+/**
  * Operations provided by a runner.
  */
 @@public
 export interface MaterializationRunner {
+    /** Start the daemon process. */
     startDaemon: (args: ServiceStartArguments) => ServiceStartResult;
 
-    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]) => Result; 
+    /** Finds manifest files in given directories and materializes the files they reference. */
+    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]) => Result;
+
+    /** Materializes given directory artifacts. */
+    materializeOutputDirectories: (startResult: ServiceStartResult, args: ConnectionArguments, directories: FilteredOpaqueDirectory[]) => Result;
 }
 
 /**

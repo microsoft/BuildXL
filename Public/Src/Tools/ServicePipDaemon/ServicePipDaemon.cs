@@ -611,7 +611,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Takes a list of strings and returns a initialized regular expressions
         /// </summary>
-        protected static (Regex[], string error) InitializeFilters(string[] filters)
+        protected static Possible<Regex[]> InitializeFilters(string[] filters)
         {
             try
             {
@@ -620,11 +620,11 @@ namespace Tool.ServicePipDaemon
                         ? null
                         : new Regex(filter, RegexOptions.IgnoreCase));
 
-                return (initializedFilters.ToArray(), null);
+                return initializedFilters.ToArray();
             }
             catch (Exception e)
             {
-                return (null, e.ToString());
+                return new Failure<string>(e.DemystifyToString());
             }
         }
     }

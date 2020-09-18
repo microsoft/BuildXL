@@ -50,6 +50,11 @@ namespace BuildXL.Cache.Host.Service.Internal
         public StartupShutdownBase Create()
         {
             var cacheConfig = _arguments.Configuration;
+            if (TryCreateLauncherIfSpecified(cacheConfig, out var launcher))
+            {
+                return launcher;
+            }
+
             cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
 
             var distributedSettings = cacheConfig.DistributedContentSettings;
@@ -81,6 +86,31 @@ namespace BuildXL.Cache.Host.Service.Internal
             else
             {
                 return CreateDistributedServer(localServerConfiguration, distributedSettings);
+            }
+        }
+
+        private bool TryCreateLauncherIfSpecified(DistributedCacheServiceConfiguration cacheConfig, out DeploymentLauncher launcher)
+        {
+            var launcherSettings = cacheConfig.DistributedContentSettings.LauncherSettings;
+            if (launcherSettings != null)
+            {
+                var deploymentParams = launcherSettings.DeploymentParameters;
+                deploymentParams.Stamp ??= _arguments.TelemetryFieldsProvider?.Stamp;
+                deploymentParams.Machine ??= Environment.MachineName;
+                deploymentParams.MachineFunction ??= _arguments.TelemetryFieldsProvider?.APMachineFunction;
+                deploymentParams.Ring ??= _arguments.TelemetryFieldsProvider?.Ring;
+
+                deploymentParams.AuthorizationSecret ??= _arguments.Host.GetPlainSecretAsync(deploymentParams.AuthorizationSecretName, _arguments.Cancellation).GetAwaiter().GetResult();
+
+                launcher = new DeploymentLauncher(
+                    launcherSettings,
+                    _fileSystem);
+                return true;
+            }
+            else
+            {
+                launcher = null;
+                return false;
             }
         }
 

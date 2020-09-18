@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,34 +21,68 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// The directory in which signal files are stored
         /// </summary>
-        private AbsolutePath Root { get; }
+        private AbsolutePath SignalFileRoot { get; }
 
         /// <summary>
         /// The interval at which signal files are polled
         /// </summary>
         private TimeSpan PollingInterval { get; }
 
+        private const string SignalFileRootVariableName = "ServiceLifetimeManager.SignalFileRoot";
+        private const string ServiceIdVariableName = "ServiceLifetimeManager.ServiceId";
+        private const string PollingIntervalVariableName = "ServiceLifetimeManager.PollingIntervalMs";
+
         /// <nodoc />
         public ServiceLifetimeManager(AbsolutePath root, TimeSpan pollingInterval)
         {
-            Root = root;
+            Directory.CreateDirectory(root.Path);
+            SignalFileRoot = root;
             PollingInterval = pollingInterval;
+        }
+
+        /// <summary>
+        /// Runs an externally configured interruptable service whose service lifetime comes from environment variables set
+        /// by parent process
+        /// </summary>
+        public static Task<T> RunDeployedInterruptableServiceAsync<T>(OperationContext context, Func<CancellationToken, Task<T>> runAsync, Func<string, string>? getEnvironmentVariable = null)
+        {
+            getEnvironmentVariable ??= name => Environment.GetEnvironmentVariable(name)!;
+
+            var lifetimeManager = new ServiceLifetimeManager(
+                new AbsolutePath(getEnvironmentVariable(SignalFileRootVariableName)),
+                TimeSpan.FromMilliseconds(double.Parse(getEnvironmentVariable(PollingIntervalVariableName))));
+
+            var serviceId = getEnvironmentVariable(ServiceIdVariableName);
+            return lifetimeManager.RunInterruptableServiceAsync(context, serviceId, runAsync);
+        }
+
+        /// <summary>
+        /// Gets set of environment variables used to launch service in child process using <see cref="RunDeployedInterruptableServiceAsync"/>
+        /// </summary>
+        public IDictionary<string, string> GetDeployedInterruptableServiceVariables(string serviceId)
+        {
+            return new Dictionary<string, string>()
+            {
+                { SignalFileRootVariableName, SignalFileRoot.Path },
+                { PollingIntervalVariableName, PollingInterval.TotalMilliseconds.ToString() },
+                { ServiceIdVariableName, serviceId },
+            };
         }
 
         /// <summary>
         /// Get path of signal file indicating that the service is active
         /// </summary>
-        private string ServiceActiveFile(string serviceId) => Path.Combine(Root.Path, $"{serviceId}.active");
+        private string ServiceActiveFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.active");
 
         /// <summary>
         /// Get path of signal file indicating that the service should shutdown
         /// </summary>
-        private string ServiceShutdownFile(string serviceId) => Path.Combine(Root.Path, $"{serviceId}.shutdown");
+        private string ServiceShutdownFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.shutdown");
 
         /// <summary>
         /// Get path of signal file indicating that the service should NOT startup
         /// </summary>
-        private string PreventStartupFile(string serviceId) => Path.Combine(Root.Path, $"{serviceId}.preventstartup");
+        private string PreventStartupFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.preventstartup");
 
         /// <summary>
         /// Run a service which can be interrupted by another service (via <see cref="RunInterrupterServiceAsync"/>)
@@ -55,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public async Task<T> RunInterruptableServiceAsync<T>(OperationContext context, string serviceId, Func<CancellationToken, Task<T>> runAsync)
         {
-            await WaitForDeletionAsync(context, PreventStartupFile(serviceId));
+            await WaitForDeletionAsync(PreventStartupFile(serviceId), context.Token);
             return await RunServiceCoreAsync(context, serviceId, runAsync);
         }
 
@@ -65,8 +100,9 @@ namespace BuildXL.Cache.ContentStore.Service
             using (Create(ServiceShutdownFile(serviceId), FileShare.Delete))
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token))
             {
-                WaitForDeletionAsync(context, ServiceShutdownFile(serviceId), () => cts.Cancel()).Forget();
-                return await runAsync(cts.Token);
+                var token = cts.Token;
+                WaitForDeletionAsync(ServiceShutdownFile(serviceId), () => cts.Cancel(), token).Forget();
+                return await runAsync(token);
             }
         }
 
@@ -93,7 +129,16 @@ namespace BuildXL.Cache.ContentStore.Service
             FileUtilities.DeleteFile(ServiceShutdownFile(serviceId));
 
             // Wait for interrupted service to shutdown
-            return WaitForDeletionAsync(context, ServiceActiveFile(serviceId));
+            return WaitForShutdownAsync(context, serviceId);
+        }
+
+        /// <summary>
+        /// Waits for shutdown of service
+        /// </summary>
+        public Task WaitForShutdownAsync(OperationContext context, string serviceId)
+        {
+            // Wait for interrupted service to shutdown
+            return WaitForDeletionAsync(ServiceActiveFile(serviceId), context.Token);
         }
 
         private FileStream Create(string path, FileShare share)
@@ -101,24 +146,24 @@ namespace BuildXL.Cache.ContentStore.Service
             return new FileStream(path, FileMode.Create, FileAccess.Write, share, 1, FileOptions.DeleteOnClose);
         }
 
-        private async Task WaitForDeletionAsync(OperationContext context, string path)
+        private async Task WaitForDeletionAsync(string path, CancellationToken token)
         {
             while (true)
             {
-                context.Token.ThrowIfCancellationRequested();
+                token.ThrowIfCancellationRequested();
 
                 if (!File.Exists(path))
                 {
                     return;
                 }
 
-                await Task.Delay(PollingInterval, context.Token);
+                await Task.Delay(PollingInterval, token);
             }
         }
 
-        private async Task WaitForDeletionAsync(OperationContext context, string path, Action action)
+        private async Task WaitForDeletionAsync(string path, Action action, CancellationToken token)
         {
-            await WaitForDeletionAsync(context, path);
+            await WaitForDeletionAsync(path, token);
             action();
         }
     }

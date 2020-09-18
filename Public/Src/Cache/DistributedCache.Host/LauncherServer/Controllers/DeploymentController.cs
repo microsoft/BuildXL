@@ -6,6 +6,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BuildXL.Launcher.Server.Controllers
@@ -24,10 +25,17 @@ namespace BuildXL.Launcher.Server.Controllers
         }
 
         [HttpPost]
-        public Task<LauncherManifest> Get(DeploymentParameters parameters)
+        public async Task<ActionResult> GetAsync(DeploymentParameters parameters)
         {
-            OperationContext context = new OperationContext(new Context(_logger));
-            return _service.UploadFilesAndGetManifestAsync(context, parameters, waitForCompletion: false);
+            OperationContext context = new OperationContext(new Context(parameters.ContextId, _logger));
+
+            if (!await _service.IsAuthorizedAsync(context, parameters))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _service.UploadFilesAndGetManifestAsync(context, parameters, waitForCompletion: false);
+            return new JsonResult(result, DeploymentUtilities.ConfigurationSerializationOptions);
         }
     }
 }

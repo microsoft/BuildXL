@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -25,7 +27,12 @@ namespace BuildXL.Cache.Host.Service
         public static JsonSerializerOptions ConfigurationSerializationOptions { get; } = new JsonSerializerOptions()
         {
             AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            Converters =
+            {
+                new TimeSpanJsonConverter(),
+                new BoolJsonConverter()
+            }
         };
 
         /// <summary>
@@ -89,6 +96,75 @@ namespace BuildXL.Cache.Host.Service
             var configDropLayout = manifest.Drops[ConfigDropUri.OriginalString];
             var configFileSpec = configDropLayout[DeploymentConfigurationFileName];
             return deploymentRoot / GetContentRelativePath(new ContentHash(configFileSpec.Hash));
+        }
+
+        /// <summary>
+        /// Gets a json preprocessor for the given host parameters
+        /// </summary>
+        public static JsonPreprocessor GetHostJsonPreprocessor(HostParameters parameters)
+        {
+            return new JsonPreprocessor(
+                constraintDefinitions: new Dictionary<string, string>()
+                    {
+                        { "Stamp", parameters.Stamp },
+                        { "MachineFunction", parameters.MachineFunction },
+                        { "Region", parameters.Region },
+                        { "Ring", parameters.Ring },
+                        { "Environment", parameters.Environment },
+                        { "Env", parameters.Environment },
+                        { "Machine", parameters.Machine },
+                    }
+                    .Where(e => !string.IsNullOrEmpty(e.Value))
+                    .Select(e => new ConstraintDefinition(e.Key, new[] { e.Value })),
+                replacementMacros: new Dictionary<string, string>()
+                    {
+                        { "Env", parameters.Environment },
+                        { "Environment", parameters.Environment },
+                        { "Stamp", parameters.Stamp },
+                        { "StampId", parameters.Stamp },
+                        { "Region", parameters.Region },
+                        { "RegionId", parameters.Region },
+                        { "Ring", parameters.Ring },
+                        { "RingId", parameters.Ring },
+                    }
+                .Where(e => !string.IsNullOrEmpty(e.Value))
+                .ToDictionary(e => e.Key, e => e.Value));
+        }
+
+        private class BoolJsonConverter : JsonConverter<bool>
+        {
+            public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.String:
+                        return bool.Parse(reader.GetString());
+                    case JsonTokenType.True:
+                        return true;
+                    case JsonTokenType.False:
+                        return false;
+                }
+
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
+            {
+                writer.WriteBooleanValue(value);
+            }
+        }
+
+        private class TimeSpanJsonConverter : JsonConverter<TimeSpan>
+        {
+            public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                return TimeSpan.Parse(reader.GetString());
+            }
+
+            public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
+            {
+                writer.WriteStringValue(value.ToString());
+            }
         }
     }
 }

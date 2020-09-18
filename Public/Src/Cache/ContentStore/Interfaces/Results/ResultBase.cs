@@ -130,6 +130,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         private string? _diagnostics;
 
         /// <summary>
+        /// Indicates whether diagnostics should be printed in success case
+        /// </summary>
+        public bool PrintDiagnosticsForSuccess { get; protected set; }
+
+        /// <summary>
         /// Optional verbose diagnostic information about the result (either error or success).
         /// </summary>
         public string? Diagnostics
@@ -190,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <nodoc />
         protected virtual string GetSuccessString()
         {
-            return "Success";
+            return PrintDiagnosticsForSuccess && Diagnostics != null ? $"Success Diagnostics=[{Diagnostics}]" : "Success";
         }
 
         /// <inheritdoc />

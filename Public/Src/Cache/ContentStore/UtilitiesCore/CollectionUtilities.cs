@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
 {
@@ -26,6 +27,26 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
             public static readonly List<T> EmptyList = new List<T>();
 
             public static readonly T[] EmptyArray = new T[] { };
+        }
+
+        /// <summary>
+        /// Allows deconstructing a key value pair to a tuple
+        /// </summary>
+        public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> source, out TKey key, out TValue value)
+        {
+            key = source.Key;
+            value = source.Value;
+        }
+
+        /// <summary>
+        /// Allows adding enumerable to collection using collection initializer syntax
+        /// </summary>
+        public static void Add<T>(this ICollection<T> collection, IEnumerable<T> values)
+        {
+            foreach (var value in values)
+            {
+                collection.Add(value);
+            }
         }
 
         /// <summary>

@@ -352,8 +352,8 @@ namespace BuildXL.Cache.Host.Service
             var context = Context.CreateNested(Tracer.Name);
             return context.PerformOperationAsync<BoolResult>(Tracer, async () =>
             {
-                // Can't skip local file drops since file system is mutable
-                if (!drop.ParsedUrl.IsFile)
+                // Can't skip local file drops (including config drop) since file system is mutable
+                if (!drop.ParsedUrl.IsFile && drop.ParsedUrl != DeploymentUtilities.ConfigDropUri)
                 {
                     if (drop.Files.Count != 0 && drop.Files.All(f => PinHashes.Contains(f.Hash)))
                     {
@@ -435,7 +435,7 @@ namespace BuildXL.Cache.Host.Service
                 }
                 else if (drop.ParsedUrl.IsFile)
                 {
-                    var path = SourceRoot / drop.ParsedUrl.LocalPath.TrimStart('\\');
+                    var path = SourceRoot / drop.ParsedUrl.LocalPath.TrimStart('\\', '/');
                     if (FileSystem.DirectoryExists(path))
                     {
                         foreach (var file in FileSystem.EnumerateFiles(path, EnumerateOptions.Recurse))
@@ -468,18 +468,37 @@ namespace BuildXL.Cache.Host.Service
                         if (OverrideLaunchDropProcess != null)
                         {
                             OverrideLaunchDropProcess((
-                                exePath: DropExeFilePath.Path, 
-                                args: args, 
+                                exePath: DropExeFilePath.Path,
+                                args: args,
                                 dropUrl: drop.Url,
-                                targetDirectory: tempDirectory.Path, 
+                                targetDirectory: tempDirectory.Path,
                                 relativeRoot: relativeRoot)).ThrowIfFailure();
                         }
                         else
                         {
-                            var process = Process.Start(new ProcessStartInfo(DropExeFilePath.Path, args)
+                            var process = new Process()
                             {
-                                UseShellExecute = false
-                            });
+                                StartInfo = new ProcessStartInfo(DropExeFilePath.Path, args)
+                                {
+                                    UseShellExecute = false,
+                                    RedirectStandardOutput = true,
+                                    RedirectStandardError = true,
+                                },
+                            };
+
+                            process.OutputDataReceived += (s, e) =>
+                            {
+                                context.TracingContext.Debug("Drop Output: " + e.Data);
+                            };
+
+                            process.ErrorDataReceived += (s, e) =>
+                            {
+                                context.TracingContext.Error("Drop Error: " + e.Data);
+                            };
+
+                            process.Start();
+                            process.BeginOutputReadLine();
+                            process.BeginErrorReadLine();
 
                             process.WaitForExit();
 

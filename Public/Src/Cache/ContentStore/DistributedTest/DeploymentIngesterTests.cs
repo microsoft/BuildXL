@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             'Url [Stamp:ST_S3]': 'file://Stamp3',
         }
     ],
-    'AzureStorageSecretName': 'myregionalStorage{Region:LA}',
+    'AzureStorageSecretInfo': { 'Name': 'myregionalStorage{Region:LA}', 'TimeToLiveMinutes':60 },
     'SasUrlTimeToLiveMinutes': 3,
     'Tool [Environment:MyEnvRunningOnWindows]': {
         'Executable': 'bin/service.exe',

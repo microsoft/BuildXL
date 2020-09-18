@@ -14,6 +14,19 @@ namespace BuildXL.Cache.Host.Service
     public static class SecretsProviderExtensions
     {
         /// <summary>
+        /// Gets the plain secret for the given secret name
+        /// </summary>
+        public static async Task<string> GetPlainSecretAsync(this ISecretsProvider secretsProvider, string secretName, CancellationToken token)
+        {
+            var secrets = await secretsProvider.RetrieveSecretsAsync(new List<RetrieveSecretsRequest>()
+                {
+                    new RetrieveSecretsRequest(secretName, SecretKind.PlainText)
+                }, token);
+
+            return ((PlainTextSecret)secrets[secretName]).Secret;
+        }
+
+        /// <summary>
         /// Gets blob credentials from the given secrets provider
         /// </summary>
         public static async Task<AzureBlobStorageCredentials> GetBlobCredentialsAsync(

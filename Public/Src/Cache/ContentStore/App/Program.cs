@@ -13,10 +13,11 @@ namespace BuildXL.Cache.ContentStore.App
     /// </summary>
     public static class Program
     {
-        private static int Main(string[] args)
+        public static int Main(string[] args)
         {
             var cancellationTokenSource = new CancellationTokenSource();
-            var runAppTask = Task.Run(() => RunApp(args, cancellationTokenSource.Token));
+
+            var runAppTask = RunAppAsync(args, cancellationTokenSource.Token);
 
             // handle Ctrl+C (i.e., SIGINT) by requesting cancellation from the app
             Console.CancelKeyPress += (sender, eventArgs) =>
@@ -39,7 +40,12 @@ namespace BuildXL.Cache.ContentStore.App
             return runAppTask.GetAwaiter().GetResult();
         }
 
-        private static int RunApp(string[] args, CancellationToken token)
+        public static Task<int> RunAppAsync(string[] args, CancellationToken token)
+        {
+            return Task.Run(() => RunApp(args, token));
+        }
+
+        public static int RunApp(string[] args, CancellationToken token)
         {
             using (var app = new Application(token))
             {

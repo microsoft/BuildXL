@@ -54,6 +54,12 @@ namespace BuildXL.Cache.Host.Configuration
         }
 
         /// <summary>
+        /// Settings for running deployment launcher
+        /// </summary>
+        [DataMember]
+        public LauncherSettings LauncherSettings { get; set; } = null;
+
+        /// <summary>
         /// Feature flag to turn on distributed content tracking (L2/datacenter cache).
         /// </summary>
         [DataMember]

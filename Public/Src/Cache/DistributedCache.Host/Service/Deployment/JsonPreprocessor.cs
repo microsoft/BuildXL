@@ -50,7 +50,7 @@ namespace BuildXL.Cache.Host.Service
     /// Replacement macros and constraints are defined in anprivate class JsonPreprocessorContext
     public class JsonPreprocessor
     {
-        private readonly Dictionary<string, ConstraintDefinition> _constraintsByName = new Dictionary<string, ConstraintDefinition>();
+        private readonly Dictionary<string, ConstraintDefinition> _constraintsByName = new Dictionary<string, ConstraintDefinition>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ReplacementMacro> _replacementMacros = new Dictionary<string, ReplacementMacro>(StringComparer.OrdinalIgnoreCase);
 
         private static Regex NameAndConstraintsRegex { get; } = new Regex($@"^(?<baseName>.*?)\s*(?<constraint>{Constraint.RegexPattern})+$");
@@ -284,7 +284,7 @@ namespace BuildXL.Cache.Host.Service
 
             public bool Match(string value)
             {
-                var valueMatches = Value == value;
+                var valueMatches = string.Equals(Value, value, StringComparison.OrdinalIgnoreCase);
                 return Negated ? !valueMatches : valueMatches;
             }
         }

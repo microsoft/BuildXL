@@ -71,6 +71,20 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
+        /// Waits for cancellation to be triggered.
+        /// </summary>
+        public static async Task WaitForCancellationAsync(this CancellationToken token)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            }
+            catch (TaskCanceledException)
+            {
+            }
+        }
+
+        /// <summary>
         /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
         /// propagated back through a single AggregateException. This is necessary because the default awaiter
         /// (as used by 'await') only takes the *first* exception inside of a task's aggregate exception.

@@ -37,6 +37,7 @@ namespace Service {
 
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Web.dll,
+                NetFx.System.Net.Http.dll,
                 NetFx.System.Xml.dll
             ),
         ],

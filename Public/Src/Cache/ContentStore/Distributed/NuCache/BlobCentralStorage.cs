@@ -41,6 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private DateTime _gcLastRunTime = DateTime.MinValue;
         private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
+        private readonly SemaphoreSlim _containerCreationGate = TaskUtilities.CreateMutex();
 
         private const string LastAccessedMetadataName = "LastAccessed";
 
@@ -300,13 +301,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (!_containersCreated[shardId])
             {
-                await container.CreateIfNotExistsAsync(
-                    accessType: BlobContainerPublicAccessType.Off,
-                    options: null,
-                    operationContext: null,
-                    cancellationToken: token);
+                using (await _containerCreationGate.AcquireAsync(token))
+                {
+                    if (!_containersCreated[shardId])
+                    {
+                        await container.CreateIfNotExistsAsync(
+                        accessType: BlobContainerPublicAccessType.Off,
+                        options: null,
+                        operationContext: null,
+                        cancellationToken: token);
 
-                _containersCreated[shardId] = true;
+                        _containersCreated[shardId] = true;
+                    }
+                }
             }
         }
 

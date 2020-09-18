@@ -6,7 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -29,6 +32,61 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public static class DistributedCacheServiceFacade
     {
+        /// <summary>
+        /// Creates and runs a distributed cache service
+        /// </summary>
+        /// <exception cref="CacheException">thrown when cache startup fails</exception>
+        public static Task RunWithConfigurationAsync(
+            ILogger logger,
+            IDistributedCacheServiceHost host,
+            HostInfo hostInfo,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            DistributedCacheServiceConfiguration config,
+            CancellationToken token)
+        {
+            logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
+
+            var arguments = new DistributedCacheServiceArguments(
+                logger: logger,
+                copier: null,
+                pathTransformer: null,
+                copyRequester: null,
+                host: host,
+                hostInfo: hostInfo,
+                cancellation: token,
+                dataRootPath: config.DataRootPath,
+                configuration: config,
+                keyspace: null)
+            {
+                TelemetryFieldsProvider = telemetryFieldsProvider,
+                BuildCopyInfrastructure = logger => BuildCopyInfrastructure(logger, config),
+            };
+
+            return RunAsync(arguments);
+        }
+
+        private static (IAbsolutePathRemoteFileCopier copier, IAbsolutePathTransformer pathTransformer, IContentCommunicationManager copyRequester)
+            BuildCopyInfrastructure(ILogger logger, DistributedCacheServiceConfiguration config)
+        {
+            var settings = config.DistributedContentSettings;
+
+            var grpcFileCopier = new GrpcFileCopier(
+                    new Context(logger),
+                    (int)config.LocalCasSettings.ServiceSettings.GrpcPort,
+                    settings.MaxGrpcClientCount,
+                    settings.MaxGrpcClientAgeMinutes,
+                    copyTimeoutInSeconds: settings.GrpcCopyConnectionTimeoutInSeconds,
+                    useCompression: settings.UseCompressionForCopies);
+
+            return (
+                    copier: grpcFileCopier,
+                    pathTransformer: new GrpcDistributedPathTransformer(
+                        junctionsByDirectory: settings.GetAutopilotAlternateDriveMap(),
+                        logger: logger),
+                    copyRequester: grpcFileCopier
+                );
+        }
+
         /// <summary>
         /// Creates and runs a distributed cache service
         /// </summary>

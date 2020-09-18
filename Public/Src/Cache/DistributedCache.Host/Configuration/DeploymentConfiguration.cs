@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -20,7 +21,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Configuration for launching tool inside deployment
         /// </summary>
-        public LaunchConfiguration Tool { get; set; }
+        public ServiceLaunchConfiguration Tool { get; set; }
 
         /// <summary>
         /// Time to live for SAS urls returned by deployment service
@@ -30,7 +31,17 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// The name of the secret used to communicate to storage account
         /// </summary>
-        public string AzureStorageSecretName { get; set; }
+        public SecretConfiguration AzureStorageSecretInfo { get; set; }
+
+        /// <summary>
+        /// The names of the allowed secrets used to authorize deployment queries
+        /// </summary>
+        public string[] AuthorizationSecretNames { get; set; } = new string[0];
+
+        /// <summary>
+        /// The time to live for cached authorization secrets in deployment service
+        /// </summary>
+        public double AuthorizationSecretTimeToLiveMinutes { get; set; } = 30;
     }
 
     public class DropDeploymentConfiguration
@@ -55,8 +66,18 @@ namespace BuildXL.Cache.Host.Configuration
     /// <summary>
     /// Describes parameters used to launch tool inside a deployment
     /// </summary>
-    public class LaunchConfiguration
+    public class ServiceLaunchConfiguration
     {
+        /// <summary>
+        /// The identifier used to identify the service for service lifetime management and interruption
+        /// </summary>
+        public string ServiceId { get; set; }
+
+        /// <summary>
+        /// The time to wait for service to shutdown before terminating the process
+        /// </summary>
+        public double ShutdownTimeoutSeconds { get; set; }
+
         /// <summary>
         /// Path to the executable used when launching the tool relative to the layout root
         /// </summary>
@@ -65,11 +86,35 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Arguments used when launching the tool
         /// </summary>
-        public string[] Arguments { get; set; }
+        public string[] Arguments { get; set; } = new string[0];
 
         /// <summary>
         /// Environment variables used when launching the tool
         /// </summary>
         public Dictionary<string, string> EnvironmentVariables { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Environment variables for secrets used when launching the tool
+        /// </summary>
+        public Dictionary<string, SecretConfiguration> SecretEnvironmentVariables { get; set; } = new Dictionary<string, SecretConfiguration>();
+    }
+
+    /// <summary>
+    /// Specifies secret consume by tool
+    /// </summary>
+    public class SecretConfiguration
+    {
+        // TODO: Currently, only plain text secrets are supported
+        // public SecretKind Kind { get; set; }
+
+        /// <summary>
+        /// The name of the secret for this environment variable
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// The amount of time the secret can be cached before needing to be requeried
+        /// </summary>
+        public double TimeToLiveMinutes { get; set; }
     }
 }

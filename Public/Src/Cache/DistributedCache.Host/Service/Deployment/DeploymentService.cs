@@ -23,6 +23,7 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using System.Threading;
+using System.Text;
 
 namespace BuildXL.Launcher.Server
 {
@@ -44,9 +45,19 @@ namespace BuildXL.Launcher.Server
         private VolatileMap<UnitValue, (DeploymentManifest manifest, string configJson)> CachedDeploymentInfo { get; }
 
         /// <summary>
+        /// Cache of secrets for authorization
+        /// </summary>
+        private VolatileMap<string, string> AuthorizationSecretCache { get; }
+
+        /// <summary>
         /// Map for getting expirable sas urls by storage account and hash 
         /// </summary>
         private VolatileMap<(string storageName, string hash), AsyncLazy<string>> SasUrls { get; }
+
+        /// <summary>
+        /// Map for getting expirable secrets by name, kind, and time to live
+        /// </summary>
+        private VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>> CachedSecrets { get; }
 
         /// <summary>
         /// Map from storage account secret name to target storage account
@@ -76,6 +87,7 @@ namespace BuildXL.Launcher.Server
             StorageAccountsBySecretName = new VolatileMap<string, AsyncLazy<CentralStorage>>(clock);
             SasUrls = new VolatileMap<(string storageName, string hash), AsyncLazy<string>>(clock);
             CachedDeploymentInfo = new VolatileMap<UnitValue, (DeploymentManifest manifest, string configJson)>(clock);
+            CachedSecrets = new VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>>(clock);
 
             UploadQueue = new ActionQueue(uploadConcurrency);
         }
@@ -83,26 +95,61 @@ namespace BuildXL.Launcher.Server
         // TODO [LANCEC]: Consider returning prior deployment until all files are uploaded.
 
         /// <summary>
+        /// Checks whether the current deployment parameters represent an authorized query 
+        /// </summary>
+        public async Task<bool> IsAuthorizedAsync(OperationContext context, DeploymentParameters parameters)
+        {
+            var result = await context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var deployConfig = ReadDeploymentConfiguration(parameters, out var deploymentManifest, out var contentId);
+                    if (!deployConfig.AuthorizationSecretNames.Contains(parameters.AuthorizationSecretName))
+                    {
+                        throw new UnauthorizedAccessException($"Secret names do not match: Expected='{string.Join(", ", deployConfig.AuthorizationSecretNames)}' Actual='{parameters.AuthorizationSecretName}'");
+                    }
+
+                    var secret = await GetSecretAsync(context, new SecretConfiguration()
+                    {
+                        Name = parameters.AuthorizationSecretName,
+                        TimeToLiveMinutes = deployConfig.AuthorizationSecretTimeToLiveMinutes
+                    });
+
+                    if (secret != parameters.AuthorizationSecret)
+                    {
+                        throw new UnauthorizedAccessException($"Secret values do not match for secret name: '{parameters.AuthorizationSecretName}'");
+                    }
+
+                    return BoolResult.Success;
+                });
+
+            return result.Succeeded;
+        }
+
+        /// <summary>
         /// Uploads the deployment files to the target storage account and returns the launcher manifest for the given deployment parameters
         /// </summary>
         public Task<LauncherManifest> UploadFilesAndGetManifestAsync(OperationContext context, DeploymentParameters parameters, bool waitForCompletion)
         {
-            int pendingUploads = 0;
+            int pendingFiles = 0;
             int totalFiles = 0;
             int completedFiles = 0;
+            int pendingSecrets = 0;
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
                     var resultManifest = new LauncherManifest();
-                    var deployConfig = ReadDeploymentConfiguration(parameters, out var manifest);
+                    var deployConfig = ReadDeploymentConfiguration(parameters, out var deploymentManifest, out var contentId);
+
+                    resultManifest.ContentId = contentId;
 
                     var uploadTasks = new List<Task<(string targetPath, FileSpec spec)>>();
 
                     resultManifest.Tool = deployConfig.Tool;
                     resultManifest.Drops = deployConfig.Drops;
 
-                    var storage = await LoadStorage(context, deployConfig.AzureStorageSecretName);
+                    var storage = await LoadStorageAsync(context, deployConfig.AzureStorageSecretInfo);
 
                     foreach (var drop in deployConfig.Drops)
                     {
@@ -111,7 +158,7 @@ namespace BuildXL.Launcher.Server
                             continue;
                         }
 
-                        var dropLayout = manifest.Drops[drop.Url];
+                        var dropLayout = deploymentManifest.Drops[drop.Url];
                         foreach (var fileEntry in dropLayout)
                         {
                             // Queue file for deployment
@@ -119,7 +166,9 @@ namespace BuildXL.Launcher.Server
 
                             async Task<(string targetPath, FileSpec entry)> ensureUploadedAndGetEntry()
                             {
-                                var downloadUrl = await EnsureUploadedAndGetDownloadUrlAsync(context, fileEntry.Value, deployConfig, storage);
+                                var downloadUrl = parameters.GetContentInfoOnly
+                                    ? null
+                                    : await EnsureUploadedAndGetDownloadUrlAsync(context, fileEntry.Value, deployConfig, storage);
 
                                 // Compute and record path in final layout
                                 var targetPath = Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key);
@@ -146,7 +195,7 @@ namespace BuildXL.Launcher.Server
                     foreach (var uploadTask in uploadTasks)
                     {
                         totalFiles++;
-                        if (uploadTask.Status == TaskStatus.RanToCompletion)
+                        if (uploadTask.IsCompleted)
                         {
                             completedFiles++;
                             var entry = await uploadTask;
@@ -154,41 +203,78 @@ namespace BuildXL.Launcher.Server
                         }
                         else
                         {
-                            pendingUploads++;
+                            pendingFiles++;
                         }
                     }
+
+                    if (deployConfig.Tool?.SecretEnvironmentVariables != null)
+                    {
+                        // Populate environment variables from secrets.
+                        foreach (var secretEnvironmentVariable in deployConfig.Tool.SecretEnvironmentVariables)
+                        {
+                            var secretTask = GetSecretAsync(context, secretEnvironmentVariable.Value);
+                            if (secretTask.IsCompleted || waitForCompletion)
+                            {
+                                var secretValue = await secretTask;
+                                resultManifest.Tool.EnvironmentVariables[secretEnvironmentVariable.Key] = secretValue;
+                            }
+                            else
+                            {
+                                pendingSecrets++;
+                            }
+                        }
+                    }
+
+                    resultManifest.IsComplete = pendingFiles == 0 && pendingSecrets == 0;
 
                     return Result.Success(resultManifest);
                 },
                 extraStartMessage: $"Machine={parameters.Machine} Stamp={parameters.Stamp} Wait={waitForCompletion}",
-                extraEndMessage: r => $"Machine={parameters.Machine} Stamp={parameters.Stamp} Drops={r.GetValueOrDefault()?.Drops.Count ?? 0} Files[Total={totalFiles}, Pending={pendingUploads}, Completed={completedFiles}] Wait={waitForCompletion}"
+                extraEndMessage: r => $"Machine={parameters.Machine} Stamp={parameters.Stamp} Id={r.GetValueOrDefault()?.ContentId} Drops={r.GetValueOrDefault()?.Drops.Count ?? 0} Files[Total={totalFiles}, Pending={pendingFiles}, Completed={completedFiles}] PendingSecrets={pendingSecrets} Wait={waitForCompletion}"
                 ).ThrowIfFailureAsync();
         }
 
-        private Task<CentralStorage> LoadStorage(OperationContext context, string storageSecretName)
+        private Task<string> GetSecretAsync(OperationContext context, SecretConfiguration secretInfo)
+        {
+            AsyncLazy<string> lazySecret = GetOrAddExpirableAsyncLazy<(string, SecretKind), string>(
+                CachedSecrets,
+                (secretInfo.Name, SecretKind.PlainText),
+                TimeSpan.FromMinutes(secretInfo.TimeToLiveMinutes),
+                () =>
+                {
+                    return context.PerformOperationAsync(
+                        Tracer,
+                        async () =>
+                        {
+                            return Result.Success(await SecretsProvider.GetPlainSecretAsync(secretInfo.Name, context.Token));
+                        },
+                        extraEndMessage: r => $"Name={secretInfo.Name} TimeToLiveMinutes={secretInfo.TimeToLiveMinutes}").ThrowIfFailureAsync();
+                });
+
+            return lazySecret.GetValueAsync();
+        }
+
+        private Task<CentralStorage> LoadStorageAsync(OperationContext context, SecretConfiguration storageSecretInfo)
         {
             AsyncLazy<CentralStorage> lazyCentralStorage = GetOrAddExpirableAsyncLazy<string, CentralStorage>(
                 StorageAccountsBySecretName,
-                storageSecretName,
-                TimeSpan.FromMinutes(30),
-                () =>
+                storageSecretInfo.Name,
+                TimeSpan.FromMinutes(storageSecretInfo.TimeToLiveMinutes),
+                async () =>
                 {
-                    return UploadQueue.RunAsync(async () =>
-                    {
-                        var credentials = await SecretsProvider.GetBlobCredentialsAsync(
-                            storageSecretName,
-                            useSasTokens: false,
-                            context.Token);
+                    var credentials = await SecretsProvider.GetBlobCredentialsAsync(
+                        storageSecretInfo.Name,
+                        useSasTokens: false,
+                        context.Token);
 
-                        CentralStorage centralStorage = OverrideCreateCentralStorage?.Invoke((storageSecretName, credentials))
-                        ?? new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
-                            containerName: "deploymentfiles",
-                            checkpointsKey: "N/A"));
+                    CentralStorage centralStorage = OverrideCreateCentralStorage?.Invoke((storageSecretInfo.Name, credentials))
+                    ?? new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
+                        containerName: "deploymentfiles",
+                        checkpointsKey: "N/A"));
 
-                        await centralStorage.StartupAsync(context).ThrowIfFailure();
+                    await centralStorage.StartupAsync(context).ThrowIfFailure();
 
-                        return centralStorage;
-                    });
+                    return centralStorage;
                 });
 
             return lazyCentralStorage.GetValueAsync();
@@ -200,7 +286,7 @@ namespace BuildXL.Launcher.Server
         private Task<string> EnsureUploadedAndGetDownloadUrlAsync(OperationContext context, FileSpec value, DeploymentConfiguration configuration, CentralStorage storage)
         {
             var sasUrlTimeToLive = TimeSpan.FromMinutes(configuration.SasUrlTimeToLiveMinutes);
-            var key = (configuration.AzureStorageSecretName, value.Hash);
+            var key = (configuration.AzureStorageSecretInfo.Name, value.Hash);
             AsyncLazy<string> lazySasUrl = GetOrAddExpirableAsyncLazy(
                 SasUrls,
                 key,
@@ -209,6 +295,8 @@ namespace BuildXL.Launcher.Server
                 {
                     try
                     {
+                        await Task.Yield();
+
                         var relativePath = DeploymentUtilities.GetContentRelativePath(new ContentHash(value.Hash)).ToString();
 
                         var now = Clock.UtcNow;
@@ -239,7 +327,7 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Gets the deployment configuration based on the manifest, preprocesses it, and returns the deserialized value
         /// </summary>
-        private DeploymentConfiguration ReadDeploymentConfiguration(DeploymentParameters parameters, out DeploymentManifest manifest)
+        private DeploymentConfiguration ReadDeploymentConfiguration(DeploymentParameters parameters, out DeploymentManifest manifest, out string contentId)
         {
             if (!CachedDeploymentInfo.TryGetValue(UnitValue.Unit, out var cachedValue))
             {
@@ -254,25 +342,10 @@ namespace BuildXL.Launcher.Server
                 cachedValue = (manifest, configJson);
             }
 
-            var preprocessor = new JsonPreprocessor(
-                new Dictionary<string, string>()
-                    {
-                        { "Stamp", parameters.Stamp },
-                        { "MachineFunction", parameters.MachineFunction },
-                        { "Region", parameters.Region },
-                        { "Ring", parameters.Ring },
-                        { "Environment", parameters.Environment },
-                    }
-                    .Where(e => !string.IsNullOrEmpty(e.Value))
-                    .Select(e => new ConstraintDefinition(e.Key, new[] { e.Value })),
-                new Dictionary<string, string>()
-                    {
-                        { "Stamp", parameters.Stamp },
-                        { "Region", parameters.Region },
-                        { "Ring", parameters.Ring },
-                    });
+            var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(parameters);
 
             var preprocessedConfigJson = preprocessor.Preprocess(cachedValue.configJson);
+            contentId = ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(preprocessedConfigJson)).ToHex().Substring(0, 16);
 
             var config = JsonSerializer.Deserialize<DeploymentConfiguration>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
 

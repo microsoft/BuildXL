@@ -163,8 +163,11 @@ namespace BuildXL.Cache.ContentStore.App
 
         private class EnvironmentVariableHost : IDistributedCacheServiceHost
         {
+            public CancellationTokenSource TeardownCancellationTokenSource { get; } = new CancellationTokenSource();
+
             public void RequestTeardown(string reason)
             {
+                TeardownCancellationTokenSource.Cancel();
             }
 
             public string GetSecretStoreValue(string key)

@@ -55,6 +55,15 @@ namespace BuildXL.Launcher.Server
 
             //app.UseHttpsRedirection();
 
+            app.Use(async (context, next) =>
+            {
+                Console.WriteLine("Before");
+
+                await next.Invoke();
+
+                Console.WriteLine("After");
+            });
+
             app.UseRouting();
 
             //app.UseAuthorization();
@@ -63,6 +72,7 @@ namespace BuildXL.Launcher.Server
             {
                 endpoints.MapControllers();
             });
+
         }
     }
 }

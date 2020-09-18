@@ -21,6 +21,7 @@ namespace App {
             ]
             ),
             ...kustoPackages,
+            ...getSerializationPackages(true),
             UtilitiesCore.dll,
             Grpc.dll,
             Hashing.dll,
@@ -30,6 +31,7 @@ namespace App {
             importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+            importFrom("BuildXL.Utilities").dll,
 
             importFrom("Grpc.Core").pkg,
             importFrom("Grpc.Core.Api").pkg,

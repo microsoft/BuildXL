@@ -67,6 +67,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static readonly BoolResult Success = new BoolResult();
 
         /// <summary>
+        /// Creates a successful result with the given diagnostic message as the success message
+        /// </summary>
+        public static BoolResult WithSuccessMessage(string successDiagnostics) => new BoolResult() { Diagnostics = successDiagnostics, PrintDiagnosticsForSuccess = true };
+
+        /// <summary>
         /// Successful task singleton.
         /// </summary>
         public static readonly Task<BoolResult> SuccessTask = Task.FromResult(Success);

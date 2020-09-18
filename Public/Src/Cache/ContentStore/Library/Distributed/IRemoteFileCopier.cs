@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -45,6 +46,50 @@ namespace BuildXL.Cache.ContentStore.Distributed
                     return _totalBytesCopied;
                 }
             }
+        }
+
+        /// <summary>
+        /// A bandwidth requirements for the current copy attempt.
+        /// </summary>
+        public BandwidthConfiguration? BandwidthConfiguration { get; set; }
+    }
+
+    /// <summary>
+    /// A bandwidth requirements for a copy operation.
+    /// </summary>
+    public class BandwidthConfiguration
+    {
+        private const double BytesInMb = 1024 * 1024;
+
+        /// <summary>
+        /// Whether to invalidate Grpc Copy Client in case of an error.
+        /// </summary>
+        public bool InvalidateOnTimeoutError { get; set; } = true;
+
+        /// <summary>
+        /// Gets an optional connection timeout that can be used to reject the copy more aggressively during early copy attempts.
+        /// </summary>
+        public TimeSpan? ConnectionTimeout { get; set; }
+
+        /// <summary>
+        /// The interval between the copy progress is checked.
+        /// </summary>
+        public TimeSpan Interval { get; set; }
+
+        /// <summary>
+        /// The number of required bytes that should be copied within a given interval. Otherwise the copy would be canceled.
+        /// </summary>
+        public long RequiredBytes { get; set; }
+
+        /// <summary>
+        /// Gets the required megabytes per second.
+        /// </summary>
+        public double RequiredMegabytesPerSecond => (double)(RequiredBytes / BytesInMb) / Interval.TotalSeconds;
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{RequiredBytes / Interval.TotalSeconds}";
         }
     }
 

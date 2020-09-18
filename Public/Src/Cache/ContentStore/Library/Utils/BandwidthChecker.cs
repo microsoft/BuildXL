@@ -81,8 +81,15 @@ namespace BuildXL.Cache.ContentStore.Utils
                 while (!copyCompleted)
                 {
                     // Wait some time for bytes to be copied
+                    var configBandwidthCheckInterval = options.BandwidthConfiguration?.Interval ?? _config.BandwidthCheckInterval;
+
+                    if (options.BandwidthConfiguration != null)
+                    {
+                        minimumSpeedInMbPerSec = options.BandwidthConfiguration.RequiredMegabytesPerSecond;
+                    }
+
                     var firstCompletedTask = await Task.WhenAny(copyTask,
-                        Task.Delay(_config.BandwidthCheckInterval, context.Token));
+                        Task.Delay(configBandwidthCheckInterval, context.Token));
 
                     copyCompleted = firstCompletedTask == copyTask;
                     if (copyCompleted)
@@ -101,8 +108,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                     // Copy is not completed and operation has not been canceled, perform
                     // bandwidth check
                     var position = options.TotalBytesCopied;
-                    var receivedMiB = (position - previousPosition) / BytesInMb;
-                    var currentSpeed = receivedMiB / _config.BandwidthCheckInterval.TotalSeconds;
+
+                    var bytesTransferredPerIteration = position - previousPosition;
+                    var receivedMiB = bytesTransferredPerIteration / BytesInMb;
+                    var currentSpeed = receivedMiB / configBandwidthCheckInterval.TotalSeconds;
 
                     if (currentSpeed == 0 || currentSpeed < minimumSpeedInMbPerSec)
                     {
@@ -111,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                         var totalBytesCopied = position - startPosition;
                         var result = new CopyFileResult(
                             CopyResultCode.CopyBandwidthTimeoutError,
-                            $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {totalBytesCopied} bytes copied (received {position - previousPosition} bytes in {_config.BandwidthCheckInterval.TotalSeconds} seconds).");
+                            $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {totalBytesCopied} bytes copied (received {bytesTransferredPerIteration} bytes in {configBandwidthCheckInterval.TotalSeconds} seconds).");
                         return (result, totalBytesCopied);
                     }
 

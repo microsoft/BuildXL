@@ -200,7 +200,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         protected void TracePendingOperation()
         {
             string extraStartMessage = !string.IsNullOrEmpty(_extraStartMessage) ? " Start message: " + _extraStartMessage : string.Empty;
-            _tracer.Debug(_context, $"The operation '{Caller}' is not finished yet.{extraStartMessage}");
+            _tracer.Debug(_context, $"The operation '{_tracer.Name}.{Caller}' is not finished yet.{extraStartMessage}");
         }
 
         /// <nodoc />

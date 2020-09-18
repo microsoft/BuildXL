@@ -476,6 +476,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int HistoricalBandwidthRecordsStored { get; set; } = 64;
+
+        [DataMember]
+        public BandwidthConfiguration[] BandwidthConfigurations { get; set; }
         #endregion
 
         #region Pin Better
@@ -962,5 +965,29 @@ namespace BuildXL.Cache.Host.Configuration
         ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
         /// </summary>
         Unified
+    }
+
+    /// <nodoc />
+    public class BandwidthConfiguration
+    {
+        /// <summary>
+        /// Whether to invalidate Grpc Copy Client in case of an error.
+        /// </summary>
+        public bool? InvalidateOnTimeoutError { get; set; }
+
+        /// <summary>
+        /// Gets an optional connection timeout that can be used to reject the copy more aggressively during early copy attempts.
+        /// </summary>
+        public double? ConnectionTimeoutInSeconds { get; set; }
+
+        /// <summary>
+        /// The interval between the copy progress is checked.
+        /// </summary>
+        public double IntervalInSeconds { get; set; }
+
+        /// <summary>
+        /// The number of required bytes that should be copied within a given interval. Otherwise the copy would be canceled.
+        /// </summary>
+        public long RequiredBytes { get; set; }
     }
 }

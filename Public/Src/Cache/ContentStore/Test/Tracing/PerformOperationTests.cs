@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             r.ShouldBeSuccess();
 
             var fullOutput = GetFullOutput();
-            fullOutput.Should().Contain("The operation 'TraceLongRunningOperationPeriodically' is not finished yet. Start message: Start message");
+            fullOutput.Should().Contain("The operation 'MyTracer.TraceLongRunningOperationPeriodically' is not finished yet. Start message: Start message");
         }
 
         [Fact]
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
                 r.ShouldBeSuccess();
 
                 var fullOutput = GetFullOutput();
-                fullOutput.Should().Contain("The operation 'TraceLongRunningOperationPeriodicallyUsingDefaultSettings' is not finished yet");
+                fullOutput.Should().Contain("The operation 'MyTracer.TraceLongRunningOperationPeriodicallyUsingDefaultSettings' is not finished yet");
             }
             finally
             {

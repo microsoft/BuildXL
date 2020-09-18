@@ -317,11 +317,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string? lastErrorMessage = null;
 
+            var bandwidthOptions = _settings.BandwidthConfigurations?.ElementAtOrDefault(attemptCount);
+
             for (int replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
 
-                // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
+                // Currently every time we increment attemptCount's value, we go through every location in hashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
                 // If we reach over maximum retries, return an put result stating so, and no longer retry
                 var totalRetryCount = totalRetries + replicaIndex;
@@ -381,7 +383,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 {
                                     ioGateWait = timeWaiting.TotalMilliseconds;
                                     ioGateCurrentCount = currentCount;
-                                    var copyToOptions = new CopyToOptions();
+                                    var copyToOptions = new CopyToOptions() {BandwidthConfiguration = bandwidthOptions};
+
                                     return await TaskUtilities.AwaitWithProgressReporting(
                                         task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, copyToOptions),
                                         period: _settings.PeriodicCopyTracingInterval,
@@ -401,6 +404,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - ioGateCurrentCount} " +
+                                $"BandwidthOptions=[{bandwidthOptions?.ToString() ?? "null"}] " +
                                 $"IOGate.Wait={ioGateWait}ms " +
                                 (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
                             caller: "RemoteCopyFile",

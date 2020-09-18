@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -135,7 +134,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 {
                     if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) || result.Code == CopyResultCode.ConnectionTimeoutError)
                     {
-                        clientWrapper.Invalidate();
+                        if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
+                        {
+                            clientWrapper.Invalidate();
+                        }
                     }
                 }
             }

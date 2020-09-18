@@ -33,6 +33,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.Host.Service.Internal.ConfigurationHelper;
+using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -388,6 +389,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxConcurrentCopyOperations = distributedSettings.MaxConcurrentCopyOperations,
                 PinConfiguration = pinConfiguration,
                 RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
+                BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
                 MaxRetryCount = distributedSettings.MaxRetryCount,
                 TimeoutForProactiveCopies = TimeSpan.FromMinutes(distributedSettings.TimeoutForProactiveCopiesMinutes),
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
@@ -427,6 +429,24 @@ namespace BuildXL.Cache.Host.Service.Internal
             ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, arguments.Logger);
 
             return distributedContentStoreSettings;
+        }
+
+        private static IReadOnlyList<BandwidthConfiguration> FromDistributedSettings(Configuration.BandwidthConfiguration[] settings)
+        {
+            return settings?.Select(bc => fromDistributedConfiguration(bc)).ToArray() ?? new BandwidthConfiguration[0];
+
+            static BandwidthConfiguration fromDistributedConfiguration(Configuration.BandwidthConfiguration configuration)
+            {
+                var result = new BandwidthConfiguration()
+                {
+                    Interval = TimeSpan.FromSeconds(configuration.IntervalInSeconds), RequiredBytes = configuration.RequiredBytes,
+                };
+
+                ApplyIfNotNull(configuration.ConnectionTimeoutInSeconds, v => result.ConnectionTimeout = TimeSpan.FromSeconds(v));
+                ApplyIfNotNull(configuration.InvalidateOnTimeoutError, v => result.InvalidateOnTimeoutError = v);
+
+                return result;
+            }
         }
 
         internal static IContentStore CreateLocalContentStore(

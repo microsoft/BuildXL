@@ -315,9 +315,9 @@ namespace BuildXL.Utilities.Tasks
         /// <summary>
         /// Waits for the given task to complete within the given timeout, throwing a <see cref="TimeoutException"/> if the timeout expires before the task completes
         /// </summary>
-        public static async Task<T> WithTimeoutAsync<T>(this Task<T> task, TimeSpan timeout)
+        public static async Task<T> WithTimeoutAsync<T>(this Task<T> task, TimeSpan timeout, CancellationToken token = default)
         {
-            await WithTimeoutAsync(ct => task, timeout);
+            await WithTimeoutAsync(ct => task, timeout, token);
             return await task;
         }
 

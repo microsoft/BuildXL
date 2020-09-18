@@ -124,6 +124,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
+        /// Per-copy bandwidth options that allow more aggressive copy cancellation for earlier attempts.
+        /// </summary>
+        public IReadOnlyList<BandwidthConfiguration> BandwidthConfigurations { get; set; }
+
+        /// <summary>
         /// Controls the maximum total number of copy retry attempts
         /// </summary>
         public int MaxRetryCount { get; set; } = 32;
@@ -271,5 +276,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
         public bool AreBlobsSupported { get; set; }
-    }
+    }    
 }

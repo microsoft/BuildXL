@@ -172,6 +172,34 @@ namespace ContentStoreTest.Utils
             }
         }
 
+        [Fact]
+        public async Task BandwidthCheckTimesOutOnSlowCopyByUsingCopyToOptions()
+        {
+            var checkInterval = TimeSpan.FromSeconds(1);
+            var actualBandwidthBytesPerSec = 1024;
+            var actualBandwidth = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec);
+            var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec / 2); // Making sure the actual bandwidth checking options more permissive.
+            var totalBytes = actualBandwidthBytesPerSec * 2;
+            var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
+            var checker = new BandwidthChecker(checkerConfig);
+
+            using (var stream = new MemoryStream())
+            {
+                var options = new CopyToOptions()
+                              {
+                                  BandwidthConfiguration = new BandwidthConfiguration()
+                                                           {
+                                                               Interval = checkInterval, RequiredBytes = actualBandwidthBytesPerSec * 2,
+                                                           }
+                              };
+                var result = await checker.CheckBandwidthAtIntervalAsync(
+                    _context,
+                    token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options),
+                    options);
+                Assert.Equal(CopyResultCode.CopyBandwidthTimeoutError, result.Code);
+            }
+        }
+
         private static BandwidthChecker.Configuration GetConfiguration()
         {
             var checkInterval = TimeSpan.FromSeconds(1);

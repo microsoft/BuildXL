@@ -25,10 +25,6 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
             Main.exe,
             f`DefaultCacheConfig.json`,
 
-            ...addIfLazy(!BuildXLSdk.isDotNetCoreBuild, () => [
-                importFrom("BuildXL.Cache.MemoizationStore").deploymentForBuildXL
-            ]),
-
             importFrom("BuildXL.Cache.VerticalStore").Deployment.deployment,
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 

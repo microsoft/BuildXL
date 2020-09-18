@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
@@ -25,29 +24,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </summary>
     public class CloudStoreLocalCacheServiceFactory : ICacheFactory
     {
-        // CasServiceCacheFactory JSON CONFIG DATA
-        // {
-        //     "Assembly":"BuildXL.Cache.MemoizationStoreAdapter",
-        //     "Type":"BuildXL.Cache.MemoizationStoreAdapter.CloudStoreLocalCacheServiceFactory",
-        //     "CacheId":"{0}",
-        //     "CacheName":{1},
-        //     "ConnectionsPerSession":"{2}",
-        //     "MaxStrongFingerprints":{3},
-        //     "MetadataRootPath":"{4}",
-        //     "MetadataLogPath":"{5}",
-        //     "ScenarioName":{6},
-        //     "GrpcPort":{7},
-        // Sensitivity is deprecated and left for backward compatibility
-        //     "Sensitivity":{8},
-        //     "BackupLKGCache":{9},
-        //     "CheckCacheIntegrityOnStartup":{10}
-        //     "SingleInstanceTimeoutInSeconds":{11}
-        //     "SynchronizationMode":{12},
-        //     "LogFlushIntervalSeconds":{13},
-        //     "ReplaceExistingOnPlaceFile":{14},
-        //     "VfsCasRoot": "{15}",
-        //     "UseVfsSymlinks": "{16}",
-        // }
         private sealed class Config
         {
             /// <summary>
@@ -55,12 +31,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
-
-            /// <summary>
-            /// Max number of CasEntries entries.
-            /// </summary>
-            [DefaultValue(500000)]
-            public uint MaxStrongFingerprints { get; set; }
 
             /// <summary>
             /// Root path for storing metadata entries.
@@ -76,12 +46,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// Name of one of the named caches owned by CASaaS.
             /// </summary>
             public string CacheName { get; set; }
-
-            /// <summary>
-            /// Connections to CASaasS per session.
-            /// </summary>
-            [DefaultValue(16)]
-            public uint ConnectionsPerSession { get; set; }
 
             /// <summary>
             /// How many seconds each call should wait for a CASaaS connection before retrying.
@@ -118,40 +82,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public bool GrpcTraceOperationStarted { get; set; }
 
             /// <summary>
-            /// The sensitivity of the cache session.
-            /// </summary>
-            [DefaultValue(null)]
-            public string Sensitivity { get; set; }
-
-            /// <summary>
-            ///     Create a backup of the last known good cache at startup. This step has a 
-            ///     startup cost but allows better recovery in case the cache detects
-            ///     corruption at startup.
-            /// </summary>
-            [DefaultValue(false)]
-            public bool BackupLKGCache { get; set; }
-
-            /// <summary>
-            ///     The cache will check its integrity on startup. If the integrity check
-            ///     fails, the corrupt cache data is thrown out and use a LKG data backup
-            ///     is used. If a backup is unavailable the cache starts from scratch.
-            /// </summary>
-            [DefaultValue(false)]
-            public bool CheckCacheIntegrityOnStartup { get; set; }
-
-            /// <summary>
-            /// Duration to wait for exclusive access to the cache directory before timing out.
-            /// </summary>
-            [DefaultValue(ContentStoreConfiguration.DefaultSingleInstanceTimeoutSeconds)]
-            public uint SingleInstanceTimeoutInSeconds { get; set; }
-
-            /// <summary>
-            /// Controls the synchronization mode for writes to the database.
-            /// </summary>
-            [DefaultValue(null)]
-            public string SynchronizationMode { get; set; }
-
-            /// <summary>
             /// Duration to wait for exclusive access to the cache directory before timing out.
             /// </summary>
             [DefaultValue(0)]
@@ -162,9 +92,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             [DefaultValue(false)]
             public bool EnableMetadataServer { get; set; }
-
-            [DefaultValue(false)]
-            public bool UseRocksDbMemoizationStore { get; set; }
 
             [DefaultValue(60 * 60)]
             public int RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds { get; set; }
@@ -312,39 +239,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 };
             }
 
-            if (cacheConfig.UseRocksDbMemoizationStore)
+            return new RocksDbMemoizationStoreConfiguration()
             {
-                return new RocksDbMemoizationStoreConfiguration()
+                Database = new RocksDbContentLocationDatabaseConfiguration(cacheRootPath / "RocksDbMemoizationStore")
                 {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRootPath / "RocksDbMemoizationStore")
-                    {
-                        CleanOnInitialize = false,
-                        GarbageCollectionInterval = TimeSpan.FromSeconds(cacheConfig.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
-                        MetadataGarbageCollectionEnabled = true,
-                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = cacheConfig.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
-                        OnFailureDeleteExistingStoreAndRetry = true,
-                        LogsKeepLongTerm = true,
-                    },
-                };
-            }
-            else
-            {
-                var memoConfig = new SQLiteMemoizationStoreConfiguration(cacheRootPath)
-                {
-                    MaxRowCount = cacheConfig.MaxStrongFingerprints,
-                    SingleInstanceTimeoutSeconds = (int)cacheConfig.SingleInstanceTimeoutInSeconds
-                };
-
-                memoConfig.Database.BackupDatabase = cacheConfig.BackupLKGCache;
-                memoConfig.Database.VerifyIntegrityOnStartup = cacheConfig.CheckCacheIntegrityOnStartup;
-
-                if (!string.IsNullOrEmpty(cacheConfig.SynchronizationMode))
-                {
-                    memoConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), cacheConfig.SynchronizationMode, ignoreCase: true);
-                }
-
-                return memoConfig;
-            }
+                    CleanOnInitialize = false,
+                    GarbageCollectionInterval = TimeSpan.FromSeconds(cacheConfig.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
+                    MetadataGarbageCollectionEnabled = true,
+                    MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = cacheConfig.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
+                    OnFailureDeleteExistingStoreAndRetry = true,
+                    LogsKeepLongTerm = true,
+                },
+            };
         }
 
         /// <inheritdoc />

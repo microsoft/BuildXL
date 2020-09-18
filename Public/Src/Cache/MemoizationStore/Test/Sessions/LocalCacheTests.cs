@@ -2,10 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -15,7 +12,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -34,7 +30,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     public abstract class LocalCacheTests : CacheTests
     {
         private const HashType ContentHashType = HashType.Vso0;
-        protected const uint MaxContentHashListItems = 10000;
+        protected const int MaxContentHashListItems = 10000;
         protected static readonly IClock Clock = new MemoryClock();
 
         protected virtual async Task<GetStatsResult> GetStatsResult(ICache cache, Context context)
@@ -175,44 +171,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         protected abstract Task VerifyPutStreamCallCounterBumpedOnUse(ICache cache, Context context);
-
-        [Fact]
-        public Task GetSelectorsCallCounterBumpedOnUse()
-        {
-            return RunCacheAndSessionTestAsync(async (cache, session, context) =>
-            {
-                System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> enumerator = session.GetSelectors(context, Fingerprint.Random(), Token);
-                await enumerator.ToListAsync(CancellationToken.None);
-                long counter = await GetCounterValue("GetSelectorsCall", cache, context);
-                counter.Should().Be(1);
-            });
-        }
-
-        [Fact]
-        public Task GetContentHashListCallCounterBumpedOnUse()
-        {
-            return RunCacheAndSessionTestAsync(async (cache, session, context) =>
-            {
-                await session.GetContentHashListAsync(context, StrongFingerprint.Random(), Token).ShouldBeSuccess();
-                long counter = await GetCounterValue("GetContentHashListCall", cache, context);
-                counter.Should().Be(1);
-            });
-        }
-
-        [Fact]
-        public Task AddOrGetContentHashListCallCounterBumpedOnUse()
-        {
-            return RunCacheAndSessionTestAsync(async (cache, session, context) =>
-            {
-                (await session.AddOrGetContentHashListAsync(
-                    context,
-                    StrongFingerprint.Random(),
-                    new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None),
-                    Token)).ShouldBeSuccess();
-                long counter = await GetCounterValue("AddOrGetContentHashListCall", cache, context);
-                counter.Should().Be(1);
-            });
-        }
 
         private async Task RunCacheAndSessionTestAsync(Func<ICache, ICacheSession, Context, Task> funcAsync)
         {

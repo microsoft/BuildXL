@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
@@ -29,50 +28,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </remarks>
     public class MemoizationStoreCacheFactory : ICacheFactory
     {
-        private const bool WaitForLruOnShutdown = true;
         private const string DefaultStreamFolder = "streams";
 
         /// <summary>
         /// Configuration for <see cref="MemoizationStoreCacheFactory"/>.
         /// </summary>
-        /// <remarks>
-        /// MemoizationStoreCacheFactory JSON CONFIG DATA
-        /// {
-        ///     "Assembly":"BuildXL.Cache.MemoizationStoreAdapter",
-        ///     "Type":"BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
-        ///     "CacheId":"{0}",
-        ///     "MaxCacheSizeInMB":{1},
-        ///     "MaxStrongFingerprints":{2},
-        ///     "CacheRootPath":"{3}",
-        ///     "CacheLogPath":"{4}",
-        ///     "SingleInstanceTimeoutInSeconds":"{5}",
-        ///     "ApplyDenyWriteAttributesOnContent":"{6}",
-        ///     "UseStreamCAS":"{7}",
-        ///     "BackupLKGCache":{8},
-        ///     "CheckCacheIntegrityOnStartup":{9}
-        ///     "SingleInstanceTimeoutInSeconds":{10}
-        ///     "SynchronizationMode":{11},
-        ///     "LogFlushIntervalSeconds":{12}
-        ///     "StreamCAS": {
-        ///          "MaxCacheSizeInMB":{13},
-        ///          "MaxStrongFingerprints":{14},
-        ///          "CacheRootPath":"{15}",
-        ///          "SingleInstanceTimeoutInSeconds":"{16}",
-        ///          "ApplyDenyWriteAttributesOnContent":"{17}",
-        ///     },
-        ///     "EnableContentServer":{18},
-        ///     "EmptyFileHashShortcutEnabled":{19},
-        ///     "CheckLocalFiles":{20},
-        ///     "CacheName":"{21}",
-        ///     "GrpcPort":{22},
-        ///     "ScenarioName":"{23}",
-        ///     "RetryIntervalSeconds":{24},
-        ///     "RetryCount":{25},
-        ///     "ReplaceExistingOnPlaceFile":{26},
-        ///     "VfsCasRoot": "{27}",
-        ///     "UseVfsSymlinks": "{28}",
-        /// }
-        /// </remarks>
         public sealed class Config : CasConfig
         {
             /// <summary>
@@ -115,38 +75,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public CasConfig StreamCAS { get; set; }
 
             /// <summary>
-            ///     Create a backup of the last known good cache at startup. This step has a 
-            ///     startup cost but allows better recovery in case the cache detects
-            ///     corruption at startup.
-            /// </summary>
-            [DefaultValue(false)]
-            public bool BackupLKGCache { get; set; }
-
-            /// <summary>
-            ///     The cache will check its integrity on startup. If the integrity check
-            ///     fails, the corrupt cache data is thrown out and use a LKG data backup
-            ///     is used. If a backup is unavailable the cache starts from scratch.
-            /// </summary>
-            [DefaultValue(false)]
-            public bool CheckCacheIntegrityOnStartup { get; set; }
-
-            /// <summary>
-            /// Controls the synchronization mode for writes to the database.
-            /// </summary>
-            [DefaultValue(null)]
-            public string SynchronizationMode { get; set; }
-
-            /// <summary>
             /// Duration to wait for exclusive access to the cache directory before timing out.
             /// </summary>
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
-
-            /// <summary>
-            /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-            /// </summary>
-            [DefaultValue(false)]
-            public bool EmptyFileHashShortcutEnabled { get; set; }
 
             /// <summary>
             /// Whether to check for file existence before pinning.
@@ -198,10 +130,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(false)]
             public bool EnableMetadataServer { get; set; }
-
-            /// <nodoc />
-            [DefaultValue(false)]
-            public bool UseRocksDbMemoizationStore { get; set; }
 
             /// <nodoc />
             [DefaultValue(60 * 60)]
@@ -438,7 +366,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     MetadataClientConfiguration = roxisClientConfiguration,
                 };
             }
-            else if (config.UseRocksDbMemoizationStore)
+            else
             {
                 return new RocksDbMemoizationStoreConfiguration() {
                     Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore") {
@@ -450,25 +378,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         LogsKeepLongTerm = false,
                     },
                 };
-            }
-            else
-            {
-                var memoConfig = new SQLiteMemoizationStoreConfiguration(cacheRoot)
-                {
-                    MaxRowCount = config.MaxStrongFingerprints,
-                    SingleInstanceTimeoutSeconds = (int)configCore.SingleInstanceTimeoutInSeconds,
-                    WaitForLruOnShutdown = WaitForLruOnShutdown
-                };
-
-                memoConfig.Database.BackupDatabase = config.BackupLKGCache;
-                memoConfig.Database.VerifyIntegrityOnStartup = config.CheckCacheIntegrityOnStartup;
-
-                if (!string.IsNullOrEmpty(config.SynchronizationMode))
-                {
-                    memoConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), config.SynchronizationMode, ignoreCase: true);
-                }
-
-                return memoConfig;
             }
         }
 

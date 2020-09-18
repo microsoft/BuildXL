@@ -18,21 +18,6 @@ namespace Default {
     {
         contents: [
             {
-                subfolder: r`App`,
-                contents: [
-                    App.exe,
-                    // Back-Compat naming
-                    {
-                        file: App.exe.runtime.binary,
-                        targetFileName: "Microsoft.MemoizationStoreApp.exe",
-                    },
-                    {
-                        file: App.exe.runtime.pdb,
-                        targetFileName: "Microsoft.MemoizationStoreApp.pdb",
-                    }
-                ]
-            },
-            {
                 subfolder: r`Distributed`,
                 contents: [
                     Distributed.dll
@@ -73,19 +58,3 @@ namespace Default {
         ]
     };
 }
-
-@@public
-export const deploymentForBuildXL: Deployment.Definition = BuildXLSdk.isDotNetCoreBuild ? undefined :  {
-    contents: [
-        App.exe,
-        // Back-Compat naming
-        {
-            file: App.exe.runtime.binary,
-            targetFileName: "Microsoft.MemoizationStoreApp.exe",
-        },
-        {
-            file: App.exe.runtime.pdb,
-            targetFileName: "Microsoft.MemoizationStoreApp.pdb",
-        },
-    ]
-};

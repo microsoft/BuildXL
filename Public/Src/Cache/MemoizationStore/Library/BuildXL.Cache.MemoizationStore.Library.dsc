@@ -20,7 +20,6 @@ namespace Library {
             
             importFrom("BuildXL.Utilities").dll,
 
-            importFrom("System.Data.SQLite.Core").pkg,
             ...BuildXLSdk.bclAsyncPackages,
             
             importFrom("Grpc.Core").pkg,
@@ -29,9 +28,6 @@ namespace Library {
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").pkg.contents, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
         allowUnsafeBlocks: true,
-        runtimeContent: [
-            importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
-        ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStore.Test"
         ]

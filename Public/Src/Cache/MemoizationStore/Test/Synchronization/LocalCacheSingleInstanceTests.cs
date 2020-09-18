@@ -12,6 +12,7 @@ using ContentStoreTest.Test;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using Xunit;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
 {
@@ -19,7 +20,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
     [Trait("Category", "WindowsOSOnly")] // Likely failing in OSX due to partial Mac conversion
     public class LocalCacheSingleInstanceTests : SameSingleInstanceTests
     {
-        private const uint MaxStrongFingerprints = 10;
+        private const int MaxStrongFingerprints = 10;
         private static readonly IClock Clock = new MemoryClock();
 
         public LocalCacheSingleInstanceTests()
@@ -35,7 +36,17 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
             return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(
                 Logger,
                 rootPath,
-                new SQLiteMemoizationStoreConfiguration(rootPath) { MaxRowCount = MaxStrongFingerprints, SingleInstanceTimeoutSeconds = singleInstanceTimeoutSeconds },
+                new RocksDbMemoizationStoreConfiguration()
+                {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(rootPath)
+                    {
+                        CleanOnInitialize = false,
+                        OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = true,
+                        MetadataGarbageCollectionEnabled = true,
+                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = MaxStrongFingerprints,
+                    },
+                },
                 LocalCacheConfiguration.CreateServerDisabled(),
                 clock: Clock,
                 configurationModel: new ConfigurationModel(config));

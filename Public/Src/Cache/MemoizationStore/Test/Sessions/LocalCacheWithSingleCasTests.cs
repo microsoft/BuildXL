@@ -11,6 +11,7 @@ using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using Xunit;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -22,8 +23,17 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var configuration = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
             configuration.Write(FileSystem, rootPath).Wait();
 
-            var memoConfig = new SQLiteMemoizationStoreConfiguration(rootPath) { MaxRowCount = MaxContentHashListItems };
-            memoConfig.Database.JournalMode = ContentStore.SQLite.JournalMode.OFF;
+            var memoConfig = new RocksDbMemoizationStoreConfiguration()
+            {
+                Database = new RocksDbContentLocationDatabaseConfiguration(rootPath)
+                {
+                    CleanOnInitialize = false,
+                    OnFailureDeleteExistingStoreAndRetry = true,
+                    LogsKeepLongTerm = true,
+                    MetadataGarbageCollectionEnabled = true,
+                    MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = MaxContentHashListItems,
+                },
+            };
             return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);
         }
 
@@ -45,21 +55,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         [Fact]
-        protected override async Task MemoizationStoreStartupFails()
+        protected override Task MemoizationStoreStartupFails()
         {
-            var context = new Context(Logger);
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                using (var cache = CreateCache(testDirectory))
-                {
-                    // To cause memoization store startup to fail, create a directory with the same name as the expected database file.
-                    var databaseFilePath = testDirectory.Path / SQLiteMemoizationStore.DefaultDatabaseFileName;
-                    FileSystem.CreateDirectory(databaseFilePath);
-
-                    var r = await cache.StartupAsync(context);
-                    r.ShouldBeError("Memoization store startup failed");
-                }
-            }
+            // Left blank on purpose
+            return Task.CompletedTask;
         }
 
         protected override async Task VerifyPinCallCounterBumpedOnUse(ICache cache, Context context)

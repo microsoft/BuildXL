@@ -257,7 +257,6 @@ namespace NugetPackages {
 
             importFrom("Microsoft.Azure.EventHubs").withQualifier(net472PackageQualifer).pkg,
             importFrom("Microsoft.Azure.Amqp").withQualifier(net472PackageQualifer).pkg,
-            importFrom("System.Data.SQLite.Core").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             importFrom("Grpc.Core").withQualifier(net472PackageQualifer).pkg,

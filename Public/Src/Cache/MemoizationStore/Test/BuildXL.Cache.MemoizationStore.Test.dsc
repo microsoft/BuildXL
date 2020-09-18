@@ -33,7 +33,6 @@ namespace Test {
 
             importFrom("BuildXL.Utilities").dll,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
-            importFrom("System.Data.SQLite.Core").pkg,
             ...BuildXLSdk.bclAsyncPackages,
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

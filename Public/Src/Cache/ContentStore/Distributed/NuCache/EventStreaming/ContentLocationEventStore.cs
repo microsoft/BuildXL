@@ -461,7 +461,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 Tracer,
                 async () =>
                 {
-                    if (data.Entry.ContentHashListWithDeterminism.ContentHashList?.Hashes.Count < LargeUpdateMetadataEventHashCountThreshold)
+                    if ((data.Entry.ContentHashListWithDeterminism.ContentHashList?.Hashes.Count ?? 0) < LargeUpdateMetadataEventHashCountThreshold)
                     {
                         Publish(context, data);
                     }

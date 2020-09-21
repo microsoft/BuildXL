@@ -141,6 +141,10 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? UseRedisPreventThreadTheftFeature { get; set; }
 
         [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RedisMemoizationDatabaseOperationTimeoutInSeconds { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? RedisReconnectionLimitBeforeServiceRestart { get; set; }
 
@@ -149,6 +153,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool? TraceRedisTransientFailures { get; set; }
+
+        [DataMember]
+        public double? DefaultRedisOperationTimeoutInSeconds { get; set; }
 
         [DataMember]
         public TimeSpan? MinRedisReconnectInterval { get; set; }

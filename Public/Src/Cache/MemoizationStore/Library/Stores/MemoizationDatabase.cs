@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,10 +20,19 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public abstract class MemoizationDatabase : StartupShutdownSlimBase, IName
     {
+        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5);
+        private readonly TimeSpan _timeout;
+
         /// <summary>
         /// Gets the name of the component
         /// </summary>
         public string Name => Tracer.Name;
+
+        /// <nodoc />
+        protected MemoizationDatabase(TimeSpan? operationsTimeout = null)
+        {
+            _timeout = operationsTimeout ?? DefaultTimeout;
+        }
 
         /// <summary>
         /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
@@ -35,11 +45,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             ContentHashListWithDeterminism expected,
             ContentHashListWithDeterminism replacement)
         {
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                () => CompareExchangeCore(context, strongFingerprint, expectedReplacementToken, expected, replacement),
+                nestedContext => CompareExchangeCore(nestedContext, strongFingerprint, expectedReplacementToken, expected, replacement),
                 extraStartMessage: $"StrongFingerprint=({strongFingerprint}) expected=[{expected.ToTraceString()}] replacement=[{replacement.ToTraceString()}]",
-                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint})  expected=[{expected.ToTraceString()}] replacement=[{replacement.ToTraceString()}]");
+                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint})  expected=[{expected.ToTraceString()}] replacement=[{replacement.ToTraceString()}]",
+                timeout: _timeout);
         }
 
         /// <nodoc />
@@ -55,9 +66,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// </summary>
         public Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
-            return context.PerformOperationAsync(Tracer, () => GetContentHashListCoreAsync(context, strongFingerprint, preferShared),
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                nestedContext => GetContentHashListCoreAsync(nestedContext, strongFingerprint, preferShared),
                 extraStartMessage: $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
-                extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}] Result=[{result.GetValueOrDefault().contentHashListInfo.ToTraceString()}] Token=[{result.GetValueOrDefault().replacementToken}]");
+                extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}] Result=[{result.GetValueOrDefault().contentHashListInfo.ToTraceString()}] Token=[{result.GetValueOrDefault().replacementToken}]",
+                timeout: _timeout);
         }
 
         /// <nodoc />
@@ -73,9 +87,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// </summary>
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
-            return context.PerformOperationAsync(Tracer, () => GetLevelSelectorsCoreAsync(context, weakFingerprint, level),
+            return context.PerformOperationWithTimeoutAsync(
+                Tracer,
+                nestedContext => GetLevelSelectorsCoreAsync(nestedContext, weakFingerprint, level),
                 extraEndMessage: _ => $"WeakFingerprint=[{weakFingerprint}], Level=[{level}]",
-                traceErrorsOnly: true);
+                traceErrorsOnly: true,
+                timeout: _timeout);
         }
 
         /// <nodoc />

@@ -199,8 +199,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
 
                 await _dbAdapter.ExecuteBatchOperationAsync(context, batch, CancellationToken.None).IgnoreFailure();
 
-                var strongDeleted = await deleteStrongFingerprint;
-                var weakDeleted = await deleteWeakFingerprint;
+                await Task.WhenAll(deleteStrongFingerprint, deleteWeakFingerprint);
 
                 return BoolResult.Success;
             }

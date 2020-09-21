@@ -97,6 +97,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public bool TraceRedisFailures { get; set; } = false;
 
+        /// <nodoc />
+        public static TimeSpan DefaultOperationTimeout { get; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// A defensive timeout for all redis operations (except blob operations that had its own (shorter) timeout).
+        /// </summary>
+        public TimeSpan OperationTimeout { get; set; } = DefaultOperationTimeout;
+
         /// <summary>
         /// Whether to trace transient failures in redis access layer.
         /// </summary>

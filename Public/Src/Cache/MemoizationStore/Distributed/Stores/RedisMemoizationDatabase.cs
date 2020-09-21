@@ -43,8 +43,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         public RedisMemoizationDatabase(
             RedisDatabaseAdapter redis,
             IClock clock,
-            TimeSpan metadataExpiryTime
-            )
+            TimeSpan metadataExpiryTime,
+            TimeSpan? operationsTimeout = null)
+            : base(operationsTimeout)
         {
             _redis = redis;
             _clock = clock;

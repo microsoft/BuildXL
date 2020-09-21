@@ -104,6 +104,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool UsePreventThreadTheftFeature { get; set; } = false;
 
         /// <summary>
+        /// A default timeout for memoization database operations.
+        /// </summary>
+        public static readonly TimeSpan DefaultRedisMemoizationDatabaseOperationTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// A timeout for memoization database operations.
+        /// </summary>
+        public TimeSpan RedisMemoizationDatabaseOperationTimeout { get; set; } = DefaultRedisMemoizationDatabaseOperationTimeout;
+
+        /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
         public string? RedisGlobalStoreSecondaryConnectionString { get; set; }

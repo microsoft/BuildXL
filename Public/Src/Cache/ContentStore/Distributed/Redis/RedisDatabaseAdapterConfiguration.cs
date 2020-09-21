@@ -26,6 +26,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TraceRedisFailures"/>
         public bool TraceOperationFailures { get; }
 
+        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.OperationTimeout"/>
+        public TimeSpan OperationTimeout { get; }
+
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TraceRedisTransientFailures"/>
         public bool TraceTransientFailures { get; }
 
@@ -62,7 +65,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             string? databaseName = null,
             TimeSpan? minReconnectInterval = null,
             bool cancelBatchWhenMultiplexerIsClosed = false,
-            bool treatObjectDisposedExceptionAsTransient = false)
+            bool treatObjectDisposedExceptionAsTransient = false,
+            TimeSpan? operationTimeout = null)
         {
             _retryCount = retryCount;
             KeySpace = keySpace;
@@ -74,6 +78,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             MinReconnectInterval = minReconnectInterval ?? TimeSpan.Zero;
             CancelBatchWhenMultiplexerIsClosed = cancelBatchWhenMultiplexerIsClosed;
             TreatObjectDisposedExceptionAsTransient = treatObjectDisposedExceptionAsTransient;
+            OperationTimeout = operationTimeout ?? RedisContentLocationStoreConfiguration.DefaultOperationTimeout;
         }
     }
 }

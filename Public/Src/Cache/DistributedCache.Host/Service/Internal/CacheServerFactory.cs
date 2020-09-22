@@ -23,7 +23,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using static BuildXL.Cache.Host.Service.Internal.ConfigurationHelper;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {

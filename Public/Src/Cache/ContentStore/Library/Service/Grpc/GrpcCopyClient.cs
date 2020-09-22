@@ -35,8 +35,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly IClock _clock;
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
-        private readonly int _bufferSize;
-        private readonly TimeSpan _copyConnectionTimeout;
+        private readonly GrpcCopyClientConfiguration _configuration;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
@@ -49,15 +48,39 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize, int? copyTimeoutInSeconds)
+        internal GrpcCopyClient(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null)
         {
-            GrpcEnvironment.InitializeIfNeeded();
-            _clock = SystemClock.Instance;
-            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
-            _client = new ContentServer.ContentServerClient(_channel);
-            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
-            _copyConnectionTimeout = copyTimeoutInSeconds.HasValue ? TimeSpan.FromSeconds(copyTimeoutInSeconds.Value) : ContentStore.Grpc.CopyConstants.DefaultConnectionTimeoutSeconds;
             Key = key;
+            _configuration = configuration;
+            _clock = clock ?? SystemClock.Instance;
+
+            GrpcEnvironment.InitializeIfNeeded();
+            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
+
+            _client = new ContentServer.ContentServerClient(_channel);
+
+        }
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            // We have observed cases in production where a GrpcCopyClient instance consistently fails to perform
+            // copies against the destination machine. We are suspicious that no connection is actually being
+            // established. This is meant to ensure that we don't perform copies against uninitialized channels.
+            if (!_configuration.ConnectOnStartup)
+            {
+                return BoolResult.Success;
+            }
+
+            DateTime? deadline = null;
+            if (_configuration.ConnectionEstablishmentTimeout != Timeout.InfiniteTimeSpan)
+            {
+                deadline = _clock.UtcNow + _configuration.ConnectionEstablishmentTimeout;
+            }
+
+            await _channel.ConnectAsync(deadline);
+
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />
@@ -65,7 +88,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             // We had seen case, when the following call was blocked effectively forever.
             // Adding external timeout to force a failure instead of waiting forever.
-            await _channel.ShutdownAsync().WithTimeoutAsync(TimeSpan.FromSeconds(30));
+            var shutdownTask = _channel.ShutdownAsync();
+
+            if (_configuration.DisconnectionTimeout != Timeout.InfiniteTimeSpan)
+            {
+                shutdownTask = shutdownTask.WithTimeoutAsync(_configuration.DisconnectionTimeout);
+            }
+
+            await shutdownTask;
+
             return BoolResult.Success;
         }
 
@@ -111,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CopyToOptions? options, CancellationToken ct)
         {
-            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
+            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _configuration.ClientBufferSizeBytes, FileOptions.SequentialScan);
 
             using (var operationContext = TrackShutdown(context, ct))
             {
@@ -148,117 +179,114 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, CopyToOptions? options, Func<Stream> streamFactory, bool closeStream)
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+            var token = cts.Token;
+
             try
             {
-                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token))
+                CopyFileRequest request = new CopyFileRequest()
                 {
-                    var token = cts.Token;
+                    TraceId = context.TracingContext.Id.ToString(),
+                    HashType = (int)hash.HashType,
+                    ContentHash = hash.ToByteString(),
+                    Offset = 0,
+                    Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None
+                };
 
-                    CopyFileRequest request = new CopyFileRequest()
-                    {
-                        TraceId = context.TracingContext.Id.ToString(),
-                        HashType = (int)hash.HashType,
-                        ContentHash = hash.ToByteString(),
-                        Offset = 0,
-                        Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
-                    };
+                using AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, options: GetDefaultGrpcOptions(token));
+                Metadata headers;
 
-                    AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, cancellationToken: token);
-
-                    Metadata headers;
-
-                    try
-                    {
-                        var connectionTimeout = options?.BandwidthConfiguration?.ConnectionTimeout ?? _copyConnectionTimeout;
-                        headers = await response.ResponseHeadersAsync.WithTimeoutAsync(connectionTimeout, token);
-                    }
-                    catch (TimeoutException t)
-                    {
-                        // Trying to cancel the back end operation as well.
-                        cts.Cancel();
-                        return new CopyFileResult(CopyResultCode.ConnectionTimeoutError, t);
-                    }
-
-                    // If the remote machine couldn't be contacted, GRPC returns an empty
-                    // header collection. GRPC would throw an RpcException when we tried
-                    // to stream response, but by that time we would have created target
-                    // stream. To avoid that, exit early instead.
-                    if (headers.Count == 0)
-                    {
-                        return new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
-                    }
-
-                    // Parse header collection.
-                    string? exception = null;
-                    string? message = null;
-                    CopyCompression compression = CopyCompression.None;
-                    foreach (Metadata.Entry header in headers)
-                    {
-                        switch (header.Key)
-                        {
-                            case "exception":
-                                exception = header.Value;
-                                break;
-                            case "message":
-                                message = header.Value;
-                                break;
-                            case "compression":
-                                Enum.TryParse(header.Value, out compression);
-                                break;
-                        }
-                    }
-
-                    // Process reported server-side errors.
-                    if (exception != null)
-                    {
-                        Contract.Assert(message != null);
-                        switch (exception)
-                        {
-                            case "ContentNotFound":
-                                return new CopyFileResult(CopyResultCode.FileNotFoundError, message);
-                            default:
-                                return new CopyFileResult(CopyResultCode.UnknownServerError, message);
-                        }
-                    }
-
-                    // We got headers back with no errors, so create the target stream.
-                    Stream targetStream;
-                    try
-                    {
-                        targetStream = streamFactory();
-                    }
-                    catch (Exception targetException)
-                    {
-                        return new CopyFileResult(CopyResultCode.DestinationPathError, targetException);
-                    }
-
-                    // Copy the content to the target stream.
-                    try
-                    {
-                        switch (compression)
-                        {
-                            case CopyCompression.None:
-                                await StreamContentAsync(targetStream, response.ResponseStream, options, token);
-                                break;
-                            case CopyCompression.Gzip:
-                                await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, options, token);
-                                break;
-                            default:
-                                throw new NotSupportedException($"CopyCompression {compression} is not supported.");
-                        }
-                    }
-                    finally
-                    {
-                        if (closeStream)
-                        {
-#pragma warning disable AsyncFixer02 // A disposable object used in a fire & forget async call
-                            targetStream.Dispose();
-#pragma warning restore AsyncFixer02 // A disposable object used in a fire & forget async call
-                        }
-                    }
-
-                    return CopyFileResult.Success;
+                try
+                {
+                    var connectionTimeout = options?.BandwidthConfiguration?.ConnectionTimeout ?? _configuration.ConnectionTimeout;
+                    headers = await response.ResponseHeadersAsync.WithTimeoutAsync(connectionTimeout, token);
                 }
+                catch (TimeoutException t)
+                {
+                    // Trying to cancel the back end operation as well.
+                    cts.Cancel();
+                    return new CopyFileResult(CopyResultCode.ConnectionTimeoutError, t);
+                }
+
+                // If the remote machine couldn't be contacted, GRPC returns an empty
+                // header collection. GRPC would throw an RpcException when we tried
+                // to stream response, but by that time we would have created target
+                // stream. To avoid that, exit early instead.
+                if (headers.Count == 0)
+                {
+                    return new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
+                }
+
+                // Parse header collection.
+                string? exception = null;
+                string? message = null;
+                CopyCompression compression = CopyCompression.None;
+                foreach (Metadata.Entry header in headers)
+                {
+                    switch (header.Key)
+                    {
+                        case "exception":
+                            exception = header.Value;
+                            break;
+                        case "message":
+                            message = header.Value;
+                            break;
+                        case "compression":
+                            Enum.TryParse(header.Value, out compression);
+                            break;
+                    }
+                }
+
+                // Process reported server-side errors.
+                if (exception != null)
+                {
+                    Contract.Assert(message != null);
+                    switch (exception)
+                    {
+                        case "ContentNotFound":
+                            return new CopyFileResult(CopyResultCode.FileNotFoundError, message);
+                        default:
+                            return new CopyFileResult(CopyResultCode.UnknownServerError, message);
+                    }
+                }
+
+                // We got headers back with no errors, so create the target stream.
+                Stream targetStream;
+                try
+                {
+                    targetStream = streamFactory();
+                }
+                catch (Exception targetException)
+                {
+                    return new CopyFileResult(CopyResultCode.DestinationPathError, targetException);
+                }
+
+                // Copy the content to the target stream.
+                try
+                {
+                    switch (compression)
+                    {
+                        case CopyCompression.None:
+                            await StreamContentAsync(targetStream, response.ResponseStream, options, token);
+                            break;
+                        case CopyCompression.Gzip:
+                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, options, token);
+                            break;
+                        default:
+                            throw new NotSupportedException($"CopyCompression {compression} is not supported.");
+                    }
+                }
+                finally
+                {
+                    if (closeStream)
+                    {
+#pragma warning disable AsyncFixer02 // A disposable object used in a fire & forget async call
+                        targetStream.Dispose();
+#pragma warning restore AsyncFixer02 // A disposable object used in a fire & forget async call
+                    }
+                }
+
+                return CopyFileResult.Success;
             }
             catch (RpcException r)
             {
@@ -271,6 +299,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new CopyFileResult(CopyResultCode.Unknown, r);
                 }
             }
+        }
+
+        private CallOptions GetDefaultGrpcOptions(CancellationToken token)
+        {
+            return new CallOptions(deadline: _clock.UtcNow + _configuration.OperationDeadline, cancellationToken: token);
         }
 
         /// <summary>
@@ -304,21 +337,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream)
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+            var token = cts.Token;
+
             try
             {
-                var pushRequest = new PushRequest(hash, context.TracingContext.Id);
+                var pushRequest = new PushRequest(hash, traceId: context.TracingContext.Id);
                 var headers = pushRequest.GetMetadata();
 
-                
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
-                var token = cts.Token;
-                using var call = _client.PushFile(headers, cancellationToken: token);
+                using var call = _client.PushFile(options: GetDefaultGrpcOptions(token).WithHeaders(headers));
                 var requestStream = call.RequestStream;
                 Metadata responseHeaders;
 
                 try
                 {
-                    responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(_copyConnectionTimeout, token);
+                    responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(_configuration.ConnectionTimeout, token);
                 }
                 catch (TimeoutException t)
                 {
@@ -340,9 +373,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
 
                 // If we get a response before we finish streaming, it must be that the server cancelled the operation.
-                using var serverIsDoneSource = new CancellationTokenSource();
-                var pushCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(serverIsDoneSource.Token, token).Token;
-
                 var responseStream = call.ResponseStream;
                 var responseMoveNext = responseStream.MoveNext(token);
 
@@ -356,10 +386,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         // serverIsDoneSource.Cancel will throw ObjectDisposedException.
                         // This exception is not observed because the stack could've been unwound before
                         // the result of this method is awaited.
-                        IgnoreObjectDisposedException(() => serverIsDoneSource.Cancel());
+                        IgnoreObjectDisposedException(() => cts.Cancel());
                     });
 
-                await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
+                await StreamContentAsync(stream, new byte[_configuration.ClientBufferSizeBytes], requestStream, token);
 
                 token.ThrowIfCancellationRequested();
 
@@ -466,7 +496,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
                 {
-                    await decompressedStream.CopyToAsync(targetStream, _bufferSize, ct);
+                    await decompressedStream.CopyToAsync(targetStream, _configuration.ClientBufferSizeBytes, ct);
                 }
             }
 

@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -39,6 +38,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -877,7 +877,27 @@ namespace ContentStoreTest.Distributed.Sessions
                     if (UseGrpcServer && storeCount > 1)
                     {
                         Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");
-                        testFileCopiers = Enumerable.Range(0, 2).Select(i => new GrpcFileCopier(context, ports[i == 1 ? 0 : 1], maxGrpcClientCount: 1, maxGrpcClientAgeMinutes: 1)).ToArray();
+                        var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
+                        {
+                            ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,
+                            ResourcePoolConfiguration = new ResourcePoolConfiguration()
+                            {
+                                MaximumAge = TimeSpan.FromMinutes(1),
+                                MaximumResourceCount = 1,
+                            }
+                        };
+
+                        testFileCopiers = Enumerable.Range(0, 2).Select(i =>
+                        {
+                            var grpcFileCopierConfiguration = new GrpcFileCopierConfiguration()
+                            {
+                                GrpcPort = ports[i == 1 ? 0 : 1],
+                                GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
+                                GrpcCopyClientInvalidationPolicy = GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError,
+                            };
+
+                            return new GrpcFileCopier(context, grpcFileCopierConfiguration);
+                        }).ToArray();
                     }
                     else
                     {

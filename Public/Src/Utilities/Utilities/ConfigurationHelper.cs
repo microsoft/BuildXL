@@ -3,10 +3,12 @@
 
 using System;
 
-namespace BuildXL.Cache.Host.Service.Internal
+namespace BuildXL.Utilities
 {
-    internal static class ConfigurationHelper
+    /// <nodoc />
+    public static class ConfigurationHelper
     {
+        /// <nodoc />
         public static void ApplyIfNotNull<T>(T value, Action<T> apply) where T : class
         {
             if (value != null)
@@ -15,6 +17,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
+        /// <nodoc />
         public static void ApplyIfNotNull<T>(T? value, Action<T> apply) where T : struct
         {
             if (value != null)

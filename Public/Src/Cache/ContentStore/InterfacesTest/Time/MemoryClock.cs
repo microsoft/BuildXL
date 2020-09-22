@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
 {
@@ -34,6 +35,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
             lock (_lock)
             {
                 _utcNow += TimeSpan.FromSeconds(1);
+            }
+        }
+
+        public void Increment(TimeSpan timeSpan)
+        {
+            Contract.Requires(timeSpan > TimeSpan.Zero);
+            lock (_lock)
+            {
+                _utcNow += timeSpan;
             }
         }
     }

@@ -226,9 +226,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsRepairHandlingEnabled { get; set; } = false;
 
-        /// <remarks>
-        /// This is used in CloudBuild
-        /// </remarks>
         [DataMember]
         public bool UseMdmCounters { get; set; } = true;
 
@@ -396,42 +393,72 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int MaxRetryCount { get; set; } = 32;
 
-        #region Grpc Copier
-
-        /// <summary>
-        /// Whether or not GZip is enabled for GRPC copies.
-        /// </summary>
-        /// <remarks>
-        /// This is used in CloudBuild
-        /// </remarks>
         [DataMember]
-        public bool UseCompressionForCopies { get; set; } = false;
+        public bool UseUnsafeByteStringConstruction { get; set; } = false;
+
+        #region Grpc File Copier
 
         [DataMember]
-        public bool GrpcFileCopierInvalidateGrpcClientsOnCopyFailures { get; set; } = false;
+        public string GrpcFileCopierGrpcCopyClientInvalidationPolicy { get; set; }
+
+        #endregion
+
+        #region Grpc Copy Client Cache
+
+        [DataMember]
+        [Validation.Range(0, 2)]
+        public int? GrpcCopyClientCacheResourcePoolVersion { get; set; }
 
         /// <summary>
         /// Upper bound on number of cached GRPC clients.
         /// </summary>
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int MaxGrpcClientCount { get; set; } = DefaultMaxConcurrentCopyOperations;
+        public int? MaxGrpcClientCount { get; set; }
 
         /// <summary>
         /// Maximum cached age for GRPC clients.
         /// </summary>
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaxGrpcClientAgeMinutes { get; set; } = 55;
+        [Validation.Range(1, double.MaxValue)]
+        public double? MaxGrpcClientAgeMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, double.MaxValue)]
+        public double? GrpcCopyClientCacheGarbageCollectionPeriodMinutes { get; set; }
 
         [DataMember]
         public bool? GrpcCopyClientCacheEnableInstanceInvalidation { get; set; }
 
-        [DataMember]
-        public bool? GrpcCopyClientCacheDisableInstanceCaching { get; set; }
+        #endregion
+
+        #region Grpc Copy Client
 
         [DataMember]
-        public bool UseUnsafeByteStringConstruction { get; set; } = false;
+        [Validation.Range(0, int.MaxValue)]
+        public int? GrpcCopyClientBufferSizeBytes { get; set; }
+
+        [DataMember]
+        public bool? GrpcCopyClientUseGzipCompression { get; set; }
+
+        [DataMember]
+        public bool? GrpcCopyClientConnectOnStartup { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double? GrpcCopyClientConnectionEstablishmentTimeoutSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double? GrpcCopyClientDisconnectionTimeoutSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double? GrpcCopyClientConnectionTimeoutSeconds { get; set; }
+
+        #endregion
+
+        #region Distributed Eviction
 
         /// <summary>
         /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
@@ -439,18 +466,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool ShutdownEvictionBeforeHibernation { get; set; } = false;
 
-        /// <summary>
-        /// Timeout for push/pull copy operations in seconds
-        /// </summary>
-        /// <remarks>
-        /// This is used in CloudBuild
-        /// </remarks>
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? GrpcCopyConnectionTimeoutInSeconds { get; set; }
-        #endregion
-
-        #region Distributed Eviction
         [DataMember]
         public bool IsDistributedEvictionEnabled { get; set; } = false;
 
@@ -901,9 +916,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TouchContentHashLists { get; set; }
 
-        /// <remarks>
-        /// This is used in CloudBuild
-        /// </remarks>
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
         {
             if (AlternateDriveMap != null)

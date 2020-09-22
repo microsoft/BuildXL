@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -28,41 +29,29 @@ namespace BuildXL.Cache.ContentStore.Utils
         where TObject : IStartupShutdownSlim
     {
         private readonly Context _context;
+        private readonly ResourcePoolConfiguration _configuration;
+
         private readonly Func<TKey, TObject> _resourceFactory;
-
-        private readonly int _maxResourceCount;
-        private readonly int _maximumAgeInMinutes;
-        private readonly bool _enableInstanceInvalidation;
+        private readonly SemaphoreSlim _mutex = TaskUtilities.CreateMutex();
         private readonly Dictionary<TKey, ResourceWrapper<TObject>> _resourceDict;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(initialCount: 1);
-        private readonly IClock _clock;
+        private readonly ConcurrentQueue<ResourceWrapper<TObject>> _shutdownQueue = new ConcurrentQueue<ResourceWrapper<TObject>>();
 
+        private readonly IClock _clock;
         private readonly Tracer _tracer = new Tracer(nameof(ResourcePool<TKey, TObject>));
+
         private bool _disposed;
 
         internal CounterCollection<ResourcePoolCounters> Counter { get; } = new CounterCollection<ResourcePoolCounters>();
 
-        private readonly ConcurrentQueue<ResourceWrapper<TObject>> _shutdownQueue = new ConcurrentQueue<ResourceWrapper<TObject>>();
-
-        /// <summary>
-        /// Cache of objects.
-        /// </summary>
-        /// <param name="context">Content.</param>
-        /// <param name="maxResourceCount">Maximum number of clients to cache.</param>
-        /// <param name="maxAgeMinutes">Maximum age of cached clients.</param>
-        /// <param name="resourceFactory">Constructor for a new resource.</param>
-        /// <param name="clock">Clock to use for TTL</param>
-        /// <param name="enableInstanceInvalidation">Allow callers to invalidate instances</param>
-        public ResourcePool(Context context, int maxResourceCount, int maxAgeMinutes, Func<TKey, TObject> resourceFactory, IClock? clock = null, bool enableInstanceInvalidation = false)
+        /// <nodoc />
+        public ResourcePool(Context context, ResourcePoolConfiguration configuration, Func<TKey, TObject> resourceFactory, IClock? clock = null)
         {
             _context = context;
-            _maxResourceCount = maxResourceCount;
-            _maximumAgeInMinutes = maxAgeMinutes;
-            _enableInstanceInvalidation = enableInstanceInvalidation;
-
+            _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
 
-            _resourceDict = new Dictionary<TKey, ResourceWrapper<TObject>>(_maxResourceCount);
+            // We need to allow for one more resource to be alive at any given time
+            _resourceDict = new Dictionary<TKey, ResourceWrapper<TObject>>(_configuration.MaximumResourceCount + 1);
             _resourceFactory = resourceFactory;
         }
 
@@ -81,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             using (Counter[ResourcePoolCounters.CreationTime].Start())
             {
                 // NOTE: if dispose has happened at this point, we will fail to take the semaphore
-                using (await _semaphore.WaitTokenAsync())
+                using (await _mutex.WaitTokenAsync())
                 {
                     // Remove anything that has expired or been invalidated.
                     await CleanupAsync();
@@ -119,11 +108,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <summary>
-        /// Free resources which are no longer in use and older than <see cref="_maximumAgeInMinutes"/> minutes.
+        /// Free resources which are no longer in use and older than <see cref="ResourcePoolConfiguration.MaximumAge"/>.
         /// </summary>
         private async Task CleanupAsync()
         {
-            var earliestLastUseTime = _clock.UtcNow - TimeSpan.FromMinutes(_maximumAgeInMinutes);
+            var earliestLastUseTime = _clock.UtcNow - _configuration.MaximumAge;
             var shutdownTasks = new List<Task<BoolResult>>();
 
             using (var sw = Counter[ResourcePoolCounters.Cleanup].Start())
@@ -133,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // First remove everything that's either expired or invalid
                 foreach (var kvp in _resourceDict.ToList())
                 {
-                    if (kvp.Value.LastUseTime > earliestLastUseTime && (!_enableInstanceInvalidation || !kvp.Value.Invalid))
+                    if (kvp.Value.LastUseTime > earliestLastUseTime && (!_configuration.EnableInstanceInvalidation || !kvp.Value.Invalid))
                     {
                         // If the resource is within its lifetime, and it's not invalid (when invalidation is enabled),
                         // we can skip it.
@@ -145,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
 
                 // Now prune until we are within quota
-                var resourceRemovalTarget = _resourceDict.Count - _maxResourceCount;
+                var resourceRemovalTarget = _resourceDict.Count - _configuration.MaximumResourceCount;
                 if (resourceRemovalTarget > 0)
                 {
                     foreach (var kvp in _resourceDict.OrderBy(kvp => kvp.Value.LastUseTime))
@@ -206,18 +195,40 @@ namespace BuildXL.Cache.ContentStore.Utils
                 return;
             }
 
-            using (_semaphore.WaitToken())
+            using (_mutex.WaitToken())
             {
                 _disposed = true;
 
-                var queuedShutdownTasks = _shutdownQueue.Select(instance => instance.Value.ShutdownAsync(_context));
-                var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).Concat(queuedShutdownTasks).ToArray();
+                var shutdownTasks = _resourceDict.Select(resourceKvp =>
+                {
+                    if (!resourceKvp.Value.IsValueCreated)
+                    {
+                        return BoolResult.SuccessTask;
+                    }
+
+                    TObject client;
+                    try
+                    {
+                        client = resourceKvp.Value.Value;
+                    }
+                    catch
+                    {
+                        // The resource may have failed to construct in the first place. In such a case, we don't need
+                        // to shut it down.
+
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                        return BoolResult.SuccessTask;
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                    }
+
+                    return client.ShutdownAsync(_context);
+                }).ToArray();
                 ShutdownGrpcClientsAsync(shutdownTasks).GetAwaiter().GetResult();
             }
 
             _tracer.Debug(_context, string.Join(Environment.NewLine, Counter.AsStatistics(nameof(ResourcePool<TKey, TObject>)).Select(kvp => $"{kvp.Key} : {kvp.Value}")));
 
-            _semaphore.Dispose();
+            _mutex.Dispose();
         }
 
         private async Task ShutdownGrpcClientsAsync(Task<BoolResult>[] shutdownTasks)

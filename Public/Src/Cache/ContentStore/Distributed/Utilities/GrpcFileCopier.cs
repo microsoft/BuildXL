@@ -26,12 +26,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class GrpcFileCopier : IAbsolutePathRemoteFileCopier, IContentCommunicationManager, IDisposable
     {
         private readonly Context _context;
-        private readonly int _grpcPort;
-        private readonly bool _useCompression;
+        private readonly GrpcFileCopierConfiguration _configuration;
 
         private readonly GrpcCopyClientCache _clientCache;
-
-        private readonly bool _invalidateGrpcClientsOnCopyFailures;
 
         /// <summary>
         /// Extract the host name from an AbsolutePath's segments.
@@ -49,27 +46,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
         }
 
-        /// <nodoc />
-        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, bool useCompression = false, int? bufferSize = null, int? copyTimeoutInSeconds = null)
-            : this(context, grpcPort, useCompression, new GrpcCopyClientCacheConfiguration()
-            {
-                MaxClientCount = maxGrpcClientCount,
-                MaxClientAgeMinutes = maxGrpcClientAgeMinutes,
-                BufferSize = bufferSize,
-                CopyTimeoutSeconds = copyTimeoutInSeconds
-            })
-        {
-        }
-
-        /// <nodoc />
-        public GrpcFileCopier(Context context, int grpcPort, bool useCompression = false, GrpcCopyClientCacheConfiguration grpcCopyClientCacheConfiguration = null, bool invalidateGrpcClientsOnCopyFailures = false)
+        /// <summary>
+        /// Constructor for <see cref="GrpcFileCopier"/>.
+        /// </summary>
+        public GrpcFileCopier(Context context, GrpcFileCopierConfiguration configuration)
         {
             _context = context;
-            _grpcPort = grpcPort;
-            _useCompression = useCompression;
-
-            _invalidateGrpcClientsOnCopyFailures = invalidateGrpcClientsOnCopyFailures;
-            _clientCache = new GrpcCopyClientCache(context, grpcCopyClientCacheConfiguration);
+            _configuration = configuration;
+            _clientCache = new GrpcCopyClientCache(context, _configuration.GrpcCopyClientCacheConfiguration);
         }
 
         /// <inheritdoc />
@@ -79,13 +63,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
+        public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
         {
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
 
-            using var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression);
-            return await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
+            var context = new OperationContext(_context, cancellationToken);
+            return _clientCache.UseAsync(context, host, _configuration.GrpcPort, (nestedContext, client) => client.CheckFileExistsAsync(nestedContext, contentHash));
         }
 
         private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
@@ -115,54 +99,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
             CopyToOptions options)
         {
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
             // Contact hard-coded port on source
-            using var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression);
-            var result = await clientWrapper.Value.CopyToAsync(context, contentHash, destinationStream, options, context.Token);
-            if (!result)
+            return _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
             {
-                if (_invalidateGrpcClientsOnCopyFailures)
+                var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options, context.Token);
+                if (!result)
                 {
-                    clientWrapper.Invalidate();
-                }
-                else
-                {
-                    if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) || result.Code == CopyResultCode.ConnectionTimeoutError)
+                    switch (_configuration.GrpcCopyClientInvalidationPolicy)
                     {
-                        if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
-                        {
+                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.Disabled:
+                            break;
+                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError:
                             clientWrapper.Invalidate();
-                        }
+                            break;
+                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnConnectivityErrors:
+                            if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) || result.Code == CopyResultCode.ConnectionTimeoutError)
+                            {
+                                if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
+                                {
+                                    clientWrapper.Invalidate();
+                                }
+                            }
+                            break;
                     }
                 }
-            }
 
-            return result;
+                return result;
+            });
         }
 
         /// <inheritdoc />
-        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
         {
             var targetPath = new AbsolutePath(targetMachine.Path);
             var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-            using var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression);
-            return await clientWrapper.Value.PushFileAsync(context, hash, stream);
+            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream));
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             var targetPath = new AbsolutePath(targetMachine.Path);
             var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-            using var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression);
-            return await clientWrapper.Value.RequestCopyFileAsync(context, hash);
+            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.RequestCopyFileAsync(nestedContext, hash));
         }
 
         /// <inheritdoc />
@@ -174,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             using (var client = new GrpcContentClient(
                 new ServiceClientContentSessionTracer(nameof(ServiceClientContentSessionTracer)),
                 new PassThroughFileSystem(),
-                new ServiceClientRpcConfiguration(_grpcPort) { GrpcHost = targetMachineName },
+                new ServiceClientRpcConfiguration(_configuration.GrpcPort) { GrpcHost = targetMachineName },
                 scenario: string.Empty))
             {
                 return await client.DeleteContentAsync(context, hash, deleteLocalOnly: true);

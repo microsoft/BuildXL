@@ -17,22 +17,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public int GrpcPort { get; }
 
         /// <nodoc />
-        public bool UseCompression { get; }
-
-        /// <nodoc />
-        public GrpcCopyClientKey(string host, int grpcPort, bool useCompression)
+        public GrpcCopyClientKey(string host, int grpcPort)
         {
             Host = host;
             GrpcPort = grpcPort;
-            UseCompression = useCompression;
         }
 
         /// <nodoc />
         public bool Equals(GrpcCopyClientKey other)
         {
             return string.Equals(Host, other.Host, StringComparison.InvariantCultureIgnoreCase)
-                && GrpcPort == other.GrpcPort
-                && UseCompression == other.UseCompression;
+                && GrpcPort == other.GrpcPort;
         }
 
         /// <inheritdoc />
@@ -44,13 +39,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (Host, GrpcPort, UseCompression).GetHashCode();
+            return (Host, GrpcPort).GetHashCode();
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"({Host}, {GrpcPort}, {(UseCompression ? "compressed" : "uncompressed")})";
+            return $"({Host}, {GrpcPort})";
         }
     }
 }

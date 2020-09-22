@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Service
@@ -133,10 +134,7 @@ namespace BuildXL.Cache.ContentStore.Service
         public int RequestCallTokensPerCompletionQueue { get; set; } = DefaultRequestCallTokensPerCompletionQueue;
 
         /// <nodoc />
-        public static readonly int DefaultGrpcPort = 7089;
-
-        /// <nodoc />
-        public int GrpcPort { get; private set; }
+        public int GrpcPort { get; private set; } = GrpcConstants.DefaultGrpcPort;
 
         /// <nodoc />
         public int? BufferSizeForGrpcCopies { get; private set; }

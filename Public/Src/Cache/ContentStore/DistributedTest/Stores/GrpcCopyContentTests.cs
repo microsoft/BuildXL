@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -21,6 +23,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -41,8 +44,12 @@ namespace ContentStoreTest.Distributed.Stores
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration() {
-                MaxClientCount = 1024
+            _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration()
+            {
+                ResourcePoolConfiguration = new BuildXL.Cache.ContentStore.Utils.ResourcePoolConfiguration()
+                {
+                    MaximumResourceCount = 1024,
+                },
             });
         }
 
@@ -101,7 +108,7 @@ namespace ContentStoreTest.Distributed.Stores
                     // If the stream is not disposed, the following operation should not fail.
                     destinationStream.Stream.Position.Should().BeGreaterThan(0);
                 }
-                
+
                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
                 // Compare original and copied files
@@ -160,18 +167,17 @@ namespace ContentStoreTest.Distributed.Stores
             {
                 // Copy fake file out via GRPC
                 var bogusPort = PortExtensions.GetNextAvailablePort();
-                using (var clientWrapper = await _clientCache.CreateAsync(LocalHost, bogusPort, true))
-                {
-                    // Replace the given client with a bogus one
-                    client = clientWrapper.Value;
 
-                    var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null, CancellationToken.None);
+                await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
+                {
+                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null, nestedContext.Token);
                     Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
-                }
+                    return Unit.Void;
+                });
             });
         }
 
-        private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName]string testName = null)
+        private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)
         {
             var cacheName = testName + "_cache";
 
@@ -209,11 +215,11 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                using (var clientWrapper = await _clientCache.CreateAsync(LocalHost, port, false))
+                await _clientCache.UseAsync(new OperationContext(_context), LocalHost, port, async (nestedContext, grpcCopyClient) =>
                 {
-                    // Run validation
-                    await testAct(rootPath, session, clientWrapper.Value);
-                }
+                    await testAct(rootPath, session, grpcCopyClient);
+                    return Unit.Void;
+                });
 
                 await server.ShutdownAsync(_context).ShouldBeSuccess();
             }

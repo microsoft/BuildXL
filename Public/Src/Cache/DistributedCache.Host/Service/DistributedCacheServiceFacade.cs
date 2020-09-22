@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -24,6 +25,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -68,20 +70,52 @@ namespace BuildXL.Cache.Host.Service
         private static (IAbsolutePathRemoteFileCopier copier, IAbsolutePathTransformer pathTransformer, IContentCommunicationManager copyRequester)
             BuildCopyInfrastructure(ILogger logger, DistributedCacheServiceConfiguration config)
         {
-            var settings = config.DistributedContentSettings;
+            var dcs = config.DistributedContentSettings;
+
+
+            var grpcCopyClientConfiguration = new GrpcCopyClientConfiguration();
+            ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientUseGzipCompression, v => grpcCopyClientConfiguration.UseGzipCompression = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientConnectionEstablishmentTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionEstablishmentTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
+
+            var resourcePoolConfiguration = new ResourcePoolConfiguration();
+            ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);
+            ApplyIfNotNull(dcs.MaxGrpcClientAgeMinutes, v => resourcePoolConfiguration.MaximumAge = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientCacheGarbageCollectionPeriodMinutes, v => resourcePoolConfiguration.GarbageCollectionPeriod = TimeSpan.FromMinutes(v));
+
+            // We don't have to dispose the copier here. RunAsync will take care of that.
+            var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
+            {
+                ResourcePoolConfiguration = resourcePoolConfiguration,
+                GrpcCopyClientConfiguration = grpcCopyClientConfiguration,
+            };
+            ApplyIfNotNull(dcs.GrpcCopyClientCacheResourcePoolVersion, v => grpcCopyClientCacheConfiguration.ResourcePoolVersion = (GrpcCopyClientCacheConfiguration.PoolVersion)v);
+
+            var grpcFileCopierConfiguration = new GrpcFileCopierConfiguration()
+            {
+                GrpcPort = (int)config.LocalCasSettings.ServiceSettings.GrpcPort,
+                GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
+            };
+            ApplyIfNotNull(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy, v => {
+                if (!Enum.TryParse<GrpcFileCopierConfiguration.ClientInvalidationPolicy>(v, out var parsed))
+                {
+                    throw new ArgumentException($"Failed to parse `{nameof(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy)}` setting with value `{dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy}` into type `{nameof(GrpcFileCopierConfiguration.ClientInvalidationPolicy)}`");
+                }
+
+                grpcFileCopierConfiguration.GrpcCopyClientInvalidationPolicy = parsed;
+            });
 
             var grpcFileCopier = new GrpcFileCopier(
                     new Context(logger),
-                    (int)config.LocalCasSettings.ServiceSettings.GrpcPort,
-                    settings.MaxGrpcClientCount,
-                    settings.MaxGrpcClientAgeMinutes,
-                    copyTimeoutInSeconds: settings.GrpcCopyConnectionTimeoutInSeconds,
-                    useCompression: settings.UseCompressionForCopies);
+                    grpcFileCopierConfiguration);
 
             return (
                     copier: grpcFileCopier,
                     pathTransformer: new GrpcDistributedPathTransformer(
-                        junctionsByDirectory: settings.GetAutopilotAlternateDriveMap(),
+                        junctionsByDirectory: dcs.GetAutopilotAlternateDriveMap(),
                         logger: logger),
                     copyRequester: grpcFileCopier
                 );

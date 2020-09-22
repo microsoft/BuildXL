@@ -48,6 +48,11 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Whether the value has actually been created or not
+        /// </summary>
+        public bool IsValueCreated => m_lazyTask.IsValueCreated;
+
+        /// <summary>
         /// Starts the asynchronous operation without blocking the current thread of execution
         /// </summary>
         public void Start()

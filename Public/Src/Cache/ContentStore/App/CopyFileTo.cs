@@ -4,11 +4,9 @@
 using System;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -50,15 +48,17 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using var clientCache = new GrpcCopyClientCache(context);
-                using var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompression: false).GetAwaiter().GetResult();
-                var rpcClient = rpcClientWrapper.Value;
                 var path = new AbsolutePath(sourcePath);
-
                 using Stream stream = File.OpenRead(path.Path);
 
-                // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, stream)).Result;
+                using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration() {
+                    GrpcCopyClientConfiguration = GrpcCopyClientConfiguration.WithGzipCompression(false),
+                });
+                var copyFileResult = clientCache.UseAsync(operationContext, host, grpcPort, (nestedContext, rpcClient) =>
+                {
+                    return retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(nestedContext, hash, stream));
+                }).GetAwaiter().GetResult();
+
                 if (!copyFileResult.Succeeded)
                 {
                     context.Error($"{copyFileResult}");

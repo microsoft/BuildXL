@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -14,7 +15,8 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IStartupShutdownSlim
+    public sealed class ResourceWrapper<TObject> : IDisposable
+        where TObject: IStartupShutdownSlim
     {
         private readonly bool _shutdownOnDispose;
         private readonly Context _context;

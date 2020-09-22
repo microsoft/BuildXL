@@ -29,7 +29,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Allow sent and received message to have (essentially) unbounded length. This does not cause GRPC to send larger packets, but it does allow larger packets to exist.
         /// </summary>
-        public static readonly List<ChannelOption> DefaultConfiguration = new List<ChannelOption>() { new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue) };
+        public static readonly List<ChannelOption> DefaultConfiguration = new List<ChannelOption>() {
+            new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue),
+            new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue),
+            // Disable a bunch of gRPC features we don't use
+            new ChannelOption("grpc.census", 0),
+            new ChannelOption("grpc.loadreporting", 0),
+            new ChannelOption("grpc.enable_channelz", 0),
+            new ChannelOption("grpc.enable_http_proxy", 0),
+            new ChannelOption("grpc.inhibit_health_checking", 1),
+        };
 
         /// <summary>
         /// Initialize the GRPC environment if not yet initialized.

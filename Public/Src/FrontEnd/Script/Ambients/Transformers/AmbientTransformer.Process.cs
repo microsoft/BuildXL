@@ -103,6 +103,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
+        private SymbolAtom m_preservePathSetCasing;
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
@@ -246,6 +247,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
+            m_preservePathSetCasing = Symbol("preservePathSetCasing");
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
@@ -652,6 +654,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_executeAllowUndeclaredSourceReads) == true)
             {
                 processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+            }
+
+            // Preserve path set casing flag
+            if (Converter.ExtractOptionalBoolean(obj, m_preservePathSetCasing) == true)
+            {
+                processBuilder.Options |= Process.Options.PreservePathSetCasing;
             }
 
             // disableCacheLookup flag

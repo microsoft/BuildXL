@@ -234,7 +234,16 @@ namespace Transformer {
          * of the exit code.
          * Defaults to false.
          */
-        writingToStandardErrorFailsExecution?: boolean
+        writingToStandardErrorFailsExecution?: boolean;
+
+         /**
+         * When set, the serialized path set of this process is not normalized wrt casing
+         * This is already the behavior when running in a non-Windows OS, therefore this option only has a effect on Windows systems.
+         * Setting this option increases the chance BuildXL will preserve path casing on Windows, at the cost of less efficient
+         * caching, where the same weak fingerprint may have different path sets that only differ in casing.
+         * Defaults to false.
+         */
+        preservePathSetCasing?: boolean;
     }
 
     @@public

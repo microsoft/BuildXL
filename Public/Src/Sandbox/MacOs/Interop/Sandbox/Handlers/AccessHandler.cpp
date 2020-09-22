@@ -10,7 +10,7 @@ bool AccessHandler::TryInitializeWithTrackedProcess(pid_t pid)
     {
         return false;
     }
-    
+
     SetProcess(process);
     return true;
 }
@@ -95,7 +95,7 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
 
     SetProcessPath(&report);
     sandbox_->SendAccessReport(report, GetPip());
-    
+
     return kReported;
 }
 
@@ -118,7 +118,7 @@ bool AccessHandler::ReportChildProcessSpawned(pid_t childPid)
     SetProcessPath(&report);
     assert(strlen(report.path) > 0);
     sandbox_->SendAccessReport(report, GetPip());
-    
+
     return kReported;
 }
 
@@ -143,7 +143,7 @@ static bool is_prefix(const char *s1, const char *s2)
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -167,13 +167,13 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
     PolicyResult policy = PolicyForPath(IgnoreDataPartitionPrefix(path));
     AccessCheckResult result = AccessCheckResult::Invalid();
     checker(policy, isDir, &result);
-        
+
     if (!result.ShouldReport())
     {
         return result;
     }
-    
+
     ReportFileOpAccess(operation, policy, result, pid);
-    
+
     return result;
 }

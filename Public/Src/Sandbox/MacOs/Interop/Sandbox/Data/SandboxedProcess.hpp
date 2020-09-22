@@ -20,7 +20,7 @@ class SandboxedProcess final
 {
 
 private:
-    
+
     /*! The pip this process belongs to. */
     std::shared_ptr<SandboxedPip> pip_;
 
@@ -34,7 +34,7 @@ private:
     int pathLength_;
 
 public:
-    
+
     SandboxedProcess() = delete;
     SandboxedProcess(pid_t processId, std::shared_ptr<SandboxedPip> pip);
     ~SandboxedProcess();

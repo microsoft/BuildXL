@@ -57,17 +57,21 @@
     {
         return NO;
     }
-    
+
     _OSSystemExtensionRequestFinished = NO;
-    
+
     if (@available(macOS 10.15, *))
     {
         dispatch_queue_t actionQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
         OSSystemExtensionRequest *request = nil;
-         
+
         switch (action)
         {
             case TestXPCConnection:
+            {
+                // Does not return, stars an XPC host for testing purposes
+                start_xpc_server();
+            }
             case RegisterSystemExtension:
             {
                 request = [OSSystemExtensionRequest activationRequestForExtension:systemExtensionIdentifier
@@ -83,25 +87,19 @@
             default:
                 break;
         }
-        
+
         if (request)
         {
             request.delegate = self;
             [[OSSystemExtensionManager sharedManager] submitRequest:request];
-    
+
             do
             {
                 [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.0]];
             }
             while(!_OSSystemExtensionRequestFinished);
-            
-            if (action == TestXPCConnection)
-            {
-                // Does not return
-                start_xpc_server();
-            }
         }
-        
+
         return _OSSystemExtensionRequestFinished;
     }
     else

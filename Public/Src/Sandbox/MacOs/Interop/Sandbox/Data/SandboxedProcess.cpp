@@ -9,7 +9,7 @@ SandboxedProcess::SandboxedProcess(pid_t processId, std::shared_ptr<SandboxedPip
 {
     assert(pip != nullptr);
     log_debug("Initializing with pid (%d) and pip (%#llX) from: %{public}s", processId, pip->GetPipId(), __FUNCTION__);
-    
+
     pip_ = pip;
     id_  = processId;
     bzero(path_, sizeof(path_));

@@ -13,12 +13,12 @@ class BuildXLException : public std::exception
 private:
 
     std::string message_;
-    
+
 public:
 
     BuildXLException() = delete;
     BuildXLException(const std::string& message) : message_(message) { }
-    
+
     const char* what() const noexcept
     {
         return message_.c_str();

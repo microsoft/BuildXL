@@ -91,9 +91,9 @@ namespace BuildXL.Utilities
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(string.Empty, string.Empty);
 
         /// <summary>
-        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// Indicates if BuildXL can only run with non-kernel extension sandboxing on macOS - that is the case on Catalina (10.15+) or newer
         /// </summary>
-        public static readonly bool IsMacOSCatalinaOrHigher = IsMacOS && CurrentMacOSVersion.Value.Major >= 10 && CurrentMacOSVersion.Value.Minor >= 15;
+        public static readonly bool IsMacWithoutKernelExtensionSupport = IsMacOS && (CurrentMacOSVersion.Value.Major >= 11 || (CurrentMacOSVersion.Value.Major == 10 && CurrentMacOSVersion.Value.Minor >= 15));
 
         // Sysctl constants to query CPU information
         private static readonly string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
@@ -138,7 +138,7 @@ namespace BuildXL.Utilities
         /// Returns method for canonicalizing paths as strings.
         /// </summary>
         /// <remarks>
-        /// The canonicalization is only turning the path into all uppercase letters if path comparison is case insensitive, i.e., 
+        /// The canonicalization is only turning the path into all uppercase letters if path comparison is case insensitive, i.e.,
         /// <see cref="IsPathComparisonCaseSensitive"/> is false. The canonicalization does not eliminate '.' or '..', nor dedupe directory
         /// separators. If path comparison is case sensitive, then the canonicalization method simply returns the string as is.
         /// </remarks>
@@ -273,7 +273,7 @@ namespace BuildXL.Utilities
             else
             {
                 var buf = new Memory.RamUsageInfo();
-                return Memory.GetRamUsageInfo(ref buf) == 0 
+                return Memory.GetRamUsageInfo(ref buf) == 0
                     ? new FileSize(buf.FreeBytes)
                     : new FileSize(0);
             }
@@ -368,7 +368,7 @@ namespace BuildXL.Utilities
                 ? memoryStatusEx.ullAvailPhys
                 : 0;
             return new FileSize(bytes);
-        }       
+        }
 
         /// <summary>
         /// Gets .NET Framework version installed on the machine in a human readable form.
@@ -385,9 +385,9 @@ namespace BuildXL.Utilities
 
         /// <summary>
         /// Returns the current runtime version.
-        /// 
+        ///
         /// On .NET Core, the return string is something like ".NETCoreApp, Version=v2.0"
-        /// 
+        ///
         /// On .NET Framework, the return string is something like ".NETFramework, Version = v4.7.2".
         /// </summary>
         public static string GetRuntimeFrameworkNameAndVersion()

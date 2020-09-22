@@ -41,7 +41,7 @@ void BxlObserver::InitFam()
         return;
     }
 
-    // read FAM 
+    // read FAM
     FILE *famFile = real_fopen(famPath, "rb");
     if (!famFile)
     {
@@ -189,7 +189,7 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
 
 bool BxlObserver::SendReport(AccessReport &report)
 {
-    // there is no central sendbox process here (i.e., there is an instance of this 
+    // there is no central sendbox process here (i.e., there is an instance of this
     // guy in every child process), so counting process tree size is not feasible
     if (report.operation == FileOperation::kOpProcessTreeCompleted)
     {
@@ -200,7 +200,7 @@ bool BxlObserver::SendReport(AccessReport &report)
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int numWritten = snprintf(
-        &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s\n", 
+        &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s\n",
         __progname, getpid(), report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path);
     if (numWritten == maxMessageLength)
     {
@@ -234,7 +234,7 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
         ? reportPath
         : std::string(progFullPath_);
 
-    IOEvent event(getpid(), 0, getppid(), eventType, reportPath, secondPath, execPath, mode, false);
+    IOEvent event(getpid(), 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, reportPath, secondPath, execPath, mode, false);
     return report_access(syscallName, event, /* checkCache */ false /* because already checked cache above */);
 }
 
@@ -256,7 +256,7 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &e
         result = handler.HandleEvent(event);
     }
 
-    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(), 
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(),
         !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
         result.ShouldDenyAccess() && IsFailingUnexpectedAccesses() ? "[Blocked]" : "");
 
@@ -374,7 +374,7 @@ static char* find_prev_slash(char *pStr)
     return pStr;
 }
 
-// resolve any intermediate directory symlinks 
+// resolve any intermediate directory symlinks
 //   - TODO: cache this
 //   - TODO: break symlink cycles
 void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
@@ -403,8 +403,8 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
             }
             else if (parentDirLen == 2 && *(pFullpath - 1) == '.' && *(pFullpath - 2) == '.')
             {
-                // find previous slash unless already at the beginning 
-                if (pPrevSlash > fullpath) 
+                // find previous slash unless already at the beginning
+                if (pPrevSlash > fullpath)
                 {
                     pPrevSlash = find_prev_slash(pPrevSlash);
                 }
@@ -449,7 +449,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 
         // append the rest of the original path to the readlink target
         strcpy(
-            readlinkBuf + nReadlinkBuf, 
+            readlinkBuf + nReadlinkBuf,
             (readlinkBuf[nReadlinkBuf-1] == '/' && *pFullpath == '/') ? pFullpath + 1 : pFullpath);
 
         // if readlink target is an absolute path -> overwrite fullpath with it and start from the beginning

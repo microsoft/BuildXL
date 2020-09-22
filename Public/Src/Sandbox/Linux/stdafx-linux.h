@@ -30,7 +30,7 @@
 
 #define __cdecl  // __attribute__((__cdecl__))
 #define strlcpy strncpy
-#define os_log_error 
+#define os_log_error
 #define os_log
 
 typedef uint64_t mach_vm_address_t;
@@ -151,3 +151,8 @@ typedef enum {
     // beginning in macOS 10.15
   , ES_EVENT_TYPE_LAST
 } es_event_type_t;
+
+typedef enum {
+    ES_ACTION_TYPE_AUTH
+  , ES_ACTION_TYPE_NOTIFY
+} es_action_type_t;

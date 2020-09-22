@@ -10,7 +10,7 @@ static Sandbox* sandbox;
 extern "C"
 {
 #pragma mark Exported interop methods
-    
+
     void InitializeSandbox(SandboxConnectionInfo *info, pid_t host_pid)
     {
         try
@@ -24,7 +24,7 @@ extern "C"
             return;
         }
     }
-    
+
     void DeinitializeSandbox()
     {
         delete sandbox;
@@ -57,7 +57,7 @@ extern "C"
 bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength)
 {
     log_debug("Pip with PipId = %#llX, PID = %d launching", pipId, pid);
-    
+
     try {
         std::shared_ptr<SandboxedPip> pip(new SandboxedPip(pid, famBytes, famBytesLength));
         return sandbox->TrackRootProcess(pip);
@@ -72,7 +72,7 @@ bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const fa
 bool Sandbox_SendPipProcessTerminated(pipid_t pipId, pid_t pid)
 {
     log_debug("Pip with PipId = %#llX, PID = %d terminated", pipId, pid);
-    
+
     IOHandler handler = IOHandler(sandbox);
     if (handler.TryInitializeWithTrackedProcess(pid) && handler.GetPipId() == pipId)
     {
@@ -90,20 +90,20 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
 {
     hostPid_ = host_pid;
     configuration_ = config;
-    
+
     if (!SetProcessPidPair(GetAllowlistedPidMap(), host_pid, getppid()))
     {
         throw BuildXLException("Could not allowlist build host process id!");
     }
-    
+
     accessReportCallback_ = nullptr;
-    
+
     trackedProcesses_ = Trie<SandboxedProcess>::createUintTrie();
     if (!trackedProcesses_)
     {
         throw BuildXLException("Could not create Trie for process tracking!");
     }
-    
+
 #if __APPLE__
     xpc_bridge_ = xpc_connection_create_mach_service("com.microsoft.buildxl.sandbox", NULL, 0);
     xpc_connection_set_event_handler(xpc_bridge_, ^(xpc_object_t message)
@@ -111,16 +111,16 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
         xpc_type_t type = xpc_get_type(message);
         if (type == XPC_TYPE_ERROR)
         {
-            
+
         }
     });
     xpc_connection_activate(xpc_bridge_);
-    
+
     hybird_event_queue_ = dispatch_queue_create("com.microsoft.buildxl.interop.hybrid_events", dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
     ));
 #endif
-    
+
     switch (configuration_)
     {
 #if __APPLE__
@@ -149,7 +149,7 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
 Sandbox::~Sandbox()
 {
     accessReportCallback_ = nullptr;
-    
+
     if (trackedProcesses_ != nullptr)
     {
         delete trackedProcesses_;
@@ -160,16 +160,16 @@ Sandbox::~Sandbox()
     {
         delete es_;
     }
-    
+
     if (detours_ != nullptr)
     {
         delete detours_;
     }
-    
+
     xpc_connection_cancel(xpc_bridge_);
     xpc_release(xpc_bridge_);
     xpc_bridge_ = nullptr;
-    
+
     if (hybird_event_queue_)
     {
         dispatch_release(hybird_event_queue_);
@@ -191,12 +191,12 @@ bool Sandbox::TrackRootProcess(std::shared_ptr<SandboxedPip> pip)
     {
         return false;
     }
-    
-    log_debug("Pip with PipId = %#llX, PID = %d launching", pip->GetPipId(), pid);
-    
+
     int len = PATH_MAX;
     process->SetPath(pip->GetProcessPath(&len));
-    
+
+    log_debug("Pip with PipId = %#llX, PID = %d launching (path: %{public}s)", pip->GetPipId(), pid, process->GetPath());
+
     int numAttempts = 0;
     while (++numAttempts <= 3)
     {
@@ -219,11 +219,11 @@ bool Sandbox::TrackRootProcess(std::shared_ptr<SandboxedPip> pip)
             bool insertedNew = result == TrieResult::kTrieResultInserted;
             log_debug("Tracking root process PID(%d), PipId: %#llX, tree size: %d, path: %{public}s, code: %d",
                       pid, pip->GetPipId(), pip->GetTreeSize(), process->GetPath(), result);
-            
+
             return insertedNew;
         }
     }
-    
+
     process.reset();
     log_error("Exceeded max number of attempts in TrackRootProcess: %d - aborting!", numAttempts);
     return false;
@@ -241,7 +241,7 @@ bool Sandbox::TrackChildProcess(pid_t childPid, const char *childExecutable, std
 
     TrieResult getOrAddResult;
     std::shared_ptr<SandboxedProcess> newValue = trackedProcesses_->getOrAdd(childPid, childProcess, &getOrAddResult);
-    
+
     // Operation getOrAdd failed:
     //   -> skip everything and return error (should not happen under normal circumstances)
     if (newValue == nullptr)
@@ -267,7 +267,7 @@ bool Sandbox::TrackChildProcess(pid_t childPid, const char *childExecutable, std
             log_debug("Child process PID(%d) already tracked by a different Root PID(%d); intended new: Root PID(%d) (Code: %d)",
                       childPid, newValue->GetPip()->GetProcessId(), pip->GetProcessId(), getOrAddResult);
         }
-        
+
         goto error;
     }
 
@@ -277,9 +277,9 @@ bool Sandbox::TrackChildProcess(pid_t childPid, const char *childExecutable, std
         // copy the path from the parent process (because the child process always starts out as a fork of the parent)
         childProcess->SetPath(childExecutable);
         pip->IncrementProcessTreeCount();
-        
+
         log_debug("Track entry %d -> %d, PipId: %#llX, New tree size: %d", childPid, pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize());
-        
+
         return true;
     }
 
@@ -287,7 +287,7 @@ error:
 
     log_debug("Failed tracking child entry %d -> %d, PipId: %#llX, Tree size: %d, Code: %d",
               childPid, pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize(), getOrAddResult);
-    
+
     childProcess.reset();
     return false;
 }
@@ -301,12 +301,12 @@ bool Sandbox::UntrackProcess(pid_t pid, std::shared_ptr<SandboxedProcess> proces
     {
         process->GetPip()->DecrementProcessTreeCount();
     }
-    
+
     std::shared_ptr<SandboxedPip> pip = process->GetPip();
-    
+
     log_debug("Untrack entry %d (%{public}s) -> %d, PipId: %#llX, New tree size: %d, Code: %d",
               pid, process->GetPath(), pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize(), removeResult);
-    
+
     return removedExisting;
 }
 

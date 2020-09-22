@@ -885,7 +885,7 @@ namespace BuildXL
                                 var parsedOption = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
 #if PLATFORM_OSX
                                 var isEndpointSecurityOrHybridSandboxKind = (parsedOption == SandboxKind.MacOsEndpointSecurity || parsedOption == SandboxKind.MacOsHybrid);
-                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
+                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelper.IsMacWithoutKernelExtensionSupport)
                                 {
                                     parsedOption = SandboxKind.MacOsKext;
                                 }
@@ -1134,8 +1134,8 @@ namespace BuildXL
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
                             (opt, sign) =>
                             {
-                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign, 
-                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll, 
+                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign,
+                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll,
                                     falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = value;
                             },
@@ -1489,8 +1489,8 @@ namespace BuildXL
             {
                 startupConfiguration.ABTestingArgs.Add(key, string.Empty);
                 // AB testing argument might be chosen before BuildXL is started; for instance, GenericBuildRunner in CloudBuild.
-                // In those cases, we do not choose one among /abTesting args, instead use the one provided. 
-                // That argument is already applied, so we just need to set ChosenABTestingKey. 
+                // In those cases, we do not choose one among /abTesting args, instead use the one provided.
+                // That argument is already applied, so we just need to set ChosenABTestingKey.
                 startupConfiguration.ChosenABTestingKey = key;
                 return;
             }
@@ -1515,7 +1515,7 @@ namespace BuildXL
                 {
                     helper.Add(loggingConfiguration.RelatedActivityId);
                     // NetCORE string.GetHashCode() is not deterministic across program executions unlike net472.
-                    // Each execution can give a different number with netcore implementation of GetHashCode. 
+                    // Each execution can give a different number with netcore implementation of GetHashCode.
                     // That's why, we use HashingHelper to get fingerprint and then get hashcode with our own implementation.
                     randomGen = new Random(helper.GenerateHash().GetHashCode());
                 }

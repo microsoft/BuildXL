@@ -172,11 +172,11 @@ namespace BuildXL.SandboxExec
         public SandboxExecRunner(Options options)
         {
             m_options = options;
-            s_crashCollector = OperatingSystemHelper.IsMacOS 
-                ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) 
+            s_crashCollector = OperatingSystemHelper.IsMacOS
+                ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel })
                 : null;
-            
-            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && 
+
+            if (!OperatingSystemHelper.IsMacWithoutKernelExtensionSupport &&
                 (m_options.SandboxKindUsed == SandboxKind.MacOsEndpointSecurity || m_options.SandboxKindUsed == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
@@ -199,7 +199,7 @@ namespace BuildXL.SandboxExec
                             ReportQueueSizeMB = m_options.ReportQueueSizeMB,
                             EnableReportBatching = m_options.EnableReportBatching,
 #if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
 #endif
                         }
                     });
@@ -388,10 +388,10 @@ namespace BuildXL.SandboxExec
         public static SandboxedProcessInfo CreateSandboxedProcessInfo(string processFileName, SandboxExecRunner instance)
         {
             var sandboxProcessInfo = new SandboxedProcessInfo(
-                new PathTable(), 
-                fileStorage: instance, 
-                fileName: processFileName, 
-                disableConHostSharing: true, 
+                new PathTable(),
+                fileStorage: instance,
+                fileName: processFileName,
+                disableConHostSharing: true,
                 sandboxConnection: instance.m_sandboxConnection,
                 loggingContext: s_loggingContext);
             sandboxProcessInfo.PipDescription = processFileName;

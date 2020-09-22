@@ -133,7 +133,7 @@
 		3C7237A423FD4483001B15CC /* Trie.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Trie.hpp; sourceTree = "<group>"; };
 		3C7237A523FD4483001B15CC /* Trie.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Trie.cpp; sourceTree = "<group>"; };
 		3C7237A823FE9475001B15CC /* BuildXLException.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = BuildXLException.hpp; sourceTree = "<group>"; };
-		3C794F5024488FEC00EF72E5 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = XPCConstants.hpp; path = ../App/Sandbox/XPCConstants.hpp; sourceTree = "<group>"; };
+		3C794F5024488FEC00EF72E5 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = XPCConstants.hpp; path = ../App/Extension/XPCConstants.hpp; sourceTree = "<group>"; };
 		3C80E70621347B9700ECBD6E /* io.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = io.h; sourceTree = "<group>"; };
 		3C80E70721347B9700ECBD6E /* io.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = io.c; sourceTree = "<group>"; };
 		3C85C76C22F04DAC00BC3989 /* Sandbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Sandbox.cpp; sourceTree = "<group>"; };
@@ -143,7 +143,7 @@
 		3C85C77422F0594800BC3989 /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
 		3C85C77622F0595900BC3989 /* libEndpointSecurity.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libEndpointSecurity.tbd; path = usr/lib/libEndpointSecurity.tbd; sourceTree = SDKROOT; };
 		3C9991A7244E168400CEB33E /* PathCacheEntry.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = PathCacheEntry.hpp; sourceTree = "<group>"; };
-		3CE4B4742450724B00ACC220 /* ESConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = ESConstants.hpp; path = ../App/Sandbox/ESConstants.hpp; sourceTree = "<group>"; };
+		3CE4B4742450724B00ACC220 /* ESConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = ESConstants.hpp; path = ../App/Extension/ESConstants.hpp; sourceTree = "<group>"; };
 		3CF3733E20C1897400D14240 /* KextSandbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = KextSandbox.cpp; sourceTree = "<group>"; };
 		3CF3733F20C1897400D14240 /* KextSandbox.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = KextSandbox.hpp; sourceTree = "<group>"; };
 		3CF74D9522F1C1A50018A1AF /* SandboxedProcess.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SandboxedProcess.cpp; sourceTree = "<group>"; };
@@ -201,15 +201,15 @@
 		3C05DAE820E3740100488EF5 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				3C85C77622F0595900BC3989 /* libEndpointSecurity.tbd */,
-				3C85C77422F0594800BC3989 /* libbsm.tbd */,
-				3C6495E321A6E3E60083FD3A /* libz.tbd */,
-				3C6495E121A6E3C30083FD3A /* libcompression.tbd */,
-				3C6495DF21A6E3AA0083FD3A /* libsqlite3.tbd */,
-				3C6495DD21A6E31B0083FD3A /* libaria_osx_objc_cpp.a */,
-				3C245107219C741400EBC811 /* libcurses.tbd */,
 				3C5C178D212EF6E900F4100F /* CoreFoundation.framework */,
 				3C05DAE920E3740100488EF5 /* IOKit.framework */,
+				3C6495DD21A6E31B0083FD3A /* libaria_osx_objc_cpp.a */,
+				3C85C77422F0594800BC3989 /* libbsm.tbd */,
+				3C6495E121A6E3C30083FD3A /* libcompression.tbd */,
+				3C245107219C741400EBC811 /* libcurses.tbd */,
+				3C85C77622F0595900BC3989 /* libEndpointSecurity.tbd */,
+				3C6495DF21A6E3AA0083FD3A /* libsqlite3.tbd */,
+				3C6495E321A6E3E60083FD3A /* libz.tbd */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -217,8 +217,6 @@
 		3C1D7C7920C025F10069CF65 = {
 			isa = PBXGroup;
 			children = (
-				F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */,
-				F598838E22527E8700A7A2D9 /* BundleInfoDebug.xcconfig */,
 				3C6495C021A6E2E20083FD3A /* Aria */,
 				F55A72F020D412F100069365 /* CLI */,
 				3CD2972920D173D900399B9B /* External */,
@@ -226,6 +224,8 @@
 				3C1D7C8920C026110069CF65 /* Posix */,
 				3C1D7C8320C025F10069CF65 /* Products */,
 				3CF3733D20C1897400D14240 /* Sandbox */,
+				F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */,
+				F598838E22527E8700A7A2D9 /* BundleInfoDebug.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -296,8 +296,8 @@
 		3C6495C021A6E2E20083FD3A /* Aria */ = {
 			isa = PBXGroup;
 			children = (
-				3C6495C121A6E2E20083FD3A /* AriaLogger.hpp */,
 				3C6495C521A6E2E20083FD3A /* AriaLogger.cpp */,
+				3C6495C121A6E2E20083FD3A /* AriaLogger.hpp */,
 			);
 			path = Aria;
 			sourceTree = "<group>";

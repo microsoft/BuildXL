@@ -12,17 +12,22 @@ IOEvent::IOEvent(const es_message_t *msg)
     ppid_ = msg->process->ppid;
     oppid_ = msg->process->original_ppid;
     eventType_ = msg->event_type;
+    actionType_ = msg->action_type;
     modified_ = false;
-    
+
     executable_ = PathExtractor(msg->process->executable).Path();
     auditToken_ = msg->process->audit_token;
-    
+
     switch (eventType_)
     {
-        case ES_EVENT_TYPE_NOTIFY_EXEC: {
+        case ES_EVENT_TYPE_AUTH_EXEC:
+        case ES_EVENT_TYPE_NOTIFY_EXEC:
+        {
             ES_EVENT_CONSTRUCTOR(exec, "", target->executable, false, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_OPEN: {
+        case ES_EVENT_TYPE_AUTH_OPEN:
+        case ES_EVENT_TYPE_NOTIFY_OPEN:
+        {
             ES_EVENT_CONSTRUCTOR(open, "", file, false, true)
         }
         case ES_EVENT_TYPE_NOTIFY_FORK:
@@ -32,15 +37,18 @@ IOEvent::IOEvent(const es_message_t *msg)
             cpid_ = audit_token_to_pid(fork.child->audit_token);
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_CLOSE: {
+        case ES_EVENT_TYPE_NOTIFY_CLOSE:
+        {
             ES_EVENT_CONSTRUCTOR(close, "", target, true, false)
             modified_ = event.modified;
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_CREATE: {
+        case ES_EVENT_TYPE_AUTH_CREATE:
+        case ES_EVENT_TYPE_NOTIFY_CREATE:
+        {
             es_event_create_t create = msg->event.create;
             bool existingFile = create.destination_type == ES_DESTINATION_TYPE_EXISTING_FILE;
-            
+
             if (existingFile)
             {
                 src_path_ = PathExtractor(create.destination.existing_file).Path();
@@ -51,9 +59,10 @@ IOEvent::IOEvent(const es_message_t *msg)
                 src_path_ = PathExtractor(create.destination.new_path.dir, create.destination.new_path.filename).Path();
                 mode_ = create.destination.new_path.mode;
             }
-            
+
             break;
         }
+        case ES_EVENT_TYPE_AUTH_EXCHANGEDATA:
         case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA: {
             es_event_exchangedata_t exchange = msg->event.exchangedata;
             src_path_ = PathExtractor(exchange.file1).Path();
@@ -65,16 +74,20 @@ IOEvent::IOEvent(const es_message_t *msg)
             // Nothing else to do
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_LINK: {
+        case ES_EVENT_TYPE_AUTH_LINK:
+        case ES_EVENT_TYPE_NOTIFY_LINK:
+        {
             es_event_link_t link = msg->event.link;
             src_path_ = PathExtractor(link.source).Path();
             dst_path_ = PathExtractor(link.target_dir, link.target_filename).Path();
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_RENAME: {
+        case ES_EVENT_TYPE_AUTH_RENAME:
+        case ES_EVENT_TYPE_NOTIFY_RENAME:
+        {
             es_event_rename_t rename = msg->event.rename;
             src_path_ = PathExtractor(rename.source).Path();
-            
+
             bool existingFile = rename.destination_type == ES_DESTINATION_TYPE_EXISTING_FILE;
             if (existingFile)
             {
@@ -86,85 +99,122 @@ IOEvent::IOEvent(const es_message_t *msg)
                 dst_path_ = PathExtractor(rename.destination.new_path.dir, rename.destination.new_path.filename).Path();
                 mode_ = 0;
             }
-            
+
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_SETATTRLIST: {
+        case ES_EVENT_TYPE_AUTH_SETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
+        {
             ES_EVENT_CONSTRUCTOR(setattrlist, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_SETEXTATTR: {
+        case ES_EVENT_TYPE_AUTH_SETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
+        {
             ES_EVENT_CONSTRUCTOR(setextattr, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_SETFLAGS: {
+        case ES_EVENT_TYPE_AUTH_SETFLAGS:
+        case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
+        {
             ES_EVENT_CONSTRUCTOR(setflags, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_SETMODE: {
+        case ES_EVENT_TYPE_AUTH_SETMODE:
+        case ES_EVENT_TYPE_NOTIFY_SETMODE:
+        {
             ES_EVENT_CONSTRUCTOR(setmode, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_SETOWNER: {
+        case ES_EVENT_TYPE_AUTH_SETOWNER:
+        case ES_EVENT_TYPE_NOTIFY_SETOWNER:
+        {
             ES_EVENT_CONSTRUCTOR(setowner, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_UNLINK: {
+        case ES_EVENT_TYPE_AUTH_UNLINK:
+        case ES_EVENT_TYPE_NOTIFY_UNLINK:
+        {
             ES_EVENT_CONSTRUCTOR(unlink, "", target, true, true)
         }
         case ES_EVENT_TYPE_NOTIFY_WRITE: {
             ES_EVENT_CONSTRUCTOR(write, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_READLINK: {
+        case ES_EVENT_TYPE_AUTH_READLINK:
+        case ES_EVENT_TYPE_NOTIFY_READLINK:
+        {
             ES_EVENT_CONSTRUCTOR(readlink, "", source, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_TRUNCATE: {
+        case ES_EVENT_TYPE_AUTH_TRUNCATE:
+        case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
+        {
             ES_EVENT_CONSTRUCTOR(truncate, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_LOOKUP: {
+        case ES_EVENT_TYPE_NOTIFY_LOOKUP:
+        {
             es_event_lookup_t lookup = msg->event.lookup;
             src_path_ = PathExtractor(lookup.source_dir, lookup.relative_target).Path();
             mode_ = lookup.source_dir->stat.st_mode;
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_CHDIR: {
+        case ES_EVENT_TYPE_NOTIFY_CHDIR:
+        {
             ES_EVENT_CONSTRUCTOR(chdir, "", target, true, true)
         }
-        case ES_EVENT_TYPE_NOTIFY_GETATTRLIST: {
+        case ES_EVENT_TYPE_AUTH_GETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
+        {
             ES_EVENT_CONSTRUCTOR(getattrlist, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_STAT: {
+        case ES_EVENT_TYPE_NOTIFY_STAT:
+        {
             ES_EVENT_CONSTRUCTOR(stat, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_ACCESS: {
+        case ES_EVENT_TYPE_NOTIFY_ACCESS:
+        {
             ES_EVENT_CONSTRUCTOR(access, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_UTIMES: {
+        case ES_EVENT_TYPE_NOTIFY_UTIMES:
+        {
             ES_EVENT_CONSTRUCTOR(utimes, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_CLONE: {
+        case ES_EVENT_TYPE_AUTH_CLONE:
+        case ES_EVENT_TYPE_NOTIFY_CLONE:
+        {
             es_event_clone_t clone = msg->event.clone;
             src_path_ = PathExtractor(clone.source).Path();
             dst_path_ = PathExtractor(clone.target_dir, clone.target_name).Path();
             break;
         }
-        case ES_EVENT_TYPE_NOTIFY_FCNTL: {
+        case ES_EVENT_TYPE_NOTIFY_FCNTL:
+        {
             ES_EVENT_CONSTRUCTOR(fcntl, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_GETEXTATTR: {
+        case ES_EVENT_TYPE_AUTH_GETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
+        {
             ES_EVENT_CONSTRUCTOR(getextattr, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR: {
+        case ES_EVENT_TYPE_AUTH_LISTEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
+        {
             ES_EVENT_CONSTRUCTOR(listextattr, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_READDIR: {
+        case ES_EVENT_TYPE_NOTIFY_READDIR:
+        {
             ES_EVENT_CONSTRUCTOR(readdir, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR: {
+        case ES_EVENT_TYPE_AUTH_DELETEEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
+        {
             ES_EVENT_CONSTRUCTOR(deleteextattr, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_FSGETPATH: {
+        case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
+        {
             ES_EVENT_CONSTRUCTOR(fsgetpath, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_DUP: {
+        case ES_EVENT_TYPE_NOTIFY_DUP:
+        {
             ES_EVENT_CONSTRUCTOR(dup, "", target, true, true);
         }
-        case ES_EVENT_TYPE_NOTIFY_SETACL: {
+        case ES_EVENT_TYPE_AUTH_SETACL:
+        case ES_EVENT_TYPE_NOTIFY_SETACL:
+        {
             ES_EVENT_CONSTRUCTOR(setacl, "", target, true, true);
         }
         default: {
@@ -186,11 +236,11 @@ const bool IOEvent::IsPlistEvent() const
         {
             std::string path = src_path_.substr(0, match);
             std::string base_path = executable_.substr(0, directory + 1);
-            
+
             return base_path.compare(path) == 0;
         }
     }
-    
+
     return false;
 }
 
@@ -207,35 +257,37 @@ const size_t IOEvent::Size() const
         std::to_string(cpid_).length() +
         std::to_string(ppid_).length() +
         std::to_string(eventType_).length() +
+        std::to_string(actionType_).length() +
         std::to_string(mode_).length() +
         std::to_string(modified_).length() +
         executable_.length() + (executable_.length() > 0 ? 1 : 0) +
         src_path_.length() + (src_path_.length() > 0 ? 1 : 0) +
         dst_path_.length() + (dst_path_.length() > 0 ? 1 : 0) +
-        6; // 6 delimiters + 1 per string (if string is present)
+        7; // 7 delimiters + 1 per string (if string is present)
 }
 
 omemorystream& operator<<(omemorystream &os, const IOEvent &event)
 {
     os
-    << event.pid_       << "|"
-    << event.cpid_      << "|"
-    << event.ppid_      << "|"
-    << event.eventType_ << "|"
-    << event.mode_      << "|"
-    << event.modified_  << "|"
+    << event.pid_        << "|"
+    << event.cpid_       << "|"
+    << event.ppid_       << "|"
+    << event.eventType_  << "|"
+    << event.actionType_ << "|"
+    << event.mode_       << "|"
+    << event.modified_   << "|"
     ;
-    
+
     if (event.executable_.size() > 0)
     {
         os << event.executable_ << "|";
     }
-    
+
     if (event.src_path_.size() > 0)
     {
         os << event.src_path_ << "|";
     }
-    
+
     if (event.dst_path_.size() > 0)
     {
         os << event.dst_path_ << "|";
@@ -252,6 +304,14 @@ std::istream& operator>>(std::istream &is, es_event_type_t &t)
     return is;
 }
 
+std::istream& operator>>(std::istream &is, es_action_type_t &t)
+{
+    unsigned int value = 0;
+    is >> value;
+    t = (es_action_type_t) value;
+    return is;
+}
+
 imemorystream& operator>>(imemorystream &is, IOEvent &event)
 {
     is
@@ -259,12 +319,13 @@ imemorystream& operator>>(imemorystream &is, IOEvent &event)
     >> event.cpid_
     >> event.ppid_
     >> event.eventType_
+    >> event.actionType_
     >> event.mode_
     >> event.modified_
     >> event.executable_
     >> event.src_path_
     >> event.dst_path_
     ;
-    
+
     return is;
 }

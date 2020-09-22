@@ -4,10 +4,6 @@
 <dict>
 	<key>com.apple.developer.system-extension.install</key>
 	<true/>
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>$(TeamIdentifierPrefix)</string>
-	</array>
 	<key>com.apple.security.cs.allow-dyld-environment-variables</key>
 	<true/>
 	<key>com.apple.security.cs.allow-jit</key>

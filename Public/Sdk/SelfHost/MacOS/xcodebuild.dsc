@@ -101,6 +101,9 @@ export namespace Xcode {
             tool: args.tool || {
                 exe: args.overrideXcodeBuildPath || f`/usr/bin/xcodebuild`,
                 dependsOnCurrentHostOSDirectories: true,
+                untrackedDirectories: [
+                    d`${Context.getUserHomeDirectory().path}/.ssh/`,
+                ],
                 untrackedFiles: [
                     f`/Users/${userName}/Library/Developer/Xcode/UserData/IDEEditorInteractivityHistory`
                 ]
@@ -131,7 +134,7 @@ export namespace Xcode {
             outputs: args.declaredOutputs,
             dependencies: args.dependencies,
             allowedSurvivingChildProcessNames: [
-                ...(args.useModernBuildSystem ? [ "XCBBuildService"] : [])
+                ...(args.useModernBuildSystem ? [ "XCBBuildService", "clang", "xcodebuild" ] : [])
             ]
         };
 

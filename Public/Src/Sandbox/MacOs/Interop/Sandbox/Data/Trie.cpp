@@ -18,7 +18,7 @@ Node<T>::Node(uint numChildren)
 
     record_ = nullptr;
     childrenLength_ = numChildren;
-    
+
     children_ = (Node **) malloc(numChildren * sizeof(Node *));
     if (children_)
     {
@@ -42,7 +42,7 @@ Node<T>::~Node()
         free(children_);
         children_ = nullptr;
     }
-    
+
     if (record_ != nullptr) record_.reset();
 
     if (length() == s_uintNodeChildrenCount) --s_numUintNodes;
@@ -102,7 +102,7 @@ bool Trie<T>::findChildNode(Node<T> *node, int idx, bool createIfMissing)
     {
         return false;
     }
-    
+
     // TODO: Make thread safe!
     node->children()[idx] = newNode;
 
@@ -123,18 +123,18 @@ TrieResult Trie<T>::makeSentinel(Node<T> *node, std::shared_ptr<T> record)
     {
         return kTrieResultAlreadyExists;
     }
-    
+
     if (node->record_ != nullptr)
     {
         newRecord.reset();
         return kTrieResultAlreadyExists;
     }
-    
+
     // TODO: Make thread safe!
     node->record_ = newRecord;
     int oldCount = (++size_);
     triggerOnChange(oldCount, oldCount + 1);
-    
+
     return kTrieResultInserted;
 }
 
@@ -150,7 +150,7 @@ std::shared_ptr<T> Trie<T>::getOrAdd(Node<T> *node, std::shared_ptr<T> record, T
     if (node == nullptr) return nullptr;
     auto sentinelResult = makeSentinel(node, record);
     if (result) *result = sentinelResult;
- 
+
     return node->record_;
 }
 
@@ -163,21 +163,21 @@ TrieResult Trie<T>::replace(Node<T> *node, const std::shared_ptr<T> value)
     }
 
     std::shared_ptr<T> previousValue = node->record_;
-    
+
     if (previousValue != nullptr)
     {
         node->record_ = value;
         previousValue.reset();
-        
+
         return kTrieResultReplaced;
     }
     else
     {
         node->record_ = value;
-        
+
         int oldCount = (++size_);
         triggerOnChange(oldCount, oldCount + 1);
-        
+
         return kTrieResultInserted;
     }
 }
@@ -189,13 +189,13 @@ TrieResult Trie<T>::insert(Node<T> *node, const std::shared_ptr<T> value)
     {
         return kTrieResultFailure;
     }
-    
+
     if (node->record_ != nullptr) return kTrieResultAlreadyExists;
-    
+
     node->record_ = value;
     int oldCount = (++size_);
     triggerOnChange(oldCount, oldCount + 1);
-    
+
     return kTrieResultInserted;
 }
 
@@ -211,13 +211,13 @@ TrieResult Trie<T>::remove(Node<T> *node)
     if (node->record_ != nullptr)
     {
         node->record_.reset();
-        
+
         int oldCount = (--size_);
         triggerOnChange(oldCount, oldCount - 1);
-        
+
         return kTrieResultRemoved;
     }
-    
+
     return kTrieResultFailure;
 }
 
@@ -550,7 +550,7 @@ template <typename T>
 Node<T>* Trie<T>::findUintNode(uint64_t key, bool createIfMissing)
 {
     Node<T> *currNode = root_;
-    
+
     while (true)
     {
         assert(currNode->length() == 10);
@@ -579,7 +579,7 @@ template <typename T>
 bool Trie<T>::onChange(void *callbackArgs, on_change_fn callback)
 {
     if (onChangeCallback_) return false;
-    
+
     onChangeData_ = callbackArgs;
     onChangeCallback_ = callback;
     return true;
@@ -589,7 +589,7 @@ template <typename T>
 void Trie<T>::triggerOnChange(int oldCount, int newCount) const
 {
     if (onChangeCallback_) return;
-    
+
     if (onChangeCallback_ && oldCount != newCount)
     {
         onChangeCallback_(onChangeData_, oldCount, newCount);

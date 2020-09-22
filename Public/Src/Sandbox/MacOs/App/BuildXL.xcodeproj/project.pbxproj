@@ -9,57 +9,41 @@
 /* Begin PBXBuildFile section */
 		3C44029C24336AEB008CACDD /* SystemExtensionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C44029B24336AEB008CACDD /* SystemExtensionManager.m */; };
 		3C4402A424336AEC008CACDD /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402A324336AEC008CACDD /* main.mm */; };
-		3C4402BA24336C43008CACDD /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402B924336C3F008CACDD /* libbsm.tbd */; };
-		3C4402BC24336C4B008CACDD /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */; };
-		3C4402C924336E6F008CACDD /* Sandbox in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3C4402AF24336B34008CACDD /* Sandbox */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		3C4402CB24336EE1008CACDD /* com.microsoft.buildxl.sandbox.systemextension in Embed System Extension */ = {isa = PBXBuildFile; fileRef = 3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3C4402CE243378EE008CACDD /* coreruncommon.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402CD243378EE008CACDD /* coreruncommon.mm */; };
-		3C794F542448993200EF72E5 /* ESClient.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C794F522448993200EF72E5 /* ESClient.mm */; };
-		3C794F552448993200EF72E5 /* ESClient.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C794F532448993200EF72E5 /* ESClient.hpp */; };
-		3C7EC2A0244880240033DE6C /* IOEvent.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CB3E17124486C26004D2734 /* IOEvent.hpp */; };
 		3C9991A52449CBFC00CEB33E /* XPCTester.h in Sources */ = {isa = PBXBuildFile; fileRef = 3C9991A42449CBFC00CEB33E /* XPCTester.h */; };
-		3CB3E16524475CF4004D2734 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16424475CF4004D2734 /* main.mm */; };
-		3CB3E16724477115004D2734 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CB3E16624477115004D2734 /* Foundation.framework */; };
-		3CB3E17324486C26004D2734 /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E17224486C26004D2734 /* IOEvent.cpp */; };
+		3C9E56A324F0022400BD7D34 /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */; };
+		3C9E56AB24F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension in Embed System Extension */ = {isa = PBXBuildFile; fileRef = 3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3C9E56AF24F0024600BD7D34 /* ESClient.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C794F522448993200EF72E5 /* ESClient.mm */; };
+		3C9E56B024F0024600BD7D34 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16424475CF4004D2734 /* main.mm */; };
+		3C9E56BD24F0063900BD7D34 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402B924336C3F008CACDD /* libbsm.tbd */; };
+		3CF528B324F3C32E00E6619E /* ESClient.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C794F532448993200EF72E5 /* ESClient.hpp */; };
+		3CF528B424F3C32E00E6619E /* ESConstants.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16024475B96004D2734 /* ESConstants.hpp */; };
+		3CF528B524F3C32E00E6619E /* IOEvent.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4524F0288B00A5198F /* IOEvent.hpp */; };
+		3CF528B624F3C32E00E6619E /* MemoryStreams.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4324F0288A00A5198F /* MemoryStreams.hpp */; };
+		3CF528B724F3C32E00E6619E /* PathCacheEntry.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4624F0288B00A5198F /* PathCacheEntry.hpp */; };
+		3CF528B824F3C32E00E6619E /* PathExtractor.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4224F0288A00A5198F /* PathExtractor.hpp */; };
+		3CF528B924F3C32E00E6619E /* XPCConstants.hpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E14C24475736004D2734 /* XPCConstants.hpp */; };
+		3CFB2E4724F0288B00A5198F /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4424F0288B00A5198F /* IOEvent.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		3C4402E62434C6F7008CACDD /* PBXContainerItemProxy */ = {
+		3C9E56A924F0022400BD7D34 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3C44028F24336AEB008CACDD /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3C4402C024336D71008CACDD;
-			remoteInfo = SystemExtension;
+			remoteGlobalIDString = 3C9E56A124F0022400BD7D34;
+			remoteInfo = Extension;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		3C4402AD24336B34008CACDD /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-		3C4402C824336E6A008CACDD /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
-			files = (
-				3C4402C924336E6F008CACDD /* Sandbox in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		3C4402CA24336ED0008CACDD /* Embed System Extension */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
 			dstSubfolderSpec = 16;
 			files = (
-				3C4402CB24336EE1008CACDD /* com.microsoft.buildxl.sandbox.systemextension in Embed System Extension */,
+				3C9E56AB24F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension in Embed System Extension */,
 			);
 			name = "Embed System Extension";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -73,28 +57,27 @@
 		3C4402A224336AEC008CACDD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3C4402A324336AEC008CACDD /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		3C4402A524336AEC008CACDD /* BuildXL.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BuildXL.entitlements; sourceTree = "<group>"; };
-		3C4402AF24336B34008CACDD /* Sandbox */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Sandbox; sourceTree = BUILT_PRODUCTS_DIR; };
-		3C4402B624336B7B008CACDD /* com.microsoft.buildxl.sandbox.systemextension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = com.microsoft.buildxl.sandbox.systemextension.entitlements; sourceTree = "<group>"; };
-		3C4402B724336B7B008CACDD /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3C4402B624336B7B008CACDD /* Extension.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Extension.entitlements; sourceTree = "<group>"; };
 		3C4402B924336C3F008CACDD /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
 		3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libEndpointSecurity.tbd; path = usr/lib/libEndpointSecurity.tbd; sourceTree = SDKROOT; };
-		3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = com.microsoft.buildxl.sandbox.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C4402CC2433788D008CACDD /* coreruncommon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = coreruncommon.h; sourceTree = "<group>"; };
 		3C4402CD243378EE008CACDD /* coreruncommon.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = coreruncommon.mm; sourceTree = "<group>"; };
 		3C4402CF24337A3B008CACDD /* coreclrhost.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coreclrhost.h; sourceTree = "<group>"; };
 		3C794F522448993200EF72E5 /* ESClient.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ESClient.mm; sourceTree = "<group>"; };
 		3C794F532448993200EF72E5 /* ESClient.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESClient.hpp; sourceTree = "<group>"; };
-		3C9991A42449CBFC00CEB33E /* XPCTester.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCTester.h; sourceTree = "<group>"; };
+		3C9991A42449CBFC00CEB33E /* XPCTester.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = XPCTester.h; sourceTree = "<group>"; };
+		3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = com.microsoft.buildxl.extension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C9E56A724F0022400BD7D34 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3CB3E14C24475736004D2734 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = XPCConstants.hpp; sourceTree = "<group>"; };
 		3CB3E159244758DB004D2734 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		3CB3E16024475B96004D2734 /* ESConstants.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESConstants.hpp; sourceTree = "<group>"; };
 		3CB3E16424475CF4004D2734 /* main.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		3CB3E16624477115004D2734 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		3CB3E16A24486A9F004D2734 /* MemoryStreams.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = MemoryStreams.hpp; path = ../../Interop/Sandbox/Data/MemoryStreams.hpp; sourceTree = "<group>"; };
-		3CB3E16B24486AB0004D2734 /* PathExtractor.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathExtractor.hpp; path = ../../Interop/Sandbox/Data/PathExtractor.hpp; sourceTree = "<group>"; };
-		3CB3E16C24486AD3004D2734 /* BuildXLException.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = BuildXLException.hpp; path = ../../Interop/Sandbox/Data/BuildXLException.hpp; sourceTree = "<group>"; };
-		3CB3E17124486C26004D2734 /* IOEvent.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = IOEvent.hpp; path = ../../Interop/Sandbox/Data/IOEvent.hpp; sourceTree = "<group>"; };
-		3CB3E17224486C26004D2734 /* IOEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IOEvent.cpp; path = ../../Interop/Sandbox/Data/IOEvent.cpp; sourceTree = "<group>"; };
+		3CFB2E4224F0288A00A5198F /* PathExtractor.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathExtractor.hpp; path = ../../Interop/Sandbox/Data/PathExtractor.hpp; sourceTree = "<group>"; };
+		3CFB2E4324F0288A00A5198F /* MemoryStreams.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = MemoryStreams.hpp; path = ../../Interop/Sandbox/Data/MemoryStreams.hpp; sourceTree = "<group>"; };
+		3CFB2E4424F0288B00A5198F /* IOEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IOEvent.cpp; path = ../../Interop/Sandbox/Data/IOEvent.cpp; sourceTree = "<group>"; };
+		3CFB2E4524F0288B00A5198F /* IOEvent.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = IOEvent.hpp; path = ../../Interop/Sandbox/Data/IOEvent.hpp; sourceTree = "<group>"; };
+		3CFB2E4624F0288B00A5198F /* PathCacheEntry.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathCacheEntry.hpp; path = ../../Interop/Sandbox/Data/PathCacheEntry.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,20 +88,12 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3C4402AC24336B34008CACDD /* Frameworks */ = {
+		3C9E569F24F0022400BD7D34 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3C4402BA24336C43008CACDD /* libbsm.tbd in Frameworks */,
-				3CB3E16724477115004D2734 /* Foundation.framework in Frameworks */,
-				3C4402BC24336C4B008CACDD /* libEndpointSecurity.tbd in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3C4402BE24336D71008CACDD /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				3C9E56A324F0022400BD7D34 /* libEndpointSecurity.tbd in Frameworks */,
+				3C9E56BD24F0063900BD7D34 /* libbsm.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,7 +104,7 @@
 			isa = PBXGroup;
 			children = (
 				3C44029924336AEB008CACDD /* BuildXL */,
-				3C4402B024336B34008CACDD /* Sandbox */,
+				3C9E56A424F0022400BD7D34 /* Extension */,
 				3C44029824336AEB008CACDD /* Products */,
 				3C4402B824336C3F008CACDD /* Frameworks */,
 			);
@@ -139,8 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				3C44029724336AEB008CACDD /* BuildXL.app */,
-				3C4402AF24336B34008CACDD /* Sandbox */,
-				3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */,
+				3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -157,21 +131,6 @@
 				3C9991A42449CBFC00CEB33E /* XPCTester.h */,
 			);
 			path = BuildXL;
-			sourceTree = "<group>";
-		};
-		3C4402B024336B34008CACDD /* Sandbox */ = {
-			isa = PBXGroup;
-			children = (
-				3CB3E16924486A2B004D2734 /* External */,
-				3C4402B624336B7B008CACDD /* com.microsoft.buildxl.sandbox.systemextension.entitlements */,
-				3C794F522448993200EF72E5 /* ESClient.mm */,
-				3C794F532448993200EF72E5 /* ESClient.hpp */,
-				3CB3E16024475B96004D2734 /* ESConstants.hpp */,
-				3C4402B724336B7B008CACDD /* Info.plist */,
-				3CB3E16424475CF4004D2734 /* main.mm */,
-				3CB3E14C24475736004D2734 /* XPCConstants.hpp */,
-			);
-			path = Sandbox;
 			sourceTree = "<group>";
 		};
 		3C4402B824336C3F008CACDD /* Frameworks */ = {
@@ -195,31 +154,50 @@
 			path = CoreCLR;
 			sourceTree = "<group>";
 		};
-		3CB3E16924486A2B004D2734 /* External */ = {
+		3C9E56A424F0022400BD7D34 /* Extension */ = {
 			isa = PBXGroup;
 			children = (
-				3CB3E16C24486AD3004D2734 /* BuildXLException.hpp */,
-				3CB3E17224486C26004D2734 /* IOEvent.cpp */,
-				3CB3E17124486C26004D2734 /* IOEvent.hpp */,
-				3CB3E16A24486A9F004D2734 /* MemoryStreams.hpp */,
-				3CB3E16B24486AB0004D2734 /* PathExtractor.hpp */,
+				3CFB2E4824F02A4500A5198F /* EndpointSecurity */,
+				3CFB2E4124F0286300A5198F /* External */,
+				3CFB2E4924F02A7800A5198F /* XPC */,
+				3C4402B624336B7B008CACDD /* Extension.entitlements */,
+				3CB3E16424475CF4004D2734 /* main.mm */,
+				3C9E56A724F0022400BD7D34 /* Info.plist */,
+			);
+			path = Extension;
+			sourceTree = "<group>";
+		};
+		3CFB2E4124F0286300A5198F /* External */ = {
+			isa = PBXGroup;
+			children = (
+				3CFB2E4424F0288B00A5198F /* IOEvent.cpp */,
+				3CFB2E4524F0288B00A5198F /* IOEvent.hpp */,
+				3CFB2E4324F0288A00A5198F /* MemoryStreams.hpp */,
+				3CFB2E4624F0288B00A5198F /* PathCacheEntry.hpp */,
+				3CFB2E4224F0288A00A5198F /* PathExtractor.hpp */,
 			);
 			name = External;
 			sourceTree = "<group>";
 		};
-/* End PBXGroup section */
-
-/* Begin PBXHeadersBuildPhase section */
-		3C7EC29F2448801E0033DE6C /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				3C7EC2A0244880240033DE6C /* IOEvent.hpp in Headers */,
-				3C794F552448993200EF72E5 /* ESClient.hpp in Headers */,
+		3CFB2E4824F02A4500A5198F /* EndpointSecurity */ = {
+			isa = PBXGroup;
+			children = (
+				3C794F532448993200EF72E5 /* ESClient.hpp */,
+				3C794F522448993200EF72E5 /* ESClient.mm */,
+				3CB3E16024475B96004D2734 /* ESConstants.hpp */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
+			name = EndpointSecurity;
+			sourceTree = "<group>";
 		};
-/* End PBXHeadersBuildPhase section */
+		3CFB2E4924F02A7800A5198F /* XPC */ = {
+			isa = PBXGroup;
+			children = (
+				3CB3E14C24475736004D2734 /* XPCConstants.hpp */,
+			);
+			name = XPC;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		3C44029624336AEB008CACDD /* BuildXL */ = {
@@ -235,48 +213,29 @@
 			buildRules = (
 			);
 			dependencies = (
-				3C4402E72434C6F7008CACDD /* PBXTargetDependency */,
+				3C9E56AA24F0022400BD7D34 /* PBXTargetDependency */,
 			);
 			name = BuildXL;
 			productName = BuildXL;
 			productReference = 3C44029724336AEB008CACDD /* BuildXL.app */;
 			productType = "com.apple.product-type.application";
 		};
-		3C4402AE24336B34008CACDD /* Sandbox */ = {
+		3C9E56A124F0022400BD7D34 /* Extension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3C4402B324336B34008CACDD /* Build configuration list for PBXNativeTarget "Sandbox" */;
+			buildConfigurationList = 3C9E56AC24F0022400BD7D34 /* Build configuration list for PBXNativeTarget "Extension" */;
 			buildPhases = (
-				3C7EC29F2448801E0033DE6C /* Headers */,
-				3C4402AB24336B34008CACDD /* Sources */,
-				3C4402AC24336B34008CACDD /* Frameworks */,
-				3C4402AD24336B34008CACDD /* CopyFiles */,
+				3C9E569E24F0022400BD7D34 /* Sources */,
+				3C9E569F24F0022400BD7D34 /* Frameworks */,
+				3C9E56A024F0022400BD7D34 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = Sandbox;
-			productName = sandbox;
-			productReference = 3C4402AF24336B34008CACDD /* Sandbox */;
-			productType = "com.apple.product-type.tool";
-		};
-		3C4402C024336D71008CACDD /* SystemExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 3C4402C424336D71008CACDD /* Build configuration list for PBXNativeTarget "SystemExtension" */;
-			buildPhases = (
-				3C4402BD24336D71008CACDD /* Sources */,
-				3C4402BE24336D71008CACDD /* Frameworks */,
-				3C4402BF24336D71008CACDD /* Resources */,
-				3C4402C824336E6A008CACDD /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = SystemExtension;
-			productName = SystemExtension;
-			productReference = 3C4402C124336D71008CACDD /* com.microsoft.buildxl.sandbox.systemextension */;
-			productType = "com.apple.product-type.bundle";
+			name = Extension;
+			productName = Extension;
+			productReference = 3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */;
+			productType = "com.apple.product-type.system-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -284,17 +243,14 @@
 		3C44028F24336AEB008CACDD /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1140;
+				LastUpgradeCheck = 1200;
 				ORGANIZATIONNAME = Microsoft;
 				TargetAttributes = {
 					3C44029624336AEB008CACDD = {
 						CreatedOnToolsVersion = 11.4;
 					};
-					3C4402AE24336B34008CACDD = {
-						CreatedOnToolsVersion = 11.4;
-					};
-					3C4402C024336D71008CACDD = {
-						CreatedOnToolsVersion = 11.4;
+					3C9E56A124F0022400BD7D34 = {
+						CreatedOnToolsVersion = 12.0;
 					};
 				};
 			};
@@ -312,8 +268,7 @@
 			projectRoot = "";
 			targets = (
 				3C44029624336AEB008CACDD /* BuildXL */,
-				3C4402C024336D71008CACDD /* SystemExtension */,
-				3C4402AE24336B34008CACDD /* Sandbox */,
+				3C9E56A124F0022400BD7D34 /* Extension */,
 			);
 		};
 /* End PBXProject section */
@@ -326,7 +281,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3C4402BF24336D71008CACDD /* Resources */ = {
+		3C9E56A024F0022400BD7D34 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -352,7 +307,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ ! -d \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" ]]; then\n    mkdir \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\"\n    ln -s \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\"\nfi\n";
+			shellScript = "if [[ ! -d \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" ]]; then\n    mkdir \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\"\n    cd \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH\"\n    ln -s \"CoreClrBundle\" \"ManagedBundle\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -368,30 +323,30 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3C4402AB24336B34008CACDD /* Sources */ = {
+		3C9E569E24F0022400BD7D34 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3CB3E17324486C26004D2734 /* IOEvent.cpp in Sources */,
-				3CB3E16524475CF4004D2734 /* main.mm in Sources */,
-				3C794F542448993200EF72E5 /* ESClient.mm in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3C4402BD24336D71008CACDD /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				3C9E56AF24F0024600BD7D34 /* ESClient.mm in Sources */,
+				3CF528B324F3C32E00E6619E /* ESClient.hpp in Sources */,
+				3CF528B424F3C32E00E6619E /* ESConstants.hpp in Sources */,
+				3CFB2E4724F0288B00A5198F /* IOEvent.cpp in Sources */,
+				3CF528B524F3C32E00E6619E /* IOEvent.hpp in Sources */,
+				3CF528B624F3C32E00E6619E /* MemoryStreams.hpp in Sources */,
+				3CF528B724F3C32E00E6619E /* PathCacheEntry.hpp in Sources */,
+				3CF528B824F3C32E00E6619E /* PathExtractor.hpp in Sources */,
+				3CF528B924F3C32E00E6619E /* XPCConstants.hpp in Sources */,
+				3C9E56B024F0024600BD7D34 /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3C4402E72434C6F7008CACDD /* PBXTargetDependency */ = {
+		3C9E56AA24F0022400BD7D34 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3C4402C024336D71008CACDD /* SystemExtension */;
-			targetProxy = 3C4402E62434C6F7008CACDD /* PBXContainerItemProxy */;
+			target = 3C9E56A124F0022400BD7D34 /* Extension */;
+			targetProxy = 3C9E56A924F0022400BD7D34 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -422,6 +377,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -480,6 +436,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -517,6 +474,8 @@
 				INFOPLIST_FILE = BuildXL/Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = Debug;
 		};
@@ -532,78 +491,56 @@
 				INFOPLIST_FILE = BuildXL/Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
-		3C4402B424336B34008CACDD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
-				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UBF8T346G9;
-				ENABLE_HARDENED_RUNTIME = NO;
-				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
-			};
-			name = Debug;
-		};
-		3C4402B524336B34008CACDD /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
-				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UBF8T346G9;
-				ENABLE_HARDENED_RUNTIME = NO;
-				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = Release;
 		};
-		3C4402C524336D71008CACDD /* Debug */ = {
+		3C9E56AD24F0022400BD7D34 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
+				CODE_SIGN_ENTITLEMENTS = Extension/Extension.entitlements;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UBF8T346G9;
-				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
-				PRODUCT_NAME = com.microsoft.buildxl.sandbox;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Extension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.extension;
+				PRODUCT_NAME = "$(inherited)";
+				PROVISIONING_PROFILE_SPECIFIER = "BuildXL System Extension Development";
 				SKIP_INSTALL = YES;
-				WRAPPER_EXTENSION = systemextension;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = Debug;
 		};
-		3C4402C624336D71008CACDD /* Release */ = {
+		3C9E56AE24F0022400BD7D34 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/sandbox/com.microsoft.buildxl.sandbox.systemextension.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
+				CODE_SIGN_ENTITLEMENTS = Extension/Extension.entitlements;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UBF8T346G9;
-				INFOPLIST_FILE = "$(SRCROOT)/sandbox/Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
-				PRODUCT_NAME = com.microsoft.buildxl.sandbox;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Extension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.extension;
+				PRODUCT_NAME = "$(inherited)";
+				PROVISIONING_PROFILE_SPECIFIER = "BuildXL System Extension Development";
 				SKIP_INSTALL = YES;
-				WRAPPER_EXTENSION = systemextension;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = Release;
 		};
@@ -628,20 +565,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3C4402B324336B34008CACDD /* Build configuration list for PBXNativeTarget "Sandbox" */ = {
+		3C9E56AC24F0022400BD7D34 /* Build configuration list for PBXNativeTarget "Extension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C4402B424336B34008CACDD /* Debug */,
-				3C4402B524336B34008CACDD /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		3C4402C424336D71008CACDD /* Build configuration list for PBXNativeTarget "SystemExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				3C4402C524336D71008CACDD /* Debug */,
-				3C4402C624336D71008CACDD /* Release */,
+				3C9E56AD24F0022400BD7D34 /* Debug */,
+				3C9E56AE24F0022400BD7D34 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

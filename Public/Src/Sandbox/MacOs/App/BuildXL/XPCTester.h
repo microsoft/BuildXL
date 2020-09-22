@@ -7,12 +7,12 @@
 void start_xpc_server(void)
 {
     int mode = xpc_set_detours_connection;
-    
+
     char queue_name[PATH_MAX] = { '\0' };
     sprintf(queue_name, "com.microsoft.buildxl.xpctester.eventqueue_%d", getpid());
 
     dispatch_queue_t eventQueue_ = dispatch_queue_create(queue_name, dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, -1
+        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
     ));
 
     xpc_connection_t listener = xpc_connection_create_mach_service("com.microsoft.buildxl.sandbox", NULL, 0);
@@ -31,15 +31,15 @@ void start_xpc_server(void)
     xpc_connection_set_event_handler(tester, ^(xpc_object_t peer)
     {
         xpc_connection_set_event_handler((xpc_connection_t)peer, ^(xpc_object_t message)
-                                         {
+        {
            xpc_type_t type = xpc_get_type(message);
            if (type == XPC_TYPE_DICTIONARY)
            {
                const char *msg = xpc_dictionary_get_string(message, "IOEvent");
                const uint64_t msg_length = xpc_dictionary_get_uint64(message, "IOEvent::Length");
-               
+
                printf("%.*s\n",(int)msg_length, msg);
-               
+
                xpc_object_t reply = xpc_dictionary_create_reply(message);
                xpc_dictionary_set_uint64(reply, "response", xpc_response_success);
                xpc_connection_send_message((xpc_connection_t) peer, reply);
@@ -49,11 +49,13 @@ void start_xpc_server(void)
            {
                if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
                {
-
+                   NSLog(@"Connection interrupted: %@", peer);
+                   exit(EXIT_FAILURE);
                }
                else if (message == XPC_ERROR_CONNECTION_INVALID)
                {
-
+                   NSLog(@"Connection invalid: %@", peer);
+                   exit(EXIT_FAILURE);
                }
            }
        });
@@ -76,7 +78,7 @@ void start_xpc_server(void)
     {
         exit(EXIT_FAILURE);
     }
-    
+
     // Won't exit - in test mode BuildXL has to be force quit
     dispatch_main();
 }

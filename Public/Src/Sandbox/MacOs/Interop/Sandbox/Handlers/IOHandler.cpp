@@ -33,7 +33,7 @@ AccessCheckResult IOHandler::HandleProcessExec(const IOEvent &event)
 AccessCheckResult IOHandler::HandleProcessExit(const IOEvent &event)
 {
     pid_t pid = event.GetPid();
-    
+
     ReportProcessExited(pid);
     HandleProcessUntracked(pid);
     return s_allowedCheckResult;
@@ -58,18 +58,32 @@ AccessCheckResult IOHandler::HandleLookup(const IOEvent &event)
 
 AccessCheckResult IOHandler::HandleOpen(const IOEvent &event)
 {
-    bool isDir = S_ISDIR(event.GetMode());
-    
-    // When interposing, we get every open() call attempt regardless of success, open calls on
-    // non-existent paths are currently treated as lookups.
     if (!event.EventPathExists())
     {
-        return CheckAndReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), isDir);
+        // Some tools use open() on directories to get a file handle for other calls e.g. fchdir(), in those cases
+        // the mode is reported as 0 and the path would be treated as non-existent. We try to stat the path to get a
+        // correct mode otherwise fall back to reporting the file access as a lookup.
+        struct stat sb;
+        if (lstat(event.GetEventPath(SRC_PATH), &sb) == 0)
+        {
+            bool isDir = S_ISDIR(sb.st_mode);
+
+            CheckFunc checker = isDir ? Checkers::CheckEnumerateDir : Checkers::CheckRead;
+            FileOperation op  = isDir ? kOpKAuthOpenDir : kOpKAuthReadFile;
+
+            return CheckAndReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
+        }
+
+        return AccessCheckResult::Invalid();
+        // Fallback
+        return CheckAndReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), false);
     }
-    
+
+    bool isDir = S_ISDIR(event.GetMode());
+
     CheckFunc checker = isDir ? Checkers::CheckEnumerateDir : Checkers::CheckRead;
     FileOperation op  = isDir ? kOpKAuthOpenDir : kOpKAuthReadFile;
-        
+
     return CheckAndReport(op, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
 }
 
@@ -79,7 +93,7 @@ AccessCheckResult IOHandler::HandleClose(const IOEvent &event)
     {
         return CheckAndReport(kOpKAuthCloseModified, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid());
     }
-    
+
     bool isDir = S_ISDIR(event.GetMode());
     return CheckAndReport(kOpKAuthClose, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir);
 }
@@ -128,13 +142,13 @@ AccessCheckResult IOHandler::HandleCreate(const IOEvent &event)
 {
     CheckFunc checker = Checkers::CheckWrite;
     bool isDir = false;
-    
+
     if (event.EventPathExists())
     {
         mode_t mode = event.GetMode();
         bool enforceDirectoryCreation = CheckDirectoryCreationAccessEnforcement(GetFamFlags());
         isDir = S_ISDIR(mode);
-        
+
         checker =
             S_ISLNK(mode) ? Checkers::CheckCreateSymlink
                           : S_ISREG(mode)
@@ -143,7 +157,7 @@ AccessCheckResult IOHandler::HandleCreate(const IOEvent &event)
                                 ? Checkers::CheckCreateDirectory
                                 : Checkers::CheckCreateDirectoryNoEnforcement;
     }
-    
+
     return CheckAndReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, event.GetEventPath(SRC_PATH), checker, event.GetPid(), isDir);
 }
 
@@ -161,7 +175,7 @@ AccessCheckResult IOHandler::HandleGenericRead(const IOEvent &event)
     const char *path = event.GetEventPath(SRC_PATH);
     mode_t mode = event.GetMode();
     bool isDir = S_ISDIR(mode);
-    
+
     if (!event.EventPathExists())
     {
         return CheckAndReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false);
@@ -175,8 +189,7 @@ AccessCheckResult IOHandler::HandleGenericRead(const IOEvent &event)
 AccessCheckResult IOHandler::HandleGenericProbe(const IOEvent &event)
 {
     const char *path = event.GetEventPath(SRC_PATH);
-    mode_t mode = event.GetMode();
-    bool isDir = S_ISDIR(mode);
+    bool isDir = S_ISDIR(event.GetMode());
 
     if (!event.EventPathExists())
     {
@@ -192,9 +205,11 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
 {
     switch (event.GetEventType())
     {
+        case ES_EVENT_TYPE_AUTH_EXEC:
         case ES_EVENT_TYPE_NOTIFY_EXEC:
+        {
             return HandleProcessExec(event);
-
+        }
         case ES_EVENT_TYPE_NOTIFY_FORK:
             return HandleProcessFork(event);
 
@@ -204,25 +219,37 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
         case ES_EVENT_TYPE_NOTIFY_LOOKUP:
             return HandleLookup(event);
 
+        case ES_EVENT_TYPE_AUTH_OPEN:
         case ES_EVENT_TYPE_NOTIFY_OPEN:
+        {
             return HandleOpen(event);
-
+        }
         case ES_EVENT_TYPE_NOTIFY_CLOSE:
             return HandleClose(event);
 
+        case ES_EVENT_TYPE_AUTH_CREATE:
         case ES_EVENT_TYPE_NOTIFY_CREATE:
+        {
             return HandleCreate(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_TRUNCATE:
         case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
+        case ES_EVENT_TYPE_AUTH_SETATTRLIST:
         case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
+        case ES_EVENT_TYPE_AUTH_SETEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
+        case ES_EVENT_TYPE_AUTH_DELETEEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
+        case ES_EVENT_TYPE_AUTH_SETFLAGS:
         case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
+        case ES_EVENT_TYPE_AUTH_SETOWNER:
         case ES_EVENT_TYPE_NOTIFY_SETOWNER:
+        case ES_EVENT_TYPE_AUTH_SETMODE:
         case ES_EVENT_TYPE_NOTIFY_SETMODE:
         case ES_EVENT_TYPE_NOTIFY_WRITE:
         case ES_EVENT_TYPE_NOTIFY_UTIMES:
         case ES_EVENT_TYPE_NOTIFY_SETTIME:
+        case ES_EVENT_TYPE_AUTH_SETACL:
         case ES_EVENT_TYPE_NOTIFY_SETACL:
             return HandleGenericWrite(event);
 
@@ -231,31 +258,47 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
         case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
             return HandleGenericRead(event);
 
+        case ES_EVENT_TYPE_AUTH_GETATTRLIST:
         case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
+        case ES_EVENT_TYPE_AUTH_GETEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
+        case ES_EVENT_TYPE_AUTH_LISTEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
         case ES_EVENT_TYPE_NOTIFY_ACCESS:
         case ES_EVENT_TYPE_NOTIFY_STAT:
             return HandleGenericProbe(event);
 
+        case ES_EVENT_TYPE_AUTH_CLONE:
         case ES_EVENT_TYPE_NOTIFY_CLONE:
+        {
             return HandleClone(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_EXCHANGEDATA:
         case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
+        {
             return HandleExchange(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_RENAME:
         case ES_EVENT_TYPE_NOTIFY_RENAME:
+        {
             return HandleRename(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_READLINK:
         case ES_EVENT_TYPE_NOTIFY_READLINK:
+        {
             return HandleReadlink(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_LINK:
         case ES_EVENT_TYPE_NOTIFY_LINK:
+        {
             return HandleLink(event);
-
+        }
+        case ES_EVENT_TYPE_AUTH_UNLINK:
         case ES_EVENT_TYPE_NOTIFY_UNLINK:
+        {
             return HandleUnlink(event);
-        case ES_EVENT_TYPE_LAST: 
+        }
+        case ES_EVENT_TYPE_LAST:
             return AccessCheckResult::Invalid();
         default:
             std::string message("Unhandled ES event: ");

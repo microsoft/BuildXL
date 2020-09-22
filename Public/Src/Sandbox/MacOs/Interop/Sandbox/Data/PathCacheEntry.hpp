@@ -4,6 +4,7 @@
 #ifndef PathCacheEntry_h
 #define PathCacheEntry_h
 
+#include <fcntl.h>
 #include <libproc.h>
 
 typedef struct {
@@ -21,10 +22,11 @@ public:
         memcpy(buffer_.data, path, length);
         buffer_.length = length;
     }
-    
+
     PathCacheEntry(int identifier, bool isPid = false)
     {
         assert(identifier > 0);
+
         if (!isPid)
         {
             assert(fcntl(identifier, F_GETPATH, buffer_.data) != -1);
@@ -33,11 +35,12 @@ public:
         {
             assert(proc_pidpath(identifier, (void *)buffer_.data, PATH_MAX) > 0);
         }
+
         buffer_.length = strlen(buffer_.data);
     }
-    
+
     ~PathCacheEntry() = default;
-    
+
     inline const char* GetPath() const { return buffer_.data; }
     inline const size_t GetPathLength() const { return buffer_.length; }
 };

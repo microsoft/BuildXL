@@ -51,7 +51,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                             FailureCallback = FailureCallback,
                             KextConfig = new KextConfig
                             {
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport
                             }
                         });
                 }
@@ -65,7 +65,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 sandboxConnection = null;
             }
 
-            return sandboxConnection; 
+            return sandboxConnection;
         });
 
         private static void FailureCallback(int status, string description)
@@ -83,7 +83,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                         ? SandboxKind.MacOsHybrid
                         : SandboxKind.MacOsKext;
 
-            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && 
+            if (!OperatingSystemHelper.IsMacWithoutKernelExtensionSupport &&
                 (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");

@@ -40,7 +40,7 @@ INTERPOSE(pid_t, fork, void)({
     if (childPid.get() > 0)
     {
         std::string exePath(bxl->GetProgramPath());
-        IOEvent event(getpid(), childPid.get(), getppid(), ES_EVENT_TYPE_NOTIFY_FORK, exePath, std::string(""), exePath, 0, false);
+        IOEvent event(getpid(), childPid.get(), getppid(), ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false);
         bxl->report_access(__func__, event);
     }
 
@@ -200,7 +200,8 @@ static AccessCheckResult ReportFileOpen(BxlObserver *bxl, std::string &pathStr, 
 {
     mode_t pathMode = bxl->get_mode(pathStr.c_str());
     IOEvent event(
-        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
+        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN,
+        ES_ACTION_TYPE_NOTIFY,
         pathStr, bxl->GetProgramPath(), pathMode, false);
     return bxl->report_access(__func__, event);
 }
@@ -268,9 +269,9 @@ INTERPOSE(int, rename, const char *old, const char *n)({
     std::string newStr = bxl->normalize_path(n, O_NOFOLLOW);
 
     mode_t mode = bxl->get_mode(oldStr.c_str());
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_RENAME, oldStr, bxl->GetProgramPath(), mode, false, newStr);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_RENAME, ES_ACTION_TYPE_NOTIFY, oldStr, bxl->GetProgramPath(), mode, false, newStr);
 
-    // special case for 'rename' must check before forwarding the call and report after 
+    // special case for 'rename' must check before forwarding the call and report after
     // (so that bxl can properly rename all files inside the renamed directories)
     auto check = bxl->report_access(__func__, event); // TODO: this step should only check permission without reporting anything if allowed
 
@@ -309,13 +310,13 @@ INTERPOSE(int, unlink, const char *path)({
 })
 
 INTERPOSE(int, symlink, const char *target, const char *linkPath)({
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path(linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, bxl->normalize_path(linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
     auto check = bxl->report_access(__func__, event);
     return bxl->check_and_fwd_symlink(check, ERROR_RETURN_VALUE, target, linkPath);
 })
 
 INTERPOSE(int, symlinkat, const char *target, int dirfd, const char *linkPath)({
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path_at(dirfd, linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, bxl->normalize_path_at(dirfd, linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
     auto check = bxl->report_access(__func__, event);
     return bxl->check_and_fwd_symlinkat(check, ERROR_RETURN_VALUE, target, dirfd, linkPath);
 })
@@ -351,13 +352,13 @@ INTERPOSE(int, futimens, int fd, const struct timespec times[2])({
 })
 
 INTERPOSE(int, mkdir, const char *pathname, mode_t mode)({
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path(pathname), bxl->GetProgramPath(), S_IFDIR);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, bxl->normalize_path(pathname), bxl->GetProgramPath(), S_IFDIR);
     auto check = bxl->report_access(__func__, event);
     return bxl->check_and_fwd_mkdir(check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, mkdirat, int dirfd, const char *pathname, mode_t mode)({
-    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path_at(dirfd, pathname), bxl->GetProgramPath(), S_IFDIR);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, bxl->normalize_path_at(dirfd, pathname), bxl->GetProgramPath(), S_IFDIR);
     auto check = bxl->report_access(__func__, event);
     return bxl->check_and_fwd_mkdirat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode);
 })

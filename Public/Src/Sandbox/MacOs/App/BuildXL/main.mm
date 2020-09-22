@@ -14,7 +14,7 @@ int main(int argc, const char * argv[])
     @autoreleasepool
     {
         SystemExentsionAction action = None;
-        
+
         for(int i = 1; i < argc; i++)
         {
             if (strcmp(argv[i], "--register-systemextension") == 0)
@@ -33,7 +33,7 @@ int main(int argc, const char * argv[])
                 break;
             }
         }
-        
+
         if (action != None)
         {
             SystemExtensionManager *extensionManger = [[SystemExtensionManager alloc] init];
@@ -41,7 +41,7 @@ int main(int argc, const char * argv[])
             exit(status ? EXIT_SUCCESS : EXIT_FAILURE);
         }
     }
-    
+
     std::string argv0AbsolutePath;
     if (!GetAbsolutePath(argv[0], argv0AbsolutePath))
     {
@@ -92,6 +92,6 @@ int main(int argc, const char * argv[])
                             managedAssemblyAbsolutePath.c_str(),
                             managedAssemblyArgc,
                             managedAssemblyArgv);
-    
+
     return exitCode;
 }

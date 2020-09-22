@@ -152,7 +152,7 @@ config({
                 // RocksDb
                 { id: "RocksDbSharp", version: "6.10.2-b20200625.3", alias: "RocksDbSharpSigned" },
                 { id: "RocksDbNative", version: "6.10.2-b20200625.3" },
-                
+
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
@@ -373,11 +373,11 @@ config({
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },
 
                 // Runtime dependencies for Linux
-                { 
-                    id: "runtime.linux-x64.BuildXL", 
-                    version: "0.0.33",
-                    osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal 
-                        ? [] 
+                {
+                    id: "runtime.linux-x64.BuildXL",
+                    version: "0.0.34",
+                    osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
+                        ? []
                         : [ "win", "macOS", "unix" ]
                 }
             ],
@@ -488,7 +488,7 @@ config({
         defaultQualifier: {
             configuration: "debug",
             targetFramework: "netcoreapp3.1",
-            targetRuntime: 
+            targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
         },

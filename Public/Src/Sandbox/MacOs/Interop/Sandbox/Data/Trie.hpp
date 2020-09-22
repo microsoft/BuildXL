@@ -50,12 +50,12 @@ private:
 
     uint length()     const { return childrenLength_; }
     Node** children() const { return children_; }
-    
+
     static Node* createUintNode() { return new Node(s_uintNodeChildrenCount); }
     static Node* createPathNode() { return new Node(s_pathNodeChildrenCount); }
-    
+
 public:
-    
+
     Node() = delete;
     Node(uint numChildren);
     ~Node();
@@ -268,7 +268,7 @@ public:
     Trie() = delete;
     Trie(TrieKind kind);
     ~Trie();
-    
+
     /*!
      * Returns the size of the tree (i.e., the number of values stored).
      */

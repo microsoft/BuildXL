@@ -31,7 +31,7 @@ extern "C"
             case GenericSandbox:
                 return Sandbox_SendPipStarted(processId, pipId, famBytes, famBytesLength);
         }
-    
+
         return false;
     }
 
@@ -47,7 +47,7 @@ extern "C"
             case GenericSandbox:
                 return Sandbox_SendPipProcessTerminated(pipId, processId);
         }
-    
+
         return false;
     }
 #endif

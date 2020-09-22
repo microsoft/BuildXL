@@ -10,11 +10,12 @@ enum XPCCommands : unsigned int
     xpc_response_success = 0xFA,
     xpc_response_failure,
     xpc_response_mute_process,
-    
+    xpc_response_auth,
+
     xpc_get_detours_connection,
     xpc_set_detours_connection,
     xpc_kill_detours_connection,
-    
+
     xpc_get_es_connection,
     xpc_set_es_connection,
     xpc_kill_es_connection,

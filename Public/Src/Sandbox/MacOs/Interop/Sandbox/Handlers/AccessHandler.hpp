@@ -19,13 +19,13 @@ typedef bool (Handler)(void *data);
 
 struct AccessHandler
 {
-    
+
 private:
 
     const char *IgnoreDataPartitionPrefix(const char* path);
     const char *kDataPartitionPrefix = "/System/Volumes/Data/";
     const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
-    
+
     Sandbox *sandbox_;
 
     std::shared_ptr<SandboxedProcess> process_;
@@ -42,7 +42,7 @@ protected:
     inline const std::shared_ptr<SandboxedPip> GetPip()         const { return process_->GetPip(); }
 
     PolicySearchCursor FindManifestRecord(const char *absolutePath, size_t pathLength = -1);
-    
+
     /*!
      * Copies 'process_->getPath()' into 'report->path'.
      */
@@ -76,9 +76,9 @@ protected:
     }
 
 public:
-    
+
     AccessHandler() = delete;
-    
+
     AccessHandler(Sandbox *sandbox)
     {
         sandbox_           = sandbox;

@@ -2,12 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
 
 using static BuildXL.Interop.Dispatch;
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace BuildXL.Interop.Unix
 {
@@ -183,14 +185,14 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
-        /// Struct sent in place of <see cref="AccessReport.PathOrPipStats"/> in case of a 
+        /// Struct sent in place of <see cref="AccessReport.PathOrPipStats"/> in case of a
         /// <see cref="FileOperation.OpProcessTreeCompleted"/> operation.
         /// </summary>
         /// <remarks>
         /// CODESYNC: Public/Src/Sandbox/MacOs/Sandbox/Src/BuildXLSandboxShared.hpp
         /// </remarks>
         [StructLayout(LayoutKind.Explicit, Size = 1024)]
-        public struct PipKextStats 
+        public struct PipKextStats
         {
             [MarshalAs(UnmanagedType.U4)][FieldOffset(0)]
             public uint LastPathLookupElemCount;
@@ -224,7 +226,7 @@ namespace BuildXL.Interop.Unix
 
             [MarshalAs(UnmanagedType.U4)][FieldOffset(40)]
             public uint NumHardLinkRetries;
-        } 
+        }
 
         /// <remarks>
         /// CODESYNC: Public/Src/Sandbox/MacOs/Sandbox/Src/BuildXLSandboxShared.hpp
@@ -264,6 +266,7 @@ namespace BuildXL.Interop.Unix
             /// </summary>
             public string DecodePath()
             {
+                Contract.Requires(PathOrPipStats != null);
                 return s_accessReportStringEncoding.GetString(PathOrPipStats).TrimEnd('\0');
             }
 

@@ -21,7 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3C794F4E24488FC700EF72E5 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = XPCConstants.hpp; path = ../App/Sandbox/XPCConstants.hpp; sourceTree = "<group>"; };
+		3C794F4E24488FC700EF72E5 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = XPCConstants.hpp; path = ../App/Extension/XPCConstants.hpp; sourceTree = "<group>"; };
 		3C7D6E0C242141130084AB5D /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		3C7D6E0E24216E290084AB5D /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
 		3C9991A9244E16D500CEB33E /* PathCacheEntry.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathCacheEntry.hpp; path = ../Interop/Sandbox/Data/PathCacheEntry.hpp; sourceTree = "<group>"; };

@@ -11,7 +11,7 @@ typedef enum
     None,
 } SystemExentsionAction;
 
-static NSString *systemExtensionIdentifier = @"com.microsoft.buildxl.sandbox";
+static NSString *systemExtensionIdentifier = @"com.microsoft.buildxl.extension";
 
 @interface SystemExtensionManager : NSObject <OSSystemExtensionRequestDelegate>
 

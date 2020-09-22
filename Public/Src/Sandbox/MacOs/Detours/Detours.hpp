@@ -18,9 +18,10 @@
 
 #include "IOEvent.hpp"
 
-static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
-
 #define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", "com_microsoft_buildxl_detours", __func__, __VA_ARGS__)
+#define DETOURS_BUNDLE_IDENTIFIER "com.microsoft.buildxl.detours"
+
+static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
 
 #if DEBUG
 #define log_debug(format, ...) log(format, __VA_ARGS__)
@@ -34,7 +35,7 @@ static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
 
 #define DEFAULT_EVENT_CONSTRUCTOR(type, src, dst, mode) \
     int old_errno = errno; \
-    IOEvent event(getpid(), 0, getppid(), type, src, dst, get_executable_path(getpid()), mode); \
+    IOEvent event(getpid(), 0, getppid(), type, ES_ACTION_TYPE_NOTIFY, src, dst, get_executable_path(getpid()), mode); \
     send_to_sandbox(event, type); \
     errno = old_errno; \
     return result;
@@ -42,25 +43,25 @@ static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
 #define DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(type, src, dst, mode, report) \
     int old_errno = errno; \
     if (report) { \
-        IOEvent event(getpid(), 0, getppid(), type, src, dst, get_executable_path(getpid()), true); \
+        IOEvent event(getpid(), 0, getppid(), type, ES_ACTION_TYPE_NOTIFY, src, dst, get_executable_path(getpid()), true); \
         send_to_sandbox(event, type, false, false); \
     } \
     errno = old_errno; \
     return result;
 
 #define EXEC_EVENT_CONSTRUCTOR(path) \
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXEC, path, "", get_executable_path(getpid()), false); \
+    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXEC, ES_ACTION_TYPE_NOTIFY, path, "", get_executable_path(getpid()), false); \
     send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXEC, true);\
 
 #define EXIT_EVENT_CONSTRUCTOR() \
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, "", "", get_executable_path(getpid()), false); \
+    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, ES_ACTION_TYPE_NOTIFY, "", "", get_executable_path(getpid()), false); \
     send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXIT);
 
 #define FORK_EVENT_CONSTRUCTOR(result, child_pid, pid, ppid, cmp) \
     int old_errno = errno; \
     if (result cmp 0) { \
         std::string fullpath = get_executable_path(*child_pid); \
-        IOEvent event(pid, *child_pid, ppid, ES_EVENT_TYPE_NOTIFY_FORK, "", "", fullpath, false); \
+        IOEvent event(pid, *child_pid, ppid, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, "", "", fullpath, false); \
         send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_FORK); \
     } \
     errno = old_errno; \
@@ -68,7 +69,7 @@ static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
 
 #define STAT_EVENT_CONSTRUCTOR(type, src) \
     int old_errno = errno; \
-    IOEvent event(getpid(), 0, getppid(), type, src, "", get_executable_path(getpid()), s->st_mode); \
+    IOEvent event(getpid(), 0, getppid(), type, ES_ACTION_TYPE_NOTIFY, src, "", get_executable_path(getpid()), s->st_mode); \
     send_to_sandbox(event, type); \
     errno = old_errno; \
     return result;
@@ -80,7 +81,7 @@ static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
         if (!reported) { \
             std::shared_ptr<PathCacheEntry> entry(new PathCacheEntry(fildes)); \
             trackedPaths_->insert(path, entry); \
-            IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_WRITE, path, dst, get_executable_path(getpid())); \
+            IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_WRITE, ES_ACTION_TYPE_NOTIFY, path, dst, get_executable_path(getpid())); \
             send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_WRITE); \
         } \
     } \

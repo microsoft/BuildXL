@@ -166,7 +166,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public const string SharedOpaqueSidebandDirectory = "SharedOpaqueSidebandState";
 
-        private const int SealDirectoryContentFilterTimeoutMs = 1_000; // 1s 
+        private const int SealDirectoryContentFilterTimeoutMs = 1_000; // 1s
 
         #endregion Constants
 
@@ -805,7 +805,7 @@ namespace BuildXL.Scheduler
         private int m_loggingIntervalPeriodMs;
 
         /// <summary>
-        /// Previous UTC time when the UpdateStatus logs where logged 
+        /// Previous UTC time when the UpdateStatus logs where logged
         /// </summary>
         private DateTime m_previousStatusLogTimeUTC;
 
@@ -1408,7 +1408,7 @@ namespace BuildXL.Scheduler
             if (PipGraph.ApiServerMoniker.IsValid)
             {
                 // To reduce the time between rendering the server moniker and starting a server using that moniker,
-                // we create the server here and not in the Scheduler's ctor.                
+                // we create the server here and not in the Scheduler's ctor.
                 m_apiServer = new ApiServer(
                     m_ipcProvider,
                     PipGraph.ApiServerMoniker.ToString(Context.StringTable),
@@ -1596,7 +1596,7 @@ namespace BuildXL.Scheduler
             int availableWorkers = AvailableWorkersCount;
 
             // If any remote worker is released due to insufficient amount of work left, do not attempt to cancel the build
-            // even though minimum workers is not satisfied. 
+            // even though minimum workers is not satisfied.
             if (availableWorkers < minimumWorkers && !isDrainingCompleted && !anyRemoteWorkerReleased)
             {
                 Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, availableWorkers);
@@ -1843,7 +1843,7 @@ namespace BuildXL.Scheduler
             // Log details about pips skipped under /CacheOnly mode only if pips were actually skipped.
             if (m_configuration.Schedule.CacheOnly && processPipsSkippedExecutionDueToCacheOnly > 0)
             {
-                // Log the total number of pips skipped including downstream pips. 
+                // Log the total number of pips skipped including downstream pips.
                 // processPipsSkippedExecutionDueToCacheOnly only contains the pips where cache lookup was performed, not downstream pips that were skipped
                 Logger.Log.CacheOnlyStatistics(loggingContext, m_numProcessPipsSkipped);
             }
@@ -2293,7 +2293,7 @@ namespace BuildXL.Scheduler
                 // That's why, we need to get the actual number of process pips that were allocated a slot on the workers (including localworker).
                 long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
 
-                // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int> 
+                // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int>
                 if (m_writableDrives != null &&
                     !m_scheduleTerminating &&
                     m_performanceAggregator != null &&
@@ -2538,14 +2538,14 @@ namespace BuildXL.Scheduler
             MemoryResource memoryResource = MemoryResource.Available;
 
             // RAM (WORKINGSET) USAGE.
-            // If ram resources are not available, the scheduler is throttled (effectiveprocessslots becoming 1) and 
-            // we cancel the running ones.  
+            // If ram resources are not available, the scheduler is throttled (effectiveprocessslots becoming 1) and
+            // we cancel the running ones.
 
             if (LocalWorker.TotalRamMb == null && m_perfInfo.AvailableRamMb.HasValue)
             {
-                // TotalRam represent the available size at the beginning of the build. 
+                // TotalRam represent the available size at the beginning of the build.
                 // Because graph construction can consume a large memory as a part of BuildXL process,
-                // we add ProcessWorkingSetMb to the current available ram. 
+                // we add ProcessWorkingSetMb to the current available ram.
                 LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb + m_perfInfo.ProcessWorkingSetMB;
             }
 
@@ -2593,7 +2593,7 @@ namespace BuildXL.Scheduler
             }
             else if (LocalWorker.TotalCommitMb == null)
             {
-                // If we cannot get commit usage for Windows, or it is the MacOS, we do not track of swap file usage. 
+                // If we cannot get commit usage for Windows, or it is the MacOS, we do not track of swap file usage.
                 // That's why, we set it to very high number to disable throttling.
                 LocalWorker.TotalCommitMb = int.MaxValue;
             }
@@ -2670,14 +2670,14 @@ namespace BuildXL.Scheduler
                             maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
                 }
 
-                // CancellationRam is the only mode for OSX. 
+                // CancellationRam is the only mode for OSX.
                 defaultManageMemoryMode = ManageMemoryMode.CancellationRam;
 
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
 #else
-                // We only retry when the ram memory is not available. 
-                // When commit memory is not available, we stop scheduling; but we do not cancel the currently running ones 
-                // because OS can resize the commit memory. 
+                // We only retry when the ram memory is not available.
+                // When commit memory is not available, we stop scheduling; but we do not cancel the currently running ones
+                // because OS can resize the commit memory.
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
 #endif
                 {
@@ -2701,10 +2701,10 @@ namespace BuildXL.Scheduler
             {
                 // Use EffectiveAvailableRam when to throttle the scheduler and cancel more.
 
-                // We might use the actual available ram to resume though. 
+                // We might use the actual available ram to resume though.
                 // If there is available ram, then resume any suspended pips.
                 // 90% memory - current percent = availableRamForResume
-                // When it is resumed, start from the larger execution time. 
+                // When it is resumed, start from the larger execution time.
 
                 var desiredRamPercentToUse = m_configuration.Schedule.MaximumRamUtilizationPercentage - perfInfo.RamUsagePercentage.Value;
 
@@ -3576,7 +3576,7 @@ namespace BuildXL.Scheduler
                 if (runnablePip.StepDuration.TotalMinutes > PipExecutionIOStepDelayedLimitMin && runnablePip.Step.IsIORelated())
                 {
                     // None of I/O pip execution steps is supposed to take more than 15 minutes. However, there are some large Cosine pips whose inputs are materialized around 20m-25m.
-                    // That's why, we chose 30 minutes for the limit to log a warning message, so that we can keep track of the frequency. 
+                    // That's why, we chose 30 minutes for the limit to log a warning message, so that we can keep track of the frequency.
                     Logger.Log.PipExecutionIOStepDelayed(runnablePip.OperationContext, runnablePip.Description, runnablePip.Step.ToString(), PipExecutionIOStepDelayedLimitMin, (int)runnablePip.StepDuration.TotalMinutes);
                 }
 
@@ -3911,7 +3911,7 @@ namespace BuildXL.Scheduler
                 {
                     if (m_configuration.Distribution.FireForgetMaterializeOutput && !AnyPendingPipsExceptMaterializeOutputs())
                     {
-                        // There is no pips running anything except materializeOutputs. 
+                        // There is no pips running anything except materializeOutputs.
                         m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
                     }
 
@@ -4232,7 +4232,7 @@ namespace BuildXL.Scheduler
                             ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
                         }
 
-                        // If it is a single machine or distributed build master 
+                        // If it is a single machine or distributed build master
                         if (!IsDistributedBuild || IsDistributedMaster)
                         {
                             if (retryReason == RetryReason.ResourceExhaustion)
@@ -5720,7 +5720,7 @@ namespace BuildXL.Scheduler
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
 #if !PLATFORM_WIN
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacWithoutKernelExtensionSupport,
 #endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
                                 {

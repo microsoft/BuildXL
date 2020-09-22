@@ -57,7 +57,7 @@ extern const char *__progname;
     #define IGNORE_BODY(B)
 
     #define INTERPOSE(ret, name, ...) IGNORE_BODY
-#endif 
+#endif
 
 #define GEN_FN_DEF(ret, name, ...) \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__) \
@@ -88,8 +88,8 @@ extern const char *__progname;
 
 /**
  * Wraps the result of a syscall together with the current 'errno'.
- * 
- * When 'restore' is called, if allowed, 'errno' is reset back to 
+ *
+ * When 'restore' is called, if allowed, 'errno' is reset back to
  * the value that was captured in the constructor and the captured result is returned;
  * otherwise 'errno' is set to EPERM and the error value is returned.
  */
@@ -125,9 +125,9 @@ public:
 
 /**
  * Singleton class responsible for reporting accesses.
- * 
+ *
  * Accesses are observed by intercepting syscalls.
- * 
+ *
  * Accesses are reported to a file (can be a regular file or a FIFO)
  * at the location specified by the FileAccessManifest.
  */
@@ -202,7 +202,7 @@ private:
 #define LOG_DEBUG(fmt, ...) BXL_LOG_DEBUG(this, fmt, __VA_ARGS__)
 
 public:
-    static BxlObserver* GetInstance(); 
+    static BxlObserver* GetInstance();
 
     bool SendReport(AccessReport &report);
 
@@ -212,7 +212,7 @@ public:
     void report_exec(const char *syscallName, const char *procName, const char *file);
     void report_audit_objopen(const char *fullpath)
     {
-        IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, fullpath, progFullPath_, S_IFREG);
+        IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);
         report_access("la_objopen", event, /* checkCache */ true);
     }
 
@@ -272,7 +272,7 @@ public:
 
     /**
      * Returns whether the given access should be denied.
-     * 
+     *
      * This is true when
      *   - the given access is not permitted
      *   - the sandbox is configured to deny accesses that are not permitted

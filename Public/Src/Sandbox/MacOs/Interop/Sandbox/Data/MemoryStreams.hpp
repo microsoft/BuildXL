@@ -37,15 +37,15 @@ struct omemorystream final : virtual omemorybuffer, std::ostream
 struct PipeDelimiter final : std::ctype<char>
 {
     PipeDelimiter() : std::ctype<char>(get_table()) {}
-    
+
     static mask const* get_table()
     {
         static mask rc[table_size];
-        
+
         // Use '|' and '\n' as delimiters instead of the default ' ' (space)
         rc['|'] = std::ctype_base::space;
         rc['\n'] = std::ctype_base::space;
-        
+
         return &rc[0];
     }
 };

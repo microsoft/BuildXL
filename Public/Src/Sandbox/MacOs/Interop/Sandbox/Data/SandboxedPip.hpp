@@ -22,7 +22,7 @@ class SandboxedPip final
 {
 
 private:
-    
+
     /*! Process id of the root process of this pip. */
     pid_t processId_;
 
@@ -34,7 +34,7 @@ private:
 
     /*! Number of processses in this pip's process tree */
     std::atomic<int> processTreeCount_;
-    
+
 public:
 
     SandboxedPip() = delete;
@@ -62,10 +62,10 @@ public:
 
     /*! Number of currently active processes in this pip's process tree */
     inline const int GetTreeSize() const                    { return processTreeCount_; }
-    
+
     /*! When this returns true, child processes should not be tracked. */
     bool AllowChildProcessesToBreakAway() const             { return fam_.AllowChildProcessesToBreakAway(); }
-    
+
 
 #pragma mark Process Tree Tracking
 

@@ -317,7 +317,8 @@ export function runQTest(args: QTestArguments): Result {
         hasUntrackedChildProcesses: args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies,
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
-            ...addIf(flakyFile !== undefined, flakyFile)
+            ...addIf(flakyFile !== undefined, flakyFile),
+            ...addIfLazy(args.qTestUntrackedPaths !== undefined, () => args.qTestUntrackedPaths)
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
@@ -530,6 +531,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAcquireSemaphores?: Transformer.SemaphoreInfo[];
     /** Overrides global setting to disable code coverage collection on this test binary */
     qTestDisableCodeCoverage?: boolean;
+    /** Paths out of scope of the build or test project where unsafe file access needs to be permitted */
+    qTestUntrackedPaths?: (File | Directory)[];
     
     /** Nested tool options */
     tools?: {

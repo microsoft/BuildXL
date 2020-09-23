@@ -13,8 +13,14 @@ using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
-    internal static class RetryPolicyExtensions
+    /// <summary>
+    /// Set of extension methods for <see cref="RetryPolicy"/>.
+    /// </summary>
+    public static class RetryPolicyExtensions
     {
+        /// <summary>
+        /// Execute a given <paramref name="func"/> func and trace transient failures if <paramref name="traceFailure"/> is true.
+        /// </summary>
         public static async Task ExecuteAsync(
             this RetryPolicy policy,
             Context context,
@@ -23,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             bool traceFailure,
             [CallerMemberName] string? caller = null)
         {
+            // Avoiding extra allocations for no reason if tracing is off.
             if (!traceFailure)
             {
                 await policy.ExecuteAsync(func, token);
@@ -38,9 +45,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 },
                 token,
                 traceFailure: true,
+                databaseName: null,
                 caller);
         }
 
+        /// <summary>
+        /// Execute a given <paramref name="func"/> func and trace transient failures if <paramref name="traceFailure"/> is true.
+        /// </summary>
         public static async Task<T> ExecuteAsync<T>(
             this RetryPolicy policy,
             Context context,
@@ -55,19 +66,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 return await policy.ExecuteAsync(func, token);
             }
 
-            try
+            Func<Task<T>> outerFunc = async () =>
             {
-                return await func();
-            }
-            catch (Exception e)
-            {
-                string databaseText = string.IsNullOrEmpty(databaseName) ? string.Empty : $" against '{databaseName}'";
-                // Intentionally tracing only message, because if the issue is transient, its not very important to see the full stack trace (we never seen them before)
-                // and if the issue is not transient, then the client of this class is responsible for properly tracing the full stack trace.
-                context.Debug($"Redis operation '{caller}'{databaseText} failed: {e.Message}.");
-                ExceptionDispatchInfo.Capture(e).Throw();
-                throw; // unreachable
-            }
+                try
+                {
+                    return await func();
+                }
+                catch (Exception e)
+                {
+                    string databaseText = string.IsNullOrEmpty(databaseName) ? string.Empty : $" against '{databaseName}'";
+                    // Intentionally tracing only message, because if the issue is transient, its not very important to see the full stack trace (we never seen them before)
+                    // and if the issue is not transient, then the client of this class is responsible for properly tracing the full stack trace.
+                    context.Debug($"Redis operation '{caller}'{databaseText} failed: {e.Message}.");
+                    ExceptionDispatchInfo.Capture(e).Throw();
+                    throw; // unreachable
+                }
+            };
+
+            return await policy.ExecuteAsync(outerFunc, token);
+
         }
     }
 }

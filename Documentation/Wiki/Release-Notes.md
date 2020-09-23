@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+
+# 0.1.0-20200918.3 (Release [79359](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=79359)).  Released 9/23/2020
+- Materialization daemon: Add support for materializing output directories
+- Support for adding paths to graph file system
+- Add the case for VisualBasic task in VBCSCompiler
+- QTest: Fix DFA issue for target binaries and add retry mode
+- Some polishing on the Lage frontend
+
 # 0.1.0-20200914.5.2 (Release [78915](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=78915)).  Released 9/16/2020
 -	Enable full reparse point resolving in Detours
 -	Materialization daemon prep work

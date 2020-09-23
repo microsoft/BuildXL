@@ -17,7 +17,7 @@ using Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    public partial class LocalLocationStoreDistributedContentTests : DistributedContentTests
+    public partial class LocalLocationStoreDistributedContentTests
     {
         protected void ConfigureWithOneMasterAndSmallBlobs(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
         {

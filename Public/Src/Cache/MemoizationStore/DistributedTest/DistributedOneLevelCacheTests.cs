@@ -1,65 +1,46 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.FileSystem;
-using ContentStoreTest.Test;
 using System;
-using ContentStoreTest.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.MemoizationStore.Distributed.Stores;
-using Xunit;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using ContentStoreTest.Distributed.Sessions;
-using Xunit.Abstractions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using System.Linq;
-using BuildXL.Cache.ContentStore.Synchronization;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using FluentAssertions;
-using static ContentStoreTest.Distributed.Sessions.DistributedContentTests;
-using System.Threading;
-using Test.BuildXL.TestUtilities.Xunit;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Synchronization;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using ContentStoreTest.Distributed.Redis;
+using ContentStoreTest.Distributed.Sessions;
+using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 {
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
-    public class DistributedOneLevelCacheTests : TestBase
+    public class DistributedOneLevelCacheTests : LocalLocationStoreDistributedContentTestsBase
     {
         private const int RandomContentByteCount = 100;
-        protected const HashType ContentHashType = HashType.Vso0;
-        protected static readonly CancellationToken Token = CancellationToken.None;
-
-        private readonly LocalLocationStoreDistributedContentTests _test;
 
         public DistributedOneLevelCacheTests(LocalRedisFixture redis, ITestOutputHelper output)
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
+            : base(redis, output)
         {
-            _test = new InnerDistributedTest(redis, output);
-        }
-
-        /// <inheritdoc />
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-
-            if (disposing)
-            {
-                _test.Dispose();
-            }
+            //_test = new InnerDistributedTest(redis, output);
+            ConfigureWithOneMaster();
         }
 
         [Fact]
         public Task BasicDistributedAddAndGet()
         {
-            _test.ConfigureWithOneMaster(dcs =>
+            ConfigureWithOneMaster(dcs =>
             {
                 dcs.TouchContentHashLists = true;
             });
@@ -154,9 +135,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 
                    // Get original last access time for strong fingerprint which will be touched
                    var initialTouchTime = getTouchedFingerprintLastAccessTime(masterStore);
-                   initialTouchTime.Should().Be(_test.TestClock.UtcNow);
+                   initialTouchTime.Should().Be(TestClock.UtcNow);
 
-                   _test.TestClock.UtcNow += TimeSpan.FromDays(1);
+                   TestClock.UtcNow += TimeSpan.FromDays(1);
 
                    // Restore (update) db on worker 1
                    await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
@@ -191,8 +172,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                    await ensureLevelAsync(workerCache1, 0 /* Worker 1 should find locally after restoring DB */);
 
                    // Touch should have propagated to master and worker 1 (worker 1 restored checkpoint above)
-                   getTouchedFingerprintLastAccessTime(masterStore).Should().Be(_test.TestClock.UtcNow);
-                   getTouchedFingerprintLastAccessTime(workerStore1).Should().Be(_test.TestClock.UtcNow);
+                   getTouchedFingerprintLastAccessTime(masterStore).Should().Be(TestClock.UtcNow);
+                   getTouchedFingerprintLastAccessTime(workerStore1).Should().Be(TestClock.UtcNow);
                });
         }
 
@@ -202,24 +183,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         {
             var context = new Context(Logger);
 
-            return _test.RunTestAsync(
+            return RunTestAsync(
                 context,
                 storeCount,
                 context => testFunc((MetadataTestContext)context));
         }
 
-        private class InnerDistributedTest : LocalLocationStoreDistributedContentTests
+        protected override TestContext ConfigureTestContext(TestContext context)
         {
-            public InnerDistributedTest(LocalRedisFixture redis, ITestOutputHelper output)
-                : base(redis, output)
-            {
-                ConfigureWithOneMaster();
-            }
-
-            protected override TestContext ConfigureTestContext(TestContext context)
-            {
-                return new MetadataTestContext(context);
-            }
+            return new MetadataTestContext(context);
         }
 
         protected class MetadataTestContext : TestContext

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -29,13 +30,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <nodoc />
         public IMemoizationStore CreateMemoizationStore(ILogger logger)
         {
-            var redisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStore;
+            var primaryRedisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStore;
+            Contract.Assert(primaryRedisDatabaseFactory != null);
+            var primaryRedisDatabaseAdapter = CreateDatabase(primaryRedisDatabaseFactory);
 
-            Contract.Assert(redisDatabaseFactory != null);
+            var secondaryRedisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStoreSecondary;
+            Contract.Assert(secondaryRedisDatabaseFactory != null);
+            var secondaryRedisDatabaseAdapter = CreateDatabase(secondaryRedisDatabaseFactory, optional: true);
 
-            var redisDatabaseAdapter = CreateDatabase(redisDatabaseFactory);
-
-            var memoizationDb = new RedisMemoizationDatabase(redisDatabaseAdapter, Clock, _memoizationExpiryTime);
+            var memoizationDb = new RedisMemoizationDatabase(primaryRedisDatabaseAdapter, secondaryRedisDatabaseAdapter, Clock, _memoizationExpiryTime);
             return new RedisMemoizationStore(logger, memoizationDb);
         }
 

@@ -61,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
                         localLocationStore,
-                        new RedisMemoizationDatabase(redisStore.RedisDatabase, localLocationStore.EventStore.Clock, localLocationStore.Configuration.LocationEntryExpiry, localLocationStore.Configuration.RedisMemoizationDatabaseOperationTimeout)));
+                        new RedisMemoizationDatabase(redisStore.RaidedRedis, localLocationStore.EventStore.Clock, localLocationStore.Configuration.LocationEntryExpiry, localLocationStore.Configuration.RedisMemoizationDatabaseOperationTimeout)));
 
                 return await MemoizationStore.StartupAsync(context);
             });

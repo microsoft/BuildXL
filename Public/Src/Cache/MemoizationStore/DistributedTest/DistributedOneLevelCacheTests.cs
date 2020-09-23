@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using ContentStoreTest.Test;
 using System;
 using ContentStoreTest.Distributed.Redis;
@@ -17,7 +16,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using System.Linq;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
@@ -25,7 +23,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using FluentAssertions;
 using static ContentStoreTest.Distributed.Sessions.DistributedContentTests;
 using System.Threading;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 

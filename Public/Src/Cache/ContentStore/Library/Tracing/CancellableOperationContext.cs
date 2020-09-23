@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Tracing.Internal
 {
@@ -42,5 +43,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
         /// <nodoc />
         public static implicit operator OperationContext(CancellableOperationContext context) => context.Context;
+
+        /// <nodoc />
+        public static implicit operator Context(CancellableOperationContext context) => context.Context.TracingContext;
     }
 }

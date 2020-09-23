@@ -38,21 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public ClusterState ClusterState { get; private set; }
 
-        /// <summary>
-        /// Exposing raided redis from global store for access from tests, specifically LocalLocationStoreDistributedContentTests.
-        /// During test with raided redis, verifying counters are correct values.
-        /// </summary>
-        internal RaidedRedisDatabase RaidedRedis => _raidedRedis;
-
-        /// <summary>
-        /// The accessor for the redis database
-        /// </summary>
-        private readonly RaidedRedisDatabase _raidedRedis;
-
-        /// <summary>
-        /// Gets the backing primary redis database for the store
-        /// </summary>
-        public RedisDatabaseAdapter RedisDatabase => _raidedRedis.PrimaryRedisDb;
+        public RaidedRedisDatabase RaidedRedis { get; }
 
         private readonly ReplicatedRedisHashKey _checkpointsKey;
         private readonly ReplicatedRedisHashKey _masterLeaseKey;
@@ -63,13 +49,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public RedisKey FullyQualifiedClusterStateKey => _clusterStateKey.UnsafeGetFullKey();
 
-        internal RedisContentLocationStoreConfiguration Configuration => _configuration;
-        private readonly RedisContentLocationStoreConfiguration _configuration;
+        internal RedisContentLocationStoreConfiguration Configuration { get; }
 
-        internal RedisBlobAdapter PrimaryBlobAdapter => _primaryBlobAdapter;
-        private readonly RedisBlobAdapter _primaryBlobAdapter;
-        internal RedisBlobAdapter SecondaryBlobAdapter => _secondaryBlobAdapter;
-        private readonly RedisBlobAdapter _secondaryBlobAdapter;
+        internal RedisBlobAdapter PrimaryBlobAdapter { get; }
+
+        internal RedisBlobAdapter SecondaryBlobAdapter { get; }
 
         private Role? _role = null;
 
@@ -83,10 +67,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         Tracer ReplicatedRedisHashKey.IReplicatedKeyHost.Tracer => Tracer;
 
         /// <inheritdoc />
-        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => _role == Role.Master && _configuration.MirrorClusterState;
+        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => _role == Role.Master && Configuration.MirrorClusterState;
 
         /// <inheritdoc />
-        TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => _configuration.ClusterStateMirrorInterval;
+        TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => Configuration.ClusterStateMirrorInterval;
 
         /// <nodoc />
         public RedisGlobalStore(
@@ -98,28 +82,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.Requires(configuration.CentralStore != null);
 
             _clock = clock;
-            _configuration = configuration;
-            _raidedRedis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
+            Configuration = configuration;
+            RaidedRedis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
             var checkpointKeyBase = configuration.CentralStore.CentralStateKeyBase;
 
-            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, _raidedRedis);
-            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _raidedRedis);
-            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _raidedRedis);
+            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, RaidedRedis);
+            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, RaidedRedis);
+            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, RaidedRedis);
 
-            _primaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
-            _secondaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.SecondaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
+            PrimaryBlobAdapter = new RedisBlobAdapter(RaidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock);
+            SecondaryBlobAdapter = new RedisBlobAdapter(RaidedRedis.SecondaryRedisDb, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock);
         }
 
         /// <inheritdoc />
-        public bool AreBlobsSupported => _configuration.AreBlobsSupported;
+        public bool AreBlobsSupported => Configuration.AreBlobsSupported;
 
         /// <inheritdoc />
         public CounterSet GetCounters(OperationContext context)
         {
             var counters = Counters.ToCounterSet();
-            counters.Merge(_primaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
-            counters.Merge(_secondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
-            counters.Merge(_raidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
+            counters.Merge(PrimaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
+            counters.Merge(SecondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
+            counters.Merge(RaidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
 
@@ -127,10 +111,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             List<MachineLocation> allMachineLocations = new List<MachineLocation>();
-            Contract.Assert(_configuration.PrimaryMachineLocation.IsValid, "Primary machine location must be specified");
+            Contract.Assert(Configuration.PrimaryMachineLocation.IsValid, "Primary machine location must be specified");
 
-            allMachineLocations.Add(_configuration.PrimaryMachineLocation);
-            allMachineLocations.AddRange(_configuration.AdditionalMachineLocations);
+            allMachineLocations.Add(Configuration.PrimaryMachineLocation);
+            allMachineLocations.AddRange(Configuration.AdditionalMachineLocations);
 
             var machineMappings = await Task.WhenAll(allMachineLocations.Select(machineLocation => RegisterMachineAsync(context, machineLocation)));
 
@@ -146,10 +130,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Get the local machine id
             var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
                 context,
-                _configuration.RetryWindow,
+                Configuration.RetryWindow,
                 RedisOperation.StartupGetOrAddLocalMachine, 
                 (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow),
-                timeout: _configuration.ClusterRedisOperationTimeout)
+                timeout: Configuration.ClusterRedisOperationTimeout)
                 .ThrowIfFailureAsync();
 
             Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
@@ -178,9 +162,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     int dualResultCount = 0;
 
-                    foreach (var page in contentHashes.AsIndexed().GetPages(_configuration.RedisBatchPageSize))
+                    foreach (var page in contentHashes.AsIndexed().GetPages(Configuration.RedisBatchPageSize))
                     {
-                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
+                        var batchResult = await RaidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             var redisBatch = redisDb.CreateBatch(RedisOperation.GetBulkGlobal);
 
@@ -216,7 +200,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // TODO ST: now this operation may fail with TaskCancelledException. But this should be traced differently!
                             return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
 
-                        }, _configuration.RetryWindow);
+                        }, Configuration.RetryWindow);
 
                         if (!batchResult)
                         {
@@ -224,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    if (_raidedRedis.HasSecondary)
+                    if (RaidedRedis.HasSecondary)
                     {
                         Counters[GlobalStoreCounters.GetBulkEntrySingleResult].Add(contentHashes.Count - dualResultCount);
                     }
@@ -248,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             [CallerMemberName] string caller = null)
         {
             const int operationsPerHash = 3;
-            var hashBatchSize = Math.Max(1, _configuration.RedisBatchPageSize / operationsPerHash);
+            var hashBatchSize = Math.Max(1, Configuration.RedisBatchPageSize / operationsPerHash);
 
             return context.PerformOperationAsync(
                 Tracer,
@@ -256,14 +240,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     foreach (var page in contentHashes.GetPages(hashBatchSize))
                     {
-                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
+                        var batchResult = await RaidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             Counters[GlobalStoreCounters.RegisterLocalLocationHashCount].Add(page.Count);
 
                             int requiresSetBitCount;
                             ConcurrentBitArray requiresSetBit;
 
-                            if (_configuration.UseOptimisticRegisterLocalLocation)
+                            if (Configuration.UseOptimisticRegisterLocalLocation)
                             {
                                 requiresSetBitCount = 0;
                                 requiresSetBit = new ConcurrentBitArray(page.Count);
@@ -277,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     var key = GetRedisKey(hash.Hash);
                                     redisBatch.AddOperationAndTraceIfFailure(context, key, async batch =>
                                     {
-                                        bool set = await batch.StringSetAsync(key, ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(hash.Size, machineId), _configuration.LocationEntryExpiry, When.NotExists);
+                                        bool set = await batch.StringSetAsync(key, ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(hash.Size, machineId), Configuration.LocationEntryExpiry, When.NotExists);
                                         if (!set)
                                         {
                                             requiresSetBit[indexedHash.index] = true;
@@ -319,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                 return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, token);
                             }
-                        }, _configuration.RetryWindow);
+                        }, Configuration.RetryWindow);
 
                         if (!batchResult)
                         {
@@ -340,14 +324,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // NOTE: The order here matters. KeyExpire must be after creation of the entry. SetBit creates the entry if needed.
             tasks.Add(batch.StringSetBitAsync(key, machineId.GetContentLocationEntryBitOffset(), true));
-            tasks.Add(batch.KeyExpireAsync(key, _configuration.LocationEntryExpiry));
+            tasks.Add(batch.KeyExpireAsync(key, Configuration.LocationEntryExpiry));
 
             // NOTE: We don't set the size when using optimistic location registration because the entry should have already been created at this point (the prior set
             // if not exists call failed indicating the entry already exists).
             // There is a small race condition if the entry was near-expiry and this call ends up recreating the entry without the size being set. We accept
             // this possibility since we have to handle unknown size and either case and the occurrence of the race should be rare. Also, we can mitigate by
             // applying the size from the local database which should be known if the entry is that old.
-            if (!_configuration.UseOptimisticRegisterLocalLocation && hash.Size >= 0)
+            if (!Configuration.UseOptimisticRegisterLocalLocation && hash.Size >= 0)
             {
                 tasks.Add(batch.StringSetRangeAsync(key, 0, ContentLocationEntry.ConvertSizeToRedisRangeBytes(hash.Size)));
             }
@@ -398,24 +382,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return Role.Worker;
                         }
 
-                        var configuredRole = _configuration.Checkpoint?.Role;
+                        var configuredRole = Configuration.Checkpoint?.Role;
                         if (configuredRole != null)
                         {
                             return configuredRole.Value;
                         }
 
-                        var localMachineName = _configuration.PrimaryMachineLocation.ToString();
+                        var localMachineName = Configuration.PrimaryMachineLocation.ToString();
 
-                        var masterAcquisitonResult = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
+                        var masterAcquisitonResult = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(context, Configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
                                 masterRoleRegistryKey: key,
                                 machineName: localMachineName,
                                 currentTime: _clock.UtcNow,
-                                leaseExpiryTime: _configuration.Checkpoint.MasterLeaseExpiryTime,
+                                leaseExpiryTime: Configuration.Checkpoint.MasterLeaseExpiryTime,
                                 // 1 master only is allowed. This should be changed if more than one master becomes a possible configuration
                                 slotCount: 1,
                                 release: release
                             ),
-                            timeout: _configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
+                            timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
 
                         if (release)
                         {
@@ -456,7 +440,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private async Task<BoolResult> UpdateClusterStateCoreAsync(OperationContext context, ClusterState clusterState, MachineState machineState)
         {
             (var inactiveMachineIdSet, var closedMachineIdSet, var getUnknownMachinesResult) = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                context, _configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
+                context, Configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
                 {
                     var heartbeatResultTask = CallHeartbeatAsync(context, clusterState, batch, key, machineState);
 
@@ -471,7 +455,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return (heartbeatResult.inactiveMachineIdSet, heartbeatResult.closedMachineIdSet, getUnknownMachinesResult);
                 },
-                timeout: _configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
+                timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
 
             Contract.Assert(inactiveMachineIdSet != null, "inactiveMachineIdSet != null");
             Contract.Assert(closedMachineIdSet != null, "closedMachineIdSet != null");
@@ -526,9 +510,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     machineMapping.Id.Index,
                     state,
                     _clock.UtcNow,
-                    _configuration.MachineStateRecomputeInterval,
-                    _configuration.MachineActiveToClosedInterval,
-                    _configuration.MachineActiveToExpiredInterval);
+                    Configuration.MachineStateRecomputeInterval,
+                    Configuration.MachineActiveToClosedInterval,
+                    Configuration.MachineActiveToExpiredInterval);
 
                 if (priorState != state)
                 {
@@ -558,10 +542,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var (checkpoints, startCursor) = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(
                         context,
-                        _configuration.RetryWindow,
+                        Configuration.RetryWindow,
                         RedisOperation.GetCheckpoint,
                         (batch, key) => batch.GetCheckpointsInfoAsync(key, _clock.UtcNow),
-                        timeout: _configuration.ClusterRedisOperationTimeout)
+                        timeout: Configuration.ClusterRedisOperationTimeout)
                     .ThrowIfFailureAsync();
 
                     var roleResult = await UpdateRoleAsync(context, release: false);
@@ -578,7 +562,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Tracer.Debug(context, $"Getting checkpoint state: Can't find a checkpoint: Start cursor time: {startCursor}");
 
                         // Add slack for start cursor to account for clock skew between event hub and redis
-                        var epochStartCursor = startCursor - _configuration.EventStore.NewEpochEventStartCursorDelay;
+                        var epochStartCursor = startCursor - Configuration.EventStore.NewEpochEventStartCursorDelay;
                         return CheckpointState.CreateUnavailable(_role.Value, epochStartCursor);
                     }
 
@@ -597,15 +581,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     Contract.Assert(sequencePoint.SequenceNumber != null);
 
-                    var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, _configuration.PrimaryMachineLocation.ToString());
+                    var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, Configuration.PrimaryMachineLocation.ToString());
                     Tracer.Debug(nestedContext, $"Saving checkpoint '{checkpoint}' into the central store.");
 
                     var slotNumber = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(
                         nestedContext,
-                        _configuration.RetryWindow,
+                        Configuration.RetryWindow,
                         RedisOperation.UploadCheckpoint,
                         (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount),
-                        timeout: _configuration.ClusterRedisOperationTimeout)
+                        timeout: Configuration.ClusterRedisOperationTimeout)
                         .ThrowIfFailureAsync();
 
                     Tracer.Debug(nestedContext, $"Saved checkpoint into slot '{slotNumber}'.");
@@ -633,10 +617,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var result = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
                         nestedContext,
-                        _configuration.RetryWindow,
+                        Configuration.RetryWindow,
                         RedisOperation.SetLocalMachineState,
                         (batch, key) => CallHeartbeatAsync(nestedContext, ClusterState, batch, key, state),
-                        timeout: _configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
+                        timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
 
                     return new Result<MachineState>(result.priorState);
                 },
@@ -655,7 +639,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 nestedContext => GetBlobAdapter(hash).PutBlobAsync(nestedContext, hash, blob),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.PutBlob],
-                timeout: _configuration.BlobTimeout);
+                timeout: Configuration.BlobTimeout);
         }
 
         /// <inheritdoc />
@@ -668,17 +652,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 nestedContext => GetBlobAdapter(hash).GetBlobAsync(nestedContext, hash),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.GetBlob],
-                timeout: _configuration.BlobTimeout);
+                timeout: Configuration.BlobTimeout);
         }
 
         internal RedisBlobAdapter GetBlobAdapter(ContentHash hash)
         {
-            if (!_raidedRedis.HasSecondary)
+            if (!RaidedRedis.HasSecondary)
             {
-                return _primaryBlobAdapter;
+                return PrimaryBlobAdapter;
             }
 
-            return hash[0] >= 128 ? _primaryBlobAdapter : _secondaryBlobAdapter;
+            return hash[0] >= 128 ? PrimaryBlobAdapter : SecondaryBlobAdapter;
         } 
     }
 }

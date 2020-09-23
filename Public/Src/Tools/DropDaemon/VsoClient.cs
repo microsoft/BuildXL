@@ -290,14 +290,13 @@ namespace Tool.DropDaemon
         {
             Interlocked.Exchange(ref m_lastTimeProcessAddFileRanInTicks, DateTime.UtcNow.Ticks);
 
-            int batchLength = batch.Length;
-            if (batchLength == 0)
+            if (batch.Length == 0)
             {
                 return;
             }
 
             Interlocked.Increment(ref Stats.NumBatches);
-            if (batchLength == m_config.BatchSize)
+            if (batch.Length == m_config.BatchSize)
             {
                 Interlocked.Increment(ref Stats.NumCompleteBatches);
             }
@@ -306,12 +305,12 @@ namespace Tool.DropDaemon
                 Interlocked.Increment(ref Stats.NumIncompleteBatches);
             }
 
-
-            m_logger.Info("Processing a batch of {0} drop files.", batchLength);
             FileBlobDescriptor[] blobsForAssociate = new FileBlobDescriptor[0];
             try
             {
                 var dedupedBatch = SkipFilesWithTheSameDropPathAndContent(batch);
+                var numSkipped = batch.Length - dedupedBatch.Length;
+                m_logger.Info("Processing a batch of {0} drop files after skipping {1} files.", dedupedBatch.Length, numSkipped);
 
                 // compute blobs for associate
                 var startTime = DateTime.UtcNow;
@@ -354,21 +353,27 @@ namespace Tool.DropDaemon
         private AddFileItem[] SkipFilesWithTheSameDropPathAndContent(AddFileItem[] batch)
         {
             var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Length, comparer: StringComparer.OrdinalIgnoreCase);
+            var numSkipped = 0;
             foreach (var item in batch)
             {
-                if (dedupedItems.TryGetValue(item.RelativeDropFilePath, out var existingItem))
+                // Only skip an item if the content is known, it's the same content, and it's being uploaded to the same place
+                if (dedupedItems.TryGetValue(item.RelativeDropFilePath, out var existingItem) &&
+                    existingItem.BlobIdentifier != null &&
+                    existingItem.BlobIdentifier == item.BlobIdentifier)
                 {
-                    // Only skip an item if the content is known, it's the same content, and it's being uploaded to the same place
-                    if (existingItem.BlobIdentifier != null && existingItem.BlobIdentifier == item.BlobIdentifier)
-                    {
-                        // the item won't be returned for further processing, so we need to mark its task complete
-                        item.TaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
-                    }
+                    // the item won't be returned for further processing, so we need to mark its task complete
+                    item.TaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
+                    ++numSkipped;
                 }
                 else
                 {
                     dedupedItems.Add(item.RelativeDropFilePath, item);
                 }
+            }
+
+            if (batch.Length != numSkipped + dedupedItems.Count)
+            {
+                Contract.Assert(false, $"batch_count ({batch.Length}) != num_skipped ({numSkipped}) + num_returned ({dedupedItems.Count})");
             }
 
             return dedupedItems.Values.ToArray();

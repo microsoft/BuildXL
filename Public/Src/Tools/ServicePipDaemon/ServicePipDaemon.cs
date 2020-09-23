@@ -444,6 +444,7 @@ namespace Tool.ServicePipDaemon
             TimeSpan queueDuration = operation.Timestamp.Daemon_BeforeExecuteTime - operation.Timestamp.Daemon_AfterReceivedTime;
             m_counters.AddToCounter(DaemonCounter.QueueDurationMs, (long)queueDuration.TotalMilliseconds);
 
+            m_logger.Verbose($"Request #{id} processed in {queueDuration}, Result: {result.ExitCode}");
             return result;
         }
 

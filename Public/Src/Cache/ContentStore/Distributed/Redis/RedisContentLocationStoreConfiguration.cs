@@ -126,6 +126,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool TreatObjectDisposedExceptionAsTransient { get; set; } = false;
 
         /// <summary>
+        /// An optional retry count that will be used for creating retry policy with fixed time interval between retries (of 1 second).
+        /// </summary>
+        /// <remarks>
+        /// This configuration is added here for completeness sake and should not be used in production environment because exponential backoff retry strategy usually gives better results.
+        /// </remarks>
+        public int? RetryCount { get; set; } = null;
+
+        /// <summary>
+        /// An optional configuration for exponential backoff retry policy.
+        /// </summary>
+        public ExponentialBackoffConfiguration ExponentialBackoffConfiguration { get; set; } = null;
+
+        /// <summary>
         /// Timeout for GetBlob/PutBlob operations.
         /// </summary>
         public TimeSpan BlobTimeout { get; set; } = TimeSpan.FromSeconds(1);

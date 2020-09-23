@@ -122,6 +122,8 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRingIsolation { get; set; } = false;
 
+        // Redis-related configuration
+
         /// <summary>
         /// TTL to be set in Redis for memoization entries.
         /// </summary>
@@ -173,6 +175,29 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(0, int.MaxValue)]
         public int? RedisGetCheckpointStateTimeoutInSeconds { get; set; }
+
+        // Redis retry configuration
+        [DataMember]
+        [Validation.Range(0, int.MaxValue, minInclusive: false)]
+        public int? RedisFixedIntervalRetryCount { get; set; }
+
+        // Just setting this value is enough to configure a custom exponential back-off policy with default min/max/interval.
+        [DataMember]
+        [Validation.Range(0, int.MaxValue, minInclusive: false)]
+        public int? RedisExponentialBackoffRetryCount { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RedisExponentialBackoffMinIntervalInSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RedisExponentialBackoffMaxIntervalInSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RedisExponentialBackoffDeltaIntervalInSeconds { get; set; }
+
 
         // TODO: file a work item to remove the flag!
         [DataMember]

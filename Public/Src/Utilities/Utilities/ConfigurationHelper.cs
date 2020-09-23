@@ -25,5 +25,16 @@ namespace BuildXL.Utilities
                 apply(value.Value);
             }
         }
+
+        /// <nodoc />
+        public static TOutput IfNotNull<TInput, TOutput>(TInput? value, Func<TInput, TOutput> apply) where TInput : struct
+        {
+            if (value != null)
+            {
+                return apply(value.Value);
+            }
+
+            return default(TOutput);
+        }
     }
 }

@@ -126,7 +126,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     databaseName: databaseName,
                     minReconnectInterval: Configuration.MinRedisReconnectInterval,
                     cancelBatchWhenMultiplexerIsClosed: Configuration.CancelBatchWhenMultiplexerIsClosed,
-                    treatObjectDisposedExceptionAsTransient: Configuration.TreatObjectDisposedExceptionAsTransient);
+                    treatObjectDisposedExceptionAsTransient: Configuration.TreatObjectDisposedExceptionAsTransient,
+                    operationTimeout: Configuration.OperationTimeout,
+                    exponentialBackoffConfiguration: Configuration.ExponentialBackoffConfiguration,
+                    retryCount: Configuration.RetryCount);
 
                 return new RedisDatabaseAdapter(factory, adapterConfiguration);
             }

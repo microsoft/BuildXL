@@ -182,13 +182,26 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisContentLocationStoreConfiguration.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
+
+            // Redis-related configuration.
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);
             ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisContentLocationStoreConfiguration.RedisReconnectionLimitBeforeServiceRestart = v);
             ApplyIfNotNull(_distributedSettings.TraceRedisFailures, v => redisContentLocationStoreConfiguration.TraceRedisFailures = v);
             ApplyIfNotNull(_distributedSettings.TraceRedisTransientFailures, v => redisContentLocationStoreConfiguration.TraceRedisTransientFailures = v);
+            ApplyIfNotNull(_distributedSettings.DefaultRedisOperationTimeoutInSeconds, v => redisContentLocationStoreConfiguration.OperationTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(_distributedSettings.MinRedisReconnectInterval, v => redisContentLocationStoreConfiguration.MinRedisReconnectInterval = v);
             ApplyIfNotNull(_distributedSettings.CancelBatchWhenMultiplexerIsClosed, v => redisContentLocationStoreConfiguration.CancelBatchWhenMultiplexerIsClosed = v);
-            ApplyIfNotNull(_distributedSettings.TreatObjectDisposedExceptionAsTransient, v => redisContentLocationStoreConfiguration.TreatObjectDisposedExceptionAsTransient = v);
+
+            if (_distributedSettings.RedisExponentialBackoffRetryCount != null)
+            {
+                var exponentialBackoffConfiguration = new ExponentialBackoffConfiguration(
+                    _distributedSettings.RedisExponentialBackoffRetryCount.Value,
+                    minBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffMinIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
+                    maxBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffMaxIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
+                    deltaBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffDeltaIntervalInSeconds, v => TimeSpan.FromSeconds(v))
+                    );
+                redisContentLocationStoreConfiguration.ExponentialBackoffConfiguration = exponentialBackoffConfiguration;
+            }
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisContentLocationStoreConfiguration.MachineRisk = v);

@@ -463,6 +463,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <summary>
+        /// Returns true if a given exception of type <see cref="RedisCommandException"/> and the error is transient.
+        /// </summary>
+        public static bool IsTransientRedisCommandException(Exception exception)
+        {
+            if (exception is RedisCommandException rce && rce.Message.Contains("Command cannot be issued to a slave"))
+            {
+                return true;
+            }
+
+            // Other RedisCommandException may indicate the issues in the code.
+
+            return false;
+        }
+
+        /// <summary>
         /// Gets a redis value at a particular string key from Redis.
         /// </summary>
         /// <param name="context">the logging context</param>
@@ -599,7 +614,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));
                 }
 
-                if (ex is RedisTimeoutException)
+                // Need to handle RedisCommandException and RedisTimeoutException separately,
+                // because they don't derive from RedisException.
+                if (ex is RedisTimeoutException || ex is RedisCommandException)
+                {
+                    return true;
+                }
+
+                if (IsTransientRedisCommandException(ex))
                 {
                     return true;
                 }

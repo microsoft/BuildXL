@@ -62,5 +62,7 @@ namespace BuildXL.App.Tracing
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
         // ProblematicWorkerExitError = 14013,
+
+        PerformanceCollectorInitializationFailed = 15000,
     }
 }

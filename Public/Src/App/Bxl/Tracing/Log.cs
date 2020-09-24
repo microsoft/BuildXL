@@ -482,6 +482,14 @@ namespace BuildXL.App.Tracing
             Message = "Reading build specifications was {0:N1}x more expensive as evaluating them. This is generally a sign that IO performance is degraded. This could be due to GVFS needing to materialize remote files.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontendIOSlow(LoggingContext context, double factor);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PerformanceCollectorInitializationFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = "An exception was occurred/swallowed when initializing performance collector: {exception}.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void PerformanceCollectorInitializationFailed(LoggingContext context, string exception);
     }
 
     /// <summary>

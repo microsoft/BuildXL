@@ -1835,17 +1835,34 @@ namespace BuildXL
         /// </returns>
         private PerformanceCollector CreateCounterCollectorIfEnabled(LoggingContext loggingContext)
         {
-            if (m_configuration.Logging.LogMemory)
+            var stopwatch = new StopwatchVar();
+            PerformanceCollector collector = null;
+
+            using (stopwatch.Start())
             {
-                Logger.Log.MemoryLoggingEnabled(loggingContext);
+                if (m_configuration.Logging.LogMemory)
+                {
+                    Logger.Log.MemoryLoggingEnabled(loggingContext);
+                }
+
+                if (m_configuration.Logging.LogCounters)
+                {
+                    collector = new PerformanceCollector(
+                        TimeSpan.FromSeconds(1),
+                        m_configuration.Logging.LogMemory,
+                        (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message));
+                }
             }
 
-            if (m_configuration.Logging.LogCounters)
-            {
-                return new PerformanceCollector(TimeSpan.FromSeconds(1), m_configuration.Logging.LogMemory);
-            }
+            Tracing.Logger.Log.Statistic(
+                loggingContext,
+                new Statistic()
+                {
+                    Name = Statistics.PerformanceCollectorInitializationDurationMs,
+                    Value = (long)stopwatch.TotalElapsed.TotalMilliseconds,
+                });
 
-            return null;
+            return collector;
         }
 
         internal void OnUnexpectedCondition(string condition)

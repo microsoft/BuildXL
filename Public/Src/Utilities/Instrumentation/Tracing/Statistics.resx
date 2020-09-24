@@ -321,4 +321,7 @@
   <data name="TotalMaterializedOutputsExpensiveCount" xml:space="preserve">
     <value>TotalMaterializedOutputsExpensiveCount</value>
   </data>
+  <data name="PerformanceCollectorInitializationDurationMs" xml:space="preserve">
+    <value>PerformanceCollectorInitializationDurationMs</value>
+  </data>
 </root>

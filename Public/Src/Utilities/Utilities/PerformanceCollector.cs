@@ -13,7 +13,10 @@ using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Interop;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.Unix.Memory;
@@ -89,7 +92,7 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, TestHooks testHooks = null)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, Action<Exception> errorHandler = null, TestHooks testHooks = null)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
@@ -130,31 +133,25 @@ namespace BuildXL.Utilities
                 // Initialize network telemetry objects
                 InitializeNetworkMonitor();
 
-                InitializeWMI();
+                InitializeWMIAsync().Forget(errorHandler);
             }
 
             // Perform all initialization before starting the timer
             m_collectionTimer = new Timer(Collect, null, 0, 0);
         }
 
-        private ManagementScope m_scope;
+        private volatile ManagementScope m_scope;
         private ManagementObjectSearcher m_querySearcher;
 
-        private void InitializeWMI()
+        private async Task InitializeWMIAsync()
         {
-            try
-            {
-                m_scope = new ManagementScope(String.Format("\\\\{0}\\root\\CIMV2", "."), null);
-                m_scope.Connect();
+            await Task.Yield();
 
-                ObjectQuery query = new ObjectQuery("SELECT AvailableBytes, ModifiedPageListBytes, FreeAndZeroPageListBytes, StandbyCacheCoreBytes, StandbyCacheNormalPriorityBytes, StandbyCacheReserveBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
-                m_querySearcher = new ManagementObjectSearcher(m_scope, query);
-            }
-#pragma warning disable ERP022
-            catch (Exception)
-            {
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            m_scope = new ManagementScope(string.Format("\\\\{0}\\root\\CIMV2", "."), null);
+            m_scope.Connect();
+
+            ObjectQuery query = new ObjectQuery("SELECT AvailableBytes, ModifiedPageListBytes, FreeAndZeroPageListBytes, StandbyCacheCoreBytes, StandbyCacheNormalPriorityBytes, StandbyCacheReserveBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
+            m_querySearcher = new ManagementObjectSearcher(m_scope, query);
         }
 
         /// <summary>
@@ -290,7 +287,7 @@ namespace BuildXL.Utilities
         {
             try
             {
-                if (m_querySearcher != null)
+                if (m_scope?.IsConnected == true)
                 {
                     foreach (ManagementObject WmiObject in m_querySearcher.Get())
                     {

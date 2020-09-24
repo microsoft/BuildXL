@@ -474,6 +474,11 @@ namespace Tool.MaterializationDaemon
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
                             var stdErr = $"{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
                             return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
+                        }                        
+
+                        if (result.Count == 0)
+                        {
+                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Parser exited cleanly, but no output was written.");
                         }
 
                         if (!int.TryParse(result[0], out var expectedCount))
@@ -497,7 +502,7 @@ namespace Tool.MaterializationDaemon
             }
             catch (Exception e)
             {
-                return new Failure<string>(e.DemystifyToString());
+                return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] {e.DemystifyToString()}");
             }
         }
 

@@ -23,6 +23,7 @@
 
 #include "Sandbox.hpp"
 #include "SandboxedPip.hpp"
+#include "utils.h"
 
 using namespace std;
 
@@ -32,6 +33,9 @@ extern const char *__progname;
 #define BxlEnvFamPath "__BUILDXL_FAM_PATH"
 #define BxlEnvLogPath "__BUILDXL_LOG_PATH"
 #define BxlEnvRootPid "__BUILDXL_ROOT_PID"
+#define BxlEnvDetoursPath "__BUILDXL_DETOURS_PATH"
+
+static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
 
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
@@ -143,6 +147,7 @@ private:
     int rootPid_;
     char progFullPath_[PATH_MAX];
     char logFile_[PATH_MAX];
+    char detoursLibFullPath_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
@@ -153,8 +158,10 @@ private:
 
     void InitFam();
     void InitLogFile();
+    void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
+    char** ensure_env_value_with_log(char *const envp[], char const *envName);
 
     inline bool IsValid()   { return sandbox_ != NULL; }
     inline bool IsEnabled()
@@ -205,9 +212,11 @@ public:
     static BxlObserver* GetInstance();
 
     bool SendReport(AccessReport &report);
+    char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
+    const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
     void report_exec(const char *syscallName, const char *procName, const char *file);
     void report_audit_objopen(const char *fullpath)

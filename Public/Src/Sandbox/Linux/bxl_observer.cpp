@@ -24,18 +24,33 @@ BxlObserver::BxlObserver()
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
     const char *rootPidStr = getenv(BxlEnvRootPid);
-    rootPid_ = (rootPidStr && *rootPidStr) ? atoi(rootPidStr) : -1;
+    rootPid_ = is_null_or_empty(rootPidStr) ? -1 : atoi(rootPidStr);
     disposed_ = false;
 
     InitFam();
     InitLogFile();
+    InitDetoursLibPath();
+}
+
+void BxlObserver::InitDetoursLibPath()
+{
+    const char *path = getenv(BxlEnvDetoursPath);
+    if (!is_null_or_empty(path))
+    {
+        strlcpy(detoursLibFullPath_, path, PATH_MAX);
+        detoursLibFullPath_[PATH_MAX-1] = '\0';
+    }
+    else
+    {
+        detoursLibFullPath_[0] = '\0';
+    }
 }
 
 void BxlObserver::InitFam()
 {
     // read FAM env var
     const char *famPath = getenv(BxlEnvFamPath);
-    if (!(famPath && *famPath))
+    if (is_null_or_empty(famPath))
     {
         real_fprintf(stderr, "[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
         return;
@@ -76,7 +91,7 @@ void BxlObserver::InitFam()
 void BxlObserver::InitLogFile()
 {
     const char *logPath = getenv(BxlEnvLogPath);
-    if (logPath && *logPath)
+    if (!is_null_or_empty(logPath))
     {
         strlcpy(logFile_, logPath, PATH_MAX);
         logFile_[PATH_MAX-1] = '\0';
@@ -464,4 +479,33 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
         pFullpath = find_prev_slash(pFullpath);
         strcpy(++pFullpath, readlinkBuf);
     }
+}
+
+char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName)
+{
+    char *envValue = getenv(envName);
+    char **newEnvp = ensure_env_value(envp, envName, envValue);
+
+    if (newEnvp != envp)
+    {
+        LOG_DEBUG("envp has been modified with %s added to %s", envValue, envName);
+    }
+
+    return newEnvp;
+}
+
+char** BxlObserver::ensureEnvs(char *const envp[])
+{
+    char **newEnvp = ensure_paths_included_in_env(envp, LD_PRELOAD_ENV_VAR_PREFIX, getenv(BxlEnvDetoursPath), NULL);
+    if (newEnvp != envp)
+    {
+        LOG_DEBUG("envp has been modified with %s added to %s", getenv(BxlEnvDetoursPath), "LD_PRELOAD");
+    }
+
+    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
+    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvLogPath);
+    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvRootPid);
+    newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
+
+    return newEnvp;
 }

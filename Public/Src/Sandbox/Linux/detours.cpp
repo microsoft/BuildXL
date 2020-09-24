@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -48,8 +49,8 @@ INTERPOSE(pid_t, fork, void)({
 })
 
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
-    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);
-    return bxl->fwd_fexecve(fd, argv, envp).restore();
+    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);    
+    return bxl->fwd_fexecve(fd, argv, bxl->ensureEnvs(envp)).restore();
 })
 
 INTERPOSE(int, execv, const char *file, char *const argv[])({
@@ -59,7 +60,7 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
 
 INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])({
     bxl->report_exec(__func__, argv[0], file);
-    return bxl->fwd_execve(file, argv, envp).restore();
+    return bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp)).restore();
 })
 
 INTERPOSE(int, execvp, const char *file, char *const argv[])({
@@ -69,7 +70,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({
     bxl->report_exec(__func__, argv[0], file);
-    return bxl->fwd_execvpe(file, argv, envp).restore();
+    return bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(envp)).restore();
 })
 
 INTERPOSE(int, statfs, const char *pathname, struct statfs *buf)({

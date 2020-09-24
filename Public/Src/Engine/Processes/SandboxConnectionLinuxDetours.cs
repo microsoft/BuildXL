@@ -463,10 +463,14 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"No info found for pip id {pipId}");
             }
 
+            var detoursLibPath = CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile);
+
             // TODO: the ROOT_PID env var is a temporary solution for breakway processes
             // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp
             yield return ("__BUILDXL_ROOT_PID", info.Process.ProcessId.ToString());
             yield return ("__BUILDXL_FAM_PATH", info.Process.ToPathInsideRootJail(info.FamPath));
+            yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
+
             if (info.DebugLogJailPath != null)
             {
                 yield return ("__BUILDXL_LOG_PATH", info.DebugLogJailPath);
@@ -474,7 +478,7 @@ namespace BuildXL.Processes
 
             if (info.Process.RootJailInfo?.DisableSandboxing != true)
             {
-                yield return ("LD_PRELOAD", CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile) + ":$LD_PRELOAD");
+                yield return ("LD_PRELOAD", detoursLibPath + ":$LD_PRELOAD");
             }
 
             if (info.Process.RootJailInfo?.DisableAuditing != true)

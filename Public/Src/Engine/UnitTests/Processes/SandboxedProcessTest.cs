@@ -1260,6 +1260,65 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("LD_PRELOAD=")]
+        // CODESYNC:  bxl_observer.hpp
+        [InlineData("__BUILDXL_FAM_PATH=")]
+        [InlineData("__BUILDXL_DETOURS_PATH=")]
+        [InlineData("__BUILDXL_ROOT_PID=")]
+        [InlineData("LD_PRELOAD=\0__BUILDXL_FAM_PATH=\0__BUILDXL_DETOURS_PATH=\0__BUILDXL_ROOT_PID=")]
+        public async Task TestChildProcessWasDetouredLibAsync(string envVarToReset)
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return;
+            }
+
+            var parentInput = CreateSourceFile();
+            var childInput = CreateSourceFile();
+            var grandChildInput = CreateSourceFile();
+
+            var info = ToProcessInfo(ToProcess(
+                new Operation[] 
+                {
+                    Operation.ReadFile(parentInput),
+                    Operation.SpawnWithEnvs(
+                        Context.PathTable,
+                        true,
+                        new Operation[] 
+                        { 
+                            Operation.ReadFile(childInput),
+                            Operation.Spawn(
+                                Context.PathTable,
+                                true,
+                                new Operation[]
+                                {
+                                    Operation.ReadFile(grandChildInput)
+                                })
+                        },
+                        envVarToReset) 
+                }));
+            info.FileAccessManifest.ReportFileAccesses = true;
+
+            var result = await RunProcess(info);
+            
+            XAssert.AreEqual(0, result.ExitCode);
+
+            var observedAccesses = result.FileAccesses
+                .Select(reportedAccess => AbsolutePath.TryCreate(Context.PathTable, reportedAccess.GetPath(Context.PathTable), out AbsolutePath result) ? result : AbsolutePath.Invalid)
+                .ToArray();
+
+            XAssert.AreEqual(3, result.Processes.Count, "The parent and child process should have been detoured.");
+
+            // We should see the access that happens on the main test process
+            XAssert.IsTrue(observedAccesses.Contains(parentInput.Path), "Input file of parent process should have been observed");
+            // We should see the access that happens on the spawned child process
+            XAssert.IsTrue(observedAccesses.Contains(childInput.Path), "Input file of child process should have been observed");
+            // We should see the access that happens on the spawned grandchild process
+            XAssert.IsTrue(observedAccesses.Contains(grandChildInput.Path), "Input file of grandchild process should have been observed");
+        }
+
         private static ReportedFileAccess GetFileAccessForReadFileOperation(
             AbsolutePath path,
             ReportedProcess process,

@@ -38,10 +38,14 @@ auditSrc = \
 	bxl_observer.cpp \
 	audit.cpp
 
+utilsSrc = \
+    utils.c
+
 commonObj = $(commonSrc:.cpp=.d.o) $(commonSrc:.cpp=.r.o)
 detoursObj = $(detoursSrc:.cpp=.detours.d.o) $(detoursSrc:.cpp=.detours.r.o)
 auditObj = $(auditSrc:.cpp=.d.o) $(auditSrc:.cpp=.r.o)
-allObj = $(detoursObj) $(auditObj) $(commonObj)
+utilsObj = $(utilsSrc:.c=.d.o) $(utilsSrc:.c=.r.o)
+allObj = $(detoursObj) $(auditObj) $(commonObj) $(utilsObj)
 allDep = $(allObj:.o=.deps)
 
 %.deps: %.cpp
@@ -53,6 +57,12 @@ allDep = $(allObj:.o=.deps)
 %.detours.r.o: %.cpp
 	$(CXX) -DENABLE_INTERPOSING $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
+%.d.o: %.c
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
+
+%.r.o: %.c
+	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
+
 %.d.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
 
@@ -60,23 +70,29 @@ allDep = $(allObj:.o=.deps)
 	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
 all: debug release
-debug: prep bin/debug/libDetours.so bin/debug/libBxlAudit.so
-release: prep bin/release/libDetours.so bin/release/libBxlAudit.so
+debug: prep bin/debug/libDetours.so bin/debug/libBxlAudit.so bin/debug/libBxlUtils.so
+release: prep bin/release/libDetours.so bin/release/libBxlAudit.so bin/release/libBxlUtils.so
 
 prep:
 	@mkdir -p bin/debug bin/release
 
-bin/release/libDetours.so: $(filter %.r.o, $(commonObj) $(detoursObj))
+bin/release/libDetours.so: $(filter %.r.o, $(commonObj) $(detoursObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/release/libDetours.so -ldl -lpthread
 
-bin/debug/libDetours.so: $(filter %.d.o, $(commonObj) $(detoursObj))
+bin/debug/libDetours.so: $(filter %.d.o, $(commonObj) $(detoursObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/debug/libDetours.so -ldl -lpthread
 
-bin/release/libBxlAudit.so: $(filter %.r.o, $(commonObj) $(auditObj))
+bin/release/libBxlAudit.so: $(filter %.r.o, $(commonObj) $(auditObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/release/libBxlAudit.so -ldl
 
-bin/debug/libBxlAudit.so: $(filter %.d.o, $(commonObj) $(auditObj))
+bin/debug/libBxlAudit.so: $(filter %.d.o, $(commonObj) $(auditObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/debug/libBxlAudit.so -ldl
+
+bin/release/libBxlUtils.so: $(filter %.r.o, $(utilsObj))
+	$(CXX) -shared $^ -o bin/release/libBxlUtils.so -ldl
+
+bin/debug/libBxlUtils.so: $(filter %.d.o, $(utilsObj))
+	$(CXX) -shared $^ -o bin/debug/libBxlUtils.so -ldl
 
 -include $(allDep)
 

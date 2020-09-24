@@ -1062,8 +1062,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
-            Message = EventConstants.PhasePrefix + "Cache savings: {cacheRate:P} of {totalProcesses} included processes. {ignoredProcesses} excluded via filtering{extraMessage}.")]
-        internal abstract void IncrementalBuildSavingsSummary(LoggingContext loggingContext, double cacheRate, long totalProcesses, long ignoredProcesses, string extraMessage);
+            Message = EventConstants.PhasePrefix + "Cache savings: {cacheRate:P} of {totalProcesses} included processes. {ignoredProcesses} excluded via filtering.")]
+        internal abstract void IncrementalBuildSavingsSummary(LoggingContext loggingContext, double cacheRate, long totalProcesses, long ignoredProcesses);
 
         [GeneratedEvent(
             (ushort)LogEventId.IncrementalBuildSharedCacheSavingsSummary,

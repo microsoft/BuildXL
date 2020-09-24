@@ -1,6 +1,12 @@
-﻿using System.Diagnostics.ContractsLight;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tasks;
 using Xunit;
@@ -55,6 +61,32 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                     return Task.FromResult(4);
                 });
             }
+        }
+
+        [Fact]
+        public Task GateThrowsTimeoutException()
+        {
+            var gate = new SemaphoreSlim(initialCount: 0);
+            return Assert.ThrowsAsync<TimeoutException>(
+                () => gate.GatedOperationAsync((timeWaiting, currentCount) => BoolResult.SuccessTask, CancellationToken.None, TimeSpan.FromMilliseconds(10)));
+        }
+
+        [Fact]
+        public Task GateAllowsForOperationToComplete()
+        {
+            var gate = new SemaphoreSlim(initialCount: 1);
+            return gate.GatedOperationAsync((timeWaiting, currentCount) => BoolResult.SuccessTask, CancellationToken.None, TimeSpan.FromSeconds(10)).ShouldBeSuccess();
+        }
+
+        [Fact]
+        public Task GateGetsCancelledProperly()
+        {
+            var gate = new SemaphoreSlim(initialCount: 0);
+            var cts = new CancellationTokenSource();
+            var task = Assert.ThrowsAsync<OperationCanceledException>(
+                () => gate.GatedOperationAsync((timeWaiting, currentCount) => BoolResult.SuccessTask, cts.Token, TimeSpan.FromSeconds(1)));
+            cts.Cancel();
+            return task;
         }
     }
 }

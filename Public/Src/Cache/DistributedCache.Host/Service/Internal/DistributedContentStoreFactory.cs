@@ -405,6 +405,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
                 MaxRetryCount = distributedSettings.MaxRetryCount,
                 TimeoutForProactiveCopies = TimeSpan.FromMinutes(distributedSettings.TimeoutForProactiveCopiesMinutes),
+                ProactiveCopyIOGateTimeout = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyIOGateTimeoutSeconds),
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
                 PushProactiveCopies = distributedSettings.PushProactiveCopies,
                 ProactiveCopyOnPut = distributedSettings.ProactiveCopyOnPut,

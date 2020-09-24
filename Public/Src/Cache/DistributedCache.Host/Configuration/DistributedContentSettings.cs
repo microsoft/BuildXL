@@ -923,6 +923,10 @@ namespace BuildXL.Cache.Host.Configuration
         public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int ProactiveCopyIOGateTimeoutSeconds { get; set; } = 900;
+
+        [DataMember]
         [Validation.Enum(typeof(MultiplexMode))]
         public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Legacy);
 

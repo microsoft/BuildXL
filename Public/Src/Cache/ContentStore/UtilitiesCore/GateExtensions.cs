@@ -15,13 +15,22 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         /// <summary>
         /// Convenience extension to allow tracing the time it takes to Wait a semaphore 
         /// </summary>
-        public static async Task<TResult> GatedOperationAsync<TResult>(this SemaphoreSlim gate, Func<TimeSpan, int, Task<TResult>> operation, CancellationToken token = default)
+        public static async Task<TResult> GatedOperationAsync<TResult>(
+            this SemaphoreSlim gate,
+            Func<TimeSpan, int, Task<TResult>> operation,
+            CancellationToken token = default,
+            TimeSpan? ioGateTimeout = null)
         {
             Contract.RequiresNotNull(gate);
             Contract.RequiresNotNull(operation);
 
             var sw = Stopwatch.StartNew();
-            await gate.WaitAsync(token);
+            var acquired = await gate.WaitAsync(ioGateTimeout ?? Timeout.InfiniteTimeSpan, token);
+
+            if (!acquired)
+            {
+                throw new TimeoutException($"IO gate timed out after {ioGateTimeout}");
+            }
 
             try
             {

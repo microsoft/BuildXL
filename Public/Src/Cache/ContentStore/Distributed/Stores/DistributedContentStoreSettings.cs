@@ -194,6 +194,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
+        /// Time before the IO Gate stops waiting and throws a TimeoutException.
+        /// </summary>
+        public TimeSpan ProactiveCopyIOGateTimeout { get; set; } = TimeSpan.FromMinutes(15);
+
+        /// <summary>
         /// Whether to enable proactive replication
         /// </summary>
         public bool EnableProactiveReplication { get; set; } = false;

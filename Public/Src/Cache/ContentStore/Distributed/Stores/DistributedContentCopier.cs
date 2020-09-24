@@ -42,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _timeoutForProactiveCopies;
+        private readonly TimeSpan _ioGateTimeoutForProactiveCopies;
         private readonly int _maxRetryCount;
         private readonly IRemoteFileCopier<T> _remoteFileCopier;
         private readonly IContentCommunicationManager _copyRequester;
@@ -84,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
             _timeoutForProactiveCopies = settings.TimeoutForProactiveCopies;
+            _ioGateTimeoutForProactiveCopies = settings.ProactiveCopyIOGateTimeout;
         }
 
         /// <inheritdoc />
@@ -249,16 +251,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             TimeSpan ioGateWaitTime = default;
             int ioGateCurrentCount = default;
+            var ioGateTimedOut = true;
 
             return await context.PerformOperationAsync(
                 Tracer,
                 operation: () => _proactiveCopyIoGate.GatedOperationAsync((timeWaiting, currentCount) =>
                     {
+                        ioGateTimedOut = false;
                         ioGateWaitTime = timeWaiting;
                         ioGateCurrentCount = currentCount;
                         return context.WithTimeoutAsync(func, _timeoutForProactiveCopies, getTimeoutResult);
                     },
-                    context.Token),
+                    context.Token,
+                    _ioGateTimeoutForProactiveCopies),
                 traceOperationStarted: false,
                 extraEndMessage: result =>
                     $"Code={statusFunc(result)} " +
@@ -269,6 +274,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     $"LocationSource={source} " +
                     $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - ioGateCurrentCount} " +
                     $"IOGate.Wait={ioGateWaitTime.TotalMilliseconds}ms. " +
+                    $"IOGate.TimedOut={ioGateTimedOut} " +
                     $"Timeout={_timeoutForProactiveCopies}");
         }
 

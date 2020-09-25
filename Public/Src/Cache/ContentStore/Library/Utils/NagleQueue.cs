@@ -18,6 +18,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     public class NagleQueue<T> : IDisposable
     {
         private bool _disposed;
+        private bool _batchIsCompleted;
         private Func<T[], Task>? _processBatch;
         private readonly TimeSpan _timerInterval;
         private readonly BatchBlock<T> _batchBlock;
@@ -92,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 if (_suspendedEvents.TryDequeue(out var item))
                 {
-                    Enqueue(item);
+                    EnqueueCore(item, fromResume: true);
                 }
                 else
                 {
@@ -142,10 +143,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        protected virtual void EnqueueCore(T item)
+        protected virtual void EnqueueCore(T item, bool fromResume = false)
         {
             var result = _batchBlock.Post(item);
-            Contract.Assert(result);
+            // Resume method adds all the items from the suspended queue into the actual queue.
+            // The method loops over all the suspended items and stops when the suspended queue is empty
+            // or the current instance is disposed.
+            // But because the logic is lock free, its possible that the instance is disposed after that check
+            // and before this method is called.
+            // To avoid a runtime errors the assertion below should respect this case
+            // and ignore if the item was not added to the batch block because the queue is disposed.
+            Contract.Assert(result || (fromResume && Volatile.Read(ref _batchIsCompleted)));
         }
 
         /// <summary>
@@ -171,6 +179,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             _batchBlock.TriggerBatch();
             _batchBlock.Complete();
+
+            _batchIsCompleted = true;
 
             _batchBlock.Completion.GetAwaiter().GetResult();
 
@@ -212,7 +222,14 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         private void ResetTimer()
         {
-            _intervalTimer.Change(_timerInterval, Timeout.InfiniteTimeSpan);
+            // The callback method can be called even when the _intervalTimer.Dispose method is called.
+            // We do our best and not change the timer if the whole instance is disposed, but
+            // the race is still possible so to avoid potential crashes we still have to swallow ObjectDisposedException here.
+            if (!_disposed)
+            {
+                try { _intervalTimer.Change(_timerInterval, Timeout.InfiniteTimeSpan); }
+                catch (ObjectDisposedException) { }
+            }
         }
 
         /// <nodoc />

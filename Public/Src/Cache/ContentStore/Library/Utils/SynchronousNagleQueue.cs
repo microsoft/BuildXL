@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         public override void Start(Func<T[], Task> processBatch) => _processBatch = processBatch;
 
         /// <inheritdoc />
-        protected override void EnqueueCore(T item)
+        protected override void EnqueueCore(T item, bool fromResume)
         {
             Contract.Assert(_processBatch != null, "Did you forget to call Start method?");
 

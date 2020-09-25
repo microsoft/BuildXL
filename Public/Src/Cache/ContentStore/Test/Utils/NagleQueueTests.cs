@@ -6,18 +6,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
+using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Utils
 {
-    public class NagleQueueTests
+    public class NagleQueueTests : TestWithOutput
     {
+        public NagleQueueTests(ITestOutputHelper output)
+            : base(output)
+        {
+        }
+
         [Fact]
         public void ResumeShouldTriggerBatchOnTime()
         {
-            bool processBatchIsCalled = false; ;
+            bool processBatchIsCalled = false;
             var queue = NagleQueue<int>.Create(
                 processBatch: data =>
                               {
@@ -38,6 +47,54 @@ namespace ContentStoreTest.Utils
             // It means that the queue should call the callback and we can rely on that.
 
             Assert.True(processBatchIsCalled);
+        }
+
+        [Fact]
+        public async Task ResumeShouldTriggerContractException()
+        {
+            // Have to run the test multiple times in order to check that there is no race conditions.
+            int attemptCount = 10;
+            for (int i = 0; i < attemptCount; i++)
+            {
+                await testCore(i);
+            }
+
+            static async Task testCore(int attempt)
+            {
+                var log = TestGlobal.Logger;
+                TestGlobal.Logger.Debug($"Running {attempt} attempt.");
+                Task task = null;
+
+                using (var queue = NagleQueue<int>.Create(
+                    processBatch: data => { return Task.FromResult(42); },
+                    maxDegreeOfParallelism: 1,
+                    interval: TimeSpan.FromMilliseconds(1),
+                    batchSize: 100))
+                {
+                    var itemsEnqueuedSource = TaskSourceSlim.Create<object>();
+
+                    task = Task.Run(
+                        () =>
+                        {
+                            using (queue.Suspend())
+                            {
+                                for (int i = 0; i < 1_000_000; i++)
+                                {
+                                    queue.Enqueue(i);
+                                }
+
+                                itemsEnqueuedSource.SetResult(null);
+                            }
+                        });
+
+                    // The items are added to the queue and the suspender is about to push all the items to the queue
+                    await itemsEnqueuedSource.Task;
+                    // Meanwhile, the queue itself will be disposed at the end of the block.
+                    // So we're introducing a race condition between the suspender and the dispose method of the queue
+                }
+
+                await task; // the task should not fail!
+            }
         }
 
         [Fact]

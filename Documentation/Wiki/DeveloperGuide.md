@@ -10,6 +10,10 @@ To run BuildXL on macOS you need to install:
 * If you want to run and load the sandbox to enable fully observed and cacheable builds, you also have to [turn off System Integrity Protection](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/ConfiguringSystemIntegrityProtection/ConfiguringSystemIntegrityProtection.html) (SIP) on macOS. SIP blocks the installation of the unsigned kernel extension (or Kext) produced by the build.
 * Latest version of Xcode
 
+## Linux
+* You need a Windows machine to build Linux BuildXL binaries. We currently do not support building BuildXL in Linux.
+* A Linux machine or VM need to be setup to perform test.
+
 # Performing a build
 `bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for macOS.
 
@@ -26,6 +30,9 @@ Note you do not need administrator (elevated) privileges for your console window
 Running a vanilla `bxl.cmd` without the `-minimal` flag above will compile a larger set of binaries as well as run tests. The non-minimal build still doesn't build everything, but it builds most tools a developer is likely to interact with. Running `bxl.cmd -all` will build everything in the repo
 
 The `-minimal` and `-all` flags are shorthands that get translated to more complicated pip filter expressions which are eventually passed to `bxl.exe`
+
+## Build and Test for Linux
+Since we do not support building BuildXL in Linux for now, we rely on unit tests for Linux development. Please refer to the instructions of [how to test Linux](Wiki/LinuxDevelopment/How_to_test.md).
 
 ## Development workflow
 ### Browsing source code in Visual Studio

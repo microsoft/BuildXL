@@ -44,7 +44,8 @@ namespace BuildXL.Cache.Host.Service
             HostInfo hostInfo,
             ITelemetryFieldsProvider telemetryFieldsProvider,
             DistributedCacheServiceConfiguration config,
-            CancellationToken token)
+            CancellationToken token,
+            string keyspace = null)
         {
             logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
 
@@ -58,7 +59,7 @@ namespace BuildXL.Cache.Host.Service
                 cancellation: token,
                 dataRootPath: config.DataRootPath,
                 configuration: config,
-                keyspace: null)
+                keyspace: keyspace)
             {
                 TelemetryFieldsProvider = telemetryFieldsProvider,
                 BuildCopyInfrastructure = logger => BuildCopyInfrastructure(logger, config),

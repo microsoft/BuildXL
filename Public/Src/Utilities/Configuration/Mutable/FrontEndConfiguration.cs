@@ -43,6 +43,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ThreadPoolMinThreadCountMultiplier = template.ThreadPoolMinThreadCountMultiplier;
             MaxTypeCheckingConcurrency = template.MaxTypeCheckingConcurrency;
             DisableLanguagePolicyAnalysis = template.DisableLanguagePolicyAnalysis;
+            DisableIsObsoleteCheckDuringConversion = template.DisableIsObsoleteCheckDuringConversion;
             NameResolutionSemantics = template.NameResolutionSemantics;
             PreserveFullNames = template.PreserveFullNames;
             DisableCycleDetection = template.DisableCycleDetection;
@@ -126,6 +127,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? DisableLanguagePolicyAnalysis { get; set; }
+
+        /// <inheritdoc />
+        public bool? DisableIsObsoleteCheckDuringConversion { get; set; }
 
         /// <inheritdoc/>
         public NameResolutionSemantics? NameResolutionSemantics { get; set; }

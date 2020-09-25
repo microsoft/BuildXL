@@ -2573,6 +2573,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private bool IsObsolete(ISymbol symbol, out string message)
         {
+            message = null;
+
+            if (m_conversionConfiguration.DisableIsObsoleteCheck)
+            {
+                // The check is disabled.
+                return false;
+            }
+
             foreach (var declaration in symbol.DeclarationList)
             {
                 if (IsObsolete(declaration, out message))
@@ -2581,7 +2589,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 }
             }
 
-            message = null;
             return false;
         }
 

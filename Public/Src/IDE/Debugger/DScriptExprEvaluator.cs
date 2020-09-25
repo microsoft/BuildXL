@@ -33,7 +33,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
         {
             var configuration = new AstConversionConfiguration(
                 policyRules: Enumerable.Empty<string>(),
-                disableLanguagePolicies: false);
+                disableLanguagePolicies: false,
+                disableIsObsoleteCheck: false);
 
             s_parser = new RuntimeModelFactory(
                 m_logger,

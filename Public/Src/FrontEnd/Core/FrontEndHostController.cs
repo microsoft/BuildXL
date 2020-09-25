@@ -1348,7 +1348,7 @@ namespace BuildXL.FrontEnd.Core
         private async Task<bool> EvaluateModulesAsync(QualifierId[] qualifierIds, IReadOnlyList<ModuleDefinition> modulesToEvaluate)
         {
             // Register the meta pips for the modules and the specs with the graph
-            RegisterModuleAndSpecPips(Workspace);
+            RegisterModuleAndSpecPips();
 
             if (FrontEndConfiguration.ReleaseWorkspaceBeforeEvaluation)
             {
@@ -1398,8 +1398,9 @@ namespace BuildXL.FrontEnd.Core
         /// <remarks>
         /// This should be called on the 'filtered down' modules for evaluation.
         /// </remarks>
-        private void RegisterModuleAndSpecPips(Workspace  workspace)
+        private void RegisterModuleAndSpecPips()
         {
+            var workspace = Workspace;
             if (PipGraph != null)
             {
                 foreach (var module in workspace.Modules)

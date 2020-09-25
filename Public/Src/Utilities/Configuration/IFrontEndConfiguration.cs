@@ -144,6 +144,11 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<string> EnabledPolicyRules { get; }
 
         /// <summary>
+        /// If true the check that a member is obsolete is disabled during Ast Conversion.
+        /// </summary>
+        bool? DisableIsObsoleteCheckDuringConversion { get; }
+
+        /// <summary>
         /// If true, then optional language policy analysis would be disabled.
         /// </summary>
         /// <remarks>

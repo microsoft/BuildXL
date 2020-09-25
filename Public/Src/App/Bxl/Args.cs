@@ -365,6 +365,9 @@ namespace BuildXL
                             "disableCompositeOpaqueFilters",
                             sign => schedulingConfiguration.DisableCompositeOpaqueFilters = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "disableIsObsoleteCheckDuringConversion",
+                            sign => frontEndConfiguration.DisableIsObsoleteCheckDuringConversion = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "distributeCacheLookups",
                             sign => distributionConfiguration.DistributeCacheLookups = sign),
                         OptionHandlerFactory.CreateOption2(

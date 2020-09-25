@@ -278,6 +278,11 @@ interface FrontEndConfiguration {
      * Escaping is the TypeScript behavior, but due to a bug we need to incrementally fix this, and therefore we need this flag.
      */
     escapeIdentifiers?: boolean;
+
+    /**
+     * If true the check that a member is obsolete is disabled during Ast Conversion.
+     */
+     disableIsObsoleteCheckDuringConversion?: boolean;
 }
 
 interface EngineConfiguration {

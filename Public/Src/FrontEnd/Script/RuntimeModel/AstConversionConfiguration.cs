@@ -17,6 +17,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         public AstConversionConfiguration(
             [CanBeNull]IEnumerable<string> policyRules,
             bool disableLanguagePolicies,
+            bool disableIsObsoleteCheck,
             bool unsafeOptimized = false)
         {
             PolicyRules = policyRules ?? CollectionUtilities.EmptyArray<string>();
@@ -31,6 +32,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             DegreeOfParalellism = 1;
             DisableLanguagePolicies = disableLanguagePolicies;
+            DisableIsObsoleteCheck = disableIsObsoleteCheck;
         }
 
         /// <nodoc />
@@ -39,6 +41,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
                 disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
+                disableIsObsoleteCheck: configuration.DisableIsObsoleteCheckDuringConversion(),
                 unsafeOptimized: configuration.UnsafeOptimizedAstConversion)
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
@@ -53,6 +56,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
                 disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
+                disableIsObsoleteCheck: configuration.DisableIsObsoleteCheckDuringConversion(),
                 unsafeOptimized: configuration.UnsafeOptimizedAstConversion)
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
@@ -86,5 +90,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// Returns true if optional language policies (like required semicolons) should be disabled.
         /// </summary>
         public bool DisableLanguagePolicies { get; }
+
+        /// <summary>
+        /// If true the check that a member is obsolete is disabled.
+        /// </summary>
+        /// <remarks>
+        /// The check for obsolete members can be very expensive and for some customers (like Cosine) is not quite useful.
+        /// Setting this flag drastically improves performance of the conversion stage.
+        /// </remarks>
+        public bool DisableIsObsoleteCheck { get; }
     }
 }

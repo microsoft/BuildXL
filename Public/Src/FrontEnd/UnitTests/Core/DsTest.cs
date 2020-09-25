@@ -1178,7 +1178,8 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             var conversionConfiguration = new AstConversionConfiguration(
                 policyRules: customRules ?? new string[] { },
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
+                disableIsObsoleteCheck: false)
             {
                 PreserveFullNameSymbols = true,
             };

@@ -43,6 +43,9 @@ namespace BuildXL.Utilities.Configuration
 
         /// <nodoc/>
         public const bool DefaultDisableLanguagePolicyAnalysis = false;
+
+        /// <nodoc/>
+        public const bool DefaultDisableIsObsoleteCheckDuringConversion = false;
         
         /// <nodoc/>
         public const bool DefaultPreserveFullNames = false;
@@ -231,6 +234,10 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public static bool DisableLanguagePolicyAnalysis(this IFrontEndConfiguration configuration) => 
             configuration.DisableLanguagePolicyAnalysis ?? DefaultDisableLanguagePolicyAnalysis;
+
+        /// <nodoc/>
+        public static bool DisableIsObsoleteCheckDuringConversion(this IFrontEndConfiguration configuration) => 
+            configuration.DisableIsObsoleteCheckDuringConversion ?? DefaultDisableIsObsoleteCheckDuringConversion;
 
         /// <nodoc/>
         public static NameResolutionSemantics NameResolutionSemantics(this IFrontEndConfiguration configuration) =>

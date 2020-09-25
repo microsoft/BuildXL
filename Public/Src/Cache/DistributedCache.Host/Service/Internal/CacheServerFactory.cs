@@ -305,7 +305,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"Must have the default cache name {localCasSettings.CasClientSettings.DefaultCacheName} as one of the named cache roots.");
             }
 
-            return new ServiceConfiguration(
+            var result = new ServiceConfiguration(
                 namedCacheRoots,
                 dataRootPath,
                 localCasSettings.ServiceSettings.MaxPipeListeners,
@@ -318,6 +318,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
                 logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval,
                 logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames);
+
+            ApplyIfNotNull(distributedSettings?.TraceServiceGrpcOperations, v => result.TraceGrpcOperation = v);
+            return result;
         }
 
         private static void WriteContentStoreConfigFile(string cacheSizeQuotaString, AbsolutePath rootPath, IAbsFileSystem fileSystem)

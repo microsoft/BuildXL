@@ -189,6 +189,9 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc cref="LocalServerConfiguration.LogIncrementalStatsInterval"/>
         public TimeSpan? LogIncrementalStatsInterval { get; set; }
 
+        /// <inheritdoc cref="LocalServerConfiguration.TraceGrpcOperations"/>
+        public bool TraceGrpcOperation { get; set; }
+        
         /// <inheritdoc cref="LocalServerConfiguration.IncrementalStatsCounterNames"/>
         public string[] IncrementalStatsCounterNames { get; set; }
 

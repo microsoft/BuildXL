@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
@@ -55,8 +56,9 @@ namespace ContentStoreTest.Grpc
         public Task SendReceiveDeletion(long size)
         {
             var scenario = nameof(GrpcDeleteContentTests) + nameof(SendReceiveDeletion);
-            return RunServerTestAsync(new Context(Logger), scenario, async (context, config, rpcClient) =>
+            return RunServerTestAsync(new Context(Logger), scenario, async (tracingContext, config, rpcClient) =>
             {
+                var context = new OperationContext(tracingContext);
                 // Create random file to put
                 byte[] content = new byte[size];
                 ThreadSafeRandom.Generator.NextBytes(content);
@@ -99,7 +101,7 @@ namespace ContentStoreTest.Grpc
                 var contentHash = content.CalculateHash(HashType.Vso0);
 
                 // Delete content
-                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash, deleteLocalOnly: false);
+                var deleteResult = await rpcClient.DeleteContentAsync(new OperationContext(context), contentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentHash.Equals(contentHash).Should().BeTrue();
                 deleteResult.ContentSize.Should().Be(0L);
@@ -120,28 +122,32 @@ namespace ContentStoreTest.Grpc
                         ServiceConfiguration.DefaultMaxConnections,
                         ServiceConfiguration.DefaultGracefulShutdownSeconds,
                         PortExtensions.GetNextAvailablePort(),
-                        Guid.NewGuid().ToString());
+                        Guid.NewGuid().ToString())
+                    {
+                        TraceGrpcOperation = true
+                    };
 
-                //using (var server = new ServiceProcess(serviceConfig, null, scenario, 10000, 30000))
                 using (var server = new LocalContentServer(FileSystem, Logger, scenario, path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path), new LocalServerConfiguration(serviceConfig)))
                 {
                     BoolResult r = await server.StartupAsync(context).ConfigureAwait(false);
                     r.ShouldBeSuccess();
+                    var configuration = new ServiceClientRpcConfiguration((int)serviceConfig.GrpcPort,
+                        propagateCallingMachineName: true);
 
-                using (var rpcClient = new GrpcContentClient(new ServiceClientContentSessionTracer(scenario), FileSystem, (int)serviceConfig.GrpcPort, scenario))
-                {
-                    try
+                    using (var rpcClient = new GrpcContentClient(new ServiceClientContentSessionTracer(scenario), FileSystem, configuration, scenario))
                     {
-                        var createSessionResult = await rpcClient.CreateSessionAsync(context, SessionName, CacheName, ImplicitPin.None);
-                        createSessionResult.ShouldBeSuccess();
+                        try
+                        {
+                            var createSessionResult = await rpcClient.CreateSessionAsync(new OperationContext(context), SessionName, CacheName, ImplicitPin.None);
+                            createSessionResult.ShouldBeSuccess();
 
-                        await funcAsync(context, serviceConfig, rpcClient);
+                            await funcAsync(context, serviceConfig, rpcClient);
+                        }
+                        finally
+                        {
+                            (await rpcClient.ShutdownAsync(context)).ShouldBeSuccess();
+                        }
                     }
-                    finally
-                    {
-                        (await rpcClient.ShutdownAsync(context)).ShouldBeSuccess();
-                    }
-                }
 
                     r = await server.ShutdownAsync(context);
                     r.ShouldBeSuccess();

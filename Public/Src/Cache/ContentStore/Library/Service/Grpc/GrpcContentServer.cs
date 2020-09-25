@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -111,6 +110,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _ongoingPushCountLimit;
 
         private readonly bool _useUnsafeByteStringConstruction;
+        private readonly bool _traceGrpcOperations;
 
         /// <nodoc />
         public GrpcContentServer(
@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             _ongoingPushCountLimit = localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit;
             _useUnsafeByteStringConstruction = localServerConfiguration?.UseUnsafeByteStringConstruction ?? false;
-
+            _traceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
             _pool = new ByteArrayPool(_bufferSize);
             ContentSessionHandler = sessionHandler;
 
@@ -363,13 +363,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             _tracer,
                             () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{context.Host}], ReadTime=[{GetFileIODuration(result.Stream)}].",
+                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(context)}], ReadTime=[{GetFileIODuration(result.Stream)}].",
                             counter: Counters[GrpcContentServerCounters.StreamContentDuration])
                         .IgnoreFailure(); // The error was already logged.
                 }
             }
         }
 
+        private static string? GetSender(ServerCallContext context)
+        {
+            if (context.RequestHeaders.TryGetCallingMachineName(out var result))
+            {
+                return result;
+            }
+
+            return context.Host;
+        }
+        
         private string GetFileIODuration(Stream? resultStream)
         {
             if (resultStream is TrackingFileStream tfs)
@@ -808,7 +818,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 (context, errorMessage) => new HeartbeatResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) },
                 token,
                 // It is important to trace heartbeat messages because lack of them will cause sessions to expire.
-                trace: true);
+                traceStartAndStop: true);
         }
 
         private async Task<DeleteContentResponse> DeleteAsync(DeleteContentRequest request, CancellationToken ct)
@@ -877,10 +887,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Func<RequestContext, IContentSession, Task<T>> taskFunc,
             Func<RequestContext, string, T> failFunc,
             CancellationToken token,
-            bool trace = false,
+            bool? traceStartAndStop = null,
             bool obtainSession = true,
             [CallerMemberName]string? caller = null)
         {
+            bool trace = traceStartAndStop ?? _traceGrpcOperations;
+
             var tracingContext = new Context(Guid.Parse(header.TraceId), Logger);
             using var shutdownTracker = TrackShutdown(tracingContext, token);
 
@@ -901,7 +913,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
             await Task.Yield();
 
-            
             try
             {
                 if (trace)

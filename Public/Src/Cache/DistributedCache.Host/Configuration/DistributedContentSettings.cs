@@ -866,6 +866,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpan? LogMachineStatsInterval { get; set; }
 
+        [DataMember]
+        public bool? TraceServiceGrpcOperations { get; set; }
+
         #endregion
 
         #region Proactive Copy / Replication

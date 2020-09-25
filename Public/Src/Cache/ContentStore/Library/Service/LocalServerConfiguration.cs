@@ -25,7 +25,8 @@ namespace BuildXL.Cache.ContentStore.Service
             int? gzipBarrierSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
             TimeSpan? logIncrementalStatsInterval = null,
-            TimeSpan? logMachineStatsInterval = null
+            TimeSpan? logMachineStatsInterval = null,
+            bool traceGrpcOperations = false
         )
         {
             DataRootPath = dataRootPath;
@@ -38,6 +39,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
+            TraceGrpcOperations = traceGrpcOperations;
         }
 
         /// <nodoc />
@@ -54,6 +56,7 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
         }
 
@@ -70,6 +73,7 @@ namespace BuildXL.Cache.ContentStore.Service
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
             return this;
         }
@@ -174,6 +178,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public bool ShutdownEvictionBeforeHibernation { get; set; }
 
+        /// <summary>
+        /// Whether to trace the operation's start and stop messages on the grpc level.
+        /// </summary>
+        public bool TraceGrpcOperations { get; set; }
+
         /// <inheritdoc />
         public override string ToString()
         {
@@ -199,6 +208,7 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.Append($", GrpcPortFileName={GrpcPortFileName}");
             sb.Append($", BufferSizeForGrpcCopies={BufferSizeForGrpcCopies}");
             sb.Append($", GzipBarrierSizeForGrpcCopies={GzipBarrierSizeForGrpcCopies}");
+            sb.Append($", TraceGrpcOperations={TraceGrpcOperations}");
 
             return sb.ToString();
         }

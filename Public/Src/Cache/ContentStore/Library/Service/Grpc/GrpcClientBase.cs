@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -15,7 +17,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Grpc.Core;
 
@@ -56,6 +58,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected readonly ServiceClientContentSessionTracer ServiceClientTracer;
 
         /// <nodoc />
+        protected readonly ServiceClientRpcConfiguration Configuration;
+
+        /// <nodoc />
         protected SessionState? SessionState;
 
         /// <inheritdoc />
@@ -75,6 +80,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Scenario = scenario;
 
             GrpcEnvironment.InitializeIfNeeded();
+            Configuration = configuration;
             Channel = new Channel(configuration.GrpcHost ?? GrpcEnvironment.Localhost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _clientCapabilities = clientCapabilities;
             _heartbeatInterval = _configuration.HeartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
@@ -219,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public async Task<BoolResult> CreateSessionAsync(
-            Context context,
+            OperationContext context,
             string name,
             string cacheName,
             ImplicitPin implicitPin)
@@ -440,26 +446,63 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        protected async Task<TResult> PerformOperationAsync<TResult>(OperationContext context, Func<SessionContext, Task<TResult>> operation) where TResult : ResultBase
+        protected async Task<TResult> PerformOperationAsync<TResult>(OperationContext context, Func<SessionContext, Task<TResult>> operation, Func<string>? startMessageFactory = null, [CallerMemberName]string? caller = null) where TResult : ResultBase
         {
-            var sessionContext = await CreateSessionContextAsync(context, context.Token);
-
-            if (!sessionContext)
-            {
-                return new ErrorResult(sessionContext).AsResult<TResult>();
-            }
+            var stopwatch = StopwatchSlim.Start();
+            TraceStartIfEnabled(context, caller!, startMessageFactory);
 
             try
             {
-                return await operation(sessionContext.Value);
+                var result = await performOperationCoreAsync();
+                TraceStopIfEnabled(context, result, stopwatch.Elapsed, caller!);
+                return result;
             }
-            catch (ResultPropagationException error)
+            catch (Exception e)
             {
-                return new ErrorResult(error).AsResult<TResult>();
+                // This can be only ClientCanRetryException.
+                // Still tracing it explicitly.
+                var error = new ErrorResult(e).AsResult<TResult>();
+                TraceStopIfEnabled(context, error, stopwatch.Elapsed, caller!);
+                throw;
             }
-            catch (Exception e) when (!(e is ClientCanRetryException))
+
+            async Task<TResult> performOperationCoreAsync()
             {
-                return new ErrorResult(e).AsResult<TResult>();
+                var sessionContext = await CreateSessionContextAsync(context, context.Token);
+
+                if (!sessionContext)
+                {
+                    return new ErrorResult(sessionContext).AsResult<TResult>();
+                }
+
+                try
+                {
+                    return await operation(sessionContext.Value);
+                }
+                catch (ResultPropagationException error)
+                {
+                    return new ErrorResult(error).AsResult<TResult>();
+                }
+                catch (Exception e) when (!(e is ClientCanRetryException))
+                {
+                    return new ErrorResult(e).AsResult<TResult>();
+                }
+            }
+        }
+
+        private void TraceStartIfEnabled(OperationContext context, string operation, Func<string>? startMessageFactory)
+        {
+            if (Configuration.TraceGrpcCalls)
+            {
+                Tracer.OperationStarted(context, operation, enabled: true, startMessageFactory?.Invoke());
+            }
+        }
+
+        private void TraceStopIfEnabled(OperationContext context, ResultBase result, TimeSpan duration, string operationName)
+        {
+            if (Configuration.TraceGrpcCalls)
+            {
+                Tracer.OperationFinished(context, result, duration, operationName, traceErrorsOnly: false);
             }
         }
 

@@ -4,15 +4,24 @@
 #pragma once
 
 #include "dirent.h"
+#include <sched.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <limits.h>
 #include <stddef.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/vfs.h>
+#include <utime.h>
 
 #include <ostream>
 #include <sstream>
@@ -294,63 +303,74 @@ public:
     GEN_FN_DEF(void*, dlopen, const char *filename, int flags);
     GEN_FN_DEF(int, dlclose, void *handle);
 
-    GEN_FN_DEF(pid_t, fork, void)
-    GEN_FN_DEF_REAL(void, _exit, int)
-    GEN_FN_DEF(int, fexecve, int, char *const[], char *const[])
-    GEN_FN_DEF(int, execv, const char *, char *const[])
-    GEN_FN_DEF(int, execve, const char *, char *const[], char *const[])
-    GEN_FN_DEF(int, execvp, const char *, char *const[])
-    GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[])
-#ifdef ENABLE_INTERPOSING
-    GEN_FN_DEF(int, statfs, const char *, struct statfs *buf);
-#endif
-    GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *)
-    GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*)
-    GEN_FN_DEF(int, __xstat, int, const char *, struct stat *)
-    GEN_FN_DEF(int, __xstat64, int, const char*, struct stat64*)
+    GEN_FN_DEF(pid_t, fork, void);
+    GEN_FN_DEF(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg, ... /* pid_t *ptid, void *newtls, pid_t *ctid */ );
+    GEN_FN_DEF_REAL(void, _exit, int);
+    GEN_FN_DEF(int, fexecve, int, char *const[], char *const[]);
+    GEN_FN_DEF(int, execv, const char *, char *const[]);
+    GEN_FN_DEF(int, execve, const char *, char *const[], char *const[]);
+    GEN_FN_DEF(int, execvp, const char *, char *const[]);
+    GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[]);
+    GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *);
+    GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*);
+    GEN_FN_DEF(int, __xstat, int, const char *, struct stat *);
+    GEN_FN_DEF(int, __xstat64, int, const char*, struct stat64*);
     GEN_FN_DEF(int, __fxstat, int, int, struct stat*);
-    GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);
-    GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*)
-    GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int)
-    GEN_FN_DEF(FILE*, fdopen, int, const char *)
-    GEN_FN_DEF(FILE*, fopen, const char *, const char *)
-    GEN_FN_DEF(FILE*, fopen64, const char *, const char *)
-    GEN_FN_DEF(FILE*, freopen, const char *, const char *, FILE *)
-    GEN_FN_DEF(FILE*, freopen64, const char *, const char *, FILE *)
-    GEN_FN_DEF(size_t, fread, void*, size_t, size_t, FILE*)
-    GEN_FN_DEF(size_t, fwrite, const void*, size_t, size_t, FILE*)
-    GEN_FN_DEF(int, fclose, FILE*)
-    GEN_FN_DEF(int, fputc, int c, FILE *stream)
-    GEN_FN_DEF(int, fputs, const char *s, FILE *stream)
-    GEN_FN_DEF(int, putc, int c, FILE *stream)
-    GEN_FN_DEF(int, putchar, int c)
-    GEN_FN_DEF(int, puts, const char *s)
-    GEN_FN_DEF(int, access, const char *, int)
-    GEN_FN_DEF(int, faccessat, int, const char *, int, int)
-    GEN_FN_DEF(int, creat, const char *, mode_t)
-    GEN_FN_DEF(int, open64, const char *, int, mode_t)
-    GEN_FN_DEF(int, open, const char *, int, mode_t)
-    GEN_FN_DEF(int, openat, int, const char *, int, mode_t)
-    GEN_FN_DEF(int, close, int)
-    GEN_FN_DEF(ssize_t, write, int, const void*, size_t)
-    GEN_FN_DEF(int, remove, const char *)
-    GEN_FN_DEF(int, rename, const char *, const char *)
-    GEN_FN_DEF(int, link, const char *, const char *)
-    GEN_FN_DEF(int, linkat, int, const char *, int, const char *, int)
-    GEN_FN_DEF(int, unlink, const char *)
-    GEN_FN_DEF(int, symlink, const char *, const char *)
-    GEN_FN_DEF(int, symlinkat, const char *, int, const char *)
-    GEN_FN_DEF(ssize_t, readlink, const char *, char *, size_t)
-    GEN_FN_DEF(ssize_t, readlinkat, int, const char *, char *, size_t)
-    GEN_FN_DEF(char*, realpath, const char*, char*)
-    GEN_FN_DEF(DIR*, opendir, const char*)
-    GEN_FN_DEF(DIR*, fdopendir, int)
-    GEN_FN_DEF(int, utimensat, int, const char*, const struct timespec[2], int)
-    GEN_FN_DEF(int, futimens, int, const struct timespec[2])
-    GEN_FN_DEF(int, mkdir, const char*, mode_t)
-    GEN_FN_DEF(int, mkdirat, int, const char*, mode_t)
-    GEN_FN_DEF(int, dup, int)
-    GEN_FN_DEF(int, dup2, int, int)
+    GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);;
+    GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*);
+    GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int);
+    GEN_FN_DEF(FILE*, fdopen, int, const char *);
+    GEN_FN_DEF(FILE*, fopen, const char *, const char *);
+    GEN_FN_DEF(FILE*, fopen64, const char *, const char *);
+    GEN_FN_DEF(FILE*, freopen, const char *, const char *, FILE *);
+    GEN_FN_DEF(FILE*, freopen64, const char *, const char *, FILE *);
+    GEN_FN_DEF(size_t, fread, void*, size_t, size_t, FILE*);
+    GEN_FN_DEF(size_t, fwrite, const void*, size_t, size_t, FILE*);
+    GEN_FN_DEF(int, fputc, int c, FILE *stream);
+    GEN_FN_DEF(int, fputs, const char *s, FILE *stream);
+    GEN_FN_DEF(int, putc, int c, FILE *stream);
+    GEN_FN_DEF(int, putchar, int c);
+    GEN_FN_DEF(int, puts, const char *s);
+    GEN_FN_DEF(int, access, const char *, int);
+    GEN_FN_DEF(int, faccessat, int, const char *, int, int);
+    GEN_FN_DEF(int, creat, const char *, mode_t);
+    GEN_FN_DEF(int, open64, const char *, int, mode_t);
+    GEN_FN_DEF(int, open, const char *, int, mode_t);
+    GEN_FN_DEF(int, openat, int, const char *, int, mode_t);
+    GEN_FN_DEF(ssize_t, write, int, const void*, size_t);
+    GEN_FN_DEF(ssize_t, writev, int fd, const struct iovec *iov, int iovcnt);
+    GEN_FN_DEF(ssize_t, pwritev, int fd, const struct iovec *iov, int iovcnt, off_t offset);
+    GEN_FN_DEF(ssize_t, pwritev2, int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags);
+    GEN_FN_DEF(ssize_t, pwrite, int fd, const void *buf, size_t count, off_t offset);
+    GEN_FN_DEF(ssize_t, pwrite64, int fd, const void *buf, size_t count, off_t offset);
+    GEN_FN_DEF(int, remove, const char *);
+    GEN_FN_DEF(int, truncate, const char *path, off_t length);
+    GEN_FN_DEF(int, ftruncate, int fd, off_t length);
+    GEN_FN_DEF(int, truncate64, const char *path, off_t length);
+    GEN_FN_DEF(int, ftruncate64, int fd, off_t length);
+    GEN_FN_DEF(int, rmdir, const char *pathname);
+    GEN_FN_DEF(int, rename, const char *, const char *);
+    GEN_FN_DEF(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
+    GEN_FN_DEF(int, link, const char *, const char *);
+    GEN_FN_DEF(int, linkat, int, const char *, int, const char *, int);
+    GEN_FN_DEF(int, unlink, const char *pathname);
+    GEN_FN_DEF(int, unlinkat, int dirfd, const char *pathname, int flags);
+    GEN_FN_DEF(int, symlink, const char *, const char *);
+    GEN_FN_DEF(int, symlinkat, const char *, int, const char *);
+    GEN_FN_DEF(ssize_t, readlink, const char *, char *, size_t);
+    GEN_FN_DEF(ssize_t, readlinkat, int, const char *, char *, size_t);
+    GEN_FN_DEF(char*, realpath, const char*, char*);
+    GEN_FN_DEF(DIR*, opendir, const char*);
+    GEN_FN_DEF(DIR*, fdopendir, int);
+    GEN_FN_DEF(int, utime, const char *filename, const struct utimbuf *times);
+    GEN_FN_DEF(int, utimes, const char *filename, const struct timeval times[2]);
+    GEN_FN_DEF(int, utimensat, int, const char*, const struct timespec[2], int);
+    GEN_FN_DEF(int, futimesat, int dirfd, const char *pathname, const struct timeval times[2]);
+    GEN_FN_DEF(int, futimens, int, const struct timespec[2]);
+    GEN_FN_DEF(int, mkdir, const char*, mode_t);
+    GEN_FN_DEF(int, mkdirat, int, const char*, mode_t);
+    GEN_FN_DEF(int, mknod, const char *pathname, mode_t mode, dev_t dev);
+    GEN_FN_DEF(int, mknodat, int dirfd, const char *pathname, mode_t mode, dev_t dev);
     GEN_FN_DEF(int, printf, const char*, ...);
     GEN_FN_DEF(int, fprintf, FILE*, const char*, ...);
     GEN_FN_DEF(int, dprintf, int, const char*, ...);
@@ -360,4 +380,30 @@ public:
     GEN_FN_DEF(int, chmod, const char *pathname, mode_t mode);
     GEN_FN_DEF(int, fchmod, int fd, mode_t mode);
     GEN_FN_DEF(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags);
+    GEN_FN_DEF(int, chown, const char *pathname, uid_t owner, gid_t group);
+    GEN_FN_DEF(int, fchown, int fd, uid_t owner, gid_t group);
+    GEN_FN_DEF(int, lchown, const char *pathname, uid_t owner, gid_t group);
+    GEN_FN_DEF(int, fchownat, int dirfd, const char *pathname, uid_t owner, gid_t group, int flags);
+    GEN_FN_DEF(ssize_t, sendfile, int out_fd, int in_fd, off_t *offset, size_t count);
+    GEN_FN_DEF(ssize_t, sendfile64, int out_fd, int in_fd, off_t *offset, size_t count);
+    GEN_FN_DEF(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags);
+    GEN_FN_DEF(int, name_to_handle_at, int dirfd, const char *pathname, struct file_handle *handle, int *mount_id, int flags);
+
+    /* ============ don't need to be interposed ======================= */
+    GEN_FN_DEF(int, dup, int oldfd);
+    GEN_FN_DEF(int, dup2, int oldfd, int newfd);
+    GEN_FN_DEF(int, close, int fd);
+    GEN_FN_DEF(int, fclose, FILE *stream);
+    GEN_FN_DEF(int, statfs, const char *, struct statfs *buf);
+    GEN_FN_DEF(int, statfs64, const char *, struct statfs64 *buf);
+    GEN_FN_DEF(int, fstatfs, int fd, struct statfs *buf);
+    GEN_FN_DEF(int, fstatfs64, int fd, struct statfs64 *buf); 
+    /* =================================================================== */
+
+    /* ============ old/obsolete/unavailable ==========================
+    GEN_FN_DEF(int, execveat, int dirfd, const char *pathname, char *const argv[], char *const envp[], int flags);
+    GEN_FN_DEF(int, renameat2, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
+    GEN_FN_DEF(int, getdents, unsigned int fd, struct linux_dirent *dirp, unsigned int count);
+    GEN_FN_DEF(int, getdents64, unsigned int fd, struct linux_dirent64 *dirp, unsigned int count);
+    =================================================================== */
 };

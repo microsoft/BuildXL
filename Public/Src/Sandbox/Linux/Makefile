@@ -46,10 +46,15 @@ detoursObj = $(detoursSrc:.cpp=.detours.d.o) $(detoursSrc:.cpp=.detours.r.o)
 auditObj = $(auditSrc:.cpp=.d.o) $(auditSrc:.cpp=.r.o)
 utilsObj = $(utilsSrc:.c=.d.o) $(utilsSrc:.c=.r.o)
 allObj = $(detoursObj) $(auditObj) $(commonObj) $(utilsObj)
-allDep = $(allObj:.o=.deps)
+allCpp = $(commonSrc) $(detoursSrc) $(auditSrc)
+allC = $(utilsSrc)
+allDep = $(allCpp:.cpp=.deps) $(allC:.c=.deps)
 
 %.deps: %.cpp
-	@$(CPP) $(CXXFLAGS) $< -MM -MT $(@:.deps=.o) > $@
+	$(CPP) $(INC_FLAGS) $< -MM -MT $(@:.deps=.d.o) -MT $(@:.deps=.r.o) -MT $(@:.deps=.detours.d.o) -MT $(@:.deps=.detours.r.o)  > $@
+
+%.deps: %.c
+	$(CPP) $(INC_FLAGS) $< -MM -MT $(@:.deps=.d.o) -MT $(@:.deps=.d.o) > $@
 
 %.detours.d.o: %.cpp
 	$(CXX) -DENABLE_INTERPOSING $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
@@ -89,10 +94,10 @@ bin/debug/libBxlAudit.so: $(filter %.d.o, $(commonObj) $(auditObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/debug/libBxlAudit.so -ldl
 
 bin/release/libBxlUtils.so: $(filter %.r.o, $(utilsObj))
-	$(CXX) -shared $^ -o bin/release/libBxlUtils.so -ldl
+	$(CXX) -shared $^ -o bin/release/libBxlUtils.so
 
 bin/debug/libBxlUtils.so: $(filter %.d.o, $(utilsObj))
-	$(CXX) -shared $^ -o bin/debug/libBxlUtils.so -ldl
+	$(CXX) -shared $^ -o bin/debug/libBxlUtils.so
 
 -include $(allDep)
 

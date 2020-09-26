@@ -232,7 +232,7 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
 {
     // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
     report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str);
-    report_access(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, file);
+    report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
 }
 
 AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)

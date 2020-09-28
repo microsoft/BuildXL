@@ -32,6 +32,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
@@ -120,9 +121,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
-        /// So the initialization process is split into two pieces: core initialization and post-initialization that should be checked in every public method.
+        /// So the initialization process is split into two phases: core initialization and post-initialization that should be checked in every public method.
+        /// This field has two parts: TaskSourceSlim (TaskCompletionSource under the hood) and a boolean flag that is true when the source is linked to
+        /// an actual post-initialization task (the flag is true when the postinialization has started).
+        /// This is done to make sure the underlying "post initialization task" is never null and we won't get any errors if the client will wait on
+        /// it by callling EnsureInitialized even before StartupAsync method is done.
+        /// But in some cases we need to know that the post-initialization has not started yet, for instance, in shutdown logic.
         /// </summary>
-        private Task<BoolResult> _postInitializationTask;
+        private (TaskSourceSlim<BoolResult> tcs, bool postInitializationStarted) _postInitialization = (TaskSourceSlim.Create<BoolResult>(), false);
 
         private const string BinManagerKey = "LocalLocationStore.BinManager";
 
@@ -336,15 +342,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     HeartbeatAsync(nestedContext).FireAndForget(nestedContext);
                 }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-            _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true)
-                .ThenAsync(r => r.Succeeded ? r : new BoolResult(r, "Failed initializing Local Location Store")))
-                // Run continuations asynchronously because many callers may be queued waiting for initialization to complete
-                .RunContinuationsAsync();
+            var postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true)
+                .ThenAsync(r => r.Succeeded ? r : new BoolResult(r, "Failed initializing Local Location Store")));
+            _postInitialization.tcs.LinkToTask(postInitializationTask);
+            _postInitialization.postInitializationStarted = true;
 
-            await _postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
+            await postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
 
             Analysis.IgnoreResult(
-                _postInitializationTask.ContinueWith(
+                postInitializationTask.ContinueWith(
                     t =>
                     {
                         // It is very important to explicitly trace when the post initialization is done,
@@ -373,8 +379,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Tracer.Info(context, "Shutting down local location store.");
 
             BoolResult result = BoolResult.Success;
-            if (_postInitializationTask != null)
+            if (_postInitialization.postInitializationStarted)
             {
+                // If startup procedure reached the point when the post initialization started, then waiting for its completion.
                 var postInitializationResult = await EnsureInitializedAsync();
                 if (!postInitializationResult && !postInitializationResult.IsCancelled)
                 {
@@ -589,10 +596,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // A post initialization process may fail due to a transient issue, like a storage failure or an inconsistent checkpoint's state.
                 // The transient error can go away and the system may recover itself by calling this method again.
 
-                // In this case we need to reset _postInitializationTask and move its state from "failure" to "success"
+                // In this case we need to reset the post-initialization task and move its state from "failure" to "success"
                 // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
+                var postInitialization = _postInitialization.tcs.Task;
 
-                _postInitializationTask = BoolResult.SuccessTask;
+                // If the task already in one of the failure states, and the current call is successful, then it means that the transient issue is gone and
+                // the component is back to a working state.
+                if (postInitialization.IsCompleted)
+                {
+                    // The task is completed already. If the task is not completed yet, it will be in a moment, because Heartbeat is almost done.
+                    if (postInitialization.Status != TaskStatus.RanToCompletion || !postInitialization.GetAwaiter().GetResult().Succeeded)
+                    {
+                        // The task either failed (with an excpetion or was canceled), or the result was not successful.
+                        var tcs = TaskSourceSlim.Create<BoolResult>();
+                        tcs.SetResult(BoolResult.Success);
+                        _postInitialization.tcs = tcs;
+                    }
+                }
             }
 
             return result;
@@ -1071,8 +1091,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal Task<BoolResult> EnsureInitializedAsync()
         {
-            Contract.Assert(_postInitializationTask != null);
-            return _postInitializationTask;
+            return _postInitialization.tcs.Task;
         }
 
         /// <summary>

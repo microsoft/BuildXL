@@ -22,7 +22,6 @@ namespace BuildXL.Utilities.Tasks
     public readonly struct TaskSourceSlim<TResult>
     {
         private readonly TaskCompletionSource<TResult> m_tcs;
-        private readonly bool m_setResultAsynchonously;
 
         /// <nodoc />
         internal TaskSourceSlim(bool runContinuationsAsynchronously)
@@ -32,9 +31,6 @@ namespace BuildXL.Utilities.Tasks
                 ? TaskCreationOptions.RunContinuationsAsynchronously
                 : TaskCreationOptions.None;
             m_tcs = new TaskCompletionSource<TResult>(flags);
-            // When a task completion source is constructed with RunContinuationsAsynchronously flag,
-            // then it makes no sense to SetResult from a separate thread.
-            m_setResultAsynchonously = false;
         }
 
         /// <summary>
@@ -146,28 +142,12 @@ namespace BuildXL.Utilities.Tasks
 
         private void ChangeState<TResultState>(TResultState state, Action<TaskCompletionSource<TResult>, TResultState> action)
         {
-            if (m_setResultAsynchonously)
-            {
-                var @this = this;
-                Analysis.IgnoreResult(System.Threading.Tasks.Task.Run(() => action(@this.m_tcs, state)), justification: "Fire and forget");
-            }
-            else
-            {
-                action(m_tcs, state);
-            }
+            action(m_tcs, state);
         }
 
         private TChangeResult ChangeState<TResultState, TChangeResult>(TResultState state, Func<TaskCompletionSource<TResult>, TResultState, TChangeResult> func)
         {
-            if (m_setResultAsynchonously)
-            {
-                var @this = this;
-                return System.Threading.Tasks.Task.Run(() => func(@this.m_tcs, state)).GetAwaiter().GetResult();
-            }
-            else
-            {
-                return func(m_tcs, state);
-            }
+            return func(m_tcs, state);
         }
     }
 

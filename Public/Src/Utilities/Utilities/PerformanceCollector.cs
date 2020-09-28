@@ -140,18 +140,22 @@ namespace BuildXL.Utilities
             m_collectionTimer = new Timer(Collect, null, 0, 0);
         }
 
-        private volatile ManagementScope m_scope;
-        private ManagementObjectSearcher m_querySearcher;
+        private volatile ManagementScope m_wmiScope;
+        private ManagementObjectSearcher m_modifiedPageSizeWMIQuery;
+        private ManagementOperationObserver m_modifiedPageSizeWMIWatcher;
+        private double? m_modifiedPagelistBytes = null;
 
         private async Task InitializeWMIAsync()
         {
             await Task.Yield();
 
-            m_scope = new ManagementScope(string.Format("\\\\{0}\\root\\CIMV2", "."), null);
-            m_scope.Connect();
+            m_wmiScope = new ManagementScope(string.Format("\\\\{0}\\root\\CIMV2", "."), null);
+            m_wmiScope.Connect();
 
-            ObjectQuery query = new ObjectQuery("SELECT AvailableBytes, ModifiedPageListBytes, FreeAndZeroPageListBytes, StandbyCacheCoreBytes, StandbyCacheNormalPriorityBytes, StandbyCacheReserveBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
-            m_querySearcher = new ManagementObjectSearcher(m_scope, query);
+            ObjectQuery query = new ObjectQuery("SELECT ModifiedPageListBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
+            m_modifiedPageSizeWMIQuery = new ManagementObjectSearcher(m_wmiScope, query);
+            m_modifiedPageSizeWMIWatcher = new ManagementOperationObserver();
+            m_modifiedPageSizeWMIWatcher.ObjectReady += new ObjectReadyEventHandler(UpdateModifiedPageSize);
         }
 
         /// <summary>
@@ -195,10 +199,6 @@ namespace BuildXL.Utilities
                 double? commitUsedBytes = null;
                 double? commitLimitBytes = null;
 
-                double? modifiedPagelistBytes = null;
-                double? freePagelistBytes = null;
-                double? standbyPagelistBytes = null;
-
                 DiskStats[] diskStats = null;
 
                 if (!OperatingSystemHelper.IsUnixOS)
@@ -221,7 +221,7 @@ namespace BuildXL.Utilities
 
                     diskStats = GetDiskCountersWindows();
 
-                    TryGetRAMDetails(ref modifiedPagelistBytes, ref freePagelistBytes, ref standbyPagelistBytes);
+                    TryGetModifiedPagelistSizeAsync();
                 }
                 else
                 {
@@ -272,9 +272,7 @@ namespace BuildXL.Utilities
                             machineKbitsPerSecReceived: machineKbitsPerSecReceived,
                             diskStats: diskStats,
                             gcHeldBytes: processHeldBytes,
-                            modifiedPagelistBytes: modifiedPagelistBytes,
-                            freePagelistBytes: freePagelistBytes,
-                            standbyPagelistBytes: standbyPagelistBytes);
+                            modifiedPagelistBytes: m_modifiedPagelistBytes);
                     }
                 }
 
@@ -283,28 +281,33 @@ namespace BuildXL.Utilities
             }
         }
 
-        private void TryGetRAMDetails(ref double? modifiedPagelistBytes, ref double? freePagelistBytes, ref double? standbyPagelistBytes)
+        private void TryGetModifiedPagelistSizeAsync()
         {
             try
             {
-                if (m_scope?.IsConnected == true)
+                if (m_wmiScope?.IsConnected == true)
                 {
-                    foreach (ManagementObject WmiObject in m_querySearcher.Get())
-                    {
-                        modifiedPagelistBytes = (UInt64)WmiObject["ModifiedPageListBytes"];
-                        freePagelistBytes = (UInt64)WmiObject["FreeAndZeroPageListBytes"];
-
-                        standbyPagelistBytes = (UInt64)WmiObject["StandbyCacheCoreBytes"];
-                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheNormalPriorityBytes"];
-                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheReserveBytes"];
-                    }
+                    m_modifiedPageSizeWMIQuery.Get(m_modifiedPageSizeWMIWatcher);
                 }
             }
-#pragma warning disable ERP022 // TODO: This should really handle specific errors
+#pragma warning disable ERP022 // It is OK for WMI to fail sometimes
             catch (Exception)
             {
             }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+#pragma warning restore ERP022
+        }
+
+        private void UpdateModifiedPageSize(object sender, ObjectReadyEventArgs obj)
+        {
+            try
+            {
+                m_modifiedPagelistBytes = (UInt64)obj.NewObject["ModifiedPageListBytes"];
+            }
+#pragma warning disable ERP022 // It is OK for WMI to fail sometimes
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022
         }
 
         private static double BytesToKbits(long bytes)
@@ -383,6 +386,11 @@ namespace BuildXL.Utilities
                 {
                     item.safeFileHandle?.Dispose();
                 }
+            }
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                m_modifiedPageSizeWMIQuery?.Dispose();
             }
         }
 
@@ -670,19 +678,6 @@ namespace BuildXL.Utilities
             internal int? ModifiedPagelistMb;
 
             /// <summary>
-            /// Free pagelist that is a part of available RAM
-            /// </summary>
-            internal int? FreePagelistMb;
-
-            /// <summary>
-            /// Standby pagelist that is a part of used RAM
-            /// </summary>
-            /// <remarks>
-            /// Pages in the standby pagelist are clean and they can be reused for the same process or used as free pages for other processes.
-            /// </remarks>
-            internal int? StandbyPagelistMb;
-
-            /// <summary>
             /// Effective Available RAM = Modified pagelist + Available RAM
             /// </summary>
             /// <remarks>
@@ -775,12 +770,6 @@ namespace BuildXL.Utilities
             /// <nodoc />
             public readonly Aggregation ModifiedPagelistMB;
 
-            /// <nodoc />
-            public readonly Aggregation FreePagelistMB;
-
-            /// <nodoc />
-            public readonly Aggregation StandbyPagelistMB;
-
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -858,9 +847,6 @@ namespace BuildXL.Utilities
                 MachineKbitsPerSecSent = new Aggregation();
                 MachineKbitsPerSecReceived = new Aggregation();
                 ModifiedPagelistMB = new Aggregation();
-                StandbyPagelistMB = new Aggregation();
-                FreePagelistMB = new Aggregation();
-
                 List<Tuple<string, Aggregation>> aggs = new List<Tuple<string, Aggregation>>();
                 List<DiskStatistics> diskStats = new List<DiskStatistics>();
 
@@ -916,16 +902,6 @@ namespace BuildXL.Utilities
                         if (ModifiedPagelistMB.Latest > 0)
                         {
                             perfInfo.ModifiedPagelistMb = SafeConvert.ToInt32(ModifiedPagelistMB.Latest);
-                        }
-
-                        if (FreePagelistMB.Latest > 0)
-                        {
-                            perfInfo.FreePagelistMb = SafeConvert.ToInt32(FreePagelistMB.Latest);
-                        }
-
-                        if (StandbyPagelistMB.Latest > 0)
-                        {
-                            perfInfo.StandbyPagelistMb = SafeConvert.ToInt32(StandbyPagelistMB.Latest);
                         }
 
                         if (perfInfo.TotalRamMb.HasValue)
@@ -1042,9 +1018,7 @@ namespace BuildXL.Utilities
                 double? machineKbitsPerSecReceived,
                 DiskStats[] diskStats,
                 double? gcHeldBytes,
-                double? modifiedPagelistBytes,
-                double? freePagelistBytes,
-                double? standbyPagelistBytes)
+                double? modifiedPagelistBytes)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -1062,8 +1036,6 @@ namespace BuildXL.Utilities
                 MachineKbitsPerSecSent.RegisterSample(machineKbitsPerSecSent);
                 MachineKbitsPerSecReceived.RegisterSample(machineKbitsPerSecReceived);
                 ModifiedPagelistMB.RegisterSample(BytesToMB(modifiedPagelistBytes));
-                FreePagelistMB.RegisterSample(BytesToMB(freePagelistBytes));
-                StandbyPagelistMB.RegisterSample(BytesToMB(standbyPagelistBytes));
 
                 Contract.Assert(m_diskStats.Length == diskStats.Length);
                 for (int i = 0; i < diskStats.Length; i++)

@@ -798,11 +798,10 @@ namespace BuildXL.Scheduler
         /// </summary>
         private LoggingContext m_executePhaseLoggingContext;
 
-
         /// <summary>
         /// Logging interval in ms for performance information. A time interval of 0 represents no restrictions to logging (always log)
         /// </summary>
-        private int m_loggingIntervalPeriodMs;
+        private readonly int m_loggingIntervalPeriodMs;
 
         /// <summary>
         /// Previous UTC time when the UpdateStatus logs where logged
@@ -1448,7 +1447,6 @@ namespace BuildXL.Scheduler
 
             ExecutionLog?.BxlInvocation(new BxlInvocationEventData(m_configuration));
 
-            UpdateStatus();
             m_drainThread = new Thread(m_pipQueue.DrainQueues);
 
             if (!m_scheduleTerminating)
@@ -2011,8 +2009,6 @@ namespace BuildXL.Scheduler
                 { "Used Ram Mb", data => data.RamUsedMb },
                 { "Free Ram Mb", data => data.RamFreeMb },
                 { "ModifiedPagelistMb", data => m_perfInfo.ModifiedPagelistMb ?? 0},
-                { "FreePagelistMb", data => m_perfInfo.FreePagelistMb ?? 0},
-                { "StandByPagelistMb", data => m_perfInfo.StandbyPagelistMb ?? 0},
                 { "Commit Percent", data => data.CommitPercent },
                 { "Used Commit Mb", data => data.CommitUsedMb },
                 { "Free Commit Mb", data => data.CommitFreeMb },
@@ -2209,7 +2205,7 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ??
+                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null ) ??
                     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
 

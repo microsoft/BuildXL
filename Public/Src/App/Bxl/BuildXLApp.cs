@@ -1848,7 +1848,7 @@ namespace BuildXL
                 if (m_configuration.Logging.LogCounters)
                 {
                     collector = new PerformanceCollector(
-                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromMilliseconds(EngineSchedule.UpdateStatusIntervalMs),
                         m_configuration.Logging.LogMemory,
                         (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message));
                 }

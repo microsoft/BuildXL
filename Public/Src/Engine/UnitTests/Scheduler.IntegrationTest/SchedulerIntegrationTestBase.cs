@@ -538,6 +538,7 @@ namespace Test.BuildXL.Scheduler
                 }
 
                 testScheduler.Start(localLoggingContext);
+                testScheduler.UpdateStatus();
 
                 if (updateStatusTimerEnabled)
                 {

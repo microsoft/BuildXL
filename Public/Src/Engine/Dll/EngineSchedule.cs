@@ -117,7 +117,10 @@ namespace BuildXL.Engine
 
         private CancellableTimedAction m_updateStatusAction;
 
-        private const int UpdateStatusIntervalMs = 2000;
+        /// <summary>
+        /// Update status interval
+        /// </summary>
+        public const int UpdateStatusIntervalMs = 2000;
 
         private EngineSchedule(
             EngineContext context,

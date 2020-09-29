@@ -72,7 +72,8 @@ void BxlObserver::InitFam()
     real_fclose(famFile);
 
     // create SandboxedPip (which parses FAM and throws on error)
-    pip_ = std::shared_ptr<SandboxedPip>(new SandboxedPip(getpid(), famPayload, famLength));
+    pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(getpid(), famPayload, famLength));
+    free(famPayload);
 
     // create sandbox
     sandbox_ = new Sandbox(0, Configuration::DetoursLinuxSandboxType);

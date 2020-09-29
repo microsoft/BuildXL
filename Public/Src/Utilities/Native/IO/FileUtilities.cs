@@ -624,10 +624,10 @@ namespace BuildXL.Native.IO
 
         #region Soft- (Junction) and Hardlink functions
 
-        /// <see cref="IFileSystem.CreateJunction(string, string, bool)"/>
-        public static void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true)
+        /// <see cref="IFileSystem.CreateJunction(string, string, bool, bool)"/>
+        public static void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true, bool allowNonExistentTarget = false)
         {
-            s_fileSystem.CreateJunction(junctionPoint, targetDir, createDirectoryForJunction);
+            s_fileSystem.CreateJunction(junctionPoint, targetDir, createDirectoryForJunction, allowNonExistentTarget);
         }
 
         /// <see cref="IFileSystem.TryCreateSymbolicLink(string, string, bool)"/>
@@ -678,7 +678,7 @@ namespace BuildXL.Native.IO
                 {
                     try
                     {
-                        s_fileSystem.CreateJunction(reparsePoint, reparsePointTarget);
+                        s_fileSystem.CreateJunction(reparsePoint, reparsePointTarget, allowNonExistentTarget: true);
                     }
                     catch (Exception e)
                     {

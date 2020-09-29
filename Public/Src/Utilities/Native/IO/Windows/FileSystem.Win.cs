@@ -2387,9 +2387,9 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true)
+        public void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true, bool allowNonExistentTarget = false)
         {
-            if (!Directory.Exists(ToLongPathIfExceedMaxPath(targetDir)))
+            if (!allowNonExistentTarget && !Directory.Exists(ToLongPathIfExceedMaxPath(targetDir)))
             {
                 throw new IOException(I($"Target path '{targetDir}' does not exist or is not a directory."));
             }

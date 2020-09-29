@@ -342,6 +342,39 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(junctionPathTarget, replayedJunctionTarget);
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void ValidateCachingProducingJunctionToNonExistentTargetOnCacheReplay()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = true;
+            AbsolutePath targetDirectoryPath = CreateUniqueDirectory();
+            DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(targetDirectoryPath);
+            FileArtifact junction = new FileArtifact(CreateUniqueSourcePath("junction")).CreateNextWrittenVersion();
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.CreateJunction(junction, targetDir)
+            });
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+
+            // save junction target to compare to later
+            string junctionPath = ArtifactToString(junction);
+            string junctionPathTarget = GetReparsePointTarget(junctionPath);
+
+            // Delete both the junction and the directory
+            Directory.Delete(junctionPath);
+            FileUtilities.DeleteDirectoryContents(targetDirectoryPath.ToString(Context.PathTable), deleteRootDirectory: true);
+
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Check that the junction was replayed, even if the target is non-existent
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(junctionPath));
+            XAssert.IsTrue(IsJunction(junction));
+        }
+
         [Fact]
         public void ValidateDeleteFileWorksForDirectorySymlinksAndJunctions()
         {

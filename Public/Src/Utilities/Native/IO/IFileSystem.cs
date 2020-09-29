@@ -294,7 +294,9 @@ namespace BuildXL.Native.IO
         /// <param name="junctionPoint">Junction name.</param>
         /// <param name="targetDir">Target directory.</param>
         /// <param name="createDirectoryForJunction">If a directory should be created for the junction or the caller created one already.</param>
-        void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true);
+        /// <param name="allowNonExistentTarget">If a junction can be created even if the target doesn't exist. This is possible, even though is not the 
+        /// behavior of mklink</param>
+        void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true, bool allowNonExistentTarget = false);
 
         /// <summary>
         /// Tries to create a symbolic link

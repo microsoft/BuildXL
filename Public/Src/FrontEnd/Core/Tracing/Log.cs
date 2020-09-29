@@ -976,6 +976,33 @@ namespace BuildXL.FrontEnd.Core.Tracing
             Message = "Destruction cone (changed/affected/required/all specs): {numChanged}/{numAffected}/{numRequired}/{numAll}",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void ReportDestructionCone(LoggingContext context, int numChanged, int numAffected, int numRequired, int numAll);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.FrontEndWorkspaceMemoryCollectionSkipped,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Workspace memory collection skipped. {message}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void FrontEndWorkspaceMemoryCollectionSkipped(LoggingContext context, string message);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.FrontEndWorkspaceMemoryCollectedSuccessfully,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Workspace memory collected successfully",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void FrontEndWorkspaceMemoryCollectedSuccessfully(LoggingContext context);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.FrontEndWorkspaceMemoryNotCollected,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Workspace memory was not collected successfully. This indicates a memory leak that drastically increase memory footprint during evaluation phase",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void FrontEndWorkspaceMemoryNotCollected(LoggingContext context);
     }
 
     /// <summary>

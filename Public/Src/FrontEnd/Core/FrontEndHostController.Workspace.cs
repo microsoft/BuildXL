@@ -929,11 +929,21 @@ namespace BuildXL.FrontEnd.Core
             var weakReference = GetWorkspaceAnchorAndReleaseWorkspace();
             if (weakReference == null)
             {
+                Logger.FrontEndWorkspaceMemoryCollectionSkipped(LoggingContext, "Can't find a weak reference pointing to parsed source file");
                 // Nothing to do, workspace is empty.
                 return;
             }
 
             GC.Collect();
+
+            if (weakReference.IsAlive)
+            {
+                Logger.FrontEndWorkspaceMemoryNotCollected(LoggingContext);
+            }
+            else
+            {
+                Logger.FrontEndWorkspaceMemoryCollectedSuccessfully(LoggingContext);
+            }
 
             if (FrontEndConfiguration.FailIfWorkspaceMemoryIsNotCollected())
             {

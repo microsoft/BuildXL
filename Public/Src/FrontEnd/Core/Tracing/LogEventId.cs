@@ -132,6 +132,10 @@ namespace BuildXL.FrontEnd.Core.Tracing
         DownloadPackageCannotCacheWarning = 11293,
         FrontEndEvaluateFragmentsProgress = 11294,
 
+        FrontEndWorkspaceMemoryCollectionSkipped = 11295,
+        FrontEndWorkspaceMemoryCollectedSuccessfully = 11296,
+        FrontEndWorkspaceMemoryNotCollected = 11297,
+
         MaterializingFileToFileDepdencyMap = 2917,
         ErrorMaterializingFileToFileDepdencyMap = 2918,
     }

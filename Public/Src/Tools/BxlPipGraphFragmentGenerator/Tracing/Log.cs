@@ -49,6 +49,25 @@ namespace BuildXL.PipGraphFragmentGenerator.Tracing
             Message = "Serialization stats of graph fragment '{fragmentDescription}': {stats}",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void GraphFragmentSerializationStats(LoggingContext context, string fragmentDescription, string stats);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.UnhandledFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "Unhandled failure: {exceptionMessage}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void UnhandledFailure(LoggingContext context, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.UnhandledInfrastructureError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "Unhandled infrastructure error: {exceptionMessage}",
+            Keywords = ((int)Keywords.UserMessage) | (int)Keywords.InfrastructureError)]
+        public abstract void UnhandledInfrastructureError(LoggingContext context, string exceptionMessage);
+
     }
 }
 

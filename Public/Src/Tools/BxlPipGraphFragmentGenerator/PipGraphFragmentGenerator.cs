@@ -231,11 +231,11 @@ namespace BuildXL.PipGraphFragmentGenerator
         /// Generates pip graph fragment.
         /// </summary>
         public static bool TryGeneratePipGraphFragment(
+            LoggingContext loggingContext,
             PathTable pathTable,
             ICommandLineConfiguration commandLineConfig,
             PipGraphFragmentGeneratorConfiguration pipGraphFragmentConfig)
         {
-            var loggingContext = new LoggingContext(nameof(PipGraphFragmentGenerator));
             var fileSystem = new PassThroughFileSystem(pathTable);
             var engineContext = EngineContext.CreateNew(CancellationToken.None, pathTable, fileSystem);
 

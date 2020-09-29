@@ -18,7 +18,9 @@ namespace BuildXL.PipGraphFragmentGenerator.Tracing
 
         ErrorParsingFilter = 7501,
         GraphFragmentExceptionOnSerializingFragment = 7502,
-        GraphFragmentSerializationStats = 7503
+        GraphFragmentSerializationStats = 7503,
+        UnhandledFailure = 7504,
+        UnhandledInfrastructureError = 7505,
         // Max: 7600.
     }
 }

@@ -3,12 +3,18 @@
 
 using System;
 using System.Diagnostics.Tracing;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.FrontEnd.Factory;
+using BuildXL.PipGraphFragmentGenerator.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using BxlPipGraphFragmentGenerator;
 
 namespace BuildXL.PipGraphFragmentGenerator
 {
@@ -18,6 +24,7 @@ namespace BuildXL.PipGraphFragmentGenerator
     internal sealed class Program : ToolProgram<Args>
     {
         private readonly PathTable m_pathTable = new PathTable();
+        private int m_handlingUnhandledFailureInProgress = 0;
 
         private Program()
             : base("BxlPipGraphFragmentGenerator")
@@ -27,15 +34,7 @@ namespace BuildXL.PipGraphFragmentGenerator
         /// <nodoc />
         public static int Main(string[] arguments)
         {
-            try
-            {
-                return new Program().MainHandler(arguments);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine($"Unexpected exception: {e}");
-                return -1;
-            }
+            return new Program().MainHandler(arguments);
         }
 
 
@@ -47,12 +46,9 @@ namespace BuildXL.PipGraphFragmentGenerator
                 arguments = new Args(rawArgs, m_pathTable);
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                ConsoleColor original = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine(ex.GetLogEventMessage());
-                Console.ForegroundColor = original;
+                PrintErrorToConsole(e.ToStringDemystified());
                 arguments = null;
                 return false;
             }
@@ -63,23 +59,108 @@ namespace BuildXL.PipGraphFragmentGenerator
         {
             if (arguments.Help)
             {
-                return 0;
+                return (int)GeneratorExitCode.Success;
             }
 
             ContentHashingUtilities.SetDefaultHashType();
 
             using (SetupEventListener(EventLevel.Informational))
             {
+                var loggingContext = new LoggingContext(nameof(PipGraphFragmentGenerator));
+
+                AppDomain.CurrentDomain.UnhandledException +=
+                   (sender, eventArgs) =>
+                   {
+                       HandleUnhandledFailure(loggingContext, eventArgs.ExceptionObject as Exception);
+                   };
+                ExceptionUtilities.UnexpectedException +=
+                    (exception) =>
+                    {
+                        HandleUnhandledFailure(loggingContext, exception);
+                    };
+                TaskScheduler.UnobservedTaskException +=
+                    (sender, eventArgs) =>
+                    {
+                        HandleUnhandledFailure(loggingContext, eventArgs.Exception);
+                    };
+
                 if (!PipGraphFragmentGenerator.TryGeneratePipGraphFragment(
+                    loggingContext,
                     m_pathTable,
                     arguments.CommandLineConfig,
                     arguments.PipGraphFragmentGeneratorConfig))
                 {
-                    return 1;
+                    return (int)GeneratorExitCode.Failed;
                 }
 
-                return 0;
+                return (int)GeneratorExitCode.Success;
             }
+        }
+
+        private void HandleUnhandledFailure(LoggingContext loggingContext, Exception exception)
+        {
+            if (Interlocked.CompareExchange(ref m_handlingUnhandledFailureInProgress, 1, comparand: 0) != 0)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(3));
+
+                ExceptionUtilities.FailFast("Second-chance exception handler has not completed in the allowed time.", new InvalidOperationException());
+                return;
+            }
+
+            try
+            {
+                GeneratorExitCode effectiveExitCode = GeneratorExitCode.InternalError;
+                ExceptionRootCause rootCause = exception is NullReferenceException
+                    ? ExceptionRootCause.FailFast
+                    : ExceptionUtilities.AnalyzeExceptionRootCause(exception);
+                
+                switch (rootCause)
+                {
+                    case ExceptionRootCause.OutOfDiskSpace:
+                    case ExceptionRootCause.DataErrorDriveFailure:
+                    case ExceptionRootCause.DeviceAccessError:
+                        effectiveExitCode = GeneratorExitCode.InfrastructureError;
+                        break;
+                    case ExceptionRootCause.MissingRuntimeDependency:
+                        effectiveExitCode = GeneratorExitCode.MissingRuntimeDependency;
+                        break;
+                }
+
+                string failureMessage = exception.ToStringDemystified();
+
+                if (effectiveExitCode == GeneratorExitCode.InfrastructureError)
+                {
+                    Logger.Log.UnhandledInfrastructureError(loggingContext, failureMessage);
+                }
+                else
+                {
+                    Logger.Log.UnhandledFailure(loggingContext, failureMessage);
+                }
+
+                if (rootCause == ExceptionRootCause.FailFast)
+                {
+                    ExceptionUtilities.FailFast("Exception is configured to fail fast", exception);
+                }
+
+                Environment.Exit((int)effectiveExitCode);
+            }
+            catch (Exception e)
+            {
+                PrintErrorToConsole("Unhandled exception in exception handler");
+                PrintErrorToConsole(e.ToStringDemystified());
+            }
+            finally
+            {
+                Environment.Exit((int)GeneratorExitCode.InternalError);
+            }
+        }
+
+        private static void PrintErrorToConsole(string errorMessage)
+        {
+            ConsoleColor original = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine(errorMessage);
+            Console.ForegroundColor = original;
         }
 
         public static IDisposable SetupEventListener(EventLevel level)

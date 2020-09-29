@@ -597,7 +597,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                 dynamicallyProbedFiles.Add(path);
                                 break;
                             case ObservedInputType.ExistingDirectoryProbe:
-                                maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path);
+                                maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path, flags);
 
                                 // Directory probe is just like file probe.
                                 dynamicallyProbedFiles.Add(path);

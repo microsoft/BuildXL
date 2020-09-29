@@ -218,9 +218,13 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Creates an input of type <see cref="ObservedInputType.ExistingDirectoryProbe" />
         /// </summary>
-        public static ObservedInput CreateExistingDirectoryProbe(AbsolutePath path)
+        public static ObservedInput CreateExistingDirectoryProbe(AbsolutePath path, ObservationFlags? flags = null)
         {
-            return new ObservedInput(ObservedInputType.ExistingDirectoryProbe, path, isDirectoryPath: true);
+            return new ObservedInput(ObservedInputType.ExistingDirectoryProbe,
+                path,
+                isDirectoryPath: flags?.HasFlag(ObservationFlags.DirectoryLocation) ?? true,
+                directoryEnumeration: flags?.HasFlag(ObservationFlags.Enumeration) ?? false,
+                isFileProbe: flags?.HasFlag(ObservationFlags.FileProbe) ?? false);
         }
 
         /// <nodoc />

@@ -716,7 +716,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputDirectory(AbsolutePath.Create(Context.PathTable, opaqueDir), kind: SealDirectoryKind.Opaque);
             var pip2 = SchedulePipBuilder(builder).Process;
 
-            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip1, pip2) }).AssertCacheMiss(pip1.PipId);
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip1, pip2) }).AssertCacheMiss(pip1.PipId, pip2.PipId);
 
             var secondRunResult = RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip2, pip1) });
             if (Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque)
@@ -729,6 +729,12 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // instead of AbsentPathProbe. It would result in a cache miss.
                 secondRunResult.AssertCacheMiss(pip1.PipId);
             }
+
+            // This can be a miss if we do not preserve flags for ExistingDirectory probes.
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip1, pip2) }).AssertCacheHit(pip1.PipId, pip2.PipId);
+
+            // This is always a hit.
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)>() { (pip2, pip1) }).AssertCacheHit(pip1.PipId, pip2.PipId);
         }
 
         [Feature(Features.DirectoryEnumeration)]

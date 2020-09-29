@@ -148,7 +148,24 @@ namespace Test.Tool.SandboxExec
             var instance = CreateSandboxExecRunner();
             var processInfo = SandboxExecRunner.CreateSandboxedProcessInfo("/usr/bin/touch", instance);
 
-            // Make sure the SandboxExec sandboxed process info is always gerenated to explicitly report all file accesses
+            // Make sure the SandboxExec sandboxed process info is always generated to explicitly report all file accesses
+            XAssert.IsTrue(processInfo.FileAccessManifest.ReportFileAccesses);
+            XAssert.IsFalse(processInfo.FileAccessManifest.FailUnexpectedFileAccesses);
+        }
+
+        [Fact]
+        public void TestSandboxConnectionNotInTestMode()
+        {
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                return; // doesn't work with the kext
+            }
+
+            using var sandboxConnection = CreateSandboxConnection(isInTestMode: false);
+            var instance = new SandboxExecRunner(sandboxConnection);
+            var processInfo = SandboxExecRunner.CreateSandboxedProcessInfo("/usr/bin/touch", instance);
+
+            // Make sure the SandboxExec sandboxed process info is always generated to explicitly report all file accesses
             XAssert.IsTrue(processInfo.FileAccessManifest.ReportFileAccesses);
             XAssert.IsFalse(processInfo.FileAccessManifest.FailUnexpectedFileAccesses);
         }

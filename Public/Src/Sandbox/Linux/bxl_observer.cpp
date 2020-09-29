@@ -485,8 +485,12 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName)
 {
     char *envValue = getenv(envName);
-    char **newEnvp = ensure_env_value(envp, envName, envValue);
+    if (is_null_or_empty(envValue))
+    {
+        return (char**)envp;
+    }
 
+    char **newEnvp = ensure_env_value(envp, envName, envValue);
     if (newEnvp != envp)
     {
         LOG_DEBUG("envp has been modified with %s added to %s", envValue, envName);
@@ -497,10 +501,10 @@ char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *en
 
 char** BxlObserver::ensureEnvs(char *const envp[])
 {
-    char **newEnvp = ensure_paths_included_in_env(envp, LD_PRELOAD_ENV_VAR_PREFIX, getenv(BxlEnvDetoursPath), NULL);
+    char **newEnvp = ensure_paths_included_in_env(envp, LD_PRELOAD_ENV_VAR_PREFIX, detoursLibFullPath_, NULL);
     if (newEnvp != envp)
     {
-        LOG_DEBUG("envp has been modified with %s added to %s", getenv(BxlEnvDetoursPath), "LD_PRELOAD");
+        LOG_DEBUG("envp has been modified with %s added to %s", detoursLibFullPath_, "LD_PRELOAD");
     }
 
     newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);

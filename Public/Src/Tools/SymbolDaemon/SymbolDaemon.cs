@@ -323,9 +323,8 @@ namespace Tool.SymbolDaemon
 
         private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile)
         {
-            Contract.Assert(files.Length == hashes.Length);
-            Contract.Assert(files.Length > 0);
-            Contract.Assert(!string.IsNullOrEmpty(outputFile));
+            Contract.Assert(files.Length == hashes.Length, "Array lengths must match.");
+            Contract.Assert(!string.IsNullOrEmpty(outputFile), "Output file path must be provided.");
             Contract.Assert(!hashes.Any(hash => hash.HashType != HashType.Vso0), "Unsupported hash type");
 
             var indexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
@@ -449,7 +448,7 @@ namespace Tool.SymbolDaemon
         private static async Task<IIpcResult> GetDirectoriesContentAsync(ConfiguredCommand conf, SymbolDaemon daemon)
         {
             var directoryPaths = Directory.GetValues(conf.Config).ToArray();
-            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();           
+            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
 
             if (directoryPaths.Length != directoryIds.Length)
             {
@@ -460,9 +459,9 @@ namespace Tool.SymbolDaemon
 
             if (daemon.ApiClient == null)
             {
-                return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");       
+                return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
             }
-                     
+
             var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient);
             if (!maybeResult.Succeeded)
             {
@@ -470,7 +469,7 @@ namespace Tool.SymbolDaemon
                     IpcResultStatus.GenericError,
                     "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
             }
-            
+
             var files = maybeResult.Result
                 .Select(file => $"{file.FileName.ToCanonicalizedPath()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}")
                 .ToList();
@@ -501,12 +500,12 @@ namespace Tool.SymbolDaemon
         }
 
         private static async Task<IIpcResult> AddSymbolFilesInternalAsync(
-            string[] files, 
-            string[] fileIds, 
-            string[] hashes, 
-            string symbolMetadataFile, 
+            string[] files,
+            string[] fileIds,
+            string[] hashes,
+            string symbolMetadataFile,
             SymbolDaemon daemon)
-        {           
+        {
             if (files.Length != fileIds.Length || files.Length != hashes.Length)
             {
                 return new IpcResult(
@@ -522,7 +521,6 @@ namespace Tool.SymbolDaemon
             }
 
             Dictionary<ContentHash, HashSet<DebugEntryData>> symbolMetadata;
-
             try
             {
                 symbolMetadata = DeserializeSymbolsMetadata(symbolMetadataFile);
@@ -549,7 +547,7 @@ namespace Tool.SymbolDaemon
 
                         return new IpcResult(
                             IpcResultStatus.GenericError,
-                            I($"Hash '{hash.ToString()}' (file: '{files[i]}') is not found in the metadata file '{symbolMetadataFile}'."));
+                            I($"Hash '{hash}' (file: '{files[i]}') was not found in the metadata file '{symbolMetadataFile}'."));
                     }
 
                     symbolFiles.Add(new SymbolFile(
@@ -598,6 +596,11 @@ namespace Tool.SymbolDaemon
                     "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
             }
 
+            if (maybeResult.Result.Count == 0)
+            {
+                return IpcResult.Success($"Directories ({string.Join(",", directoryIds)}) have no content.");
+            }
+
             var filesPaths = new List<string>();
             var filesIds = new List<string>();
             var hashes = new List<string>();
@@ -608,7 +611,7 @@ namespace Tool.SymbolDaemon
                 hashes.Add(file.ContentInfo.Render());
             }
 
-            return await AddSymbolFilesInternalAsync(filesPaths.ToArray(),filesIds.ToArray(),hashes.ToArray(),symbolMetadataFile, daemon);
+            return await AddSymbolFilesInternalAsync(filesPaths.ToArray(), filesIds.ToArray(), hashes.ToArray(), symbolMetadataFile, daemon);
         }
 
         #endregion

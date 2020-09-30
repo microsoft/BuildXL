@@ -1447,7 +1447,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (int)Tasks.Engine,
-            Message = "Failed to acquire a lock to prevent directory deletion. This may be due to invoking concurrent builds with overlapping directories. Error: {0}")]
+            Message = "Failed to acquire a lock to prevent directory deletion. This may be due to invoking concurrent builds with overlapping directories. Kill all instances of {ShortProductName} if concurrent builds are unexpected. Error: {0}")]
         public abstract void FailedToAcquireDirectoryDeletionLock(LoggingContext context, string message);
 
         [GeneratedEvent(

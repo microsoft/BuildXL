@@ -16,6 +16,7 @@ using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using BuildXL.Cache.Monitor.Library.Scheduling;
 using Kusto.Data.Common;
 using Kusto.Ingest;
@@ -397,6 +398,16 @@ namespace BuildXL.Cache.Monitor.App
                 return Analysis.Utilities.Yield(new Instantiation()
                 {
                     Rule = new ServiceRestartsRule(configuration),
+                    PollingPeriod = TimeSpan.FromMinutes(30),
+                });
+            }, watchlist);
+
+            OncePerStamp(arguments =>
+            {
+                var configuration = new LongCopyRule.Configuration(arguments.BaseConfiguration);
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new LongCopyRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(30),
                 });
             }, watchlist);

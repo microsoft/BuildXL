@@ -231,8 +231,10 @@ namespace Test.BuildXL.Engine
         public void StaticOutputBecomingASharedOpaqueOutputIsProperlyMarkedAsSharedOpaqueOutput()
         {
             var file = X($"out/MyFile.txt");
+            XAssert.PossiblySucceeded(FileUtilities.TryDeleteFile(file));
 
-            var spec0 = ProduceFileStatically(file);
+            var message = Guid.NewGuid().ToString();
+            var spec0 = ProduceFileStatically(file, content: message);
             AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
 
             RunEngine(rememberAllChangedTrackedInputs: true);
@@ -244,13 +246,13 @@ namespace Test.BuildXL.Engine
             Assert.True(File.Exists(producedFile));
 
             // Since this is a statically declared file, it shouldn't be marked as a shared opaque output
-            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "Statically declared file marked as shared opaque output");
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "Statically declared file marked as shared opaque output: " + producedFile);
 
             // Delete the created file (since scrubbing is not on for this test, we have to simulate it)
             File.Delete(producedFile);
 
             // Overrite the spec so now the same file is generated as a shared opaque output
-            spec0 = ProduceFileUnderSharedOpaque(file);
+            spec0 = ProduceFileUnderSharedOpaque(file, content: message);
             File.WriteAllText(Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "spec0.dsc"), spec0);
 
             // Run the pip
@@ -343,7 +345,7 @@ namespace Test.BuildXL.Engine
         private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi") => 
             ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies, exclusions, allowSourceRewrites, allowUndeclaredReads, content);
 
-        private string ProduceFileStatically(string file, bool failOnExit = false) => ProduceFileUnderDirectory(file, isDynamic: false, failOnExit);
+        private string ProduceFileStatically(string file, bool failOnExit = false, string content = "hi") => ProduceFileUnderDirectory(file, isDynamic: false, failOnExit, content: content);
 
         private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi")
         {

@@ -12,7 +12,6 @@ namespace Test {
         runTestArgs: {
             parallelGroups: categoriesToRunInParallel,
         },
-        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

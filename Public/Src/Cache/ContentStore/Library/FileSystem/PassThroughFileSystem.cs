@@ -796,18 +796,20 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 _                                                              => CreateHardLinkResult.Unknown
             };
 
-            if (createHardLinkResult == CreateHardLinkResult.FailedDestinationExists)
+            // If failed because destination exists and we should replace existing, delete it and try again.
+            // It's important to call Delete directly, since our file system implementation for Unix of OpenFile with FileMode.Create
+            // seems to truncate the file and all of the other hardlinks of the same file; this can be a problem since it can result
+            // in the cache being corrupted.
+            if (createHardLinkResult == CreateHardLinkResult.FailedDestinationExists ||
+                createHardLinkResult == CreateHardLinkResult.FailedAccessDenied)
             {
-                if (!replaceExisting)
+                if (replaceExisting && FileUtilities.TryDeleteFile(destinationFileName.Path).Succeeded)
                 {
-                    // this will indicate a hard failure
-                    return CreateHardLinkResult.FailedDestinationExists;
+                    return CreateHardLinkUnix(sourceFileName, destinationFileName, replaceExisting: false);
                 }
                 else
                 {
-                    // instead of deleting the destination file and trying again, return AccessDenied
-                    // which gets appropriately handled up the stack
-                    return CreateHardLinkResult.FailedAccessDenied;
+                    return createHardLinkResult;
                 }
             }
 

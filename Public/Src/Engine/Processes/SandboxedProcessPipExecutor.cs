@@ -3750,8 +3750,15 @@ namespace BuildXL.Processes
                         foreach (var access in entry.Value)
                         {
                             // Detours reports a directory probe with a trailing backslash.
-                            if (access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase) &&
-                                (isDirectoryLocation == null || isDirectoryLocation.Value))
+                            if (// If the path is available and ends with a trailing backlash, we know that represents
+                                // a directory
+                                ((isDirectoryLocation == null || isDirectoryLocation.Value) &&
+                                 access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
+                                ||
+                                // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation
+                                // as happening on a directory.
+                                // TODO: this flag is not properly propagated for all detours operations.
+                                access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)) 
                             {
                                 isDirectoryLocation = true;
                             }

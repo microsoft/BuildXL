@@ -1726,7 +1726,6 @@ namespace BuildXL.Scheduler.Fingerprints
                     if (m_env.Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque &&
                         (flags & ObservationFlags.Enumeration) == 0 &&
                         (flags & ObservationFlags.DirectoryLocation) != 0 &&
-                        (flags & ObservationFlags.FileProbe) != 0 &&
                         IsPathUnderOutputDirectory(path))
                     {
                         // If a non-existent directory is probed without an enumeration under an opaque (i.e. output) directory,

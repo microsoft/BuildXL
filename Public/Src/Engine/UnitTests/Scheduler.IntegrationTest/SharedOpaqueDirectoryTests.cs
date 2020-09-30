@@ -2268,6 +2268,35 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void EmptyDirUnderSharedOpaqueIsConsistentlyInterpretedOnCacheReplay()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            AbsolutePath testDirPath = sharedOpaqueDirPath.Combine(Context.PathTable, "test-dir");
+            DirectoryArtifact testDir = DirectoryArtifact.CreateWithZeroPartialSealId(testDirPath);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.DirProbe(testDir),
+                Operation.CreateDir(testDir),
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Allowing undeclared reads is key here since it is what makes dir probe interpretation
+            // aware of directories our different file system views don't account for
+            builderA.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            RunScheduler().AssertSuccess();
+
+            // Delete the created directory to simulate a fresh build
+            Directory.Delete(testDirPath.ToString(Context.PathTable));
+            // We should get a cache hit
+            RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId);
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

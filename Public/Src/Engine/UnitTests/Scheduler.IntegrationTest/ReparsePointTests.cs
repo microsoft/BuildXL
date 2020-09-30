@@ -1277,9 +1277,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void ResolvedSymlinkCachingBehavior()
         {
             // Turn on symlink processing
+            // TODO: This flag can be removed once IgnoreFullReparsePointResolving becomes the default
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
 
-            // TODO: This test can be deleted once we have validated and optimized Rush based scenarios
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = true;
 
             // Create a source file via a directory symlink
@@ -1309,6 +1309,56 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Next run should be a cache miss
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void ManifestOfResolvedAccessIsProperlyComputed()
+        {
+            // TODO: This flag can be removed once IgnoreFullReparsePointResolving becomes the default
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
+
+            // Create the following layout
+            // sodA
+            //  -- nestedDir
+            //    -- output.txt
+            // sodB
+            //  -- junction -> nestedDir
+
+            AbsolutePath sodA = CreateUniqueDirectory(prefix: "sodA");
+            AbsolutePath sodB = CreateUniqueDirectory(prefix: "sodB");
+            DirectoryArtifact nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodA.Combine(Context.PathTable, "nested"));
+            DirectoryArtifact junctionDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodB.Combine(Context.PathTable, "junction"));
+
+            FileArtifact outputViaJunction = CreateOutputFileArtifact(root: junctionDir, prefix:"output.txt");
+            FileArtifact outputViaRealPath = CreateOutputFileArtifact(root: nestedDir, prefix: "output.txt");
+
+            // Create a file via the junction
+            var writerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.CreateDir(nestedDir),
+                Operation.CreateJunction(junctionDir, nestedDir, doNotInfer: true),
+                Operation.WriteFile(outputViaJunction, doNotInfer: true),
+            });
+            writerBuilder.AddOutputDirectory(sodA, SealDirectoryKind.SharedOpaque);
+            writerBuilder.AddOutputDirectory(sodB, SealDirectoryKind.SharedOpaque);
+
+            var writer = SchedulePipBuilder(writerBuilder);
+
+            // Read the previously created file via the real path
+            var readerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputViaRealPath, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()), // dummy output
+            });
+
+            // Make sure sodA is the one containing the output by only specifying that dependency when reading the file
+            // The manifest path is used for determining SOD membership, so if the output file ended up under sodA, that means
+            // the manifest path was properly resolved
+            readerBuilder.AddInputDirectory(writer.ProcessOutputs.GetOpaqueDirectory(sodA));
+
+            var reader = SchedulePipBuilder(readerBuilder);
+
+            RunScheduler().AssertSuccess();
         }
 
         /// <summary>

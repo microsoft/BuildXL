@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -50,23 +51,23 @@ namespace BuildXL.Processes
         /// unnecesary conversions between strings and absolute paths.
         /// </remarks>
         /// <returns>Whether the given access needed resolution</returns>
-        public bool ResolveDirectorySymlinks(ReportedFileAccess access, AbsolutePath accessPath, out ReportedFileAccess resolvedAccess, out AbsolutePath resolvedPath)
+        public bool ResolveDirectorySymlinks(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, out ReportedFileAccess resolvedAccess, out AbsolutePath resolvedPath)
         {
             Contract.Requires(accessPath.IsValid);
 
             resolvedPath = ResolvePathWithCache(accessPath, access.Path, out string resolvedPathAsString);
 
-            return ResolveAccess(access, accessPath, resolvedPath, resolvedPathAsString, out resolvedAccess);
+            return ResolveAccess(manifest, access, accessPath, resolvedPath, resolvedPathAsString, out resolvedAccess);
         }
 
         /// <summary>
-        /// Adds synthetic read accesses for all intermediate directory symlinks for the given access path
+        /// Adds synthetic accesses for all intermediate directory symlinks for the given access path
         /// </summary>
         /// <remarks>
         /// TODO: This function is only adding accesses for symlinks in the given path, so if those suymlinks point to other symlinks,
         /// those are not added. So the result is not completely sound, consider doing multi-hop resolution.
         /// </remarks>
-        public void AddReadsForIntermediateSymlinks(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
+        public void AddAccessesForIntermediateSymlinks(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
         {
             Contract.Requires(accessPath.IsValid);
             AbsolutePath currentPath = accessPath.GetParent(m_context.PathTable);
@@ -95,21 +96,22 @@ namespace BuildXL.Processes
                 if (isDirSymlink)
                 {
                     accessesByPath.TryGetValue(currentPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
-                    accessesByPath[currentPath] = existingAccessesToPath.Add(GenerateReadAccessForPath(manifest, currentPath, access));
+                    var generatedProbe = GenerateProbeForPath(manifest, currentPath, access);
+                    accessesByPath[currentPath] = existingAccessesToPath.Add(generatedProbe);
                 }
 
                 currentPath = currentPath.GetParent(m_context.PathTable);
             }
         }
 
-        private ReportedFileAccess GenerateReadAccessForPath(FileAccessManifest manifest, AbsolutePath currentPath, ReportedFileAccess access)
+        private ReportedFileAccess GenerateProbeForPath(FileAccessManifest manifest, AbsolutePath currentPath, ReportedFileAccess access)
         {
             manifest.TryFindManifestPathFor(currentPath, out AbsolutePath manifestPath, out FileAccessPolicy nodePolicy);
 
             return new ReportedFileAccess(
                 ReportedFileOperation.CreateFile,
                 access.Process,
-                RequestedAccess.Read,
+                RequestedAccess.Probe,
                 (nodePolicy & FileAccessPolicy.AllowRead) != 0 ? FileAccessStatus.Allowed : FileAccessStatus.Denied,
                 (nodePolicy & FileAccessPolicy.ReportAccess) != 0,
                 access.Error,
@@ -126,6 +128,16 @@ namespace BuildXL.Processes
         private AbsolutePath ResolvePathWithCache(AbsolutePath accessPath, [CanBeNull] string accessPathAsString, [CanBeNull] out string resolvedPathAsString)
         {
             // BuildXL already handles the case of paths whose final fragment is a symlink. So we make sure to resolve everything else.
+
+            // If the final segment is a directory reparse point, don't resolve it
+            accessPathAsString ??= accessPath.ToString(m_context.PathTable);
+            if (FileUtilities.IsDirectorySymlinkOrJunction(accessPathAsString))
+            {
+                AbsolutePath resolvedParentPath = ResolvePathWithCache(accessPath.GetParent(m_context.PathTable), accessPathAsString: null, out string resolvedParentPathAsString);
+                PathAtom name = accessPath.GetName(m_context.PathTable);
+                resolvedPathAsString = resolvedParentPathAsString != null ? Path.Combine(resolvedParentPathAsString, name.ToString(m_context.StringTable)) : null;
+                return resolvedParentPath.Combine(m_context.PathTable, name);
+            }
 
             var parentPath = accessPath.GetParent(m_context.PathTable);
             if (!parentPath.IsValid)
@@ -155,7 +167,6 @@ namespace BuildXL.Processes
             }
 
             // The cache didn't have it, so let's resolve it
-            accessPathAsString ??= accessPath.ToString(m_context.PathTable);
             if (!TryResolveSymlinkedPath(accessPathAsString, out ExpandedAbsolutePath resolvedExpandedPath))
             {
                 // If we cannot get the final path (e.g. file not found causes this), then we assume the path
@@ -186,6 +197,7 @@ namespace BuildXL.Processes
         }
 
         private bool ResolveAccess(
+            FileAccessManifest manifest,
             ReportedFileAccess access, 
             AbsolutePath accessPath, 
             AbsolutePath resolvedPath, 
@@ -205,10 +217,11 @@ namespace BuildXL.Processes
                     resolvedPathAsString ??= resolvedPath.ToString(m_context.PathTable);
 
                     // In this case we need to normalize the manifest path as well
-                    AbsolutePath resolvedManifestPath = access.ManifestPath.IsValid ? 
-                        ResolvePathWithCache(access.ManifestPath, accessPathAsString: null, out _) :
-                        AbsolutePath.Invalid;
-                    
+                    // Observe the resolved path is fully resolved, and therefore if a manifest path is found, it will
+                    // also be fully resolved
+                    // If no manifest is found for the resolved path, the result is invalid, which is precisely what we need in resolvedManifestPath
+                    manifest.TryFindManifestPathFor(resolvedPath, out AbsolutePath resolvedManifestPath, out _); 
+
                     resolvedAccess = access.CreateWithPath(
                         resolvedPath == resolvedManifestPath ? null : resolvedPathAsString,
                         resolvedManifestPath);

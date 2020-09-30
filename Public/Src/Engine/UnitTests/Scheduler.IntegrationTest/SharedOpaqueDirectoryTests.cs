@@ -2237,6 +2237,37 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
         }
 
+        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        public void DirectoryJunctionIsInterpretedAsIsWhenResolutionIsOn()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            string targetDirString = Path.Combine(ObjectRoot, "target");
+
+            Directory.CreateDirectory(targetDirString);
+
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact junctionDir = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath.Combine(Context.PathTable, "junction"));
+
+            AbsolutePath targetPath = AbsolutePath.Create(Context.PathTable, targetDirString);
+            DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(targetPath);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.CreateJunction(junctionDir, targetDir, doNotInfer: true)
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+            // TODO: Remove this when IgnoreFullReparsePointResolving becomes the default
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
+
+            SchedulePipBuilder(builderA);
+
+            // By asserting success we know the junction was not resolved, otherwise we would get a DFA because the target
+            // falls into a directory where writes are not allowed
+            RunScheduler().AssertSuccess();
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

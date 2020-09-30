@@ -3637,7 +3637,7 @@ namespace BuildXL.Processes
                     if (m_sandboxConfig.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses())
                     {
                         Contract.Assume(m_symlinkedAccessResolver != null);
-                        if (m_symlinkedAccessResolver.ResolveDirectorySymlinks(reported, parsedPath, out finalReported, out var finalPath))
+                        if (m_symlinkedAccessResolver.ResolveDirectorySymlinks(m_fileAccessManifest, reported, parsedPath, out finalReported, out var finalPath))
                         {
                             // If the final path falls under a configured policy that ignores accesses, then we also ignore it
                             var success = m_fileAccessManifest.TryFindManifestPathFor(finalPath, out _, out var nodePolicy);
@@ -3648,7 +3648,7 @@ namespace BuildXL.Processes
 
                             // Let's generate read accesses for the intermediate dir symlinks on the original path, so we avoid
                             // underbuilds if those change
-                            m_symlinkedAccessResolver.AddReadsForIntermediateSymlinks(m_fileAccessManifest, reported, parsedPath, accessesByPath);
+                            m_symlinkedAccessResolver.AddAccessesForIntermediateSymlinks(m_fileAccessManifest, reported, parsedPath, accessesByPath);
 
                             parsedPath = finalPath;
                         }

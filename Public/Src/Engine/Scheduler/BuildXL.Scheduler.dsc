@@ -14,6 +14,10 @@ namespace Scheduler {
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Text.Encoding.dll
             ),
+            ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [
+                importFrom("BuildXL.Utilities").PackedTable.dll,
+                importFrom("BuildXL.Utilities").PackedExecution.dll
+            ]),
             Cache.dll,
             Processes.dll,
             Distribution.Grpc.dll,

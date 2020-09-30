@@ -17,7 +17,12 @@ namespace BuildXL.Utilities
         // Magic numbers known to provide good hash distributions.
         // See here: http://www.isthe.com/chongo/tech/comp/fnv/
         private const int Fnv1Prime32 = 16777619;
-        private const int Fnv1Basis32 = unchecked((int)2166136261);
+
+        /// <summary>
+        /// Initial hash value when using Fold(int, int).
+        /// </summary>
+        public const int Fnv1Basis32 = unchecked((int)2166136261);
+
         private const long Fnv1Prime64 = 1099511628211;
         private const long Fnv1Basis64 = unchecked((long)14695981039346656037);
 #pragma warning restore SA1139 // Use literal suffix notation instead of casting
@@ -145,7 +150,18 @@ namespace BuildXL.Utilities
             }
         }
 
-        private static int Fold(int hash, int value)
+        /// <summary>
+        /// Fold this value into the given hash.
+        /// </summary>
+        /// <param name="hash">The hash code; initial value Fnv1Basis32 is best.</param>
+        /// <param name="value">The value to fold in.</param>
+        /// <returns>A new hash code which can be further folded.</returns>
+        /// <remarks>
+        /// If HashCodeHelper was a .NET Core (instead of .NET Standard) project, we could define Combine(ReadOnlySpan[int]),
+        /// which would make it unnecessary to make this method public. As it is, however, we need this public to implement
+        /// the equivalent method efficiently without duplicating code.
+        /// </remarks>
+        public static int Fold(int hash, int value)
         {
             unchecked
             {

@@ -77,6 +77,11 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         private StreamWriter m_writerPips;
 
+        /// <summary>
+        /// Write out all the details of exactly which files a pip consumes.
+        /// </summary>
+        private StreamWriter m_writerPipDetails;
+
         private long m_processedPips;
         private WorkerAnalyzer[] m_workers;
         private readonly Dictionary<DirectoryArtifact, List<AbsolutePath>> m_dynamicDirectoryContent;
@@ -103,6 +108,8 @@ namespace BuildXL.Execution.Analyzer
             m_fileSizes = new Dictionary<AbsolutePath, long>();
             m_parentOutputDirectory = new MultiValueDictionary<AbsolutePath, DirectoryArtifact>();
             m_producedFiles = new ConcurrentDictionary<AbsolutePath, OutputFile>();
+
+            Console.WriteLine($"FileConsumptionAnalyzer: Constructed at {DateTime.Now}.");
         }
 
         public override void Prepare()
@@ -113,6 +120,7 @@ namespace BuildXL.Execution.Analyzer
             m_writerSummary = new StreamWriter(Path.Combine(OutputDirectoryPath, "summary.txt"));
             m_writerFiles = new StreamWriter(Path.Combine(OutputDirectoryPath, "files.csv"));
             m_writerPips = new StreamWriter(Path.Combine(OutputDirectoryPath, "pips.csv"));
+            m_writerPipDetails = new StreamWriter(Path.Combine(OutputDirectoryPath, "pip_details.csv"));
         }
 
         public override void WorkerList(WorkerListEventData data)
@@ -175,11 +183,13 @@ namespace BuildXL.Execution.Analyzer
 
         public override int Analyze()
         {
-            Console.WriteLine($"Analyzing");
+            Console.WriteLine($"FileConsumptionAnalyzer: Starting analysis at {DateTime.Now}.");
+
+            int totalDeclaredInputFiles = 0, totalDeclaredInputDirectories = 0, totalConsumedFiles = 0, totalActualProcessPips = 0;
 
             Parallel.ForEach(
                 m_executedProcessPips.Keys,
-                new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                new ParallelOptions() { MaxDegreeOfParallelism = 1 },//Environment.ProcessorCount },
                 pipId =>
                 {
                     var pip = m_executedProcessPips[pipId];
@@ -193,6 +203,8 @@ namespace BuildXL.Execution.Analyzer
                         pip.DeclaredInputSize = -1;
                         return;
                     }
+
+                    totalActualProcessPips++;
 
                     using (var pooledSetInputFiles = Pools.GetAbsolutePathSet())
                     using (var pooledSetConsumedFiles = Pools.GetAbsolutePathSet())
@@ -210,6 +222,7 @@ namespace BuildXL.Execution.Analyzer
                                 pip.Worker.AddFlag(path, ContentFlag.Materialized);
                             }
                         }
+                        totalDeclaredInputFiles += pip.DeclaredInputFiles.Count;
 
                         foreach (var directoryArtifact in pip.DeclaredInputDirectories)
                         {
@@ -226,6 +239,7 @@ namespace BuildXL.Execution.Analyzer
                                 }
                             }
                         }
+                        totalDeclaredInputDirectories += pip.DeclaredInputDirectories.Count;
 
                         foreach (var path in pip.ConsumedFiles)
                         {
@@ -246,6 +260,7 @@ namespace BuildXL.Execution.Analyzer
                                 }
                             }
                         }
+                        totalConsumedFiles += pip.ConsumedFiles.Count;
 
                         pip.ConsumedInputSize = totalConsumedSize;
                         pip.DeclaredInputSize = totalInputSize;
@@ -259,6 +274,8 @@ namespace BuildXL.Execution.Analyzer
                         }
                     }
                 });
+
+            Console.WriteLine($"FileConsumptionAnalyzer: Analyzed {totalActualProcessPips} executed process pips ({totalDeclaredInputFiles} declared input files, {totalDeclaredInputDirectories} declared input directories, {totalConsumedFiles} consumed files) at {DateTime.Now}.");
 
             // set file producer
             Parallel.ForEach(
@@ -289,6 +306,8 @@ namespace BuildXL.Execution.Analyzer
                     outputFile.Producer = producer;
                 });
 
+            Console.WriteLine($"FileConsumptionAnalyzer: Analyzed {m_producedFiles.Count} produced files at {DateTime.Now}.");
+
             foreach (var worker in m_workers)
             {
                 Console.WriteLine($"Completing {worker.Name}");
@@ -296,7 +315,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             const int MaxConsumers = 10;
-            m_writerFiles.WriteLine($"Path,Size,Producer,Consumers");
+            m_writerFiles.WriteLine($"PathId,Path,Size,Producer,Consumers");
             foreach (var path in m_producedFiles.Keys.ToListSorted(PathTable.ExpandedPathComparer))
             {
                 if (!m_producedFiles[path].Producer.IsValid)
@@ -306,23 +325,36 @@ namespace BuildXL.Execution.Analyzer
 
                 m_fileSizes.TryGetValue(path, out var size);
 
-                m_writerFiles.WriteLine("\"{0}\",{1},{2},{3}",
+                m_writerFiles.WriteLine("{0},\"{1}\",{2},{3},{4}",
+                    path.Value,
                     path.ToString(PathTable).ToCanonicalizedPath(),
                     size,
                     PipTable.GetFormattedSemiStableHash(m_producedFiles[path].Producer),
                     string.Join(";", m_producedFiles[path].Consumers.Take(MaxConsumers).Select(pipId => PipTable.GetFormattedSemiStableHash(pipId))));
             }
 
-            m_writerPips.WriteLine($"Pip,Description,ConsumedBytes,TotalInputSize");
+            m_writerPips.WriteLine("Pip,Description,ConsumedFileCount,ConsumedBytes,TotalInputSize");
+            m_writerPipDetails.WriteLine("PipId,PipHash,ConsumedFile,ConsumedFileSize");
             foreach (var pipId in m_executedProcessPips.Keys)
             {
                 var pip = m_executedProcessPips[pipId];
-                m_writerPips.WriteLine("{0},\"{1}\",{2},{3}",
+                m_writerPips.WriteLine("{0},\"{1}\",{2},{3},{4}",
                     PipTable.GetFormattedSemiStableHash(pipId),
                     pip.Description.Replace("\"", "\"\""),
+                    pip.ConsumedFiles?.Count,
                     pip.ConsumedInputSize,
                     pip.DeclaredInputSize);
+
+                if (pip.ConsumedFiles != null)
+                {
+                    foreach (var consumedFile in pip.ConsumedFiles)
+                    {
+                        m_writerPipDetails.WriteLine($"{pip.PipId.Value},{pip.SemiStableHash:X},{consumedFile.ToString(PathTable).ToCanonicalizedPath()},{m_fileSizes[consumedFile]}");
+                    }
+                }
             }
+
+            Console.WriteLine($"FileConsumptionAnalyzer: Wrote out all CSV files at {DateTime.Now}.");
 
             return 0;
         }

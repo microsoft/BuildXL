@@ -115,10 +115,14 @@ namespace BuildXL.Execution.Analyzer
         {
             OutputFilePath = outputFilePath;
             Filters = filters;
+
+            Console.WriteLine($"CosineDumpPip: Constructed at {DateTime.Now}.");
         }
 
         public override int Analyze()
         {
+            Console.WriteLine($"CosineDumpPip: Starting export at {DateTime.Now}.");
+
             List<PipReference> pipList = GeneratePipList();
 
             PrintPipCountData(pipList);
@@ -135,6 +139,8 @@ namespace BuildXL.Execution.Analyzer
                     GenerateAndSerializePipInfo(reference, jsonWriter, serializer);
                 }
             }
+
+            Console.WriteLine($"CosineDumpPip: Dumped complete pip info for {pipList.Count} pips at {DateTime.Now}.");
 
             return 0;
         }

@@ -85,12 +85,17 @@ namespace BuildXL.Execution.Analyzer
         public ObservedAccessAnalyzer(AnalysisInput input)
             : base(input)
         {
+            Console.WriteLine($"ObservedAccessAnalyzer: Constructed at {DateTime.Now}.");
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
+            Console.WriteLine($"ObservedAccessAnalyzer: Starting analysis of {m_observedAccessMap.Count} observed access map entries at {DateTime.Now}.");
+
+            int totalAccesses = 0;
+
             using (var outputStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
             {
                 using (var writer = new StreamWriter(outputStream))
@@ -108,6 +113,7 @@ namespace BuildXL.Execution.Analyzer
                             {
                                 writer.WriteLine("    Path = {0}", (access.Path ?? access.ManifestPath.ToString(PathTable)).ToCanonicalizedPath());
                                 writer.WriteLine("    {0}", access.Describe());
+                                totalAccesses++;
                             }
 
                             writer.WriteLine();
@@ -115,6 +121,8 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
             }
+
+            Console.WriteLine($"ObservedAccessAnalyzer: Dumped information on {m_observedAccessMap.Count} observed access map entries and {totalAccesses} total accesses at {DateTime.Now}.");
 
             return 0;
         }

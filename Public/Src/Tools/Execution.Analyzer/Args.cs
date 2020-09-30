@@ -171,44 +171,43 @@ namespace BuildXL.Execution.Analyzer
 
             switch (m_mode.Value)
             {
-                case AnalysisMode.FingerprintText:
-                    m_analyzer = InitializeFingerprintTextAnalyzer();
+                case AnalysisMode.Allowlist:
+                case AnalysisMode.Whitelist:
+                    m_analyzer = InitializeAllowlistAnalyzer();
                     break;
-                case AnalysisMode.ExportGraph:
-                    m_analyzer = InitializePipGraphExporter();
+                case AnalysisMode.BuildStatus:
+                    m_analyzer = InitializeBuildStatus(m_analysisInput);
                     break;
-                case AnalysisMode.DirMembership:
-                    m_analyzer = InitializeDirMembershipAnalyzer();
+                case AnalysisMode.CacheDump:
+                    m_analyzer = InitializeCacheDumpAnalyzer(m_analysisInput);
                     break;
-                case AnalysisMode.Dev:
-                    m_analyzer = InitializeDevAnalyzer();
+#if FEATURE_VSTS_ARTIFACTSERVICES
+                case AnalysisMode.CacheHitPredictor:
+                    m_analyzer = InitializeCacheHitPredictor();
                     break;
-                case AnalysisMode.DumpProcess:
-                    m_analyzer = InitializeDumpProcessAnalyzer();
+#endif
+                case AnalysisMode.CacheMiss:
+                    // This analyzer does not rely on the execution log
+                    if (!m_analysisInputOther.LoadCacheGraph(null))
+                    {
+                        throw Error("Could not load second cached graph");
+                    }
+                    m_analyzer = InitializeFingerprintStoreAnalyzer(m_analysisInput, m_analysisInputOther);
                     break;
-                case AnalysisMode.EventStats:
-                    m_analyzer = InitializeEventStatsAnalyzer();
-                    break;
-                case AnalysisMode.Simulate:
-                    m_analyzer = InitializeBuildSimulatorAnalyzer(m_analysisInput);
-                    break;
-                case AnalysisMode.ExportDgml:
-                    m_analyzer = InitializeExportDgmlAnalyzer();
-                    break;
-                case AnalysisMode.CriticalPath:
-                    m_analyzer = InitializeCriticalPathAnalyzer();
-                    break;
-                case AnalysisMode.FileImpact:
-                    m_analyzer = InitializeFileImpactAnalyzer();
-                    break;
-                case AnalysisMode.FileConsumption:
-                    m_analyzer = InitializeFileConsumptionAnalyzer();
+                case AnalysisMode.CacheMissLegacy:
+                    m_analyzer = InitializeCacheMissAnalyzer(m_analysisInput);
+                    if (!m_analysisInputOther.LoadCacheGraph(null))
+                    {
+                        throw Error("Could not load second cached graph");
+                    }
+
+                    m_analyzerOther = ((CacheMissAnalyzer)m_analyzer).GetDiffAnalyzer(m_analysisInputOther);
                     break;
                 case AnalysisMode.Codex:
                     m_analyzer = InitializeCodexAnalyzer();
                     break;
-                case AnalysisMode.DumpPip:
-                    m_analyzer = InitializeDumpPipAnalyzer();
+                case AnalysisMode.CopyFile:
+                    m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
                 case AnalysisMode.CosineDumpPip:
                     m_analyzer = InitializeCosineDumpPip();
@@ -216,20 +215,40 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CosineJson:
                     m_analyzer = InitializeCosineJsonExport();
                     break;
-                case AnalysisMode.ProcessRunScript:
-                    m_analyzer = InitializeProcessRunScriptAnalyzer();
+                case AnalysisMode.CriticalPath:
+                    m_analyzer = InitializeCriticalPathAnalyzer();
                     break;
-                case AnalysisMode.ObservedInput:
-                    m_analyzer = InitializeObservedInputResult();
+                case AnalysisMode.DebugLogs:
+                    ConsoleListener.RegisterEventSource(ETWLogger.Log);
+                    ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
+                    m_analyzer = InitializeDebugLogsAnalyzer();
                     break;
-                case AnalysisMode.ObservedInputSummary:
-                    m_analyzer = InitializeObservedInputSummaryResult();
+                case AnalysisMode.DependencyAnalyzer:
+                    m_analyzer = InitializeDependencyAnalyzer();
                     break;
-                case AnalysisMode.ToolEnumeration:
-                    m_analyzer = InitializeToolEnumerationAnalyzer();
+                case AnalysisMode.Dev:
+                    m_analyzer = InitializeDevAnalyzer();
                     break;
-                case AnalysisMode.FailedPipInput:
-                    m_analyzer = InitializeFailedPipInputAnalyzer();
+                case AnalysisMode.DirMembership:
+                    m_analyzer = InitializeDirMembershipAnalyzer();
+                    break;
+                case AnalysisMode.DumpMounts:
+                    m_analyzer = InitializeDumpMountsAnalyzer();
+                    break;
+                case AnalysisMode.DumpPip:
+                    m_analyzer = InitializeDumpPipAnalyzer();
+                    break;
+                case AnalysisMode.DumpProcess:
+                    m_analyzer = InitializeDumpProcessAnalyzer();
+                    break;
+                case AnalysisMode.EventStats:
+                    m_analyzer = InitializeEventStatsAnalyzer();
+                    break;
+                case AnalysisMode.ExportDgml:
+                    m_analyzer = InitializeExportDgmlAnalyzer();
+                    break;
+                case AnalysisMode.ExportGraph:
+                    m_analyzer = InitializePipGraphExporter();
                     break;
                 case AnalysisMode.FailedPipsDump:
                     m_analyzer = InitializeFailedPipsDumpAnalyzer();
@@ -242,33 +261,42 @@ namespace BuildXL.Execution.Analyzer
                         m_analyzerOther = ((FailedPipsDumpAnalyzer)m_analyzer).GetDiffAnalyzer(m_analysisInputOther);
                     }
                     break;
-                case AnalysisMode.Whitelist:
-                case AnalysisMode.Allowlist:
-                    m_analyzer = InitializeAllowlistAnalyzer();
+                case AnalysisMode.FailedPipInput:
+                    m_analyzer = InitializeFailedPipInputAnalyzer();
+                    break;
+                case AnalysisMode.FileConsumption:
+                    m_analyzer = InitializeFileConsumptionAnalyzer();
+                    break;
+                case AnalysisMode.FileChangeTracker:
+                    m_analyzer = InitializeFileChangeTrackerAnalyzer();
+                    break;
+                case AnalysisMode.FileImpact:
+                    m_analyzer = InitializeFileImpactAnalyzer();
+                    break;
+                case AnalysisMode.FilterLog:
+                    m_analyzer = InitializeFilterLogAnalyzer();
+                    break;
+                case AnalysisMode.FingerprintText:
+                    m_analyzer = InitializeFingerprintTextAnalyzer();
+                    break;
+                case AnalysisMode.GraphDiffAnalyzer:
+                    if (!m_analysisInputOther.LoadCacheGraph(null))
+                    {
+                        throw Error("Could not load second cached graph");
+                    }
+                    m_analyzer = InitializeGraphDiffAnalyzer();
                     break;
                 case AnalysisMode.IdeGenerator:
                     m_analyzer = InitializeIdeGenerator();
                     break;
-                case AnalysisMode.PipExecutionPerformance:
-                    m_analyzer = InitializePipExecutionPerformanceAnalyzer();
+                case AnalysisMode.IncrementalSchedulingState:
+                    m_analyzer = InitializeIncrementalSchedulingStateAnalyzer();
                     break;
-                case AnalysisMode.ProcessDetouringStatus:
-                    m_analyzer = InitializeProcessDetouringStatusAnalyzer();
+                case AnalysisMode.InputTracker:
+                    m_analyzer = InitializeInputTrackerAnalyzer();
                     break;
-                case AnalysisMode.ObservedAccess:
-                    m_analyzer = InitializeObservedAccessAnalyzer();
-                    break;
-                case AnalysisMode.CacheDump:
-                    m_analyzer = InitializeCacheDumpAnalyzer(m_analysisInput);
-                    break;
-                case AnalysisMode.BuildStatus:
-                    m_analyzer = InitializeBuildStatus(m_analysisInput);
-                    break;
-                case AnalysisMode.WinIdeDependency:
-                    m_analyzer = InitializeWinIdeDependencyAnalyzer();
-                    break;
-                case AnalysisMode.PerfSummary:
-                    m_analyzer = InitializePerfSummaryAnalyzer();
+                case AnalysisMode.JavaScriptDependencyFixer:
+                    m_analyzer = JavaScriptDependencyFixerAnalyzer();
                     break;
                 case AnalysisMode.LogCompare:
                     m_analyzer = InitializeSummaryAnalyzer(m_analysisInput);
@@ -279,40 +307,35 @@ namespace BuildXL.Execution.Analyzer
 
                     m_analyzerOther = InitializeSummaryAnalyzer(m_analysisInputOther, true);
                     break;
-                case AnalysisMode.CacheMissLegacy:
-                    m_analyzer = InitializeCacheMissAnalyzer(m_analysisInput);
-                    if (!m_analysisInputOther.LoadCacheGraph(null))
-                    {
-                        throw Error("Could not load second cached graph");
-                    }
-
-                    m_analyzerOther = ((CacheMissAnalyzer)m_analyzer).GetDiffAnalyzer(m_analysisInputOther);
+                case AnalysisMode.ObservedAccess:
+                    m_analyzer = InitializeObservedAccessAnalyzer();
                     break;
-                case AnalysisMode.IncrementalSchedulingState:
-                    m_analyzer = InitializeIncrementalSchedulingStateAnalyzer();
+                case AnalysisMode.ObservedInput:
+                    m_analyzer = InitializeObservedInputResult();
                     break;
-                case AnalysisMode.FileChangeTracker:
-                    m_analyzer = InitializeFileChangeTrackerAnalyzer();
+                case AnalysisMode.ObservedInputSummary:
+                    m_analyzer = InitializeObservedInputSummaryResult();
                     break;
-                case AnalysisMode.InputTracker:
-                    m_analyzer = InitializeInputTrackerAnalyzer();
+                case AnalysisMode.PackedExecutionExporter:
+                    m_analyzer = InitializePackedExecutionExporter();
                     break;
-                case AnalysisMode.FilterLog:
-                    m_analyzer = InitializeFilterLogAnalyzer();
+                case AnalysisMode.PerfSummary:
+                    m_analyzer = InitializePerfSummaryAnalyzer();
+                    break;
+                case AnalysisMode.PipExecutionPerformance:
+                    m_analyzer = InitializePipExecutionPerformanceAnalyzer();
                     break;
                 case AnalysisMode.PipFilter:
                     m_analyzer = InitializePipFilterAnalyzer();
                     break;
-                case AnalysisMode.CacheMiss:
-                    // This analyzer does not rely on the execution log
-                    if (!m_analysisInputOther.LoadCacheGraph(null))
-                    {
-                        throw Error("Could not load second cached graph");
-                    }
-                    m_analyzer = InitializeFingerprintStoreAnalyzer(m_analysisInput, m_analysisInputOther);
-                    break;
                 case AnalysisMode.PipFingerprint:
                     m_analyzer = InitializePipFingerprintAnalyzer(m_analysisInput);
+                    break;
+                case AnalysisMode.ProcessDetouringStatus:
+                    m_analyzer = InitializeProcessDetouringStatusAnalyzer();
+                    break;
+                case AnalysisMode.ProcessRunScript:
+                    m_analyzer = InitializeProcessRunScriptAnalyzer();
                     break;
                 case AnalysisMode.RequiredDependencies:
                     m_analyzer = InitializeRequiredDependencyAnalyzer();
@@ -320,37 +343,17 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.ScheduledInputsOutputs:
                     m_analyzer = InitializeScheduledInputsOutputsAnalyzer();
                     break;
-#if FEATURE_VSTS_ARTIFACTSERVICES
-                case AnalysisMode.CacheHitPredictor:
-                    m_analyzer = InitializeCacheHitPredictor();
+                case AnalysisMode.Simulate:
+                    m_analyzer = InitializeBuildSimulatorAnalyzer(m_analysisInput);
                     break;
-#endif
-                case AnalysisMode.DependencyAnalyzer:
-                    m_analyzer = InitializeDependencyAnalyzer();
+                case AnalysisMode.ToolEnumeration:
+                    m_analyzer = InitializeToolEnumerationAnalyzer();
                     break;
-                case AnalysisMode.GraphDiffAnalyzer:
-                    if (!m_analysisInputOther.LoadCacheGraph(null))
-                    {
-                        throw Error("Could not load second cached graph");
-                    }
-                    m_analyzer = InitializeGraphDiffAnalyzer();
-                    break;
-                case AnalysisMode.DumpMounts:
-                    m_analyzer = InitializeDumpMountsAnalyzer();
-                    break;
-                case AnalysisMode.CopyFile:
-                    m_analyzer = InitializeCopyFilesAnalyzer();
+                case AnalysisMode.WinIdeDependency:
+                    m_analyzer = InitializeWinIdeDependencyAnalyzer();
                     break;
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
-                    break;
-                case AnalysisMode.DebugLogs:
-                    ConsoleListener.RegisterEventSource(ETWLogger.Log);
-                    ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
-                    m_analyzer = InitializeDebugLogsAnalyzer();
-                    break;
-                case AnalysisMode.JavaScriptDependencyFixer:
-                    m_analyzer = JavaScriptDependencyFixerAnalyzer();
                     break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");

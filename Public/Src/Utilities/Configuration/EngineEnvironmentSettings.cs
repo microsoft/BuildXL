@@ -145,9 +145,9 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DoNotInlineWhenNewPipRunInSameQueue = CreateSetting("BuildXLDoNotInlineWhenNewPipRunInSameQueue", value => value == "1");
 
         /// <summary>
-        /// Specifies to disable load balance among workers.
+        /// Specifies the maximum load that the worker can acquire before BuildXL visits the next preferred work when <see cref="ScheduleConfigurationExtensions.ModuleAffinityEnabled"/> returns true.
         /// </summary>
-        public static readonly Setting<double?> DisableLoadBalanceMultiplier = CreateSetting("BuildXLDisableLoadBalanceMultiplier", value => ParseDouble(value));
+        public static readonly Setting<double?> BuildXLModuleAffinityMultiplier = CreateSetting("BuildXLModuleAffinityMultiplier", value => ParseDouble(value));
 
         /// <summary>
         /// Disable pausing chooseworkerthreads

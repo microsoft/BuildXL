@@ -33,12 +33,12 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Number of tasks running now
         /// </summary>
-        public int NumRunning => Volatile.Read(ref m_numRunning);
+        public virtual int NumRunning => Volatile.Read(ref m_numRunning);
 
         /// <summary>
         /// Number of items waiting in the queue
         /// </summary>
-        public int NumQueued => m_queue.Count;
+        public virtual int NumQueued => m_queue.Count;
 
         /// <summary>
         /// Number of process pips queued
@@ -76,7 +76,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Enqueues the given runnable pip
         /// </summary>
-        public void Enqueue(RunnablePip runnablePip)
+        public virtual void Enqueue(RunnablePip runnablePip)
         {
             Contract.Requires(!IsDisposed);
 
@@ -90,7 +90,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Starts all tasks until the queue becomes empty or concurrency limit is satisfied
         /// </summary>
-        public void StartTasks()
+        public virtual void StartTasks()
         {
             Contract.Requires(!IsDisposed);
 
@@ -99,7 +99,8 @@ namespace BuildXL.Scheduler.WorkDispatcher
             lock (m_startTasksLock)
             {
                 RunnablePip runnablePip;
-                while (MaxParallelDegree > NumRunning && Dequeue(out runnablePip))
+                int maxParallelDegree = MaxParallelDegree;
+                while (maxParallelDegree > NumRunning && Dequeue(out runnablePip))
                 {
                     StartTask(runnablePip);
                 }
@@ -203,7 +204,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Adjust the max parallel degree to decrease or increase concurrency
         /// </summary>
-        internal bool AdjustParallelDegree(int newParallelDegree)
+        internal virtual bool AdjustParallelDegree(int newParallelDegree)
         {
             if (MaxParallelDegree != newParallelDegree)
             {

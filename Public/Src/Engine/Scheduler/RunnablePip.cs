@@ -170,6 +170,11 @@ namespace BuildXL.Scheduler
 
         private DispatcherReleaser m_dispatcherReleaser;
 
+        /// <summary>
+        /// Worker id for the preferred worker when module affinity is enabled
+        /// </summary>
+        public int PreferredWorkerId { get; internal set; }
+
         internal RunnablePipPerformanceInfo Performance { get; }
 
         /// <summary>

@@ -163,6 +163,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnablePlugin = template.EnablePlugin;
             PluginLocations = pathRemapper.Remap(template.PluginLocations);
             TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
+            MaxWorkersPerModule = template.MaxWorkersPerModule;
         }
 
         /// <inheritdoc />
@@ -401,5 +402,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool TreatAbsentDirectoryAsExistentUnderOpaque { get; set; }
+
+        /// <inheritdoc />
+        public int MaxWorkersPerModule { get; set; }
     }
 }

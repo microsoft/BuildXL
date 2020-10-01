@@ -52,7 +52,7 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource MemoryResourceAvailable = new WorkerResource(nameof(MemoryResourceAvailable), Precedence.MemoryResourceAvailable);
 
         /// <nodoc/>
-        public static readonly WorkerResource DisableLoadBalance = new WorkerResource(nameof(DisableLoadBalance), Precedence.DisableLoadBalance);
+        public static readonly WorkerResource ModuleAffinity = new WorkerResource(nameof(ModuleAffinity), Precedence.ModuleAffinity);
 
         /// <summary>
         /// See <see cref="Worker.Status"/>
@@ -129,7 +129,7 @@ namespace BuildXL.Scheduler.Distribution
             AvailableCommitMb,
             MemoryResourceAvailable,
             AvailableMaterializeInputSlots,
-            DisableLoadBalance,
+            ModuleAffinity,
             SemaphorePrecedence,
         }
     }

@@ -36,5 +36,10 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to <see cref="ManageMemoryMode.CancellationRam"/>
         /// </remarks>
         public static ManageMemoryMode GetManageMemoryMode(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.ManageMemoryMode ?? ManageMemoryMode.CancellationRam;
+
+        /// <summary>
+        /// <see cref="IScheduleConfiguration.MaxWorkersPerModule"/>
+        /// </summary>
+        public static bool ModuleAffinityEnabled(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.MaxWorkersPerModule > 0;
     }
 }

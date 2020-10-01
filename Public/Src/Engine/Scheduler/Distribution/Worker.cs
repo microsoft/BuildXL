@@ -439,6 +439,11 @@ namespace BuildXL.Scheduler.Distribution
         public int AcquiredProcessSlots => Volatile.Read(ref m_acquiredProcessSlots);
 
         /// <summary>
+        /// Gets the currently acquired postprocess slots
+        /// </summary>
+        public int AcquiredPostProcessSlots => Volatile.Read(ref m_acquiredPostProcessSlots);
+
+        /// <summary>
         /// Gets the currently acquired process slots
         /// </summary>
         public int AcquiredMaterializeInputSlots => Volatile.Read(ref m_acquiredMaterializeInputSlots);
@@ -555,7 +560,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Try acquire given resources on the worker. This must be called from a thread-safe context to prevent race conditions.
         /// </summary>
-        internal bool TryAcquire(RunnablePip runnablePip, out WorkerResource? limitingResource, double loadFactor = 1)
+        internal bool TryAcquire(RunnablePip runnablePip, out WorkerResource? limitingResource, double loadFactor = 1, bool moduleAffinityEnabled = false)
         {
             Contract.Requires(runnablePip.PipType == PipType.Ipc || runnablePip.PipType == PipType.Process);
             Contract.Ensures(Contract.Result<bool>() == (limitingResource == null), "Must set a limiting resource when resources cannot be acquired");
@@ -575,10 +580,12 @@ namespace BuildXL.Scheduler.Distribution
                     return true;
                 }
 
-                if (IsLocal)
+                if (IsLocal && !moduleAffinityEnabled)
                 {
                     // Local worker does not use load factor as it may be down throttle by the
                     // scheduler in order to handle remote requests.
+                    // When ModuleAffinity is enabled, we want to oversubscribe the local worker as well
+                    // to prevent a new worker from adding to the list.
                     loadFactor = 1;
                 }
 

@@ -69,7 +69,7 @@ namespace Test.BuildXL.Scheduler
                 maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                 debug: false))
             {
-                using (var pipQueue = new PipQueue(LoggingContext, new ScheduleConfiguration()))
+                using (var pipQueue = new PipQueue(LoggingContext, new ConfigurationImpl()))
                 {
                     pipQueue.SetAsFinalized();
                     pipQueue.DrainQueues();
@@ -126,7 +126,7 @@ namespace Test.BuildXL.Scheduler
                     // This is the only file artifact we reference without a producer. Rather than scheduling a hashing pip, let's just invent one (so fingerprinting can succeed).
                     executionEnvironment.AddWellKnownFile(executableArtifact, WellKnownContentHashes.UntrackedFile);
 
-                    using (var phase1PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration.Schedule))
+                    using (var phase1PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration))
                     {
                         // phase 1: create some files
                         var baseFileArtifacts = new List<FileArtifact>();
@@ -161,7 +161,7 @@ namespace Test.BuildXL.Scheduler
                             Enumerable.Range(0, 2).Select(
                                 async range =>
                                 {
-                                    using (var phase2PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration.Schedule))
+                                    using (var phase2PipQueue = new PipQueue(LoggingContext, executionEnvironment.Configuration))
                                     {
                                         // phase 2: do some more with those files
                                         var pips = new ConcurrentDictionary<PipId, Tuple<string, int>>();

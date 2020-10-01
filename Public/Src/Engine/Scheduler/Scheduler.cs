@@ -1048,6 +1048,14 @@ namespace BuildXL.Scheduler
         private int m_historicPerfDataZeroMemoryHits;
         private int m_historicPerfDataNonZeroMemoryHits;
 
+        /// <summary>
+        /// Maps modules to the number of process pips and the list of workers assigned.
+        /// </summary>
+        /// <remarks>
+        /// This is populated only with /maxWorkersPerModule is passed with a value greater than 0.
+        /// </remarks>
+        private readonly Dictionary<ModuleId, (int NumPips, List<Worker> Workers)> m_moduleWorkerMapping = new Dictionary<ModuleId, (int, List<Worker>)>();
+
         #endregion Statistics
 
         /// <summary>
@@ -1431,16 +1439,17 @@ namespace BuildXL.Scheduler
 
             m_chooseWorkerCpu = new ChooseWorkerCpu(
                 loggingContext,
-                m_configuration.Schedule.MaxChooseWorkerCpu,
-                m_configuration.Schedule.EnableSetupCostWhenChoosingWorker,
+                m_configuration.Schedule,
                 m_workers,
                 m_pipQueue,
                 PipGraph,
-                m_fileContentManager);
+                m_fileContentManager,
+                Context.PathTable,
+                m_moduleWorkerMapping);
 
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
                 loggingContext,
-                m_configuration.Schedule.MaxChooseWorkerCacheLookup,
+                m_configuration.Schedule,
                 m_configuration.Distribution.DistributeCacheLookups,
                 m_workers,
                 m_pipQueue);
@@ -1557,6 +1566,19 @@ namespace BuildXL.Scheduler
                         m_testHooks.FingerprintStoreTestHooks.Counters = m_fingerprintStoreCounters;
                     }
                 }
+
+                if (m_configuration.Schedule.ModuleAffinityEnabled())
+                {
+                    StringBuilder strBuilder = new StringBuilder();
+                    foreach (var kvp in m_moduleWorkerMapping.OrderByDescending(a => a.Value.NumPips))
+                    {
+                        string workerList = string.Join(",", kvp.Value.Workers.Select(a => a.WorkerId.ToString()));
+                        strBuilder.AppendLine($"{kvp.Key.Value.ToString(Context.StringTable)}: {kvp.Value.NumPips} pips executed on [{workerList}]");
+                    }
+
+                    Logger.Log.ModuleWorkerMapping(m_loggingContext, strBuilder.ToString());
+                }
+
 
                 return !HasFailed && shutdownServicesSucceeded;
             }
@@ -2106,6 +2128,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Effective Process Slots"), _ => worker.EffectiveTotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
@@ -3408,7 +3431,7 @@ namespace BuildXL.Scheduler
                 m_executePipFunc,
                 cpuUsageInPercent,
                 maxRetryLimit: m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0);
-
+            
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
             {
@@ -3834,51 +3857,59 @@ namespace BuildXL.Scheduler
                         return PipExecutionStep.Skip;
                     }
 
-                    if (state == PipState.Running)
+                    Contract.Assert(state == PipState.Running, I($"Cannot start pip in state: {state}"));
+
+                    if (pipType.IsMetaPip())
                     {
-                        if (pipType.IsMetaPip())
-                        {
-                            return PipExecutionStep.ExecuteNonProcessPip;
-                        }
-
-                        using (operationContext.StartOperation(PipExecutorCounter.HashSourceFileDependenciesDuration))
-                        {
-                            // Hash source file dependencies
-                            var maybeHashed = await fileContentManager.TryHashSourceDependenciesAsync(runnablePip.Pip, operationContext);
-                            if (!maybeHashed.Succeeded)
-                            {
-                                Logger.Log.PipFailedDueToSourceDependenciesCannotBeHashed(
-                                    loggingContext,
-                                    runnablePip.Description);
-                                return runnablePip.SetPipResult(PipResultStatus.Failed);
-                            }
-                        }
-
-                        switch (pipType)
-                        {
-                            case PipType.Process:
-                                if (processRunnable.Process.IsStartOrShutdownKind)
-                                {
-                                    // Service start and shutdown pips are noop in the scheduler.
-                                    // They will be run on demand by the service manager which is not tracked directly by the scheduler.
-                                    return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Succeeded));
-                                }
-
-                                break;
-                            case PipType.Ipc:
-                                // Ensure IPC pips take priority over process pips when choosing worker
-                                // NOTE: Since they don't require slots they would not be able to block
-                                // processes from acquiring a worker
-                                runnablePip.ChangePriority(IpcPipChooseWorkerPriority);
-
-                                // IPC pips go to ChooseWorker before checking the incremental state
-                                return PipExecutionStep.ChooseWorkerCpu;
-                        }
-
-                        return PipExecutionStep.CheckIncrementalSkip; // CopyFile, WriteFile, Process, SealDirectory pips
+                        return PipExecutionStep.ExecuteNonProcessPip;
                     }
 
-                    throw Contract.AssertFailure(I($"Cannot start pip in state: {state}"));
+                    using (operationContext.StartOperation(PipExecutorCounter.HashSourceFileDependenciesDuration))
+                    {
+                        // Hash source file dependencies
+                        var maybeHashed = await fileContentManager.TryHashSourceDependenciesAsync(runnablePip.Pip, operationContext);
+                        if (!maybeHashed.Succeeded)
+                        {
+                            Logger.Log.PipFailedDueToSourceDependenciesCannotBeHashed(
+                                loggingContext,
+                                runnablePip.Description);
+                            return runnablePip.SetPipResult(PipResultStatus.Failed);
+                        }
+                    }
+
+                    // For module affinity, we need to set the preferred worker id. 
+                    // This is intentionally put here after we hydrate the pip for the first time when accessing 
+                    // runnablePip.Pip above for hashing dependencies. 
+                    if (runnablePip.Pip.Provenance.ModuleId.IsValid && 
+                        m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple) &&
+                        tuple.Workers.Any())
+                    {
+                        runnablePip.PreferredWorkerId = (int)tuple.Workers.First().WorkerId;
+                    }
+
+                    switch (pipType)
+                    {
+                        case PipType.Process:
+                            if (processRunnable.Process.IsStartOrShutdownKind)
+                            {
+                                // Service start and shutdown pips are noop in the scheduler.
+                                // They will be run on demand by the service manager which is not tracked directly by the scheduler.
+                                return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Succeeded));
+                            }
+
+                            break;
+                        case PipType.Ipc:
+                            // Ensure IPC pips take priority over process pips when choosing worker
+                            // NOTE: Since they don't require slots they would not be able to block
+                            // processes from acquiring a worker
+                            runnablePip.ChangePriority(IpcPipChooseWorkerPriority);
+
+                            // IPC pips go to ChooseWorker before checking the incremental state
+                            return PipExecutionStep.ChooseWorkerCpu;
+                    }
+
+                    return PipExecutionStep.CheckIncrementalSkip; // CopyFile, WriteFile, Process, SealDirectory pips
+
                 }
 
                 case PipExecutionStep.Cancel:
@@ -5688,8 +5719,41 @@ namespace BuildXL.Scheduler
 
                 PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
 
+                if (m_configuration.Schedule.ModuleAffinityEnabled())
+                {
+                    PopulateModuleWorkerMapping(nodesToSchedule);
+                }
+
                 Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
                 return !HasFailed;
+            }
+        }
+
+        private void PopulateModuleWorkerMapping(IEnumerable<NodeId> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                var pipId = node.ToPipId();
+                // TODO(seokur): include it for ipc pips
+                if (m_pipTable.GetPipType(pipId) == PipType.Process)
+                {
+                    var pipState = (ProcessMutablePipState)m_pipTable.GetMutable(pipId);
+                    (int NumPips, List<Worker> Workers) tuple;
+                    if (!m_moduleWorkerMapping.TryGetValue(pipState.ModuleId, out tuple))
+                    {
+                        tuple = (0, new List<Worker>());
+                    }
+
+                    m_moduleWorkerMapping[pipState.ModuleId] = (tuple.NumPips + 1, tuple.Workers);
+                }
+            }
+
+            int i = 0;
+            foreach (var kvp in m_moduleWorkerMapping.OrderByDescending(a => a.Value.NumPips))
+            {
+                var worker = m_workers[(i % m_workers.Count)];
+                kvp.Value.Workers.Add(worker);
+                i++;
             }
         }
 

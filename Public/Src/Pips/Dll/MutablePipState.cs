@@ -66,7 +66,7 @@ namespace BuildXL.Pips
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
                     var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies);
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, default(RewritePolicy), AbsolutePath.Invalid, Process.MinPriority);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, default(RewritePolicy), AbsolutePath.Invalid, Process.MinPriority, pip.Provenance.ModuleId);
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
@@ -78,7 +78,8 @@ namespace BuildXL.Pips
                         pipAsProcess.ProcessOptions, 
                         pipAsProcess.RewritePolicy, 
                         pipAsProcess.Executable.Path, 
-                        pipAsProcess.Priority, 
+                        pipAsProcess.Priority,
+                        pipAsProcess.Provenance.ModuleId,
                         pipAsProcess.PreserveOutputsTrustLevel);
                     break;
                 case PipType.CopyFile:
@@ -228,16 +229,18 @@ namespace BuildXL.Pips
         internal readonly int PreserveOutputTrustLevel;
         internal readonly RewritePolicy RewritePolicy;
         internal readonly AbsolutePath ExecutablePath;
+        internal readonly ModuleId ModuleId;
 
         internal ProcessMutablePipState(
-            PipType pipType, 
-            long semiStableHash, 
-            PageableStoreId storeId, 
-            ServiceInfo serviceInfo, 
+            PipType pipType,
+            long semiStableHash,
+            PageableStoreId storeId,
+            ServiceInfo serviceInfo,
             Process.Options processOptions,
             RewritePolicy rewritePolicy,
             AbsolutePath executablePath,
             int priority,
+            ModuleId moduleId,
             int? preserveOutputsTrustLevel = null)
             : base(pipType, semiStableHash, storeId)
         {
@@ -247,6 +250,7 @@ namespace BuildXL.Pips
             ExecutablePath = executablePath;
             Priority = priority;
             PreserveOutputTrustLevel = preserveOutputsTrustLevel ?? 0;
+            ModuleId = moduleId;
         }
 
         /// <summary>
@@ -268,6 +272,7 @@ namespace BuildXL.Pips
             writer.Write(ExecutablePath);
             writer.Write(Priority);
             writer.Write(PreserveOutputTrustLevel);
+            writer.Write(ModuleId);
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
@@ -278,8 +283,8 @@ namespace BuildXL.Pips
             AbsolutePath executablePath = reader.ReadAbsolutePath();
             int priority = reader.ReadInt32();
             int preserveOutputTrustLevel = reader.ReadInt32();
-
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, rewritePolicy, executablePath, priority, preserveOutputTrustLevel);
+            ModuleId moduleId = reader.ReadModuleId();
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, rewritePolicy, executablePath, priority, moduleId, preserveOutputTrustLevel);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;

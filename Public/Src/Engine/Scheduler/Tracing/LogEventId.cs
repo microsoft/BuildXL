@@ -478,8 +478,9 @@ namespace BuildXL.Scheduler.Tracing
         PipRetryDueToRetryableFailures = 14515,
         PipProcessRetriedOnSameWorker = 14516,
         PipProcessRetriedOnDifferentWorker = 14517,
-
         FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater = 14518,
+        ModuleWorkerMapping = 14519,
+        AddedNewWorkerToModuleAffinity = 14520,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Distribution
@@ -22,10 +23,10 @@ namespace BuildXL.Scheduler.Distribution
 
         public ChooseWorkerCacheLookup(
             LoggingContext loggingContext,
-            int maxParallelDegree,
+            IScheduleConfiguration scheduleConfig,
             bool distributeCacheLookups,
             IReadOnlyList<Worker> workers,
-            IPipQueue pipQueue) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, maxParallelDegree)
+            IPipQueue pipQueue) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, scheduleConfig.MaxChooseWorkerCacheLookup, scheduleConfig.ModuleAffinityEnabled())
         {
             m_distributeCacheLookups = distributeCacheLookups;
 

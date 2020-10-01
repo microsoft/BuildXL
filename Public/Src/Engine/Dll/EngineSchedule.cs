@@ -199,7 +199,7 @@ namespace BuildXL.Engine
             Contract.Requires(cacheInitializer != null);
             Contract.Requires(pipGraph != null);
 
-            var pipQueue = new PipQueue(loggingContext, configuration.Schedule);
+            var pipQueue = new PipQueue(loggingContext, configuration);
 
             if (configuration.Schedule.IncrementalScheduling &&
                 (configuration.Distribution.BuildRole != DistributedBuildRoles.None ||
@@ -1649,7 +1649,7 @@ namespace BuildXL.Engine
                 await pipExecutionContextTask != null &&
                 await pipGraphTask != null)
             {
-                var pipQueue = new PipQueue(loggingContext, newConfiguration.Schedule);
+                var pipQueue = new PipQueue(loggingContext, newConfiguration);
 
                 var pathTable = await pathTableTask;
 

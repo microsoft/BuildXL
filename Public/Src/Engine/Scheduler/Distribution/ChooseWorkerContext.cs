@@ -54,12 +54,15 @@ namespace BuildXL.Scheduler.Distribution
 
         private readonly ReadWriteLock m_chooseWorkerTogglePauseLock = ReadWriteLock.Create();
 
+        private readonly bool m_moduleAffinityEnabled;
+
         protected ChooseWorkerContext(
             LoggingContext loggingContext,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             DispatcherKind kind,
-            int maxParallelDegree)
+            int maxParallelDegree,
+            bool moduleAffinityEnabled)
         {
             Workers = workers;
             PipQueue = pipQueue;
@@ -67,6 +70,7 @@ namespace BuildXL.Scheduler.Distribution
             LoggingContext = loggingContext;
             Kind = kind;
             MaxParallelDegree = maxParallelDegree;
+            m_moduleAffinityEnabled = moduleAffinityEnabled;
 
             foreach (var worker in Workers)
             {
@@ -84,7 +88,8 @@ namespace BuildXL.Scheduler.Distribution
                 Interlocked.Increment(ref ChooseBlockedCount);
 
                 // Attempt to pause the choose worker queue since resources are not available
-                if (!EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads)
+                // Do not pause choose worker queue when module affinity is enabled.
+                if (!EngineEnvironmentSettings.DoNotPauseChooseWorkerThreads && !m_moduleAffinityEnabled)
                 {
                     TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
                 }

@@ -487,7 +487,7 @@ namespace Test.BuildXL.Scheduler
             testHooks.FingerprintStoreTestHooks ??= new FingerprintStoreTestHooks();
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
-            using (var queue = new PipQueue(LoggingContext, config.Schedule))
+            using (var queue = new PipQueue(LoggingContext, config))
             using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,

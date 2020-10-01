@@ -123,7 +123,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             BaseSetup(m_configuration, disablePipSerialization: disablePipSerialization);
-            m_pipQueue = new PipQueue(LoggingContext, m_configuration.Schedule);
+            m_pipQueue = new PipQueue(LoggingContext, m_configuration);
             m_testQueue = new TestPipQueue(m_pipQueue, LoggingContext, initiallyPaused: pauseQueue);
 
             if (enableJournal)
@@ -361,7 +361,7 @@ namespace Test.BuildXL.Scheduler
 
             try
             {
-                pipQueue = new PipQueue(LoggingContext, env.Configuration.Schedule);
+                pipQueue = new PipQueue(LoggingContext, env.Configuration);
 
                 var schedulerAndContentCache = TestSchedulerFactory.CreateWithCaching(
                     env.Context,
@@ -2755,7 +2755,7 @@ namespace Test.BuildXL.Scheduler
             configuration.Schedule.StopOnFirstError = false;
             configuration.Schedule.EnableLazyOutputMaterialization = !disableLazyOutputMaterialization;
 
-            PipQueue queue = new PipQueue(LoggingContext, configuration.Schedule);
+            PipQueue queue = new PipQueue(LoggingContext, configuration);
             var testQueue = new TestPipQueue(queue, LoggingContext, true);
             var context = Task.FromResult<PipExecutionContext>(new SchedulerContext(Context));
             DeserializedDirectedGraph directedGraph = await DeserializedDirectedGraph.DeserializeAsync(reader);

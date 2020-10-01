@@ -734,6 +734,9 @@ namespace BuildXL
                             "maxTypeCheckingConcurrency",
                             opt => frontEndConfiguration.MaxTypeCheckingConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "maxWorkersPerModule",
+                            opt => schedulingConfiguration.MaxWorkersPerModule = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "minAvailableRamMb",
                             opt => schedulingConfiguration.MinimumTotalAvailableRamMb = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(

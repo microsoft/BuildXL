@@ -6,14 +6,19 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler.WorkDispatcher
 {
     /// <summary>
-    /// Dispatcher queue which fires tasks and is managed by <see cref="PipQueue"/>.
+    /// Dispatcher queue running on a dedicated thread
     /// </summary>
+    /// <remarks>
+    /// This dispatcher queue is used to choose workers for pips. As it is on the hot path, 
+    /// it runs on a dedicated task scheduler.
+    /// </remarks>
     [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class ChooseWorkerQueue : DispatcherQueue
     {
@@ -24,14 +29,14 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// The number of times choose worker queue could immediately start next task without blocking
         /// </summary>
-        internal int FastChooseNextCount => m_fastChooseNextCount;
+        internal virtual int FastChooseNextCount => m_fastChooseNextCount;
 
         private long m_runTimeTicks;
 
         /// <summary>
         /// Time spent running work on the queue
         /// </summary>
-        public TimeSpan RunTime
+        public virtual TimeSpan RunTime
         {
             get
             {
@@ -78,7 +83,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
                 }).Unwrap();
             }
             catch (InvalidOperationException)
-            { 
+            {
                 // If the scheduler is terminating due to ctrl-c, the pip queue might be still draining in very rare cases. 
                 // In those rare cases, m_taskFactory will be disposed before we start new items above. That's why, 
                 // we ignore InvalidOperationException instances here. It is safe to do because the scheduler is already being

@@ -404,5 +404,10 @@ namespace BuildXL.Utilities.Configuration
         /// Treats absent directory as existent when it is probed and the path is under an opaque directory
         /// </summary>
         bool TreatAbsentDirectoryAsExistentUnderOpaque { get; }
+
+        /// <summary>
+        /// Maximum allowed workers per module
+        /// </summary>
+        int MaxWorkersPerModule { get; }
     }
 }

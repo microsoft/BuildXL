@@ -1917,6 +1917,15 @@ namespace BuildXL.Scheduler.Tracing
             string path);
 
         [GeneratedEvent(
+             (int)LogEventId.AddedNewWorkerToModuleAffinity,
+             EventGenerators = EventGenerators.LocalOnly,
+             EventLevel = Level.Verbose,
+             Keywords = (int)Keywords.UserMessage,
+             EventTask = (int)Tasks.Scheduler,
+             Message = "{message}")]
+        public abstract void AddedNewWorkerToModuleAffinity(LoggingContext context, string message);
+
+        [GeneratedEvent(
              (int)LogEventId.DisallowedRewriteOnUndeclaredFile,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
@@ -3611,6 +3620,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "{perPipPerformanceInfo}")]
         public abstract void TopPipsPerformanceInfo(LoggingContext loggingContext, string perPipPerformanceInfo);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ModuleWorkerMapping,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "ModuleWorkerMapping\r\n{message}")]
+        public abstract void ModuleWorkerMapping(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipRetryDueToLowMemory,

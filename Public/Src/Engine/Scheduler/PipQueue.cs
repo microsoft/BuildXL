@@ -154,34 +154,36 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private readonly IScheduleConfiguration m_config;
+        private readonly IScheduleConfiguration m_scheduleConfig;
 
         /// <summary>
         /// Creates instance
         /// </summary>
-        public PipQueue(LoggingContext loggingContext, IScheduleConfiguration config)
+        public PipQueue(LoggingContext loggingContext, IConfiguration config)
         {
             Contract.Requires(config != null);
 
-            m_config = config;
+            m_scheduleConfig = config.Schedule;
 
             // If adaptive IO is enabled, then start with the half of the maxIO.
-            var ioLimit = config.AdaptiveIO ? (config.MaxIO + 1) / 2 : config.MaxIO;
+            var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
-            m_chooseWorkerCacheLookupQueue = new ChooseWorkerQueue(this, config.MaxChooseWorkerCacheLookup);
-            m_chooseWorkerCpuQueue = new ChooseWorkerQueue(this, config.MaxChooseWorkerCpu);
+            m_chooseWorkerCacheLookupQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup);
+            m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
+                new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.BuildWorkers.Count + 1) :
+                new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
 
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
                                  {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, maxParallelDegree: 1)},
                                  {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
-                                 {DispatcherKind.CacheLookup, new DispatcherQueue(this, config.MaxCacheLookup)},
+                                 {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
-                                 {DispatcherKind.CPU, new DispatcherQueue(this, config.MaxProcesses)},
-                                 {DispatcherKind.Materialize, new DispatcherQueue(this, config.MaxMaterialize)},
-                                 {DispatcherKind.Light, new DispatcherQueue(this, config.MaxLightProcesses)},
-                                 {DispatcherKind.SealDirs, new DispatcherQueue(this, config.MaxSealDirs)},
+                                 {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.MaxProcesses)},
+                                 {DispatcherKind.Materialize, new DispatcherQueue(this, m_scheduleConfig.MaxMaterialize)},
+                                 {DispatcherKind.Light, new DispatcherQueue(this, m_scheduleConfig.MaxLightProcesses)},
+                                 {DispatcherKind.SealDirs, new DispatcherQueue(this, m_scheduleConfig.MaxSealDirs)},
                              };
 
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
@@ -189,14 +191,14 @@ namespace BuildXL.Scheduler
             Tracing.Logger.Log.PipQueueConcurrency(
                 loggingContext,
                 ioLimit,
-                config.MaxChooseWorkerCacheLookup,
-                config.MaxCacheLookup,
-                config.MaxChooseWorkerCpu,
-                config.MaxProcesses,
-                config.MaxMaterialize,
-                config.MaxLightProcesses,
-                config.MasterCacheLookupMultiplier.ToString(),
-                config.MasterCpuMultiplier.ToString());
+                m_scheduleConfig.MaxChooseWorkerCacheLookup,
+                m_scheduleConfig.MaxCacheLookup,
+                m_scheduleConfig.MaxChooseWorkerCpu,
+                m_scheduleConfig.MaxProcesses,
+                m_scheduleConfig.MaxMaterialize,
+                m_scheduleConfig.MaxLightProcesses,
+                m_scheduleConfig.MasterCacheLookupMultiplier.ToString(),
+                m_scheduleConfig.MasterCpuMultiplier.ToString());
         }
 
         /// <inheritdoc/>
@@ -238,11 +240,11 @@ namespace BuildXL.Scheduler
 
                 m_hasAnyChange.Reset();
 
-                if (m_config.DelayedCacheLookupEnabled())
+                if (m_scheduleConfig.DelayedCacheLookupEnabled())
                 {
                     int totalSlots = m_totalProcessSlots;
-                    int minElements = (int)(totalSlots * m_config.DelayedCacheLookupMinMultiplier.Value);
-                    int maxElements = (int)(totalSlots * m_config.DelayedCacheLookupMaxMultiplier.Value);
+                    int minElements = (int)(totalSlots * m_scheduleConfig.DelayedCacheLookupMinMultiplier.Value);
+                    int maxElements = (int)(totalSlots * m_scheduleConfig.DelayedCacheLookupMaxMultiplier.Value);
                     
                     Contract.Assert(minElements <= maxElements);                    
                     
@@ -335,7 +337,7 @@ namespace BuildXL.Scheduler
         /// </remarks>
         public void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo)
         {
-            if (!IsDraining || !m_config.AdaptiveIO)
+            if (!IsDraining || !m_scheduleConfig.AdaptiveIO)
             {
                 return;
             }
@@ -351,10 +353,10 @@ namespace BuildXL.Scheduler
                                      machinePerfInfo.DiskUsagePercentages.All(a => a < 90);
             bool numRunningIsNearMax = ioDispatcher.NumRunning > currentMax * 0.8;
 
-            if (numRunningIsNearMax && (currentMax < m_config.MaxIO) && hasLowGlobalUsage)
+            if (numRunningIsNearMax && (currentMax < m_scheduleConfig.MaxIO) && hasLowGlobalUsage)
             {
                 // The new currentMax will be the midpoint of currentMax and absoluteMax.
-                currentMax = (m_config.MaxIO + currentMax + 1) / 2;
+                currentMax = (m_scheduleConfig.MaxIO + currentMax + 1) / 2;
 
                 ioDispatcher.AdjustParallelDegree(currentMax);
                 TriggerDispatcher(); // After increasing the limit, trigger the dispatcher so that we can start new tasks.

@@ -16,6 +16,8 @@ using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Native.Processes;
+using BuildXL.Utilities.Configuration.Resolvers;
+using BuildXL.Utilities.Configuration.Resolvers.Mutable;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -189,10 +191,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         {
             var project = CreateProjectWithPredictions("A.proj");
             // We define a tracked environment variable and a passthrough one
-            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, EnvironmentData>
             {
-                ["TrackedEnv"] = new DiscriminatingUnion<string, UnitValue>("1"),
-                ["PassThroughEnv"] = new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit),
+                ["TrackedEnv"] = new EnvironmentData("1"),
+                ["PassThroughEnv"] = new EnvironmentData(UnitValue.Unit),
 
             }})
                 .Add(project)
@@ -210,11 +212,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [Fact]
         public void EnvironmentIsHonored()
         {
-            var one = new DiscriminatingUnion<string, UnitValue>();
-            one.SetValue("1");
+            var one = new EnvironmentData("1");
 
             var project = CreateProjectWithPredictions("A.proj");
-            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["Test"] = one } })
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, EnvironmentData> { ["Test"] = one } })
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()
@@ -225,13 +226,46 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
+        public void ComplexEnvironmentVariableIsHonored()
+        {
+            var data = new EnvironmentData(new CompoundEnvironmentData() 
+            { 
+                Separator = "|",
+                Contents = new[] { 
+                    new EnvironmentData(1), 
+                    new EnvironmentData("2"), 
+                    new EnvironmentData(AbsolutePath.Create(PathTable, "C:\\foo\\bar")),
+                    new EnvironmentData(new CompoundEnvironmentData() 
+                    { 
+                        Separator = " ",
+                        Contents = new [] {
+                            new EnvironmentData(PathAtom.Create(StringTable, "atom")),
+                            new EnvironmentData(RelativePath.Create(StringTable, "relative\\path"))
+                        }
+                    }),
+                    new EnvironmentData(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, "C:\\foo\\baaz")))
+                }
+            });
+
+            var project = CreateProjectWithPredictions("A.proj");
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, EnvironmentData> { ["Test"] = data } })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess()
+                .RetrieveSuccessfulProcess(project);
+
+            var testEnvironmentVariable = testProj.EnvironmentVariables.First(e => e.Name.ToString(PathTable.StringTable).Equals("Test"));
+            Assert.Equal("1|2|C:\\foo\\bar|atom relative\\path|C:\\foo\\baaz", testEnvironmentVariable.Value.ToString(PathTable));
+        }
+
+        [Fact]
         public void SettingAnEnvironmentRestrictsTheProcessEnvironment()
         {
             var envVar = Guid.NewGuid().ToString();
             Environment.SetEnvironmentVariable(envVar, "1");
 
             var project = CreateProjectWithPredictions("A.proj");
-            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>() })
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, EnvironmentData>() })
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()

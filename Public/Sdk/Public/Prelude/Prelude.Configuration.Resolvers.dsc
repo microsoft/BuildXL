@@ -103,6 +103,15 @@ interface DownloadSettings {
 /** We represent a passthrough environment variable with the value unit */ 
 type PassthroughEnvironmentVariable = Unit;
 
+/** An environment variable can be defined to have a value of the following types */
+type EnvironmentData = string | number | Path | PathFragment | CompoundEnvironmentData | Directory;
+
+/** A compound environment variable value. The separator defaults to ';' if not defined */
+interface CompoundEnvironmentData {
+    separator?: string; 
+    contents: EnvironmentData[];
+}
+
 /**
  * Resolver for MSBuild project-level build execution, utilizing the MsBuild static graph API to
  * find MSBuild files and convert them to a pip graph
@@ -188,11 +197,11 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
-     * The value can be either a string or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
+     * The value can be either EnvironmentData or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
      * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
      * variable won't cause a rebuild.
      */
-    environment?: Map<string, (PassthroughEnvironmentVariable | string)>;
+    environment?: Map<string, (PassthroughEnvironmentVariable | EnvironmentData)>;
 
     /**
      * Global properties to use for all projects.
@@ -339,12 +348,12 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
-     * The value can be either a string or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
+     * The value can be either EnvironmentData or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
      * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
      * variable won't cause a rebuild.
      */
-    environment?: Map<string, (PassthroughEnvironmentVariable | string)> 
-                | { [name:string]: (PassthroughEnvironmentVariable|string) };
+    environment?: Map<string, (PassthroughEnvironmentVariable | EnvironmentData)> 
+                | { [name:string]: (PassthroughEnvironmentVariable | EnvironmentData) };
 
     /**
      * For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted.

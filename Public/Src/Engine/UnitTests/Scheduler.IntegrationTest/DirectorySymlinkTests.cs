@@ -713,7 +713,7 @@ Versions/sym-sym-A -> sym-A/
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void EnumeratingAndDeletingDirectoriesWithDirectorySymlinks()
         {
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath("layout");

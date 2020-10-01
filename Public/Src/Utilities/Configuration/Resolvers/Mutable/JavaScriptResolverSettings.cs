@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -55,7 +56,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; set; }
+        public IReadOnlyDictionary<string, EnvironmentData> Environment { get; set; }
 
         /// <inheritdoc/>
         public bool? KeepProjectGraphFile { get; set; }

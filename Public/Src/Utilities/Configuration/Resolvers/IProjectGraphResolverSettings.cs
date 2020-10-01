@@ -3,8 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Globalization;
+using System.Text;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Resolvers;
+using BuildXL.Utilities.Configuration.Resolvers.Mutable;
+using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -31,7 +36,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The environment that is exposed to the resolver. If not specified, the process environment is used.
         /// </summary>
-        IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; }
+        IReadOnlyDictionary<string, EnvironmentData> Environment { get; }
 
         /// <summary>
         /// For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted
@@ -48,7 +53,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// When <see cref="IProjectGraphResolverSettings.Environment"/> is null, the current environment is defined as the tracked environment, with no passthroughs
         /// </remarks>
-        public static void ComputeEnvironment(this IProjectGraphResolverSettings rushResolverSettings, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
+        public static void ComputeEnvironment(this IProjectGraphResolverSettings rushResolverSettings, PathTable pathTable, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
         {
             if (rushResolverSettings.Environment == null)
             {
@@ -72,9 +77,9 @@ namespace BuildXL.Utilities.Configuration
             foreach (var kvp in rushResolverSettings.Environment)
             {
                 var valueOrPassthrough = kvp.Value?.GetValue();
-                if (valueOrPassthrough == null || valueOrPassthrough is string)
+                if (valueOrPassthrough == null || !(valueOrPassthrough is UnitValue))
                 {
-                    trackedList.Add(kvp.Key, (string)valueOrPassthrough);
+                    trackedList.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable));
                 }
                 else
                 {
@@ -84,6 +89,64 @@ namespace BuildXL.Utilities.Configuration
 
             trackedEnv = trackedList;
             passthroughEnv = passthroughList;
+        }
+
+        private static string ProcessEnvironmentData([CanBeNull] EnvironmentData environmentData, PathTable pathTable)
+        {
+            if (environmentData == null)
+            {
+                return null;
+            }
+
+            object data = environmentData.GetValue();
+            Contract.Assert(!(data is UnitValue));
+
+            StringBuilder s = new StringBuilder();
+            DoProcessEnvironmentData(data, pathTable, s);
+
+            return s.ToString();
+        }
+
+        private static void DoProcessEnvironmentData(object data, PathTable pathTable, StringBuilder s)
+        {  
+            switch (data)
+            {
+                case string stringData:
+                    s.Append(stringData);
+                    break;
+                case IImplicitPath pathData:
+                    s.Append(pathData.Path.ToString(pathTable));
+                    break;
+                case PathAtom atom:
+                    s.Append(atom.ToString(pathTable.StringTable));
+                    break;
+                case RelativePath relative:
+                    s.Append(relative.ToString(pathTable.StringTable));
+                    break;
+                case int integer:
+                    s.Append(integer.ToString(CultureInfo.InvariantCulture));
+                    break;
+                case ICompoundEnvironmentData compoundData:
+                    var separator = compoundData.Separator ?? CompoundEnvironmentData.DefaultSeparator;
+                    var contents = compoundData.Contents ?? CollectionUtilities.EmptyArray<EnvironmentData>();
+
+                    int i = 0;
+                    foreach (EnvironmentData member in contents)
+                    {
+                        DoProcessEnvironmentData(member.GetValue(), pathTable, s);
+                        
+                        if (i < contents.Count - 1) 
+                        {
+                            s.Append(separator);
+                        }
+
+                        i++;
+                    }
+                    break;
+                default:
+                    Contract.Assert(false, $"Unexpected data {data.GetType()}");
+                    break;
+            }
         }
     }
 }

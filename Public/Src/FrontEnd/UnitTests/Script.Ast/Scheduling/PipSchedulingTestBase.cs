@@ -103,7 +103,7 @@ namespace Test.DScript.Ast.Scheduling
 
             using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
-                resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars, out _);
+                resolverSettings.ComputeEnvironment(FrontEndContext.PathTable, out var trackedEnv, out var passthroughVars, out _);
 
                 var pipConstructor = CreateProjectToPipConstructor(
                     FrontEndContext,

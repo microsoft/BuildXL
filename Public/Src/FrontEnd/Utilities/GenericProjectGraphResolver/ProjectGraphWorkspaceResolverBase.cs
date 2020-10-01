@@ -146,7 +146,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
 
             m_resolverSettings = resolverSettings as TResolverSettings;
             Contract.Assert(m_resolverSettings != null);
-            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
+            m_resolverSettings.ComputeEnvironment(context.PathTable, out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
 
             return true;
         }

@@ -155,7 +155,7 @@ namespace BuildXL.FrontEnd.Script.Util
                     result = conversionFunc(value);
                     return true;
                 }
-                catch (FormatException)
+                catch (Exception e) when (e is FormatException || e is InvalidCastException)
                 {
                     result = null;
                     return false;

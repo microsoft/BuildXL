@@ -796,6 +796,7 @@ namespace BuildXL.Storage
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>
                 {
+                    Stopwatch sw = Stopwatch.StartNew();
                     int numEvicted = 0;
 
                     Directory.CreateDirectory(Path.GetDirectoryName(fileContentTablePath));
@@ -858,6 +859,9 @@ namespace BuildXL.Storage
                     }
 
                     Counters.AddToCounter(FileContentTableCounters.NumEvicted, numEvicted);
+                    Counters.AddToCounter(FileContentTableCounters.SaveDuration, sw.Elapsed);
+
+                    Tracing.Logger.Log.StorageFinishedSavingFileContentTable(m_loggingContext, fileContentTablePath);
                     return Unit.Void;
                 },
                 ex => { throw new BuildXLException("Failure writing file content table", ex); });

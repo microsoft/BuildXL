@@ -36,11 +36,11 @@ namespace BuildXL.Storage.Tracing
         StorageRecordNewKnownUsn = 717,
         StorageUnknownFileMiss = 718,
         StorageVersionedFileIdentityNotSupportedMiss = 719, // StorageJournalDisabledMiss
-
         StorageVolumeCollision = 723,
         StorageTryOpenOrCreateFileFailure = 724,
 
         StorageCacheContentPinned = 725,
+        StorageFinishedSavingFileContentTable = 740,
 
         FileMaterializationMismatchFileExistenceResult = 741,
 

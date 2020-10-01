@@ -569,6 +569,15 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageVersionedFileIdentityNotSupportedMiss(LoggingContext context, string path);
 
         [GeneratedEvent(
+            (int)LogEventId.StorageFinishedSavingFileContentTable,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "Finished saving FileContentTable to:{path}")]
+        public abstract void StorageFinishedSavingFileContentTable(LoggingContext context, string path);
+
+        [GeneratedEvent(
             (int)LogEventId.StorageRecordNewKnownUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

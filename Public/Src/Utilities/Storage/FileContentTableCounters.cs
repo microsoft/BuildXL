@@ -61,5 +61,11 @@ namespace BuildXL.Storage
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         RecordContentHashDuration,
+
+        /// <summary>
+        /// Time spent saving to disk.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        SaveDuration,
     }
 }

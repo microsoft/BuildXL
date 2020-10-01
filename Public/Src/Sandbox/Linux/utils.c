@@ -8,14 +8,11 @@
 #include <string.h>
 #include "utils.h"
 
-#define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 #define PATH_SEP_CHAR ':'
 
-/**
- * Tries to match 'prefix' from the beggining of 'src'.
- * Upon success, returns a pointer to the next character (right after 
- * the matched prefix) in 'src' is returned; otherwise returns NULL.
- */
+// CODESYNC: SandboxedLinuxUtilsTest.cs
+#define EVN_SEP_CHAR_FOR_TEST ';'
+
 const char* skip_prefix(const char *src, const char *prefix)
 {
     if (src == NULL || prefix == NULL)
@@ -23,7 +20,11 @@ const char* skip_prefix(const char *src, const char *prefix)
         return NULL;
     }
 
-    while (*src && *prefix && *src++ == *prefix++);
+    while (*src && *prefix && *src == *prefix)
+    {
+        src++;
+        prefix++;
+    }
     return *prefix 
         ? NULL // prefix is not at '\0' --> no match
         : src; // prefix is at '\0' --> match, return the current position in src
@@ -49,22 +50,6 @@ char** replace_KVP_in_envp(char *const envp[], int env_num, int i, const char *n
     return newenvp;
 }
 
-/**
- * envPrefix is in the format of the env name and "=", e.g. LD_PRELOAD=
- * Append the 'value_to_add' to 'src' if 
- * 1) 'src' begins with envPrefix;
- * 2)  the 'value_to_add' does not exist in colon-separated values of envPrefix<values>;
- * Otherwise returns the original value provided in 'src'.
- * 
- * The part after envPrefix in 'src' is treated as a colon-separated list of values;
- * If 'value_to_add' doesn't exist in the list, it will be appended at the end of 'src' following a colon if needed.
- * 
- * 'buf' is an auxiliary buffer that must be at least as big as 'src' + '：' + 'value_to_add'.
- * 
- * The result is either stored in 'buf' or 'src' is returned; when the latter is 
- * the case, the value written in 'buf' is unspecified.  In either case, the return
- * value is a pointer to where the result is (either 'src' or 'buf').
- */
 const char* add_value_to_env(const char *src, const char *value_to_add, const char *envPrefix)
 {
     const char *pSrc = skip_prefix(src, envPrefix);
@@ -172,7 +157,7 @@ char** ensure_env_value(char *const envp[], char const *envName, const char *env
         next = skip_prefix(next, "=");
         next = skip_prefix(next, envValue);
 
-        if (is_null_or_empty(next))
+        if (next == NULL)
         {
             char *kvp = createEnv(envName, envValue);
             if(kvp != NULL)
@@ -195,7 +180,6 @@ char** ensure_env_value(char *const envp[], char const *envName, const char *env
             memcpy(newenvp, envp, env_num * sizeof(char*));
             newenvp[env_num] = kvp;
             newenvp[env_num + 1] = NULL; // Last element of envp[] should be a null pointer.
-
             return newenvp;
         }
     }
@@ -270,8 +254,9 @@ char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, c
             pPath = va_arg(varargs, char*);
         }
         
-        int prefixLen = ARRAYSIZE(envPrefix) - 1;
+        int prefixLen = strlen(envPrefix);
         int len = prefixLen + totalPathsLen;
+
         char *newEnv = (char *)malloc(len);
         if (newEnv == NULL)
         {
@@ -314,4 +299,47 @@ char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, c
 bool is_null_or_empty(const char *input)
 {
     return !input || *input == '\0';
+}
+
+void copy_result_to_buf_for_test(char **result, char *buf)
+{
+    while (result && *result)
+    {
+        strcpy(buf, *result);
+        int n = strlen(*result);
+        buf[n] = EVN_SEP_CHAR_FOR_TEST;
+        buf += n + 1;
+        ++result;
+    }
+
+    // replace the last ';' with '\0'
+    *(buf - 1) = '\0'; 
+}
+
+const bool add_value_to_env_for_test(const char *src, const char *value_to_add, const char *envPrefix, char *buf)
+{
+    const char *result = add_value_to_env(src, value_to_add, envPrefix);
+    strcpy(buf, result);
+    return result == src;
+}
+
+const bool ensure_env_value_for_test(char *const envp[], char const *envName, const char *envValue, char *buf)
+{
+    char **result = ensure_env_value(envp, envName, envValue);
+    copy_result_to_buf_for_test(result, buf);
+    return result == envp;
+}
+
+const bool ensure_2_paths_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf)
+{
+    char **result = ensure_paths_included_in_env(envp, envPrefix, path0, path1, NULL);
+    copy_result_to_buf_for_test(result, buf);
+    return result == envp;
+}
+
+const bool ensure_1_path_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path, char *buf)
+{
+    char **result = ensure_paths_included_in_env(envp, envPrefix, path, NULL);
+    copy_result_to_buf_for_test(result, buf);
+    return result == envp;
 }

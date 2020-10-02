@@ -168,6 +168,14 @@ namespace BuildXL.Scheduler.Tracing
             ReportUnhandledEvent(data);
         }
 
+        /// <summary>
+        /// Build Manifest hash and relative file path is reported.
+        /// </summary>
+        public virtual void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
+
         protected virtual void ReportUnhandledEvent<TEventData>(TEventData data)
             where TEventData : struct, IExecutionLogEventData<TEventData>
         {

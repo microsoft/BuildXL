@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
@@ -700,6 +701,28 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
             }
 
+            ContentHash[] parsedHashes;
+
+            try
+            {
+                parsedHashes = hashes.Select(hash => FileContentInfo.Parse(hash).Hash).ToArray();
+            }
+            catch (ArgumentException e)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, "Content Hash Parsing exception: " + e.InnerException);
+            }
+
+            var buildManifestHashTasks = Enumerable
+                .Range(0, parsedHashes.Length)
+                .Select(i => RegisterFileForBuildManifestAsync(daemon, dropPaths[i], parsedHashes[i], BuildXL.Ipc.ExternalApi.FileId.Parse(fileIds[i]), files[i]));
+
+            var buildManifestHashes = await TaskUtilities.SafeWhenAll(buildManifestHashTasks);
+
+            if (buildManifestHashes.Any(h => h == false))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, "Failure during BuildManifest Hash generation");
+            }
+
             var dropFileItemsKeyedByIsAbsent = Enumerable
                 .Range(0, files.Length)
                 .Select(i => new DropItemForBuildXLFile(
@@ -750,6 +773,25 @@ namespace Tool.DropDaemon
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
+        /// <summary>
+        /// Takes a hash as string and registers it's corresponding SHA-256 ContentHash using BuildXL Api
+        /// </summary>
+        private async static Task<bool> RegisterFileForBuildManifestAsync(
+            DropDaemon daemon,
+            string relativePath,
+            ContentHash hash,
+            FileArtifact fileId,
+            string fullFilePath)
+        {
+            var bxlResult = await daemon.ApiClient.RegisterFileForBuildManifest(daemon.DropName, relativePath, hash, fileId, fullFilePath);
+            if (!bxlResult.Succeeded)
+            {
+                return false;
+            }
+
+            return bxlResult.Result;
+        }
+
         private static async Task<(DropItemForBuildXLFile[], string error)> CreateDropItemsForDirectoryAsync(
             ConfiguredCommand conf,
             DropDaemon daemon,
@@ -785,10 +827,13 @@ namespace Tool.DropDaemon
                 directoryContent = filteredContent;
             }
 
-            return (directoryContent
+            List<DropItemForBuildXLFile> dropItemForBuildXLFiles = new List<DropItemForBuildXLFile>();
+
+            var files = directoryContent
                 // SharedOpaque directories might contain 'absent' output files. These are not real files, so we are excluding them.
-                .Where(file => !WellKnownContentHashUtilities.IsAbsentFileHash(file.ContentInfo.Hash) || file.Artifact.IsSourceFile)
-                .Select(file =>
+                .Where(file => !WellKnownContentHashUtilities.IsAbsentFileHash(file.ContentInfo.Hash) || file.Artifact.IsSourceFile);
+
+            foreach (SealedDirectoryFile file in files)
             {
                 // We need to convert '\' into '/' because this path would be a part of a drop url
                 // The dropPath can be an empty relative path (i.e. '.') which we need to remove since even though it is not a valid
@@ -796,13 +841,21 @@ namespace Tool.DropDaemon
                 var resolvedDropPath = dropPath == "." ? string.Empty : I($"{dropPath}/");
                 var remoteFileName = I($"{resolvedDropPath}{GetRelativePath(directoryPath, file.FileName).Replace('\\', '/')}");
 
-                return new DropItemForBuildXLFile(
+                var buildManifestHashResult = await RegisterFileForBuildManifestAsync(daemon, remoteFileName, file.ContentInfo.Hash, file.Artifact, file.FileName);
+                if (!buildManifestHashResult)
+                {
+                    return (null, "Failure during BuildManifest Hash generation");
+                }
+
+                dropItemForBuildXLFiles.Add(new DropItemForBuildXLFile(
                     daemon.ApiClient,
                     file.FileName,
                     BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact),
                     file.ContentInfo,
-                    remoteFileName);
-            }).ToArray(), null);
+                    remoteFileName));
+            }
+
+            return (dropItemForBuildXLFiles.ToArray(), null);
         }
 
         private static string GetRelativePath(string root, string file)

@@ -409,5 +409,10 @@ namespace BuildXL.Utilities.Configuration
         /// Maximum allowed workers per module
         /// </summary>
         int MaxWorkersPerModule { get; }
+
+        /// <summary>
+        /// Indicates if the Build Manifest needs to be generated for the files uploaded to drop.
+        /// </summary>
+        bool GenerateBuildManifest { get; }
     }
 }

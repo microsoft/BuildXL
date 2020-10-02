@@ -1217,6 +1217,9 @@ namespace BuildXL
                Strings.HelpText_DisplayHelp_PluginPaths,
                HelpLevel.Verbose);
 
+            hw.WriteOption("/GenerateBuildManifest[+|-]",
+               Strings.HelpText_DisplayHelp_GenerateBuildManifest);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

@@ -11,6 +11,7 @@ namespace Ipc {
         references: [
             $.dll,
             $.Storage.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [

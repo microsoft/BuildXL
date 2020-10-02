@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
@@ -54,6 +55,20 @@ namespace BuildXL.Ipc.ExternalApi
         public Task<Possible<bool>> MaterializeFile(FileArtifact file, string fullFilePath)
         {
             return ExecuteCommand(new MaterializeFileCommand(file, fullFilePath));
+        }
+
+        /// <summary>
+        /// Reads the SHA-256 hash from cache or materializes the file on disk and computes it's hash.
+        /// Returns true if the hash could be generated/read from cache.
+        /// </summary>
+        public Task<Possible<bool>> RegisterFileForBuildManifest(
+            string dropName,
+            string relativePath,
+            ContentHash hash,
+            FileArtifact fileId,
+            string fullFilePath)
+        {
+            return ExecuteCommand(new RegisterFileForBuildManifestCommand(dropName, relativePath, hash, fileId, fullFilePath));
         }
 
         /// <summary>

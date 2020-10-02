@@ -521,6 +521,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "forceUseEngineInfoFromCache",
                             sign => schedulingConfiguration.ForceUseEngineInfoFromCache = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "generateBuildManifest",
+                            sign => schedulingConfiguration.GenerateBuildManifest = sign),
                         OptionHandlerFactory.CreateOption(
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),

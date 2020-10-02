@@ -1294,6 +1294,11 @@ namespace BuildXL.Scheduler
                 {
                     fingerprintAugmentationTarget = new WeakFingerprintAugmentationExecutionLogTarget(loggingContext, this, configuration.Cache.MonitorAugmentedPathSets);
                 }
+
+                if (configuration.Schedule.GenerateBuildManifest)
+                {
+                    m_buildManifestStoreTarget = new BuildManifestStoreTarget(context.StringTable);
+                }
             }
 
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
@@ -1301,7 +1306,8 @@ namespace BuildXL.Scheduler
                 m_fingerprintStoreTarget,
                 new ObservedInputAnomalyAnalyzer(loggingContext, graph),
                 masterTarget,
-                fingerprintAugmentationTarget);
+                fingerprintAugmentationTarget,
+                m_buildManifestStoreTarget);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -1334,7 +1340,6 @@ namespace BuildXL.Scheduler
                 new SymlinkedAccessResolver(context, directoryTranslator) :
                 null;
         }
-
 
         private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
         {
@@ -1426,7 +1431,10 @@ namespace BuildXL.Scheduler
                         MaxConcurrentClients = 10, // not currently based on any science or experimentation
                         StopOnFirstFailure = false,
                         Logger = CreateLoggerForApiServer(loggingContext),
-                    });
+                    },
+                    Cache,
+                    ExecutionLog,
+                    m_configuration.Schedule.GenerateBuildManifest);
                 m_apiServer.Start(loggingContext);
             }
 
@@ -5644,6 +5652,7 @@ namespace BuildXL.Scheduler
         private readonly ExecutionLogFileTarget m_executionLogFileTarget;
         private readonly FingerprintStoreExecutionLogTarget m_fingerprintStoreTarget;
         private readonly MultiExecutionLogTarget m_multiExecutionLogTarget;
+        private readonly BuildManifestStoreTarget m_buildManifestStoreTarget;
 
         /// <inheritdoc/>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

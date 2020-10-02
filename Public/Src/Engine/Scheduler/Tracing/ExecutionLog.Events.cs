@@ -123,6 +123,11 @@ namespace BuildXL.Scheduler.Tracing
         /// Cache materialization error is reported
         /// </summary>
         void CacheMaterializationError(CacheMaterializationErrorEventData data);
+
+        /// <summary>
+        /// Build Manifest hash and relative file path is reported
+        /// </summary>
+        void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data);
     }
 
     /// <summary>
@@ -204,6 +209,11 @@ namespace BuildXL.Scheduler.Tracing
         /// See <see cref="IExecutionLogTarget.CacheMaterializationError"/>
         /// </summary>
         CacheMaterializationError = 14,
+
+        /// <summary>
+        /// See <see cref="IExecutionLogTarget.RecordFileForBuildManifest"/>
+        /// </summary>
+        RecordFileForBuildManifest = 15,
     }
 
     /// <summary>
@@ -326,6 +336,14 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.CacheMaterializationError(data));
 
         /// <summary>
+        /// Event description for <see cref="IExecutionLogTarget.RecordFileForBuildManifest"/>
+        /// </summary>
+        public static readonly ExecutionLogEventMetadata<RecordFileForBuildManifestEventData> RecordFileForBuildManifest =
+            new ExecutionLogEventMetadata<RecordFileForBuildManifestEventData>(
+                ExecutionEventId.RecordFileForBuildManifest,
+                (data, target) => target.RecordFileForBuildManifest(data));
+
+        /// <summary>
         /// All execution log events.
         /// </summary>
         public static readonly IReadOnlyList<ExecutionLogEventMetadata> Events = new ExecutionLogEventMetadata[]
@@ -343,7 +361,8 @@ namespace BuildXL.Scheduler.Tracing
                                                                                      ProcessFingerprintComputation,
                                                                                      PipCacheMiss,
                                                                                      PipExecutionDirectoryOutputs,
-                                                                                     CacheMaterializationError
+                                                                                     CacheMaterializationError,
+                                                                                     RecordFileForBuildManifest
                                                                                  };
     }
 
@@ -751,6 +770,55 @@ namespace BuildXL.Scheduler.Tracing
             PipId = PipId.Deserialize(reader);
             CacheMissType = (PipCacheMissType)reader.ReadByte();
             MissedOutputs = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToList();
+        }
+    }
+
+    /// <summary>
+    /// Data about a file added to drop. Used for Build Manifest generation.
+    /// </summary>
+    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
+    public struct RecordFileForBuildManifestEventData : IExecutionLogEventData<RecordFileForBuildManifestEventData>
+    {
+        /// <summary>
+        /// DropName to identify the drop.
+        /// </summary>
+        public string DropName;
+
+        /// <summary>
+        /// Relative File Path of given file inside the drop.
+        /// </summary>
+        public string RelativePath;
+
+        /// <summary>
+        /// SHA-256 Content Hash of the file.
+        /// </summary>
+        public ContentHash BuildManifestHash;
+
+        /// <nodoc/>
+        public RecordFileForBuildManifestEventData(string dropName, string relativePath, ContentHash buildManifestHash) : this()
+        {
+            DropName = dropName;
+            RelativePath = relativePath;
+            BuildManifestHash = buildManifestHash;
+        }
+
+        /// <inheritdoc />
+        public ExecutionLogEventMetadata<RecordFileForBuildManifestEventData> Metadata => ExecutionLogMetadata.RecordFileForBuildManifest;
+
+        /// <inheritdoc />
+        public void Serialize(BinaryLogger.EventWriter writer)
+        {
+            writer.Write(DropName);
+            writer.Write(RelativePath);
+            BuildManifestHash.Serialize(writer);
+        }
+
+        /// <inheritdoc />
+        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+        {
+            DropName = reader.ReadString();
+            RelativePath = reader.ReadString();
+            BuildManifestHash = new ContentHash(reader);
         }
     }
 

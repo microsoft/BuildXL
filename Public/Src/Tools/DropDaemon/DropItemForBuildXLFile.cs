@@ -26,11 +26,11 @@ namespace Tool.DropDaemon
         /// File content hash
         /// </summary>
         public readonly ContentHash Hash;
-        
+
         private readonly Func<string, bool> m_symlinkTester;
         private readonly FileArtifact m_file;
         private readonly Client m_client;
-        
+
         /// <summary>
         /// Whether it is an output file or not 
         /// </summary>
@@ -39,7 +39,11 @@ namespace Tool.DropDaemon
         private readonly bool m_chunkDedup;
 
         /// <nodoc/>
-        public DropItemForBuildXLFile(Client client, string filePath, string fileId, FileContentInfo fileContentInfo, string relativeDropPath = null)
+        public DropItemForBuildXLFile(Client client,
+                string filePath,
+                string fileId,
+                FileContentInfo fileContentInfo,
+                string relativeDropPath = null)
             : this(Statics.IsSymLinkOrMountPoint, client, filePath, fileId, fileContentInfo, relativeDropPath)
         {
         }

@@ -3719,6 +3719,24 @@ namespace BuildXL.Scheduler.Tracing
            EventTask = (ushort)Tasks.Scheduler,
            Message = "FileArtifacts for the following path(s) (count={count}) were not available at the time of file materialization request was received but they were available at the end of a build:{paths}")]
         internal abstract void FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(LoggingContext loggingContext, int count, string paths);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ApiServerStoreBuildManifestHashToCacheFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] Operation Store BuildManifest Hash (Hash: '{hash}', BuildManifestHash: {buildManifestHash}) failed. Reason: {reason}.")]
+        internal abstract void ApiServerStoreBuildManifestHashToCacheFailed(LoggingContext loggingContext, string hash, string buildManifestHash, string reason);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ErrorApiServerGetBuildManifestHashFromCacheFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from cache for Hash: '{hash}' failed. Reason: {reason}.")]
+        internal abstract void ErrorApiServerGetBuildManifestHashFromCacheFailed(LoggingContext loggingContext, string hash, string reason);
     }
 }
 #pragma warning restore CA1823 // Unused field

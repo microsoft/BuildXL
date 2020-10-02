@@ -153,6 +153,9 @@
   <data name="ApiTotalMaterializeFileCalls" xml:space="preserve">
     <value>BuildXLApiTotalMaterializeFileCalls</value>
   </data>
+    <data name="ApiTotalGetBuildManifestCalls" xml:space="preserve">
+    <value>BuildXLApiTotalGetBuildManifestCalls</value>
+  </data>
   <data name="ApiTotalReportStatisticsCalls" xml:space="preserve">
     <value>BuildXLApiTotalReportStatisticsCalls</value>
   </data>

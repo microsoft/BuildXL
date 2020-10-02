@@ -27,4 +27,5 @@ enum ExecutionEventId{
     PipExecutionDirectoryOutputs = 13;
     BxlInvocation = 14;
     CacheMaterializationError = 15;
+    RecordFileForBuildManifest = 16;
 }

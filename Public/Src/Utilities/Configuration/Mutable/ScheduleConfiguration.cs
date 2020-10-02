@@ -84,6 +84,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             PluginLocations = new List<AbsolutePath>();
             TreatAbsentDirectoryAsExistentUnderOpaque = true;
+            GenerateBuildManifest = false;
         }
 
         /// <nodoc />
@@ -164,6 +165,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PluginLocations = pathRemapper.Remap(template.PluginLocations);
             TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
             MaxWorkersPerModule = template.MaxWorkersPerModule;
+            GenerateBuildManifest = template.GenerateBuildManifest;
         }
 
         /// <inheritdoc />
@@ -405,5 +407,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaxWorkersPerModule { get; set; }
+
+        /// <inheritdoc />
+        public bool GenerateBuildManifest { get; set; }
     }
 }

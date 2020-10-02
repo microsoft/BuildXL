@@ -25,6 +25,11 @@ namespace BuildXL.Storage
         private static IContentHasher s_contentHasher;
         private static ContentHash s_zeroHash;
 
+        /// <summary>
+        /// HashType used for Build Manifest ContentHash
+        /// </summary>
+        public static readonly HashType BuildManifestHashType = HashType.SHA256;
+
         private static ConcurrentDictionary<HashType, IContentHasher> s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
 
         /// <summary>
@@ -217,6 +222,14 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Create a ContentHash from the given bytes for a given HashType.
+        /// </summary>
+        public static ContentHash CreateFrom(byte[] value, HashType hashType)
+        {
+            return new ContentHash(hashType, value);
+        }
+
+        /// <summary>
         /// Create a ContentHash from bytes read from the given reader.
         /// </summary>
         public static ContentHash CreateFrom(BinaryReader reader)
@@ -293,6 +306,20 @@ namespace BuildXL.Storage
             using (var fileStream = FileUtilities.CreateAsyncFileStream(absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 return await HashContentStreamAsync(fileStream).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Returns a <see cref="ContentHash" /> of the file at the given absolute path for the Build Manifest.
+        /// </summary>
+        public static async Task<ContentHash> HashFileForBuildManifestAsync(string absoluteFilePath)
+        {
+            Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
+
+            // TODO: Specify a small buffer size here (see HashFileAsync(SafeFileHandle))
+            using (var fileStream = FileUtilities.CreateAsyncFileStream(absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+            {
+                return await HashContentStreamAsync(fileStream, BuildManifestHashType).ConfigureAwait(false);
             }
         }
 

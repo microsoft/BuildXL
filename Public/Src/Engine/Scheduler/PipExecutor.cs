@@ -4060,8 +4060,9 @@ namespace BuildXL.Scheduler
                     operationContext,
                     allHashes,
                     materialize: materializeToVerifyAvailability,
-                    onContentUnavailable: (i, s, f) => {
-                        onContentUnavailable?.Invoke(allHashes[i].fileArtifact);
+                    onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) => 
+                    {
+                        onContentUnavailable?.Invoke(allHashes[index].fileArtifact);
                     });
 
                 if (materializeToVerifyAvailability || !succeeded)

@@ -800,10 +800,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Ensured pip output (hash: '{contentHash}') is available for local materialization: Result: {result} | Target location up-to-date: {targetLocationUpToDate} | Remotely copied bytes: {remotelyCopyBytes}")]
+            Message = "[{formattedSemiStableHash}] Ensured pip output hash '{contentHash}' is available for local materialization: Result: {result} | Target location up-to-date: {targetLocationUpToDate} | Remotely copied bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipOutputToLocalStorage(
             LoggingContext loggingContext,
-            string pipDescription,
+            string formattedSemiStableHash,
             string contentHash,
             bool result,
             string targetLocationUpToDate,
@@ -815,7 +815,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Storage,
-            Message = "[{formattedSemiStableHash}] Ensured input '{contentHash}' available materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
+            Message = "[{formattedSemiStableHash}] Ensured pip input hash '{contentHash}' is available for materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipInputToLocalStorage(
             LoggingContext context,
             string formattedSemiStableHash,
@@ -850,6 +850,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Failed to find pip producer for file {filePath}.")]
         public abstract void MaterializeFilePipProducerNotFound(LoggingContext loggingContext, string filePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToMaterializeFileNotUpToDateOutputWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Materialized file '{file}' is not up-to-date: Expected content hash: '{expectedContentHash}' | Recorded content hash after cache look-up: '{cacheLookUpContentHash}' | Actual content hash on disk: '{actualContentHash}'.")]
+        public abstract void FailedToMaterializeFileNotUpToDateOutputWarning(LoggingContext loggingContext, string pipDescription, string file, string expectedContentHash, string cacheLookUpContentHash, string actualContentHash);
 
         #endregion
 

@@ -128,7 +128,7 @@ namespace BuildXL.Scheduler.Tracing
         StorageCacheGetContentWarning = 737,
         FailedToMaterializeFileWarning = 738,
         MaterializeFilePipProducerNotFound = 739,
-
+        FailedToMaterializeFileNotUpToDateOutputWarning = 749,
 
         PipDetailedStats = 1510,
         IncrementalBuildSavingsSummary = 1512,

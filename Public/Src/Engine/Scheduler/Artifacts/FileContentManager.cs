@@ -590,7 +590,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash)> filesAndContentHashes,
             Action onFailure = null,
-            Action<int, string, Failure> onContentUnavailable = null,
+            Action<int, string, string, Failure> onContentUnavailable = null,
             bool materialize = false)
         {
             Logger.Log.ScheduleTryBringContentToLocalCache(operationContext, pipInfo.Description);
@@ -606,7 +606,7 @@ namespace BuildXL.Scheduler.Artifacts
                     onlyLogUnavailableContent: true,
                     filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index)),
                     onFailure: failure => { onFailure?.Invoke(); },
-                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr, failure) => { /* Do nothing. Callee already logs the failure */ }));
+                    onContentUnavailable: onContentUnavailable ?? ((index, expectedHash, hashOnDiskIfAvailableOrNull, failure) => { /* Do nothing. Callee already logs the failure */ }));
 
                 return result;
             }
@@ -2195,9 +2195,10 @@ namespace BuildXL.Scheduler.Artifacts
 
                     state.InnerFailure = failure;
                 },
-                onContentUnavailable: (index, hashLogStr, failure) =>
+                onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) =>
                 {
                     state.SetMaterializationFailure(index);
+                    FileArtifact file = state.MaterializationFiles[index].Artifact;
 
                     // Log the eventual path on failure for sake of correlating the file within the build
                     if (Configuration.Schedule.StoreOutputsToCache)
@@ -2205,10 +2206,42 @@ namespace BuildXL.Scheduler.Artifacts
                         Logger.Log.FailedToLoadFileContentWarning(
                             operationContext,
                             pipInfo.Description,
-                            hashLogStr,
-                            state.MaterializationFiles[index].Artifact.Path.ToString(Context.PathTable));
+                            expectedHash,
+                            file.Path.ToString(Context.PathTable));
 
                         state.InnerFailure = failure;
+                    }
+                    else
+                    {
+                        if (state.MaterializingOutputs
+                            && pipInfo.UnderlyingPip.PipType == PipType.Process)
+                        {
+                            // We are materializing outputs of a process pip for the case where no outputs are stored to the cache.
+                            // At this point, the cache look-up has determined that all output targets are up-to-date (i.e.,
+                            // they have correct hashes). However, upon output materialization, it turns out that the
+                            // target is no longer up-to-date. (Customers claim that they do not modify the file, nor anything in the build
+                            // modifies the file.)
+                            //
+                            // The following log will show what hashes seen after cache look-up,
+                            // and the expected hashes of the targets. One should check CopyingPipOutputToLocalStorage log for
+                            // the actual hashes on disk. The reason for showing the cache look-up content hash is to ensure that
+                            // the file has been checked to be up-to-date during the cache look-up.
+
+                            string cacheLookUpContentHash = "<UNKNOWN>";
+                            
+                            if (m_fileArtifactContentHashes.TryGetValue(file, out FileMaterializationInfo info))
+                            {
+                                cacheLookUpContentHash = info.Hash.ToHex();
+                            }
+
+                            Logger.Log.FailedToMaterializeFileNotUpToDateOutputWarning(
+                                operationContext,
+                                pipInfo.Description,
+                                file.Path.ToString(Context.PathTable),
+                                expectedHash,
+                                cacheLookUpContentHash,
+                                hashOnDiskIfAvailableOrNull ?? WellKnownContentHashes.AbsentFile.ToHex());
+                        }
                     }
                 },
                 state: state);
@@ -2232,9 +2265,9 @@ namespace BuildXL.Scheduler.Artifacts
                 using (operationContext.StartOperation(OperationCounter.FileContentManagerDiscoverExistingContent, fileArtifact))
                 {
                     // Discover the existing file (if any) and get its content hash
-                    Possible<ContentDiscoveryResult, Failure>? existingContent = await LocalDiskContentStore.TryDiscoverAsync(fileArtifact);
-                    return existingContent.HasValue && existingContent.Value.Succeeded
-                        ? (true, isPreservedOutputFile, existingContent.Value.Result.TrackedFileContentInfo)
+                    Possible<ContentDiscoveryResult, Failure> existingContent = await LocalDiskContentStore.TryDiscoverAsync(fileArtifact);
+                    return existingContent.Succeeded
+                        ? (true, isPreservedOutputFile, existingContent.Result.TrackedFileContentInfo)
                         : (true, isPreservedOutputFile, default);
                 }
             }
@@ -2254,7 +2287,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex)> filesAndContentHashes,
             Action<Failure> onFailure,
-            Action<int, string, Failure> onContentUnavailable,
+            Action<int, string, string, Failure> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2321,6 +2354,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                         bool isAvailable = result.IsAvailable;
                         string targetLocationUpToDate = TargetNotChecked;
+                        TrackedFileContentInfo? existingContentOnDiskInfo = default;
 
                         if (!isAvailable)
                         {
@@ -2332,6 +2366,11 @@ namespace BuildXL.Scheduler.Artifacts
                                     fileArtifact,
                                     pipInfo,
                                     materializingOutputs);
+
+                            if (checkExistsOnDisk && contentOnDiskInfo.HasValue)
+                            {
+                                existingContentOnDiskInfo = contentOnDiskInfo.Value;
+                            }
 
                             if (checkExistsOnDisk
                                 && contentOnDiskInfo.HasValue
@@ -2476,7 +2515,7 @@ namespace BuildXL.Scheduler.Artifacts
                         }
 
                         // Log the result of each requested hash
-                        string hashLogStr = contentHash.ToHex();
+                        string expectedContentHash = contentHash.ToHex();
 
                         using (operationContext.StartOperation(OperationCounter.FileContentManagerHandleContentAvailabilityLogContentAvailability, fileArtifact))
                         {
@@ -2486,8 +2525,8 @@ namespace BuildXL.Scheduler.Artifacts
                                 {
                                     Logger.Log.ScheduleCopyingPipOutputToLocalStorage(
                                         operationContext,
-                                        pipInfo.Description,
-                                        hashLogStr,
+                                        pipInfo.UnderlyingPip.FormattedSemiStableHash,
+                                        expectedContentHash,
                                         result: isAvailable,
                                         targetLocationUpToDate: targetLocationUpToDate,
                                         remotelyCopyBytes: result.BytesTransferred);
@@ -2497,7 +2536,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     Logger.Log.ScheduleCopyingPipInputToLocalStorage(
                                         operationContext,
                                         pipInfo.UnderlyingPip.FormattedSemiStableHash,
-                                        hashLogStr,
+                                        expectedContentHash,
                                         result: isAvailable,
                                         targetLocationUpToDate: targetLocationUpToDate,
                                         remotelyCopyBytes: result.BytesTransferred);
@@ -2519,7 +2558,13 @@ namespace BuildXL.Scheduler.Artifacts
                             if (!isAvailable)
                             {
                                 success = false;
-                                onContentUnavailable(currentFileIndex, hashLogStr, result.Failure);
+                                onContentUnavailable(
+                                    currentFileIndex,
+                                    expectedContentHash,
+                                    existingContentOnDiskInfo.HasValue 
+                                        ? existingContentOnDiskInfo.Value.Hash.ToHex()
+                                        : null,
+                                    result.Failure);
                             }
                         }
                     }

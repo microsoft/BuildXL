@@ -353,10 +353,10 @@ namespace Test.BuildXL.Scheduler
                 filesAndContentHashes,
                 onFailure: () => XAssert.Fail("TryLoadAvailableOutputContentAsync failed"),
                 onContentUnavailable:
-                    (i, s, f) =>
+                    (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) =>
                         XAssert.Fail(
                             I(
-                                $"Content of '{filesAndContentHashes[i].Item1.Path.ToString(harness.PipContext.PathTable)}' with content hash '{filesAndContentHashes[i].Item2.ToHex()}' is not available")));
+                                $"Content of '{filesAndContentHashes[index].Item1.Path.ToString(harness.PipContext.PathTable)}' with content hash '{filesAndContentHashes[index].Item2.ToHex()}' is not available")));
 
             XAssert.IsTrue(loadAvailableOutput);
         }
@@ -405,17 +405,17 @@ namespace Test.BuildXL.Scheduler
                 filesAndContentHashes,
                 onFailure: () => XAssert.Fail("TryLoadAvailableOutputContentAsync failed"),
                 onContentUnavailable:
-                    (i, s, f) =>
+                    (index, expectedHash, hashOnDiskIfAvailable, failure) =>
                     {
                         if (checkFileOnDiskForUpToDate)
                         {
                             XAssert.Fail(
                                 I(
-                                    $"Content of '{filesAndContentHashes[i].fileArtifact.Path.ToString(harness.PipContext.PathTable)}' with content hash '{filesAndContentHashes[i].contentHash.ToHex()}' is not available"));
+                                    $"Content of '{filesAndContentHashes[index].fileArtifact.Path.ToString(harness.PipContext.PathTable)}' with content hash '{filesAndContentHashes[index].contentHash.ToHex()}' is not available"));
                         }
                         else
                         {
-                            XAssert.AreEqual(filesAndContentHashes[i].Item2.ToHex(), s);
+                            XAssert.AreEqual(filesAndContentHashes[index].Item2.ToHex(), expectedHash);
                         }
                     });
 

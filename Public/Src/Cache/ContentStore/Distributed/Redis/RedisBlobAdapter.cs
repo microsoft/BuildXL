@@ -64,20 +64,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
 
                     Counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
-                    return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
+                    return PutBlobResult.RedisHasAlready(hash, blob.Length, key);
                 }
 
-                var reservationResult = await TryReserveAsync(context, blob.Length, hash);
+                var reservationKey = GetReservationKey();
+                if (reservationKey == _lastFailedReservationKey)
+                {
+                    Counters[RedisBlobAdapterCounters.FailedReservations].Increment();
+                    string errorMsg = $"Skipping reservation";
+                    return PutBlobResult.OverCapacity(hash, blob.Length, reservationKey, errorMsg);
+                }
+
+                var reservationResult = await TryReserveAsync(context, blob.Length, reservationKey);
                 if (!reservationResult)
                 {
                     Counters[RedisBlobAdapterCounters.FailedReservations].Increment();
-                    return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage!);
+                    var newUsedCapacity = reservationResult.ErrorMessage;
+                    string errorMsg = $"Could not reserve. Expected new capacity={newUsedCapacity} bytes, Max capacity={_maxCapacityPerTimeBox} bytes.";
+                    return PutBlobResult.OverCapacity(hash, blob.Length, reservationKey, errorMsg);
                 }
 
                 var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
 
                 return success
-                    ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
+                    ? PutBlobResult.NewRedisEntry(hash, blob.Length, reservationResult.Value.newCapacity, reservationResult.Value.key)
                     : new PutBlobResult(hash, blob.Length, errorMessage);
             }
             catch (Exception e)
@@ -92,18 +102,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         ///     Under this scheme, each blob will try to add its length to its box's capacity and fail if max capacity has
         /// been exceeded.
         /// </summary>
-        private async Task<Result<(long newCapacity, string key)>> TryReserveAsync(OperationContext context, long byteCount, ContentHash hash)
+        private async Task<Result<(long newCapacity, string key)>> TryReserveAsync(OperationContext context, long byteCount, string key)
         {
-            var operationStart = _clock.UtcNow;
-            var time = new DateTime(ticks: operationStart.Ticks / _blobExpiryTime.Ticks * _blobExpiryTime.Ticks);
-            var key = $"BlobCapacity@{time.ToString("yyyyMMdd:hhmmss.fff")}";
-
-            if (key == _lastFailedReservationKey)
-            {
-                string message = $"Skipping reservation for blob [{hash.ToShortString()}] because key [{key}] ran out of capacity.";
-                return Result.FromErrorMessage<(long newCapacity, string key)>(message);
-            }
-            
             var newUsedCapacity = await _redis.ExecuteBatchAsync(context, async batch =>
             {
                 var stringSetTask = batch.StringSetAsync(key, 0, _capacityExpiryTime, StackExchange.Redis.When.NotExists);
@@ -118,8 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (!couldReserve)
             {
                 _lastFailedReservationKey = key;
-                string error = $"Could not reserve {byteCount} for {hash.ToShortString()} because key [{key}] ran out of capacity. Expected new capacity={newUsedCapacity} bytes, Max capacity={_maxCapacityPerTimeBox} bytes.";
-                return Result.FromErrorMessage<(long newCapacity, string key)>(error);
+                return Result.FromErrorMessage<(long newCapacity, string key)>(newUsedCapacity.ToString());
             }
 
             return Result.Success((newUsedCapacity, key));
@@ -150,5 +149,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         public CounterSet GetCounters() => Counters.ToCounterSet();
+
+        private string GetReservationKey()
+        {
+            var operationStart = _clock.UtcNow;
+            var time = new DateTime(ticks: operationStart.Ticks / _blobExpiryTime.Ticks * _blobExpiryTime.Ticks);
+            return $"BlobCapacity@{time.ToString("yyyyMMdd:hhmmss.fff")}";
+        }
     }
 }

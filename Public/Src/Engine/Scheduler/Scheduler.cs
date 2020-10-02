@@ -5743,8 +5743,7 @@ namespace BuildXL.Scheduler
             foreach (var node in nodes)
             {
                 var pipId = node.ToPipId();
-                // TODO(seokur): include it for ipc pips
-                if (m_pipTable.GetPipType(pipId) == PipType.Process)
+                if (m_pipTable.GetPipType(pipId) == PipType.Process || m_pipTable.GetPipType(pipId) == PipType.Ipc)
                 {
                     var pipState = (ProcessMutablePipState)m_pipTable.GetMutable(pipId);
                     (int NumPips, List<Worker> Workers) tuple;

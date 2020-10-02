@@ -1229,6 +1229,12 @@ namespace BuildXL.Engine
                 mutableConfig.Distribution.EarlyWorkerRelease = false;
             }
 
+            // When using module affinity, workers cannot be released early.
+            if (mutableConfig.Schedule.ModuleAffinityEnabled() == true)
+            {
+                mutableConfig.Distribution.EarlyWorkerRelease = false;
+            }
+
             // When running in cloudbuild we want to ignore the user setting the interactive flag
             // and force it to be false since we never want to pop up UI there.
             if (mutableConfig.InCloudBuild())

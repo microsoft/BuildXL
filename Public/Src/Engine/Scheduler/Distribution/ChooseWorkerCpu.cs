@@ -235,8 +235,13 @@ namespace BuildXL.Scheduler.Distribution
                     continue;
                 }
 
-                if (m_scheduleConfig.ModuleAffinityEnabled())
+                var moduleId = runnablePip.Pip.Provenance.ModuleId;
+
+                if (m_scheduleConfig.ModuleAffinityEnabled() &&
+                    m_moduleWorkerMapping.TryGetValue(moduleId, out var assignedWorkers) &&
+                    assignedWorkers.Workers.Count > 0)
                 {
+                    // If there are no workers assigned to the module, proceed with normal chooseworker logic.
                     return ChooseWorkerForModuleAffinity(runnablePip, workerSetupCosts, loadFactor, out limitingResource);
                 }
 
@@ -257,19 +262,20 @@ namespace BuildXL.Scheduler.Distribution
         private Worker ChooseWorkerForModuleAffinity(RunnablePip runnablePip, WorkerSetupCost[] workerSetupCosts, double loadFactor, out WorkerResource? limitingResource)
         {
             limitingResource = null;
+
             var moduleId = runnablePip.Pip.Provenance.ModuleId;
             var assignedWorkers = m_moduleWorkerMapping[moduleId].Workers;
 
-            bool isAnyAvailable = false;
             int numAssignedWorkers = assignedWorkers.Count;
             foreach (var worker in assignedWorkers.OrderBy(a => a.AcquiredProcessSlots))
             {
-                isAnyAvailable = isAnyAvailable || worker.IsAvailable;
                 if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor, moduleAffinityEnabled: true))
                 {
                     return worker;
                 }
             }
+
+            bool isAnyAvailable = assignedWorkers.Any(a => a.IsAvailable);
 
             var limitingResourceForAssigned = limitingResource;
 
@@ -281,14 +287,15 @@ namespace BuildXL.Scheduler.Distribution
                 .Where(a => a.AcquiredMaterializeInputSlots < a.TotalMaterializeInputSlots)
                 .OrderBy(a => a.AcquiredProcessSlots);
 
-            if (numAssignedWorkers < m_scheduleConfig.MaxWorkersPerModule)
+            // If there are no assigned workers in "Available status", we should choose one regardless not to block scheduler.
+            if (numAssignedWorkers < m_scheduleConfig.MaxWorkersPerModule || !isAnyAvailable)
             {
                 foreach (var worker in potentialWorkers)
                 {
                     if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor, moduleAffinityEnabled: true))
                     {
                         assignedWorkers.Add(worker);
-                        Logger.Log.AddedNewWorkerToModuleAffinity(LoggingContext, $"Added a new worker due to {(isAnyAvailable ? "Availability" : "Rebalance")} - {limitingResourceForAssigned}: {runnablePip.Description} - {moduleId.Value.ToString(m_pathTable.StringTable)} - WorkerId: {worker.WorkerId}, MaterializeInputSlots: {worker.AcquiredMaterializeInputSlots}, AcquiredProcessSlots: {worker.AcquiredProcessSlots}");
+                        Logger.Log.AddedNewWorkerToModuleAffinity(LoggingContext, $"Added a new worker due to {(isAnyAvailable ? "Rebalance" : "Availability")} - {limitingResourceForAssigned}: {runnablePip.Description} - {moduleId.Value.ToString(m_pathTable.StringTable)} - WorkerId: {worker.WorkerId}, MaterializeInputSlots: {worker.AcquiredMaterializeInputSlots}, AcquiredProcessSlots: {worker.AcquiredProcessSlots}");
                         return worker;
                     }
                 }

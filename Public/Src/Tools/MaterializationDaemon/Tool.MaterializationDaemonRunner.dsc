@@ -49,6 +49,9 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
         serviceStartCmd.merge<Transformer.CreateServiceArguments>({
             serviceShutdownCmd: shutdownCmd,
             serviceFinalizationCmds: [finalizeCmd],
+            unsafe: {
+                hasUntrackedChildProcesses: true,
+            },
         })
     );
     

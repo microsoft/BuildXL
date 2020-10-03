@@ -35,6 +35,7 @@ namespace Tool.MaterializationDaemon
         /// <nodoc/>
         public const string MaterializationDaemonLogPrefix = "(MMD) ";
         private const string LogFileName = "MaterializationDaemon";
+        private const int MaxExternalParserRetries = 2;
 
         private static readonly TimeSpan s_externalProcessTimeout = TimeSpan.FromSeconds(10);
 
@@ -451,8 +452,39 @@ namespace Tool.MaterializationDaemon
         private async Task<Possible<List<string>>> ParseManifestFileUsingExtenalParserAsync(string manifestFilePath)
         {
             var process = CreateParserProcess(manifestFilePath);
-
+            var retryCount = 0;
             try
+            {
+                while (true)
+                {
+                    var possibleResult = await launchExternalProcessAndParseOutputAsync(process);
+                    if (possibleResult.Succeeded)
+                    {
+                        Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, possibleResult.Result)}");
+                        return possibleResult.Result;
+                    }
+
+                    if (retryCount < MaxExternalParserRetries)
+                    {
+                        Logger.Verbose($"Retrying an external parser due to an error. Retires left: {MaxExternalParserRetries - retryCount}. Error: {possibleResult.Failure.Describe()}.");
+                        // need to recreate the process because AsyncProcessExecutor is disposing it
+                        process = CreateParserProcess(manifestFilePath);
+                    }
+                    else
+                    {
+                        Logger.Warning($"Failing an external parser because the number of retries were exhausted. The latest error: {possibleResult.Failure.Describe()}.");
+                        return possibleResult.Failure;
+                    }
+
+                    retryCount++;
+                }
+            }
+            catch (Exception e)
+            {
+                return new Failure<string>($"{describeProcess(process)} {e.DemystifyToString()}");
+            }
+
+            static async Task<Possible<List<string>>> launchExternalProcessAndParseOutputAsync(Process process)
             {
                 var result = new List<string>();
                 using (var pooledList = Pools.GetStringList())
@@ -473,36 +505,35 @@ namespace Tool.MaterializationDaemon
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
                             var stdErr = $"{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
-                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
-                        }                        
+                            return new Failure<string>($"{describeProcess(process)} Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
+                        }
 
                         if (result.Count == 0)
                         {
-                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Parser exited cleanly, but no output was written.");
+                            return new Failure<string>($"{describeProcess(process)} Parser exited cleanly, but no output was written.");
                         }
 
                         if (!int.TryParse(result[0], out var expectedCount))
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
-                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Failed to parse tool output {stdOut}");
+                            return new Failure<string>($"{describeProcess(process)} Failed to parse tool output: {stdOut}");
                         }
 
                         if (expectedCount != result.Count - 1)
                         {
                             var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
-                            return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] Output line count does not match the expected count {stdOut}");
+                            return new Failure<string>($"{describeProcess(process)} Output line count does not match the expected count: {stdOut}");
                         }
 
                         result.RemoveAt(0);
-                        Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, result)}");
-
                         return result;
                     }
                 }
             }
-            catch (Exception e)
+
+            static string describeProcess(Process process)
             {
-                return new Failure<string>($"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')] {e.DemystifyToString()}");
+                return $"[Parser ('{process.StartInfo.FileName} {process.StartInfo.Arguments}')]";
             }
         }
 

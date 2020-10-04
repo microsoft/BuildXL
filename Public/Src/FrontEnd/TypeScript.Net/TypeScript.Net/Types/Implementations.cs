@@ -150,8 +150,8 @@ namespace TypeScript.Net.Types
         private volatile Map<IType> m_instantiations;
         private volatile ITypeMapper m_mapper;
 
-        // TODO: consider using enum with 3 states instead.
-        private bool? m_referenced;
+        // The next field is used a lot and avoiding the lock accessing it boosts performance.
+        private volatile NullableBool m_referenced;
         private volatile IUnionOrIntersectionType m_containingType;
         private volatile ISymbolTable m_resolvedExports;
         private volatile bool m_exportsChecked;
@@ -213,8 +213,8 @@ namespace TypeScript.Net.Types
 #pragma warning disable SA1501 // Statement must not be on a single line
         public bool? Referenced
         {
-            get { lock (this) { return m_referenced; } }
-            set { lock (this) { m_referenced = value; } }
+            get { return m_referenced.AsBool(); }
+            set { m_referenced = value.AsNullableBool(); }
         }
 
         public IUnionOrIntersectionType ContainingType

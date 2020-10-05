@@ -46,13 +46,13 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Indicates if entries should be purged as soon as there TTL reaches zero versus reaching a limit in percentage expired.
         /// </summary>
-        private static readonly bool s_proactivePurging = EngineEnvironmentSettings.ProactivePurgeHistoricMetadataEntries;
+        private static bool ProactivePurging => EngineEnvironmentSettings.ProactivePurgeHistoricMetadataEntries;
 
         /// <summary>
         /// Default time-to-live (TTL) for new entries
         /// The TTL of an entry is the number of save / load round-trips until eviction (assuming it is not accessed within that time).
         /// </summary>
-        public static readonly byte TimeToLive = (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
+        public static byte TimeToLive => (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
 
         private static readonly Task<Possible<Unit>> s_genericSuccessTask = Task.FromResult(new Possible<Unit>(Unit.Void));
 
@@ -856,7 +856,7 @@ namespace BuildXL.Scheduler.Cache
 
         private static List<T> GetUnexpiredEntries<T>(IReadOnlyCollection<T> entries, Func<T, bool> isExpired, out bool isPurging)
         {
-            if (!s_proactivePurging)
+            if (!ProactivePurging)
             {
                 // If not proactive purging, wait to reach over half entries expired
                 var expiredCount = entries.Where(isExpired).Count();

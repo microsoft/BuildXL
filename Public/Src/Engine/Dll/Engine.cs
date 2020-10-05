@@ -852,6 +852,11 @@ namespace BuildXL.Engine
                 EngineEnvironmentSettings.SetVariable(property.Key, property.Value);
             }
 
+            // Customer builds may involve a lot of large strings that can fill up the string table.
+            // Large string buffer is a secondary table used when the strings are large. By adjusting the threshold for
+            // the string size, some of the large strings that used to go to the string table can go to the large string buffer.
+            StringTable.OverrideLargeStringBufferThreshold(EngineEnvironmentSettings.LargeStringBufferThresholdBytes);
+
             if (mutableConfig.Export.SnapshotFile.IsValid && mutableConfig.Export.SnapshotMode != SnapshotMode.None)
             {
                 // Note: the /CleanOnly also overrides the Phase. In this case it is safe. An evaluation snapshot 'can' work with the 'schedule' phase in case both are set.

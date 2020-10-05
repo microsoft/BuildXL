@@ -46,11 +46,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<EnginePhases?> LaunchDebuggerAfterPhase = CreateSetting("BuildXLDebugAfterPhase", value => ParsePhase(Environment.GetEnvironmentVariable("BuildXLDebugAfterPhase")));
 
         /// <summary>
-        /// Defines whether file sizes and hashes should be exported into the json graph
-        /// </summary>
-        public static readonly Setting<bool> ExportFileDetails = CreateSetting("BuildXLExportFileDetails", value => value == "1");
-
-        /// <summary>
         /// Defines optional text used to salt pip fingerprints.
         /// Unspecified means salt is not added to fingerprint.
         /// '*' corresponds to using a random guid as the salt.
@@ -70,17 +65,6 @@ namespace BuildXL.Utilities.Configuration
         /// Path pointing to VM command proxy needed for build in VM feature.
         /// </summary>
         public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
-
-        /// <summary>
-        /// Bypass NuGet up to date checks
-        /// </summary>
-        public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");
-
-        /// <summary>
-        /// Allows optionally specifying an alternative timeout fo connect between IDE service and BuildXL task
-        /// </summary>
-        public static readonly Setting<TimeSpan> IdeConnectTimeout = CreateSetting("BuildXLIdeConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ??
-            TimeSpan.FromSeconds(30));
 
         /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
@@ -155,7 +139,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DoNotPauseChooseWorkerThreads = CreateSetting("BuildXLDoNotPauseChooseWorkerThreads", value => value == "1");
 
         /// <summary>
-        /// DisableDelayedCacheLookup
+        /// Disable delayed cache lookup.
         /// </summary>
         public static readonly Setting<bool> DisableDelayedCacheLookup = CreateSetting("BuildXLDisableDelayedCacheLookup", value => value == "1");
 
@@ -210,13 +194,6 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
-
-        /// <summary>
-        /// An artificial delay in reporting notifications to force batching
-        /// </summary>
-        public static readonly Setting<TimeSpan> DistributionBatchArtificialDelay = CreateSetting("BuildXLDistributionBatchArtificialDelay", value => ParseTimeSpan(value, ts => TimeSpan.FromMilliseconds(ts)) ??
-            TimeSpan.Zero);
-
         /// <summary>
         /// The amount of concurrency to allow for input/output materialization
         /// </summary>
@@ -261,6 +238,11 @@ namespace BuildXL.Utilities.Configuration
         /// Disables retries due to detours failures
         /// </summary>
         public static readonly Setting<bool> DisableDetoursRetries = CreateSetting("BuildXLDisableDetoursRetries", value => value == "1");
+
+        /// <summary>
+        /// Threshold in bytes for large string buffer in string table.
+        /// </summary>
+        public static readonly Setting<int?> LargeStringBufferThresholdBytes = CreateSetting("BuildXLLargeStringBufferThresholdBytes", value => ParseInt32(value));
 
         /// <summary>
         /// Sets the variable for consumption by settings

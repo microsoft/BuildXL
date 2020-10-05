@@ -49,8 +49,9 @@ namespace BuildXL.Utilities
     /// - foo (0-th byte buffer number, 1-st buffer offset), 
     /// - bar (2045-th byte buffer number, 42-th buffer offset)
     /// 
-    /// To handle a large string (length > 2^12), the string table has another table called LargeStringBuffer, which is also
-    /// a 2-dimensional byte array, but each buffer in that array has variable size depending on the size of the stored string.
+    /// To handle a large string (length > 2^l, where 2^l = LargeStringBufferThreshold), the string table has another table called
+    /// LargeStringBuffer, which is also a 2-dimensional byte array, but each buffer in that array has variable size depending on 
+    /// the size of the stored string.
     /// 
     ///         +---+     +---+---+---+ .... +---+---+                        -
     ///         |   | ->  |   |   |   |      |   |   |                        |
@@ -75,6 +76,11 @@ namespace BuildXL.Utilities
         /// </summary>
         public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "StringTable", version: 0);
 
+        /// <summary>
+        /// Threshold (1K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
+        /// </summary>
+        private static int s_largeStringBufferThreshold = 1 << 10;
+
         // a StringId has the upper 11 bits as a buffer selector and the lower 21 bits as byte selector within the buffer
         private const int BytesPerBufferBits = 21;
         internal const int BytesPerBuffer = 1 << BytesPerBufferBits; // internal for use by the unit test
@@ -96,11 +102,6 @@ namespace BuildXL.Utilities
 
         private readonly LargeStringBuffer m_largeStringBuffer;
         private const int LargeStringBufferNum = NumByteBuffers;
-
-        /// <summary>
-        /// Threshold (1K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
-        /// </summary>
-        private const int LargeStringBufferThreshold = 1 << 10;
 
         // the number of items in the table
         private int m_count;
@@ -169,6 +170,19 @@ namespace BuildXL.Utilities
 
         internal const byte UnallocatedDebugId = byte.MaxValue;
 #endif
+      
+        /// <summary>
+        /// Overrides large string buffer threshold.
+        /// </summary>
+        public static void OverrideLargeStringBufferThreshold(int? newThreshold)
+        {
+            if (!newThreshold.HasValue || newThreshold.Value <= 0)
+            {
+                return;
+            }
+
+            s_largeStringBufferThreshold = newThreshold.Value;
+        }
 
         /// <summary>
         /// Invalidates the StringTable to ensure it is not reused.
@@ -515,7 +529,7 @@ namespace BuildXL.Utilities
             // count how many strings are in the buffer
             Interlocked.Increment(ref m_count);
 
-            if (space > LargeStringBufferThreshold && m_largeStringBuffer.TryReserveSlot(out var largeStringIndex))
+            if (space > s_largeStringBufferThreshold && m_largeStringBuffer.TryReserveSlot(out var largeStringIndex))
             {
                 var buffer = new byte[space];
                 WriteBytes(seg, isAscii, buffer, 0);
@@ -1056,7 +1070,7 @@ namespace BuildXL.Utilities
         #region Helpers
 
         /// <summary>
-        /// Defines a buffer for large string over <see cref="LargeStringBufferThreshold"/> in size. Strings are stored as independent byte buffers
+        /// Defines a buffer for large string over <see cref="s_largeStringBufferThreshold"/> in size. Strings are stored as independent byte buffers
         /// rather than sharing byte buffers
         /// </summary>
         protected class LargeStringBuffer

@@ -134,6 +134,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IReadOnlyList<MachineId> ClosedMachines => Read(c => c.ClosedMachines);
 
+        /// <nodoc />
+        public IReadOnlyList<MachineLocation> Locations => Read(c => c.Locations);
+
         /// <summary>
         /// Gets whether a machine is marked inactive
         /// </summary>

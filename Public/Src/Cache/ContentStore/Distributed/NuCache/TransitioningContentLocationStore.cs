@@ -94,9 +94,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             .ThrowIfFailure();
                     }
                 }
+                else if (_configuration.DistributedContentConsumerOnly)
+                {
+                    LocalMachineId = LocalLocationStore.ClusterState.PrimaryMachineId;
+                }
                 else
                 {
-                    return new BoolResult($"Unabled to resolve machine id for location {LocalMachineLocation} in cluster state.");
+                    return new BoolResult($"Unable to resolve machine id for location {LocalMachineLocation} in cluster state.");
                 }
             }
 

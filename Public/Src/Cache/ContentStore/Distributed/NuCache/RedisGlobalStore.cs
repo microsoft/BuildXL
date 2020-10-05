@@ -127,6 +127,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public async Task<MachineMapping> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
         {
+            if (Configuration.DistributedContentConsumerOnly)
+            {
+                return new MachineMapping(machineLocation, new MachineId(0));
+            }
+
             // Get the local machine id
             var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
                 context,
@@ -222,6 +227,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes)
         {
+            if (Configuration.DistributedContentConsumerOnly)
+            {
+                return BoolResult.SuccessTask;
+            }
+
             return RegisterLocationAsync(context, contentHashes, machineId);
         }
 
@@ -353,6 +363,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public async Task<Role?> ReleaseRoleIfNecessaryAsync(OperationContext context)
         {
+            if (Configuration.DistributedContentConsumerOnly)
+            {
+                return Role.Worker;
+            }
+
             if (_role == Role.Master)
             {
                 await context.PerformOperationAsync(
@@ -368,6 +383,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<Result<Role>> UpdateRoleAsync(OperationContext context, bool release)
         {
+            if (Configuration.DistributedContentConsumerOnly)
+            {
+                return Role.Worker;
+            }
+
             return await context.PerformOperationAsync<Result<Role>>(
                 Tracer,
                 async () =>
@@ -475,21 +495,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
             Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
 
-            foreach (var machineMapping in clusterState.LocalMachineMappings)
+            if (!Configuration.DistributedContentConsumerOnly)
             {
-                if (!clusterState.TryResolveMachineId(machineMapping.Location, out var machineId))
+                foreach (var machineMapping in clusterState.LocalMachineMappings)
                 {
-                    return new BoolResult($"Invalid redis cluster state on machine {machineMapping}. (Missing location {machineMapping.Location})");
-                }
-                else if (machineId != machineMapping.Id)
-                {
-                    Tracer.Warning(context, $"Machine id mismatch for location {machineMapping.Location}. Registered id: {machineMapping.Id}. Cluster state id: {machineId}. Updating registered id with cluster state id.");
-                    machineMapping.Id = machineId;
-                }
+                    if (!clusterState.TryResolveMachineId(machineMapping.Location, out var machineId))
+                    {
+                        return new BoolResult($"Invalid redis cluster state on machine {machineMapping}. (Missing location {machineMapping.Location})");
+                    }
+                    else if (machineId != machineMapping.Id)
+                    {
+                        Tracer.Warning(context, $"Machine id mismatch for location {machineMapping.Location}. Registered id: {machineMapping.Id}. Cluster state id: {machineId}. Updating registered id with cluster state id.");
+                        machineMapping.Id = machineId;
+                    }
 
-                if (getUnknownMachinesResult.maxMachineId < machineMapping.Id.Index)
-                {
-                    return new BoolResult($"Invalid redis cluster state on machine {machineMapping} (redis max machine id={getUnknownMachinesResult.maxMachineId})");
+                    if (getUnknownMachinesResult.maxMachineId < machineMapping.Id.Index)
+                    {
+                        return new BoolResult($"Invalid redis cluster state on machine {machineMapping} (redis max machine id={getUnknownMachinesResult.maxMachineId})");
+                    }
                 }
             }
 
@@ -508,7 +531,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet) = await batch.HeartbeatAsync(
                     key,
                     machineMapping.Id.Index,
-                    state,
+                    // When readonly, specify Unknown which does not update state
+                    Configuration.DistributedContentConsumerOnly ? MachineState.Unknown : state,
                     _clock.UtcNow,
                     Configuration.MachineStateRecomputeInterval,
                     Configuration.MachineActiveToClosedInterval,
@@ -602,6 +626,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public async Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state)
         {
+            if (Configuration.DistributedContentConsumerOnly)
+            {
+                return MachineState.Unknown;
+            }
+
             var counter = state switch
             {
                 MachineState.Unknown => GlobalStoreCounters.SetMachineStateUnknown,

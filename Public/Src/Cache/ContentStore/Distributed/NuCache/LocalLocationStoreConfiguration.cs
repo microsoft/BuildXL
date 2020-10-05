@@ -38,6 +38,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class LocalLocationStoreConfiguration
     {
         /// <summary>
+        /// Indicates whether LLS operates in read-only mode where no writes are performed
+        ///
+        /// In this mode, the machine does not register itself as a part of the distributed network and thus is not
+        /// discoverable as a content replica for any content on the machine. This is useful for scenarios where distributed network
+        /// partially composed of machines which are short-lived and thus should not participate in the distributed network for the
+        /// sake of avoid churn. The machines can still pull content from other machines by querying LLS DB/Redis and getting replicas
+        /// on machines which are long-lived (and this flag is false).
+        /// </summary>
+        public bool DistributedContentConsumerOnly { get; set; }
+
+        /// <summary>
         /// The machine location for the primary CAS folder on the machine.
         /// NOTE: LLS database is assumed to be stored on the same disk as this CAS instance.
         /// </summary>

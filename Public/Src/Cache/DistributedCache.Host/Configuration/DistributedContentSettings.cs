@@ -948,6 +948,19 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TouchContentHashLists { get; set; }
 
+        /// <summary>
+        /// Indicates whether distributed content store operates in special mode where content is only consumed from other machines but
+        /// not available as a content replica from which other machines can copy content.
+        ///
+        /// In this mode, the machine does not register itself as a part of the distributed network and thus is not
+        /// discoverable as a content replica for any content on the machine. This is useful for scenarios where distributed network
+        /// partially composed of machines which are short-lived and thus should not participate in the distributed network for the
+        /// sake of avoid churn. The machines can still pull content from other machines by querying LLS DB/Redis and getting replicas
+        /// on machines which are long-lived (and this flag is false).
+        /// </summary>
+        [DataMember]
+        public bool? DistributedContentConsumerOnly { get; set; }
+
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
         {
             if (AlternateDriveMap != null)

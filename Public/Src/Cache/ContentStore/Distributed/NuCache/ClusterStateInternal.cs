@@ -25,6 +25,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private BitMachineIdSet _inactiveMachinesSet = BitMachineIdSet.EmptyInstance;
 
+        internal IReadOnlyList<MachineLocation> Locations => _locationByIdMap;
+
         /// <summary>
         /// Returns a list of inactive machines.
         /// </summary>

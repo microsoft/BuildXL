@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var fileAccessMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileAccessMode.ReadOnly : FileAccessMode.Write;
                 var fileRealizationMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileRealizationMode.Any : FileRealizationMode.Copy;
-                
+
                 // First attempt to place file from content store
                 var placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, fileAccessMode, FileReplacementMode.ReplaceExisting, fileRealizationMode, pinRequest: null);
                 if (placeResult.IsPlaced())
@@ -239,8 +239,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     for (int i = 0; i < _configuration.PropagationIterations; i++)
                     {
-                                // If initial place fails, try to copy the content from remote locations
-                                var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
+                        // If initial place fails, try to copy the content from remote locations
+                        var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
 
                         var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
                         int machineNumber = GetMachineNumber();
@@ -248,10 +248,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         var actualReplicas = hashInfo.Locations?.Count ?? 0;
 
-                                // Copy from peers if:
-                                // The number of pending copies is known to be less that the max allowed copies
-                                // OR the number replicas exceeds the number of required replicas computed based on the machine index
-                                bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
+                        // Copy from peers if:
+                        // The number of pending copies is known to be less that the max allowed copies
+                        // OR the number replicas exceeds the number of required replicas computed based on the machine index
+                        bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
 
                         Tracer.OperationDebug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
                             $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={_configuration.MaxSimultaneousCopies}");
@@ -268,8 +268,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return putResult;
                         }
 
-                                // Wait for content to propagate to more machines
-                                await Task.Delay(_configuration.PropagationDelay, context.Token);
+                        // Wait for content to propagate to more machines
+                        await Task.Delay(_configuration.PropagationDelay, context.Token);
                     }
 
                     return new PutResult(hash, "Insufficient replicas");

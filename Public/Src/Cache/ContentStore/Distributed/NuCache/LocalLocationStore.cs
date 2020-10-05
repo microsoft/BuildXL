@@ -1094,6 +1094,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _postInitialization.tcs.Task;
         }
 
+        private async Task<BoolResult> PrepareForWriteAsync<T>(IReadOnlyCollection<T> hashes)
+        {
+            var postInitializationResult = await EnsureInitializedAsync();
+            if (!postInitializationResult)
+            {
+                return postInitializationResult;
+            }
+
+            if (_configuration.DistributedContentConsumerOnly)
+            {
+                return BoolResult.Success;
+            }
+
+            if (hashes.Count == 0)
+            {
+                return BoolResult.Success;
+            }
+
+            return null;
+        }
+
+        private bool HasResult(BoolResult possibleResult, out BoolResult result)
+        {
+            result = possibleResult;
+            return possibleResult != null;
+        }
+
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
@@ -1101,15 +1128,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(contentHashes != null);
 
-            var postInitializationResult = await EnsureInitializedAsync();
-            if (!postInitializationResult)
+            if (HasResult(await PrepareForWriteAsync(contentHashes), out var result))
             {
-                return postInitializationResult;
-            }
-
-            if (contentHashes.Count == 0)
-            {
-                return BoolResult.Success;
+                return result;
             }
 
             string extraMessage = string.Empty;
@@ -1186,15 +1207,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(contentHashes != null);
 
-            var postInitializationResult = await EnsureInitializedAsync();
-            if (!postInitializationResult)
+            if (HasResult(await PrepareForWriteAsync(contentHashes), out var result))
             {
-                return postInitializationResult;
-            }
-
-            if (contentHashes.Count == 0)
-            {
-                return BoolResult.Success;
+                return result;
             }
 
             return context.PerformOperation(
@@ -1235,15 +1250,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(contentHashes != null);
 
-            var postInitializationResult = await EnsureInitializedAsync();
-            if (!postInitializationResult)
+            if (HasResult(await PrepareForWriteAsync(contentHashes), out var result))
             {
-                return postInitializationResult;
-            }
-
-            if (contentHashes.Count == 0)
-            {
-                return BoolResult.Success;
+                return result;
             }
 
             foreach (var contentHashesPage in contentHashes.GetPages(100))
@@ -1519,7 +1528,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new ReconciliationResult(new ErrorResult("Local content store is not provided"));
                     }
 
-                    if (_configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId))
+                    if (_configuration.DistributedContentConsumerOnly || (_configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId)))
                     {
                         return new ReconciliationResult(addedCount: 0, removedCount: 0, totalLocalContentCount: -1);
                     }

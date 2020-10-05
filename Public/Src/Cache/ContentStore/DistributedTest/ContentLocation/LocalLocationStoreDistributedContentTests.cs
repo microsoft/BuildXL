@@ -1775,6 +1775,59 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task ConsumerOnlyContentLocationStoreContentDiscoveryTests()
+        {
+            int consumerIndex = 1;
+            int storeCount = 3;
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.DistributedContentConsumerOnly = dcs.TestMachineIndex == consumerIndex;
+            });
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: storeCount,
+                async context =>
+                {
+                    var master = context.GetMaster();
+                    var masterSession = context.GetDistributedSession(context.GetMasterIndex());
+
+                    var consumer = context.GetLocationStore(consumerIndex);
+                    var consumerSession = context.GetDistributedSession(consumerIndex);
+
+                    // Ensure cluster states up to date
+                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await consumer.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+
+                    var masterPut = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    var consumerPut = await consumerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    foreach (var store in new[] { consumer, master })
+                    {
+                        var clusterState = store.LocalLocationStore.ClusterState;
+
+                        // Verify number of registered machines (consumer machine is not registered so number of machines should be 1 less than store count)
+                        clusterState.MaxMachineId.Should().Be(storeCount - 1);
+
+                        // Verify that none of the consumer machine locations are in the cluster state
+                        clusterState.Locations
+                            .Any(location =>
+                                consumer.LocalLocationStore.ClusterState.LocalMachineMappings.Any(mapping => mapping.Location.Equals(location)))
+                            .Should().BeFalse();
+                    }
+
+                    consumer.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
+                    master.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
+
+                    // Verify content in consumer NOT visible from distributed mesh (i.e. master)
+                    await masterSession.OpenStreamAsync(context, consumerPut.ContentHash, Token).ShouldBeNotFound();
+
+                    // Verify content in distributed mesh visible from consumer
+                    await OpenStreamAndDisposeAsync(consumerSession, context, masterPut.ContentHash);
+                });
+        }
+
+        [Fact]
         public async Task MultiLevelContentLocationStorePlaceFileTests()
         {
             ConfigureWithOneMaster();

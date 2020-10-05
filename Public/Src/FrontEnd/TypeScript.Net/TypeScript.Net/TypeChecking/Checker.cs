@@ -9896,7 +9896,8 @@ namespace TypeScript.Net.TypeChecking
         private IType GetOrSetResolvedType<T>(INode node, T data, Func<NodeLinks, T, Tuple<IType, ISymbol>> getResolvedTypeAndSymbolFactory)
         {
             var links = GetNodeLinks(node);
-            if (links.ResolvedType != null)
+            if (links.ResolvedType != null 
+                && GetResolvedSymbol(node) != null /* Defensive: just to ensure that resolved symbol is set */)
             {
                 return links.ResolvedType;
             }
@@ -9906,8 +9907,8 @@ namespace TypeScript.Net.TypeChecking
                 if (links.ResolvedType == null)
                 {
                     var result = getResolvedTypeAndSymbolFactory(links, data);
-                    links.ResolvedType = result.Item1;
                     SetResolvedSymbol(node, result.Item2);
+                    links.ResolvedType = result.Item1;
                 }
             }
 

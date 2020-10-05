@@ -3082,7 +3082,8 @@ namespace BuildXL.Scheduler.Artifacts
                         else
                         {
                             // Case 2:
-                            // We only log the warning for hash source file pips
+                            // Log error because this can indicate a bug in the specification. This causes an issue later, and so
+                            // it's better to log an error immediately instead of "delaying" it with a warning.
                             Logger.Log.FailedToHashInputFileBecauseTheFileIsDirectory(
                                 operationContext,
                                 GetAssociatedPipDescription(declaredArtifact, consumerDescription),

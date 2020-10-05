@@ -1247,7 +1247,7 @@ namespace Test.BuildXL.Scheduler
             };
 
             await RunScheduler(scheduleConfiguration: customConfiguration);
-            AssertWarningEventLogged(LogEventId.FailedToHashInputFileBecauseTheFileIsDirectory);
+            AssertErrorEventLogged(LogEventId.FailedToHashInputFileBecauseTheFileIsDirectory);
             AssertErrorEventLogged(LogEventId.PipSourceDependencyCannotBeHashed);
             AssertErrorEventLogged(LogEventId.PipFailedDueToSourceDependenciesCannotBeHashed);
         }

@@ -1499,7 +1499,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.FailedToHashInputFileBecauseTheFileIsDirectory,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipDescription}] Unable to hash the source file '{path}' because the file is actually a directory")]

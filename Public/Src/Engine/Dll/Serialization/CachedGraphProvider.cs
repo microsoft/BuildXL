@@ -433,13 +433,15 @@ namespace BuildXL.Engine
                         descriptor = await singlePhaseFingerprintStore.TryLoadAndDeserializeContent(conflictingEntry.MetadataHash);
                     }
 
-                    if (!descriptor.Succeeded)
+                    if (!descriptor.Succeeded || descriptor.Result == null)
                     {
                         return StorePipGraphCacheDescriptorResult.CreateForFailed(
                             StorePipGraphCacheDescriptorResultKind.FailedLoadAndDeserializeContent,
                             fingerprintChains,
                             hopCount,
-                            descriptor.Failure.DescribeIncludingInnerFailures(),
+                            !descriptor.Succeeded 
+                                ? descriptor.Failure.DescribeIncludingInnerFailures()
+                                : I($"Conflict cache entry with hash '{conflictingEntry.MetadataHash}' is not available"),
                             sw.ElapsedMilliseconds,
                             (long) hashPipGraphInputSw.TotalElapsed.TotalMilliseconds,
                             (long) storeFingerprintEntrySw.TotalElapsed.TotalMilliseconds,

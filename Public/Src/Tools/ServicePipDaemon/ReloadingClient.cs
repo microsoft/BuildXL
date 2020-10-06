@@ -18,7 +18,7 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public abstract class ReloadingClient<T> : IDisposable where T : IDisposable
     {
-        private static readonly TimeSpan s_defaultOperationTimeout = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan s_defaultOperationTimeout = TimeSpan.FromMinutes(15);
 
         // Default number and length of polling intervals - total time is approximately the sum of all these intervals.
         // NOTE: taken from DBS.ActionRetryer class, from CloudBuild.Core

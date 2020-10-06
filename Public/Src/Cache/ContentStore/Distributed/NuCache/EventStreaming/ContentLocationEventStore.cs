@@ -99,7 +99,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Tracer = tracer;
 
             ValidationMode validationMode = configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off;
-            EventDataSerializer = new ContentLocationEventDataSerializer(validationMode);
+
+            // EventDataSerializer is not thread-safe.
+            // This is usually not a problem, because the nagle queue that is used by this class
+            // kind of guarantees that it would be just a single thread responsible for sending the events
+            // to event hub.
+            // But this is not the case when the batch size is 1 (used by tests only).
+            // In this case a special version of a nagle queue is created, that doesn't have this guarantee.
+            // In this case this method can be called from multiple threads causing serialization/deserialization issues.
+            // So to prevent random test failures because of the state corruption we're using lock
+            // if the batch size is 1.
+            EventDataSerializer = new ContentLocationEventDataSerializer(validationMode, synchronize: _configuration.EventBatchSize == 1);
         }
 
         /// <summary>
@@ -235,6 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     FileOptions.DeleteOnClose,
                     AbsFileSystemExtension.DefaultFileStreamBufferSize);
                 using var reader = BuildXLReader.Create(stream, leaveOpen: true);
+
                 // Calling ToList to force materialization of IEnumerable to avoid access of disposed stream.
                 return EventDataSerializer.DeserializeEvents(reader).ToList();
             }

@@ -9,6 +9,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -52,29 +53,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly StreamBinaryWriter _writer = new StreamBinaryWriter();
         private readonly StreamBinaryReader _reader = new StreamBinaryReader();
 
-        /// <inheritdoc />
-        public ContentLocationEventDataSerializer(ValidationMode validationMode)
+        private readonly bool _synchronize;
+
+        /// <nodoc />
+        public ContentLocationEventDataSerializer(ValidationMode validationMode, bool synchronize = false)
         {
             _validationMode = validationMode;
+            _synchronize = synchronize;
         }
 
         /// <nodoc />
         public IReadOnlyList<EventData> Serialize(OperationContext context, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
-            var result = SerializeCore(context, eventDatas).ToList();
+            return SynchronizeIfNeeded(
+                _ =>
+                {
+                    var result = SerializeCore(context, eventDatas).ToList();
 
-            if (_validationMode != ValidationMode.Off)
-            {
-                var deserializedEvents = result.SelectMany(e => DeserializeEvents(e, DateTime.Now)).ToList();
-                AnalyzeEquality(context, eventDatas, deserializedEvents);
-            }
+                    if (_validationMode != ValidationMode.Off)
+                    {
+                        var deserializedEvents = result.SelectMany(e => DeserializeEvents(e, DateTime.Now)).ToList();
+                        AnalyzeEquality(context, eventDatas, deserializedEvents);
+                    }
 
-            return result;
+                    return result;
+                });
         }
 
         private static bool Equal(IReadOnlyList<ContentLocationEventData> originalEventDatas, IReadOnlyList<ContentLocationEventData> deserializedEvents)
         {
-            // Flatten the event datas for comparison
+            // Flatten the event data for comparison
             var left = originalEventDatas.SelectMany(data => GetIndices(data).Select(index => ((data, index)))).ToList();
             var right = deserializedEvents.SelectMany(data => GetIndices(data).Select(index => (data, index))).ToList();
 
@@ -259,36 +267,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         public void SerializeEvents(BuildXLWriter writer, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
-            writer.WriteCompact(eventDatas.Count);
-            foreach (var eventData in eventDatas)
-            {
-                eventData.Serialize(writer);
-            }
+            SynchronizeIfNeeded(
+                _ =>
+                {
+                    writer.WriteCompact(eventDatas.Count);
+                    foreach (var eventData in eventDatas)
+                    {
+                        eventData.Serialize(writer);
+                    }
+
+                    return Unit.Void;
+                });
         }
 
         /// <nodoc />
         public IEnumerable<ContentLocationEventData> DeserializeEvents(BuildXLReader reader)
         {
-            var entriesCount = reader.ReadInt32Compact();
+            return SynchronizeIfNeeded(
+                synchronized =>
+                {
+                    // Need to "materialize" the result if synchronization is needed.
+                    // Otherwise the lock will be released before all the data is consumed from the 
+                    if (synchronized)
+                    {
+                        return deserializeEventsCore().ToList();
+                    }
+                    else
+                    {
+                        return deserializeEventsCore();
+                    }
+                });
 
-            for (int i = 0; i < entriesCount; i++)
+            IEnumerable<ContentLocationEventData> deserializeEventsCore()
             {
-                // Using default as eventTimeUtc because reconciliation events should not have touches.
-                yield return ContentLocationEventData.Deserialize(reader, eventTimeUtc: default);
+                var entriesCount = reader.ReadInt32Compact();
+
+                for (int i = 0; i < entriesCount; i++)
+                {
+                    // Using default as eventTimeUtc because reconciliation events should not have touches.
+                    yield return ContentLocationEventData.Deserialize(reader, eventTimeUtc: default);
+                }
             }
         }
 
         /// <nodoc />
         public IReadOnlyList<ContentLocationEventData> DeserializeEvents(EventData message, DateTime? eventTimeUtc = null)
         {
-            if (eventTimeUtc == null)
-            {
-                Contract.Assert(message.SystemProperties != null, "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provde eventTimeUtc arguments in tests?");
-                eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
-            }
+            return SynchronizeIfNeeded(
+                _ =>
+                {
+                    if (eventTimeUtc == null)
+                    {
+                        Contract.Assert(message.SystemProperties != null, "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provide eventTimeUtc arguments in tests?");
+                        eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
+                    }
 
-            var data = message.Body;
-            return _reader.DeserializeSequence(data, reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value)).ToList();
+                    var data = message.Body;
+                    return _reader.DeserializeSequence(data, reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value)).ToList();
+                });
         }
 
         /// <nodoc />
@@ -321,6 +357,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         yield return source[i];
                     }
                 }
+            }
+        }
+
+        private T SynchronizeIfNeeded<T>(Func<bool, T> func)
+        {
+            if (_synchronize)
+            {
+                lock (this)
+                {
+                    return func(true);
+                }
+            }
+            else
+            {
+                return func(false);
             }
         }
     }

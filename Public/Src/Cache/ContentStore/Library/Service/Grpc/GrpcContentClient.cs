@@ -44,18 +44,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public GrpcContentClient(
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
-            int grpcPort,
-            string? scenario,
-            TimeSpan? heartbeatInterval = null,
-            Capabilities capabilities = Capabilities.ContentOnly)
-            : this(tracer, fileSystem, new ServiceClientRpcConfiguration(grpcPort, heartbeatInterval), scenario, capabilities)
+            ServiceClientRpcConfiguration configuration,
+            string? scenario)
+            : this(tracer, fileSystem, configuration, scenario, Capabilities.ContentOnly)
         {
-            GrpcEnvironment.InitializeIfNeeded();
-            Client = new ContentServer.ContentServerClient(Channel);
         }
 
         /// <nodoc />
-        public GrpcContentClient(
+        protected GrpcContentClient(
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
@@ -63,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Capabilities capabilities = Capabilities.ContentOnly)
             : base(fileSystem, tracer, configuration, scenario, capabilities)
         {
-            GrpcEnvironment.InitializeIfNeeded();
             Client = new ContentServer.ContentServerClient(Channel);
         }
 
@@ -179,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             int sessionId = sessionContext.Value.SessionId;
 
             var pinResults = new List<Indexed<PinResult>>();
-            var bulkPinRequest = new PinBulkRequest {Header = new RequestHeader(context.Id, sessionId)};
+            var bulkPinRequest = new PinBulkRequest { Header = new RequestHeader(context.Id, sessionId) };
             foreach (var contentHash in chunk)
             {
                 bulkPinRequest.Hashes.Add(
@@ -320,7 +315,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             return await PutFileAsync(context, sessionContext.Value, contentHash, path, realizationMode);
         }
-        
+
         private Task<PutResult> PutFileAsync(
             OperationContext operationContext,
             SessionContext context,

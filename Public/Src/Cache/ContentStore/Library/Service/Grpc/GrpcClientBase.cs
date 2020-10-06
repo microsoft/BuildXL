@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -31,17 +30,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public abstract class GrpcClientBase : StartupShutdownSlimBase
     {
         private const string HeartbeatName = "Heartbeat";
-        private const int DefaultHeartbeatIntervalMinutes = 1;
 
-        private readonly ServiceClientRpcConfiguration _configuration;
-        private readonly TimeSpan _heartbeatInterval;
         private Capabilities _clientCapabilities;
         private Capabilities _serviceCapabilities;
         private IntervalTimer? _heartbeatTimer;
-        private readonly TimeSpan _heartbeatTimeout;
-
-        // The timeout after which the heartbeat async operation will be canceled.
-        private TimeSpan HeartbeatHardTimeout => TimeSpan.FromMilliseconds(_heartbeatTimeout.TotalMilliseconds * 1.2);
 
         private bool _serviceUnavailable;
 
@@ -52,13 +44,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected readonly IAbsFileSystem FileSystem;
 
         /// <nodoc />
-        protected readonly string? Scenario;
-
-        /// <nodoc />
         protected readonly ServiceClientContentSessionTracer ServiceClientTracer;
 
         /// <nodoc />
         protected readonly ServiceClientRpcConfiguration Configuration;
+
+        /// <nodoc />
+        protected readonly string? Scenario;
 
         /// <nodoc />
         protected SessionState? SessionState;
@@ -76,17 +68,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             FileSystem = fileSystem;
             ServiceClientTracer = tracer;
-            _configuration = configuration;
-            Scenario = scenario;
-
-            GrpcEnvironment.InitializeIfNeeded();
             Configuration = configuration;
-            Channel = new Channel(configuration.GrpcHost ?? GrpcEnvironment.Localhost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
+            Scenario = scenario;
             _clientCapabilities = clientCapabilities;
-            _heartbeatInterval = _configuration.HeartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
 
-            // By default, the heartbeat timeout is the half of the heartbeat interval
-            _heartbeatTimeout = _configuration.HeartbeatTimeout ?? TimeSpan.FromMilliseconds(_heartbeatInterval.TotalMilliseconds / 2);
+            GrpcEnvironment.WaitUntilInitialized();
+            Channel = new Channel(configuration.GrpcHost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions));
         }
 
         /// <nodoc />
@@ -182,14 +169,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             await operationContext.PerformOperationWithTimeoutAsync(
                     Tracer,
                     nestedContext => sendHeartbeatAsync(nestedContext, sessionContext.Value),
-                    timeout: HeartbeatHardTimeout,
+                    timeout: Configuration.HardHeartbeatTimeout,
                     extraStartMessage: $"SessionId={sessionId}",
                     extraEndMessage: r => $"SessionId={sessionId}")
                 .IgnoreFailure(); // The error was already traced.
 
             async Task<BoolResult> sendHeartbeatAsync(OperationContext context, SessionContext localSessionContext)
             {
-                using var softTimeoutCancellationTokenSource = new CancellationTokenSource(_heartbeatTimeout);
+                using var softTimeoutCancellationTokenSource = new CancellationTokenSource(Configuration.HeartbeatTimeout);
                 using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, softTimeoutCancellationTokenSource.Token);
                 try
                 {
@@ -212,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     if (cancellationTokenSource.IsCancellationRequested)
                     {
-                        return new BoolResult(ex, $"Heartbeat timed out out after '{_heartbeatTimeout}'.");
+                        return new BoolResult(ex, $"Heartbeat timed out out after '{Configuration.HeartbeatTimeout}'.");
                     }
 
                     string message = (ex is RpcException rpcEx) && (rpcEx.Status.StatusCode == StatusCode.Unavailable)
@@ -249,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if ((_serviceCapabilities & Capabilities.Heartbeat) != 0 &&
                     (_clientCapabilities & Capabilities.Heartbeat) != 0)
                 {
-                    _heartbeatTimer = new IntervalTimer(() => HeartbeatAsync(context, sessionId), _heartbeatInterval, message =>
+                    _heartbeatTimer = new IntervalTimer(() => HeartbeatAsync(context, sessionId), Configuration.HeartbeatInterval, message =>
                     {
                         Tracer.Debug(context, $"[{HeartbeatName}] {message}. OriginalSessionId={sessionId}");
                     });
@@ -271,8 +258,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                var targetMachine = _configuration.GrpcHost ?? GrpcEnvironment.Localhost;
-                context.Info($"Starting up GRPC client against service on '{targetMachine}' on port {_configuration.GrpcPort} with timeout {waitMs}.");
+                var targetMachine = Configuration.GrpcHost;
+                context.Info($"Starting up GRPC client against service on '{targetMachine}' on port {Configuration.GrpcPort} with timeout {waitMs}.");
 
                 if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
                 {

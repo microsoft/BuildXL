@@ -46,8 +46,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             LocalServerConfiguration contentServerConfiguration,
             ServiceClientContentStoreConfiguration clientConfiguration)
         {
-            // Initialize with fewer threads for tests
-            GrpcEnvironment.InitializeIfNeeded(numThreads: 3);
             _server = new LocalCacheServer(fileSystem, logger, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration);
             _client = new ServiceClientCache(logger, fileSystem, clientConfiguration);
             SetThreadPoolSizes();

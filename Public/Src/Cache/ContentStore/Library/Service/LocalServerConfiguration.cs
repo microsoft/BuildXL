@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using GrpcConstants = BuildXL.Cache.ContentStore.Grpc.GrpcConstants;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -126,6 +127,8 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </remarks>
         public TimeSpan UnusedSessionHeartbeatTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
+        #region gRPC Internal Options
+
         /// <nodoc />
         public const int DefaultRequestCallTokensPerCompletionQueue = 7000;
 
@@ -139,6 +142,14 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public int GrpcPort { get; private set; } = GrpcConstants.DefaultGrpcPort;
+
+        /// <nodoc />
+        public GrpcCoreServerOptions? GrpcCoreServerOptions { get; set; }
+
+        /// <nodoc />
+        public GrpcEnvironmentOptions? GrpcEnvironmentOptions { get; set; }
+
+        #endregion
 
         /// <nodoc />
         public int? BufferSizeForGrpcCopies { get; private set; }
@@ -166,12 +177,6 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public string? GrpcPortFileName { get; set; } = DefaultFileName;
-
-        /// <nodoc />
-        public int? GrpcThreadPoolSize { get; set; }
-
-        /// <nodoc />
-        public bool? GrpcHandlerInlining { get; set; }
 
         /// <nodoc />
         public IAbsFileSystem? FileSystem { get; set; }

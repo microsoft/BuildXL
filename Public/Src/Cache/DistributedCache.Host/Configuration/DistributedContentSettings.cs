@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
@@ -480,6 +481,16 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(0, double.MaxValue)]
         public double? GrpcCopyClientConnectionTimeoutSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double? GrpcCopyClientOperationDeadlineSeconds { get; set; }
+
+        /// <remarks>
+        /// It is OK to embed serializable types with no DataContract inside
+        /// </remarks>
+        [DataMember]
+        public GrpcCoreClientOptions GrpcCopyClientGrpcCoreClientOptions { get; set; }
 
         #endregion
 

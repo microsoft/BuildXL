@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -46,5 +47,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public TimeSpan OperationDeadline { get; set; } = TimeSpan.FromHours(2);
+
+        /// <nodoc />
+        public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
     }
 }

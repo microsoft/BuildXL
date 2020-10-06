@@ -118,9 +118,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Requires(logger != null);
             Contract.Requires(fileSystem != null);
             Contract.Requires(configuration != null);
+
             Logger = logger;
             FileSystem = fileSystem;
             Configuration = configuration;
+
+            // We need to be able to initialize the gRPC environment on the client side. This MUST happen before our
+            // first gRPC connection is created, due to the possibility that we may set options that can only be set at
+            // that point in time. Hence, we do so here, which is the main entrypoint for most of our clients.
+            GrpcEnvironment.Initialize(Logger, Configuration.GrpcEnvironmentOptions, overwriteSafeOptions: true);
         }
 
         /// <summary>

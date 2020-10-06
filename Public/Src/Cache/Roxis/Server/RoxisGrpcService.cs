@@ -34,12 +34,10 @@ namespace BuildXL.Cache.Roxis.Server
 
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            GrpcEnvironment.InitializeIfNeeded(numThreads: _configuration.ThreadPoolSize);
-
             var bindAddress = _configuration.BindAddress;
             context.TraceInfo($"gRPC service binding on address {bindAddress}:{_configuration.Port}");
 
-            _grpcServer = new GrpcCore.Server(GrpcEnvironment.DefaultConfiguration)
+            _grpcServer = new GrpcCore.Server(GrpcEnvironment.GetServerOptions())
             {
                 // TODO: perhaps multi-bind for the frontend + backend scenario?
                 Ports = { new ServerPort(bindAddress, _configuration.Port, ServerCredentials.Insecure) },

@@ -40,7 +40,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         /// <summary>
         ///     Content Stores:
-        ///         - <see cref="ServiceClientContentStore"/> if <see cref="LocalCacheConfiguration.EnableContentServer"/>
+        ///         - <see cref="ServiceClientContentStore"/> if <see cref="LocalCacheConfiguration.ServiceClientContentStoreConfiguration"/>
         ///         - <see cref="FileSystemContentStore"/> otherwise
         ///     Memoization Stores:
         ///         - <see cref="CreateInProcessLocalMemoizationStoreFactory(ILogger, IClock, MemoizationStoreConfiguration)"/>
@@ -64,16 +64,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
             Func<IContentStore> contentStoreFactory = () =>
             {
-                if (localCacheConfiguration.EnableContentServer)
+                if (localCacheConfiguration.ServiceClientContentStoreConfiguration != null)
                 {
-                    return new ServiceClientContentStore(
-                                    logger,
-                                    fileSystem,
-                                    localCacheConfiguration.CacheName,
-                                    new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
-                                    (uint)localCacheConfiguration.RetryIntervalSeconds,
-                                    (uint)localCacheConfiguration.RetryCount,
-                                    scenario: localCacheConfiguration.ScenarioName);
+                    return new ServiceClientContentStore(logger, fileSystem, localCacheConfiguration.ServiceClientContentStoreConfiguration);
                 }
                 else
                 {

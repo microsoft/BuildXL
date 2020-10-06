@@ -24,6 +24,9 @@ namespace BuildXL.Cache.ContentStore.App
         {
             Initialize();
 
+            // We need to initialize this here because there's no codepath otherwise.
+            GrpcEnvironment.Initialize();
+
             var context = new Context(_logger);
             var retryPolicy = new RetryPolicy(
                 new TransientErrorDetectionStrategy(),

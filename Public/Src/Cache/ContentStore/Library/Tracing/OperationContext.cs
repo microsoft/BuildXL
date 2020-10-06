@@ -106,6 +106,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        public void TraceError(string message)
+        {
+            TracingContext.TraceMessage(Severity.Error, message);
+        }
+
+        /// <nodoc />
         public Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, Func<T, string>? endMessageFactory = null, [CallerMemberName]string? caller = null)
             where T : ResultBase
         {

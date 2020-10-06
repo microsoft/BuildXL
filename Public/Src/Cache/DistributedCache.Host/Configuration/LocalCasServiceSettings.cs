@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Grpc;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -29,8 +30,7 @@ namespace BuildXL.Cache.Host.Configuration
             uint grpcPort = 0,
             string grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null,
-            int? grpcThreadPoolSize = null
+            int? gzipBarrierSizeForGrpcCopies = null
             )
         {
             DefaultSingleInstanceTimeoutSec = defaultSingleInstanceTimeoutSec;
@@ -41,7 +41,6 @@ namespace BuildXL.Cache.Host.Configuration
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
-            GrpcThreadPoolSize = grpcThreadPoolSize;
         }
 
         /// <summary>
@@ -102,9 +101,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? BufferSizeForGrpcCopies { get; set; } = null;
 
-        [DataMember]
-        public bool? GrpcHandlerInlining { get; set; }
-
         /// <summary>
         /// Gets or sets the the max number of proactive pushes requests handled at the same time by a server.
         /// </summary>
@@ -117,10 +113,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? GzipBarrierSizeForGrpcCopies { get; set; } = null;
 
-        /// <summary>
-        /// Thread pool size used by GRPC.
-        /// </summary>
+        /// <nodoc />
         [DataMember]
-        public int? GrpcThreadPoolSize { get; set; } = null;
+        public GrpcCoreServerOptions GrpcCoreServerOptions { get; set; }
+
+        /// <nodoc />
+        [DataMember]
+        public GrpcEnvironmentOptions GrpcEnvironmentOptions { get; set; }
     }
 }

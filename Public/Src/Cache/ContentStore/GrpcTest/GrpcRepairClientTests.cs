@@ -30,6 +30,7 @@ namespace ContentStoreTest.Grpc
         public GrpcRepairClientTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
+            GrpcEnvironment.Initialize();
         }
 
         [Fact(Skip = "Start up fails - Bug #1245278")]

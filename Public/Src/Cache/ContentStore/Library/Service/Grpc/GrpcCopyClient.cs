@@ -54,8 +54,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
 
-            GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
+            GrpcEnvironment.WaitUntilInitialized();
+            _channel = new Channel(key.Host, key.GrpcPort,
+                ChannelCredentials.Insecure,
+                options: GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
 
             _client = new ContentServer.ContentServerClient(_channel);
 

@@ -28,10 +28,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
         public GrpcCacheClient(
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
-            int grpcPort,
-            string scenario,
-            TimeSpan? heartbeatInterval = null)
-            : base(tracer, fileSystem, grpcPort, scenario, heartbeatInterval, Capabilities.All)
+            ServiceClientRpcConfiguration configuration,
+            string scenario)
+            : base(tracer, fileSystem, configuration, scenario, Capabilities.All)
         {
         }
 

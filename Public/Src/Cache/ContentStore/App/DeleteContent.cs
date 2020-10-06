@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using CLAP;
 
@@ -37,9 +38,9 @@ namespace BuildXL.Cache.ContentStore.App
                 var contentHash = new ContentHash(ht, HexUtilities.HexToBytes(hash));
 
                 GrpcContentClient client = new GrpcContentClient(
-                    new Sessions.ServiceClientContentSessionTracer(nameof(Delete)),
+                    new ServiceClientContentSessionTracer(nameof(Delete)),
                     _fileSystem,
-                    grpcPort,
+                    new ServiceClientRpcConfiguration(grpcPort),
                     _scenario);
                 
                 var deleteResult = client.DeleteContentAsync(operationContext, contentHash, deleteLocalOnly: false).GetAwaiter().GetResult();

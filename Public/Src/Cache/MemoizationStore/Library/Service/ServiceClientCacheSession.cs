@@ -55,8 +55,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             ServiceClientContentSessionTracer sessionTracer,
             ServiceClientContentStoreConfiguration configuration)
         {
-            var rpcConfiguration = configuration.RpcConfiguration;
-            return new GrpcCacheClient(sessionTracer, fileSystem, rpcConfiguration.GrpcPort, configuration.Scenario, rpcConfiguration.HeartbeatInterval);
+            return new GrpcCacheClient(sessionTracer, fileSystem, configuration.RpcConfiguration, configuration.Scenario);
         }
 
         private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null, string additionalStartMessage = null) where TResult : ResultBase

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Sessions;
 using Microsoft.Practices.TransientFaultHandling;
@@ -48,12 +49,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool TraceOperationStarted { get; set; }
 
         /// <nodoc />
+        public GrpcEnvironmentOptions? GrpcEnvironmentOptions { get; set; }
+
+        /// <nodoc />
         public ServiceClientContentStoreConfiguration(
             string cacheName,
             ServiceClientRpcConfiguration rpcConfiguration,
             string? scenario = null)
         {
-            Contract.Requires(cacheName != null);
+            Contract.RequiresNotNullOrEmpty(cacheName);
             CacheName = cacheName;
             RpcConfiguration = rpcConfiguration;
             Scenario = scenario;

@@ -7,7 +7,9 @@ using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
@@ -20,8 +22,12 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
     /// <summary>
-    /// The Cache Factory for CASaaS backed Cache implementation based on MemoizationStore.
+    /// Cache Factory for BuildXL as a CASaaS client in CloudBuild
     /// </summary>
+    /// <remarks>
+    /// This is the class responsible for creating the BuildXL to Cache adapter in the CloudBuild environment. It
+    /// configures the cache client for the BuildXL process.
+    /// </remarks>
     public class CloudStoreLocalCacheServiceFactory : ICacheFactory
     {
         private sealed class Config
@@ -109,11 +115,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// Indicates whether symlinks should be used to specify VFS files
             /// </summary>
             [DefaultValue(true)]
-            public bool UseVfsSymlinks { get; set; } = true;
+            public bool VfsUseSymlinks { get; set; } = true;
 
             /// <nodoc />
             [DefaultValue(false)]
-            public bool UseRoxisMetadataStore { get; set; }
+            public bool RoxisEnabled { get; set; }
 
             /// <nodoc />
             [DefaultValue("")]
@@ -122,6 +128,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(-1)]
             public int RoxisMetadataStorePort { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(null)]
+            public GrpcEnvironmentOptions GrpcEnvironmentOptions { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(null)]
+            public GrpcCoreClientOptions GrpcCoreClientOptions { get; set; }
         }
 
         /// <inheritdoc />
@@ -165,61 +179,76 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStoreAdapterCache CreateCache(Config cacheConfig, AbsolutePath logPath, ILogger logger)
         {
-            ServiceClientRpcConfiguration rpcConfiguration;
-            if (cacheConfig.GrpcPort != 0)
-            {
-                rpcConfiguration = new ServiceClientRpcConfiguration((int)cacheConfig.GrpcPort);
-            }
-            else
-            {
-                var factory = new MemoryMappedFileGrpcPortSharingFactory(logger, cacheConfig.GrpcPortFileName);
-                var portReader = factory.GetPortReader();
-                var port = portReader.ReadPort();
-
-                rpcConfiguration = new ServiceClientRpcConfiguration(port);
-            }
-
-            var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(cacheConfig.CacheName, rpcConfiguration, cacheConfig.ScenarioName)
-            {
-                RetryCount = cacheConfig.ConnectionRetryCount,
-                RetryIntervalSeconds = cacheConfig.ConnectionRetryIntervalSeconds,
-                TraceOperationStarted = cacheConfig.GrpcTraceOperationStarted,
-            };
+            var serviceClientContentStoreConfiguration = CreateGrpcServiceConfiguration(cacheConfig, logger);
 
             MemoizationStore.Interfaces.Caches.ICache localCache;
             if (cacheConfig.EnableMetadataServer)
             {
-                localCache = LocalCache.CreateRpcCache(logger, serviceClientConfiguration);
+                // CaChaaS path.
+                localCache = LocalCache.CreateRpcCache(logger, serviceClientContentStoreConfiguration);
             }
             else
             {
+                // CASaaS path. We construct an in-proc memoization store in this case.
                 var metadataRootPath = new AbsolutePath(cacheConfig.MetadataRootPath);
 
                 localCache = LocalCache.CreateRpcContentStoreInProcMemoizationStoreCache(logger,
                     metadataRootPath,
-                    serviceClientConfiguration,
+                    serviceClientContentStoreConfiguration,
                     CreateInProcMemoizationStoreConfiguration(cacheConfig, metadataRootPath));
             }
 
             var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
             if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
             {
+                // Vfs path. Vfs wraps around whatever cache we are using to virtualize
                 logger.Debug($"Creating virtualized cache");
 
                 localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
                 {
                     RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
-                    UseSymlinks = cacheConfig.UseVfsSymlinks
+                    UseSymlinks = cacheConfig.VfsUseSymlinks
                 }.Build());
             }
 
-            var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
-            return cache;
+            return new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
+        }
+
+        private static ServiceClientContentStoreConfiguration CreateGrpcServiceConfiguration(Config cacheConfig, ILogger logger)
+        {
+            var rpcConfiguration = CreateGrpcClientConfiguration(cacheConfig, logger);
+
+            var serviceClientContentStoreConfiguration = new ServiceClientContentStoreConfiguration(cacheConfig.CacheName, rpcConfiguration, cacheConfig.ScenarioName)
+            {
+                RetryCount = cacheConfig.ConnectionRetryCount,
+                RetryIntervalSeconds = cacheConfig.ConnectionRetryIntervalSeconds,
+                TraceOperationStarted = cacheConfig.GrpcTraceOperationStarted,
+            };
+
+            serviceClientContentStoreConfiguration.GrpcEnvironmentOptions = cacheConfig.GrpcEnvironmentOptions;
+            return serviceClientContentStoreConfiguration;
+        }
+
+        private static ServiceClientRpcConfiguration CreateGrpcClientConfiguration(Config cacheConfig, ILogger logger)
+        {
+            ServiceClientRpcConfiguration rpcConfiguration = new ServiceClientRpcConfiguration();
+            if (cacheConfig.GrpcPort > 0)
+            {
+                rpcConfiguration.GrpcPort = (int)cacheConfig.GrpcPort;
+            }
+            else
+            {
+                var factory = new MemoryMappedFileGrpcPortSharingFactory(logger, cacheConfig.GrpcPortFileName);
+                var portReader = factory.GetPortReader();
+                rpcConfiguration.GrpcPort = portReader.ReadPort();
+            }
+            rpcConfiguration.GrpcCoreClientOptions = cacheConfig.GrpcCoreClientOptions;
+            return rpcConfiguration;
         }
 
         private static MemoizationStoreConfiguration CreateInProcMemoizationStoreConfiguration(Config cacheConfig, AbsolutePath cacheRootPath)
         {
-            if (cacheConfig.UseRoxisMetadataStore)
+            if (cacheConfig.RoxisEnabled)
             {
                 var roxisClientConfiguration = new Roxis.Client.RoxisClientConfiguration();
 

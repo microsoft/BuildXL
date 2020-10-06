@@ -2,75 +2,99 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
     /// <summary>
-    /// The RPC configuration for the service client.
+    /// Configuration for cache clients that communicate with a service instance via gRPC
     /// </summary>
     public sealed class ServiceClientRpcConfiguration
     {
         /// <summary>
+        /// Host name where gRPC cache service resides
+        /// 
+        /// Defaults to localhost
+        /// </summary>
+        public string GrpcHost { get; set; } = GrpcEnvironment.LocalHost;
+
+        /// <summary>
+        /// Port bound by the gRPC cache service.
+        /// </summary>
+        public int GrpcPort { get; set; } = Grpc.GrpcConstants.DefaultGrpcPort;
+
+        /// <summary>
         /// The period of time between heartbeats.
         /// </summary>
-        public readonly TimeSpan? HeartbeatInterval;
+        public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
-        /// The timeout for heartbeats.
+        /// The soft timeout for heartbeats.
+        ///
+        /// When this amount of time passes, the operation is cooperatively cancelled with the server.
         /// </summary>
-        public readonly TimeSpan? HeartbeatTimeout;
+        public TimeSpan HeartbeatTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
-        /// Gets the GRPC port.
+        /// The hard timeout for heartbeats.
+        ///
+        /// When this amount of time passes, the operation is abandoned.
         /// </summary>
-        public int GrpcPort { get; }
+        public TimeSpan HardHeartbeatTimeout { get; set; } = TimeSpan.FromSeconds(36);
 
         /// <summary>
-        /// Gets the GRPC host name. 
-        /// NOTE: Leaving unspecified equates to using localhost
+        /// An optional deadline for all grpc operation operation (unless <see cref="PinDeadline"/> or <see cref="PlaceDeadline"/> are provided to control the deadline of the respective operations.
         /// </summary>
-        public string GrpcHost { get; set; } = GrpcEnvironment.Localhost;
+        public TimeSpan? Deadline { get; set; }
+
+        /// <nodoc />
+        public TimeSpan? PinDeadline { get; set; }
+
+        /// <nodoc />
+        public TimeSpan? PlaceDeadline { get; set; }
 
         /// <summary>
         /// Whether to send a calling machine name via a message header.
         /// False by default.
         /// </summary>
-        public readonly bool PropagateCallingMachineName;
+        public bool PropagateCallingMachineName { get; set; }
+
+        /// <nodoc />
+        public bool TraceGrpcCalls { get; set; }
 
         /// <summary>
-        /// An optional deadline for all grpc operation operation (unless <see cref="PinDeadline"/> or <see cref="PlaceDeadline"/> are provided to control the deadline of the respective operations.
+        /// gRPC options that apply to gRPC Core, the C library that actually performs communication with gRPC.
+        ///
+        /// WARNING: Do NOT modify unless you know what you are doing.
         /// </summary>
-        public readonly TimeSpan? Deadline;
+        public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
 
         /// <nodoc />
-        public readonly TimeSpan? PinDeadline;
+        public ServiceClientRpcConfiguration()
+        {
+        }
 
-        /// <nodoc />
-        public readonly TimeSpan? PlaceDeadline;
-
-        /// <nodoc />
-        public readonly bool TraceGrpcCalls;
-
-        /// <nodoc />
+        /// <summary>
+        /// Constructor usually used by clients that are integrating into CASaaS.
+        ///
+        /// WARNING: this is kept here for legacy purposes. Do NOT use.
+        /// </summary>
         public ServiceClientRpcConfiguration(
             int grpcPort,
-            TimeSpan? heartbeatInterval = null,
-            TimeSpan? heartbeatTimeout = null,
-            bool propagateCallingMachineName = false,
-            TimeSpan? deadline = null,
-            TimeSpan? pinDeadline = null,
-            TimeSpan? placeDeadline = null,
-            bool traceGrpcCalls = false)
+            TimeSpan? heartbeatInterval = null)
         {
+            Contract.Check(grpcPort > 0)?.Requires($"Local server must have a positive GRPC port. Found {grpcPort}.");
+
             GrpcPort = grpcPort;
-            HeartbeatInterval = heartbeatInterval;
-            HeartbeatTimeout = heartbeatTimeout;
-            PropagateCallingMachineName = propagateCallingMachineName;
-            Deadline = deadline;
-            PinDeadline = pinDeadline;
-            PlaceDeadline = placeDeadline;
-            TraceGrpcCalls = traceGrpcCalls;
+
+            if (heartbeatInterval != null)
+            {
+                HeartbeatInterval = heartbeatInterval.Value;
+            }
         }
     }
 }

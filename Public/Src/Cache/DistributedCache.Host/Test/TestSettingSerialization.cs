@@ -38,8 +38,25 @@ namespace BuildXL.Cache.Host.Configuration.Test
         }
 
         [Fact]
+        public void NonDataContractsMemberIsDeserialized()
+        {
+            var dcs = DistributedContentSettings.CreateDisabled();
+            dcs.GrpcCopyClientGrpcCoreClientOptions = new ContentStore.Grpc.GrpcCoreClientOptions() {
+                MaxReconnectBackoffMs = 120,
+            };
+
+            var newDcs = TestSerializationRoundTrip(dcs);
+            Assert.NotNull(newDcs.GrpcCopyClientGrpcCoreClientOptions);
+            Assert.Equal(dcs.GrpcCopyClientGrpcCoreClientOptions.MaxReconnectBackoffMs, newDcs.GrpcCopyClientGrpcCoreClientOptions.MaxReconnectBackoffMs);
+        }
+
+        [Fact]
         public void AllPublicPropertiesShouldBeMarkedWithDataMemberAttributes()
         {
+            // There are several weird things about serialization/deserialization:
+            //  1. You need to mark all things you want to serialize with [DataMember], because the type is marked with [DataContract].
+            //  2. You DO NOT need to mark recursive types with neither [DataMember] nor [DataContract]. They will get serialized/deserialized accordingly. The property itself must still be marked with [DataMember].
+            //  3. Failure to declare [DataMember] will cause the property to be default-initialized, without running the constructor.
             var type = typeof(DistributedContentSettings);
             foreach (var property in type.GetProperties(BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public))
             {

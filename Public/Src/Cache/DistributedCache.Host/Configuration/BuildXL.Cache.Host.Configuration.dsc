@@ -17,6 +17,7 @@ namespace Configuration {
             ),
 
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Grpc.dll,
         ],
         skipDocumentationGeneration: true,
 

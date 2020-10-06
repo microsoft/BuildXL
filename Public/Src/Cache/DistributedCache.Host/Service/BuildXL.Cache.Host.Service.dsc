@@ -13,6 +13,7 @@ namespace Service {
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
 
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
+            importFrom("BuildXL.Cache.ContentStore").Grpc.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

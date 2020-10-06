@@ -19,6 +19,7 @@ namespace Server {
 
             ContentStore.Library.dll,
             ContentStore.Interfaces.dll,
+            ContentStore.Grpc.dll,
 
             // Needed to implement gRPC service
             Common.dll,

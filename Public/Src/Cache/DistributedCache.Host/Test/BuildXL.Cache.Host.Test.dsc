@@ -22,6 +22,7 @@ namespace Test {
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Test.dll,
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
+            importFrom("BuildXL.Cache.ContentStore").Grpc.dll,
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
             // Used by Launcher integration test

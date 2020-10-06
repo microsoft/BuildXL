@@ -81,6 +81,8 @@ namespace BuildXL.Cache.Host.Service
             ApplyIfNotNull(dcs.GrpcCopyClientConnectionEstablishmentTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionEstablishmentTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientOperationDeadlineSeconds, v => grpcCopyClientConfiguration.OperationDeadline = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientGrpcCoreClientOptions, v => grpcCopyClientConfiguration.GrpcCoreClientOptions = v);
 
             var resourcePoolConfiguration = new ResourcePoolConfiguration();
             ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);

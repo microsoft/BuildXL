@@ -747,7 +747,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
     internal sealed class DummyServiceManager : ServiceManager
     {
-        public override Task<bool> TryRunServiceDependenciesAsync(IPipExecutionEnvironment environment, IEnumerable<PipId> servicePipDependencies, LoggingContext loggingContext)
+        public override Task<bool> TryRunServiceDependenciesAsync(IPipExecutionEnvironment environment, PipId pipId, IEnumerable<PipId> servicePipDependencies, LoggingContext loggingContext)
         {
             return BoolTask.True;
         }

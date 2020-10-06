@@ -543,7 +543,7 @@ namespace BuildXL.Scheduler
 
             // ensure services are running
             bool ensureServicesRunning =
-                await environment.State.ServiceManager.TryRunServiceDependenciesAsync(environment, pip.ServicePipDependencies, operationContext);
+                await environment.State.ServiceManager.TryRunServiceDependenciesAsync(environment, pip.PipId, pip.ServicePipDependencies, operationContext);
             if (!ensureServicesRunning)
             {
                 Logger.Log.PipFailedDueToServicesFailedToRun(operationContext, pip.GetDescription(environment.Context));
@@ -1200,7 +1200,7 @@ namespace BuildXL.Scheduler
             using (operationContext.StartOperation(PipExecutorCounter.RunServiceDependenciesDuration))
             {
                 bool ensureServicesRunning =
-                    await environment.State.ServiceManager.TryRunServiceDependenciesAsync(environment, pip.ServicePipDependencies, operationContext);
+                    await environment.State.ServiceManager.TryRunServiceDependenciesAsync(environment, pip.PipId, pip.ServicePipDependencies, operationContext);
                 if (!ensureServicesRunning)
                 {
                     Logger.Log.PipFailedDueToServicesFailedToRun(operationContext, processDescription);

@@ -28,6 +28,7 @@ namespace BuildXL.Scheduler
     internal sealed class SchedulerServiceManager : ServiceManager
     {
         private readonly ConcurrentBigMap<PipId, ServiceTracking> m_startedServices = new ConcurrentBigMap<PipId, ServiceTracking>();
+        private readonly Dictionary<PipId, PipId> m_finalizationPipToServicePipMap = new Dictionary<PipId, PipId>();
 
         private readonly PipGraph m_pipGraph;
         private readonly PipExecutionContext m_context;
@@ -66,6 +67,16 @@ namespace BuildXL.Scheduler
 
             m_executePhaseLoggingContext = loggingContext;
             m_operationTracker = operationTracker;
+
+            foreach (var servicePipId in m_pipGraph.GetServicePipIds())
+            {
+                var serviceMutable = (ProcessMutablePipState)m_pipGraph.PipTable.GetMutable(servicePipId);
+                foreach (var finalizationPipId in serviceMutable.ServiceInfo.FinalizationPipIds)
+                {
+                    m_finalizationPipToServicePipMap[finalizationPipId] = servicePipId;
+                }
+            }
+
             IsStarted = true;
         }
 
@@ -87,9 +98,15 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public override async Task<bool> TryRunServiceDependenciesAsync(
             IPipExecutionEnvironment environment,
+            PipId pipId,
             IEnumerable<PipId> servicePips,
             LoggingContext loggingContext)
         {
+            if (m_finalizationPipToServicePipMap.TryGetValue(pipId, out var serviceForFinalizationPip))
+            {
+                servicePips = servicePips.Concat(new[] { serviceForFinalizationPip });
+            }
+            
             if (!servicePips.Any())
             {
                 return true;

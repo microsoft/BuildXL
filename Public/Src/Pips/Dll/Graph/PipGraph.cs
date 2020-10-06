@@ -442,6 +442,13 @@ namespace BuildXL.Pips.Graph
             return PipTable.HydratePip(matchedPipId.Value, PipQueryContext.PipGraphTryFindProducer);
         }
 
+        /// <summary>
+        /// Gets all service pip ids
+        /// </summary>
+        public IEnumerable<PipId> GetServicePipIds()
+        {
+            return m_servicePipClients.Keys;
+        }
 
         /// <summary>
         /// For a given service PipId (<paramref name="servicePipId"/>), looks up all its clients, hydrates and returns them.

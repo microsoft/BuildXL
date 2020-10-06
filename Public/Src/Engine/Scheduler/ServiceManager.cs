@@ -27,6 +27,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public virtual Task<bool> TryRunServiceDependenciesAsync(
             IPipExecutionEnvironment environment,
+            PipId pipId,
             IEnumerable<PipId> servicePips,
             LoggingContext loggingContext)
         {

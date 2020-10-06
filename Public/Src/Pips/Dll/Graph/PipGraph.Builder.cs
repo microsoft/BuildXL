@@ -2134,6 +2134,9 @@ namespace BuildXL.Pips.Graph
                     if (process.IsService)
                     {
                         m_servicePipToServiceInfoMap[process.PipId] = process.ServiceInfo;
+                        // When service pip clients are processed, they are added to the (servicePip -> clients) map.
+                        // If there are no clients, a service pip won't be added to that map. Adding it here, to ensure its presence in the map.
+                        m_servicePipClients.TryAdd(process.PipId, new ConcurrentBigSet<PipId>());
                     }
 
                     // Collect all untracked paths and scopes

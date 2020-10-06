@@ -274,7 +274,7 @@ namespace BuildXL.Engine
 
             bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
 
-            GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+            GrpcEnvironment.InitializeIfNeeded(context: null, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
 
             Logger.Log.GrpcSettings(
                 loggingContext,

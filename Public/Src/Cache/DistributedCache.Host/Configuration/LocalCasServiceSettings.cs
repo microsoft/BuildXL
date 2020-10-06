@@ -102,6 +102,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? BufferSizeForGrpcCopies { get; set; } = null;
 
+        [DataMember]
+        public bool? GrpcHandlerInlining { get; set; }
+
         /// <summary>
         /// Gets or sets the the max number of proactive pushes requests handled at the same time by a server.
         /// </summary>

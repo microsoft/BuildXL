@@ -45,7 +45,7 @@ namespace ContentStoreTest.Sessions
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
             // Reducing the number of threads for tests for performance reasons.
-            GrpcEnvironment.InitializeIfNeeded(3);
+            GrpcEnvironment.InitializeIfNeeded(numThreads: 3);
             Scenario = scenario + ScenarioSuffix;
         }
 

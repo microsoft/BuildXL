@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -43,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initialize the GRPC environment if not yet initialized.
         /// </summary>
-        public static void InitializeIfNeeded(int numThreads = 70, bool handlerInliningEnabled = true)
+        public static void InitializeIfNeeded(Context? context = null, int numThreads = 70, bool handlerInliningEnabled = true)
         {
             // Using double-checked locking to avoid race condition.
             // The thread that looses the race must wait for the initialization to finish,
@@ -55,6 +56,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     if (!_isInitialized)
                     {
+                        context?.Debug($"Initializing Grpc Environment: NumThreads={numThreads}, HandlerInliningEnabled={handlerInliningEnabled}.");
                         // Setting GRPC_DNS_RESOLVER=native to bypass ares DNS resolver which seems to cause
                         // temporary long delays (2 minutes) while failing to resolve DNS using ares in some environments
                         Environment.SetEnvironmentVariable("GRPC_DNS_RESOLVER", "native");

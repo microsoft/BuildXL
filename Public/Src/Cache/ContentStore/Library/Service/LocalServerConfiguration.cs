@@ -171,6 +171,9 @@ namespace BuildXL.Cache.ContentStore.Service
         public int? GrpcThreadPoolSize { get; set; }
 
         /// <nodoc />
+        public bool? GrpcHandlerInlining { get; set; }
+
+        /// <nodoc />
         public IAbsFileSystem? FileSystem { get; set; }
 
         /// <summary>

@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
@@ -23,6 +24,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
@@ -30,7 +32,7 @@ namespace BuildXL.Cache.Host.Service.Internal
     /// <summary>
     /// Creates and configures cache server instances.
     /// </summary>
-    /// <remarks>Marked as public because it is used externally.<remarks/>
+    /// <remarks>Marked as public because it is used externally.</remarks>
     public class CacheServerFactory
     {
         private readonly IAbsFileSystem _fileSystem;
@@ -74,7 +76,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             // any Grpc activity, the internal state will be initialized, and all further attempts to change things
             // will throw. Since we may need to initialize a Grpc client before we do a Grpc server, this means we
             // need to call this early, even if it doesn't have anything to do with what's going on here.
-            GrpcEnvironment.InitializeIfNeeded(localServerConfiguration.GrpcThreadPoolSize ?? 70);
+            GrpcEnvironment.InitializeIfNeeded(new Context(_logger), localServerConfiguration.GrpcThreadPoolSize ?? 70, localServerConfiguration.GrpcHandlerInlining ?? true);
 
             if (isLocal)
             {
@@ -266,6 +268,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.GrpcThreadPoolSize, value => localContentServerConfiguration.GrpcThreadPoolSize = value);
+            ApplyIfNotNull(localCasServiceSettings.GrpcHandlerInlining, value => localContentServerConfiguration.GrpcHandlerInlining = value);
             ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value => localContentServerConfiguration.UseUnsafeByteStringConstruction = value);
             ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 

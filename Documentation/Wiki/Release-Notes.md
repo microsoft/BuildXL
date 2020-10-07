@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201004.2.3 (Release [81534](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=81534)) Released 10/07/2020
+-	Allow creation junctions to non-existent targets.
+-	Some fixes on the managed reparse point resolver.
+-	SymbolDaemon - don't fail on empty SODs 
+-	Fix module affinity hangs.
+-	MaterializationDaemon - retry external parser on failure
+-	Ensure that a service is running before a finalization pip is called.
+-	Increase drop default timeout from 5m to 15m
+
 # 0.1.0-20200927.0 (Release [80424](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=80424)).  Released 9/30/2020
 - Collecting machine counters became non-blocking for Scheduler
 - Optionally disable IsObsolete check during Ast Conversion for perf reasons

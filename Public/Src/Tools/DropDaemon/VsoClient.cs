@@ -363,16 +363,23 @@ namespace Tool.DropDaemon
         {
             var dedupedItems = new Dictionary<string, AddFileItem>(capacity: batch.Length, comparer: StringComparer.OrdinalIgnoreCase);
             var numSkipped = 0;
+            var numFailed = 0;
             foreach (var item in batch)
             {
-                // Only skip an item if the content is known, it's the same content, and it's being uploaded to the same place
-                if (dedupedItems.TryGetValue(item.RelativeDropFilePath, out var existingItem) &&
-                    existingItem.BlobIdentifier != null &&
-                    existingItem.BlobIdentifier == item.BlobIdentifier)
+                if (dedupedItems.TryGetValue(item.RelativeDropFilePath, out var existingItem))
                 {
-                    // the item won't be returned for further processing, so we need to mark its task complete
-                    item.TaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
-                    ++numSkipped;
+                    // Only skip an item if the content is known, it's the same content, and it's being uploaded to the same place
+                    if (existingItem.BlobIdentifier != null && existingItem.BlobIdentifier == item.BlobIdentifier)
+                    {
+                        // the item won't be returned for further processing, so we need to mark its task complete
+                        item.TaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
+                        ++numSkipped;
+                    }
+                    else
+                    {
+                        item.TaskSource.SetException(new Exception($"An item with a drop path '{item.RelativeDropFilePath}' is already present -- existing content: '{existingItem?.BlobIdentifier?.ToContentHash()}', new content: '{item?.BlobIdentifier?.ToContentHash()}'"));
+                        ++numFailed;
+                    }
                 }
                 else
                 {
@@ -380,9 +387,9 @@ namespace Tool.DropDaemon
                 }
             }
 
-            if (batch.Length != numSkipped + dedupedItems.Count)
+            if (batch.Length != numSkipped + numFailed + dedupedItems.Count)
             {
-                Contract.Assert(false, $"batch_count ({batch.Length}) != num_skipped ({numSkipped}) + num_returned ({dedupedItems.Count})");
+                Contract.Assert(false, $"batch_count ({batch.Length}) != num_skipped ({numSkipped}) + num_failed({numFailed}) + num_returned ({dedupedItems.Count})");
             }
 
             return dedupedItems.Values.ToArray();

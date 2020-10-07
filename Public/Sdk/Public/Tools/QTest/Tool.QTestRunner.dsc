@@ -324,6 +324,7 @@ export function runQTest(args: QTestArguments): Result {
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.
             d`${sandboxDir.pathRoot}/$Recycle.Bin`,
+            ...(args.qTestUntrackedScopes || [])
         ],
         requireGlobalDependencies: true
     };
@@ -533,7 +534,9 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestDisableCodeCoverage?: boolean;
     /** Paths out of scope of the build or test project where unsafe file access needs to be permitted */
     qTestUntrackedPaths?: (File | Directory)[];
-    
+    /** Directories and their recursive content that are out of scope of the build or test project where unsafe file access needs to be permitted */
+    qTestUntrackedScopes?: Directory[];
+
     /** Nested tool options */
     tools?: {
         /** 

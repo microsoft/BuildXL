@@ -290,6 +290,11 @@ export interface UnsafeTestRunArguments {
      * under the deployment root
     */
     doNotScrubTestDeployment?: boolean;
+
+    /**
+     * Collection of directories and their recursive content to untrack during test execution
+     */
+    untrackedScopes?: Directory[];
 }
 
 @@public

@@ -18,7 +18,13 @@ namespace Script {
         assemblyName: "Test.BuildXL.FrontEnd.Script",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-            parallelGroups: categoriesToRunInParallel
+            parallelGroups: categoriesToRunInParallel,
+            unsafeTestRunArguments: {
+                // There is a non-deterministic read on A:\ that is hard to identify
+                // Untracking the scope as a pragmatic measure. This should be safe enough
+                // since A: drive does not exist anymore on most machines
+                untrackedScopes: [d`A:\`]
+            }
         },
         references: [
             Script.TestBase.dll,

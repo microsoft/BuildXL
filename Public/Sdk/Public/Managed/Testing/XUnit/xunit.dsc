@@ -56,6 +56,13 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     let arguments : Argument[] = CreateCommandLineArgument(testDeployment.primaryFile, args, testClass, testMethod);
 
+    let unsafeArgs: Transformer.UnsafeExecuteArguments = {
+        untrackedScopes: [
+            ...addIf(args.untrackTestDirectory === true, testDeployment.contents.root),
+            ...((args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes) || [])
+        ]
+    };
+
     let execArguments : Transformer.ExecuteArguments = {
         tool: args.tool || tool,
         tags: [
@@ -70,7 +77,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         warningRegex: "^(?=a)b", // This is a never matching warning regex. StartOfLine followed by the next char must be 'a' (look ahead), and the next char must be a 'b'.
         workingDirectory: testDeployment.contents.root,
         retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1] : [],
-        unsafe: args.untrackTestDirectory ? {untrackedScopes: [testDeployment.contents.root]} : undefined,
+        unsafe: unsafeArgs,
         privilegeLevel: args.privilegeLevel,
         weight: args.weight,
     };

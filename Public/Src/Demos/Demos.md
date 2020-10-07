@@ -7,12 +7,21 @@ The sandbox is configured through a *manifest*. The manifest contains high-level
 
 These demos showcase three main features of the sandbox: reporting file accesses, blocking accesses and retrieving the process tree.
 
-## Using the sandbox to report file accesses (Public/Src/Demos/ReportAccesses)
+## Building the demos
+
+```cmd
+cd <bxl_repo_root>
+bxl Public\Src\Demos\Deployment.dsc
+```
+
+The three executables (`BlockAccesses.exe`, `ReportAccesses.exe`, and `ReportProcesses.exe`) will be placed inside `Out\bin\Demos\release\win-x64\`.
+
+## Using the sandbox to report file accesses (`Public/Src/Demos/ReportAccesses`)
 
 This demo is able to run an arbitrary process and report back all the file accesses that the process (and its child processes) made. For example, one can run:
 
 ```
-E:\temp>dotnet <repo_root>\bin\Debug\ReportAccesses.dll notepad myFile.txt
+E:\temp><bxl_repo_root>\Out\bin\Demos\debug\win-x64\ReportAccesses.exe notepad myFile.txt
 ```
 
 This will actually open notepad.exe and myFile.txt will be created. After exiting notepad, the tool reports:
@@ -76,10 +85,10 @@ We are creating a manifest that configures the sandbox so:
 
 As a result of this configuration, all file accesses are allowed and reported. Each file access carries structured information that includes the type of operation, disposition, attributes, etc. In this simple demo we are just printing out the path of each access.
 
-This demo works on mac as well, but only supports absolute paths in the arguments.
+This demo works on macOS as well, but only supports absolute paths in the arguments.
 
 ```
-~/BuildXL$ dotnet <repo_root>/out/bin/Demos/Debug/netcoreapp2.2/ReportAccesses.dll /bin/echo
+~/BuildXL$ <bxl_repo_root>/out/bin/Demos/Debug/osx-x64/ReportAccesses /bin/echo
 Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned with exit code '0'. Sandbox reports 48 file accesses:
 /bin/echo
 /usr/lib/dyld
@@ -110,7 +119,7 @@ Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned wit
 /usr/lib/libc++.1.dylib
 ```
 
-## Blocking accesses (Public/Src/Demos/BlockAccesses)
+## Blocking accesses (`Public/Src/Demos/BlockAccesses`)
 
 The next demo shows how to use BuildXL sandbox to actually block accesses with certain characteristics. Given a directory provided by the user, a process is launched under the sandbox which tries to enumerate the given directory recursively and perform a read on every file found. However, a collection of directories to block can also be provided: the sandbox will make sure that any access that falls under these directories will be blocked, preventing the tool from accessing those files.
 
@@ -131,7 +140,7 @@ E:\TEST
 And let's see what happens if we run:
 
 ```
-dotnet <repo_root>\bin\Debug\BlockAccesses.dll e:\test e:\test\bin e:\test\obj
+<bxl_repo_root>\Out\bin\Demos\debug\BlockAccesses.exe e:\test e:\test\bin e:\test\obj
 ```
 
 Here we are trying to enumerate ``e:\test`` recursively, but block any access under ``e:\test\obj`` and ``e:\test\bin``. The result is:
@@ -204,12 +213,12 @@ var allAccesses = result
     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 ```
 
-``SandboxedProcessResult.FileAccesses`` contains all the reported accesses. So we just iterate over them and print some of the details.
+`SandboxedProcessResult.FileAccesses` contains all the reported accesses. So we just iterate over them and print some of the details.
 
 This demo works on mac as well (with the same directory structure as before)
 
 ```
-~$ dotnet <repo root>/bin/tests/Demos/Debug/BlockAccesses.dll ~/test/ ~/test/obj/ ~/test/bin/
+~/BuildXL$ <bxl_repo_root>/out/bin/Demos/Debug/BlockAccesses ~/test/ ~/test/obj/ ~/test/bin/
 Enumerated the directory '/Users/BuildXLUser/test/'. The following accesses were reported:
 Allowed -> [Read] /usr/bin/find
 Allowed -> [Read] /usr/lib/dyld
@@ -241,13 +250,14 @@ Allowed -> [Enumerate] /Users/BuildXLUser/test/source
 Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
 ```
 
-## Retrieving the process list
+## Retrieving the process list (`Public/Src/Demos/ReportProcesses`)
+
 The last demo shows how the sandbox can be used to retrieve the list of processes spawned by a process that was run under the sandbox. All child processes that are created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
 
 For example, let's run a git fetch on an arbitrary repo:
 
 ```
-dotnet <repo_root>\bin\Debug\ReportProcesses.dll git fetch
+<bxl_repo_root>\Out\bin\demos\debug\ReportProcesses.exe git fetch
 ```
 
 The result is:
@@ -295,7 +305,7 @@ Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - rep
 Here is the process list reported on Mac
 
 ```
-~/BuildXL$ dotnet out/bin/Demos/Debug/netcoreapp2.2/ReportProcesses.dll /usr/bin/git fetch
+~/BuildXL$ ./out/bin/Demos/debug/osx-x64/ReportProcesses /usr/bin/git fetch
 Process '/usr/bin/git' ran under the sandbox. These processes were launched in the sandbox:
 /usr/bin/git [ran 0ms]
 /Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git-remote-http [ran 0ms]

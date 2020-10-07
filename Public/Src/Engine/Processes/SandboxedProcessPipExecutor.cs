@@ -1729,7 +1729,8 @@ namespace BuildXL.Processes
                     numSurvivingChildErrors);
             }
 
-            bool failedDueToWritingToStdErr = m_pip.WritingToStandardErrorFailsExecution && result.StandardError.HasLength;
+            // Observe that in some cases stderr reports to have length, but it is zero. Make sure that length > 0 to conclude stderr was written.
+            bool failedDueToWritingToStdErr = m_pip.WritingToStandardErrorFailsExecution && result.StandardError.HasLength && result.StandardError.Length > 0;
             if (failedDueToWritingToStdErr)
             {
                 Tracing.Logger.Log.PipProcessWroteToStandardErrorOnCleanExit(

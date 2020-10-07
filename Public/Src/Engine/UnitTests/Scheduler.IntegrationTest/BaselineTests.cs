@@ -400,6 +400,23 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void StandardErrorWithZeroLengthDoesNotFailExecution()
+        {
+            // Schedule a pip that does not write to stderr
+            var pipBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            pipBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
+
+            Process pip = SchedulePipBuilder(pipBuilder).Process;
+
+            // Should succeed since stderr was not written
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
         public void ValidateCachingCommandLineChange()
         {
             // Graph construction

@@ -1203,9 +1203,13 @@ namespace BuildXL.Scheduler
                 // If this reader is ordered before the writer, we can determine isSameContent (if not determined already).
                 if (isSameContent == null && writerDependsOnReader)
                 {
-                    // Retrieve the hash of the undeclared file. Observe in this case the hash should be always be retrieved from the cache since an undeclared read on that path already happened
+                    // Retrieve the hash of the undeclared file. Observe in this case the hash should always be retrieved from the cache since an undeclared read on that path already happened
                     var maybeUndeclaredSourceMaterializationInfo = m_fileContentManager.TryQueryUndeclaredInputContentAsync(undeclaredRead).GetAwaiter().GetResult();
-                    Contract.Assert(maybeUndeclaredSourceMaterializationInfo.HasValue);
+                    if (!maybeUndeclaredSourceMaterializationInfo.HasValue)
+                    {
+                        Contract.Assert(false, $"TryQueryUndeclaredInputContentAsync returned null for '{undeclaredRead.ToString(Context.PathTable)}'. " +
+                            $"This is unexpected since pip ${m_graph.GetFormattedSemiStableHash(reader)} has already read the path.");
+                    }
 
                     // Set the value that tells us if we saw the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
                     isSameContent = writerHash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;

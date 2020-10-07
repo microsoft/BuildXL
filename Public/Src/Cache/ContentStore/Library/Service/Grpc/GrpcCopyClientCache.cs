@@ -148,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     Contract.AssertNotNull(_resourcePoolV2);
 
-                    return await _resourcePoolV2.UseAsync(key, async resourceWrapper =>
+                    return await _resourcePoolV2.UseAsync(context, key, async resourceWrapper =>
                     {
                         // This ensures that the operation we want to perform conforms to the cancellation. When the
                         // resource needs to be removed, the token will be cancelled. Once the operation completes, we

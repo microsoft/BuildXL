@@ -99,39 +99,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
+        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
             CopyToOptions options)
         {
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
             // Contact hard-coded port on source
-            return _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
+            try
             {
-                var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options, context.Token);
-                if (!result)
+                // ResourcePoolV2 may throw TimeoutException if the connection fails.
+                // Wrapping this error and converting it to an "error code".
+
+                return await _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
                 {
-                    switch (_configuration.GrpcCopyClientInvalidationPolicy)
-                    {
-                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.Disabled:
-                            break;
-                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError:
-                            clientWrapper.Invalidate();
-                            break;
-                        case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnConnectivityErrors:
-                            if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) || result.Code == CopyResultCode.ConnectionTimeoutError)
-                            {
-                                if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
-                                {
-                                    clientWrapper.Invalidate();
-                                }
-                            }
-                            break;
-                    }
+                    var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options, context.Token);
+                    InvalidateResourceIfNeeded(options, result, clientWrapper);
+                    return result;
+                });
+            }
+            catch (ResultPropagationException e)
+            {
+                if (e.Result.Exception != null)
+                {
+                    return GrpcCopyClient.CreateResultFromException(e.Result.Exception);
                 }
 
-                return result;
-            });
+                return new CopyFileResult(CopyResultCode.Unknown, e.Result);
+            }
+            catch (Exception e)
+            {
+                return new CopyFileResult(CopyResultCode.Unknown, e);
+            }
+        }
+
+        private void InvalidateResourceIfNeeded(CopyToOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
+        {
+            if (!result)
+            {
+                switch (_configuration.GrpcCopyClientInvalidationPolicy)
+                {
+                    case GrpcFileCopierConfiguration.ClientInvalidationPolicy.Disabled:
+                        break;
+                    case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError:
+                        clientWrapper.Invalidate();
+                        break;
+                    case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnConnectivityErrors:
+                        if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) ||
+                            result.Code == CopyResultCode.ConnectionTimeoutError)
+                        {
+                            if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
+                            {
+                                clientWrapper.Invalidate();
+                            }
+                        }
+
+                        break;
+                }
+            }
         }
 
         /// <inheritdoc />

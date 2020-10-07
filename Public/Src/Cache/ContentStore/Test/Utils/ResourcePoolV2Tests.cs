@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, async wrapper =>
+                await pool.UseAsync(context, key, async wrapper =>
                 {
                     wrapper.Invalid.Should().BeFalse();
                     wrapper.ReferenceCount.Should().Be(1);
@@ -183,7 +183,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     pool.Counter[ResourcePoolV2Counters.CreatedResources].Value.Should().Be(1);
                     pool.Counter[ResourcePoolV2Counters.ResourceInitializationAttempts].Value.Should().Be(1);
@@ -191,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     pool.Counter[ResourcePoolV2Counters.ReleasedResources].Value.Should().Be(1);
                     pool.Counter[ResourcePoolV2Counters.CreatedResources].Value.Should().Be(2);
@@ -212,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, async wrapper =>
+                await pool.UseAsync(context, key, async wrapper =>
                 {
                     await Task.Yield();
 
@@ -258,9 +258,9 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 counters = pool.Counter;
 
                 var key = new Key(0);
-                await pool.UseAsync(key, async wrapper =>
+                await pool.UseAsync(context, key, async wrapper =>
                 {
-                    outstandingTask = pool.UseAsync(key, async wrapper2 =>
+                    outstandingTask = pool.UseAsync(context, key, async wrapper2 =>
                     {
                         wrapper2.ReferenceCount.Should().Be(2);
                         stopLatch.Release();
@@ -301,9 +301,9 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, async wrapper =>
+                await pool.UseAsync(context, key, async wrapper =>
                 {
-                    return await pool.UseAsync(key, wrapper2 =>
+                    return await pool.UseAsync(context, key, wrapper2 =>
                     {
                         wrapper.ReferenceCount.Should().Be(2);
                         wrapper.Should().Be(wrapper2);
@@ -312,13 +312,13 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 }).ShouldBeSuccess();
 
                 Resource? cachedResource = null;
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     cachedResource = wrapper.Value;
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     Assert.Same(cachedResource, wrapper.Value);
                     return BoolResult.SuccessTask;
@@ -336,14 +336,14 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
                 clock.Increment(TimeSpan.FromMinutes(1));
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     pool.Counter[ResourcePoolV2Counters.CreatedResources].Value.Should().Be(2);
                     pool.Counter[ResourcePoolV2Counters.ReleasedResources].Value.Should().Be(1);
@@ -365,14 +365,14 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 var key = new Key(0);
                 var key1 = new Key(1);
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
                 clock.Increment(TimeSpan.FromMinutes(1));
 
-                await pool.UseAsync(key1, wrapper =>
+                await pool.UseAsync(context, key1, wrapper =>
                 {
                     pool.Counter[ResourcePoolV2Counters.CreatedResources].Value.Should().Be(2);
                     pool.Counter[ResourcePoolV2Counters.ReleasedResources].Value.Should().Be(1);
@@ -393,7 +393,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
@@ -421,11 +421,11 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
-                await pool.UseAsync(key, async wrapper =>
+                await pool.UseAsync(context, key, async wrapper =>
                 {
                     // Invalidate resource. This will force GC to release it. Notice time doesn't change, so this isn't
                     // removed due to TTL
-                    await pool.UseAsync(key, wrapper =>
+                    await pool.UseAsync(context, key, wrapper =>
                     {
                         wrapper.Invalidate();
                         return BoolResult.SuccessTask;
@@ -457,7 +457,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 var key = new Key(0);
                 var key1 = new Key(1);
 
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     wrapper.Invalidate();
                     return BoolResult.SuccessTask;
@@ -486,7 +486,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 var key = new Key(0);
 
                 var timeToStartup = StopwatchSlim.Start();
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     // Don't use 5s, because we may wake up slightly earlier than that
                     timeToStartup.Elapsed.TotalSeconds.Should().BeGreaterOrEqualTo(4.9);
@@ -512,7 +512,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 var key = new Key(0);
 
                 var timeToStartup = StopwatchSlim.Start();
-                await pool.UseAsync(key, wrapper =>
+                await pool.UseAsync(context, key, wrapper =>
                 {
                     timeToStartup.Elapsed.TotalSeconds.Should().BeLessThan(1);
                     return BoolResult.SuccessTask;
@@ -544,7 +544,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                 _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
                 {
-                    return pool.UseAsync<BoolResult>(key, wrapper =>
+                    return pool.UseAsync<BoolResult>(context, key, wrapper =>
                     {
                         throw new NotImplementedException("This should not happen!");
                     });
@@ -553,7 +553,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 // This is just to ensure that retrying effectively does a retry
                 _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
                 {
-                    return pool.UseAsync<BoolResult>(key, wrapper =>
+                    return pool.UseAsync<BoolResult>(context, key, wrapper =>
                     {
                         throw new NotImplementedException("This should not happen!");
                     });
@@ -572,6 +572,22 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
         }
 
         [Fact]
+        public async Task FailingStartupThrowsResultPropagationException()
+        {
+            var configuration = new ResourcePoolConfiguration();
+
+            await RunTest<Key, FailingResource>(async (context, pool) =>
+            {
+                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                {
+                    return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
+                });
+            },
+            _ => new FailingResource(startupFailure: true),
+            configuration);
+        }
+
+        [Fact]
         public async Task FailingShutdownDoesNotThrow()
         {
             CounterCollection<ResourcePoolV2Counters>? counters = null;
@@ -587,7 +603,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 counters = pool.Counter;
 
                 var key = new Key(0);
-                return pool.UseAsync(key, wrapper =>
+                return pool.UseAsync(context, key, wrapper =>
                 {
                     return BoolResult.SuccessTask;
                 });

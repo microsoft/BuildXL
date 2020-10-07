@@ -69,15 +69,21 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        /// <nodoc />
-        public async Task<T> UseAsync<T>(TKey key, Func<ResourceWrapperV2<TObject>, Task<T>> operation)
+        /// <summary>
+        /// Use a resource obtained or created for a given key.
+        /// </summary>
+        /// <remarks>
+        /// The method may throw <see cref="ObjectDisposedException"/> if the instance is disposed.
+        /// Or it may throw <see cref="ResultPropagationException"/> if the resource's StartupAsync fails.
+        /// </remarks>
+        public async Task<T> UseAsync<T>(Context context, TKey key, Func<ResourceWrapperV2<TObject>, Task<T>> operation)
         {
             if (_disposeCancellationTokenSource.IsCancellationRequested)
             {
                 throw new ObjectDisposedException(objectName: _tracer.Name, message: "Attempt to use resource after dispose");
             }
 
-            var wrapper = FetchResource(key);
+            var wrapper = FetchResource(context, key);
             try
             {
                 // NOTE: This can potentially throw. If it happens, then the throw will propagate to the client, which
@@ -103,12 +109,12 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private ResourceWrapperV2<TObject> FetchResource(TKey key)
+        private ResourceWrapperV2<TObject> FetchResource(Context context, TKey key)
         {
             lock (_resourcesLock)
             {
                 ReleaseExpiredResources();
-                var wrapper = GetOrCreateWrapper(key);
+                var wrapper = GetOrCreateWrapper(context, key);
 
                 // We need to increment this here to avoid having another thread release the resource while its being
                 // acquired and hence causing a race condition.
@@ -122,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private ResourceWrapperV2<TObject> GetOrCreateWrapper(TKey key)
+        private ResourceWrapperV2<TObject> GetOrCreateWrapper(Context context, TKey key)
         {
             var now = _clock.UtcNow;
             if (_resources.TryGetValue(key, out var wrapper))
@@ -135,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 ReleaseResource(key, wrapper);
             }
 
-            wrapper = CreateWrapper(key);
+            wrapper = CreateWrapper(context, key);
             _resources.Add(key, wrapper);
             return wrapper;
         }
@@ -299,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private ResourceWrapperV2<TObject> CreateWrapper(TKey key)
+        private ResourceWrapperV2<TObject> CreateWrapper(Context context, TKey key)
         {
             var lazy = new AsyncLazy<TObject>(async () =>
             {
@@ -307,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 try
                 {
-                    var result = await CreateInstanceAsync(key);
+                    var result = await CreateInstanceAsync(context, key);
                     Counter[ResourcePoolV2Counters.ResourceInitializationSuccesses].Increment();
                     return result;
                 }
@@ -317,6 +323,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     throw;
                 }
             });
+
             var wrapper = new ResourceWrapperV2<TObject>(lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token);
             Counter[ResourcePoolV2Counters.CreatedResources].Increment();
             return wrapper;
@@ -325,10 +332,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Called when a new instance needs to be created. May be overriden by inheritors when startup may be more complex.
         /// </summary>
-        protected virtual async Task<TObject> CreateInstanceAsync(TKey key)
+        /// <remarks>
+        /// The method throws if resource initialization fails.
+        /// </remarks>
+        protected virtual async Task<TObject> CreateInstanceAsync(Context context, TKey key)
         {
             var instance = _factory(key);
-            await instance.StartupAsync(_context).ThrowIfFailureAsync();
+            await instance.StartupAsync(context).ThrowIfFailureAsync();
             return instance;
         }
 

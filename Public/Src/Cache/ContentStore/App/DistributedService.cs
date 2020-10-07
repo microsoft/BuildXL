@@ -79,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.App
                 ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
                 ApplyIfNotNull(dcs.GrpcCopyClientUseGzipCompression, v => grpcCopyClientConfiguration.UseGzipCompression = v);
                 ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
-                ApplyIfNotNull(dcs.GrpcCopyClientConnectionEstablishmentTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionEstablishmentTimeout = TimeSpan.FromSeconds(v));
+                ApplyIfNotNull(dcs.TimeToFirstByteTimeoutInSeconds, v => grpcCopyClientConfiguration.TimeToFirstByteTimeout = TimeSpan.FromSeconds(v));
                 ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
                 ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
                 ApplyIfNotNull(dcs.GrpcCopyClientOperationDeadlineSeconds, v => grpcCopyClientConfiguration.OperationDeadline = TimeSpan.FromSeconds(v));

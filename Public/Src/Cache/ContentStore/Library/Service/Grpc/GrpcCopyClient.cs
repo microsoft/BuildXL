@@ -27,6 +27,18 @@ using Grpc.Core;
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
+    /// An error that <see cref="GrpcCopyClient"/> throws in <see cref="StartupShutdownSlimBase.StartupAsync"/> if connection can not be established in allotted time.
+    /// </summary>
+    public sealed class GrpcConnectionTimeoutException : TimeoutException
+    {
+        /// <nodoc />
+        public GrpcConnectionTimeoutException(string message)
+            : base(message)
+        {
+        }
+    }
+
+    /// <summary>
     /// An implementation of a CAS copy helper client based on GRPC.
     /// TODO: Consolidate with GrpcClient to deduplicate code. (bug 1365340)
     /// </summary>
@@ -60,7 +72,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 options: GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
 
             _client = new ContentServer.ContentServerClient(_channel);
-
         }
 
         /// <inheritdoc />
@@ -75,12 +86,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             DateTime? deadline = null;
-            if (_configuration.ConnectionEstablishmentTimeout != Timeout.InfiniteTimeSpan)
+            if (_configuration.ConnectOnStartup)
             {
-                deadline = _clock.UtcNow + _configuration.ConnectionEstablishmentTimeout;
+                deadline = _clock.UtcNow + _configuration.ConnectionTimeout;
             }
 
-            await _channel.ConnectAsync(deadline);
+            try
+            {
+                await _channel.ConnectAsync(deadline);
+            }
+            catch (TaskCanceledException)
+            {
+                // If deadline occurs, ConnectAsync fails with TaskCanceledException.
+                // Wrapping it into TimeoutException instead.
+                throw new GrpcConnectionTimeoutException($"Failed to connect to {Key.Host}:{Key.GrpcPort} at {_configuration.ConnectionTimeout}.");
+            }
 
             return BoolResult.Success;
         }
@@ -164,6 +184,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
+        /// <nodoc />
+        public static CopyFileResult CreateResultFromException(Exception e)
+        {
+            if (e is GrpcConnectionTimeoutException)
+            {
+                return new CopyFileResult(CopyResultCode.ConnectionTimeoutError, e);
+            }
+
+            if (e is RpcException r)
+            {
+                if (r.StatusCode == StatusCode.Unavailable)
+                {
+                    return new CopyFileResult(CopyResultCode.ServerUnavailable, e);
+                }
+                else
+                {
+                    return new CopyFileResult(CopyResultCode.Unknown, e);
+                }
+            }
+
+            return new CopyFileResult(CopyResultCode.Unknown, e);
+        }
+
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
@@ -175,6 +218,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream: true);
             }
         }
+
+        private TimeSpan GetResponseHeadersTimeout(CopyToOptions? options)
+        {
+            var bandwidthConnectionTimeout = options?.BandwidthConfiguration?.ConnectionTimeout;
+            if (bandwidthConnectionTimeout != null)
+            {
+                return bandwidthConnectionTimeout.Value;
+            }
+
+            // Using different configuration if we're connecting on startup.
+            return _configuration.ConnectOnStartup ? _configuration.TimeToFirstByteTimeout : _configuration.ConnectionTimeout;
+        }
+
+        private CopyResultCode GetCopyResultCodeForGetResponseHeaderTimeout() => _configuration.ConnectOnStartup ? CopyResultCode.TimeToFirstByteTimeoutError : CopyResultCode.ConnectionTimeoutError;
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
@@ -200,14 +257,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 try
                 {
-                    var connectionTimeout = options?.BandwidthConfiguration?.ConnectionTimeout ?? _configuration.ConnectionTimeout;
+                    var connectionTimeout = GetResponseHeadersTimeout(options);
                     headers = await response.ResponseHeadersAsync.WithTimeoutAsync(connectionTimeout, token);
                 }
                 catch (TimeoutException t)
                 {
                     // Trying to cancel the back end operation as well.
                     cts.Cancel();
-                    return new CopyFileResult(CopyResultCode.ConnectionTimeoutError, t);
+                    return new CopyFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
                 }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
@@ -292,14 +349,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             catch (RpcException r)
             {
-                if (r.StatusCode == StatusCode.Unavailable)
-                {
-                    return new CopyFileResult(CopyResultCode.ServerUnavailable, r);
-                }
-                else
-                {
-                    return new CopyFileResult(CopyResultCode.Unknown, r);
-                }
+                return CreateResultFromException(r);
             }
         }
 
@@ -353,12 +403,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 try
                 {
-                    responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(_configuration.ConnectionTimeout, token);
+                    var timeout = GetResponseHeadersTimeout(options: null);
+                    responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(timeout, token);
                 }
                 catch (TimeoutException t)
                 {
                     cts.Cancel();
-                    return new PushFileResult(CopyResultCode.ConnectionTimeoutError, t);
+                    return new PushFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
                 }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty

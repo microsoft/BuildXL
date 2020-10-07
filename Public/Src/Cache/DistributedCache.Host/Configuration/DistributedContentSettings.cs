@@ -472,7 +472,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(0, double.MaxValue)]
-        public double? GrpcCopyClientConnectionEstablishmentTimeoutSeconds { get; set; }
+        public double? TimeToFirstByteTimeoutInSeconds { get; set; }
 
         [DataMember]
         [Validation.Range(0, double.MaxValue)]

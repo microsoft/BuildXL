@@ -463,6 +463,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 host.ReportReputation(location, MachineReputation.Timeout);
                                 badContentLocations.Add(location);
                                 break;
+                            case CopyResultCode.TimeToFirstByteTimeoutError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
+                                host.ReportReputation(location, MachineReputation.Timeout);
+                                badContentLocations.Add(location);
+                                break;
                             case CopyResultCode.DestinationPathError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
                                 Tracer.Warning(

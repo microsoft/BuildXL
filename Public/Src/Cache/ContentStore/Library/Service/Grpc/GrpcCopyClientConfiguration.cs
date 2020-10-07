@@ -36,14 +36,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         public bool ConnectOnStartup { get; set; }
 
-        /// <nodoc />
-        public TimeSpan ConnectionEstablishmentTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
-
-        /// <nodoc />
+        /// <summary>
+        /// A timeout that Grpc Client is allowed to wait when closing the connection with another side.
+        /// </summary>
+        /// <remarks>
+        /// We noticed that in some cases closing the channel may hang, so this timeout is protecting us from waiting indefinitely in application shutdown.
+        /// </remarks>
         public TimeSpan DisconnectionTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
 
-        /// <nodoc />
+        /// <summary>
+        /// A timeout to establish a connection.
+        /// </summary>
         public TimeSpan ConnectionTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
+
+        /// <summary>
+        /// When the connection is established in StartupAsync method, this configuration determines "time to first byte" timeout.
+        /// </summary>
+        public TimeSpan TimeToFirstByteTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
 
         /// <nodoc />
         public TimeSpan OperationDeadline { get; set; } = TimeSpan.FromHours(2);

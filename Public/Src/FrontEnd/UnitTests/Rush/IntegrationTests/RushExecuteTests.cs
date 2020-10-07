@@ -179,6 +179,100 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.False(IsDependencyAndDependent(aPreBuild, bPreBuild));
         }
 
+        [Fact]
+        public void AbsentCommandForLocalDependency()
+        {
+            // Create a dependency tree such that D -> C -> B
+            //                                         | -> E -> A
+            var commands = @"
+[
+    {command: 'A', dependsOn: []},
+    {command: 'B', dependsOn: []},
+    {command: 'C', dependsOn: [{kind: 'local', command: 'B'}, {kind: 'local', command: 'E'}]},
+    {command: 'D', dependsOn: [{kind: 'local', command: 'C'}]},
+    {command: 'E', dependsOn: [{kind: 'local', command: 'A'}]},
+]";
+
+            // Create a project A where scripts C and E are missing
+            var config = Build(executeCommands: commands)
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("A", "script A"), ("B", "script B"), ("D", "script D") })
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.True(result.IsSuccess);
+
+            var a = result.EngineState.RetrieveProcess("@ms/project-A", "A");
+            var b = result.EngineState.RetrieveProcess("@ms/project-A", "B");
+            var c = result.EngineState.RetrieveProcess("@ms/project-A", "C");
+            var d = result.EngineState.RetrieveProcess("@ms/project-A", "D");
+            var e = result.EngineState.RetrieveProcess("@ms/project-A", "E");
+
+            Assert.True(a != null);
+            Assert.True(b != null);
+            Assert.True(c == null);
+            Assert.True(d != null);
+            Assert.True(e == null);
+
+            // Now check dependencies. Since C and E are not available, we shoud get
+            // D -> A
+            // | -> B
+
+            Assert.True(IsDependencyAndDependent(a, d));
+            Assert.True(IsDependencyAndDependent(b, d));
+        }
+
+        [Fact]
+        public void AbsentCommandForPackageDependency()
+        {
+            // Create a dependency tree such that project1(A) -> project2(A) -> project4(A)
+            //                                                -> project3(A) -> project5(A)
+            var commands = @"
+[
+    {command: 'A', dependsOn: [{kind: 'package', command: 'A'}]},
+]";
+
+            var config = Build(executeCommands: commands)
+                .AddJavaScriptProject("@ms/project-1", "src/1", scriptCommands: new[] { ("A", "script A1") }, dependencies: new[] { "@ms/project-2", "@ms/project-3" })
+                .AddJavaScriptProject("@ms/project-2", "src/2", scriptCommands: new[] { ("A", "script A2") }, dependencies: new[] { "@ms/project-4" })
+                .AddJavaScriptProject("@ms/project-3", "src/3", scriptCommands: new (string, string)[] {},    dependencies: new[] { "@ms/project-5" })
+                .AddJavaScriptProject("@ms/project-4", "src/4", scriptCommands: new[] { ("A", "script A2") })
+                .AddJavaScriptProject("@ms/project-5", "src/5", scriptCommands: new[] { ("A", "script A2") })
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/1", "@ms/project-1"),
+                ("src/2", "@ms/project-2"),
+                ("src/3", "@ms/project-3"),
+                ("src/4", "@ms/project-4"),
+                ("src/5", "@ms/project-5"),
+            });
+
+            Assert.True(result.IsSuccess);
+
+            var p1 = result.EngineState.RetrieveProcess("@ms/project-1", "A");
+            var p2 = result.EngineState.RetrieveProcess("@ms/project-2", "A");
+            var p3 = result.EngineState.RetrieveProcess("@ms/project-3", "A");
+            var p4 = result.EngineState.RetrieveProcess("@ms/project-4", "A");
+            var p5 = result.EngineState.RetrieveProcess("@ms/project-5", "A");
+
+            Assert.True(p1 != null);
+            Assert.True(p2 != null);
+            Assert.True(p3 == null);
+            Assert.True(p4 != null);
+            Assert.True(p5 != null);
+
+
+            // Now check dependencies. Since A on project3 is missing, we should get
+            // project1(A)-> project2(A)->project4(A)
+            //            -> project5(A)
+            Assert.True(IsDependencyAndDependent(p4, p2));
+            Assert.True(IsDependencyAndDependent(p2, p1));
+            Assert.True(IsDependencyAndDependent(p5, p1));
+        }
+
         private BuildXLEngineResult BuildDummyWithCommands(string commands)
         {
             var config = Build(executeCommands: commands)

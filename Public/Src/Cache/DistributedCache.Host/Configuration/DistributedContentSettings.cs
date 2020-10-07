@@ -152,12 +152,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int? RedisReconnectionLimitBeforeServiceRestart { get; set; }
 
         [DataMember]
-        public bool? TraceRedisFailures { get; set; }
-
-        [DataMember]
-        public bool? TraceRedisTransientFailures { get; set; }
-
-        [DataMember]
         public double? DefaultRedisOperationTimeoutInSeconds { get; set; }
 
         [DataMember]

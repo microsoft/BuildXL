@@ -593,7 +593,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public static void FireAndForget(this Task task, Context context, IRedisBatch batch, [CallerMemberName]string operation = null)
         {
             string extraMessage = string.IsNullOrEmpty(batch.DatabaseName) ? string.Empty : $"Database={batch.DatabaseName}";
-            task.FireAndForget(context, operation, failureSeverity: Severity.Debug, extraMessage: extraMessage);
+            task.FireAndForget(context, operation, failureSeverity: Severity.Diagnostic, extraMessage: extraMessage);
         }
     }
 }

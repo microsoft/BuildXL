@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -156,6 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (secondResult != slowerResultTask)
                 {
                     var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
+                    var successRedisDb = GetOtherDbName(failingRedisDb);
                     Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Increment();
 
                     // Avoiding task unobserved exception if the second task will fail.
@@ -164,7 +166,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();
 
-                    Tracer.Info(context, $"{Tracer.Name}.{caller}: Cancelling redis db: {failingRedisDb}, using result: {fasterResultTask.Result} from other redis db");
+                    Tracer.Info(context, $"{Tracer.Name}.{caller}: Cancelling operation against '{failingRedisDb}' redis db after '{retryWindow.Value}'. Using successful result from '{successRedisDb}'.");
 
                     if (fasterResultTask == primaryResultTask)
                     {
@@ -184,10 +186,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (primaryResult.Succeeded != secondaryResult.Succeeded)
             {
                 var failingRedisDb = GetDbName(primaryResult.Succeeded ? SecondaryRedisDb : PrimaryRedisDb);
-                Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {(primaryResult.Succeeded ? primaryResult : secondaryResult)}");
+                var successRedisDb = GetOtherDbName(failingRedisDb);
+                // We don't have to print a result here, because errors should be already traced.
+                Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in '{failingRedisDb}' redis db. Using successful result from '{successRedisDb}'.");
             }
 
             return (primaryResult, secondaryResult);
+        }
+
+        private string GetOtherDbName(string databaseName)
+        {
+            Contract.Requires(SecondaryRedisDb != null);
+
+            // This method returns the name of another database.
+            if (databaseName == PrimaryRedisDb.DatabaseName)
+            {
+                return SecondaryRedisDb.DatabaseName;
+            }
+            else
+            {
+                return PrimaryRedisDb.DatabaseName;
+            }
         }
 
         /// <nodoc />

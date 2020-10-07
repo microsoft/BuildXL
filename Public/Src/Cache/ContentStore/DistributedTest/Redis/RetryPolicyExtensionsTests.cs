@@ -6,8 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using ContentStoreTest.Test;
@@ -49,15 +47,57 @@ namespace ContentStoreTest.Distributed.Redis
                         await Task.Yield();
                         throw new ApplicationException("1");
                     },
-                    CancellationToken.None,
-                    traceFailure: true);
+                    CancellationToken.None);
                 Assert.True(false, "ExecuteAsync should fail.");
             }
             catch (ApplicationException)
             {
                 var fullOutput = GetFullOutput();
-                fullOutput.Should().Contain($"Redis operation '{nameof(TestTracingRetryPolicy)}' failed:");
+                fullOutput.Should().Contain($"Redis operation '{nameof(TestTracingRetryPolicy)}' failed");
                 callBackCallCount.Should().Be(RetryCount + 1); // +1 because we have: original try + the number of retries.
+            }
+        }
+
+        [Fact]
+        public async Task RetryPolicyStopsOnCancellation()
+        {
+            // This test shows that if a cancellation token provided to 'RetryPolicy' is triggered
+            // and at least one error already occurred, then the operation will fail with the last exception
+
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+
+            const int RetryCount = 4;
+            var retryPolicy = new RetryPolicy(
+                new TransientDetectionStrategy(),
+                retryCount: RetryCount,
+                initialInterval: TimeSpan.FromMilliseconds(1),
+                increment: TimeSpan.FromMilliseconds(1));
+
+            int callBackCallCount = 0;
+            try
+            {
+
+                await retryPolicy.ExecuteAsync(
+                    context.TracingContext,
+                    async () =>
+                    {
+                        callBackCallCount++;
+
+                        if (callBackCallCount == 2)
+                        {
+                            cts.Cancel();
+                        }
+                        await Task.Yield();
+                        throw new ApplicationException($"{callBackCallCount}");
+                    },
+                    context.Token);
+                Assert.True(false, "ExecuteAsync should fail.");
+            }
+            catch (ApplicationException e)
+            {
+                callBackCallCount.Should().Be(2);
+                e.Message.Should().Be("2");
             }
         }
 

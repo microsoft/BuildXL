@@ -66,15 +66,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.RedisReconnectionLimitBeforeServiceRestart"/>
         public int RedisReconnectionLimitBeforeServiceRestart { get; }
 
-        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TraceRedisFailures"/>
-        public bool TraceOperationFailures { get; }
-
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.OperationTimeout"/>
         public TimeSpan OperationTimeout { get; }
 
-        /// <inheritdoc cref="RedisContentLocationStoreConfiguration.TraceRedisTransientFailures"/>
-        public bool TraceTransientFailures { get; }
-
+        /// <nodoc />
         public string DatabaseName { get; }
 
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.MinRedisReconnectInterval"/>
@@ -109,8 +104,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             string keySpace,
             int redisConnectionErrorLimit = int.MaxValue,
             int redisReconnectionLimitBeforeServiceRestart = int.MaxValue,
-            bool traceOperationFailures = false,
-            bool traceTransientFailures = false,
             int? retryCount = null,
             string? databaseName = null,
             TimeSpan? minReconnectInterval = null,
@@ -123,8 +116,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             KeySpace = keySpace;
             RedisConnectionErrorLimit = redisConnectionErrorLimit;
             RedisReconnectionLimitBeforeServiceRestart = redisReconnectionLimitBeforeServiceRestart;
-            TraceOperationFailures = traceOperationFailures;
-            TraceTransientFailures = traceTransientFailures;
             DatabaseName = databaseName ?? "Default";
             MinReconnectInterval = minReconnectInterval ?? TimeSpan.Zero;
             CancelBatchWhenMultiplexerIsClosed = cancelBatchWhenMultiplexerIsClosed;

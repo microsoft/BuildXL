@@ -92,11 +92,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public int RedisReconnectionLimitBeforeServiceRestart { get; set; } = int.MaxValue;
 
-        /// <summary>
-        /// Whether to trace failures in redis access layer.
-        /// </summary>
-        public bool TraceRedisFailures { get; set; } = false;
-
         /// <nodoc />
         public static TimeSpan DefaultOperationTimeout { get; } = TimeSpan.FromMinutes(10);
 
@@ -104,11 +99,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// A defensive timeout for all redis operations (except blob operations that had its own (shorter) timeout).
         /// </summary>
         public TimeSpan OperationTimeout { get; set; } = DefaultOperationTimeout;
-
-        /// <summary>
-        /// Whether to trace transient failures in redis access layer.
-        /// </summary>
-        public bool TraceRedisTransientFailures { get; set; } = false;
 
         /// <summary>
         /// Gets a minimal time between reconnecting to a redis instance.

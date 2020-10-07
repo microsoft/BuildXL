@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -259,11 +260,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <returns>A task that completes when all items in the batch are done.</returns>
         public async Task<BoolResult> ExecuteBatchOperationAsync(Context context, IRedisBatch batch, CancellationToken cancellationToken)
         {
+            // The cancellation logic in this method is quite complicated.
+            // We have following "forces" that can cancel the operation:
+            // 1. A token provided to this method is triggered.
+            //    (if the current operation is no longer needed because we got the result from another redis instance already).
+            // 2. Operation exceeds a timeout
+            // 3. A multiplexer is closed and we need to retry with a newly created connection multiplexer.
+
             var operationContext = new OperationContext(context, cancellationToken);
+
+            // Cancellation token can be changed in this method so we need another local to avoid re-assigning an argument.
+            var token = cancellationToken;
             var result = await operationContext.PerformOperationWithTimeoutAsync(
                 _tracer,
-                async (nestedContext) =>
+                async (withTimeoutContext) =>
                 {
+                    string getCancellationReason(bool multiplexerIsClosed)
+                    {
+                        bool externalTokenIsCancelled = operationContext.Token.IsCancellationRequested;
+                        bool timeoutTokenIsCancelled = withTimeoutContext.Token.IsCancellationRequested;
+
+                        Contract.Assert(externalTokenIsCancelled || timeoutTokenIsCancelled || multiplexerIsClosed);
+
+                        // Its possible to have more than one token to be triggered, in this case we'll report based on the check order.
+                        // Have to put '!' at the end of each return statement due to this bug: https://github.com/dotnet/roslyn/issues/42396
+                        // Should be removed once moved to a newer C# compiler version.
+                        if (externalTokenIsCancelled) { return "a given cancellation token is cancelled"!; }
+
+                        if (timeoutTokenIsCancelled) { return $"Operation timed out after {_configuration.OperationTimeout}"!; }
+
+                        if (multiplexerIsClosed) { return "the multiplexer is closed"!; }
+
+                        return "The operation is not cancelled"!;
+                    }
+
+                    // Now the token is a combination of "external token" and "timeout token"
+                    token = withTimeoutContext.Token;
+
                     using (Counters[RedisOperation.All].Start())
                     using (Counters[RedisOperation.Batch].Start())
                     using (Counters[batch.Operation].Start())
@@ -275,14 +308,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                             // Need to register the cancellation here and not inside the ExecuteAsync callback,
                             // because the cancellation can happen before the execution of the given callback.
                             // And we still need to cancel the batch operations to finish all the tasks associated with them.
-                            using (CancellationTokenRegistration registration = operationContext.Token.Register(
-                                () => { cancelTheBatch(reason: "a given cancellation token is cancelled"); }))
+                            using (token.Register(() => { cancelTheBatch(getCancellationReason(multiplexerIsClosed: false)); }))
                             {
                                 await _redisRetryStrategy.ExecuteAsync(
-                                    nestedContext,
+                                    withTimeoutContext,
                                     async () =>
                                     {
-                                        var (database, databaseClosedCancellationToken) = await GetDatabaseAsync(nestedContext);
+                                        var (database, databaseClosedCancellationToken) = await GetDatabaseAsync(withTimeoutContext);
                                         CancellationTokenSource? linkedCts = null;
                                         if (_configuration.CancelBatchWhenMultiplexerIsClosed)
                                         {
@@ -294,15 +326,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                             // To do that, we need to "Notify" all the batches about the cancellation inside the Register callback
                                             // and ExecuteBatchOperationAndGetCompletion should respect the cancellation token and throw an exception
                                             // if the token is set.
-                                            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(databaseClosedCancellationToken);
+                                            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(databaseClosedCancellationToken, withTimeoutContext.Token);
                                             linkedCts.Token.Register(
                                                 () =>
                                                 {
-                                                    string reason = operationContext.Token.IsCancellationRequested
-                                                        ? "a given cancellation token is cancelled"
-                                                        : "the multiplexer is closed";
-                                                    cancelTheBatch(reason: reason);
+                                                    cancelTheBatch(getCancellationReason(multiplexerIsClosed: databaseClosedCancellationToken.IsCancellationRequested));
                                                 });
+
+                                            // Now the token is a combination of "external token", "timeout token" and "database is closed token"
+                                            token = linkedCts.Token;
 
                                             // It is fine that the second cancellation token is not passed to retry strategy.
                                             // Retry strategy only retries on redis exceptions and all the rest, like TaskCanceledException or OperationCanceledException
@@ -314,38 +346,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                         // referencing a lot of token sources created here.
                                         using (linkedCts)
                                         {
-                                            await batch.ExecuteBatchOperationAndGetCompletion(nestedContext, database, linkedCts?.Token ?? CancellationToken.None);
+                                            await batch.ExecuteBatchOperationAndGetCompletion(withTimeoutContext, database, token);
                                         }
-
-                                        await batch.NotifyConsumersOfSuccess();
                                     },
-                                    cancellationToken,
-                                    _configuration.TraceTransientFailures);
-                                
+                                    token);
+
+                                await batch.NotifyConsumersOfSuccess();
 
                                 return BoolResult.Success;
                             }
                         }
                         catch (TaskCanceledException e)
                         {
+                            // Don't have to cancel batch here, because we track the cancellation already and call 'cancelBatch' if needed
                             return new BoolResult(e) {IsCancelled = true};
                         }
                         catch (OperationCanceledException e)
                         {
+                            // The same applies to OperationCanceledException as for TaskCanceledException
                             return new BoolResult(e) {IsCancelled = true};
                         }
                         catch (Exception ex)
                         {
                             batch.NotifyConsumersOfFailure(ex);
-                            return new BoolResult(ex);
+                            return new BoolResult(ex) {IsCancelled = token.IsCancellationRequested};
                         }
                     }
                 },
-                // Tracing only errors and only if configured.
+                // Tracing errors all the time. They're not happening too frequently and its useful to know about all of them.
                 traceErrorsOnly: true,
                 traceOperationStarted: false,
-                traceOperationFinished: _configuration.TraceOperationFailures,
-                extraEndMessage: r => $"Operation={batch.Operation}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}",
+                //traceOperationFinished: _configuration.TraceOperationFailures,
+                extraEndMessage: r => $"Operation={batch.Operation}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}, IsCancelled={token.IsCancellationRequested}",
                 timeout: _configuration.OperationTimeout);
 
             HandleOperationResult(context, result);
@@ -389,13 +421,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (IsRedisConnectionException(exception))
             {
-                // We treat the "unable to connect" RedisConnectionExceptions differently, as the average connectivity error is caused by misconfiguration
-                if (IsRedisUnableToConnectException(exception))
-                {
-                    context.Error($"Unable to connect to Redis database {DatabaseName} with exception: {exception}");
-                    return;
-                }
-
                 // Using double-checked locking approach to reset the connection multiplexer only once.
                 // Checking for greater then or equals because another thread can increment _connectionErrorCount.
                 if (Interlocked.Increment(ref _connectionErrorCount) >= _configuration.RedisConnectionErrorLimit)
@@ -441,7 +466,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             // Lets be very pessimistic here: reset the connectivity errors every time when the operation succeed or any other exception
             // but redis connection exception occurs.
-            if (IsRedisConnectionException(exception) && !IsRedisUnableToConnectException(exception))
+            if (IsRedisConnectionException(exception))
             {
                 Interlocked.Increment(ref _connectionErrorCount);
             }
@@ -453,15 +478,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         private bool IsRedisConnectionException(Exception exception)
         {
             return exception is RedisConnectionException;
-        }
-
-        /// <summary>
-        /// There are different reasons for redis connectivity issues such as configuration errors.
-        /// This function addresses specifically for connecting to nonexistent instances.
-        /// </summary>
-        public static bool IsRedisUnableToConnectException(Exception exception)
-        {
-            return exception is RedisConnectionException && exception.ToString().Contains("UnableToConnect");
         }
 
         /// <summary>
@@ -563,7 +579,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                         return await operation(database);
                                     },
                                     token,
-                                    _configuration.TraceTransientFailures,
                                     _configuration.DatabaseName);
 
                                 return new Result<T>(r, isNullAllowed: true);
@@ -574,10 +589,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                             }
                         }
                     },
-                    // Tracing only errors and only if configured.
-                    traceErrorsOnly: true,
+                    traceErrorsOnly: true, // Tracing only errors
                     traceOperationStarted: false,
-                    traceOperationFinished: _configuration.TraceOperationFailures,
                     extraEndMessage: r => $"Operation={operationName}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}",
                     timeout: _configuration.OperationTimeout);
 
@@ -616,9 +629,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));
                 }
 
-                // Need to handle RedisCommandException and RedisTimeoutException separately,
-                // because they don't derive from RedisException.
-                if (ex is RedisTimeoutException || ex is RedisCommandException)
+                // Handle RedisTimeoutException separately because it doesn't derive from RedisException.
+                if (ex is RedisTimeoutException)
                 {
                     return true;
                 }

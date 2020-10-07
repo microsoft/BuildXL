@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;

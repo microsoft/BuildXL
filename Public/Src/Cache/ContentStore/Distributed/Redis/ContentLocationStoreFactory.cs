@@ -121,8 +121,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     KeySpace,
                     Configuration.RedisConnectionErrorLimit,
                     Configuration.RedisReconnectionLimitBeforeServiceRestart,
-                    traceOperationFailures: Configuration.TraceRedisFailures,
-                    traceTransientFailures: Configuration.TraceRedisTransientFailures,
                     databaseName: databaseName,
                     minReconnectInterval: Configuration.MinRedisReconnectInterval,
                     cancelBatchWhenMultiplexerIsClosed: Configuration.CancelBatchWhenMultiplexerIsClosed,

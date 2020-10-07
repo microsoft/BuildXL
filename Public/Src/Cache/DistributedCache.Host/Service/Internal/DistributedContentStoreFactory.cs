@@ -186,8 +186,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             // Redis-related configuration.
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);
             ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisContentLocationStoreConfiguration.RedisReconnectionLimitBeforeServiceRestart = v);
-            ApplyIfNotNull(_distributedSettings.TraceRedisFailures, v => redisContentLocationStoreConfiguration.TraceRedisFailures = v);
-            ApplyIfNotNull(_distributedSettings.TraceRedisTransientFailures, v => redisContentLocationStoreConfiguration.TraceRedisTransientFailures = v);
             ApplyIfNotNull(_distributedSettings.DefaultRedisOperationTimeoutInSeconds, v => redisContentLocationStoreConfiguration.OperationTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(_distributedSettings.MinRedisReconnectInterval, v => redisContentLocationStoreConfiguration.MinRedisReconnectInterval = v);
             ApplyIfNotNull(_distributedSettings.CancelBatchWhenMultiplexerIsClosed, v => redisContentLocationStoreConfiguration.CancelBatchWhenMultiplexerIsClosed = v);

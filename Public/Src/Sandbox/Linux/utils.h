@@ -1,7 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-bool is_null_or_empty(char const *input);
+#ifdef __cplusplus
+#define DLL_EXPORT extern "C"
+#else
+#define DLL_EXPORT
+#endif
+
+DLL_EXPORT bool is_null_or_empty(char const *input);
 
 /**
  * This is a function to ensure env (indicated by envPrefix which contains the name of env and "=", e.g. LD_PRELOAD=) is in envp[] 
@@ -19,20 +25,20 @@ bool is_null_or_empty(char const *input);
  *        3) add env containing all paths to newenvp,
  *        4) return newenvp
 */
-char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, const char *arg, ...);
+DLL_EXPORT char** ensure_paths_included_in_env(char *const envp[], char const *envPrefix, const char *arg, ...);
 
 /**
  * This is a function to ensure "envName=envValue" is in envp[]
  * It returns a pointer to char * [] (following the same format of "envp") which "envName=envValue".
 */
-char** ensure_env_value(char *const envp[], char const *envName, const char *envValue);
+DLL_EXPORT char** ensure_env_value(char *const envp[], char const *envName, const char *envValue);
 
 /**
  * Tries to match 'prefix' from the beggining of 'src'.
  * Upon success, returns a pointer to the next character (right after 
  * the matched prefix) in 'src' is returned; otherwise returns NULL.
  */
-const char* skip_prefix(const char *src, const char *prefix);
+DLL_EXPORT const char* skip_prefix(const char *src, const char *prefix);
 
 /**
  * envPrefix is in the format of the env name and "=", e.g. LD_PRELOAD=
@@ -50,14 +56,11 @@ const char* skip_prefix(const char *src, const char *prefix);
  * the case, the value written in 'buf' is unspecified.  In either case, the return
  * value is a pointer to where the result is (either 'src' or 'buf').
  */
-const char* add_value_to_env(const char *src, const char *value_to_add, const char *envPrefix);
+DLL_EXPORT const char* add_value_to_env(const char *src, const char *value_to_add, const char *envPrefix);
 
-/**
- * Test wrappers to make p-invoke easier.
- */
-extern "C" {
-    const bool add_value_to_env_for_test(const char *src, const char *value_to_add, const char *envPrefix, char *buf);
-    const bool ensure_env_value_for_test(char *const envp[], char const *envName, const char *envValue, char *buf);
-    const bool ensure_2_paths_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf);
-    const bool ensure_1_path_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path, char *buf);
-}
+// Test wrappers to make p-invoke easier.
+
+DLL_EXPORT const bool add_value_to_env_for_test(const char *src, const char *value_to_add, const char *envPrefix, char *buf);
+DLL_EXPORT const bool ensure_env_value_for_test(char *const envp[], char const *envName, const char *envValue, char *buf);
+DLL_EXPORT const bool ensure_2_paths_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path0, const char *path1, char *buf);
+DLL_EXPORT const bool ensure_1_path_included_in_env_for_test(char *const envp[], char const *envPrefix, const char *path, char *buf);

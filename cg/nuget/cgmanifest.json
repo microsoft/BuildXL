@@ -3723,7 +3723,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.BuildXL",
-          "Version": "0.0.40"
+          "Version": "0.0.41"
         }
       }
     },

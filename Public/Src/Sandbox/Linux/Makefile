@@ -15,6 +15,7 @@ INC     = \
 
 INC_FLAGS = $(foreach d, $(INC), -I$d)
 
+CFLAGS = -c -fPIC $(INC_FLAGS) 
 CXXFLAGS = -c -fPIC --std=c++17 $(INC_FLAGS) 
 DBGFLAGS = -g -Og -D_DEBUG
 RELFLAGS = -O3 -D_NDEBUG
@@ -63,10 +64,10 @@ allDep = $(allCpp:.cpp=.deps) $(allC:.c=.deps)
 	$(CXX) -DENABLE_INTERPOSING $(CXXFLAGS) $(RELFLAGS) -o $@ $<
 
 %.d.o: %.c
-	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(DBGFLAGS) -o $@ $<
 
 %.r.o: %.c
-	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(RELFLAGS) -o $@ $<
 
 %.d.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
@@ -94,10 +95,10 @@ bin/debug/libBxlAudit.so: $(filter %.d.o, $(commonObj) $(auditObj) $(utilsObj))
 	$(CXX) -shared $^ -o bin/debug/libBxlAudit.so -ldl
 
 bin/release/libBxlUtils.so: $(filter %.r.o, $(utilsObj))
-	$(CXX) -shared $^ -o bin/release/libBxlUtils.so
+	$(CC) -shared $^ -o bin/release/libBxlUtils.so
 
 bin/debug/libBxlUtils.so: $(filter %.d.o, $(utilsObj))
-	$(CXX) -shared $^ -o bin/debug/libBxlUtils.so
+	$(CC) -shared $^ -o bin/debug/libBxlUtils.so
 
 -include $(allDep)
 

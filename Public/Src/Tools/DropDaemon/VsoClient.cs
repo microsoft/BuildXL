@@ -172,8 +172,17 @@ namespace Tool.DropDaemon
         public async Task<DropItem> CreateAsync(CancellationToken token)
         {
             var startTime = DateTime.UtcNow;
+            if (!m_config.DomainId.HasValue)
+            {
+                m_logger.Verbose("Domain ID is not specified. Creating drop using a default domain id.");
+            }
+
+            IDomainId domainId = m_config.DomainId.HasValue
+                ? new ByteDomainId(m_config.DomainId.Value)
+                : WellKnownDomainIds.DefaultDomainId;
 
             var result = await m_dropClient.CreateAsync(
+                domainId,
                 DropName,
                 isAppendOnly: true,
                 expirationDate: DateTime.UtcNow.Add(m_config.Retention),

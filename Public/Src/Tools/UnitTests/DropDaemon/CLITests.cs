@@ -263,6 +263,16 @@ namespace Test.Tool.DropDaemon
                 };
             }
 
+            if (propType == typeof(byte?))
+            {
+                return new[]
+                {
+                    TupleCreate("1", (byte)1),
+                    TupleCreate("0", (byte)0),
+                    TupleCreate("10", (byte)10)
+                };
+            }
+
             if (propType == typeof(bool))
             {
                 return new[]

@@ -49,6 +49,9 @@ export interface DropSettings {
     
     /** Enable drop telemetry. */
     enableTelemetry?: boolean;
+
+    /** Optional domain id. If no value specified, a default domain id is used. Must have a non-negative value. */
+    dropDomainId? : number;
 }
 
 /**

@@ -146,6 +146,14 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultEnableChunkDedup,
         });
 
+        internal static readonly NullableIntOption OptionalDropDomainId = RegisterDropConfigOption(new NullableIntOption("domainId")
+        {
+            ShortName = "ddid",
+            HelpText = "Optional drop domain id setting.",
+            IsRequired = false,
+            DefaultValue = null,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -646,6 +654,12 @@ namespace Tool.DropDaemon
 
         internal static DropConfig CreateDropConfig(ConfiguredCommand conf)
         {
+            byte? domainId;
+            checked
+            {
+                domainId = (byte?) conf.Get(OptionalDropDomainId);
+            }
+
             return new DropConfig(
                 dropName: conf.Get(DropNameOption),
                 serviceEndpoint: conf.Get(DropEndpoint),
@@ -657,7 +671,8 @@ namespace Tool.DropDaemon
                 enableChunkDedup: conf.Get(EnableChunkDedup),
                 logDir: conf.Get(LogDir),
                 artifactLogName: conf.Get(ArtifactLogName),
-                batchSize: conf.Get(BatchSize));
+                batchSize: conf.Get(BatchSize),
+                dropDomainId: domainId);
         }
 
         private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);

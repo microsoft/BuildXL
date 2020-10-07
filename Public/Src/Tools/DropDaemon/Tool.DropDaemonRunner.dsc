@@ -156,6 +156,12 @@ export namespace DropDaemonRunner {
     }
 
     function createDrop(args: DropCreateArguments): DropCreateResult {
+        if (args.dropDomainId !== undefined) {
+            Contract.requires(
+                args.dropDomainId >= 0 && args.dropDomainId <= 255,
+                "DropDomainId value must be within [0..255] interval.");
+        }
+        
         // start service
         const shutdownCmdName = "stop";
         const finalizationCmdName = "finalize";
@@ -359,6 +365,7 @@ export namespace DropDaemonRunner {
                     "--dropServiceConfigFile ",
                     Artifact.input(args.dropServiceConfigFile)
                 ),
+                Cmd.option("--domainId ", args.dropDomainId),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

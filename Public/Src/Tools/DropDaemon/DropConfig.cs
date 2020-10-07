@@ -72,6 +72,11 @@ namespace Tool.DropDaemon
         /// </summary>
         public string ArtifactLogName { get; }
 
+        /// <summary>
+        ///     Optional domain id. Null represents a default value.
+        /// </summary>
+        public byte? DomainId { get; }
+
         #endregion
 
         #region Defaults
@@ -120,7 +125,8 @@ namespace Tool.DropDaemon
             bool? enableChunkDedup = null,
             string logDir = null,
             string artifactLogName = null,
-            int? batchSize = null)
+            int? batchSize = null,
+            byte? dropDomainId = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -133,6 +139,7 @@ namespace Tool.DropDaemon
             LogDir = logDir;
             ArtifactLogName = artifactLogName;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
+            DomainId = dropDomainId;
         }
     }
 }

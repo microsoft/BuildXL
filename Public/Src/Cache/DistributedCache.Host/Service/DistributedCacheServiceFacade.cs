@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -136,7 +137,7 @@ namespace BuildXL.Cache.Host.Service
             var host = arguments.Host;
             var timer = Stopwatch.StartNew();
 
-            InitializeGlobalLifetimeManager(host);
+            InitializeLifetimeTracker(host);
 
             // NOTE(jubayard): this is the entry point for running CASaaS. At this point, the Logger inside the
             // arguments holds the client's implementation of our logging interface ILogger. Here, we may override the
@@ -147,9 +148,11 @@ namespace BuildXL.Cache.Host.Service
             arguments.Logger = loggerReplacement.Logger;
             using var disposableToken = loggerReplacement.DisposableToken;
 
-            AdjustCopyInfrastructure(arguments);
-
             var context = new Context(arguments.Logger);
+
+            InitializeActivityTrackerIfNeeded(context, arguments.Configuration.DistributedContentSettings);
+
+            AdjustCopyInfrastructure(arguments);
 
             await ReportStartingServiceAsync(context, host);
 
@@ -245,6 +248,7 @@ namespace BuildXL.Cache.Host.Service
 
         private static void ReportServiceStopped(Context context, IDistributedCacheServiceHost host, BoolResult result, TimeSpan shutdownDuration)
         {
+            CacheActivityTracker.Stop();
             LifetimeTrackerTracer.ServiceStopped(context, result, shutdownDuration);
             host.OnTeardownCompleted();
         }
@@ -425,9 +429,17 @@ namespace BuildXL.Cache.Host.Service
             return result;
         }
 
-        private static void InitializeGlobalLifetimeManager(IDistributedCacheServiceHost host)
+        private static void InitializeLifetimeTracker(IDistributedCacheServiceHost host)
         {
             LifetimeManager.SetLifetimeManager(new DistributedCacheServiceHostBasedLifetimeManager(host));
+        }
+
+        private static void InitializeActivityTrackerIfNeeded(Context context, DistributedContentSettings settings)
+        {
+            if (settings.EnableCacheActivityTracker)
+            {
+                CacheActivityTracker.Start(context, SystemClock.Instance, settings.TrackingActivityWindow, settings.TrackingSnapshotPeriod, settings.TrackingReportPeriod);
+            }
         }
 
         private class DistributedCacheServiceHostBasedLifetimeManager : ILifetimeManager

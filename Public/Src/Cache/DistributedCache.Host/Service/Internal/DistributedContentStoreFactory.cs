@@ -213,6 +213,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisContentLocationStoreConfiguration.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisContentLocationStoreConfiguration.RetryWindow = TimeSpan.FromSeconds(v));
 
+            ApplyIfNotNull(_distributedSettings.Unsafe_MasterThroughputCheckMode, v => redisContentLocationStoreConfiguration.MasterThroughputCheckMode = v);
+            ApplyIfNotNull(_distributedSettings.Unsafe_EventHubCursorPosition, v => redisContentLocationStoreConfiguration.EventHubCursorPosition = v);
             ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisContentLocationStoreConfiguration.BlobTimeout = TimeSpan.FromMilliseconds(v));
             ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisContentLocationStoreConfiguration.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
 
@@ -673,7 +675,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 eventHubName: _distributedSettings.EventHubName,
                 eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
-                epoch: _keySpace + _distributedSettings.EventHubEpoch);
+                epoch: _keySpace + _distributedSettings.EventHubEpoch,
+                ignoreEpoch: _distributedSettings.Unsafe_IgnoreEpoch ?? false);
 
             dbConfig.Epoch = eventStoreConfiguration.Epoch;
 

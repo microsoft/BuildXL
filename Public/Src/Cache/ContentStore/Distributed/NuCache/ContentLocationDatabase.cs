@@ -98,13 +98,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         protected ContentLocationDatabase(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
         {
-            Contract.Requires(clock != null);
-            Contract.Requires(configuration != null);
-            Contract.Requires(getInactiveMachines != null);
-
             Clock = clock;
             _configuration = configuration;
             _getInactiveMachines = getInactiveMachines;
+
+            _isMetadataGarbageCollectionEnabled = configuration.MetadataGarbageCollectionEnabled;
         }
 
         /// <summary>
@@ -560,7 +558,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public void Store(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
-
+            CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.ProcessedHashes, value: 1);
             Persist(context, hash, entry);
         }
 

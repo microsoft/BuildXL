@@ -87,6 +87,7 @@ namespace BuildXL.Cache.ContentStore.App
         private readonly Logger _logger;
         private readonly Tracer _tracer;
         private bool _waitForDebugger;
+        private bool _debug;
         private FileLog _fileLog;
         private CsvFileLog _csvFileLog;
         private KustoUploader _kustoUploader;
@@ -171,6 +172,15 @@ namespace BuildXL.Cache.ContentStore.App
         public void SetWaitForDebugger(bool waitForDebugger)
         {
             _waitForDebugger = waitForDebugger;
+        }
+
+        /// <summary>
+        ///     Set option to force attach debugger.
+        /// </summary>
+        [Global("LaunchDebugger", Description = "Calls Debugger.Launch during application initialization")]
+        public void LaunchDebugger(bool debug)
+        {
+            _debug = debug;
         }
 
         /// <summary>
@@ -345,6 +355,11 @@ namespace BuildXL.Cache.ContentStore.App
 
         private void Initialize()
         {
+            if (_debug)
+            {
+                Debugger.Launch();
+            }
+
             if (_waitForDebugger)
             {
                 _logger.Warning("Waiting for debugger to attach. Hit any key to bypass.");

@@ -878,6 +878,15 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan? LogMachineStatsInterval { get; set; }
 
         [DataMember]
+        public bool? Unsafe_MasterThroughputCheckMode { get; set; }
+
+        [DataMember]
+        public DateTime? Unsafe_EventHubCursorPosition { get; set; }
+
+        [DataMember]
+        public bool? Unsafe_IgnoreEpoch { get; set; }
+
+        [DataMember]
         public bool? TraceServiceGrpcOperations { get; set; }
 
         #endregion
@@ -959,6 +968,18 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TouchContentHashLists { get; set; }
 
+        [DataMember]
+        public bool EnableCacheActivityTracker { get; set; }
+
+        [DataMember]
+        public TimeSpan TrackingActivityWindow { get; set; } = TimeSpan.FromMinutes(1);
+
+        [DataMember]
+        public TimeSpan TrackingSnapshotPeriod { get; set; } = TimeSpan.FromSeconds(30);
+
+        [DataMember]
+        public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);
+        
         /// <summary>
         /// Indicates whether distributed content store operates in special mode where content is only consumed from other machines but
         /// not available as a content replica from which other machines can copy content.

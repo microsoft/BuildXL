@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -198,6 +199,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     Tracer.TrackMetric(operationContext, "RemoteBytesCount", putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteBytes].Add(putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteFilesCopied].Increment();
+
+                    CacheActivityTracker.Increment(CaSaaSActivityTrackingCounters.RemoteCopyFiles);
                 }
 
                 return putResult;
@@ -394,7 +397,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     return await TaskUtilities.AwaitWithProgressReporting(
                                         task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, copyToOptions),
                                         period: _settings.PeriodicCopyTracingInterval,
-                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{copyToOptions.TotalBytesCopied}]."),
+                                        action: timeSpan =>
+                                                {
+                                                    Tracer.Debug(
+                                                        context,
+                                                        $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{copyToOptions.TotalBytesCopied}].");
+                                                },
                                         reportImmediately: false,
                                         reportAtEnd: false);
                                 }, cts),

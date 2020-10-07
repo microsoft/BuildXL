@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 
@@ -98,6 +99,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                         result.MinimumSpeedInMbPerSec = minimumSpeedInMbPerSec;
                         var bytesCopied = result.Size ?? options.TotalBytesCopied;
 
+                        TrackBytesReceived(bytesCopied - previousPosition);
                         return (result, bytesCopied);
                     }
                     else if (context.Token.IsCancellationRequested)
@@ -110,6 +112,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                     var position = options.TotalBytesCopied;
 
                     var bytesTransferredPerIteration = position - previousPosition;
+
+                    TrackBytesReceived(bytesTransferredPerIteration);
+
                     var receivedMiB = bytesTransferredPerIteration / BytesInMb;
                     var currentSpeed = receivedMiB / configBandwidthCheckInterval.TotalSeconds;
 
@@ -150,6 +155,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
             }
         }
+
+        private static void TrackBytesReceived(long bytesTransferredPerIteration) => CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.RemoteCopyBytes, bytesTransferredPerIteration);
 
         /// <nodoc />
         public class Configuration

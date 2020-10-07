@@ -91,6 +91,20 @@ namespace BuildXL.Utilities.Tracing
             m_parent = parent;
         }
 
+        private CounterCollection(long[,] counters, long[,] durations, CounterCollection parent)
+        {
+            m_counters = (long[,])counters.Clone();
+            m_durations = (long[,])durations.Clone();
+            m_parent = parent;
+        }
+
+        /// <summary>
+        /// Copy constructor.
+        /// </summary>
+        internal CounterCollection(CounterCollection collectionToClone)
+            : this(collectionToClone.m_counters, collectionToClone.m_durations, collectionToClone.m_parent)
+        { }
+
         /// <summary>
         /// Adds to the counter with the given zero-based ID.
         /// </summary>
@@ -417,6 +431,11 @@ namespace BuildXL.Utilities.Tracing
         {
         }
 
+        private CounterCollection(CounterCollection<TEnum> collectionToClone, bool dummy)
+            : base(collectionToClone)
+        {
+        }
+
         /// <summary>
         /// Returns a counter instance for a given <paramref name="counterId"/>.
         /// </summary>
@@ -428,6 +447,11 @@ namespace BuildXL.Utilities.Tracing
                 return new Counter(this, counterIndex, s_info.CounterTypes[counterIndex], s_info.CounterNames[counterIndex]);
             }
         }
+
+        /// <summary>
+        /// Clones a current collection.
+        /// </summary>
+        public CounterCollection<TEnum> Clone() => new CounterCollection<TEnum>(collectionToClone: this, dummy: false);
 
         /// <inheritdoc />
         public override IEnumerable<(Counter, string name)> GetCounters()

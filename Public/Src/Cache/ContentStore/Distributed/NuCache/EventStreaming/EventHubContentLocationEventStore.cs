@@ -14,6 +14,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -223,6 +224,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private async Task ProcessEventsAsync(OperationContext context, List<EventData> messages)
         {
+            // Tracking raw messages count.
+            Counters[ReceivedEventHubEventsCount].Add(messages.Count);
+            CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.ReceivedEventHubMessages, messages.Count);
+
             // Creating nested context for all the processing operations.
             context = context.CreateNested(nameof(EventHubContentLocationEventStore));
 
@@ -248,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages, actionBlockIndex: -1, store: this), EventDataSerializer);
             }
 
-            async Task<BoolResult> sendToActionBlockAsync(SharedEventProcessingState localState)
+            async Task<BoolResult> sendToActionBlockAsync(SharedEventProcessingState st)
             {
                 // This local function "sends" a message into an action block based on the sender's hash code to process events in parallel from different machines.
                 // (keep in mind, that the data from the same machine should be processed sequentially, because events order matters).
@@ -257,7 +262,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 {
                     int actionBlockIndex = messageGroup.Key;
                     var eventProcessingBlock = _eventProcessingBlocks![actionBlockIndex];
-                    var input = new ProcessEventsInput(localState, messageGroup, actionBlockIndex, this);
+                    var input = new ProcessEventsInput(st, messageGroup, actionBlockIndex, this);
 
                     var sendAsyncTask = eventProcessingBlock.SendAsync(input);
                     if (sendAsyncTask.Status == TaskStatus.WaitingForActivation)
@@ -342,8 +347,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                             counters[ReceivedMessagesTotalSize].Add(message.Body.Count);
                             counters[ReceivedEventBatchCount].Increment();
+                            CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.ProcessedEventHubMessages, value: 1);
 
-                            if (!foundEpochFilter || !string.Equals(eventFilter as string, _configuration.Epoch))
+                            if (!_configuration.IgnoreEpoch &&
+                                (!foundEpochFilter || !string.Equals(eventFilter as string, _configuration.Epoch)))
                             {
                                 counters[FilteredEvents].Increment();
                                 continue;
@@ -492,7 +499,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected class SharedEventProcessingState
         {
             private int _remainingMessageCount;
-            private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+            private readonly StopwatchSlim _stopwatch = StopwatchSlim.Start();
+
+            // Counters are quite large in terms of memory and creating them lazily can save more then 2Gb of memory
+            // when the master is busy processing events.
+            private readonly Lazy<CounterCollection<ContentLocationEventStoreCounters>> _counters = new Lazy<CounterCollection<ContentLocationEventStoreCounters>>(() => new CounterCollection<ContentLocationEventStoreCounters>());
 
             /// <nodoc />
             public long SequenceNumber { get; }
@@ -504,7 +515,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public EventHubContentLocationEventStore Store { get; }
 
             /// <nodoc />
-            public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters { get; } = new CounterCollection<ContentLocationEventStoreCounters>();
+            public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters => _counters.Value;
 
             /// <nodoc />
             public bool IsComplete => _remainingMessageCount == 0;
@@ -527,7 +538,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             {
                 if (Interlocked.Add(ref _remainingMessageCount, -messageCount) == 0)
                 {
-                    int duration = (int)_stopwatch.ElapsedMilliseconds;
+                    int duration = (int)_stopwatch.Elapsed.TotalMilliseconds;
                     Store.UpdatingPendingEventProcessingStates();
                     Context.LogProcessEventsOverview(EventStoreCounters, duration);
 

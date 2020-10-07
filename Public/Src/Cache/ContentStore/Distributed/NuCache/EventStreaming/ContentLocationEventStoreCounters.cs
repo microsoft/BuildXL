@@ -48,6 +48,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         ProcessEvents,
 
         /// <nodoc />
+        ReceivedEventHubEventsCount,
+
+        /// <nodoc />
         ReceivedEventBatchCount,
 
         /// <nodoc />

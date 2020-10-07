@@ -38,6 +38,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
             }
         }
 
+        public void AddSeconds(int seconds)
+        {
+            lock (_lock)
+            {
+                _utcNow += TimeSpan.FromSeconds(seconds);
+            }
+        }
+        
         public void Increment(TimeSpan timeSpan)
         {
             Contract.Requires(timeSpan > TimeSpan.Zero);

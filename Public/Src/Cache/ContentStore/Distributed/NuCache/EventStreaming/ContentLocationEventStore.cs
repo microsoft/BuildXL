@@ -58,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private readonly CentralStorage _storage;
         private readonly Interfaces.FileSystem.AbsolutePath _workingDirectory;
+        
         private readonly IAbsFileSystem _fileSystem;
         private readonly DisposableDirectory _workingDisposableDirectory;
 
@@ -81,13 +82,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Interfaces.FileSystem.AbsolutePath workingDirectory,
             IClock clock)
         {
-            Contract.RequiresNotNull(configuration);
-            Contract.RequiresNotNull(name);
-            Contract.RequiresNotNull(eventHandler);
-            Contract.RequiresNotNull(centralStorage);
-            Contract.RequiresNotNull(workingDirectory);
-            Contract.RequiresNotNull(clock);
-
             _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
             _storage = centralStorage;
@@ -138,8 +132,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected async Task DispatchAsync(OperationContext context, ContentLocationEventData eventData, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
-            Contract.RequiresNotNull(eventData);
-
             switch (eventData)
             {
                 case AddContentLocationEventData addContent:

@@ -316,10 +316,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                         {
                                             await batch.ExecuteBatchOperationAndGetCompletion(nestedContext, database, linkedCts?.Token ?? CancellationToken.None);
                                         }
+
+                                        await batch.NotifyConsumersOfSuccess();
                                     },
                                     cancellationToken,
                                     _configuration.TraceTransientFailures);
-                                await batch.NotifyConsumersOfSuccess();
+                                
 
                                 return BoolResult.Success;
                             }

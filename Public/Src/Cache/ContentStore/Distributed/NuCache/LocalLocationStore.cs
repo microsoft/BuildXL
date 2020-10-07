@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -76,7 +76,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public ContentLocationEventStore EventStore { get; private set; }
-
 
         internal ClusterState ClusterState => GlobalStore.ClusterState;
 
@@ -163,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
 
-            if (_configuration.DistributedCentralStore != null)
+            if (Configuration.DistributedCentralStore != null)
             {
                 DistributedCentralStorage = new DistributedCentralStorage(
                     _configuration.DistributedCentralStore,
@@ -246,8 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 configuration.PrimaryMachineLocation.ToString(),
                 CentralStorage,
                 configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
-                _clock
-                );
+                _clock);
         }
 
         private CentralStorage CreateCentralStorage(CentralStoreConfiguration configuration)
@@ -360,6 +358,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
+            if (Configuration.MasterThroughputCheckMode)
+            {
+                Tracer.Warning(context, $"Running the system in master throughput check mode! EventHubCursorPosition={Configuration.EventHubCursorPosition}");
+            }
+
             return BoolResult.Success;
         }
 
@@ -450,7 +453,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         context.TracingContext.ChangeRole(newRole.ToString());
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
-                        Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master);
+                        Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
                         ClusterState.EnableBinManagerUpdates = newRole == Role.Master;
                     }
 
@@ -462,7 +465,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // Restore if this is a worker and we should restore
                     shouldRestore |= newRole == Role.Worker && ShouldRestoreCheckpoint(context, checkpointState.CheckpointTime).ThrowIfFailure();
-                    BoolResult result;
+
+                    if (_configuration.MasterThroughputCheckMode)
+                    {
+                        // Don't restore the checkpoint in the throughput check mode.
+                        shouldRestore = false;
+                    }
 
                     if (CurrentRole == Role.Master)
                     {
@@ -472,6 +480,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         ClusterState.SetMasterMachine(checkpointState.Producer);
                     }
+
+                    BoolResult result;
 
                     if (shouldRestore || forceRestore)
                     {
@@ -501,6 +511,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Start receiving events from the given checkpoint
                         result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
+                    else if (_configuration.MasterThroughputCheckMode)
+                    {
+                        var cursor = Configuration.EventHubCursorPosition ?? _clock.UtcNow;
+                        result = EventStore.StartProcessing(context, new EventSequencePoint(cursor));
+                    }
                     else
                     {
                         // Stop receiving events.
@@ -512,7 +527,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return result;
                     }
 
-                    if (newRole == Role.Master)
+                    if (newRole == Role.Master && !_configuration.MasterThroughputCheckMode)
                     {
                         // Only create a checkpoint if the machine is currently a master machine and was a master machine
                         if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
@@ -607,7 +622,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // The task is completed already. If the task is not completed yet, it will be in a moment, because Heartbeat is almost done.
                     if (postInitialization.Status != TaskStatus.RanToCompletion || !postInitialization.GetAwaiter().GetResult().Succeeded)
                     {
-                        // The task either failed (with an excpetion or was canceled), or the result was not successful.
+                        // The task either failed (with an exception or was canceled), or the result was not successful.
                         var tcs = TaskSourceSlim.Create<BoolResult>();
                         tcs.SetResult(BoolResult.Success);
                         _postInitialization.tcs = tcs;
@@ -1034,14 +1049,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private RegisterAction GetRegisterAction(OperationContext context, MachineId machineId, ContentHash hash, DateTime now)
         {
-            if (_configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
+            if (Configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
             {
                 // Content was recently removed. Eagerly register with global store.
                 Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
                 return RegisterAction.RecentRemoveEagerGlobal;
             }
 
-            if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.MachineStateRecomputeInterval.Multiply(5)))
+            if (ClusterState.LastInactiveTime.IsRecent(now, Configuration.MachineStateRecomputeInterval.Multiply(5)))
             {
                 // The machine was recently inactive. We should eagerly register content for some amount of time (a few heartbeats) because content may be currently filtered from other machines
                 // local db results due to inactive machines filter.
@@ -1049,7 +1064,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentInactiveEagerGlobal;
             }
 
-            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
+            if (Configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
             {
                 // Content was recently added for the machine by a prior operation
                 Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
@@ -1061,11 +1076,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // TODO[LLS]: Is it ok to ignore a hash already registered to the machine. There is a subtle race condition (bug 1365340)
                 // here if the hash is deleted and immediately added to the machine
-                if (_configuration.SkipRedundantContentLocationAdd
+                if (Configuration.SkipRedundantContentLocationAdd
                     && entry.Locations[machineId.Index]) // content is registered for this machine
                 {
                     // If content was touched recently, we can skip. Otherwise, we touch via event
-                    if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, _configuration.TouchFrequency))
+                    if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, Configuration.TouchFrequency))
                     {
                         Counters[ContentLocationStoreCounters.RedundantLocationAddSkipped].Increment();
                         return RegisterAction.SkippedDueToRedundantAdd;
@@ -1078,7 +1093,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // The entry is not on the machine, we definitely need to register the content location via event stream
-                if (entry.Locations.Count >= _configuration.SafeToLazilyUpdateMachineCountThreshold)
+                if (entry.Locations.Count >= Configuration.SafeToLazilyUpdateMachineCountThreshold)
                 {
                     Counters[ContentLocationStoreCounters.LocationAddQueued].Increment();
                     return RegisterAction.LazyEventOnly;
@@ -1181,11 +1196,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
-                    if (_configuration.SkipRedundantContentLocationAdd)
+                    if (Configuration.SkipRedundantContentLocationAdd)
                     {
                         foreach (var hash in eventContentHashes)
                         {
-                            _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
+                            _recentlyAddedHashes.Add(hash.Hash, Configuration.TouchFrequency);
                         }
 
                         // Only eagerly added hashes should invalidate recently removed hashes.
@@ -1221,12 +1236,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     foreach (var hash in contentHashes)
                     {
-                        if (_recentlyAddedHashes.Contains(hash) || !_recentlyTouchedHashes.Add(hash, _configuration.TouchFrequency))
+                        if (_recentlyAddedHashes.Contains(hash) || !_recentlyTouchedHashes.Add(hash, Configuration.TouchFrequency))
                         {
                             continue;
                         }
 
-                        if (TryGetContentLocations(context, hash, out var entry) && (entry.LastAccessTimeUtc.ToDateTime() + _configuration.TouchFrequency) > now)
+                        if (TryGetContentLocations(context, hash, out var entry) && (entry.LastAccessTimeUtc.ToDateTime() + Configuration.TouchFrequency) > now)
                         {
                             continue;
                         }
@@ -1264,13 +1279,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () =>
                 {
-                    if (_configuration.SkipRedundantContentLocationAdd)
+                    if (Configuration.SkipRedundantContentLocationAdd)
                     {
                         foreach (var hash in contentHashes)
                         {
                             // Content has been removed. Ensure that subsequent additions will not be skipped
                             _recentlyAddedHashes.Invalidate(hash);
-                            _recentlyRemovedHashes.Add(hash, _configuration.TouchFrequency);
+                            _recentlyRemovedHashes.Add(hash, Configuration.TouchFrequency);
                         }
                     }
 
@@ -1302,7 +1317,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var operationContext = new OperationContext(context);
-            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(Configuration, _clock, new ContentResolver(this, machineInfo));
 
             // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
             // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
@@ -1313,7 +1328,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var contentHashesWithLastAccessTimes = contentHashesWithInfo.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime));
 
 
-            if (_configuration.UseFullEvictionSort)
+            if (Configuration.UseFullEvictionSort)
             {
                 return GetHashesInEvictionOrderUsingFullSort(
                     operationContext,
@@ -1358,14 +1373,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // not the evictability metric.
             var oldestContentSortedByEvictability = contentHashesWithInfo
                 .Take(contentHashesWithInfo.Count / 2)
-                .ApproximateSort(comparer, getContentEvictionInfos, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+                .ApproximateSort(comparer, getContentEvictionInfos, Configuration.EvictionPoolSize, Configuration.EvictionWindowSize, Configuration.EvictionRemovalFraction, Configuration.EvictionDiscardFraction);
 
             var newestContentSortedByEvictability = contentHashesWithInfo
                 .SkipOptimized(contentHashesWithInfo.Count / 2)
-                .ApproximateSort(comparer, getContentEvictionInfos, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+                .ApproximateSort(comparer, getContentEvictionInfos, Configuration.EvictionPoolSize, Configuration.EvictionWindowSize, Configuration.EvictionRemovalFraction, Configuration.EvictionDiscardFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestContentSortedByEvictability, newestContentSortedByEvictability, comparer)
-                .Where((candidate, index) => IsPassEvictionAge(operationContext, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
+                .Where((candidate, index) => IsPassEvictionAge(operationContext, candidate, Configuration.EvictionMinAge, index, ref evictionCount));
         }
 
         private IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrderUsingFullSort(
@@ -1375,14 +1390,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo,
             bool reverse)
         {
-            var candidateQueue = new PriorityQueue<ContentEvictionInfo>(_configuration.EvictionPoolSize, comparer);
+            var candidateQueue = new PriorityQueue<ContentEvictionInfo>(Configuration.EvictionPoolSize, comparer);
 
             foreach (var candidate in GetFullSortedContentWithEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, contentHashesWithInfo, reverse))
             {
                 candidateQueue.Push(candidate);
 
                 // Only consider content when the eviction pool size is reached.
-                if (candidateQueue.Count > _configuration.EvictionPoolSize)
+                if (candidateQueue.Count > Configuration.EvictionPoolSize)
                 {
                     yield return candidateQueue.Top;
                     candidateQueue.Pop();
@@ -1406,9 +1421,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 ? ContentEvictionInfo.ReverseFullSortAgeOnlyComparer
                 : ContentEvictionInfo.FullSortAgeOnlyComparer;
 
-            var ageSortingQueue = new PriorityQueue<ContentEvictionInfo>(_configuration.EvictionPoolSize, ageOnlyComparer);
+            var ageSortingQueue = new PriorityQueue<ContentEvictionInfo>(Configuration.EvictionPoolSize, ageOnlyComparer);
 
-            foreach (var page in contentHashesWithInfo.GetPages(_configuration.EvictionWindowSize))
+            foreach (var page in contentHashesWithInfo.GetPages(Configuration.EvictionWindowSize))
             {
                 foreach (var item in GetEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, page).ThrowIfFailure())
                 {
@@ -1446,7 +1461,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
             Counters[ContentLocationStoreCounters.EvictionMinAge].Increment();
-            context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
+            context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {Configuration.EvictionPoolSize}." +
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;
         }
@@ -1466,7 +1481,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.Requires(contentHashes != null);
             Contract.Requires(contentHashes.Count > 0);
 
-            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(Configuration, _clock, new ContentResolver(this, machineInfo));
 
             return GetEffectiveLastAccessTimes(context, effectiveLastAccessTimeProvider, contentHashes);
         }
@@ -1544,7 +1559,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     int iteration = 0;
                     for (iteration = 0; !isFinished; iteration++)
                     {
-                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, token);
+                        var delayTask = Task.Delay(Configuration.ReconciliationCycleFrequency, token);
 
                         await context.PerformOperationAsync(
                             Tracer,
@@ -1606,10 +1621,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var addedContent = new List<ShortHashWithSize>();
                             var removedContent = new List<ShortHash>();
 
-                            var removalsOnlyLimit = _configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
-                            var maximumAddsOnRemoveBatch = (removalsOnlyLimit * (_configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0)) / 100;
+                            var removalsOnlyLimit = Configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
+                            var maximumAddsOnRemoveBatch = (removalsOnlyLimit * (Configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0)) / 100;
 
-                            var limit = _configuration.ReconciliationMaxCycleSize;
+                            var limit = Configuration.ReconciliationMaxCycleSize;
                             var limitThreshold = Math.Min(limit, removalsOnlyLimit);
                             foreach (var diffItem in diffedContent)
                             {
@@ -1657,7 +1672,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             {
                                 // Create separate event store for reconciliation events so they are dispatched first before
                                 // events in normal event store which may be queued during reconciliation operation.
-                                var reconciliationEventStore = CreateEventStore(_configuration, subfolder: "reconcile");
+                                var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
 
                                 try
                                 {
@@ -1862,7 +1877,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 bool foundDistributedEntry = _localLocationStore.TryGetContentLocations(context, hash, out var distributedEntry);
 
-                if (_localLocationStore._configuration.UpdateStaleLocalLastAccessTimes
+                if (_localLocationStore.Configuration.UpdateStaleLocalLastAccessTimes
                     && foundLocalInfo
                     && foundDistributedEntry
                     && distributedEntry.LastAccessTimeUtc.ToDateTime() > localInfo.LastAccessTimeUtc)

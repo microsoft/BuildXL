@@ -285,7 +285,7 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRetryOnFailureMode ",
             args.qTestRetryOnFailureMode !== undefined
             ? args.qTestRetryOnFailureMode
-            : args.qTestRetryOnFailure ? "Failed" : undefined),
+            : args.qTestRetryOnFailure ? "Full" : undefined),
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(

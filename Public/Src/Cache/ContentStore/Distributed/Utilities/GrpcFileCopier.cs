@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
                 return await _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
                 {
-                    var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options, context.Token);
+                    var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options);
                     InvalidateResourceIfNeeded(options, result, clientWrapper);
                     return result;
                 });

@@ -69,7 +69,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                (await client.CopyFileAsync(_context, putResult.ContentHash, destinationPath, options: null, CancellationToken.None)).ShouldBeSuccess();
+                (await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, options: null)).ShouldBeSuccess();
 
                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
@@ -104,7 +104,7 @@ namespace ContentStoreTest.Distributed.Stores
                     FileOptions.None,
                     1024))
                 {
-                    (await client.CopyToAsync(_context, putResult.ContentHash, destinationStream, options: null, CancellationToken.None)).ShouldBeSuccess();
+                    (await client.CopyToAsync(new OperationContext(_context), putResult.ContentHash, destinationStream, options: null)).ShouldBeSuccess();
                     // If the stream is not disposed, the following operation should not fail.
                     destinationStream.Stream.Position.Should().BeGreaterThan(0);
                 }
@@ -143,7 +143,7 @@ namespace ContentStoreTest.Distributed.Stores
             await RunTestCase(async (rootPath, session, client) =>
             {
                 // Copy the file out via GRPC
-                var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null, CancellationToken.None);
+                var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null);
 
                 Assert.False(copyFileResult.Succeeded);
                 Assert.Equal(CopyResultCode.FileNotFoundError, copyFileResult.Code);
@@ -170,7 +170,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
                 {
-                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null, nestedContext.Token);
+                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null);
                     Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
                     return Unit.Void;
                 });

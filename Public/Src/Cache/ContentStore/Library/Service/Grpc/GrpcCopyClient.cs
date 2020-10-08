@@ -162,26 +162,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CopyToOptions? options, CancellationToken ct)
+        public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, AbsolutePath destinationPath, CopyToOptions? options)
         {
-            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _configuration.ClientBufferSizeBytes, FileOptions.SequentialScan);
+            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _configuration.ClientBufferSizeBytes, FileOptions.SequentialScan | FileOptions.Asynchronous);
 
-            using (var operationContext = TrackShutdown(context, ct))
-            {
-                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream: true);
-            }
+            return CopyToAsync(context, hash, streamFactory, options, closeStream: true);
         }
 
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CopyToOptions? options, CancellationToken ct)
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Stream stream, CopyToOptions? options)
         {
-            using (var operationContext = TrackShutdown(context, ct))
-            {
-                // If a stream is passed from the outside this operation should not be closing it.
-                return await CopyToCoreAsync(operationContext, hash, options, () => stream, closeStream: false);
-            }
+            // If a stream is passed from the outside this operation should not be closing it.
+            return CopyToAsync(context, hash, () => stream, options, closeStream: false);
         }
 
         /// <nodoc />
@@ -210,12 +204,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CopyToOptions? options, CancellationToken ct)
+        private async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, CopyToOptions? options, bool closeStream)
         {
             // Need to track shutdown to prevent invalid operation errors when the instance is used after it was shut down is called.
-            using (var operationContext = TrackShutdown(context, ct))
+            using (var operationContext = TrackShutdown(context))
             {
-                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream: true);
+                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream);
             }
         }
 

@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var copyFileResult = clientCache.UseAsync(new OperationContext(context), host, grpcPort, (nestedContext, rpcClient) =>
                 {
                     return retryPolicy.ExecuteAsync(
-                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, options: null, CancellationToken.None));
+                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, options: null));
                 }).GetAwaiter().GetResult();
 
                 if (!copyFileResult.Succeeded)

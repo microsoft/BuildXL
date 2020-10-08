@@ -35,9 +35,25 @@ namespace Tool.MaterializationDaemon
         /// <nodoc/>
         public const string MaterializationDaemonLogPrefix = "(MMD) ";
         private const string LogFileName = "MaterializationDaemon";
-        private const int MaxExternalParserRetries = 2;
 
         private static readonly TimeSpan s_externalProcessTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan[] s_retryIntervals = new[]
+        {
+            // the values are similar to the ones in the ReloadingClient class
+            TimeSpan.FromMilliseconds(50),
+            TimeSpan.FromMilliseconds(50),
+            TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(500),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(4),
+            TimeSpan.FromSeconds(8),
+            TimeSpan.FromSeconds(16),
+            TimeSpan.FromSeconds(32),
+        };
 
         private readonly MaterializationDaemonConfig m_config;
         private readonly Dictionary<string, string> m_macros;
@@ -464,9 +480,12 @@ namespace Tool.MaterializationDaemon
                         return possibleResult.Result;
                     }
 
-                    if (retryCount < MaxExternalParserRetries)
+                    if (retryCount < s_retryIntervals.Length)
                     {
-                        Logger.Verbose($"Retrying an external parser due to an error. Retires left: {MaxExternalParserRetries - retryCount}. Error: {possibleResult.Failure.Describe()}.");
+                        Logger.Verbose($"Retrying an external parser due to an error. Retries left: {s_retryIntervals.Length - retryCount}. Error: {possibleResult.Failure.Describe()}.");
+                        // wait before retrying
+                        await Task.Delay(s_retryIntervals[retryCount]);
+
                         // need to recreate the process because AsyncProcessExecutor is disposing it
                         process = CreateParserProcess(manifestFilePath);
                     }

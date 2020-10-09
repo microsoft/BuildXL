@@ -246,7 +246,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.IOPipExecutionStepTakeLong,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
             Message = "[{pipDescription}] It took longer than {limitMin} minutes to execute an I/O related pip execution step: {step} took {durationMin} minutes.")]

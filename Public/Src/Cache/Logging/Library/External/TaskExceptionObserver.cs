@@ -15,9 +15,11 @@ namespace BuildXL.Cache.Logging.External
 
         public TaskExceptionObserver()
         {
-            AddExceptionHelper("Grpc.Core.RpcException", "StatusCode=Unavailable");
-            AddExceptionHelper("Grpc.Core.RpcException", "StatusCode=Unknown");
-            AddExceptionHelper("Grpc.Core.RpcException", "StatusCode=Cancelled");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unavailable");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unknown");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Cancelled");
+            // Suppressing the errors like: System.Net.WebException: The request was aborted: The request was canceled. at at System.Net.ConnectStream.EndRead(IAsyncResult asyncResult)
+            AddExceptionHelper(exceptionType: "System.Net.WebException", msg: "Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead");
             IgnoreWindowsStorageByteCountingStreamError();
         }
 

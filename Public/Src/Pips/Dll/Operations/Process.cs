@@ -429,7 +429,8 @@ namespace BuildXL.Pips.Operations
             FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null,
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
-            ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null)
+            ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null,
+            int? processRetries = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -545,6 +546,7 @@ namespace BuildXL.Pips.Operations
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
             OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ProcessRetries = processRetries;
         }
 
         /// <summary>
@@ -777,6 +779,17 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> OutputDirectoryExclusions { get; }
 
         /// <summary>
+        /// Maximum number of times BuildXL will retry the pip when it returns an exit code in <see cref="RetryExitCodes"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public int? ProcessRetries { get; }
+
+        /// <summary>
+        /// The configured value for <see cref="ProcessRetries"/> or if not specified, the default value defined in <see cref="IScheduleConfiguration.ProcessRetries"/>
+        /// </summary>
+        public int ProcessRetriesOrDefault(IScheduleConfiguration schedulerConfiguration) => ProcessRetries ?? schedulerConfiguration.ProcessRetries;
+
+        /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).
         /// </summary>
@@ -930,7 +943,8 @@ namespace BuildXL.Pips.Operations
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32(),
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
-                outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath())
+                outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
+                processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null
                 );
         }
 
@@ -983,6 +997,11 @@ namespace BuildXL.Pips.Operations
             writer.Write(PreserveOutputsTrustLevel);
             writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
             writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
+            writer.Write(ProcessRetries.HasValue);
+            if (ProcessRetries.HasValue)
+            {
+                writer.WriteCompact(ProcessRetries.Value);
+            }
         }
         #endregion
     }

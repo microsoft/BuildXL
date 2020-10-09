@@ -1680,7 +1680,7 @@ namespace BuildXL.Scheduler
                     ? environment.State.FileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(pip)
                     : null;
 
-                int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? configuration.Schedule.ProcessRetries : 0;
+                int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? pip.ProcessRetriesOrDefault(configuration.Schedule) : 0;
                 int remainingInternalSandboxedProcessExecutionFailureRetries = InternalSandboxedProcessExecutionFailureRetryCountMax;
 
                 bool firstAttempt = true;

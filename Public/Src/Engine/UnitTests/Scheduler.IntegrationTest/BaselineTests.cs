@@ -1415,6 +1415,32 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void PipProcessRetriesOverridesGlobalConfiguration()
+        {
+            // Schedule a pip that only succeeds on retry
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42)
+            };
+
+            var builder = CreatePipBuilder(ops);
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+
+            // The global configuration is set so no retries happen
+            Configuration.Schedule.ProcessRetries = 0;
+            // However, this specific pip is set to have retry number = 1
+            builder.SetProcessRetries(1);
+
+            SchedulePipBuilder(builder);
+
+            // The pip should be retried, and therefore it should be successful
+            RunScheduler().AssertSuccess();
+        }
+
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestSpecialTempOutputFile()
         {

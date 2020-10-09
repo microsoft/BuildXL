@@ -185,6 +185,8 @@ namespace BuildXL.Pips.Builders
 
         private FileArtifact m_changeAffectedInputListWrittenFile;
 
+        private int? m_processRetries;
+
         /// <nodoc />
         private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
         {
@@ -492,7 +494,13 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(key.IsValid);
 
             m_environmentVariables[key] = PipData.Invalid;
-        }                 
+        }
+
+        /// <nodoc />
+        public void SetProcessRetries(int? processRetries)
+        {
+            m_processRetries = processRetries;
+        }
 
         private ReadOnlyArray<EnvironmentVariable> FinishEnvironmentVariables()
         {
@@ -707,7 +715,8 @@ namespace BuildXL.Pips.Builders
                 changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
                 childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
-                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions));
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions),
+                processRetries: m_processRetries);
 
             return true;
         }

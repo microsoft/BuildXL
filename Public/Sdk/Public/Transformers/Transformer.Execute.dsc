@@ -117,6 +117,13 @@ namespace Transformer {
         /** A custom set of exit codes that causes pip to be retried by BuildXL. If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code. */
         retryExitCodes?: number[];
 
+        /**
+         * Maximum number of times BuildXL will retry the pip when it returns an exit code in 'retryExitCodes'
+         * If not specified, the global configuration for it takes effect.
+         * If no retry exit codes are specified, this argument is ignored.
+         */
+        processRetries?: number;
+
         /** Temporary directory for the tool to use (use Context.getTempDirectory() to obtain one), and set TEMP and TMP. */
         tempDirectory?: Directory;
 

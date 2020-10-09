@@ -104,6 +104,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_preservePathSetCasing;
+        private SymbolAtom m_processRetries;
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
@@ -248,6 +249,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
             m_preservePathSetCasing = Symbol("preservePathSetCasing");
+            m_processRetries = Symbol("processRetries");
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
@@ -661,6 +663,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.Options |= Process.Options.PreservePathSetCasing;
             }
+
+            // Process retries
+            processBuilder.SetProcessRetries(Converter.ExtractOptionalInt(obj, m_processRetries));
 
             // disableCacheLookup flag
             if (Converter.ExtractOptionalBoolean(obj, m_disableCacheLookup) == true)

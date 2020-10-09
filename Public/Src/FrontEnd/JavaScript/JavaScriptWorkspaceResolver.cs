@@ -515,6 +515,9 @@ namespace BuildXL.FrontEnd.JavaScript
 
             var deserializedProjectsByName = flattenedJavaScriptGraph.Projects.ToDictionary(project => project.Name);
 
+            // Start with an empty cache for closest present dependencies
+            var closestDependenciesCache = new Dictionary<(string name, string command), HashSet<JavaScriptProject>>();
+
             // Now resolve dependencies
             foreach (var kvp in resolvedProjects)
             {
@@ -542,7 +545,7 @@ namespace BuildXL.FrontEnd.JavaScript
                                 Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
                                     m_context.LoggingContext, Location.FromFile(javaScriptProject.ProjectFolder.ToString(m_context.PathTable)), javaScriptProject.Name, javaScriptProject.ScriptCommandName, javaScriptProject.Name, dependency.Command);
 
-                                AddClosestPresentDependencies(javaScriptProject.Name, dependency.Command, resolvedProjects, deserializedProjectsByName, projectDependencies);
+                                AddClosestPresentDependencies(javaScriptProject.Name, dependency.Command, resolvedProjects, deserializedProjectsByName, projectDependencies, closestDependenciesCache);
                             }
                             else
                             {
@@ -562,7 +565,7 @@ namespace BuildXL.FrontEnd.JavaScript
                                     Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
                                         m_context.LoggingContext, Location.FromFile(javaScriptProject.ProjectFolder.ToString(m_context.PathTable)), javaScriptProject.Name, javaScriptProject.ScriptCommandName, packageDependencyName, dependency.Command);
 
-                                    AddClosestPresentDependencies(packageDependencyName, dependency.Command, resolvedProjects, deserializedProjectsByName, projectDependencies);
+                                    AddClosestPresentDependencies(packageDependencyName, dependency.Command, resolvedProjects, deserializedProjectsByName, projectDependencies, closestDependenciesCache);
                                 }
                                 else
                                 {
@@ -586,8 +589,18 @@ namespace BuildXL.FrontEnd.JavaScript
             string command,
             Dictionary<(string projectName, string command), (JavaScriptProject JavaScriptProject, DeserializedJavaScriptProject deserializedJavaScriptProject)> resolvedProjects,
             Dictionary<string, DeserializedJavaScriptProject> deserializedProjects,
-            HashSet<JavaScriptProject> closestDependencies)
+            HashSet<JavaScriptProject> closestDependencies,
+            Dictionary<(string name, string command), HashSet<JavaScriptProject>> closestDependenciesCache)
         {
+            // Check the cache to see if we resolved this project/command before
+            if (closestDependenciesCache.TryGetValue((projectName, command), out var closestCachedDependencies))
+            {
+                closestDependencies.AddRange(closestCachedDependencies);
+                return;
+            }
+
+            closestCachedDependencies = new HashSet<JavaScriptProject>();
+
             // The assumption is that projectName and command represent an absent project
             // Get all its dependencies to retrieve the 'frontier' of present projects
             var dependencies = m_computedCommands[command];
@@ -598,11 +611,11 @@ namespace BuildXL.FrontEnd.JavaScript
                     // If it is a local dependency, check for the presence of the current project name and the dependency command
                     if (!resolvedProjects.TryGetValue((projectName, dependency.Command), out var dependencyProject))
                     {
-                        AddClosestPresentDependencies(projectName, dependency.Command, resolvedProjects, deserializedProjects, closestDependencies);
+                        AddClosestPresentDependencies(projectName, dependency.Command, resolvedProjects, deserializedProjects, closestCachedDependencies, closestDependenciesCache);
                     }
                     else
                     {
-                        closestDependencies.Add(dependencyProject.JavaScriptProject);
+                        closestCachedDependencies.Add(dependencyProject.JavaScriptProject);
                     }
                 }
                 else
@@ -613,15 +626,19 @@ namespace BuildXL.FrontEnd.JavaScript
                     {
                         if (!resolvedProjects.TryGetValue((projectDependencyName, dependency.Command), out var dependencyProject))
                         {
-                            AddClosestPresentDependencies(projectDependencyName, dependency.Command, resolvedProjects, deserializedProjects, closestDependencies);
+                            AddClosestPresentDependencies(projectDependencyName, dependency.Command, resolvedProjects, deserializedProjects, closestCachedDependencies, closestDependenciesCache);
                         }
                         else
                         {
-                            closestDependencies.Add(dependencyProject.JavaScriptProject);
+                            closestCachedDependencies.Add(dependencyProject.JavaScriptProject);
                         }
                     }
                 }
             }
+
+            // Populate the result and update the cache
+            closestDependencies.AddRange(closestCachedDependencies);
+            closestDependenciesCache[(projectName, command)] = closestCachedDependencies;
         }
 
         private Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraphWithoutExecutionSemantics(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)

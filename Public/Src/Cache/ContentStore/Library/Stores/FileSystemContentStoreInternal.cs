@@ -1443,7 +1443,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private IEnumerable<FileInfo> EnumerateBlobPathsFromDiskFor(ContentHash contentHash)
         {
-            var hashSubPath = _contentRootDirectory / contentHash.HashType.ToString() / GetHashSubDirectory(contentHash);
+            var hashSubPath = _contentRootDirectory / contentHash.HashType.Serialize() / GetHashSubDirectory(contentHash);
             if (!FileSystem.DirectoryExists(hashSubPath))
             {
                 return new FileInfo[] {};
@@ -1463,7 +1463,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         internal static bool TryGetHashFromPath(AbsolutePath path, out ContentHash contentHash)
         {
             var hashName = path.GetParent().GetParent().FileName;
-            if (Enum.TryParse<HashType>(hashName, ignoreCase: true, out var hashType))
+            if (HashTypeExtensions.Deserialize(hashName, out var hashType))
             {
                 string hashHexString = GetFileNameWithoutExtension(path);
                 try

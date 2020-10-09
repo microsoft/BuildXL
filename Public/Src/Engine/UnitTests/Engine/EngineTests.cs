@@ -65,7 +65,8 @@ namespace Test.BuildXL.EngineTests
             bool contractViolation = false;
             try
             {
-                BuildXLEngineResult.Create(true, null, previousState, newState);
+                var result = BuildXLEngineResult.Create(true, null, previousState, newState);
+                result.DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition();
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch

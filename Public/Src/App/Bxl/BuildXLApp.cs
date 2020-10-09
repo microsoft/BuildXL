@@ -2172,14 +2172,6 @@ namespace BuildXL
             m_pathTable = engine.Context.PathTable;
             m_configuration = engine.Configuration;
 
-            if (!result.IsSuccess)
-            {
-                // if this returns false, we better have seen some errors being logged
-                Contract.Assert(
-                    trackingEventListener.HasFailures && loggingContext.ErrorWasLogged,
-                    I($"The build has failed but the logging infrastructure has not encountered an error. TrackingEventListener has errors:[{trackingEventListener.HasFailures}.] LoggingContext has errors:[{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
-            }
-
             var engineRunDuration = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;
 
             AppPerformanceInfo appPerfInfo = new AppPerformanceInfo

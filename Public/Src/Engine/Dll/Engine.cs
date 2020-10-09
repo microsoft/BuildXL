@@ -1586,7 +1586,7 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
         public BuildXLEngineResult Run(LoggingContext loggingContext, EngineState engineState = null)
         {
-            return DoRun(loggingContext, engineState, disposeFrontEnd: true);
+            return DoRunAndVerifyResult(loggingContext, engineState, disposeFrontEnd: true);
         }
 
         /// <summary>
@@ -1598,7 +1598,7 @@ namespace BuildXL.Engine
         /// </remarks>
         public BuildXLEngineResult RunForFrontEndTests(LoggingContext loggingContext, EngineState engineState = null)
         {
-            return DoRun(loggingContext, engineState, disposeFrontEnd: false);
+            return DoRunAndVerifyResult(loggingContext, engineState, disposeFrontEnd: false);
         }
 
         private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, MountsTable mountsTable, LoggingContext loggingContext)
@@ -1665,18 +1665,36 @@ namespace BuildXL.Engine
             return result.ToList();
         }
 
+        private BuildXLEngineResult DoRunAndVerifyResult(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
+        {
+            Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
+            Contract.Ensures(
+                Contract.Result<BuildXLEngineResult>().IsSuccess != loggingContext.ErrorWasLogged,
+                I($"Mismatched {nameof(DoRun)} and logged error(s): Success: '{Contract.Result<BuildXLEngineResult>().IsSuccess}' | Logged error(s): {loggingContext.ErrorWasLogged}"));
+            Contract.Ensures(EngineState.CorrectEngineStateTransition(engineState, Contract.Result<BuildXLEngineResult>().EngineState, out var message), message);
+
+            BuildXLEngineResult result = DoRun(loggingContext, engineState, disposeFrontEnd);
+
+            // When failed, we cannot dispose the engine state in the DoRun method because its finally clause still need
+            // the engine state (i.e., the pip table) to complete the stats logging.
+            result.DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition();
+
+            if (!result.IsSuccess)
+            {
+                Contract.Assert(
+                    (m_trackingEventListener == null || m_trackingEventListener.HasFailures) && loggingContext.ErrorWasLogged,
+                    I($"The build has failed but the logging infrastructure has not encountered an error: TrackingEventListener has errors: {m_trackingEventListener == null || m_trackingEventListener.HasFailures} | LoggingContext has errors: [{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
+            }
+
+            return result;
+        }
+
+
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
         private BuildXLEngineResult DoRun(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
-            Contract.Ensures(
-                !(Contract.Result<BuildXLEngineResult>().IsSuccess == false && loggingContext.ErrorWasLogged == false),
-                "Engine.Run() returns a failure but no error was logged.");
-            Contract.Ensures(
-                !(Contract.Result<BuildXLEngineResult>().IsSuccess == true && loggingContext.ErrorWasLogged == true),
-                "Engine.Run() returns a success even though an error was logged.");
-            Contract.Ensures(EngineState.CorrectEngineStateTransition(engineState, Contract.Result<BuildXLEngineResult>().EngineState, out var message), message);
-
+            
             if (m_distributionService != null && !m_distributionService.Initialize())
             {
                 return BuildXLEngineResult.Failed(engineState);
@@ -3455,10 +3473,16 @@ namespace BuildXL.Engine
         /// </summary>
         public readonly EngineState EngineState;
 
-        private BuildXLEngineResult(bool success, EngineState engineState, EnginePerformanceInfo enginePerformanceInfo)
+        /// <summary>
+        /// The state that represents the previous engine context. This state can refer to the same instancee as <see cref="EngineState"/>.
+        /// </summary>
+        public readonly EngineState PreviousEngineState;
+
+        private BuildXLEngineResult(bool success, EngineState engineState, EngineState previousEngineState,  EnginePerformanceInfo enginePerformanceInfo)
         {
             IsSuccess = success;
             EngineState = engineState;
+            PreviousEngineState = previousEngineState;
             EnginePerformanceInfo = enginePerformanceInfo;
         }
 
@@ -3472,8 +3496,6 @@ namespace BuildXL.Engine
         /// </remarks>
         public static BuildXLEngineResult Failed(EngineState engineState)
         {
-            // Dispose engine state so no one can use it.
-            engineState?.Dispose();
             return Create(false, null, previousState: engineState, newState: null);
         }
 
@@ -3482,12 +3504,22 @@ namespace BuildXL.Engine
         /// </summary>
         public static BuildXLEngineResult Create(bool success, EnginePerformanceInfo perfInfo, EngineState previousState, EngineState newState)
         {
-#pragma warning disable SA1114 // Parameter list must follow declaration
-            // There are three safe cases:
-            Contract.Assert(EngineState.CorrectEngineStateTransition(previousState, newState, out var message), message);
+            return new BuildXLEngineResult(success, newState, previousState, perfInfo);
+        }
 
-            return new BuildXLEngineResult(success, newState, perfInfo);
-#pragma warning restore SA1114 // Parameter list must follow declaration
+        /// <summary>
+        /// Disposes <see cref="PreviousEngineState"/> if failed, and verify that engine state has the correct transition.
+        /// </summary>
+        public void DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition()
+        {
+            if (!IsSuccess)
+            {
+                // This ensures that previous engine state becomes unusable.
+                PreviousEngineState?.Dispose();
+            }
+
+            // Veerify that engine state has transitioned to a correct state.
+            Contract.Assert(EngineState.CorrectEngineStateTransition(PreviousEngineState, EngineState, out var message), message);
         }
     }
 

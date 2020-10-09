@@ -148,6 +148,10 @@ namespace BuildXL.Cache.Host.Configuration
         public double? RedisMemoizationDatabaseOperationTimeoutInSeconds { get; set; }
 
         [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? RedisMemoizationSlowOperationCancellationTimeoutInSeconds { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? RedisReconnectionLimitBeforeServiceRestart { get; set; }
 

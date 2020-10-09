@@ -56,12 +56,23 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     return new BoolResult("LocalLocationStore not available");
                 }
 
+                var memoizationStoreConfiguration = localLocationStore.Configuration as RedisMemoizationStoreConfiguration;
+                if (memoizationStoreConfiguration == null)
+                {
+                    return new BoolResult($"LocalLocationStore.Configuration should be of type 'RedisMemoizationStoreConfiguration' but was {localLocationStore.Configuration.GetType()}");
+                }
+
                 var redisStore = (RedisGlobalStore)localLocationStore.GlobalStore;
 
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
                         localLocationStore,
-                        new RedisMemoizationDatabase(redisStore.RaidedRedis, localLocationStore.EventStore.Clock, localLocationStore.Configuration.LocationEntryExpiry, localLocationStore.Configuration.RedisMemoizationDatabaseOperationTimeout)));
+                        new RedisMemoizationDatabase(
+                            redisStore.RaidedRedis,
+                            localLocationStore.EventStore.Clock,
+                            memoizationStoreConfiguration.LocationEntryExpiry,
+                            memoizationStoreConfiguration.MemoizationOperationTimeout,
+                            memoizationStoreConfiguration.MemoizationSlowOperationCancellationTimeout)));
 
                 return await MemoizationStore.StartupAsync(context);
             });

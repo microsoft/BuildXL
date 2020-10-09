@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -15,7 +14,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     /// <nodoc />
     public class RedisMemoizationStoreFactory : ContentLocationStoreFactory
     {
-        private readonly TimeSpan _memoizationExpiryTime;
+        /// <nodoc />
+        protected new RedisMemoizationStoreConfiguration Configuration => (RedisMemoizationStoreConfiguration)base.Configuration;
 
         /// <nodoc />
         public RedisMemoizationStoreFactory(
@@ -24,7 +24,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             IDistributedContentCopier copier)
             : base(clock, configuration, copier)
         {
-            _memoizationExpiryTime = configuration.MemoizationExpiryTime;
         }
 
         /// <nodoc />
@@ -38,7 +37,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             Contract.Assert(secondaryRedisDatabaseFactory != null);
             var secondaryRedisDatabaseAdapter = CreateDatabase(secondaryRedisDatabaseFactory, optional: true);
 
-            var memoizationDb = new RedisMemoizationDatabase(primaryRedisDatabaseAdapter, secondaryRedisDatabaseAdapter, Clock, _memoizationExpiryTime);
+            var memoizationDb = new RedisMemoizationDatabase(
+                primaryRedisDatabaseAdapter,
+                secondaryRedisDatabaseAdapter,
+                Clock,
+                Configuration.MemoizationExpiryTime,
+                Configuration.MemoizationOperationTimeout,
+                Configuration.MemoizationSlowOperationCancellationTimeout);
             return new RedisMemoizationStore(logger, memoizationDb);
         }
 

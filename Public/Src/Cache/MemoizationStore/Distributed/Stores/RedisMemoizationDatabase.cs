@@ -36,6 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly SerializationPool _serializationPool = new SerializationPool();
 
         private readonly TimeSpan _metadataExpiryTime;
+        private readonly TimeSpan? _slowOperationCancellationTimeout;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(RedisMemoizationDatabase));
@@ -47,12 +48,14 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             RaidedRedisDatabase redis,
             IClock clock,
             TimeSpan metadataExpiryTime,
-            TimeSpan? operationsTimeout = null)
+            TimeSpan? operationsTimeout,
+            TimeSpan? slowOperationCancellationTimeout)
             : base(operationsTimeout)
         {
             _redis = redis;
             _clock = clock;
             _metadataExpiryTime = metadataExpiryTime;
+            _slowOperationCancellationTimeout = slowOperationCancellationTimeout;
         }
 
         /// <nodoc />
@@ -61,21 +64,26 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             RedisDatabaseAdapter secondaryRedis,
             IClock clock,
             TimeSpan metadataExpiryTime,
-            TimeSpan? operationsTimeout = null
-            )
-            : this(null, clock, metadataExpiryTime, operationsTimeout)
+            TimeSpan? operationsTimeout,
+            TimeSpan? slowOperationRedisTimeout)
+            : this(null, clock, metadataExpiryTime, operationsTimeout, slowOperationRedisTimeout)
         {
             _redis = new RaidedRedisDatabase(Tracer, primaryRedis, secondaryRedis);
         }
 
         /// <inheritdoc />
-        protected override async Task<Result<bool>> CompareExchangeCore(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        protected override Task<Result<bool>> CompareExchangeCore(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
         {
             var newReplacementToken = Guid.NewGuid().ToString();
-            return Result.Success(await CompareExchangeInternalAsync(context, strongFingerprint, expectedReplacementToken, expected, replacement, newReplacementToken));
+            return CompareExchangeInternalAsync(context, strongFingerprint, expectedReplacementToken, replacement, newReplacementToken);
         }
 
-        private async Task<bool> CompareExchangeInternalAsync(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement, string newReplacementToken)
+        private async Task<Result<bool>> CompareExchangeInternalAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            string expectedReplacementToken,
+            ContentHashListWithDeterminism replacement,
+            string newReplacementToken)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
             var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow);
@@ -84,19 +92,42 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
             byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
-            var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<bool>(context, async (redis, cancellationToken) =>
-            {
-                using var nestedContext = new CancellableOperationContext(context, cancellationToken);
-
-                return await redis.ExecuteBatchAsync(nestedContext, batch =>
+            var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<bool>(
+                context,
+                async (redis, cancellationToken) =>
                 {
-                    var task = batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken);
-                    batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(nestedContext);
-                    return task;
-                }, RedisOperation.CompareExchange);
-            }, retryWindow: null);
+                    using var nestedContext = new CancellableOperationContext(context, cancellationToken);
 
-            return (primaryResult?.Value ?? false) || (secondaryResult?.Value ?? false);
+                    return await redis.ExecuteBatchAsync(
+                        nestedContext,
+                        batch =>
+                        {
+                            var task = batch.CompareExchangeAsync(
+                                key,
+                                selectorBytes,
+                                tokenFieldNameBytes,
+                                expectedReplacementToken,
+                                replacementBytes,
+                                newReplacementToken);
+                            batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(nestedContext);
+                            return task;
+                        },
+                        RedisOperation.CompareExchange);
+                },
+                retryWindow: _slowOperationCancellationTimeout);
+
+            Contract.Assert(primaryResult != null || secondaryResult != null);
+
+            if (primaryResult?.Succeeded == true || secondaryResult?.Succeeded == true)
+            {
+                // One of the operations is successful.
+                return (primaryResult?.Value ?? false) || (secondaryResult?.Value ?? false);
+            }
+
+            // All operations failed, propagating the error back to the caller.
+            var failure = primaryResult ?? secondaryResult;
+            Contract.Assert(!failure.Succeeded);
+            return new Result<bool>(failure);
         }
 
         /// <inheritdoc />
@@ -106,24 +137,30 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(
+            OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
             byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
             byte[] replacementTokenFieldName = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
-            var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<(byte[], string)>(context, async (redis, cancellationToken) =>
-            {
-                using var nestedContext = new CancellableOperationContext(context, cancellationToken);
-
-                return await redis.ExecuteBatchAsync(context, async batch =>
+            var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<(byte[], string)>(
+                context,
+                async (redis, cancellationToken) =>
                 {
-                    var metadataBytesTask = batch.AddOperation(key, b => b.HashGetAsync(key, selectorBytes));
-                    var replacementTokenTask = batch.AddOperation(key, b => b.HashGetAsync(key, replacementTokenFieldName));
-                    return ((byte[])await metadataBytesTask, (string)await replacementTokenTask);
+                    using var nestedContext = new CancellableOperationContext(context, cancellationToken);
+
+                    return await redis.ExecuteBatchAsync(
+                        context,
+                        async batch =>
+                        {
+                            var metadataBytesTask = batch.AddOperation(key, b => b.HashGetAsync(key, selectorBytes));
+                            var replacementTokenTask = batch.AddOperation(key, b => b.HashGetAsync(key, replacementTokenFieldName));
+                            return ((byte[])await metadataBytesTask, (string)await replacementTokenTask);
+                        },
+                        RedisOperation.GetContentHashList);
                 },
-                RedisOperation.GetContentHashList);
-            }, retryWindow: null);
+                retryWindow: _slowOperationCancellationTimeout);
             Contract.Assert(primaryResult != null || secondaryResult != null);
 
             MetadataEntry? metadata = null;
@@ -166,8 +203,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 strongFingerprint,
                 replacementToken,
                 metadata.Value.ContentHashListWithDeterminism,
-                metadata.Value.ContentHashListWithDeterminism,
-                replacementToken);
+                replacementToken).IgnoreFailure();
 
             return new Result<(ContentHashListWithDeterminism, string)>((metadata.Value.ContentHashListWithDeterminism, replacementToken));
         }
@@ -184,18 +220,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             }, retryWindow: null);
             Contract.Assert(primaryResult != null || secondaryResult != null);
 
-            var selectors = 0;
             IEnumerable<RedisValue> enumerable = Array.Empty<RedisValue>();
             if (primaryResult != null && primaryResult.Succeeded)
             {
                 enumerable = enumerable.Concat(primaryResult.Value);
-                selectors += primaryResult.Value.Length;
             }
 
             if (secondaryResult != null && secondaryResult.Succeeded)
             {
                 enumerable = enumerable.Concat(secondaryResult.Value);
-                selectors += secondaryResult.Value.Length;
             }
 
             var result = new HashSet<Selector>();

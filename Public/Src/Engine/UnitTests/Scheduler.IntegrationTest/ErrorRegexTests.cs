@@ -199,6 +199,52 @@ This message has been filtered by a regex. Please find the complete stdout/stder
             AssertErrorEventLogged(LogEventId.PipProcessError);
         }
 
+        [Fact]
+        public void ExistingErrorFileGetsProperlyReported()
+        {
+            Configuration.Sandbox.OutputReportingMode = global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError;
+            var text = @"
+* BEFORE *
+* <error> *
+* err1 *
+* </error> *
+* AFTER *
+* <error>err2</error> * <error>err3</error> *
+";
+
+            var errRegex = "error";
+
+            var ops = SplitLines(text)
+                .Select(l => Operation.Echo(l, true))
+                .Concat(new[]
+                {
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                    Operation.Fail()
+                });
+            var pipBuilder = CreatePipBuilder(ops);
+            pipBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(Context.StringTable, errRegex), RegexOptions.None);
+            pipBuilder.EnableMultiLineErrorScanning = false;
+
+            Process pip = SchedulePipBuilder(pipBuilder).Process;
+            
+            // Let's make sure a pip process error gets reported
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.PipProcessError);
+
+            // Rerun the pip. Same type of error should occur
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.PipProcessError);
+
+            // Retrieve the error messages for the pip process error for both runs
+            var pipProcessErrorMessages = EventListener.GetLogMessagesForEventId((int)LogEventId.PipProcessError);
+            XAssert.Equals(2, pipProcessErrorMessages.Length);
+
+            // On the first run, standard error should have been copied to a file named err.txt
+            XAssert.Contains(pipProcessErrorMessages[0], "err.txt");
+            // On the second run, the file existed already, so it should have been renamed
+            XAssert.Contains(pipProcessErrorMessages[1], "err.1.txt");
+        }
+
         private string[] SplitLines(string text)
         {
             return text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);

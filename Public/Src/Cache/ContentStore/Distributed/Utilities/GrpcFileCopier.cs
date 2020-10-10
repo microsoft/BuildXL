@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 return await _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
                 {
                     var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options);
-                    InvalidateResourceIfNeeded(options, result, clientWrapper);
+                    InvalidateResourceIfNeeded(nestedContext, options, result, clientWrapper);
                     return result;
                 });
             }
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
         }
 
-        private void InvalidateResourceIfNeeded(CopyToOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
+        private void InvalidateResourceIfNeeded(Context context, CopyToOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
         {
             if (!result)
             {
@@ -142,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                     case GrpcFileCopierConfiguration.ClientInvalidationPolicy.Disabled:
                         break;
                     case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError:
-                        clientWrapper.Invalidate();
+                        clientWrapper.Invalidate(context);
                         break;
                     case GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnConnectivityErrors:
                         if ((result.Code == CopyResultCode.CopyBandwidthTimeoutError && options.TotalBytesCopied == 0) ||
@@ -150,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                         {
                             if (options?.BandwidthConfiguration?.InvalidateOnTimeoutError ?? true)
                             {
-                                clientWrapper.Invalidate();
+                                clientWrapper.Invalidate(context);
                             }
                         }
 

@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 throw new ObjectDisposedException(objectName: _tracer.Name, message: "Attempt to use resource after dispose");
             }
 
-            var wrapper = FetchResource(context, key);
+            var wrapper = AcquireWrapper(context, key);
             try
             {
                 // NOTE: This can potentially throw. If it happens, then the throw will propagate to the client, which
@@ -101,44 +101,36 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
             finally
             {
-                lock (wrapper)
-                {
-                    wrapper.LastAccessTime = _clock.UtcNow;
-                    wrapper.ReferenceCount--;
-                }
+                wrapper.Release(_clock.UtcNow);
             }
         }
 
-        private ResourceWrapperV2<TObject> FetchResource(Context context, TKey key)
+        private ResourceWrapperV2<TObject> AcquireWrapper(Context context, TKey key)
         {
             lock (_resourcesLock)
             {
-                ReleaseExpiredResources();
-                var wrapper = GetOrCreateWrapper(context, key);
+                ReleaseExpiredWrappers(context, disposing: false);
+                var wrapper = AddOrGetWrapper(context, key);
 
                 // We need to increment this here to avoid having another thread release the resource while its being
                 // acquired and hence causing a race condition.
-                lock (wrapper)
-                {
-                    wrapper.LastAccessTime = _clock.UtcNow;
-                    wrapper.ReferenceCount++;
-                }
+                wrapper.Acquire(_clock.UtcNow);
 
                 return wrapper;
             }
         }
 
-        private ResourceWrapperV2<TObject> GetOrCreateWrapper(Context context, TKey key)
+        private ResourceWrapperV2<TObject> AddOrGetWrapper(Context context, TKey key)
         {
             var now = _clock.UtcNow;
             if (_resources.TryGetValue(key, out var wrapper))
             {
-                if (IsWrapperAlive(now, wrapper))
+                if (wrapper.IsAlive(now, _configuration.MaximumAge))
                 {
                     return wrapper;
                 }
 
-                ReleaseResource(key, wrapper);
+                ReleaseWrapper(context, key, wrapper);
             }
 
             wrapper = CreateWrapper(context, key);
@@ -146,25 +138,17 @@ namespace BuildXL.Cache.ContentStore.Utils
             return wrapper;
         }
 
-        private void ReleaseResource(TKey key, ResourceWrapperV2<TObject> wrapper)
+        private void ReleaseWrapper(Context context, TKey key, ResourceWrapperV2<TObject> wrapper)
         {
             lock (_resourcesLock)
             {
                 _resources.Remove(key);
             }
 
-            wrapper.ShutdownCancellationTokenSource.Cancel();
+            wrapper.CancelOngoingOperations(context);
             _shutdownQueue.Enqueue(wrapper);
 
             Counter[ResourcePoolV2Counters.ReleasedResources].Increment();
-        }
-
-        private bool IsWrapperAlive(DateTime now, ResourceWrapperV2<TObject> wrapper)
-        {
-            lock (wrapper)
-            {
-                return !wrapper.Invalid && now - wrapper.LastAccessTime < _configuration.MaximumAge;
-            }
         }
 
         private async Task BackgroundGarbageCollectAsync(CancellationToken cancellationToken)
@@ -204,13 +188,13 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 if (!disposing)
                 {
-                    await GarbageCollectCoreAsync(context.Token);
+                    await GarbageCollectCoreAsync(context);
                 }
                 else
                 {
                     // The GC on dispose doesn't obey cancellation tokens because it needs to release everything for
                     // correctness.
-                    await GarbageCollectOnDisposeCoreAsync();
+                    await GarbageCollectOnDisposeCoreAsync(context);
                 }
 
                 Counter[ResourcePoolV2Counters.GarbageCollectionSuccesses].Increment();
@@ -220,43 +204,46 @@ namespace BuildXL.Cache.ContentStore.Utils
             extraEndMessage: _ => $"Disposing=[{disposing}]");
         }
 
-        private async Task GarbageCollectCoreAsync(CancellationToken cancellationToken = default)
+        private async Task GarbageCollectCoreAsync(OperationContext context)
         {
-            ReleaseExpiredResources(disposing: false);
+            ReleaseExpiredWrappers(context, disposing: false);
 
             // Meant to avoid concurrent GCs from taking place. This can happen if Dispose() is called concurrently
             // along an already-running GC.
-            using var token = await _gcLock.AcquireAsync(cancellationToken);
+            using var token = await _gcLock.AcquireAsync(context.Token);
 
             // WARNING: order is important in this guard
             var size = _shutdownQueue.Count;
-            while (!cancellationToken.IsCancellationRequested && size > 0 && _shutdownQueue.TryDequeue(out var wrapper))
+            while (!context.Token.IsCancellationRequested && size > 0 && _shutdownQueue.TryDequeue(out var wrapper))
             {
+                // Size is constantly decreased because if we don't do it, GC can hang forever waiting until a single
+                // usage decreases its reference count on the resource. The fact that we do this means that such usages
+                // will take more than one GC pass to release, but that's fine.
                 size--;
 
-                lock (wrapper)
+                if (wrapper.ReferenceCount > 0)
                 {
-                    if (wrapper.ReferenceCount > 0)
-                    {
-                        _shutdownQueue.Enqueue(wrapper);
-                        continue;
-                    }
+                    _shutdownQueue.Enqueue(wrapper);
                 }
-
-                await ReleaseWrapperAsync(wrapper);
+                else
+                {
+                    await ReleaseWrapperAsync(context, wrapper);
+                }
             }
         }
 
-        private Task GarbageCollectOnDisposeCoreAsync()
+        private Task GarbageCollectOnDisposeCoreAsync(OperationContext context)
         {
-            ReleaseExpiredResources(disposing: true);
+            ReleaseExpiredWrappers(context, disposing: true);
 
-            var tasks = _shutdownQueue.Select(wrapper => ReleaseWrapperAsync(wrapper));
+            var tasks = _shutdownQueue.Select(wrapper => ReleaseWrapperAsync(context, wrapper));
             return Task.WhenAll(tasks);
         }
 
-        private async Task ReleaseWrapperAsync(ResourceWrapperV2<TObject> wrapper)
+        private async Task ReleaseWrapperAsync(Context context, ResourceWrapperV2<TObject> wrapper)
         {
+            Contract.Requires(wrapper.ShutdownToken.IsCancellationRequested);
+
             try
             {
                 var lazyValueTask = wrapper.LazyValue;
@@ -268,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 Counter[ResourcePoolV2Counters.ShutdownAttempts].Increment();
                 var instance = await lazyValueTask;
-                var result = await instance.ShutdownAsync(_context);
+                var result = await instance.ShutdownAsync(context);
                 if (result)
                 {
                     Counter[ResourcePoolV2Counters.ShutdownSuccesses].Increment();
@@ -281,15 +268,15 @@ namespace BuildXL.Cache.ContentStore.Utils
             catch (Exception exception)
             {
                 Counter[ResourcePoolV2Counters.ShutdownExceptions].Increment();
-                _context.Error($"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
+                context.Error($"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
             }
             finally
             {
-                wrapper.Dispose();
+                wrapper.Dispose(context);
             }
         }
 
-        private void ReleaseExpiredResources(bool disposing = false)
+        private void ReleaseExpiredWrappers(Context context, bool disposing)
         {
             lock (_resourcesLock)
             {
@@ -297,9 +284,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                 {
                     var key = kvp.Key;
                     var wrapper = kvp.Value;
-                    if (!IsWrapperAlive(_clock.UtcNow, wrapper) || disposing)
+                    if (!wrapper.IsAlive(_clock.UtcNow, _configuration.MaximumAge) || disposing)
                     {
-                        ReleaseResource(key, wrapper);
+                        ReleaseWrapper(context, key, wrapper);
                     }
                 }
             }
@@ -324,8 +311,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
             });
 
-            var wrapper = new ResourceWrapperV2<TObject>(lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token);
+            var wrapperId = Guid.NewGuid();
+            var wrapper = new ResourceWrapperV2<TObject>(wrapperId, lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token);
             Counter[ResourcePoolV2Counters.CreatedResources].Increment();
+            context.Info($"Created wrapper with id {wrapperId}");
             return wrapper;
         }
 

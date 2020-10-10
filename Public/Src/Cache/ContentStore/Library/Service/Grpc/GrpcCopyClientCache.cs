@@ -23,18 +23,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public T Value { get; }
 
         /// <nodoc />
-        public void Invalidate();
+        public void Invalidate(Context context);
     }
 
     /// <nodoc />
-    public struct DefaultResourceWrapperAdapter<T> : IResourceWrapperAdapter<T>
+    public class DefaultResourceWrapperAdapter<T> : IResourceWrapperAdapter<T>
         where T : IStartupShutdownSlim
     {
         /// <nodoc />
-        public T Value { get; private set; }
+        public T Value { get; }
 
         /// <nodoc />
-        public void Invalidate() { }
+        public void Invalidate(Context context) { }
 
         /// <nodoc />
         public DefaultResourceWrapperAdapter(T value)
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     }
 
     /// <nodoc />
-    public struct ResourceWrapperV1Adapter<T> : IResourceWrapperAdapter<T>
+    public class ResourceWrapperV1Adapter<T> : IResourceWrapperAdapter<T>
         where T : IStartupShutdownSlim
     {
         private readonly ResourceWrapper<T> _wrapper;
@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public T Value => _wrapper.Value;
 
         /// <nodoc />
-        public void Invalidate() => _wrapper.Invalidate();
+        public void Invalidate(Context context) => _wrapper.Invalidate();
 
         /// <nodoc />
         public ResourceWrapperV1Adapter(ResourceWrapper<T> wrapper)
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     }
 
     /// <nodoc />
-    public struct ResourceWrapperV2Adapter<T> : IResourceWrapperAdapter<T>
+    public class ResourceWrapperV2Adapter<T> : IResourceWrapperAdapter<T>
         where T : IStartupShutdownSlim
     {
         private readonly ResourceWrapperV2<T> _wrapper;
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public T Value => _wrapper.Value;
 
         /// <nodoc />
-        public void Invalidate() => _wrapper.Invalidate();
+        public void Invalidate(Context context) => _wrapper.Invalidate(context);
 
         /// <nodoc />
         public ResourceWrapperV2Adapter(ResourceWrapperV2<T> wrapper)

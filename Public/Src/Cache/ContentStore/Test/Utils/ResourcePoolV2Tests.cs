@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 {
                     pool.Counter[ResourcePoolV2Counters.CreatedResources].Value.Should().Be(1);
                     pool.Counter[ResourcePoolV2Counters.ResourceInitializationAttempts].Value.Should().Be(1);
-                    wrapper.Invalidate();
+                    wrapper.Invalidate(context);
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
@@ -235,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                     }).FireAndForgetErrorsAsync(context);
 
                     using var token = await stopLatch.AcquireAsync();
-                    wrapper.Invalidate();
+                    wrapper.Invalidate(context);
                     return BoolResult.Success;
                 }).ShouldBeSuccess();
             });
@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                     }).ShouldBeSuccess();
 
                     using var token = await stopLatch.AcquireAsync();
-                    wrapper.Invalidate();
+                    wrapper.Invalidate(context);
 
                     return BoolResult.Success;
                 }).ShouldBeSuccess();
@@ -427,7 +427,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                     // removed due to TTL
                     await pool.UseAsync(context, key, wrapper =>
                     {
-                        wrapper.Invalidate();
+                        wrapper.Invalidate(context);
                         return BoolResult.SuccessTask;
                     }).ShouldBeSuccess();
 
@@ -459,7 +459,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                 await pool.UseAsync(context, key, wrapper =>
                 {
-                    wrapper.Invalidate();
+                    wrapper.Invalidate(context);
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 

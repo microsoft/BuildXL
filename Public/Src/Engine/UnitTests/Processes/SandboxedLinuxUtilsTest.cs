@@ -100,6 +100,8 @@ namespace Test.BuildXL.Processes
         [InlineData(new string[4] { "HOME=/User/home", "PATH=a:b:c d", "ENV_TO_UPDATE=/before:/my/lib:/after", null }, "ENV_TO_UPDATE=", new string[2] { "/my/lib", "/my/lib1" }, new string[3] { "HOME=/User/home", "PATH=a:b:c d", "ENV_TO_UPDATE=/before:/my/lib:/after:/my/lib1" }, false)]
         // envp contains ENV_TO_UPDATE, ENV_TO_UPDATE contains neither "/my/lib" nor "/my/lib1"
         [InlineData(new string[4] { "HOME=/User/home", "PATH=a:b:c d", "ENV_TO_UPDATE=/before", null }, "ENV_TO_UPDATE=", new string[2] { "/my/lib", "/my/lib1" }, new string[3] { "HOME=/User/home", "PATH=a:b:c d", "ENV_TO_UPDATE=/before:/my/lib:/my/lib1" }, false)]
+        // envp is null
+        [InlineData(null, "ENV_TO_UPDATE=", new string[1] { "/my/lib" }, new string[1] { "ENV_TO_UPDATE=/my/lib" }, false)]
         public void TestEnsurePathsIncludedInEnv(string[] envp, string envPrefix, string[] paths, string[] expectedEnvp, bool shouldBeSameEnvp = true)
         {
             if (!OperatingSystemHelper.IsLinuxOS)

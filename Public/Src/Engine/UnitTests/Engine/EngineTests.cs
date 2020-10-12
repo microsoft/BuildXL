@@ -398,6 +398,20 @@ namespace Test.BuildXL.EngineTests
             }
         }
 
+        [Fact]
+        public void TestSpotlightCheck()
+        {
+            PathTable pt = new PathTable();
+            AbsolutePath trailingNoindex = AbsolutePath.Create(pt, Path.Combine(TestRoot, ".noindex"));
+            AbsolutePath intermediateNoindex = AbsolutePath.Create(pt, Path.Combine(TestRoot, ".noindex", "subdirectory"));
+            BuildXLEngine.CheckArtifactFolersAndEmitNoIndexWarning(pt, LoggingContext, trailingNoindex, intermediateNoindex);
+            XAssert.AreEqual(0, EventListener.GetEventCount((int)LogEventId.EmitSpotlightIndexingWarning), "No warning should be logged for either path containing noindex");
+
+            AbsolutePath indexablePath = AbsolutePath.Create(pt, Path.Combine(TestRoot, "subdirectory"));
+            BuildXLEngine.CheckArtifactFolersAndEmitNoIndexWarning(pt, LoggingContext, indexablePath);
+            AssertWarningEventLogged(LogEventId.EmitSpotlightIndexingWarning);
+        }
+
         private void SetupTestData()
         {
             var spec0 = @"

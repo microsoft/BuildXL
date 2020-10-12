@@ -1716,16 +1716,9 @@ namespace BuildXL.Engine
             {
                 if (Configuration.Layout.EmitSpotlightIndexingWarning)
                 {
-                    void CheckArtifactFolersAndEmitNoIndexWarning(params AbsolutePath[] paths)
-                    {
-                        var directories = paths.Select(p => p.ToString(Context.PathTable)).Where(p => !p.EndsWith(Strings.Layout_DefaultNoIndexSuffix));
-                        if (directories.Count() > 0)
-                        {
-                            Logger.Log.EmitSpotlightIndexingWarningForArtifactDirectory(loggingContext, string.Join(", ", directories));
-                        }
-                    }
-
                     CheckArtifactFolersAndEmitNoIndexWarning(
+                        Context.PathTable,
+                        loggingContext,
                         Configuration.Layout.ObjectDirectory,
                         Configuration.Layout.CacheDirectory,
                         Configuration.Layout.FrontEndDirectory,
@@ -2195,6 +2188,14 @@ namespace BuildXL.Engine
             return BuildXLEngineResult.Create(success, m_enginePerformanceInfo, previousState: engineState, newState: newEngineState);
         }
 
+        internal static void CheckArtifactFolersAndEmitNoIndexWarning(PathTable pathTable, LoggingContext loggingContext, params AbsolutePath[] paths)
+        {
+            var directories = paths.Select(p => p.ToString(pathTable).ToUpperInvariant()).Where(p => !p.EndsWith(Strings.Layout_DefaultNoIndexSuffix.ToUpperInvariant()) && !p.Contains(Strings.Layout_DefaultNoIndexSuffix.ToUpperInvariant() + Path.DirectorySeparatorChar));
+            if (directories.Count() > 0)
+            {
+                Logger.Log.EmitSpotlightIndexingWarningForArtifactDirectory(loggingContext, string.Join(", ", directories));
+            }
+        }
 
         private static void LaunchBuildExplorer(LoggingContext loggingContext, string engineBinDirectory)
         {

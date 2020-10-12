@@ -73,7 +73,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), secondaryConnection).GetAwaiter().GetResult(),
                 DefaultKeySpace);
 
-            return new RedisGlobalStore(Clock, Configuration, primaryDatabaseAdapter, secondaryDatabaseAdapter);
+            return new RedisGlobalStore(Clock, Configuration, primaryDatabaseAdapter, secondaryDatabaseAdapter, primaryDatabaseAdapter, secondaryDatabaseAdapter);
         }
 
         //private static TestDistributedContentCopier CreateTestCopier()

@@ -109,7 +109,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 RedisDatabaseFactoryForRedisGlobalStoreSecondary,
                 "secondaryRedisDatabase",
                 optional: true);
-            IGlobalLocationStore globalStore = new RedisGlobalStore(Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore);
+
+            RedisDatabaseAdapter? redisBlobDatabase;
+            RedisDatabaseAdapter? secondaryRedisBlobDatabase;
+            if (Configuration.UseSeparateConnectionForRedisBlobs)
+            {
+                // To prevent blob opoerations from blocking other operations, create a separate connections for them.
+                redisBlobDatabase = CreateDatabase(RedisDatabaseFactoryForRedisGlobalStore, "primaryRedisBlobDatabase");
+                secondaryRedisBlobDatabase = CreateDatabase(
+                    RedisDatabaseFactoryForRedisGlobalStoreSecondary,
+                    "secondaryRedisBlobDatabase",
+                    optional: true);
+            }
+            else
+            {
+                redisBlobDatabase = redisDatabaseForGlobalStore;
+                secondaryRedisBlobDatabase = secondaryRedisDatabaseForGlobalStore;
+            }
+
+            IGlobalLocationStore globalStore = new RedisGlobalStore(Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase);
             return globalStore;
         }
 

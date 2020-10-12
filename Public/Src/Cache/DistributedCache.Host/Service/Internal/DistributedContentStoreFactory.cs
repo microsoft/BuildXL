@@ -171,8 +171,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
-                TouchContentHashLists = _distributedSettings.TouchContentHashLists
+                TouchContentHashLists = _distributedSettings.TouchContentHashLists,
             };
+
+            ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisContentLocationStoreConfiguration.BlobOperationLimitCount = v);
+            ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisContentLocationStoreConfiguration.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisContentLocationStoreConfiguration.UseSeparateConnectionForRedisBlobs = v);
 
             // Stop passing additional stores when fully transitioned to unified mode
             // since all drives appear under the same machine id

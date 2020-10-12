@@ -79,6 +79,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;
 
         /// <summary>
+        /// The span of time that will delimit the operation count limit for blob operations.
+        /// </summary>
+        public TimeSpan BlobOperationLimitSpan { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// The amount of blob operations that we allow to go to Redis in a given period of time.
+        /// </summary>
+        public long BlobOperationLimitCount { get; set; } = 600;
+
+        /// <summary>
         /// The number of consecutive redis connection errors that will trigger reconnection.
         /// </summary>
         /// <remarks>

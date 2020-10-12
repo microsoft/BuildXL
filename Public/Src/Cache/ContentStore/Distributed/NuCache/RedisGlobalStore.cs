@@ -77,7 +77,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IClock clock,
             RedisContentLocationStoreConfiguration configuration,
             RedisDatabaseAdapter primaryRedisDb,
-            RedisDatabaseAdapter secondaryRedisDb)
+            RedisDatabaseAdapter secondaryRedisDb,
+            RedisDatabaseAdapter primaryRedisBlobDb,
+            RedisDatabaseAdapter secondaryRedisBlobDb)
         {
             Contract.Requires(configuration.CentralStore != null);
 
@@ -90,8 +92,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, RaidedRedis);
             _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, RaidedRedis);
 
-            PrimaryBlobAdapter = new RedisBlobAdapter(RaidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock);
-            SecondaryBlobAdapter = new RedisBlobAdapter(RaidedRedis.SecondaryRedisDb, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock);
+            PrimaryBlobAdapter = new RedisBlobAdapter(primaryRedisBlobDb, _clock, Configuration);
+            SecondaryBlobAdapter = new RedisBlobAdapter(secondaryRedisBlobDb, _clock, Configuration);
         }
 
         /// <inheritdoc />

@@ -366,6 +366,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The start cursor position in Event Hub stream.
         /// </summary>
         public DateTime? EventHubCursorPosition { get; set; }
+
+        /// <summary>
+        /// Whether to create a separate Redis connection for blob operations.
+        /// </summary>
+        public bool UseSeparateConnectionForRedisBlobs { get; set; } = false;
     }
 
     /// <summary>

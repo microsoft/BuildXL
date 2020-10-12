@@ -284,6 +284,20 @@ namespace BuildXL.Cache.Host.Configuration
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
+        /// The span of time that will delimit the operation count limit for blob operations.
+        /// </summary>
+        [DataMember]
+        [Validation.Range(0, int.MaxValue)]
+        public int? BlobOperationLimitSpanSeconds { get; set; }
+
+        /// <summary>
+        /// The amount of blob operations that we allow to go to Redis in a given period of time.
+        /// </summary>
+        [DataMember]
+        [Validation.Range(0, int.MaxValue)]
+        public long? BlobOperationLimitCount { get; set; }
+
+        /// <summary>
         /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
         /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
         /// to produce candidates.
@@ -978,6 +992,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);
         
+        [DataMember]
+        public bool? UseSeparateConnectionForRedisBlobs { get; set; }
+
         /// <summary>
         /// Indicates whether distributed content store operates in special mode where content is only consumed from other machines but
         /// not available as a content replica from which other machines can copy content.

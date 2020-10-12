@@ -6,14 +6,15 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using Xunit;
+using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 {
     public class MemoryFileSystemTests : AbsFileSystemTests
     {
-        public MemoryFileSystemTests()
-            : base(() => new MemoryFileSystem(TestSystemClock.Instance, new[] {'C', 'D'}))
+        public MemoryFileSystemTests(ITestOutputHelper outputHelper)
+            : base(outputHelper, () => new MemoryFileSystem(TestSystemClock.Instance, new[] {'C', 'D'}))
         {
         }
 

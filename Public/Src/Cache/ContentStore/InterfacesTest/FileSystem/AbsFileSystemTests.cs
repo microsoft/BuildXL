@@ -11,11 +11,12 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using Xunit;
+using Xunit.Abstractions;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 {
-    public abstract class AbsFileSystemTests
+    public abstract class AbsFileSystemTests : TestWithOutput
     {
         protected const FileShare ShareRead = FileShare.Read;
         protected const FileShare ShareReadDelete = FileShare.Read | FileShare.Delete;
@@ -23,7 +24,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         protected const FileShare ShareDelete = FileShare.Delete;
         protected readonly IAbsFileSystem FileSystem;
 
-        protected AbsFileSystemTests(Func<IAbsFileSystem> createFileSystemFunc)
+        protected AbsFileSystemTests(ITestOutputHelper helper, Func<IAbsFileSystem> createFileSystemFunc)
+        : base(helper)
         {
             FileSystem = createFileSystemFunc();
         }

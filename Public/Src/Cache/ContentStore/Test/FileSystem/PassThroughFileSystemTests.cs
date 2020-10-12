@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -15,17 +14,23 @@ using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using FluentAssertions;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.FileSystem
 {
     [Trait("Category", "Integration")]
     public sealed class PassThroughFileSystemTests : AbsFileSystemTests
     {
-        public PassThroughFileSystemTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger))
+        public PassThroughFileSystemTests(ITestOutputHelper helper)
+            : base(helper, () => new PassThroughFileSystem(TestGlobal.Logger))
         {
         }
-
         [Fact]
         public async Task CopyFileAsyncShouldOverrideContentWhenReplaceExistingFlagIsPassed()
         {
@@ -550,6 +555,86 @@ namespace ContentStoreTest.FileSystem
             }
 
             Assert.False(FileSystem.FileExists(filePath));
+        }
+
+        [Theory(Skip = "For manual experiments only")] // for running manually only!
+        //[Theory] // for running manually only!
+        [InlineData(/*dop*/1, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048)]
+        [InlineData(/*dop*/1, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048*50)]
+        [InlineData(/*dop*/1, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048*50, /*writeChunkSize*/4048*50)]
+
+        [InlineData(/*dop*/1, /*fileSize*/100_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048)]
+        [InlineData(/*dop*/1, /*fileSize*/100_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048*50)]
+
+        [InlineData(/*dop*/10, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048)]
+        [InlineData(/*dop*/10, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048 * 50)]
+
+        [InlineData(/*dop*/40, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048)]
+        [InlineData(/*dop*/40, /*fileSize*/500_000, /*totalFilesSize*/100_000_000, /*fileBufferSize*/4048, /*writeChunkSize*/4048 * 50)]
+        public async Task WriteFilePlaygroundDurationTests(
+            int degreeOfParallelism,
+            int fileSize,
+            long totalFilesSize,
+            int fileBufferSize,
+            int writeChunkSize)
+        {
+            int numberOfFiles = (int)(totalFilesSize / fileSize);
+
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            context.TraceDebug($"Writing {numberOfFiles} files...");
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                
+
+                await ParallelAlgorithms.WhenDoneAsync(
+                    degreeOfParallelism, CancellationToken.None, (s, i) => writeRandomDataToFile(i),
+                    Enumerable.Range(1, numberOfFiles).ToArray());
+
+                async Task<(TimeSpan duration, TimeSpan sumDuration)> writeRandomDataToFile(int index)
+                {
+                    await Task.Yield();
+                    var destinationPath = testDirectory.Path / $"destination{index}.txt";
+
+                    var sw = StopwatchSlim.Start();
+                    using (StreamWithLength? fs = await FileSystem.OpenAsync(
+                        destinationPath,
+                        FileAccess.Write,
+                        FileMode.Create,
+                        FileShare.None,
+                        FileOptions.None,
+                        fileBufferSize))
+                    {
+                        int totalSize = 0;
+                        TrackingFileStream file = (TrackingFileStream)fs!.Value.Stream;
+
+                        int iterationCount = fileSize / writeChunkSize;
+
+                        for (int i = 0; i < iterationCount; i++)
+                        {
+                            await writeRandomBytesToFile(writeChunkSize);
+                        }
+
+                        var reminder = fileSize % writeChunkSize;
+                        if (reminder != 0)
+                        {
+                            await writeRandomBytesToFile(reminder);
+                        }
+
+                        async Task writeRandomBytesToFile(int size)
+                        {
+                            var bytes = ThreadSafeRandom.GetBytes(size);
+                            totalSize += bytes.Length;
+                            await file.WriteAsync(bytes, 0, bytes.Length);
+                        }
+
+                        context.TraceDebug($"{index}: {sw.Elapsed}, {file.WriteDuration}, totalSize={totalSize}");
+                        return (sw.Elapsed, file.WriteDuration);
+
+                        
+                    }
+                }
+            }
         }
     }
 }

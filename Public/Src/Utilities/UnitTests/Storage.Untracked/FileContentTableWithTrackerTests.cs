@@ -115,6 +115,24 @@ namespace Test.BuildXL.Storage.Admin
             XAssert.IsTrue(versionedF1.Identity.Usn < versionedF2.Value.Identity.Usn);
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresJournalScan: true)]
+        public void TestFileRename()
+        {
+            var fileF = WriteFile("F");
+
+            var support = ChangeTrackerSupport.Initialize(this);
+            var versionedF = support.RecordHashAndTrackFile(fileF);
+
+            var fileG = RenameFile(fileF, "G");
+
+            support.SaveReloadAndScanForChanges();
+
+            var versionedG = support.GetKnownContentHashes(fileG);
+            XAssert.IsTrue(versionedG.HasValue);
+            XAssert.AreEqual(versionedF.FileContentInfo.Hash, versionedG.Value.FileContentInfo.Hash);
+            XAssert.IsTrue(versionedF.Identity.Usn < versionedG.Value.Identity.Usn);
+        }
+
         private class ChangeTrackerSupport
         {
             private const string FileContentTableName = nameof(FileContentTable);
@@ -291,6 +309,14 @@ namespace Test.BuildXL.Storage.Admin
             Contract.Requires(file.IsValid);
 
             File.Delete(file.ToString(m_pathTable));
+        }
+
+        private AbsolutePath RenameFile(AbsolutePath file, string newFileName)
+        {
+            string path = file.ToString(m_pathTable);
+            string newPath = Path.Combine(Path.GetDirectoryName(path), newFileName);
+            File.Move(path, newPath);
+            return AbsolutePath.Create(m_pathTable, newPath);
         }
 
         private AbsolutePath CreateHardLink(string relativePath, AbsolutePath file)

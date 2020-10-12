@@ -17,6 +17,7 @@ using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -2945,10 +2946,7 @@ namespace BuildXL.Storage.ChangeTracking
                 var impactedContainerQueue = new Queue<HierarchicalNameId>();
                 var visitedContainers = new HashSet<AbsolutePath>();
 
-                // We remember all relevent file ids due to the following reasons:
-                // 1. They can be removed from m_recordsByFileId once they are processed.
-                // 2. We need to report their latest USNs for file content table. 
-                var relevantFileIds = new HashSet<FileId>();
+                var lastTrackedUsnByFileId = new Dictionary<FileId, Usn>();
 
                 var queryResult = journalAccessor.QueryJournal(new QueryJournalRequest(VolumeGuidPath));
                 var readRequest = new ReadJournalRequest(
@@ -2969,9 +2967,22 @@ namespace BuildXL.Storage.ChangeTracking
                     {
                         numberOfUsnRecordsProcessed++;
                         bool relevant = false;
+                        Usn? lastTrackedUsnOfFileId = default;
 
                         LinkImpact linkImpact = usnRecord.Reason.LinkImpact();
                         MembershipImpact membershipImpact = usnRecord.Reason.MembershipImpact();
+
+                        // Records in m_recordsByFileId can be removed when they are impacted by the change, see PopImpactedRecordsIfPresent.
+                        // So, we need to record the last tracked USN before the last record is popped off m_recordsByFileId.
+                        if (lastTrackedUsnByFileId.TryGetValue(usnRecord.FileId, out Usn fileIdUsn))
+                        {
+                            lastTrackedUsnOfFileId = fileIdUsn;
+                        }
+                        else if (m_recordsByFileId.TryGetValue(usnRecord.FileId, out FileChangeTrackingRecord fileIdTrackingRecord))
+                        {
+                            lastTrackedUsnByFileId.Add(usnRecord.FileId, fileIdTrackingRecord.Usn);
+                            lastTrackedUsnOfFileId = fileIdTrackingRecord.Usn;
+                        }
 
                         // Direct (link) impact: A tracked and existent file-link or directory may have been data-changed, deleted, renamed, etc.
                         //                       This can clear the Tracked flag *and all others* (we untrack the path altogether),
@@ -2986,8 +2997,7 @@ namespace BuildXL.Storage.ChangeTracking
                                 {
                                     numberOfLinkImpactRecords++;
                                     relevant = true;
-                                    relevantFileIds.Add(usnRecord.FileId);
-
+                                    
                                     var impactedPathChanges = (membershipImpact & MembershipImpact.Deletion) != 0
                                         ? PathChanges.Removed
                                         : PathChanges.DataOrMetadataChanged;
@@ -3108,10 +3118,10 @@ namespace BuildXL.Storage.ChangeTracking
                             numberOfUsnRecordsRelevant++;
                         }
 
-                        if (relevantFileIds.Contains(usnRecord.FileId) || m_recordsByFileId.ContainsKey(usnRecord.FileId))
+                        if (lastTrackedUsnOfFileId.HasValue)
                         {
                             ReportChangedFileId(
-                                new ChangedFileIdInfo(new FileIdAndVolumeId(m_volumeSerialNumber, usnRecord.FileId), usnRecord));
+                                new ChangedFileIdInfo(new FileIdAndVolumeId(m_volumeSerialNumber, usnRecord.FileId), usnRecord, lastTrackedUsnOfFileId));
                         }
                     });
 

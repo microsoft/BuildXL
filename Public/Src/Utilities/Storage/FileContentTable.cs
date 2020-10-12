@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Tracing;
@@ -929,6 +930,8 @@ namespace BuildXL.Storage
 
         #region Observer
 
+        private readonly HashSet<FileIdAndVolumeId> m_updatedFileId = new HashSet<FileIdAndVolumeId>();
+
         /// <inheritdoc />
         public void OnNext(ChangedPathInfo value)
         {
@@ -946,13 +949,22 @@ namespace BuildXL.Storage
                     {
                         case LinkImpact.None:
                         case LinkImpact.SingleLink:
-                            // Update with new USN.
-                            m_entries.TryUpdate(value.FileIdAndVolumeId, entry.WithNewUsn(value.UsnRecord.Usn), entry);
-                            ++m_observerData.UpdatedUsnEntryByJournalScanningCount;
+                            // Update with new USN only if entry's USN matches previously tracked USN or the file id's entry was updated before.
+                            // We track whether file id's entry was updated or not because some operations can have more than one USN records.
+                            // For example, file renaming has at least two records, "RenameOldName" followed by "RenameNewName".
+                            // Another example is timestamp modification can come with "BasicInfoChange" followed by "BasicInfoChange|Close".
+                            // If the entry is updated by the first record, and we don't keep track that fact, then the new record will
+                            // invalidate the updated entry because it will have more up-to-date USN.
+                            if (m_updatedFileId.Contains(value.FileIdAndVolumeId) || value.LastTrackedUsn == entry.Usn)
+                            {
+                                m_entries.TryUpdate(value.FileIdAndVolumeId, entry.WithNewUsn(value.UsnRecord.Usn), entry);
+                                m_updatedFileId.Add(value.FileIdAndVolumeId);
+                                ++m_observerData.UpdatedUsnEntryByJournalScanningCount;
+                            }
                             break;
                         case LinkImpact.AllLinks:
                             // Remove from mapping.
-                            m_entries.TryRemove(value.FileIdAndVolumeId, out entry);
+                            m_entries.TryRemove(value.FileIdAndVolumeId, out _);
                             ++m_observerData.RemovedEntryByJournalScanningCount;
                             break;
                     }
@@ -989,6 +1001,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public void OnCompleted(ScanningJournalResult result)
         {
+            m_updatedFileId.Clear();
             m_observerData.UpdateCounters(Counters);
         }
 

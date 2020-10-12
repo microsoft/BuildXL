@@ -5966,10 +5966,10 @@ namespace BuildXL.Scheduler
             {
                 var fileChangeProcessor = new FileChangeProcessor(loggingContext, m_fileChangeTracker, inputChangeList);
 
-                // We no longer include file content table (FCT) into file change journal processor because
-                // we don't want FCT to rely on file change tracker (tracker). The underbuild shown by FileChangeTrackerTests.TrackerLoadFailureShouldNotResultInUnderbuild
-                // shows the case where FCT and tracker go out of sync because tracker is unavailable (perhaps due to changing build engine).
-                // TODO: Revisit this. Add FCT back into journal processor to benefit from updating FileId -> (USN, Hash) entries.
+                if (m_scheduleConfiguration.UpdateFileContentTableByScanningChangeJournal)
+                {
+                    fileChangeProcessor.Subscribe(m_fileContentTable);
+                }
 
                 if (m_shouldCreateIncrementalSchedulingState)
                 {

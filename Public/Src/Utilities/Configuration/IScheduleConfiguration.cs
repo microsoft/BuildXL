@@ -414,5 +414,10 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates if the Build Manifest needs to be generated for the files uploaded to drop.
         /// </summary>
         bool GenerateBuildManifest { get; }
+
+        /// <summary>
+        /// Updates file content table by scanning change journal.
+        /// </summary>
+        bool UpdateFileContentTableByScanningChangeJournal { get; }
     }
 }

@@ -1224,7 +1224,11 @@ namespace BuildXL
                             sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = sign; },
                             isUnsafe: true),
                         // </ end unsafe options>
-                         OptionHandlerFactory.CreateBoolOption(
+                        
+                        OptionHandlerFactory.CreateBoolOption(
+                            "updateFileContentTableByScanningChangeJournal",
+                            sign => schedulingConfiguration.UpdateFileContentTableByScanningChangeJournal = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "useCustomPipDescriptionOnConsole",
                             sign => loggingConfiguration.UseCustomPipDescriptionOnConsole = sign),
                         OptionHandlerFactory.CreateBoolOption(

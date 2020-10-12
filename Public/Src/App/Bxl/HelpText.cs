@@ -821,6 +821,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/updateFileContentTableByScanningChangeJournal[+|-]",
+                Strings.HelpText_DisplayHelp_UpdateFileContentTableByScanningChangeJournal,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/adminRequiredProcessExecutionMode:<mode>",
                 Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
                 HelpLevel.Verbose);

@@ -77,6 +77,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
+            UpdateFileContentTableByScanningChangeJournal = true;
 
             EnableSetupCostWhenChoosingWorker = true;
             EnableLessAggresiveMemoryProjection = false;
@@ -150,6 +151,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeLazySODeletion = template.UnsafeLazySODeletion;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
+            UpdateFileContentTableByScanningChangeJournal = template.UpdateFileContentTableByScanningChangeJournal;
             CacheOnly = template.CacheOnly;
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
             MaxSealDirs = template.MaxSealDirs;
@@ -410,5 +412,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool GenerateBuildManifest { get; set; }
+
+        /// <inheritdoc />
+        public bool UpdateFileContentTableByScanningChangeJournal { get; set; }
     }
 }

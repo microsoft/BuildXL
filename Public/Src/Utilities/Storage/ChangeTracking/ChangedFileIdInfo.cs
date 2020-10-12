@@ -22,12 +22,18 @@ namespace BuildXL.Storage.ChangeTracking
         public readonly UsnRecord UsnRecord;
 
         /// <summary>
+        /// Last tracked Usn by file change tracker.
+        /// </summary>
+        public readonly Usn? LastTrackedUsn;
+
+        /// <summary>
         /// Creates an instance of <see cref="ChangedFileIdInfo" />.
         /// </summary>
-        public ChangedFileIdInfo(FileIdAndVolumeId fileIdAndVolumeId, UsnRecord usnRecord)
+        public ChangedFileIdInfo(FileIdAndVolumeId fileIdAndVolumeId, UsnRecord usnRecord, Usn? lastTrackedUsn = default)
         {
             FileIdAndVolumeId = fileIdAndVolumeId;
             UsnRecord = usnRecord;
+            LastTrackedUsn = lastTrackedUsn;
         }
     }
 }

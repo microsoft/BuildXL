@@ -1021,10 +1021,6 @@ namespace BuildXL.Cache.Host.Configuration
         }
     }
 
-    internal class JsonStringEnumConverter
-    {
-    }
-
     /// <summary>
     /// Specifies which multiplexing cache topology to use multiplex between drives.
     /// </summary>

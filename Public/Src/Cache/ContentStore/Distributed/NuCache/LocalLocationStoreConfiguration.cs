@@ -147,11 +147,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ImportantReplicaBucketOffset { get; set; } = 2;
 
         /// <summary>
-        /// Indicates whether important replicas should be preserved.
-        /// </summary>
-        public bool PreserveImportantReplicas { get; set; } = true;
-
-        /// <summary>
         /// Age buckets for use with tiered eviction
         /// </summary>
         public IReadOnlyList<TimeSpan> AgeBuckets { get; set; } =
@@ -325,21 +320,10 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan? RetryWindow { get; set; }
 
         /// <summary>
-        /// For testing purposes only. This is used for testing to prevent machine registration when
-        /// using from production resources. Primary usage is for consuming checkpoints from production.
-        /// </summary>
-        public bool DisallowRegisterMachine { get; set; }
-
-        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
         internal string? GetCheckpointPrefix() => CentralStore?.CentralStateKeyBase + EventStore?.Epoch;
-
-        /// <summary>
-        /// Whether to randomize elements in machine list, while still respecting reputation and other prioritizations.
-        /// </summary>
-        public bool RandomizeMachineList { get; set; }
 
         /// <summary>
         /// Whether to prioritize designated locations in machine lists, so that they are the first elements.
@@ -411,7 +395,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int PropagationIterations { get; set; } = 3;
 
         /// <summary>
-        /// See <see cref="BuildXL.Cache.ContentStore.Stores.ContentStoreSettings.TraceFileSystemContentStoreDiagnosticMessages"/>
+        /// See <see cref="ContentStoreSettings.TraceFileSystemContentStoreDiagnosticMessages"/>
         /// </summary>
         public bool TraceFileSystemContentStoreDiagnosticMessages = false;
 
@@ -529,14 +513,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
 
         /// <summary>
-        /// The working directory used by checkpoint manager for staging checkpoints before upload and restore.
-        /// </summary>
-        /// <remarks>
-        /// If null then checkpointing is disabled.
-        /// </remarks>
-        public AbsolutePath CheckpointWorkingDirectory => WorkingDirectory / "checkpoints";
-
-        /// <summary>
         /// The time period before the master lease expires and is eligible to be taken by another machine.
         /// </summary>
         public TimeSpan MasterLeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(5);
@@ -586,7 +562,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public bool PacemakerUseRandomIdentifier { get; set; } = false;
 
-        /// <inheritdoc />
+        /// <nodoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;
     }
 }

@@ -24,9 +24,19 @@ namespace BuildXL.Cache.Host.Configuration
         public ServiceLaunchConfiguration Tool { get; set; }
 
         /// <summary>
+        /// Configuration for proxies in a given stamp
+        /// </summary>
+        public GlobalProxyConfiguration Proxy { get; set; }
+
+        /// <summary>
+        /// The uri of key vault from which secrets should be retrieved
+        /// </summary>
+        public string KeyVaultUri { get; set; }
+
+        /// <summary>
         /// Time to live for SAS urls returned by deployment service
         /// </summary>
-        public int SasUrlTimeToLiveMinutes { get; set; }
+        public TimeSpan SasUrlTimeToLive { get; set; } = TimeSpan.FromMinutes(10);
 
         /// <summary>
         /// The name of the secret used to communicate to storage account
@@ -41,7 +51,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// The time to live for cached authorization secrets in deployment service
         /// </summary>
-        public double AuthorizationSecretTimeToLiveMinutes { get; set; } = 30;
+        public TimeSpan AuthorizationSecretTimeToLive { get; set; } = TimeSpan.FromMinutes(30);
     }
 
     public class DropDeploymentConfiguration
@@ -104,8 +114,10 @@ namespace BuildXL.Cache.Host.Configuration
     /// </summary>
     public class SecretConfiguration
     {
-        // TODO: Currently, only plain text secrets are supported
-        // public SecretKind Kind { get; set; }
+        /// <summary>
+        /// Indicates the secret kind
+        /// </summary>
+        public SecretKind Kind { get; set; }
 
         /// <summary>
         /// The name of the secret for this environment variable
@@ -115,6 +127,74 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// The amount of time the secret can be cached before needing to be requeried
         /// </summary>
-        public double TimeToLiveMinutes { get; set; }
+        public TimeSpan TimeToLive { get; set; }
+    }
+
+    /// <summary>
+    /// Defines configuration for proxy service process
+    /// </summary>
+    public class ProxyServiceConfiguration
+    {
+        /// <summary>
+        /// The port used for proxy service on machine
+        /// </summary>
+        public int Port { get; set; }
+
+        /// <summary>
+        /// The root path of the proxy's CAS
+        /// </summary>
+        public string RootPath { get; set; }
+
+        /// <summary>
+        /// The maximum number of parallel downloads of content
+        /// </summary>
+        public int? DownloadConcurrency { get; set; } = 30;
+
+        /// <summary>
+        /// The length of time proxy urls should live (this represents the time
+        /// before the topology of the proxy network will be reshuffled)
+        /// </summary>
+        public TimeSpan ProxyAddressTimeToLive { get; set; }
+
+        /// <summary>
+        /// The size of retained content in download cache
+        /// </summary>
+        public int RetentionSizeGb { get; set; }
+
+        /// <summary>
+        /// The url of the service for retrieving proxy addresses
+        /// </summary>
+        public string DeploymentServiceUrl { get; set; }
+    }
+
+    /// <summary>
+    /// Defines configuration for deployment proxy used to allow machines to act as proxies for the deployment service in a given stamp
+    /// </summary>
+    public class GlobalProxyConfiguration
+    {
+        /// <summary>
+        /// Opaque string used to separate domains of machines which might form a proxy hierarchy
+        /// </summary>
+        public string Domain { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The number of proxies in a stamp which should be seeded from storage
+        /// </summary>
+        public int Seeds { get; set; } = 3;
+
+        /// <summary>
+        /// The target number of machines
+        /// </summary>
+        public int FanOutFactor { get; set; } = 10;
+
+        /// <summary>
+        /// Configuration for proxy service on machine
+        /// </summary>
+        public ProxyServiceConfiguration ServiceConfiguration { get; set; }
+
+        /// <summary>
+        /// Relative path to write <see cref="ServiceConfiguration"/> for consumption by proxy service executable
+        /// </summary>
+        public string TargetRelativePath { get; set; } = "ProxyConfiguration.json";
     }
 }

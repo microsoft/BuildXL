@@ -267,9 +267,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 return Task.FromResult(GetManifest(settings));
             }
 
-            public Task<Stream> GetStreamAsync(OperationContext context, DeploymentManifest.FileSpec fileInfo)
+            public Task<Stream> GetStreamAsync(OperationContext context, string downloadUrl)
             {
-                return Task.FromResult<Stream>(new MemoryStream(Content[fileInfo.DownloadUrl]));
+                return Task.FromResult<Stream>(new MemoryStream(Content[downloadUrl]));
             }
 
             public DeploymentManifest.FileSpec AddContent(string content)
@@ -285,6 +285,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                     Hash = hash,
                     DownloadUrl = downloadUrl
                 };
+            }
+
+            public Task<string> GetProxyBaseAddress(OperationContext context, string serviceUrl, HostParameters parameters, string token)
+            {
+                throw new NotImplementedException();
             }
         }
     }

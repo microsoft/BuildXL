@@ -21,13 +21,17 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities;
+using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Test
 {
     public class LauncherIntegrationTests
     {
+        public ITestOutputHelper Output { get; }
+
         public LauncherIntegrationTests(ITestOutputHelper output)
         {
+            Output = output;
             var converter = new Converter(output);
             Console.SetOut(converter);
         }
@@ -40,7 +44,7 @@ namespace BuildXL.Cache.Host.Test
 
         // Source root with configuration files
         // ACTION: Clone CacheConfig repo to this path
-        private const string SourceRoot = TestPathRoot + @"\src";
+        private const string SourceRoot = TestPathRoot + @"\src\dev";
 
         // Drop read token
         // ACTION: Generate this from Azure DevOps PAT page
@@ -62,10 +66,12 @@ namespace BuildXL.Cache.Host.Test
         // ACTION: Retrieve this from the key vault above
         public const string AuthorizationSecret = "[INSERT VALUE HERE]";
 
-        public static readonly string LauncherSettingsContent = @"
+
+        public static string LauncherSettingsContent(string machine) => DetokenizeMachine(machine:machine, value: @"
 {
   'DeploymentParameters': {
     'Environment': 'Dev',
+    'Machine': '{Machine}',
     'Stamp': 'CO_J1',
     'Ring': 'Ring_0',
     'Region': 'CO',
@@ -77,7 +83,7 @@ namespace BuildXL.Cache.Host.Test
   'ServiceUrl': 'http://localhost:5000/Deployment',
   'QueryIntervalSeconds': 1,
   //'ServiceLifetimePollingIntervalSeconds': 1,
-  'TargetDirectory': '{TestPathRoot}/launcher',
+  'TargetDirectory': '{TestPathRoot}/{Machine}/launcher',
   //'DownloadConcurrency': 4,
   'RetentionSizeGb': 5
 }
@@ -86,8 +92,8 @@ namespace BuildXL.Cache.Host.Test
     .Replace("'", "\"")
     .Replace("{AuthorizationSecret}", AuthorizationSecret)
     // ACTION: Set this to false to actually download files
-    .Replace("{GetContentInfoOnly}", "true")
-    .Replace("{TestPathRoot}", TestPathRoot.Replace('\\', '/'));
+    .Replace("{GetContentInfoOnly}", "false")
+    .Replace("{TestPathRoot}", TestPathRoot.Replace('\\', '/')));
 
         // Path to drop.exe
         // ACTION: This can be obtained by running drop.cmd in BuildXL root
@@ -95,7 +101,7 @@ namespace BuildXL.Cache.Host.Test
         private const string DropExePath = BuildXLPathRoot + @"\Out\SelfHost\Drop.App\lib\net45\drop.exe";
 
         // Computed values
-        private const string LauncherSettingsPath = TestPathRoot + @"\LauncherSettings.json";
+        private static string LauncherSettingsPath(string machine) => DetokenizeMachine(TestPathRoot + @"\{Machine}.LauncherSettings.json", machine);
         private const string DeploymentRoot = TestPathRoot + @"\root";
 
 #if RUNLAUNCHERTESTS
@@ -107,11 +113,10 @@ namespace BuildXL.Cache.Host.Test
         {
             using var cts = new CancellationTokenSource();
 
-            UpdateLauncherSettings();
+            UpdateLauncherSettings("M1");
+            UpdateLauncherSettings("M2");
 
             RunIngester(cts.Token);
-
-            //RunCacheService(cts.Token);
 
             var testHost = new TestHost();
 
@@ -119,20 +124,53 @@ namespace BuildXL.Cache.Host.Test
 
             var depServiceTask = StartDeploymentServiceAsync(cts.Token);
 
-            var launcherTask = StartLauncherAsync(cts.Token);
+            var launcher1Task = StartLauncherAsync("M1", cts.Token);
 
-            await launcherTask;
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            var launcher2Task = StartLauncherAsync("M2", cts.Token);
+
+            await launcher1Task;
+            await launcher2Task;
             await depServiceTask;
-
-            //Program.Main(new[] { "launcher", @"-settingsPath:E:\bin\depsvc\LauncherSettings.json" });
         }
 
-        private static void UpdateLauncherSettings()
+        public static async Task<int> RunDeploymentProxyWithCacheServiceAsync(string[] args = null, CancellationToken token = default)
         {
-            File.WriteAllText(LauncherSettingsPath, LauncherSettingsContent);
+            try
+            {
+                await Task.Yield();
+
+                args ??= new[]
+                {
+                    "cacheService",
+                    "--cacheconfigurationPath", SourceRoot + @"\CacheConfiguration.json",
+                    "--proxyconfigurationPath", SourceRoot + @"\ProxyConfiguration.json",
+                    "--standalone", "true"
+                };
+#if NET_COREAPP
+                await DeploymentProgram.RunAsync(args, token);
+#endif
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception in RunDeploymentProxyWithCacheServiceAsync: " + ex.ToString());
+                return -1;
+            }
         }
 
-        public static async Task<int> RunCacheServiceAsync(CancellationToken token, string[] args = null)
+        private static string DetokenizeMachine(string value, string machine)
+        {
+            return value.Replace("{Machine}", machine);
+        }
+
+        private static void UpdateLauncherSettings(string machine)
+        {
+            File.WriteAllText(LauncherSettingsPath(machine), LauncherSettingsContent(machine));
+        }
+
+        public static async Task<int> RunCacheServiceAsync(string[] args = null, CancellationToken token = default)
         {
             args = args ?? new[]
             {
@@ -180,13 +218,13 @@ namespace BuildXL.Cache.Host.Test
 #endif
         }
 
-        public async Task StartLauncherAsync(CancellationToken token)
+        public async Task StartLauncherAsync(string machine, CancellationToken token)
         {
             //return;
             var result = await Program.RunAppAsync(new[]
             {
                 "launcher",
-                @"-settingsPath=" + LauncherSettingsPath,
+                @"-settingsPath=" + LauncherSettingsPath(machine),
                 @"-LogSeverity=Debug"
             },
             token);
@@ -206,7 +244,38 @@ namespace BuildXL.Cache.Host.Test
 
             public IDeploymentServiceClient CreateServiceClient()
             {
-                return DeploymentLauncherHost.Instance.CreateServiceClient();
+                return new Client(DeploymentLauncherHost.Instance.CreateServiceClient());
+            }
+
+            private class Client : IDeploymentServiceClient
+            {
+                private readonly IDeploymentServiceClient _inner;
+
+                public Client(IDeploymentServiceClient inner)
+                {
+                    _inner = inner;
+                }
+
+                public void Dispose()
+                {
+                    _inner.Dispose();
+                }
+
+                public Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
+                {
+                    return _inner.GetLaunchManifestAsync(context, settings);
+                }
+
+                public Task<string> GetProxyBaseAddress(OperationContext context, string serviceUrl, HostParameters parameters, string token)
+                {
+                    return _inner.GetProxyBaseAddress(context, serviceUrl, parameters, token);
+                }
+
+                public Task<Stream> GetStreamAsync(OperationContext context, string downloadUrl)
+                {
+                    var newDownloadUrl = downloadUrl.Replace("m1", "localhost");
+                    return _inner.GetStreamAsync(context, newDownloadUrl);
+                }
             }
         }
 
@@ -266,7 +335,11 @@ namespace BuildXL.Cache.Host.Test
                             Environment.SetEnvironmentVariable(envVar.Key, envVar.Value);
                         }
 
-                        var exitCode = await RunCacheServiceAsync(CancellationToken.None, AbstractParser.CommonSplitArgs(StartInfo.Arguments));
+                        var args = AbstractParser.CommonSplitArgs(StartInfo.Arguments);
+                        var exitCode = StartInfo.FileName.EndsWith("DepSvc.exe", StringComparison.OrdinalIgnoreCase)
+                            ? await RunDeploymentProxyWithCacheServiceAsync(args)
+                            : await RunCacheServiceAsync(args);
+
                         Exit(exitCode);
                     }
                     catch (Exception ex)

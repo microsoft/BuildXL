@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -33,5 +34,20 @@ namespace BuildXL.Cache.Host.Service
         /// Request a graceful shutdown of a current service instance.
         /// </summary>
         void RequestTeardown(string reason);
+    }
+
+    public interface IDistributedCacheServiceHostInternal : IDistributedCacheServiceHost
+    {
+        /// <summary>
+        /// Notifies host immediately before host is started and returns a task that completes when the service is ready to start
+        /// (for instance, the current service may wait for another service instance to stop).
+        /// </summary>
+        Task OnStartingServiceAsync(OperationContext context);
+
+        /// <summary>
+        /// Notifies host immediately before host is started and returns a task that completes when the service is ready to start
+        /// (for instance, the current service may wait for another service instance to stop).
+        /// </summary>
+        Task OnStoppingServiceAsync(OperationContext context);
     }
 }

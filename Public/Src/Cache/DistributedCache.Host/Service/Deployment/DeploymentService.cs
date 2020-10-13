@@ -18,12 +18,18 @@ using BuildXL.Cache.Host.Service;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
+using static BuildXL.Cache.Host.Service.DeploymentUtilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using System.Threading;
 using System.Text;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using JetBrains.Annotations;
+using BuildXL.Utilities.Collections;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Launcher.Server
 {
@@ -52,7 +58,12 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Map for getting expirable sas urls by storage account and hash 
         /// </summary>
-        private VolatileMap<(string storageName, string hash), AsyncLazy<string>> SasUrls { get; }
+        private VolatileMap<(string storageName, string hash), AsyncLazy<DownloadInfo>> SasUrls { get; }
+
+        /// <summary>
+        /// Map for getting expirable sas urls by a secret generated token used for retrieving the sas url
+        /// </summary>
+        private VolatileMap<string, string> SasUrlsByToken { get; }
 
         /// <summary>
         /// Map for getting expirable secrets by name, kind, and time to live
@@ -64,6 +75,8 @@ namespace BuildXL.Launcher.Server
         /// </summary>
         private VolatileMap<string, AsyncLazy<CentralStorage>> StorageAccountsBySecretName { get; }
 
+        private VolatileMap<string, Lazy<ProxyManager>> ProxyManagers { get; }
+
         private IClock Clock { get; }
 
         private ActionQueue UploadQueue { get; }
@@ -71,7 +84,9 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// The secrets provider used to get connection string secrets for storage accounts
         /// </summary>
-        private ISecretsProvider SecretsProvider { get; }
+        private Func<string, ISecretsProvider> SecretsProviderFactory { get; }
+
+        private VolatileMap<string, AsyncLazy<ISecretsProvider>> SecretsProvidersByUri { get; }
 
         /// <summary>
         /// For testing purposes only. Used to intercept call to create blob central storage
@@ -79,15 +94,18 @@ namespace BuildXL.Launcher.Server
         public Func<(string storageSecretName, AzureBlobStorageCredentials credentials), CentralStorage> OverrideCreateCentralStorage { get; set; }
 
         /// <nodoc />
-        public DeploymentService(AbsolutePath deploymentRoot, ISecretsProvider secretsProvider, IClock clock, int uploadConcurrency = 1)
+        public DeploymentService(AbsolutePath deploymentRoot, Func<string, ISecretsProvider> secretsProviderFactory, IClock clock, int uploadConcurrency = 1)
         {
             DeploymentRoot = deploymentRoot;
             Clock = clock;
-            SecretsProvider = secretsProvider;
+            SecretsProviderFactory = secretsProviderFactory;
             StorageAccountsBySecretName = new VolatileMap<string, AsyncLazy<CentralStorage>>(clock);
-            SasUrls = new VolatileMap<(string storageName, string hash), AsyncLazy<string>>(clock);
+            SecretsProvidersByUri = new VolatileMap<string, AsyncLazy<ISecretsProvider>>(clock);
+            SasUrls = new VolatileMap<(string storageName, string hash), AsyncLazy<DownloadInfo>>(clock);
+            SasUrlsByToken = new VolatileMap<string, string>(clock);
             CachedDeploymentInfo = new VolatileMap<UnitValue, (DeploymentManifest manifest, string configJson)>(clock);
             CachedSecrets = new VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>>(clock);
+            ProxyManagers = new VolatileMap<string, Lazy<ProxyManager>>(clock);
 
             UploadQueue = new ActionQueue(uploadConcurrency);
         }
@@ -109,10 +127,13 @@ namespace BuildXL.Launcher.Server
                         throw new UnauthorizedAccessException($"Secret names do not match: Expected='{string.Join(", ", deployConfig.AuthorizationSecretNames)}' Actual='{parameters.AuthorizationSecretName}'");
                     }
 
-                    var secret = await GetSecretAsync(context, new SecretConfiguration()
+                    var secretsProvider = GetSecretsProvider(deployConfig.KeyVaultUri);
+
+                    var secret = await GetSecretAsync(context, secretsProvider, new SecretConfiguration()
                     {
                         Name = parameters.AuthorizationSecretName,
-                        TimeToLiveMinutes = deployConfig.AuthorizationSecretTimeToLiveMinutes
+                        TimeToLive = deployConfig.AuthorizationSecretTimeToLive,
+                        Kind = SecretKind.PlainText
                     });
 
                     if (secret != parameters.AuthorizationSecret)
@@ -121,9 +142,22 @@ namespace BuildXL.Launcher.Server
                     }
 
                     return BoolResult.Success;
-                });
+                },
+                extraStartMessage: $"{parameters} SecretName={parameters.AuthorizationSecretName}",
+                extraEndMessage: r => $"{parameters} SecretName={parameters.AuthorizationSecretName}");
 
             return result.Succeeded;
+        }
+
+        private ISecretsProvider GetSecretsProvider(string keyVaultUri)
+        {
+            AsyncLazy<ISecretsProvider> lazySecretsProvider = GetOrAddExpirableAsyncLazy<string, ISecretsProvider>(
+                SecretsProvidersByUri,
+                keyVaultUri,
+                TimeSpan.FromHours(2),
+                () => Task.FromResult(SecretsProviderFactory?.Invoke(keyVaultUri)));
+
+            return lazySecretsProvider.Value;
         }
 
         /// <summary>
@@ -134,7 +168,6 @@ namespace BuildXL.Launcher.Server
             int pendingFiles = 0;
             int totalFiles = 0;
             int completedFiles = 0;
-            int pendingSecrets = 0;
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
@@ -149,36 +182,73 @@ namespace BuildXL.Launcher.Server
                     resultManifest.Tool = deployConfig.Tool;
                     resultManifest.Drops = deployConfig.Drops;
 
-                    var storage = await LoadStorageAsync(context, deployConfig.AzureStorageSecretInfo);
+                    var secretsProvider = GetSecretsProvider(deployConfig.KeyVaultUri);
 
-                    foreach (var drop in deployConfig.Drops)
+                    if (deployConfig.Tool?.SecretEnvironmentVariables != null)
                     {
-                        if (drop.Url == null)
+                        // Populate environment variables from secrets.
+                        foreach (var secretEnvironmentVariable in deployConfig.Tool.SecretEnvironmentVariables)
                         {
-                            continue;
+                            // Default to using environment variable name as the secret name
+                            secretEnvironmentVariable.Value.Name ??= secretEnvironmentVariable.Key;
+
+                            var secretValue = await GetSecretAsync(context, secretsProvider, secretEnvironmentVariable.Value);
+                            resultManifest.Tool.EnvironmentVariables[secretEnvironmentVariable.Key] = secretValue;
+
+                            if (secretEnvironmentVariable.Value.Kind == SecretKind.SasToken)
+                            {
+                                // Currently, all sas tokens are assumed to be storage secrets
+                                // This is passed so that EnvironmentVariableHost can interpret the secret
+                                // as a connection string and create a sas token on demand
+                                resultManifest.Tool.EnvironmentVariables[$"{secretEnvironmentVariable.Key}_ResourceType"] = "storagekey";
+                            }
                         }
 
-                        var dropLayout = deploymentManifest.Drops[drop.Url];
-                        foreach (var fileEntry in dropLayout)
+                        var secretsContentId = ComputeContentId(JsonSerialize(resultManifest.Tool.EnvironmentVariables));
+
+                        // NOTE: We append the content id so that we can distinguish purely secrets changes in logging
+                        resultManifest.ContentId += $"_{secretsContentId}";
+                    }
+
+                    var storage = await LoadStorageAsync(context, secretsProvider, deployConfig.AzureStorageSecretInfo);
+
+                    var proxyBaseAddress = GetProxyBaseAddress(context, () => deployConfig, parameters);
+                    
+                    var filesAndTargetPaths = deployConfig.Drops
+                        .Where(drop => drop.Url != null)
+                        .SelectMany(drop => deploymentManifest.Drops[drop.Url]
+                            .Select(fileEntry => (fileSpec: fileEntry.Value, targetPath: Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key))))
+                        .ToList();
+
+                    if (deployConfig.Proxy != null)
+                    {
+                        // If proxy is enabled, add deployment configuration file to deployment so it can be read by
+                        // deployment proxy service
+                        filesAndTargetPaths.Add((
+                            deploymentManifest.GetDeploymentConfigurationSpec(),
+                            deployConfig.Proxy.TargetRelativePath));
+                    }
+
+                    foreach ((var fileSpec, var targetPath) in filesAndTargetPaths)
+                    {
+                        // Queue file for deployment
+                        uploadTasks.Add(ensureUploadedAndGetEntry());
+
+                        async Task<(string targetPath, FileSpec entry)> ensureUploadedAndGetEntry()
                         {
-                            // Queue file for deployment
-                            uploadTasks.Add(ensureUploadedAndGetEntry());
+                            var downloadInfo = parameters.GetContentInfoOnly
+                                ? null
+                                : await EnsureUploadedAndGetDownloadUrlAsync(context, fileSpec, deployConfig, storage);
 
-                            async Task<(string targetPath, FileSpec entry)> ensureUploadedAndGetEntry()
+                            var downloadUrl = downloadInfo?.GetUrl(context, hash: fileSpec.Hash, proxyBaseAddress: proxyBaseAddress);
+
+                            // Compute and record path in final layout
+                            return (targetPath, new FileSpec()
                             {
-                                var downloadUrl = parameters.GetContentInfoOnly
-                                    ? null
-                                    : await EnsureUploadedAndGetDownloadUrlAsync(context, fileEntry.Value, deployConfig, storage);
-
-                                // Compute and record path in final layout
-                                var targetPath = Path.Combine(drop.TargetRelativePath ?? string.Empty, fileEntry.Key);
-                                return (targetPath, new FileSpec()
-                                {
-                                    Hash = fileEntry.Value.Hash,
-                                    Size = fileEntry.Value.Size,
-                                    DownloadUrl = downloadUrl
-                                });
-                            }
+                                Hash = fileSpec.Hash,
+                                Size = fileSpec.Size,
+                                DownloadUrl = downloadUrl
+                            });
                         }
                     }
 
@@ -207,70 +277,100 @@ namespace BuildXL.Launcher.Server
                         }
                     }
 
-                    if (deployConfig.Tool?.SecretEnvironmentVariables != null)
-                    {
-                        // Populate environment variables from secrets.
-                        foreach (var secretEnvironmentVariable in deployConfig.Tool.SecretEnvironmentVariables)
-                        {
-                            var secretTask = GetSecretAsync(context, secretEnvironmentVariable.Value);
-                            if (secretTask.IsCompleted || waitForCompletion)
-                            {
-                                var secretValue = await secretTask;
-                                resultManifest.Tool.EnvironmentVariables[secretEnvironmentVariable.Key] = secretValue;
-                            }
-                            else
-                            {
-                                pendingSecrets++;
-                            }
-                        }
-                    }
-
-                    resultManifest.IsComplete = pendingFiles == 0 && pendingSecrets == 0;
+                    resultManifest.IsComplete = pendingFiles == 0;
 
                     return Result.Success(resultManifest);
                 },
                 extraStartMessage: $"Machine={parameters.Machine} Stamp={parameters.Stamp} Wait={waitForCompletion}",
-                extraEndMessage: r => $"Machine={parameters.Machine} Stamp={parameters.Stamp} Id={r.GetValueOrDefault()?.ContentId} Drops={r.GetValueOrDefault()?.Drops.Count ?? 0} Files[Total={totalFiles}, Pending={pendingFiles}, Completed={completedFiles}] PendingSecrets={pendingSecrets} Wait={waitForCompletion}"
+                extraEndMessage: r => $"Machine={parameters.Machine} Stamp={parameters.Stamp} Id=[{r.GetValueOrDefault()?.ContentId}] Drops={r.GetValueOrDefault()?.Drops.Count ?? 0} Files[Total={totalFiles}, Pending={pendingFiles}, Completed={completedFiles}] Wait={waitForCompletion}"
                 ).ThrowIfFailureAsync();
         }
 
-        private Task<string> GetSecretAsync(OperationContext context, SecretConfiguration secretInfo)
+        public string GetProxyBaseAddress(OperationContext context, HostParameters parameters)
         {
-            AsyncLazy<string> lazySecret = GetOrAddExpirableAsyncLazy<(string, SecretKind), string>(
-                CachedSecrets,
-                (secretInfo.Name, SecretKind.PlainText),
-                TimeSpan.FromMinutes(secretInfo.TimeToLiveMinutes),
+            return GetProxyBaseAddress(
+                context,
+                () => ReadDeploymentConfiguration(parameters, out _, out _),
+                parameters,
+                // Return service url to route content requests to this service if this is a seed machine
+                getDefaultBaseAddress: config => config.Proxy.ServiceConfiguration.DeploymentServiceUrl);
+        }
+
+        private string GetProxyBaseAddress(OperationContext context, Func<DeploymentConfiguration> getConfiguration, HostParameters parameters, Func<DeploymentConfiguration, string> getDefaultBaseAddress = null)
+        {
+            return context.PerformOperation(
+                Tracer,
                 () =>
                 {
-                    return context.PerformOperationAsync(
+                    var configuration = getConfiguration();
+                    if (configuration.Proxy == null)
+                    {
+                        return new Result<string>(null, isNullAllowed: true);
+                    }
+
+                    var proxyManager = GetOrAddExpirableLazy(
+                        ProxyManagers,
+                        parameters.Stamp + configuration.Proxy.Domain,
+                        configuration.Proxy.ServiceConfiguration.ProxyAddressTimeToLive,
+                        () => new ProxyManager(configuration));
+
+                    return new Result<string>(proxyManager.GetBaseAddress(parameters) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
+                },
+                messageFactory: r => $"BaseAddress={r.GetValueOrDefault()}").Value;
+        }
+
+        private Task<string> GetSecretAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration secretInfo)
+        {
+            AsyncLazy<string> lazySecret = GetOrAddExpirableAsyncLazy(
+                CachedSecrets,
+                (secretInfo.Name, secretInfo.Kind),
+                secretInfo.TimeToLive,
+                () =>
+                {
+                    return context.PerformOperationAsync<Result<string>>(
                         Tracer,
                         async () =>
                         {
-                            return Result.Success(await SecretsProvider.GetPlainSecretAsync(secretInfo.Name, context.Token));
+                            var secretValue = await secretsProvider.GetPlainSecretAsync(secretInfo.Name, context.Token);
+
+                            if (secretInfo.Kind == SecretKind.SasToken)
+                            {
+                                // The logic below relies on conventions used for sas token secrets:
+                                // 1. Secret name is same as account + "-sas"
+                                // 2. Secret value is access key (NOT full connection string)
+                                Contract.Assert(secretInfo.Name.EndsWith("-sas", StringComparison.OrdinalIgnoreCase), "Convention requires that secret name is account name suffixed with '-sas'.");
+
+                                if (!secretValue.StartsWith("DefaultEndpointProtocol="))
+                                {
+                                    var accountName = secretInfo.Name.Substring(0, secretInfo.Name.Length - 4 /* Subtract length of '-sas' suffix */);
+                                    secretValue = $"DefaultEndpointsProtocol=https;AccountName={accountName};AccountKey={secretValue};EndpointSuffix=core.windows.net";
+                                }
+                            }
+
+                            return Result.Success<string>(secretValue);
                         },
-                        extraEndMessage: r => $"Name={secretInfo.Name} TimeToLiveMinutes={secretInfo.TimeToLiveMinutes}").ThrowIfFailureAsync();
+                        extraEndMessage: r => $"Name={secretInfo.Name} TimeToLiveMinutes={secretInfo.TimeToLive}").ThrowIfFailureAsync();
                 });
 
             return lazySecret.GetValueAsync();
         }
 
-        private Task<CentralStorage> LoadStorageAsync(OperationContext context, SecretConfiguration storageSecretInfo)
+        private Task<CentralStorage> LoadStorageAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration storageSecretInfo)
         {
             AsyncLazy<CentralStorage> lazyCentralStorage = GetOrAddExpirableAsyncLazy<string, CentralStorage>(
                 StorageAccountsBySecretName,
                 storageSecretInfo.Name,
-                TimeSpan.FromMinutes(storageSecretInfo.TimeToLiveMinutes),
+                storageSecretInfo.TimeToLive,
                 async () =>
                 {
-                    var credentials = await SecretsProvider.GetBlobCredentialsAsync(
-                        storageSecretInfo.Name,
-                        useSasTokens: false,
-                        context.Token);
+                    var secretValue = await GetSecretAsync(context, secretsProvider, storageSecretInfo);
+
+                    var credentials = new AzureBlobStorageCredentials(new PlainTextSecret(secretValue));
 
                     CentralStorage centralStorage = OverrideCreateCentralStorage?.Invoke((storageSecretInfo.Name, credentials))
-                    ?? new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
-                        containerName: "deploymentfiles",
-                        checkpointsKey: "N/A"));
+                        ?? new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
+                            containerName: "deploymentfiles",
+                            checkpointsKey: "N/A"));
 
                     await centralStorage.StartupAsync(context).ThrowIfFailure();
 
@@ -283,51 +383,80 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Ensures the given file under the deployment root is uploaded to the specified storage account and returns the download url
         /// </summary>
-        private Task<string> EnsureUploadedAndGetDownloadUrlAsync(OperationContext context, FileSpec value, DeploymentConfiguration configuration, CentralStorage storage)
+        private Task<DownloadInfo> EnsureUploadedAndGetDownloadUrlAsync(OperationContext context, FileSpec value, DeploymentConfiguration configuration, CentralStorage storage)
         {
-            var sasUrlTimeToLive = TimeSpan.FromMinutes(configuration.SasUrlTimeToLiveMinutes);
+            var sasUrlTimeToLive = configuration.SasUrlTimeToLive;
             var key = (configuration.AzureStorageSecretInfo.Name, value.Hash);
-            AsyncLazy<string> lazySasUrl = GetOrAddExpirableAsyncLazy(
+            AsyncLazy<DownloadInfo> lazySasUrl = GetOrAddExpirableAsyncLazy(
                 SasUrls,
                 key,
                 sasUrlTimeToLive,
                 async () =>
                 {
-                    try
+                    var downloadUrl = await UploadQueue.RunAsync(async () =>
                     {
-                        await Task.Yield();
-
-                        var relativePath = DeploymentUtilities.GetContentRelativePath(new ContentHash(value.Hash)).ToString();
-
-                        var now = Clock.UtcNow;
-                        var expiry = now + sasUrlTimeToLive.Multiply(2);
-                        var result = await storage.TryGetSasUrlAsync(context, relativePath, expiry: expiry);
-                        if (result.Succeeded)
+                        try
                         {
-                            return result.Value;
+                            var relativePath = DeploymentUtilities.GetContentRelativePath(new ContentHash(value.Hash)).ToString();
+
+                            var now = Clock.UtcNow;
+                            var expiry = now + sasUrlTimeToLive.Multiply(2);
+                            var result = await storage.TryGetSasUrlAsync(context, relativePath, expiry: expiry);
+                            if (result.Succeeded)
+                            {
+                                return result.Value;
+                            }
+
+                            await storage.UploadFileAsync(context, DeploymentRoot / relativePath, relativePath).ThrowIfFailure();
+
+                            // NOTE: We compute the expiry to be 2x the desired expiry such that if returned from cache
+                            // the URL will definitely live for at least SasUrlTimeToLive
+                            expiry = now + sasUrlTimeToLive.Multiply(2);
+                            return await storage.TryGetSasUrlAsync(context, relativePath, expiry: expiry).ThrowIfFailureAsync();
                         }
+                        catch
+                        {
+                            SasUrls.Invalidate(key);
+                            throw;
+                        }
+                    });
 
-                        await storage.UploadFileAsync(context, DeploymentRoot / relativePath, relativePath).ThrowIfFailure();
-
-                        // NOTE: We compute the expiry to be 2x the desired expiry such that if returned from cache
-                        // the URL will definitely live for at least SasUrlTimeToLive
-                        expiry = now + sasUrlTimeToLive.Multiply(2);
-                        return await storage.TryGetSasUrlAsync(context, relativePath, expiry: expiry).ThrowIfFailureAsync();
-                    }
-                    catch
-                    {
-                        SasUrls.Invalidate(key);
-                        throw;
-                    }
+                    var downloadInfo = new DownloadInfo(downloadUrl);
+                    SasUrlsByToken.TryAdd(
+                        downloadInfo.AccessToken,
+                        downloadInfo.DownloadUrl,
+                        // Ensure token outlives sas url
+                        sasUrlTimeToLive.Multiply(1.5));
+                    return downloadInfo;
                 });
 
             return lazySasUrl.GetValueAsync();
         }
 
         /// <summary>
+        /// Attempts to get the storage sas url given the token
+        /// </summary>
+        public Result<string> TryGetDownloadUrl(OperationContext context, string token, string traceInfo)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    if (SasUrlsByToken.TryGetValue(token, out var sasUrl))
+                    {
+                        return Result.Success(sasUrl);
+                    }
+
+                    throw new UnauthorizedAccessException("Unable to find url for token");
+                },
+                extraStartMessage: traceInfo,
+                messageFactory: r => traceInfo);
+        }
+
+        /// <summary>
         /// Gets the deployment configuration based on the manifest, preprocesses it, and returns the deserialized value
         /// </summary>
-        private DeploymentConfiguration ReadDeploymentConfiguration(DeploymentParameters parameters, out DeploymentManifest manifest, out string contentId)
+        private DeploymentConfiguration ReadDeploymentConfiguration(HostParameters parameters, out DeploymentManifest manifest, out string contentId)
         {
             if (!CachedDeploymentInfo.TryGetValue(UnitValue.Unit, out var cachedValue))
             {
@@ -345,7 +474,7 @@ namespace BuildXL.Launcher.Server
             var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(parameters);
 
             var preprocessedConfigJson = preprocessor.Preprocess(cachedValue.configJson);
-            contentId = ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(preprocessedConfigJson)).ToHex().Substring(0, 16);
+            contentId = ComputeContentId(preprocessedConfigJson);
 
             var config = JsonSerializer.Deserialize<DeploymentConfiguration>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
 
@@ -354,6 +483,11 @@ namespace BuildXL.Launcher.Server
             manifest = cachedValue.manifest;
 
             return config;
+        }
+
+        private static string ComputeContentId(string value)
+        {
+            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex().Substring(0, 16);
         }
 
         private AsyncLazy<TValue> GetOrAddExpirableAsyncLazy<TKey, TValue>(
@@ -370,6 +504,76 @@ namespace BuildXL.Launcher.Server
             }
 
             return asyncLazyValue;
+        }
+
+        private TValue GetOrAddExpirableLazy<TKey, TValue>(
+            VolatileMap<TKey, Lazy<TValue>> map,
+            TKey key,
+            TimeSpan timeToLive,
+            Func<TValue> func)
+        {
+            Lazy<TValue> lazyValue;
+            while (!map.TryGetValue(key, out lazyValue))
+            {
+                lazyValue = new Lazy<TValue>(func);
+                map.TryAdd(key, lazyValue, timeToLive);
+            }
+
+            return lazyValue.Value;
+        }
+
+        private class ProxyManager
+        {
+            private readonly ConcurrentBigSet<string> _machines = new ConcurrentBigSet<string>();
+            private readonly DeploymentConfiguration _configuration;
+
+            public ProxyManager(DeploymentConfiguration configuration)
+            {
+                _configuration = configuration;
+            }
+
+            public string GetBaseAddress(HostParameters parameters)
+            {
+                var result = _machines.GetOrAdd(parameters.Machine);
+                var index = result.Index;
+                if (index < _configuration.Proxy.Seeds)
+                {
+                    // Seed machines do not use proxy. Instead they use the real storage SAS url
+                    return null;
+                }
+
+                int minProxyMachineIndexInclusive = index / _configuration.Proxy.FanOutFactor;
+                int maxProxyMachineIndexExclusive = Math.Min(index, minProxyMachineIndexInclusive + _configuration.Proxy.FanOutFactor);
+
+                int proxyMachineIndex = ThreadSafeRandom.Generator.Next(minProxyMachineIndexInclusive, maxProxyMachineIndexExclusive);
+                return new UriBuilder()
+                {
+                    Host = _machines[proxyMachineIndex],
+                    Port = _configuration.Proxy.ServiceConfiguration.Port
+                }.Uri.ToString();
+            }
+        }
+
+        private class DownloadInfo
+        {
+            public string DownloadUrl { get; }
+            public string AccessToken { get; }
+
+            public DownloadInfo(string downloadUrl)
+            {
+                DownloadUrl = downloadUrl;
+                AccessToken = ContentHash.Random().ToHex();
+            }
+
+            internal string GetUrl(Context context, string hash, [CanBeNull] string proxyBaseAddress)
+            {
+                if (proxyBaseAddress == null)
+                {
+                    return DownloadUrl;
+                }
+
+                return DeploymentProxyService.GetContentUrl(context, baseAddress: proxyBaseAddress, hash: hash, accessToken: AccessToken);
+            }
         }
     }
 }

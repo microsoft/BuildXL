@@ -45,9 +45,14 @@ namespace BuildXL.Cache.Host.Service
         Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings);
 
         /// <summary>
+        /// Retrieves the proxy address for the given machine
+        /// </summary>
+        Task<string> GetProxyBaseAddress(OperationContext context, string serviceUrl, HostParameters parameters, string token);
+
+        /// <summary>
         /// Retrieves stream for given file
         /// </summary>
-        Task<Stream> GetStreamAsync(OperationContext context, FileSpec fileInfo);
+        Task<Stream> GetStreamAsync(OperationContext context, string downloadUrl);
     }
 
     /// <summary>

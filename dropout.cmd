@@ -16,11 +16,19 @@ if NOT DEFINED ACCOUNT_NAME (
 	SET ACCOUNT_NAME=mseng
 )
 
+SET USE_FEATURE_NAME=%3
+
+if DEFINED USE_FEATURE_NAME (
+	SET DROP_NAME=%FEATURE_NAME%
+)
+
 if NOT DEFINED DROP_CONTENT_DIR (
     set DROP_CONTENT_DIR="%~dp0\out\bin"
 )
 
-SET DROP_NAME=%USERNAME%/%FEATURE_NAME%
+if NOT DEFINED DROP_NAME (
+	SET DROP_NAME=%USERNAME%/%FEATURE_NAME%
+)
 
 echo Creating drop %DROP_NAME%
 echo https://%ACCOUNT_NAME%.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/%DROP_NAME%

@@ -108,7 +108,7 @@ namespace BuildXL.Cache.Host.Service
             Store = new FileSystemContentStoreInternal(
                 fileSystem,
                 SystemClock.Instance,
-                DeploymentUtilities.GetCasRootPath(targetDirectory / "cas"),
+                DeploymentUtilities.GetCasRootPath(targetDirectory),
                 new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{settings.RetentionSizeGb}GB"))),
                 settings: new ContentStoreSettings()
                 {
@@ -316,7 +316,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 var hash = new ContentHash(fileInfo.Hash);
 
-                using (var downloadStream = await client.GetStreamAsync(context, fileInfo))
+                using (var downloadStream = await client.GetStreamAsync(context, fileInfo.DownloadUrl))
                 {
                     await Store.PutStreamAsync(
                         context,
@@ -415,7 +415,7 @@ namespace BuildXL.Cache.Host.Service
                                             return Result.Success(ProcessExitSource.TrySetResult(true));
                                         },
                                         caller: "ServiceExited",
-                                        messageFactory: r => $"ProcessId={RunningProcess.Id}, ServiceId={Manifest.Tool.ServiceId}, SetExit={r.Succeeded}").IgnoreFailure();
+                                        messageFactory: r => $"ProcessId={RunningProcess.Id}, ServiceId={Manifest.Tool.ServiceId}, ExitCode={RunningProcess.ExitCode}").IgnoreFailure();
                                 };
 
                                 RunningProcess.Start(context);
@@ -469,9 +469,8 @@ namespace BuildXL.Cache.Host.Service
                                 {
                                     using var registration = nestedContext.Token.Register(() =>
                                     {
-                                        ProcessExitSource.TrySetCanceled();
-
                                         TerminateService(context);
+                                        ProcessExitSource.TrySetCanceled();
                                     });
 
                                     await context.PerformOperationAsync(

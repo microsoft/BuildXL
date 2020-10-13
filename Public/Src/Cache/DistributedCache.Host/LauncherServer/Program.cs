@@ -12,13 +12,19 @@ namespace BuildXL.Launcher.Server
 {
     public class DeploymentProgram
     {
-        public static void Main(string[] args)
+        public static Task Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            return RunAsync(args, CancellationToken.None);
         }
 
         public static Task RunAsync(string[] args, CancellationToken token)
         {
+            if (args.ElementAtOrDefault(0)?.Equals("cacheService", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                args = args.Skip(1).ToArray();
+                return DeploymentProxyStartup.RunWithCacheServiceAsync(args, token);
+            }
+
             return CreateHostBuilder(args).Build().RunAsync(token);
         }
 
@@ -26,7 +32,7 @@ namespace BuildXL.Launcher.Server
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup<Startup>();
+                    webBuilder.UseStartup<DeploymentServiceStartup>();
                 });
     }
 }

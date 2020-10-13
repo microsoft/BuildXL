@@ -56,71 +56,15 @@ namespace BuildXL.Cache.ContentStore.App
             {
                 Validate();
 
-                var hostParameters = HostParameters.FromEnvironment();
-
-                var configJson = File.ReadAllText(configurationPath);
-                var configHash = ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex();
-
-                var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(hostParameters);
-
-                var preprocessedConfigJson = preprocessor.Preprocess(configJson);
-
-                var config = JsonSerializer.Deserialize<DistributedCacheServiceConfiguration>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
-
-                // TODO: Log CacheServiceConfiguration after initializing logger
-                var host = new EnvironmentVariableHost();
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken, host.TeardownCancellationTokenSource.Token);
-
-                var context = new OperationContext(new Context(_logger), cts.Token);
-                ServiceLifetimeManager.RunDeployedInterruptableServiceAsync(context, async token =>
-                {
-                    var hostInfo = new HostInfo(hostParameters.Stamp, hostParameters.Ring, new List<string>());
-
-                    await DistributedCacheServiceFacade.RunWithConfigurationAsync(
-                        logger: context.TracingContext.Logger,
-                        host: host,
-                        hostInfo: hostInfo,
-                        telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters) { ConfigurationId = configHash },
-                        config,
-                        token: token); ;
-
-                    return BoolResult.Success;
-                }).GetAwaiter().GetResult().ThrowIfFailure();
+                CacheServiceRunner.RunCacheServiceAsync(
+                    new OperationContext(new Context(_logger), _cancellationToken),
+                    configurationPath,
+                    (_, _, _) => new EnvironmentVariableHost()).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
                 throw;
-            }
-        }
-
-        private class HostTelemetryFieldsProvider : ITelemetryFieldsProvider
-        {
-            private readonly HostParameters _hostParmeters;
-
-            public string BuildId => "Unknown";
-
-            public string ServiceName { get; } = "CacheService";
-
-            public string APEnvironment => "Unknown";
-
-            public string APCluster => "None";
-
-            public string APMachineFunction => _hostParmeters.MachineFunction;
-
-            public string MachineName => Environment.MachineName;
-
-            public string ServiceVersion => "None";
-
-            public string Stamp => _hostParmeters.Stamp;
-
-            public string Ring => _hostParmeters.Ring;
-
-            public string ConfigurationId { get; set; } = "None";
-
-            public HostTelemetryFieldsProvider(HostParameters hostParameters)
-            {
-                _hostParmeters = hostParameters;
             }
         }
     }

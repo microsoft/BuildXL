@@ -44,12 +44,22 @@ namespace BuildXL.Cache.ContentStore.Service
         /// Runs an externally configured interruptable service whose service lifetime comes from environment variables set
         /// by parent process
         /// </summary>
-        public static Task<T> RunDeployedInterruptableServiceAsync<T>(OperationContext context, Func<CancellationToken, Task<T>> runAsync, Func<string, string>? getEnvironmentVariable = null)
+        public static Task<T> RunDeployedInterruptableServiceAsync<T>(
+            OperationContext context,
+            Func<CancellationToken, Task<T>> runAsync,
+            Func<string, string>? getEnvironmentVariable = null,
+            bool requireServiceInterruptionEnabled = true)
         {
             getEnvironmentVariable ??= name => Environment.GetEnvironmentVariable(name)!;
 
+            var signalFileRoot = getEnvironmentVariable(SignalFileRootVariableName);
+            if (!requireServiceInterruptionEnabled && string.IsNullOrEmpty(signalFileRoot))
+            {
+                return runAsync(context.Token);
+            }
+
             var lifetimeManager = new ServiceLifetimeManager(
-                new AbsolutePath(getEnvironmentVariable(SignalFileRootVariableName)),
+                new AbsolutePath(signalFileRoot),
                 TimeSpan.FromMilliseconds(double.Parse(getEnvironmentVariable(PollingIntervalVariableName))));
 
             var serviceId = getEnvironmentVariable(ServiceIdVariableName);

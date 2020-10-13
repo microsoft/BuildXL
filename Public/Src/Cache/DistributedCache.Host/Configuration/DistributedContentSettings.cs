@@ -971,7 +971,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// The map of drive paths to alternate paths to access them
         /// </summary>
         [DataMember]
-        private IDictionary<string, string> AlternateDriveMap { get; set; }
+        public Dictionary<string, string> AlternateDriveMap { get; set; } = new Dictionary<string, string>();
 
         [DataMember]
         public bool TouchContentHashLists { get; set; }
@@ -1003,18 +1003,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool? DistributedContentConsumerOnly { get; set; }
-
-        public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
-        {
-            if (AlternateDriveMap != null)
-            {
-                return new ReadOnlyDictionary<string, string>(AlternateDriveMap);
-            }
-            else
-            {
-                return new Dictionary<string, string>();
-            }
-        }
     }
 
     /// <summary>

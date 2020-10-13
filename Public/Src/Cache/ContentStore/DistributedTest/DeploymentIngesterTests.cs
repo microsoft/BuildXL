@@ -72,8 +72,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             'Url [Stamp:ST_S3]': 'file://Stamp3',
         }
     ],
-    'AzureStorageSecretInfo': { 'Name': 'myregionalStorage{Region:LA}', 'TimeToLiveMinutes':60 },
-    'SasUrlTimeToLiveMinutes': 3,
+    'AzureStorageSecretInfo': { 'Name': 'myregionalStorage{Region:LA}', 'TimeToLive':'60m' },
+    'SasUrlTimeToLive': '3m',
     'Tool [Environment:MyEnvRunningOnWindows]': {
         'Executable': 'bin/service.exe',
         'Arguments': 'myargs',
@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             }
 
             var clock = new MemoryClock();
-            var deploymentService = new DeploymentService(deploymentRoot, new TestSecretsProvider(), clock);
+            var deploymentService = new DeploymentService(deploymentRoot, _ => new TestSecretsProvider(), clock);
 
             BoxRef<Task> uploadFileCompletion = Task.CompletedTask;
 

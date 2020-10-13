@@ -117,7 +117,7 @@ namespace BuildXL.Cache.Host.Service
             return (
                     copier: grpcFileCopier,
                     pathTransformer: new GrpcDistributedPathTransformer(
-                        junctionsByDirectory: dcs.GetAutopilotAlternateDriveMap(),
+                        junctionsByDirectory: dcs.AlternateDriveMap,
                         logger: logger),
                     copyRequester: grpcFileCopier
                 );
@@ -147,16 +147,16 @@ namespace BuildXL.Cache.Host.Service
             using var disposableToken = loggerReplacement.DisposableToken;
 
             var context = new Context(arguments.Logger);
+            var operationContext = new OperationContext(context, arguments.Cancellation);
 
             InitializeActivityTrackerIfNeeded(context, arguments.Configuration.DistributedContentSettings);
 
             AdjustCopyInfrastructure(arguments);
 
-            await ReportStartingServiceAsync(context, host);
+            await ReportStartingServiceAsync(operationContext, host);
 
             var factory = new CacheServerFactory(arguments);
 
-            var operationContext = new OperationContext(context);
             ServiceOfflineDurationTracker serviceRunningTracker = null;
 
             // Technically, this method doesn't own the file copier, but no one actually owns it.
@@ -182,7 +182,7 @@ namespace BuildXL.Cache.Host.Service
 
                     serviceRunningTracker = serviceRunningTrackerResult.GetValueOrDefault();
                     await arguments.Cancellation.WaitForCancellationAsync();
-                    ReportShuttingDownService(context);
+                    await ReportShuttingDownServiceAsync(operationContext, host);
                 }
                 catch (Exception e)
                 {
@@ -222,10 +222,16 @@ namespace BuildXL.Cache.Host.Service
             LifetimeTrackerTracer.ServiceStartupFailed(context, exception, startupDuration);
         }
 
-        private static Task ReportStartingServiceAsync(Context context, IDistributedCacheServiceHost host)
+        private static async Task ReportStartingServiceAsync(OperationContext context, IDistributedCacheServiceHost host)
         {
             LifetimeTrackerTracer.StartingService(context);
-            return host.OnStartingServiceAsync();
+
+            if (host is IDistributedCacheServiceHostInternal hostInternal)
+            {
+                await hostInternal.OnStartingServiceAsync(context);
+            }
+
+            await host.OnStartingServiceAsync();
         }
 
         private static void ReportServiceStarted(
@@ -239,9 +245,14 @@ namespace BuildXL.Cache.Host.Service
             host.OnStartedService();
         }
 
-        private static void ReportShuttingDownService(Context context)
+        private static async Task ReportShuttingDownServiceAsync(OperationContext context, IDistributedCacheServiceHost host)
         {
             LifetimeTrackerTracer.ShuttingDownService(context);
+
+            if (host is IDistributedCacheServiceHostInternal hostInternal)
+            {
+                await hostInternal.OnStoppingServiceAsync(context);
+            }
         }
 
         private static void ReportServiceStopped(Context context, IDistributedCacheServiceHost host, BoolResult result, TimeSpan shutdownDuration)

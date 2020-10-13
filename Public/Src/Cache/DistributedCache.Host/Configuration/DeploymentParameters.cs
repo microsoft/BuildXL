@@ -10,6 +10,7 @@ namespace BuildXL.Cache.Host.Configuration
     {
         private const string HostPrefix = "BuildXL.Cache.Host.";
 
+        public string ServiceDir { get; set; }
         public string Environment { get; set; }
         public string Stamp { get; set; }
         public string Ring { get; set; }
@@ -21,6 +22,7 @@ namespace BuildXL.Cache.Host.Configuration
         {
             var result = new HostParameters()
             {
+                ServiceDir = getValue("ServiceDir"),
                 Environment = getValue("Environment"),
                 Stamp = getValue("Stamp"),
                 Ring = getValue("Ring"),
@@ -47,6 +49,7 @@ namespace BuildXL.Cache.Host.Configuration
             setValue("Machine", Machine);
             setValue("Region", Region);
             setValue("MachineFunction", MachineFunction);
+            setValue("ServiceDir", ServiceDir);
 
             void setValue(string name, string value)
             {
@@ -58,6 +61,11 @@ namespace BuildXL.Cache.Host.Configuration
 
             return env;
         }
+
+        public override string ToString()
+        {
+            return $"Machine={Machine} Stamp={Stamp}";
+        }
     }
 
     public class DeploymentParameters : HostParameters
@@ -66,10 +74,5 @@ namespace BuildXL.Cache.Host.Configuration
         public string AuthorizationSecretName { get; set; }
         public string AuthorizationSecret { get; set; }
         public bool GetContentInfoOnly { get; set; }
-
-        public override string ToString()
-        {
-            return $"Machine={Machine} Stamp={Stamp}";
-        }
     }
 }

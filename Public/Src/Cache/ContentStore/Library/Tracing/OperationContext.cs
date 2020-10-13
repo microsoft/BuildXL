@@ -72,14 +72,14 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public async Task<T> WithTimeoutAsync<T>(Func<OperationContext, Task<T>> func, TimeSpan timeout, Func<T> getTimeoutResult)
+        public async Task<T> WithTimeoutAsync<T>(Func<OperationContext, Task<T>> func, TimeSpan timeout, Func<T>? getTimeoutResult = null)
             where T : ResultBase
         {
             try
             {
                 return await PerformAsyncOperationWithTimeoutBuilder<T>.WithOptionalTimeoutAsync(func, timeout, this);
             }
-            catch (TimeoutException)
+            catch (TimeoutException) when (getTimeoutResult != null)
             {
                 return getTimeoutResult();
             }

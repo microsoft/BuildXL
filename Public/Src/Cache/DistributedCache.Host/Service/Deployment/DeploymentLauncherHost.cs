@@ -42,28 +42,46 @@ namespace BuildXL.Cache.Host.Service
 
         private class DeploymentServiceClient : IDeploymentServiceClient
         {
-            private HttpClient _client = new HttpClient();
+            private readonly HttpClient _client = new HttpClient();
 
             public async Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
             {
-                var requestContent = JsonSerializer.Serialize(settings.DeploymentParameters);
-
                 // Query for launcher manifest from remote service
+                var content = await PostJsonAsync(context, settings.ServiceUrl, settings.DeploymentParameters);
+                return JsonSerializer.Deserialize<LauncherManifest>(content, DeploymentUtilities.ConfigurationSerializationOptions);
+            }
+
+            public Task<Stream> GetStreamAsync(OperationContext context, string downloadUrl)
+            {
+                // TODO: retry?
+                return _client.GetStreamAsync(downloadUrl);
+            }
+
+            public Task<string> GetProxyBaseAddress(OperationContext context, string serviceUrl, HostParameters parameters, string token)
+            {
+                return PostJsonAsync(context, GetProxyBaseAddressQueryUrl(context, serviceUrl, token), parameters);
+            }
+
+            internal static string GetProxyBaseAddressQueryUrl(OperationContext context, string baseAddress, string token)
+            {
+                static string escape(string value) => Uri.EscapeDataString(value);
+
+                return $"{baseAddress}/getproxyaddress?contextId={escape(context.TracingContext.Id.ToString())}&token={escape(token)}";
+            }
+
+            private async Task<string> PostJsonAsync<TBody>(OperationContext context, string url, TBody body)
+            {
+                var requestContent = JsonSerializer.Serialize(body);
+
                 var response = await _client.PostAsync(
-                    settings.ServiceUrl,
+                    url,
                     new StringContent(requestContent, System.Text.Encoding.UTF8, "application/json"),
                     context.Token);
 
                 response.EnsureSuccessStatusCode();
 
                 var content = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<LauncherManifest>(content, DeploymentUtilities.ConfigurationSerializationOptions);
-            }
-
-            public Task<Stream> GetStreamAsync(OperationContext context, FileSpec fileInfo)
-            {
-                // TODO: retry?
-                return _client.GetStreamAsync(fileInfo.DownloadUrl);
+                return content;
             }
 
             public void Dispose()

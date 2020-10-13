@@ -60,9 +60,10 @@ namespace BuildXL.Storage.ChangeTracking
         /// Envelope for serialization
         /// </summary>
         /// <remarks>
-        /// 10: Added supersede mode.
+        /// 10: Added All supersede mode.
+        /// 11: Added FileAndParents supersede mode.
         /// </remarks>
-        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: nameof(FileChangeTracker), version: 10);
+        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: nameof(FileChangeTracker), version: 11);
 
         private int m_trackingStateValue;
 

@@ -1702,6 +1702,7 @@ namespace Test.BuildXL.Storage.Admin
         [TheoryIfSupported(requiresJournalScan: true)]
         [InlineData(FileChangeTrackerSupersedeMode.All)]
         [InlineData(FileChangeTrackerSupersedeMode.FileOnly)]
+        [InlineData(FileChangeTrackerSupersedeMode.FileAndParents)]
         public void SupersedeRetrackingEffectiveOnDirectoryDeletionInAllSupersede(FileChangeTrackerSupersedeMode supersedeMode)
         {
             const string Directory = @"D";
@@ -1725,7 +1726,8 @@ namespace Test.BuildXL.Storage.Admin
 
             DetectedChanges changedPaths = support.ProcessChanges();
 
-            if (supersedeMode == FileChangeTrackerSupersedeMode.All)
+            if (supersedeMode == FileChangeTrackerSupersedeMode.All
+                || supersedeMode == FileChangeTrackerSupersedeMode.FileAndParents)
             {
                 // Removal of Directory and File1 has been superseded. 
                 changedPaths.AssertChangedExactly(Removed(File2));
@@ -2271,7 +2273,7 @@ namespace Test.BuildXL.Storage.Admin
             }
         }
 
-        private ChangeDetectionSupport InitializeChangeDetectionSupport(FileChangeTrackerSupersedeMode supersedeMode = FileChangeTrackerSupersedeMode.All)
+        private ChangeDetectionSupport InitializeChangeDetectionSupport(FileChangeTrackerSupersedeMode supersedeMode = FileChangeTrackerSupersedeMode.FileAndParents)
         {
             var loggingContext = new LoggingContext("Dummy", "Dummy");
             VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);

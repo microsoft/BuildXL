@@ -30,7 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ScrubDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
-            FileChangeTrackerSupersedeMode = FileChangeTrackerSupersedeMode.All;
+            FileChangeTrackerSupersedeMode = FileChangeTrackerSupersedeMode.FileAndParents;
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
             TrackGvfsProjections = false;

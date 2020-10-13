@@ -619,19 +619,24 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Theory]
-        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        [InlineData(true, FileChangeTrackerSupersedeMode.FileOnly)]
+        [InlineData(true, FileChangeTrackerSupersedeMode.All)]
+        [InlineData(true, FileChangeTrackerSupersedeMode.FileAndParents)]
+        [InlineData(false, FileChangeTrackerSupersedeMode.FileOnly)]
+        [InlineData(false, FileChangeTrackerSupersedeMode.All)]
+        [InlineData(false, FileChangeTrackerSupersedeMode.FileAndParents)]
         public void ProducingNestedOutputDirectoryShouldNotInvalidateIncrementalScheduling(
             bool runPosixDeleteFirst,
-            bool supersedeAllPaths)
+            FileChangeTrackerSupersedeMode supersedeMode)
         {
             var outputDirectory = CreateOutputDirectoryArtifact();
-            var outputFileInOutputDirectory = CreateOutputFileArtifact(outputDirectory.Path.Combine(Context.PathTable, "nested"));
+            var outputFileInNestedOutputDirectory = CreateOutputFileArtifact(outputDirectory.Path.Combine(Context.PathTable, "nested"));
             var sourceFile = CreateSourceFile();
 
             var builder = CreatePipBuilder(new[]
             {
                 Operation.ReadFile(sourceFile),
-                Operation.WriteFile(outputFileInOutputDirectory, doNotInfer: true)
+                Operation.WriteFile(outputFileInNestedOutputDirectory, doNotInfer: true)
             });
             builder.AddOutputDirectory(outputDirectory, SealDirectoryKind.Opaque);
 
@@ -640,9 +645,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             var originalPosixDeleteMode = FileUtilities.PosixDeleteMode;
             FileUtilities.PosixDeleteMode = runPosixDeleteFirst ? PosixDeleteMode.RunFirst : PosixDeleteMode.NoRun;
 
-            Configuration.Engine.FileChangeTrackerSupersedeMode = supersedeAllPaths
-                ? FileChangeTrackerSupersedeMode.All
-                : FileChangeTrackerSupersedeMode.FileOnly;
+            Configuration.Engine.FileChangeTrackerSupersedeMode = supersedeMode;
 
             try
             {
@@ -662,7 +665,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
                 var runResult = RunScheduler(runNameOrDescription: "3rd Run");
 
-                if (supersedeAllPaths && runPosixDeleteFirst)
+                if (supersedeMode != FileChangeTrackerSupersedeMode.FileOnly && runPosixDeleteFirst)
                 {
                     runResult.AssertNotScheduled(process.PipId);
                 }

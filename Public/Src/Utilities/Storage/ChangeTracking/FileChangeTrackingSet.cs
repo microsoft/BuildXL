@@ -2592,7 +2592,7 @@ namespace BuildXL.Storage.ChangeTracking
                     isPathContainer = !isPrimaryPath || isPathContainer;
 
                     if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0
-                        && SupersedeMode == FileChangeTrackerSupersedeMode.FileOnly)
+                        && (SupersedeMode == FileChangeTrackerSupersedeMode.FileOnly || SupersedeMode == FileChangeTrackerSupersedeMode.FileAndParents))
                     {
                         bool superseding = !isPathContainer && updateMode == TrackingUpdateMode.Supersede;
 
@@ -2611,6 +2611,11 @@ namespace BuildXL.Storage.ChangeTracking
                                 path,
                                 addValue: identity.Usn,
                                 updateValueFactory: (p, existingSupersessionUsn) => new Usn(Math.Max(identity.Usn.Value, existingSupersessionUsn.Value)));
+
+                            if (SupersedeMode == FileChangeTrackerSupersedeMode.FileAndParents)
+                            {
+                                SupersedeParentPaths(path, identity);
+                            }
                         }
 
                         // This path (and therefore all parent paths, by construction) have already been tracked.
@@ -2717,6 +2722,30 @@ namespace BuildXL.Storage.ChangeTracking
                 }
 
                 return new FileChangeTrackingSubscription(path);
+            }
+
+            private void SupersedeParentPaths(AbsolutePath path, VersionedFileIdentity identity)
+            {
+                // Superseding parent paths does not work if parents belong to a different volume. However, it is fine to add
+                // an entry about that parent in the current volume's supersession limits because that supersession limit entry
+                // will never be considered during the journal scanning.
+                AbsolutePath parentPath = path.GetParent(m_internalPathTable);
+                HierarchicalNameId parentNameId = parentPath.Value;
+
+                foreach (HierarchicalNameId currentPathNameId in m_internalPathTable.EnumerateHierarchyBottomUp(parentNameId))
+                {
+                    (HierarchicalNameId nameId, HierarchicalNameTable.NameFlags flags) containerOfCurrentPathAndFlagsOfCurrentPath =
+                        m_internalPathTable.GetContainerAndFlags(currentPathNameId);
+
+                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0)
+                    {
+                        m_pathSupersessionLimits.AddOrUpdate(
+                            new AbsolutePath(currentPathNameId),
+                            addValue: identity.Usn,
+                            updateValueFactory: (p, existingSupersessionUsn) => new Usn(Math.Max(identity.Usn.Value, existingSupersessionUsn.Value)));
+                    }
+
+                }
             }
 
             private void AddRecordForFile(FileId fileId, Usn usn, AbsolutePath path)
@@ -3287,7 +3316,7 @@ namespace BuildXL.Storage.ChangeTracking
                 bool shouldSupersede =
                     respectSupersession                                                 // Supersession limit should be respected,
                     && (((currentFlags & Container) == 0)                               // and, path is a file
-                        || (SupersedeMode == FileChangeTrackerSupersedeMode.All         //      or superseding is applied to all paths,
+                        || (SupersedeMode != FileChangeTrackerSupersedeMode.FileOnly    //      or superseding is applied not only to file paths,
                             && (record.Reason & UsnChangeReasons.RenameOldName) == 0)); //         but change is not rename/move.
 
                 if (shouldSupersede)

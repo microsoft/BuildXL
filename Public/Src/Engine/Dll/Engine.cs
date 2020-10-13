@@ -1677,7 +1677,7 @@ namespace BuildXL.Engine
 
             // When failed, we cannot dispose the engine state in the DoRun method because its finally clause still need
             // the engine state (i.e., the pip table) to complete the stats logging.
-            result.DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition();
+            result.DisposePreviousEngineStateIfRequestedAndVerifyEngineStateTransition();
 
             if (!result.IsSuccess)
             {
@@ -1869,11 +1869,10 @@ namespace BuildXL.Engine
                                     if (!m_workerService.WaitForMasterAttach())
                                     {
                                         // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker
-                                        engineState?.Dispose();
                                         Contract.Assert(
                                             engineLoggingContext.ErrorWasLogged,
                                             "An error should have been logged during waiting for attaching to the master.");
-                                        return BuildXLEngineResult.Create(success: false, perfInfo: null, previousState: engineState, newState: null);
+                                        return BuildXLEngineResult.Failed(engineState);
                                     }
                                 }
 
@@ -2185,7 +2184,12 @@ namespace BuildXL.Engine
 
             ValidateSuccessMatches(success, loggingContext);
 
-            return BuildXLEngineResult.Create(success, m_enginePerformanceInfo, previousState: engineState, newState: newEngineState);
+            return BuildXLEngineResult.Create(
+                success,
+                m_enginePerformanceInfo,
+                previousState: engineState,
+                newState: newEngineState,
+                shouldDisposePreviousEngineState: false /* Engine state can still be usable. */);
         }
 
         internal static void CheckArtifactFolersAndEmitNoIndexWarning(PathTable pathTable, LoggingContext loggingContext, params AbsolutePath[] paths)
@@ -3479,12 +3483,23 @@ namespace BuildXL.Engine
         /// </summary>
         public readonly EngineState PreviousEngineState;
 
-        private BuildXLEngineResult(bool success, EngineState engineState, EngineState previousEngineState,  EnginePerformanceInfo enginePerformanceInfo)
+        /// <summary>
+        /// If true and <see cref="PreviousEngineState"/> is non-null, then <see cref="PreviousEngineState"/> should be disposed.
+        /// </summary>
+        private readonly bool m_shouldDisposePreviousEngineState;
+
+        private BuildXLEngineResult(
+            bool success,
+            EngineState engineState,
+            EngineState previousEngineState,
+            EnginePerformanceInfo enginePerformanceInfo,
+            bool shouldDisposePreviousEngineState)
         {
             IsSuccess = success;
             EngineState = engineState;
             PreviousEngineState = previousEngineState;
             EnginePerformanceInfo = enginePerformanceInfo;
+            m_shouldDisposePreviousEngineState = shouldDisposePreviousEngineState;
         }
 
         /// <summary>
@@ -3497,23 +3512,28 @@ namespace BuildXL.Engine
         /// </remarks>
         public static BuildXLEngineResult Failed(EngineState engineState)
         {
-            return Create(false, null, previousState: engineState, newState: null);
+            return Create(false, null, previousState: engineState, newState: null, shouldDisposePreviousEngineState: true);
         }
 
         /// <summary>
         /// Create a EngineResult with a given <see cref="EngineState" /> and success,
         /// </summary>
-        public static BuildXLEngineResult Create(bool success, EnginePerformanceInfo perfInfo, EngineState previousState, EngineState newState)
+        public static BuildXLEngineResult Create(
+            bool success,
+            EnginePerformanceInfo perfInfo,
+            EngineState previousState,
+            EngineState newState,
+            bool shouldDisposePreviousEngineState)
         {
-            return new BuildXLEngineResult(success, newState, previousState, perfInfo);
+            return new BuildXLEngineResult(success, newState, previousState, perfInfo, shouldDisposePreviousEngineState);
         }
 
         /// <summary>
-        /// Disposes <see cref="PreviousEngineState"/> if failed, and verify that engine state has the correct transition.
+        /// Disposes <see cref="PreviousEngineState"/> if requested, and verify that engine state has the correct transition.
         /// </summary>
-        public void DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition()
+        public void DisposePreviousEngineStateIfRequestedAndVerifyEngineStateTransition()
         {
-            if (!IsSuccess)
+            if (m_shouldDisposePreviousEngineState)
             {
                 // This ensures that previous engine state becomes unusable.
                 PreviousEngineState?.Dispose();

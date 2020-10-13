@@ -236,7 +236,7 @@ namespace BuildXL.Engine
         /// </summary>
         public void UpdateSchedulerState(Scheduler.Scheduler scheduler)
         {
-            m_schedulerState.Dispose();
+            m_schedulerState?.Dispose();
             m_schedulerState = new SchedulerState(scheduler);
         }
 
@@ -246,8 +246,8 @@ namespace BuildXL.Engine
         public void Dispose()
         {
             IsDisposed = true;
-            m_pipTable.Dispose();
-            m_schedulerState.Dispose();
+            m_pipTable?.Dispose();
+            m_schedulerState?.Dispose();
         }
 
         internal CachedGraphLoader TryLoad(

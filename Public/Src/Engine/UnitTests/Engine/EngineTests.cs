@@ -11,7 +11,6 @@ using BuildXL.Engine.Recovery;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Engine;
@@ -30,8 +29,9 @@ namespace Test.BuildXL.EngineTests
         {
         }
 
-        [Fact]
-        public void TestValidateEngineState()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void TestValidateEngineState(bool success)
         {
             EngineState stateA = EngineState.CreateDummy(disposed: false);
             EngineState stateB = EngineState.CreateDummy(disposed: false);
@@ -39,34 +39,46 @@ namespace Test.BuildXL.EngineTests
             EngineState nullState = null;
 
             // The new state can be null or valid if the previous state is an invalid value.
-            ValidateEngineStateCreation(disposedState, nullState, false);
-            ValidateEngineStateCreation(disposedState, stateA, false);
-            ValidateEngineStateCreation(nullState, nullState, false);
-            ValidateEngineStateCreation(nullState, stateA, false);
+            ValidateEngineStateCreation(success, disposedState, nullState, false);
+            ValidateEngineStateCreation(success, disposedState, stateA, false);
+            ValidateEngineStateCreation(success, nullState, nullState, false);
+            ValidateEngineStateCreation(success, nullState, stateA, false);
 
             // The new state can never be a disposed state
-            ValidateEngineStateCreation(nullState, disposedState, true);
-            ValidateEngineStateCreation(disposedState, disposedState, true);
-            ValidateEngineStateCreation(stateA, disposedState, true);
+            ValidateEngineStateCreation(success, nullState, disposedState, true);
+            ValidateEngineStateCreation(success, disposedState, disposedState, true);
+            ValidateEngineStateCreation(success, stateA, disposedState, true);
 
             // The previous & new states can match
-            ValidateEngineStateCreation(stateA, stateA, false);
+            ValidateEngineStateCreation(success, stateA, stateA, false);
 
             // New & Previous cannot both be valid and different
-            ValidateEngineStateCreation(stateA, stateB, true);
+            ValidateEngineStateCreation(success, stateA, stateB, true);
 
             // Previous cannot be valid is new is invalid
-            ValidateEngineStateCreation(stateA, disposedState, true);
-            ValidateEngineStateCreation(stateA, nullState, true);
+            ValidateEngineStateCreation(success, stateA, disposedState, true);
+            ValidateEngineStateCreation(success, stateA, nullState, true);
         }
 
-        private void ValidateEngineStateCreation(EngineState previousState, EngineState newState, bool violation)
+        [Fact]
+        public void TestEngineStateAgainstFailedBuildXLEngineResult()
+        {
+            EngineState state = EngineState.CreateDummy(disposed: false);
+            EngineState disposedState = EngineState.CreateDummy(disposed: true);
+            EngineState nullState = null;
+
+            ValidateFailedBuildXLEngineResult(state);
+            ValidateFailedBuildXLEngineResult(disposedState);
+            ValidateFailedBuildXLEngineResult(nullState);
+        }
+
+        private void ValidateEngineStateCreation(bool success, EngineState previousState, EngineState newState, bool violation)
         {
             bool contractViolation = false;
             try
             {
-                var result = BuildXLEngineResult.Create(true, null, previousState, newState);
-                result.DisposePreviousEngineStateIfFailedAndVerifyEngineStateTransition();
+                var result = BuildXLEngineResult.Create(true, null, previousState, newState, shouldDisposePreviousEngineState: false);
+                result.DisposePreviousEngineStateIfRequestedAndVerifyEngineStateTransition();
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch
@@ -76,6 +88,21 @@ namespace Test.BuildXL.EngineTests
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
 
             XAssert.AreEqual(violation, contractViolation);
+        }
+
+        private void ValidateFailedBuildXLEngineResult(EngineState state)
+        {
+            try
+            {
+                var result = BuildXLEngineResult.Failed(state);
+                result.DisposePreviousEngineStateIfRequestedAndVerifyEngineStateTransition();
+            }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch
+            {
+                XAssert.Fail();
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         /// <summary>

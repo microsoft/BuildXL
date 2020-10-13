@@ -70,6 +70,9 @@ namespace BuildXL.Scheduler
         private static readonly IComparer<ResourceScope> s_largestWorkingSetFirstComparer =
             Comparer<ResourceScope>.Create((s1, s2) => -s1.MemoryCounters.LastWorkingSetMb.CompareTo(s2.MemoryCounters.LastWorkingSetMb));
 
+        private static readonly IComparer<ResourceScope> s_largestCommitSizeFirstComparer =
+            Comparer<ResourceScope>.Create((s1, s2) => -s1.MemoryCounters.LastCommitSizeMb.CompareTo(s2.MemoryCounters.LastCommitSizeMb));
+
         /// <nodoc />
         public long TotalUsedWorkingSet { get; private set; }
 
@@ -163,6 +166,12 @@ namespace BuildXL.Scheduler
                 IComparer<ResourceScope> comparer;
                 switch (mode)
                 {
+                    case ManageMemoryMode.CancelSuspended:
+                        isEligible = (scope) => scope.IsSuspended;
+                        // When cancelling suspended processes, we start from the processes having the largest commit charge.
+                        comparer = s_largestCommitSizeFirstComparer;
+                        break;
+
                     case ManageMemoryMode.CancellationRam:
                     case ManageMemoryMode.CancellationCommit:
                         isEligible = (scope) => scope.CanCancel && scope.MemoryCounters.PeakWorkingSetMb != 0;
@@ -223,6 +232,7 @@ namespace BuildXL.Scheduler
                 {
                     case ManageMemoryMode.CancellationRam:
                     case ManageMemoryMode.CancellationCommit:
+                    case ManageMemoryMode.CancelSuspended:
                     {
                         sizeMb = mode == ManageMemoryMode.CancellationRam ? scope.MemoryCounters.LastWorkingSetMb : scope.MemoryCounters.LastCommitSizeMb;
 

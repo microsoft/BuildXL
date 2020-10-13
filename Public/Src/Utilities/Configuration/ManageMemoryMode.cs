@@ -32,5 +32,10 @@ namespace BuildXL.Utilities.Configuration
         /// Resume suspended processes
         /// </summary>
         Resume,
+
+        /// <summary>
+        /// Cancel suspended processes
+        /// </summary>
+        CancelSuspended
     }
 }

@@ -2561,6 +2561,7 @@ namespace BuildXL.Scheduler
             var resourceManager = State.ResourceManager;
             resourceManager.RefreshMemoryCounters();
 
+            ManageMemoryMode defaultManageMemoryMode = m_scheduleConfiguration.GetManageMemoryMode();
             MemoryResource memoryResource = MemoryResource.Available;
 
             // RAM (WORKINGSET) USAGE.
@@ -2580,7 +2581,8 @@ namespace BuildXL.Scheduler
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty
                 // sure there is a ram problem
-                if (perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value > 98)
+                bool isAvailableRamCritical = perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value >= 98;
+                if (isAvailableRamCritical)
                 {
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowRamMemory);
 
@@ -2599,6 +2601,13 @@ namespace BuildXL.Scheduler
                 if (exceededMaxRamUtilizationPercentage && underMinimumAvailableRam)
                 {
                     memoryResource |= MemoryResource.LowRam;
+                }
+                else if (isAvailableRamCritical && perfInfo.ModifiedPagelistPercentage > 50)
+                {
+                    // Ram >= 98% and ModifiedPageSet > 50%  
+                    // Thrashing is an issue
+                    memoryResource |= MemoryResource.LowRam;
+                    defaultManageMemoryMode = ManageMemoryMode.CancelSuspended;
                 }
             }
 
@@ -2654,8 +2663,6 @@ namespace BuildXL.Scheduler
 
             resourceManager.LastRequiredSizeMb = 0;
             resourceManager.LastManageMemoryMode = null;
-
-            var defaultManageMemoryMode = m_scheduleConfiguration.GetManageMemoryMode();
 
             if (isCommitCriticalLevel)
             {
@@ -2715,8 +2722,8 @@ namespace BuildXL.Scheduler
                     // Ensure percentage to free is in valid percent range [0, 100]
                     desiredRamPercentToFree = Math.Max(0, Math.Min(100, desiredRamPercentToFree));
 
-                    // Get the megabytes to free
-                    var desiredRamMbToFree = (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100;
+                    // Get the megabytes to free, at least 1MB so that we can suspend/cancel/emptyWorkingSet one pip
+                    var desiredRamMbToFree = Math.Min(1, (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100);
 
                     resourceManager.TryManageResources(desiredRamMbToFree, defaultManageMemoryMode);
                 }

@@ -678,6 +678,13 @@ namespace BuildXL.Utilities
             internal int? ModifiedPagelistMb;
 
             /// <summary>
+            /// Modified pagelist / TotalRAM
+            /// </summary>
+            internal int? ModifiedPagelistPercentage => TotalRamMb > 0 ?
+                (int)(100 * ((double)(ModifiedPagelistMb ?? 0) / TotalRamMb)):
+                0;
+
+            /// <summary>
             /// Effective Available RAM = Modified pagelist + Available RAM
             /// </summary>
             /// <remarks>

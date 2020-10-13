@@ -99,8 +99,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize,
-            CopyToOptions options)
+        public async Task<CopyFileResult> CopyToAsync(
+            OperationContext context,
+            AbsolutePath sourcePath,
+            Stream destinationStream,
+            long expectedContentSize,
+            CopyOptions options)
         {
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
@@ -133,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
         }
 
-        private void InvalidateResourceIfNeeded(Context context, CopyToOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
+        private void InvalidateResourceIfNeeded(Context context, CopyOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
         {
             if (!result)
             {
@@ -160,12 +164,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
             var targetPath = new AbsolutePath(targetMachine.Path);
             var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream));
+            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream, options));
         }
 
         /// <inheritdoc />

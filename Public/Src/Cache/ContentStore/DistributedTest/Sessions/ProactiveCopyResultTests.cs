@@ -24,7 +24,7 @@ namespace ContentStoreTest.Distributed.Sessions
         public void Diabled_Succeeded_Is_Succeeded()
         {
             var ringCopyResult = PushFileResult.Disabled();
-            var outsideRingCopyResult = PushFileResult.PushSucceeded();
+            var outsideRingCopyResult = PushFileResult.PushSucceeded(size: null);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeTrue();
@@ -41,7 +41,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var myDiagnostics = "My diagnostics";
             var myErrorMessage = "My error message";
             var ringCopyResult = new PushFileResult(myErrorMessage, myDiagnostics);
-            var outsideRingCopyResult = PushFileResult.PushSucceeded();
+            var outsideRingCopyResult = PushFileResult.PushSucceeded(size: null);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             // Even if one of the operations is successful, the overall operation is successful.
@@ -55,7 +55,7 @@ namespace ContentStoreTest.Distributed.Sessions
         public void Unavailable_Success_Is_Succeeded()
         {
             var ringCopyResult = PushFileResult.ServerUnavailable();
-            var outsideRingCopyResult = PushFileResult.PushSucceeded();
+            var outsideRingCopyResult = PushFileResult.PushSucceeded(size: null);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             result.Succeeded.Should().BeTrue();
@@ -84,7 +84,7 @@ namespace ContentStoreTest.Distributed.Sessions
         public void Reject_Succeeded_Is_Succeeded()
         {
             var ringCopyResult = PushFileResult.Rejected(RejectionReason.OlderThanLastEvictedContent);
-            var outsideRingCopyResult = PushFileResult.PushSucceeded();
+            var outsideRingCopyResult = PushFileResult.PushSucceeded(size: null);
             var result = new ProactiveCopyResult(ringCopyResult, outsideRingCopyResult, retries: 0);
 
             // Even if one of the operations is successful, the overall operation is successful.

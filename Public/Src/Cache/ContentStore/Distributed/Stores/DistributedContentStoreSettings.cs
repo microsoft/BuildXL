@@ -189,11 +189,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int RestrictedCopyReplicaCount { get; set; } = 3;
 
         /// <summary>
-        /// Time before a proactive copy times out.
-        /// </summary>
-        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
-
-        /// <summary>
         /// Time before the IO Gate stops waiting and throws a TimeoutException.
         /// </summary>
         public TimeSpan ProactiveCopyIOGateTimeout { get; set; } = TimeSpan.FromMinutes(15);

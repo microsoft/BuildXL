@@ -4,14 +4,15 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
 using Microsoft.Practices.TransientFaultHandling;
 
@@ -51,8 +52,11 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration() {
-                    GrpcCopyClientConfiguration = GrpcCopyClientConfiguration.WithGzipCompression(useCompressionForCopies),
+                var config = GrpcCopyClientConfiguration.WithGzipCompression(useCompressionForCopies);
+                config.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.Disabled;
+                using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration()
+                {
+                    GrpcCopyClientConfiguration = config
                 });
 
                 var finalPath = new AbsolutePath(destinationPath);
@@ -60,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var copyFileResult = clientCache.UseAsync(new OperationContext(context), host, grpcPort, (nestedContext, rpcClient) =>
                 {
                     return retryPolicy.ExecuteAsync(
-                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, options: null));
+                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, new CopyOptions(bandwidthConfiguration: null)));
                 }).GetAwaiter().GetResult();
 
                 if (!copyFileResult.Succeeded)

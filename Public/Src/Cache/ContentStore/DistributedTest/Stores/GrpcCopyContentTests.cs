@@ -3,12 +3,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -69,7 +68,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                (await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, options: null)).ShouldBeSuccess();
+                (await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
 
                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
@@ -104,7 +103,7 @@ namespace ContentStoreTest.Distributed.Stores
                     FileOptions.None,
                     1024))
                 {
-                    (await client.CopyToAsync(new OperationContext(_context), putResult.ContentHash, destinationStream, options: null)).ShouldBeSuccess();
+                    (await client.CopyToAsync(new OperationContext(_context), putResult.ContentHash, destinationStream, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
                     // If the stream is not disposed, the following operation should not fail.
                     destinationStream.Stream.Position.Should().BeGreaterThan(0);
                 }
@@ -143,7 +142,7 @@ namespace ContentStoreTest.Distributed.Stores
             await RunTestCase(async (rootPath, session, client) =>
             {
                 // Copy the file out via GRPC
-                var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null);
+                var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
 
                 Assert.False(copyFileResult.Succeeded);
                 Assert.Equal(CopyResultCode.FileNotFoundError, copyFileResult.Code);
@@ -170,7 +169,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
                 {
-                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), options: null);
+                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
                     Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
                     return Unit.Void;
                 });

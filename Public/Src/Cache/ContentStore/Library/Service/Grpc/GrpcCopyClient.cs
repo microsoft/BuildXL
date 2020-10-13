@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -17,7 +18,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Native.Processes;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -49,6 +52,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ContentServer.ContentServerClient _client;
         private readonly GrpcCopyClientConfiguration _configuration;
 
+        private readonly BandwidthChecker _bandwidthChecker;
+
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
 
@@ -72,6 +77,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 options: GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
 
             _client = new ContentServer.ContentServerClient(_channel);
+
+            _bandwidthChecker = new BandwidthChecker(configuration.BandwidthCheckerConfiguration);
         }
 
         /// <inheritdoc />
@@ -162,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, AbsolutePath destinationPath, CopyToOptions? options)
+        public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, AbsolutePath destinationPath, CopyOptions options)
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _configuration.ClientBufferSizeBytes, FileOptions.SequentialScan | FileOptions.Asynchronous);
 
@@ -172,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Stream stream, CopyToOptions? options)
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Stream stream, CopyOptions options)
         {
             // If a stream is passed from the outside this operation should not be closing it.
             return CopyToAsync(context, hash, () => stream, options, closeStream: false);
@@ -204,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        private async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, CopyToOptions? options, bool closeStream)
+        private async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, CopyOptions options, bool closeStream)
         {
             // Need to track shutdown to prevent invalid operation errors when the instance is used after it was shut down is called.
             using (var operationContext = TrackShutdown(context))
@@ -213,9 +220,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private TimeSpan GetResponseHeadersTimeout(CopyToOptions? options)
+        private TimeSpan GetResponseHeadersTimeout(CopyOptions options)
         {
-            var bandwidthConnectionTimeout = options?.BandwidthConfiguration?.ConnectionTimeout;
+            var bandwidthConnectionTimeout = options.BandwidthConfiguration?.ConnectionTimeout;
             if (bandwidthConnectionTimeout != null)
             {
                 return bandwidthConnectionTimeout.Value;
@@ -230,11 +237,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, CopyToOptions? options, Func<Stream> streamFactory, bool closeStream)
+        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, CopyOptions options, Func<Stream> streamFactory, bool closeStream)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var token = cts.Token;
 
+            TimeSpan? headerResponseTime = null;
+            CopyFileResult? result = null;
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
@@ -248,17 +257,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 using AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, options: GetDefaultGrpcOptions(token));
                 Metadata headers;
-
+                var stopwatch = StopwatchSlim.Start();
                 try
                 {
                     var connectionTimeout = GetResponseHeadersTimeout(options);
                     headers = await response.ResponseHeadersAsync.WithTimeoutAsync(connectionTimeout, token);
+                    headerResponseTime = stopwatch.Elapsed;
                 }
                 catch (TimeoutException t)
                 {
                     // Trying to cancel the back end operation as well.
                     cts.Cancel();
-                    return new CopyFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    result = new CopyFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    return result;
                 }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
@@ -267,7 +278,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // stream. To avoid that, exit early instead.
                 if (headers.Count == 0)
                 {
-                    return new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
+                    result = new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
+                    return result;
                 }
 
                 // Parse header collection.
@@ -297,9 +309,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     switch (exception)
                     {
                         case "ContentNotFound":
-                            return new CopyFileResult(CopyResultCode.FileNotFoundError, message);
+                            result = new CopyFileResult(CopyResultCode.FileNotFoundError, message);
+                            return result;
                         default:
-                            return new CopyFileResult(CopyResultCode.UnknownServerError, message);
+                            result = new CopyFileResult(CopyResultCode.UnknownServerError, message);
+                            return result;
                     }
                 }
 
@@ -311,9 +325,31 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 catch (Exception targetException)
                 {
-                    return new CopyFileResult(CopyResultCode.DestinationPathError, targetException);
+                    result = new CopyFileResult(CopyResultCode.DestinationPathError, targetException);
+                    return result;
                 }
 
+                result = await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
+                    context,
+                    innerToken => copyToCoreImplementation(closeStream, response, compression, targetStream, options, innerToken),
+                    options,
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
+
+                return result;
+            }
+            catch (RpcException r)
+            {
+                result = CreateResultFromException(r);
+                return result;
+            }
+            finally
+            {
+                Contract.AssertNotNull(result);
+                result.HeaderResponseTime = headerResponseTime;
+            }
+
+            async Task<CopyFileResult> copyToCoreImplementation(bool closeStream, AsyncServerStreamingCall<CopyFileResponse> response, CopyCompression compression, Stream targetStream, CopyOptions options, CancellationToken token)
+            {
                 // Copy the content to the target stream.
                 try
                 {
@@ -340,10 +376,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
 
                 return CopyFileResult.Success;
-            }
-            catch (RpcException r)
-            {
-                return CreateResultFromException(r);
             }
         }
 
@@ -381,13 +413,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream)
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, CopyOptions options)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var token = cts.Token;
 
+            TimeSpan? headerResponseTime = null;
+            PushFileResult? result = null;
             try
             {
+                var startingPosition = stream.Position;
+
                 var pushRequest = new PushRequest(hash, traceId: context.TracingContext.Id);
                 var headers = pushRequest.GetMetadata();
 
@@ -395,28 +431,33 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var requestStream = call.RequestStream;
                 Metadata responseHeaders;
 
+                var stopwatch = StopwatchSlim.Start();
                 try
                 {
-                    var timeout = GetResponseHeadersTimeout(options: null);
+                    var timeout = GetResponseHeadersTimeout(options);
                     responseHeaders = await call.ResponseHeadersAsync.WithTimeoutAsync(timeout, token);
+                    headerResponseTime = stopwatch.Elapsed;
                 }
                 catch (TimeoutException t)
                 {
                     cts.Cancel();
-                    return new PushFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    result = new PushFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    return result;
                 }
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
                 // header collection. To avoid an exception, exit early instead.
                 if (responseHeaders.Count == 0)
                 {
-                    return PushFileResult.ServerUnavailable();
+                    result = PushFileResult.ServerUnavailable();
+                    return result;
                 }
 
                 var pushResponse = PushResponse.FromMetadata(responseHeaders);
                 if (!pushResponse.ShouldCopy)
                 {
-                    return PushFileResult.Rejected(pushResponse.Rejection);
+                    result = PushFileResult.Rejected(pushResponse.Rejection);
+                    return result;
                 }
 
                 // If we get a response before we finish streaming, it must be that the server cancelled the operation.
@@ -436,7 +477,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         IgnoreObjectDisposedException(() => cts.Cancel());
                     });
 
-                await StreamContentAsync(stream, new byte[_configuration.ClientBufferSizeBytes], requestStream, token);
+                result = await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
+                    context,
+                    innerToken => pushFileImplementation(stream, options, startingPosition, requestStream, responseStream, responseMoveNext, responseCompletedTask, innerToken),
+                    options,
+                    getErrorResult: diagnostics => PushFileResult.BandwidthTimeout(diagnostics));
+                return result;
+            }
+            catch (RpcException r)
+            {
+                result = new PushFileResult(r);
+                return result;
+            }
+            finally
+            {
+                Contract.AssertNotNull(result);
+                result.HeaderResponseTime = headerResponseTime;
+            }
+
+            async Task<PushFileResult> pushFileImplementation(Stream stream, CopyOptions options, long startingPosition, IClientStreamWriter<PushFileRequest> requestStream, IAsyncStreamReader<PushFileResponse> responseStream, Task<bool> responseMoveNext, Task responseCompletedTask, CancellationToken token)
+            {
+                await StreamContentAsync(stream, new byte[_configuration.ClientBufferSizeBytes], requestStream, options, token);
 
                 token.ThrowIfCancellationRequested();
 
@@ -453,13 +514,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 var response = responseStream.Current;
 
+                var size = stream.Position - startingPosition;
+
                 return response.Header.Succeeded
-                    ? PushFileResult.PushSucceeded()
+                    ? PushFileResult.PushSucceeded(size)
                     : new PushFileResult(response.Header.ErrorMessage);
-            }
-            catch (RpcException r)
-            {
-                return new PushFileResult(r);
             }
         }
 
@@ -474,12 +533,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task StreamContentAsync(Stream input, byte[] buffer, IClientStreamWriter<PushFileRequest> requestStream, CancellationToken ct)
+        private async Task StreamContentAsync(Stream input, byte[] buffer, IClientStreamWriter<PushFileRequest> requestStream, CopyOptions options, CancellationToken ct)
         {
             Contract.Requires(!(input is null));
             Contract.Requires(!(requestStream is null));
 
             int chunkSize = 0;
+            long totalBytesRead = 0;
 
             // Pre-fill buffer with the file's first chunk
             await readNextChunk();
@@ -493,17 +553,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (chunkSize == 0) { break; }
 
+                totalBytesRead += chunkSize;
+
                 ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
                 var request = new PushFileRequest() { Content = content };
 
                 // Read the next chunk while waiting for the response
                 await Task.WhenAll(readNextChunk(), requestStream.WriteAsync(request));
+
+                options?.UpdateTotalBytesCopied(totalBytesRead);
             }
 
             async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
-        private async Task<(long chunks, long bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyToOptions? options, CancellationToken ct)
+        private async Task<(long chunks, long bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyOptions? options, CancellationToken ct)
         {
             long chunks = 0L;
             long bytes = 0L;
@@ -519,7 +583,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return (chunks, bytes);
         }
 
-        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyToOptions? options, CancellationToken ct)
+        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyOptions? options, CancellationToken ct)
         {
             long chunks = 0L;
             long bytes = 0L;

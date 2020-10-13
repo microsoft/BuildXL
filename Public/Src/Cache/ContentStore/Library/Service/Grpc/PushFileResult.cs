@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 #nullable enable
@@ -14,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// Represents a result of pushing a file.
     /// </summary>
-    public sealed class PushFileResult : ResultBase
+    public sealed class PushFileResult : ResultBase, ICopyResult
     {
         /// <nodoc />
         public CopyResultCode Status { get; }
@@ -34,8 +33,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             => CreateUnsuccessful(CopyResultCode.ServerUnavailable);
 
         /// <nodoc />
-        public static PushFileResult PushSucceeded()
-            => new PushFileResult(CopyResultCode.Success);
+        public static PushFileResult PushSucceeded(long? size)
+            => new PushFileResult(CopyResultCode.Success)
+            {
+                Size = size
+            };
 
         /// <nodoc />
         public static PushFileResult TimedOut()
@@ -57,11 +59,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public static PushFileResult Disabled()
             => CreateUnsuccessful(CopyResultCode.Disabled);
 
-        private static PushFileResult CreateUnsuccessful(CopyResultCode status)
+        /// <nodoc />
+        public static PushFileResult BandwidthTimeout(string diagnostics)
+            => CreateUnsuccessful(CopyResultCode.CopyBandwidthTimeoutError, diagnostics);
+
+        private static PushFileResult CreateUnsuccessful(CopyResultCode status, string? diagnostics = null)
         {
             Contract.Requires(status != CopyResultCode.Success);
 
-            return new PushFileResult(status, status.ToString());
+            return new PushFileResult(status, status.ToString(), diagnostics);
         }
 
         /// <inheritdoc />
@@ -107,6 +113,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public override bool Succeeded => Status.IsSuccess();
 
         /// <inheritdoc />
+        public double? MinimumSpeedInMbPerSec { get; set; }
+
+        /// <inheritdoc />
+        public long? Size { get; private set; }
+
+        /// <nodoc />
+        public TimeSpan? HeaderResponseTime { get; set; }
+
+        /// <inheritdoc />
         protected override string GetSuccessString() => Status.ToString();
 
         /// <nodoc />
@@ -138,6 +153,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public static bool QualifiesForRetry(this CopyResultCode status)
-            => !status.IsSuccess() && (status.IsRejection() || status == CopyResultCode.ServerUnavailable || status == CopyResultCode.CopyTimeoutError);
+            => !status.IsSuccess() && (status.IsRejection() || status == CopyResultCode.ServerUnavailable || status == CopyResultCode.CopyTimeoutError || status == CopyResultCode.CopyBandwidthTimeoutError);
     }
 }

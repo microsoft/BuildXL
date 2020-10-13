@@ -251,7 +251,7 @@ namespace ContentStoreTest.Distributed.Stores
             public CopyFileResult[] CustomResults;
 
             /// <inheritdoc />
-            public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
+            public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
             {
                 CopyAttempts++;
                 if (CustomResults != null)
@@ -305,12 +305,12 @@ namespace ContentStoreTest.Distributed.Stores
             AbsolutePath destinationPath,
             long expectedContentSize,
             bool overwrite,
-            CancellationToken cancellationToken,
-            CopyToOptions options)
+            CopyOptions options,
+            CancellationToken cancellationToken)
         {
             // TODO: why the destination str
             using var destinationStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1024);
-            return await copier.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize);
+            return await copier.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize, options);
         }
 
         internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)

@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// For file copies, a error represents the source file being missing or unavailable. This is opaque to any file system
     /// and could be representing scenarios where the file is missing, or the machine is down or the network is unreachable etc.
     /// </remarks>
-    public class CopyFileResult : ResultBase, IEquatable<CopyFileResult>
+    public class CopyFileResult : ResultBase, IEquatable<CopyFileResult>, ICopyResult
     {
         /// <summary>
         ///     Success singleton.
@@ -101,6 +101,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Minimum bandwidth speed for a copy operation in MbPerSec
         /// </summary>
         public double? MinimumSpeedInMbPerSec { get; set; }
+
+        /// <nodoc />
+        public TimeSpan? HeaderResponseTime { get; set; }
 
         /// <summary>
         /// Implicit conversion operator from <see cref="CopyFileResult"/> to <see cref="bool"/>.

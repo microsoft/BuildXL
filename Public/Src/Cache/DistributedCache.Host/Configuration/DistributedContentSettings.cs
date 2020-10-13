@@ -955,10 +955,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
         public int ProactiveCopyIOGateTimeoutSeconds { get; set; } = 900;
 
         [DataMember]

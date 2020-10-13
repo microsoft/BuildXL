@@ -30,7 +30,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public void Success()
         {
-            var result = PushFileResult.PushSucceeded();
+            var result = PushFileResult.PushSucceeded(size: 0);
             result.Succeeded.Should().BeTrue();
 
             result.ToString().Should().Contain("Success");

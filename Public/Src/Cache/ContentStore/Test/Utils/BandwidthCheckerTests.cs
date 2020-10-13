@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -32,7 +31,7 @@ namespace ContentStoreTest.Utils
 
         private static double MbPerSec(double bytesPerSec) => bytesPerSec / (1024 * 1024);
 
-        private static async Task<CopyFileResult> CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec, CopyToOptions options)
+        private static async Task<CopyFileResult> CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec, CopyOptions options)
         {
             var interval = TimeSpan.FromSeconds(0.1);
             var copied = 0;
@@ -96,7 +95,8 @@ namespace ContentStoreTest.Utils
 
                             throw new Exception("1");
                         }),
-                    options: new CopyToOptions());
+                    options: new CopyOptions(bandwidthConfiguration: null),
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
 
                 await Task.Delay(10);
                 try
@@ -141,11 +141,12 @@ namespace ContentStoreTest.Utils
 
             using (var stream = new MemoryStream())
             {
-                var options = new CopyToOptions();
+                var options = new CopyOptions(bandwidthConfiguration: null);
                 var result = await checker.CheckBandwidthAtIntervalAsync(
                     _context,
                     token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options),
-                    options);
+                    options,
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
                 Assert.True(result.Succeeded);
             }
         }
@@ -163,11 +164,12 @@ namespace ContentStoreTest.Utils
 
             using (var stream = new MemoryStream())
             {
-                var options = new CopyToOptions();
+                var options = new CopyOptions(bandwidthConfiguration: null);
                 var result = await checker.CheckBandwidthAtIntervalAsync(
                     _context,
                     token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options),
-                    options);
+                    options,
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
                 Assert.Equal(CopyResultCode.CopyBandwidthTimeoutError, result.Code);
             }
         }
@@ -185,17 +187,18 @@ namespace ContentStoreTest.Utils
 
             using (var stream = new MemoryStream())
             {
-                var options = new CopyToOptions()
-                              {
-                                  BandwidthConfiguration = new BandwidthConfiguration()
-                                                           {
-                                                               Interval = checkInterval, RequiredBytes = actualBandwidthBytesPerSec * 2,
-                                                           }
-                              };
+                var bandwidthConfiguration = new BandwidthConfiguration()
+                {
+                    Interval = checkInterval,
+                    RequiredBytes = actualBandwidthBytesPerSec * 2,
+                };
+
+                var options = new CopyOptions(bandwidthConfiguration);
                 var result = await checker.CheckBandwidthAtIntervalAsync(
                     _context,
                     token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options),
-                    options);
+                    options,
+                    getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
                 Assert.Equal(CopyResultCode.CopyBandwidthTimeoutError, result.Code);
             }
         }

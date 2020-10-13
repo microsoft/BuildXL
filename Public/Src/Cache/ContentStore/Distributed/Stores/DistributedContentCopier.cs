@@ -42,7 +42,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly SemaphoreSlim _proactiveCopyIoGate;
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
-        private readonly TimeSpan _timeoutForProactiveCopies;
         private readonly TimeSpan _ioGateTimeoutForProactiveCopies;
         private readonly int _maxRetryCount;
         private readonly IRemoteFileCopier<T> _remoteFileCopier;
@@ -85,7 +84,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
-            _timeoutForProactiveCopies = settings.TimeoutForProactiveCopies;
             _ioGateTimeoutForProactiveCopies = settings.ProactiveCopyIOGateTimeout;
         }
 
@@ -227,8 +225,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Requests another machine to copy from the current machine.
         /// </summary>
-        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing, int attempt)
         {
+            var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
                 innerContext => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
@@ -237,8 +236,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 isInsideRing,
                 CopyReason.None,
                 ProactiveCopyLocationSource.None,
-                result => CopyResultCode.Unknown,
-                getTimeoutResult: () => new BoolResult("Operation timed out"));
+                attempt,
+                result => CopyResultCode.Unknown);
         }
 
         private async Task<TResult> PerformProactiveCopyAsync<TResult>(
@@ -249,8 +248,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             bool isInsideRing,
             CopyReason reason,
             ProactiveCopyLocationSource source,
-            Func<TResult, CopyResultCode> statusFunc,
-            Func<TResult> getTimeoutResult) where TResult : ResultBase
+            int attempt,
+            Func<TResult, CopyResultCode> statusFunc) where TResult : ResultBase
         {
             TimeSpan ioGateWaitTime = default;
             int ioGateCurrentCount = default;
@@ -263,7 +262,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         ioGateTimedOut = false;
                         ioGateWaitTime = timeWaiting;
                         ioGateCurrentCount = currentCount;
-                        return context.WithTimeoutAsync(func, _timeoutForProactiveCopies, getTimeoutResult);
+                        return func(context);
                     },
                     context.Token,
                     _ioGateTimeoutForProactiveCopies),
@@ -278,24 +277,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - ioGateCurrentCount} " +
                     $"IOGate.Wait={ioGateWaitTime.TotalMilliseconds}ms. " +
                     $"IOGate.TimedOut={ioGateTimedOut} " +
-                    $"Timeout={_timeoutForProactiveCopies}");
+                    $"Attempt={attempt} " +
+                    (result is PushFileResult pushResult && pushResult.HeaderResponseTime.HasValue ? $"HeaderResponseTime={pushResult.HeaderResponseTime} " : string.Empty) +
+                    (result is ICopyResult copyResult && copyResult.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={copyResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));
         }
 
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Stream stream, bool isInsideRing, CopyReason reason, ProactiveCopyLocationSource source)
+        public Task<PushFileResult> PushFileAsync(
+            OperationContext context,
+            ContentHash hash,
+            MachineLocation targetLocation,
+            Stream stream,
+            bool isInsideRing,
+            CopyReason reason,
+            ProactiveCopyLocationSource source,
+            int attempt)
         {
+            var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
-                innerContext => _copyRequester.PushFileAsync(innerContext, hash, stream, targetLocation),
+                innerContext => _copyRequester.PushFileAsync(innerContext, hash, stream, targetLocation, options),
                 hash,
                 targetLocation,
                 isInsideRing,
                 reason,
                 source,
-                result => result.Status,
-                getTimeoutResult: () => PushFileResult.TimedOut());
+                attempt,
+                result => result.Status);
+        }
+
+        private CopyOptions GetCopyOptions(int attempt)
+        {
+            var bandwidthConfig = _settings.BandwidthConfigurations?.ElementAtOrDefault(attempt);
+            return new CopyOptions(bandwidthConfig);
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
@@ -325,8 +341,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // this helps isolate transient network errors.
             badContentLocations.Clear();
             string? lastErrorMessage = null;
-
-            var bandwidthOptions = _settings.BandwidthConfigurations?.ElementAtOrDefault(attemptCount);
 
             for (int replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
             {
@@ -385,6 +399,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         double ioGateWait = 0;
                         int ioGateCurrentCount = 0;
+                        var options = GetCopyOptions(attemptCount);
 
                         copyFileResult = await context.PerformOperationAsync(
                             Tracer,
@@ -392,17 +407,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 {
                                     ioGateWait = timeWaiting.TotalMilliseconds;
                                     ioGateCurrentCount = currentCount;
-                                    var copyToOptions = new CopyToOptions() {BandwidthConfiguration = bandwidthOptions};
 
                                     return await TaskUtilities.AwaitWithProgressReporting(
-                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, copyToOptions),
+                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, options),
                                         period: _settings.PeriodicCopyTracingInterval,
-                                        action: timeSpan =>
-                                                {
-                                                    Tracer.Debug(
-                                                        context,
-                                                        $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{copyToOptions.TotalBytesCopied}].");
-                                                },
+                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.TotalBytesCopied}]."),
                                         reportImmediately: false,
                                         reportAtEnd: false);
                                 }, cts),
@@ -418,8 +427,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - ioGateCurrentCount} " +
-                                $"BandwidthOptions=[{bandwidthOptions?.ToString() ?? "null"}] " +
                                 $"IOGate.Wait={ioGateWait}ms " +
+                                $"BandwidthOptions=[{options.BandwidthConfiguration?.ToString() ?? "null"}] " +
+                                (result.HeaderResponseTime.HasValue ? $"HeaderResponseTime={result.HeaderResponseTime} " : string.Empty) +
                                 (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
                             caller: "RemoteCopyFile",
                             counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]);
@@ -572,7 +582,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             AbsolutePath tempDestinationPath,
             ContentHashWithSizeAndLocations hashInfo,
             CancellationToken cts,
-            CopyToOptions options)
+            CopyOptions options)
         {
             try
             {
@@ -676,8 +686,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             AbsolutePath destinationPath,
             long expectedContentSize,
             bool overwrite,
-            CancellationToken cancellationToken,
-            CopyToOptions options)
+            CopyOptions options,
+            CancellationToken cancellationToken)
         {
             const int DefaultBufferSize = 1024 * 80;
 

@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -51,12 +52,16 @@ namespace BuildXL.Cache.ContentStore.App
                 var path = new AbsolutePath(sourcePath);
                 using Stream stream = File.OpenRead(path.Path);
 
-                using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration() {
-                    GrpcCopyClientConfiguration = GrpcCopyClientConfiguration.WithGzipCompression(false),
+                var config = GrpcCopyClientConfiguration.WithGzipCompression(false);
+                config.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.Disabled;
+                using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration()
+                {
+                    GrpcCopyClientConfiguration = config
                 });
+
                 var copyFileResult = clientCache.UseAsync(operationContext, host, grpcPort, (nestedContext, rpcClient) =>
                 {
-                    return retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(nestedContext, hash, stream));
+                    return retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(nestedContext, hash, stream, new CopyOptions(bandwidthConfiguration: null)));
                 }).GetAwaiter().GetResult();
 
                 if (!copyFileResult.Succeeded)

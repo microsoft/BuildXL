@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,8 +13,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -27,7 +24,6 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -74,7 +70,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? ContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings));
 
             _orderedResolvedCacheSettings = ResolveCacheSettingsInPrecedenceOrder(arguments);
             Contract.Assert(_orderedResolvedCacheSettings.Count != 0);
@@ -85,9 +80,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             _copier = new DistributedContentCopier<AbsolutePath>(
                 _distributedContentStoreSettings,
                 _fileSystem,
-                fileCopier: bandwidthCheckedCopier,
+                fileCopier: _arguments.Copier,
                 fileExistenceChecker: _arguments.Copier,
-                _arguments.CopyRequester,
+                copyRequester: _arguments.CopyRequester,
                 _arguments.PathTransformer,
                 _arguments.Overrides.Clock
             );
@@ -408,7 +403,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
                 BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
                 MaxRetryCount = distributedSettings.MaxRetryCount,
-                TimeoutForProactiveCopies = TimeSpan.FromMinutes(distributedSettings.TimeoutForProactiveCopiesMinutes),
                 ProactiveCopyIOGateTimeout = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyIOGateTimeoutSeconds),
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
                 PushProactiveCopies = distributedSettings.PushProactiveCopies,

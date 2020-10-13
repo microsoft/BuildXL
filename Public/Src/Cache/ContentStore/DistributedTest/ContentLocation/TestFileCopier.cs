@@ -50,14 +50,14 @@ namespace ContentStoreTest.Distributed.ContentLocation
             _fileSystem = fileSystem ?? new PassThroughFileSystem();
         }
 
-        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
         {
             var result = CopyToAsyncCore(context, sourcePath, destinationStream, expectedContentSize, options);
             CopyToAsyncTask = result;
             return result;
         }
 
-        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyToOptions options)
+        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
         {
             try
             {
@@ -152,7 +152,14 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);
         }
 
-        public virtual async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        {
+            var result = await DeleteHandlersByLocation[targetMachine]
+                .HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true});
+            return result;
+        }
+
+        public virtual async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
             var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
             using (var file = File.OpenWrite(tempFile.Path))
@@ -164,14 +171,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             File.Delete(tempFile.Path);
 
-            return result ? PushFileResult.PushSucceeded() : new PushFileResult(result);
-        }
-
-        public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
-        {
-            var result = await DeleteHandlersByLocation[targetMachine]
-                .HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true});
-            return result;
+            return result ? PushFileResult.PushSucceeded(result.ContentSize) : new PushFileResult(result);
         }
     }
 }

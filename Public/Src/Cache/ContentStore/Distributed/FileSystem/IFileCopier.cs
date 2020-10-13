@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Pushes content to a target machine.
         /// </summary>
-        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine);
+        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options);
 
         /// <summary>
         /// Deletes content from a target machine

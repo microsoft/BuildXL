@@ -43,7 +43,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="context">The context of the operation.</param>
         /// <param name="copyTaskFactory">Function that will trigger the copy.</param>
         /// <param name="options">An option instance that controls the copy operation and allows getting the progress.</param>
-        public async Task<CopyFileResult> CheckBandwidthAtIntervalAsync(OperationContext context, Func<CancellationToken, Task<CopyFileResult>> copyTaskFactory, CopyToOptions options)
+        /// <param name="getErrorResult">Function to get the result in case of a badwidth timeout</param>
+        public async Task<TResult> CheckBandwidthAtIntervalAsync<TResult>(
+            OperationContext context,
+            Func<CancellationToken, Task<TResult>> copyTaskFactory,
+            CopyOptions options,
+            Func<string, TResult> getErrorResult)
+            where TResult : ICopyResult
         {
             if (_historicalBandwidthLimitSource != null)
             {
@@ -62,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 return (await impl()).result;
             }
 
-            async Task<(CopyFileResult result, long bytesCopied)> impl()
+            async Task<(TResult result, long bytesCopied)> impl()
             {
                 // This method should not fail with exceptions because the resulting task may be left unobserved causing an application to crash
                 // (given that the app is configured to fail on unobserved task exceptions).
@@ -74,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 var copyCompleted = false;
                 using var copyCancellation = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
 
-                Task<CopyFileResult> copyTask = copyTaskFactory(copyCancellation.Token);
+                Task<TResult> copyTask = copyTaskFactory(copyCancellation.Token);
 
                 // Subscribing for potential task failure here to avoid unobserved task exceptions.
                 traceCopyTaskFailures();
@@ -123,8 +129,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                         copyCancellation.Cancel();
 
                         var totalBytesCopied = position - startPosition;
-                        var result = new CopyFileResult(
-                            CopyResultCode.CopyBandwidthTimeoutError,
+                        var result = getErrorResult(
                             $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {totalBytesCopied} bytes copied (received {bytesTransferredPerIteration} bytes in {configBandwidthCheckInterval.TotalSeconds} seconds).");
                         return (result, totalBytesCopied);
                     }

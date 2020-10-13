@@ -3,6 +3,9 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Grpc;
+using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -59,5 +62,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
+
+        /// <nodoc />
+        public BandwidthChecker.Configuration BandwidthCheckerConfiguration { get; set; } = BandwidthChecker.Configuration.Disabled;
     }
 }

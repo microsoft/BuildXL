@@ -3826,7 +3826,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _failingResult = failingResult;
         }
 
-        public override Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
+        public override Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
             if (_errorsLeft > 0)
             {
@@ -3834,7 +3834,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return Task.FromResult(_failingResult);
             }
 
-            return base.PushFileAsync(context, hash, stream, targetMachine);
+            return base.PushFileAsync(context, hash, stream, targetMachine, options);
         }
     }
 }

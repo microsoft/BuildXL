@@ -1245,9 +1245,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, replicatedLocations, reason);
+                        var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, replicatedLocations, reason, attempt: 0);
 
-                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);
+                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, attempt: 0);
 
                         await Task.WhenAll(insideRingCopyTask, outsideRingCopyTask);
 
@@ -1261,7 +1261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             {
                                 SessionCounters[Counters.ProactiveCopyRetries].Increment();
                                 retries++;
-                                outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);
+                                outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, retries);
                             }
                         }
 
@@ -1279,7 +1279,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             OperationContext context,
             ContentHash hash,
             IReadOnlyList<MachineLocation> replicatedLocations,
-            CopyReason reason)
+            CopyReason reason,
+            int attempt)
         {
             if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
             {
@@ -1316,7 +1317,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (getLocationResult.Succeeded)
                 {
                     var candidate = getLocationResult.Value;
-                    return PushContentAsync(context, hash, candidate, isInsideRing: false, reason, source);
+                    return PushContentAsync(context, hash, candidate, isInsideRing: false, reason, source, attempt);
                 }
                 else
                 {
@@ -1334,7 +1335,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentHash hash,
             bool tryBuildRing,
             IReadOnlyList<MachineLocation> replicatedLocations,
-            CopyReason reason)
+            CopyReason reason,
+            int attempt)
         {
             // Get random machine inside build ring
             if (tryBuildRing && (Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
@@ -1353,7 +1355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if (candidates.Length > 0)
                         {
                             var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                            return PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
+                            return PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random, attempt);
                         }
                         else
                         {
@@ -1377,7 +1379,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private async Task<PushFileResult> PushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, CopyReason reason, ProactiveCopyLocationSource source)
+        private async Task<PushFileResult> PushContentAsync(
+            OperationContext context,
+            ContentHash hash,
+            MachineLocation target,
+            bool isInsideRing,
+            CopyReason reason,
+            ProactiveCopyLocationSource source,
+            int attempt)
         {
             if (Settings.PushProactiveCopies)
             {
@@ -1398,14 +1407,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     stream,
                     isInsideRing,
                     reason,
-                    source);
+                    source,
+                    attempt);
             }
             else
             {
-                var requestResult = await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing);
+                var requestResult = await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing, attempt);
                 if (requestResult)
                 {
-                    return PushFileResult.PushSucceeded();
+                    return PushFileResult.PushSucceeded(size: null);
                 }
 
                 return new PushFileResult(requestResult, "Failed requesting a copy");

@@ -2023,7 +2023,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFileIfInputEqual(sodOutput2, ToString(untrackedFile.Path), "01"),
                 // Change the content of untracked.txt. This makes the pip non-deterministic.
                 Operation.WriteFile(untrackedFile, content: "1", doNotInfer: true),
-                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42)
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42)
             });
             builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
             builder.AddUntrackedFile(stateFile.Path);

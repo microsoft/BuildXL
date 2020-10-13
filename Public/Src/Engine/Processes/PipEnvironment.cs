@@ -108,11 +108,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
+        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, int currentUserRetryCount, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
             Contract.Ensures(Contract.Result<IBuildParameters>() != null);
+            Contract.Requires(currentUserRetryCount >= 0);
 
             var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
             var passThroughEnvNames = pip.EnvironmentVariables.Where(envVar => envVar.IsPassThrough).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
@@ -128,11 +129,20 @@ namespace BuildXL.Processes
                 GetFactory(ReportDuplicateVariable).PopulateFromDictionary(MasterEnvironmentVariables).Override(FullEnvironmentVariables.ToDictionary()) :
                 FullEnvironmentVariables;
 
-            return m_baseEnvironmentVariables
+            IBuildParameters effectiveVariables = m_baseEnvironmentVariables
                 .Override(trackedEnv.ToDictionary(
                     envVar => pipFragmentRenderer.Render(envVar.Name),
                     envVar => envVar.Value.ToString(pipFragmentRenderer)))
                 .Override(fullEnvironmentForPassThrough.Select(passThroughEnvNames).ToDictionary());
+
+            // If the variable to indicate the retry attempt is set, make sure it gets populated
+            if (pip.RetryAttemptEnvironmentVariable.IsValid)
+            {
+                effectiveVariables = effectiveVariables.Override(
+                    new[] { new KeyValuePair<string, string>(pipFragmentRenderer.Render(pip.RetryAttemptEnvironmentVariable), currentUserRetryCount.ToString()) });
+            }
+
+            return effectiveVariables;
         }
 
         /// <summary>
@@ -144,7 +154,7 @@ namespace BuildXL.Processes
             Contract.Requires(pip != null);
             Contract.Ensures(Contract.Result<IBuildParameters>() != null);
 
-            return GetEffectiveEnvironmentVariables(pip, new PipFragmentRenderer(pathTable));
+            return GetEffectiveEnvironmentVariables(pip, new PipFragmentRenderer(pathTable), currentUserRetryCount: 0);
         }
 
 

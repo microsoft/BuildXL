@@ -157,7 +157,7 @@ namespace BuildXL.FrontEnd.Ninja
                 // We can safely skip these, they only represent a rename in the graph.
                 return true;
             }
-            using (var processBuilder = ProcessBuilder.Create(m_context.PathTable, m_context.GetPipDataBuilder()))
+            using (var processBuilder = ProcessBuilder.Create(m_context.PathTable, m_context.GetPipDataBuilder(), m_frontEndHost.Configuration))
             {
                 if (!TryConfigureProcessBuilder(processBuilder, node, qualifierId))
                 {

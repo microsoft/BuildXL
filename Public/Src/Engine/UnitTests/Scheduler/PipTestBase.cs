@@ -191,9 +191,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, ProcessBuilder builder = null)
         {
-            var builder = ProcessBuilder.CreateForTesting(Context.PathTable);
+            builder ??= ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
             builder.AddInputFile(TestProcessExecutable);
             AddUntrackedWindowsDirectories(builder);

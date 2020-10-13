@@ -95,6 +95,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeAcquireMutexes;
         private SymbolAtom m_executeSuccessExitCodes;
         private SymbolAtom m_executeRetryExitCodes;
+        private SymbolAtom m_retryAttemptEnvironmentVariable;
         private SymbolAtom m_executeTempDirectory;
         private SymbolAtom m_executeUnsafe;
         private SymbolAtom m_executeIsLight;
@@ -240,6 +241,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAcquireMutexes = Symbol("acquireMutexes");
             m_executeSuccessExitCodes = Symbol("successExitCodes");
             m_executeRetryExitCodes = Symbol("retryExitCodes");
+            m_retryAttemptEnvironmentVariable = Symbol("retryAttemptEnvironmentVariable");
             m_executeTempDirectory = Symbol("tempDirectory");
             m_executeUnsafe = Symbol("unsafe");
             m_executeIsLight = Symbol("isLight");
@@ -350,7 +352,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private bool TryScheduleProcessPip(Context context, ObjectLiteral obj, ServicePipKind serviceKind, out ProcessOutputs processOutputs, out Process pip)
         {
-            using (var processBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder()))
+            using (var processBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder(), context.FrontEndHost.Configuration))
             {
                 ProcessExecuteArguments(context, obj, processBuilder, serviceKind);
 
@@ -510,6 +512,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             processBuilder.SuccessExitCodes = ProcessOptionalIntArray(obj, m_executeSuccessExitCodes);
             processBuilder.RetryExitCodes = ProcessOptionalIntArray(obj, m_executeRetryExitCodes);
 
+            // Retry attempt environment variable.
+            string retryAttemptEnvVar = Converter.ExtractString(obj, m_retryAttemptEnvironmentVariable, allowUndefined: true);
+            if (!string.IsNullOrWhiteSpace(retryAttemptEnvVar))
+            {
+                processBuilder.SetRetryAttemptEnvironmentVariable(StringId.Create(StringTable, retryAttemptEnvVar));
+            }
+
             // Temporary directory.
             var tempDirectory = Converter.ExtractDirectory(obj, m_executeTempDirectory, allowUndefined: true);
             if (tempDirectory.IsValid)
@@ -665,7 +674,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // Process retries
-            processBuilder.SetProcessRetries(Converter.ExtractOptionalInt(obj, m_processRetries));
+            int? retries = Converter.ExtractOptionalInt(obj, m_processRetries);
+            if (retries.HasValue)
+            {
+                processBuilder.SetProcessRetries(retries.Value);
+            }
 
             // disableCacheLookup flag
             if (Converter.ExtractOptionalBoolean(obj, m_disableCacheLookup) == true)

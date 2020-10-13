@@ -907,7 +907,8 @@ namespace Test.BuildXL.Scheduler
                 containerIsolationLevel: containerIsolationLevel,
                 preserveOutputAllowlist: preserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
-                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)));
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)),
+                retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable));
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

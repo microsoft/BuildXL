@@ -4,6 +4,7 @@
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 
@@ -18,7 +19,7 @@ namespace Test.BuildXL.Scheduler
         {
             var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.Context.PathTable, @"\\dummyPath\DummyFile.exe"));
 
-            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
+            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance(), new ConfigurationImpl());
             processBuilder.Executable = exe;
             processBuilder.AddInputFile(exe);
             processBuilder.AddTags(env.PathTable.StringTable, tag);

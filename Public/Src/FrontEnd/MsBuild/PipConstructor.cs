@@ -233,7 +233,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // We create a pip construction helper for each project
             var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId, deltaGlobalProperties);
 
-            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
+            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder(), m_frontEndHost.Configuration))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
                 if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, deltaGlobalProperties, out AbsolutePath outputResultCacheFile, out failureDetail))

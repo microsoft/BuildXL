@@ -180,7 +180,7 @@ namespace BuildXL.FrontEnd.JavaScript
             // We create a pip construction helper for each project
             var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
 
-            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
+            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder(), m_frontEndHost.Configuration))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
                 ConfigureProcessBuilder(processBuilder, project);

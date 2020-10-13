@@ -896,14 +896,15 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
-        /// Process that fails on first invocation and succeeds on second invocation.
+        /// Process that fails on the first invocations and succeeds on the last.
         /// </summary>
         /// <param name="untrackedStateFilePath">File used to track state. This path should be untracked when scheduling the pip</param>
-        /// <param name="firstFailExitCode">Exit code for first failed invocation</param>
+        /// <param name="failExitCode">Exit code for failed invocations</param>
+        /// <param name="numberOfRetriesToSucceed">The number of retries the pip needs to succed. Defaults to 1.</param>
         /// <returns></returns>
-        public static Operation SucceedOnRetry(FileArtifact untrackedStateFilePath, int firstFailExitCode = -1)
+        public static Operation SucceedOnRetry(FileArtifact untrackedStateFilePath, int failExitCode = -1, int numberOfRetriesToSucceed = 1)
         {
-            return new Operation(Type.SucceedOnRetry, path: untrackedStateFilePath, content: firstFailExitCode.ToString());
+            return new Operation(Type.SucceedOnRetry, path: untrackedStateFilePath, content: failExitCode.ToString(), additionalArgs: numberOfRetriesToSucceed.ToString());
         }
 
         /// <summary>
@@ -1422,16 +1423,35 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoSucceedOnRetry()
         {
-            // Use this state file to differentiate between the first run and the second run. The file will contain the exit code for the second run
-            if (File.Exists(PathAsString))
+            // Use this state file to differentiate between the first and subsequent runs. The file contains the number of retries left to succeed
+            if (!File.Exists(PathAsString))
             {
-                int thisRunExitCode = int.Parse(File.ReadAllText(PathAsString));
-                Environment.Exit(thisRunExitCode);
+                // If this is the first run, but the number of retries needed to succeed is 0, then exit successfully
+                if (int.Parse(AdditionalArgs) == 0)
+                {
+                    Environment.Exit(0);
+                }
+
+                File.WriteAllText(PathAsString, AdditionalArgs);
+                Environment.Exit(int.Parse(Content));
             }
             else
             {
-                File.WriteAllText(PathAsString, "0");
-                Environment.Exit(int.Parse(Content));
+                // Retrieve the number of retries left
+                int retriesLeft = int.Parse(File.ReadAllText(PathAsString));
+                retriesLeft--;
+
+                // If this is the last one, exit with succesfully
+                if (retriesLeft == 0)
+                {
+                    Environment.Exit(0);
+                }
+                else
+                {
+                    // Otherwise, update the number of retries left in the file and return the configured error code
+                    File.WriteAllText(PathAsString, (retriesLeft--).ToString());
+                    Environment.Exit(int.Parse(Content));
+                }
             }
         }
 

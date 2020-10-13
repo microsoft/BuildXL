@@ -124,6 +124,14 @@ namespace Transformer {
          */
         processRetries?: number;
 
+        /**
+         * The name of the environment variable BuildXL will use to communicate the number of times the pip has been retried so far.
+         * When defined, the first time the pip is executed the value of this environment variable will be 0. If a retry happens by virtue of 'retryExitCodes',
+         * the variable will have value 1, and so on for subsequent retries.
+         * This variable will automatically become a passthrough one and will have no effects on caching.
+         */
+        retryAttemptEnvironmentVariable?: string;
+
         /** Temporary directory for the tool to use (use Context.getTempDirectory() to obtain one), and set TEMP and TMP. */
         tempDirectory?: Directory;
 

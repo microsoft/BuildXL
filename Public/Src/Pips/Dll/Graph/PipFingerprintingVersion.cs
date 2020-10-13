@@ -64,7 +64,8 @@ namespace BuildXL.Pips.Graph
         /// 87: Changed the cleaning logic of SOD for retries.
         /// 88: ObservationFlags are preserved for AbsentPathProbe.
         /// 89: Add unsafe sandbox option SkipFlaggingSharedOpaqueOutputs
+        /// 90: Add RetryAttempEnvironmentVariable
         /// </remarks>
-        TwoPhaseV2 = 89,
+        TwoPhaseV2 = 90,
     }
 }

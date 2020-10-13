@@ -1387,12 +1387,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void RetryExitCodes(bool succeedOnRetry)
         {
+            Configuration.Schedule.ProcessRetries = 1;
             FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
             var ops = new Operation[]
             {
                 Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
                 succeedOnRetry ?
-                    Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42) :
+                    Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42) :
                     Operation.Fail(-2),
             };
 
@@ -1400,8 +1401,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
             builder.AddUntrackedFile(stateFile.Path);
             SchedulePipBuilder(builder);
-
-            Configuration.Schedule.ProcessRetries = 1;
 
             var result = RunScheduler();
             if (succeedOnRetry)
@@ -1423,7 +1422,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var ops = new Operation[]
             {
                 Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
-                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42)
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42)
             };
 
             var builder = CreatePipBuilder(ops);
@@ -1439,6 +1438,41 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // The pip should be retried, and therefore it should be successful
             RunScheduler().AssertSuccess();
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public void RetryAttemptEnvironmentVariableIsHonored(int processRetry)
+        {
+            // Schedule a pip that only succeeds after processRetry times and sends to stdout the retry attempt number
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            var ops = new Operation[]
+            {
+                // Reads RETRY_NUMBER and echoes it to stdout
+                Operation.ReadEnvVar("RETRY_NUMBER"),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42, numberOfRetriesToSucceed: processRetry)
+            };
+
+            FileArtifact standardOutput = CreateOutputFileArtifact();
+            var builder = CreatePipBuilder(ops);
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+
+            builder.SetRetryAttemptEnvironmentVariable(StringId.Create(Context.StringTable, "RETRY_NUMBER"));
+            builder.SetProcessRetries(processRetry);
+            builder.SetStandardOutputFile(standardOutput);
+
+            SchedulePipBuilder(builder);
+
+            // The pip should be retried, and therefore it should be successful
+            RunScheduler().AssertSuccess();
+
+            // Let's validate the env var value matches the retry number
+            var output = File.ReadAllText(standardOutput.Path.ToString(Context.PathTable));
+            XAssert.Equals(processRetry, int.Parse(output));
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

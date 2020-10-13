@@ -2178,7 +2178,8 @@ EXIT /b 3
                                       options: Process.Options.ProducesPathIndependentOutputs,
                                       provenance: PipProvenance.CreateDummy(env.Context),
                                       toolDescription: StringId.Invalid,
-                                      additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty));
+                                      additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                                      processRetries: env.Configuration.Schedule.ProcessRetries));
 
                           await VerifyPipResult(PipResultStatus.Failed, env, p);
                           AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, count: RetryCount);

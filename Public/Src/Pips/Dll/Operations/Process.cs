@@ -430,7 +430,8 @@ namespace BuildXL.Pips.Operations
             int? preserveOutputsTrustLevel = null,
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
             ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null,
-            int? processRetries = null)
+            int processRetries = 0,
+            StringId retryAttemptEnvironmentVariable = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -547,6 +548,7 @@ namespace BuildXL.Pips.Operations
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
             OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
             ProcessRetries = processRetries;
+            RetryAttemptEnvironmentVariable = retryAttemptEnvironmentVariable;
         }
 
         /// <summary>
@@ -782,12 +784,18 @@ namespace BuildXL.Pips.Operations
         /// Maximum number of times BuildXL will retry the pip when it returns an exit code in <see cref="RetryExitCodes"/>
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public int? ProcessRetries { get; }
+        public int ProcessRetries { get; }
 
         /// <summary>
-        /// The configured value for <see cref="ProcessRetries"/> or if not specified, the default value defined in <see cref="IScheduleConfiguration.ProcessRetries"/>
+        /// The name of the environment variable BuildXL will use to communicate the pip the number of times the pip has been retried to far.
         /// </summary>
-        public int ProcessRetriesOrDefault(IScheduleConfiguration schedulerConfiguration) => ProcessRetries ?? schedulerConfiguration.ProcessRetries;
+        /// <remarks>
+        /// When defined, the first time the pip is executed the value of this environment variable will be 0. If a retry happens by virtue of 'retryExitCodes',
+        /// the variable will have value 1, and so on for subsequent retries.
+        /// This variable will automatically become a passthrough one and will have no effects on caching.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public StringId RetryAttemptEnvironmentVariable { get; }
 
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
@@ -944,7 +952,8 @@ namespace BuildXL.Pips.Operations
                 preserveOutputsTrustLevel: reader.ReadInt32(),
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
-                processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null
+                processRetries: reader.ReadInt32Compact(),
+                retryAttemptEnvironmentVariable: reader.ReadStringId()
                 );
         }
 
@@ -997,11 +1006,8 @@ namespace BuildXL.Pips.Operations
             writer.Write(PreserveOutputsTrustLevel);
             writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
             writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
-            writer.Write(ProcessRetries.HasValue);
-            if (ProcessRetries.HasValue)
-            {
-                writer.WriteCompact(ProcessRetries.Value);
-            }
+            writer.WriteCompact(ProcessRetries);
+            writer.Write(RetryAttemptEnvironmentVariable);
         }
         #endregion
     }

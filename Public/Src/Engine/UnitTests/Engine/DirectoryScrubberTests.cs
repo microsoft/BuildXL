@@ -666,7 +666,7 @@ namespace Test.BuildXL.Engine
         {
             var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.Context.PathTable, @"\\dummyPath\DummyFile.exe"));
 
-            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
+            var processBuilder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance(), new ConfigurationImpl());
             processBuilder.Executable = exe;
             processBuilder.AddInputFile(exe);
             if (tag != null)

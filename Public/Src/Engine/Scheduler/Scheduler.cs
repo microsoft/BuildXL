@@ -3897,9 +3897,9 @@ namespace BuildXL.Scheduler
                     // runnablePip.Pip above for hashing dependencies. 
                     if (runnablePip.Pip.Provenance.ModuleId.IsValid && 
                         m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple) &&
-                        tuple.Workers.Any())
+                        tuple.Workers.Count > 0)
                     {
-                        runnablePip.PreferredWorkerId = (int)tuple.Workers.First().WorkerId;
+                        runnablePip.PreferredWorkerId = (int)tuple.Workers[0].WorkerId;
                     }
 
                     switch (pipType)

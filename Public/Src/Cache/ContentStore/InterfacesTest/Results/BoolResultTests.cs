@@ -25,6 +25,62 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         }
 
         [Fact]
+        public void AndOperatorShouldKeepExceptionProperty()
+        {
+            var exception = new Exception("1");
+            var r1 = new BoolResult(exception, "error 1");
+            var r2 = new BoolResult("error 2");
+
+            Assert.NotNull((r1 & r2).Exception);
+
+            Assert.NotNull((r1 & BoolResult.Success).Exception);
+        }
+
+
+        [Fact]
+        public void AndOperatorReturnsAnotherInstanceIfOneOfThemFailed()
+        {
+            var exception = new Exception("1");
+            var r1 = new BoolResult(exception, "error 1");
+            var r2 = BoolResult.Success;
+
+            Assert.True(object.ReferenceEquals((r1 & r2), r1));
+            Assert.True(object.ReferenceEquals((r2 & r1), r1));
+        }
+
+        [Fact]
+        public void OrOperatorShouldKeepExceptionProperty()
+        {
+            var exception = new Exception("1");
+            var r1 = new BoolResult(exception, "error 1");
+            var r2 = new BoolResult("error 2");
+
+            var combined = r1 | r2;
+            Assert.NotNull(combined.Exception);
+        }
+
+        [Fact]
+        public void AndShouldPropagateIsCancelledFlag()
+        {
+            var r1 = new BoolResult("error 1") {IsCancelled = true};
+            var r2 = new BoolResult("error 2") {IsCancelled = true};
+
+            var combined = r1 & r2;
+            Assert.True(combined.IsCancelled);
+        }
+
+        [Fact]
+        public void OrShouldPropagateIsCancelledFlag()
+        {
+            var r1 = new BoolResult("error 1") {IsCancelled = true};
+            var r2 = new BoolResult("error 2") {IsCancelled = true};
+
+            // The final result IsCancelled only if both errors are cancelled.
+            Assert.True((r1 | r2).IsCancelled);
+            Assert.False((r1 | new BoolResult("error 3")).IsCancelled);
+        }
+
+        [Fact]
         public void ObjectDisposedExceptionIsNotCriticalForCancellation()
         {
             var e = new ObjectDisposedException("foo");

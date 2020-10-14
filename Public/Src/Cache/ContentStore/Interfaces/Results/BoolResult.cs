@@ -99,11 +99,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public static BoolResult operator &(BoolResult result1, BoolResult result2)
         {
-            return result1.Succeeded
-                ? result2
-                : new BoolResult(
-                    Merge(result1.ErrorMessage, result2.ErrorMessage, ", "),
-                    Merge(result1.Diagnostics, result2.Diagnostics, ", "));
+            if (result1.Succeeded)
+            {
+                return result2;
+            }
+
+            if (result2.Succeeded)
+            {
+                return result1;
+            }
+
+            // We merge the errors the same way for '|' and '&' operators.
+            return MergeFailures(result1, result2);
         }
 
         /// <summary>
@@ -135,9 +142,29 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 return result2;
             }
 
+            // We merge the errors the same way for '|' and '&' operators.
+            return MergeFailures(result1, result2);
+        }
+
+        private static BoolResult MergeFailures(BoolResult left, BoolResult right)
+        {
+            Contract.Requires(!left.Succeeded || !right.Succeeded);
+
+            // Its hard to tell which exact semantics here is the best when two operations failed
+            // but when only one operation was canceled.
+            // The current behavior is: the final result is considered cancelled only when
+            // all the operations were canceled.
+            bool isCanceled = left.IsCancelled && right.IsCancelled;
+
             return new BoolResult(
-                Merge(result1.ErrorMessage, result2.ErrorMessage, ", "),
-                Merge(result1.Diagnostics, result2.Diagnostics, ", "));
+                       Merge(left.ErrorMessage, right.ErrorMessage, ", "),
+                       Merge(left.Diagnostics, right.Diagnostics, ", "))
+                   {
+                       IsCancelled = isCanceled,
+                       // There is no simple way to "merge" exceptions, so we pick just one of them
+                       // instead of other options, like merging them into "AggregateException".
+                       Exception = left.Exception ?? right.Exception
+                   };
         }
 
         /// <summary>

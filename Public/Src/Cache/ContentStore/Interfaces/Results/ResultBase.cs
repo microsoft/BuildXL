@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns an optional exception instance associated with the result.
         /// </summary>
-        public Exception? Exception { get; }
+        public Exception? Exception { get; protected set; }
 
         /// <summary>
         /// Description of the error that occurred.

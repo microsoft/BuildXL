@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var copier = useDistributedGrpc
                         ? grpcCopier
-                        : (IAbsolutePathRemoteFileCopier)new DistributedCopier();
+                        : (IRemoteFileCopier)new DistributedCopier();
 
                 LoggingSettings loggingSettings = null;
                 if (!string.IsNullOrEmpty(nLogConfigurationPath))
@@ -135,7 +135,6 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var arguments = CreateDistributedCacheServiceArguments(
                     copier: copier,
-                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer(_logger) : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     copyRequester: grpcCopier,
                     dcs: dcs,
                     host: host,

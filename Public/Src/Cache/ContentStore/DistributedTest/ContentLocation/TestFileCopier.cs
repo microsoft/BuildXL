@@ -20,7 +20,9 @@ using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IAbsolutePathRemoteFileCopier, IContentCommunicationManager
+    using ContentLocation = BuildXL.Cache.ContentStore.Distributed.ContentLocation;
+
+    public class TestFileCopier : IRemoteFileCopier, IContentCommunicationManager
     {
         public AbsolutePath WorkingDirectory { get; set; }
 
@@ -29,8 +31,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public ConcurrentDictionary<AbsolutePath, bool> FilesToCorrupt { get; } = new ConcurrentDictionary<AbsolutePath, bool>();
 
         public ConcurrentDictionary<AbsolutePath, ConcurrentQueue<FileExistenceResult.ResultCode>> FileExistenceByReturnCode { get; } = new ConcurrentDictionary<AbsolutePath, ConcurrentQueue<FileExistenceResult.ResultCode>>();
-
-        public ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>> FileExistenceTimespans { get; } = new ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>>();
 
         public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
 
@@ -50,14 +50,21 @@ namespace ContentStoreTest.Distributed.ContentLocation
             _fileSystem = fileSystem ?? new PassThroughFileSystem();
         }
 
-        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
-            var result = CopyToAsyncCore(context, sourcePath, destinationStream, expectedContentSize, options);
+            return new MachineLocation(cacheRoot.Path);
+        }
+
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
+        {
+            var sourcePath = PathUtilities.GetContentPath(sourceLocation.Machine.Path, sourceLocation.Hash);
+
+            var result = CopyToAsyncCore(context, sourcePath, destinationStream, options);
             CopyToAsyncTask = result;
             return result;
         }
 
-        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
+        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, CopyOptions options)
         {
             try
             {
@@ -75,7 +82,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                     return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
                 }
 
-                using Stream s = await GetStreamAsync(sourcePath, expectedContentSize);
+                using Stream s = await GetStreamAsync(sourcePath);
 
                 await s.CopyToAsync(destinationStream);
 
@@ -87,13 +94,13 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
         }
 
-        private async Task<Stream> GetStreamAsync(AbsolutePath sourcePath, long expectedContentSize)
+        private async Task<Stream> GetStreamAsync(AbsolutePath sourcePath)
         {
             Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
             {
                 TestGlobal.Logger.Debug($"Corrupting file {sourcePath}");
-                s = new MemoryStream(ThreadSafeRandom.GetBytes((int) expectedContentSize));
+                s = new MemoryStream(ThreadSafeRandom.GetBytes(100));
             }
             else
             {
@@ -103,21 +110,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return s;
         }
 
-        public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
+        public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
         {
-            FileExistenceTimespans.AddOrUpdate(
-                path,
-                _ =>
-                {
-                    var queue = new ConcurrentQueue<TimeSpan>();
-                    queue.Enqueue(timeout);
-                    return queue;
-                },
-                (_, queue) =>
-                {
-                    queue.Enqueue(timeout);
-                    return queue;
-                });
+            var path = PathUtilities.GetContentPath(sourceLocation.Machine.Path, sourceLocation.Hash);
 
             if (FileExistenceByReturnCode.TryGetValue(path, out var resultQueue) && resultQueue.TryDequeue(out var result))
             {
@@ -135,16 +130,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public void SetNextFileExistenceResult(AbsolutePath path, FileExistenceResult.ResultCode result)
         {
             FileExistenceByReturnCode[path] = new ConcurrentQueue<FileExistenceResult.ResultCode>(new[] { result });
-        }
-
-        public int GetExistenceCheckCount(AbsolutePath path)
-        {
-            if (FileExistenceTimespans.TryGetValue(path, out var existenceCheckTimespans))
-            {
-                return existenceCheckTimespans.Count;
-            }
-
-            return 0;
         }
 
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)

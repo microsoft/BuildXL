@@ -47,7 +47,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private readonly DistributedContentSettings _distributedSettings;
         private readonly DistributedCacheServiceArguments _arguments;
-        private readonly DistributedContentCopier<AbsolutePath> _copier;
+        private readonly DistributedContentCopier _copier;
 
         /// <summary>
         /// This uses a Lazy because not having it breaks the local service use-case (i.e. running ContentStoreApp
@@ -77,13 +77,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             RedisContentLocationStoreConfiguration = CreateRedisConfiguration();
             _distributedContentStoreSettings = CreateDistributedStoreSettings(_arguments, RedisContentLocationStoreConfiguration);
 
-            _copier = new DistributedContentCopier<AbsolutePath>(
+            _copier = new DistributedContentCopier(
                 _distributedContentStoreSettings,
                 _fileSystem,
                 fileCopier: _arguments.Copier,
-                fileExistenceChecker: _arguments.Copier,
                 copyRequester: _arguments.CopyRequester,
-                _arguments.PathTransformer,
                 _arguments.Overrides.Clock
             );
 
@@ -109,7 +107,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         name: cacheName,
                         settings: cacheSettings,
                         resolvedCacheRootPath: resolvedCacheRootPath,
-                        machineLocation: arguments.PathTransformer.GetLocalMachineLocation(resolvedCacheRootPath)));
+                        machineLocation: arguments.Copier.GetLocalMachineLocation(resolvedCacheRootPath)));
             }
 
             // Add caches specified in drive preference order
@@ -298,9 +296,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             return cacheFactory.CreateMemoizationStore(_logger);
         }
 
-        public (IContentStore topLevelStore, DistributedContentStore<AbsolutePath> primaryDistributedStore) CreateTopLevelStore()
+        public (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) CreateTopLevelStore()
         {
-            (IContentStore topLevelStore, DistributedContentStore<AbsolutePath> primaryDistributedStore) result = default;
+            (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) result = default;
 
             if (_distributedSettings.GetMultiplexMode() == MultiplexMode.Legacy)
             {
@@ -309,7 +307,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         CreateDistributedContentStore(settings, dls =>
                             CreateFileSystemContentStore(settings, dls)));
                 result.topLevelStore = multiplexedStore;
-                result.primaryDistributedStore = (DistributedContentStore<AbsolutePath>)multiplexedStore.PreferredContentStore;
+                result.primaryDistributedStore = (DistributedContentStore)multiplexedStore.PreferredContentStore;
             }
             else
             {
@@ -324,14 +322,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             return result;
         }
 
-        public DistributedContentStore<AbsolutePath> CreateDistributedContentStore(
+        public DistributedContentStore CreateDistributedContentStore(
             ResolvedNamedCacheSettings resolvedSettings,
             Func<IDistributedLocationStore, IContentStore> innerStoreFactory)
         {
             _logger.Debug("Creating a distributed content store");
 
             var contentStore =
-                new DistributedContentStore<AbsolutePath>(
+                new DistributedContentStore(
                     resolvedSettings.MachineLocation,
                     resolvedSettings.ResolvedCacheRootPath,
                     distributedStore => innerStoreFactory(distributedStore),

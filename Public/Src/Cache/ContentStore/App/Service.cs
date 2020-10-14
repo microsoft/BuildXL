@@ -200,7 +200,6 @@ namespace BuildXL.Cache.ContentStore.App
             var distributedCacheServiceArguments = new DistributedCacheServiceArguments(
                 logger: _logger,
                 copier: null,
-                pathTransformer: new GrpcDistributedPathTransformer(_logger),
                 copyRequester: null,
                 host: new EnvironmentVariableHost(),
                 hostInfo: new HostInfo(null, null, new List<string>()),

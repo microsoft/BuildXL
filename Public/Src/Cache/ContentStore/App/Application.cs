@@ -614,8 +614,7 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathRemoteFileCopier copier,
-            IAbsolutePathTransformer pathTransformer,
+            IRemoteFileCopier copier,
             IContentCommunicationManager copyRequester,
             DistributedContentSettings dcs,
             HostInfo host,
@@ -643,7 +642,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null) {
+            return new DistributedCacheServiceArguments(_logger, copier, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null) {
                 TelemetryFieldsProvider = telemetryFieldsProvider,
             };
         }

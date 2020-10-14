@@ -31,9 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// Handles copies from remote locations to a local store
     /// </summary>
-    /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentCopier<T> : IDistributedContentCopier
-        where T : PathBase
+    public class DistributedContentCopier : IDistributedContentCopier
     {
         // Gate to control the maximum number of simultaneously active IO operations.
         private readonly SemaphoreSlim _ioGate;
@@ -44,10 +42,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _ioGateTimeoutForProactiveCopies;
         private readonly int _maxRetryCount;
-        private readonly IRemoteFileCopier<T> _remoteFileCopier;
+        private readonly IRemoteFileCopier _remoteFileCopier;
         private readonly IContentCommunicationManager _copyRequester;
-        private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
-        private readonly IPathTransformer<T> _pathTransformer;
         private readonly IClock _clock;
 
         private readonly DistributedContentStoreSettings _settings;
@@ -57,16 +53,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
-        private Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier<T>));
+        private Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier));
 
         /// <nodoc />
         public DistributedContentCopier(
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,
-            IRemoteFileCopier<T> fileCopier,
-            IFileExistenceChecker<T> fileExistenceChecker,
+            IRemoteFileCopier fileCopier,
             IContentCommunicationManager copyRequester,
-            IPathTransformer<T> pathTransformer,
             IClock clock)
         {
             Contract.Requires(settings != null);
@@ -74,9 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             _settings = settings;
             _remoteFileCopier = fileCopier;
-            _remoteFileExistenceChecker = fileExistenceChecker;
             _copyRequester = copyRequester;
-            _pathTransformer = pathTransformer;
             FileSystem = fileSystem;
             _clock = clock;
 
@@ -374,7 +366,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                 }
 
-                var sourcePath = _pathTransformer.GeneratePath(hashInfo.ContentHash, location.Data);
+                var sourcePath = new ContentLocation(location, hashInfo.ContentHash);
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
@@ -578,7 +570,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private async Task<CopyFileResult> CopyFileAsync(
             Context context,
-            T location,
+            ContentLocation location,
             AbsolutePath tempDestinationPath,
             ContentHashWithSizeAndLocations hashInfo,
             CancellationToken cts,
@@ -611,7 +603,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                         {
                             var copyFileResult = await _remoteFileCopier.CopyToAsync(
-                                new OperationContext(context, cts), location, hashingStream, hashInfo.Size,
+                                new OperationContext(context, cts), location, hashingStream,
                                 options);
                             copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
                             TrackTimeSpentWritingToDisk(copyFileResult, fileStream);
@@ -681,8 +673,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         protected virtual async Task<CopyFileResult> CopyFileAsync(
             OperationContext context,
-            IRemoteFileCopier<T> copier,
-            T sourcePath,
+            IRemoteFileCopier copier,
+            ContentLocation sourcePath,
             AbsolutePath destinationPath,
             long expectedContentSize,
             bool overwrite,
@@ -705,7 +697,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             using var stream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
-            var result = await copier.CopyToAsync(context, sourcePath, stream, expectedContentSize, options);
+            var result = await copier.CopyToAsync(context, sourcePath, stream, options);
 
             TrackTimeSpentWritingToDisk(result, stream);
 
@@ -758,85 +750,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
-        // Given a content record set, check all the locations and determine, for each location, whether the file is actually
-        // present, actually absent, or if its presence or absence cannot be determined in the alloted time.
-        // The CheckFileExistsAsync method that is called in this implementation may be doing more complicated stuff (retries, queuing,
-        // throttling, its own timeout) than we want or expect; we should dig into this.
-        internal async Task<VerifyResult> VerifyAsync(Context context, ContentHashWithSizeAndLocations remote, CancellationToken cancel)
-        {
-            Contract.Requires(remote.Locations != null);
-            Task<FileExistenceResult>[] verifications = new Task<FileExistenceResult>[remote.Locations.Count];
-            using (var timeoutCancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancel))
-            {
-                for (int i = 0; i < verifications.Length; i++)
-                {
-                    T location = _pathTransformer.GeneratePath(remote.ContentHash, remote.Locations[i].Data);
-                    var verification = Task.Run(async () => await GatedCheckFileExistenceAsync(location, timeoutCancelSource.Token));
-                    verifications[i] = verification;
-                }
-
-                // Spend up to the timeout doing as many verification as we can.
-                timeoutCancelSource.CancelAfter(VerifyTimeout);
-
-                // In order to await the end of the verifications and still not throw an exception if verification were canceled (or faulted internally), we
-                // use the trick of awaiting a WhenAny, which never throws but instead always runs to completion when the argument tasks complete.
-#pragma warning disable EPC13 // Suspiciously unobserved result.
-                await Task.WhenAny(Task.WhenAll(verifications));
-#pragma warning restore EPC13 // Suspiciously unobserved result.
-            }
-
-            // Read out the results of the file existence checks
-            var present = new List<MachineLocation>();
-            var absent = new List<MachineLocation>();
-            var unknown = new List<MachineLocation>();
-            for (int i = 0; i < verifications.Length; i++)
-            {
-                var location = remote.Locations[i];
-                Task<FileExistenceResult> verification = verifications[i];
-                Contract.Assert(verification.IsCompleted);
-                if (verification.IsCanceled && !cancel.IsCancellationRequested)
-                {
-                    Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} timed out for location {location}.");
-                    unknown.Add(location);
-                }
-                else if (verification.IsFaulted)
-                {
-                    Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} encountered the error {verification.Exception} while verifying location {location}.");
-                    unknown.Add(location);
-                }
-                else
-                {
-                    FileExistenceResult result = await verification;
-                    if (result.Code == FileExistenceResult.ResultCode.FileExists)
-                    {
-                        present.Add(location);
-                    }
-                    else if (result.Code == FileExistenceResult.ResultCode.FileNotFound)
-                    {
-                        Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} was not found at location {location}.");
-                        absent.Add(location);
-                    }
-                    else
-                    {
-                        unknown.Add(location);
-                    }
-                }
-            }
-
-            return new VerifyResult(remote.ContentHash, present, absent, unknown);
-        }
-
         /// <summary>
         /// This gated method attempts to limit the number of simultaneous off-machine file IO.
         /// It's not clear whether this is really a good idea, since usually IO thread management is best left to the scheduler.
         /// But if there is a truly enormous amount of external IO, it's not clear that they will all be scheduled in a way
         /// that will minimize timeouts, so we will try this gate.
         /// </summary>
-        private Task<FileExistenceResult> GatedCheckFileExistenceAsync(T path, CancellationToken token)
+        private Task<FileExistenceResult> GatedCheckFileExistenceAsync(OperationContext context, ContentLocation location)
         {
             return _ioGate.GatedOperationAsync(
-                (_, _) => _remoteFileExistenceChecker.CheckFileExistsAsync(path, Timeout.InfiniteTimeSpan, token),
-                token);
+                (_, _) => _remoteFileCopier.CheckFileExistsAsync(context, location), context.Token, Timeout.InfiniteTimeSpan);
         }
 
         /// <nodoc />

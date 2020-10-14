@@ -30,21 +30,17 @@ namespace BuildXL.Cache.Host.Service
 
         /// <summary>
         ///     When this functor is present, and assuming the cache replaces the host's logger with its own, it is
-        ///     expected to buid <see cref="Copier"/>, <see cref="PathTransformer"/>, and <see cref="CopyRequester"/>.
+        ///     expected to buid <see cref="Copier"/> and <see cref="CopyRequester"/>.
         ///     
         ///     This is done this way because constructing those elements requires access to an <see cref="ILogger"/>,
         ///     which will be replaced cache-side.
         /// </summary>
         public Func<ILogger, (
-            IAbsolutePathRemoteFileCopier Copier,
-            IAbsolutePathTransformer PathTransformer,
+            IRemoteFileCopier Copier,
             IContentCommunicationManager CopyRequester)> BuildCopyInfrastructure { get; set; } = null;
 
         /// <nodoc />
-        public IAbsolutePathRemoteFileCopier Copier { get; internal set; }
-
-        /// <nodoc />
-        public IAbsolutePathTransformer PathTransformer { get; internal set; }
+        public IRemoteFileCopier Copier { get; internal set; }
 
         /// <nodoc />
         public IContentCommunicationManager CopyRequester { get; internal set; }
@@ -76,8 +72,7 @@ namespace BuildXL.Cache.Host.Service
         /// <inheritdoc />
         public DistributedCacheServiceArguments(
             ILogger logger,
-            IAbsolutePathRemoteFileCopier copier,
-            IAbsolutePathTransformer pathTransformer,
+            IRemoteFileCopier copier,
             IContentCommunicationManager copyRequester,
             IDistributedCacheServiceHost host,
             HostInfo hostInfo,
@@ -95,7 +90,6 @@ namespace BuildXL.Cache.Host.Service
             Logger = logger;
             Copier = copier;
             CopyRequester = copyRequester;
-            PathTransformer = pathTransformer;
             Host = host;
             HostInfo = hostInfo;
             Cancellation = cancellation;

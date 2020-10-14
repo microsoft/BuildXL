@@ -23,10 +23,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <inheritdoc />
         protected override CacheTracer CacheTracer { get; } = new CacheTracer(nameof(DistributedOneLevelCache));
 
-        private readonly DistributedContentStore<AbsolutePath> _distributedContentStore;
+        private readonly DistributedContentStore _distributedContentStore;
 
         /// <nodoc />
-        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStore<AbsolutePath> distributedContentStore, Guid id, bool passContentToMemoization = true)
+        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStore distributedContentStore, Guid id, bool passContentToMemoization = true)
             : base(id, passContentToMemoization)
         {
             ContentStore = contentStore;

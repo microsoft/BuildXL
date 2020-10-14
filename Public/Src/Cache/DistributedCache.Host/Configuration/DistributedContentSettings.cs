@@ -961,8 +961,21 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Enum(typeof(MultiplexMode))]
         public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Legacy);
 
+        /// <summary>
+        /// Indicates whether machine locations should use universal format (i.e. uri) which
+        /// allows communication across machines of different platforms
+        /// </summary>
+        [DataMember]
+        public bool UseUniversalLocations { get; set; }
+
         public MultiplexMode GetMultiplexMode()
         {
+            if (UseUniversalLocations)
+            {
+                // Universal locations don't distinguish cache paths, so just use unified multiplex mode
+                return MultiplexMode.Unified;
+            }
+
             return (MultiplexMode)Enum.Parse(typeof(MultiplexMode), MultiplexStoreMode);
         }
 
@@ -1055,7 +1068,7 @@ namespace BuildXL.Cache.Host.Configuration
         ///     now registered under that machine location after going through the Transitional state.
         ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
         /// </summary>
-        Unified
+        Unified,
     }
 
     /// <nodoc />

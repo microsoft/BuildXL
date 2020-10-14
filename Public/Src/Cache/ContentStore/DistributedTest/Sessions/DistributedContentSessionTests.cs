@@ -55,7 +55,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var settings = CreateSettings();
 
-            return new DistributedContentStore<AbsolutePath>(
+            return new DistributedContentStore(
                 localMachineLocation,
                 rootPath,
                 (distributedStore) =>

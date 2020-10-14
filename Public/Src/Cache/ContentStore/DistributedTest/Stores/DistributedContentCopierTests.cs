@@ -23,6 +23,8 @@ using Xunit;
 
 namespace ContentStoreTest.Distributed.Stores
 {
+    using ContentLocation = BuildXL.Cache.ContentStore.Distributed.ContentLocation;
+
     public class DistributedContentCopierTests : TestBase
     {
         public DistributedContentCopierTests()
@@ -211,7 +213,6 @@ namespace ContentStoreTest.Distributed.Stores
             int restrictedCopyReplicaCount = 3)
         {
             var mockFileCopier = new MockFileCopier();
-            var existenceChecker = new TestFileCopier();
             var contentCopier = new TestDistributedContentCopier(
                 rootDirectory,
                 // Need to use exactly one retry.
@@ -224,25 +225,11 @@ namespace ContentStoreTest.Distributed.Stores
                 },
                 fileSystem,
                 mockFileCopier,
-                existenceChecker,
-                copyRequester: null,
-                new TestDistributedContentCopier.NoOpPathTransformer(rootDirectory));
+                copyRequester: null);
             return (contentCopier, mockFileCopier);
         }
 
-        public class MockPathTransformer : IPathTransformer
-        {
-            /// <inheritdoc />
-            public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot) => new MachineLocation("");
-
-            /// <inheritdoc />
-            public PathBase GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent) => null;
-
-            /// <inheritdoc />
-            public byte[] GetPathLocation(PathBase path) => new byte[] { };
-        }
-
-        public class MockFileCopier : IAbsolutePathRemoteFileCopier
+        public class MockFileCopier : IRemoteFileCopier
         {
             public int CopyAttempts = 0;
 #pragma warning disable 649
@@ -250,8 +237,10 @@ namespace ContentStoreTest.Distributed.Stores
 #pragma warning restore 649
             public CopyFileResult[] CustomResults;
 
+            public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot) => new MachineLocation("");
+
             /// <inheritdoc />
-            public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CopyOptions options)
+            public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
             {
                 CopyAttempts++;
                 if (CustomResults != null)
@@ -266,28 +255,23 @@ namespace ContentStoreTest.Distributed.Stores
 #pragma warning restore 649
 
             /// <inheritdoc />
-            public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
-                => Task.FromResult(CheckFileExistsAsyncResult);
+            public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
+                 => Task.FromResult(CheckFileExistsAsyncResult);
         }
     }
 
-    public class TestDistributedContentCopier : DistributedContentCopier<AbsolutePath>, IDistributedContentCopierHost
+    public class TestDistributedContentCopier : DistributedContentCopier, IDistributedContentCopierHost
     {
-        public readonly NoOpPathTransformer PathTransformer;
-
         public TestDistributedContentCopier(
             AbsolutePath workingDirectory,
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,
-            IRemoteFileCopier<AbsolutePath> fileCopier,
-            IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
-            IContentCommunicationManager copyRequester,
-            IPathTransformer<AbsolutePath> pathTransformer)
-            : base(settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance)
+            IRemoteFileCopier fileCopier,
+            IContentCommunicationManager copyRequester)
+            : base(settings, fileSystem, fileCopier, copyRequester, TestSystemClock.Instance)
         {
             Settings = settings;
             WorkingFolder = workingDirectory;
-            PathTransformer = pathTransformer as NoOpPathTransformer;
         }
 
         public DistributedContentStoreSettings Settings { get; }
@@ -300,8 +284,8 @@ namespace ContentStoreTest.Distributed.Stores
 
         protected override async Task<CopyFileResult> CopyFileAsync(
             OperationContext context,
-            IRemoteFileCopier<AbsolutePath> copier,
-            AbsolutePath sourcePath,
+            IRemoteFileCopier copier,
+            ContentLocation sourcePath,
             AbsolutePath destinationPath,
             long expectedContentSize,
             bool overwrite,
@@ -310,29 +294,12 @@ namespace ContentStoreTest.Distributed.Stores
         {
             // TODO: why the destination str
             using var destinationStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1024);
-            return await copier.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize, options);
+            return await copier.CopyToAsync(context, sourcePath, destinationStream, options);
         }
 
         internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             return base.TryCopyAndPutAsync(operationContext, this, hashWithLocations, CopyReason.None, handleCopyAsync);
-        }
-
-        public class NoOpPathTransformer : TestPathTransformer
-        {
-            private readonly AbsolutePath _root;
-
-            public byte[] LastContentLocation { get; set; }
-
-            public NoOpPathTransformer(AbsolutePath root)
-            {
-                _root = root;
-            }
-            public override AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)
-            {
-                LastContentLocation = contentLocationIdContent;
-                return _root;
-            }
         }
     }
 }

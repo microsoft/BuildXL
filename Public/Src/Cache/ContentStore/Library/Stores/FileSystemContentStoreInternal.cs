@@ -1354,9 +1354,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Gets the relative path to the primary replica from the CAS root
         /// </summary>
-        public static RelativePath GetPrimaryRelativePath(ContentHash contentHash)
+        public static RelativePath GetPrimaryRelativePath(ContentHash contentHash, bool includeSharedFolder = true)
         {
-            return new RelativePath(Path.Combine(Constants.SharedDirectoryName, contentHash.HashType.Serialize(), GetRelativePathFor(contentHash, 0).Path));
+            if (includeSharedFolder)
+            {
+                return new RelativePath(Path.Combine(Constants.SharedDirectoryName, contentHash.HashType.Serialize(), GetRelativePathFor(contentHash, 0).Path));
+            }
+            else
+            {
+                return new RelativePath(Path.Combine(contentHash.HashType.Serialize(), GetRelativePathFor(contentHash, 0).Path));
+            }
         }
 
         private static RelativePath GetRelativePathFor(ContentHash contentHash, int replicaIndex)

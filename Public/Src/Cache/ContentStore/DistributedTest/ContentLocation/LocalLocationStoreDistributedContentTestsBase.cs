@@ -116,14 +116,13 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected override (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            IAbsolutePathRemoteFileCopier fileCopier,
+            IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             int iteration,
             uint grpcPort)
         {
             var rootPath = testDirectory.Path / "Root";
-            var pathTransformer = new TestPathTransformer();
 
             int dbIndex = 0;
             PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
@@ -242,7 +241,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var arguments = new DistributedCacheServiceArguments(
                 Logger,
                 fileCopier,
-                pathTransformer,
                 (IContentCommunicationManager)fileCopier,
                 Host,
                 new HostInfo("TestStamp", "TestRing", capabilities: new string[0]),

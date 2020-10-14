@@ -50,24 +50,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <inheritdoc />
         public override string ToString() => Path;
 
-        /// <summary>
-        /// Computes a hash for a current machine location.
-        /// </summary>
-        public ContentHash GetContentHash(IContentHasher hasher)
-        {
-            Contract.Requires(IsValid, "Please do not use default struct instance");
-
-            return hasher.GetContentHash(Data);
-        }
-
-        /// <summary>
-        /// Computes a string representation of a hash for a current machine location.
-        /// </summary>
-        public string GetContentHashString(IContentHasher hasher)
-        {
-            return GetContentHashString(GetContentHash(hasher));
-        }
-
         /// <inheritdoc />
         public bool Equals(MachineLocation other) => ByteArrayComparer.ArraysEqual(Data, other.Data);
 
@@ -87,11 +69,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             // GetHashCode is null-safe
             return ByteArrayComparer.Instance.GetHashCode(Data);
-        }
-
-        private static string GetContentHashString(ContentHash contentHash)
-        {
-            return Convert.ToBase64String(contentHash.ToHashByteArray());
         }
     }
 }

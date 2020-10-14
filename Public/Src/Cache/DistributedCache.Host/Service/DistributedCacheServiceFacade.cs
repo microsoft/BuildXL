@@ -51,7 +51,6 @@ namespace BuildXL.Cache.Host.Service
             var arguments = new DistributedCacheServiceArguments(
                 logger: logger,
                 copier: null,
-                pathTransformer: null,
                 copyRequester: null,
                 host: host,
                 hostInfo: hostInfo,
@@ -67,7 +66,7 @@ namespace BuildXL.Cache.Host.Service
             return RunAsync(arguments);
         }
 
-        private static (IAbsolutePathRemoteFileCopier copier, IAbsolutePathTransformer pathTransformer, IContentCommunicationManager copyRequester)
+        private static (IRemoteFileCopier copier, IContentCommunicationManager copyRequester)
             BuildCopyInfrastructure(ILogger logger, DistributedCacheServiceConfiguration config)
         {
             var dcs = config.DistributedContentSettings;
@@ -100,6 +99,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 GrpcPort = (int)config.LocalCasSettings.ServiceSettings.GrpcPort,
                 GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
+                JunctionsByDirectory = dcs.AlternateDriveMap
             };
             ApplyIfNotNull(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy, v => {
                 if (!Enum.TryParse<GrpcFileCopierConfiguration.ClientInvalidationPolicy>(v, out var parsed))
@@ -110,15 +110,15 @@ namespace BuildXL.Cache.Host.Service
                 grpcFileCopierConfiguration.GrpcCopyClientInvalidationPolicy = parsed;
             });
 
+            grpcFileCopierConfiguration.UseUniversalLocations = dcs.UseUniversalLocations;
+
             var grpcFileCopier = new GrpcFileCopier(
                     new Context(logger),
                     grpcFileCopierConfiguration);
 
             return (
                     copier: grpcFileCopier,
-                    pathTransformer: new GrpcDistributedPathTransformer(
-                        junctionsByDirectory: dcs.AlternateDriveMap,
-                        logger: logger),
+
                     copyRequester: grpcFileCopier
                 );
         }
@@ -210,9 +210,8 @@ namespace BuildXL.Cache.Host.Service
         {
             if (arguments.BuildCopyInfrastructure != null)
             {
-                var (copier, pathTransformer, copyRequester) = arguments.BuildCopyInfrastructure(arguments.Logger);
+                var (copier, copyRequester) = arguments.BuildCopyInfrastructure(arguments.Logger);
                 arguments.Copier = copier;
-                arguments.PathTransformer = pathTransformer;
                 arguments.CopyRequester = copyRequester;
             }
         }

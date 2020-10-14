@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <summary>
-    /// Configuration object for <see cref="DistributedContentCopier{T}"/> and <see cref="DistributedContentStore{T}"/> classes.
+    /// Configuration object for <see cref="DistributedContentCopier"/> and <see cref="DistributedContentStore"/> classes.
     /// </summary>
     public sealed class DistributedContentStoreSettings
     {

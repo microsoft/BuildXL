@@ -19,7 +19,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using FluentAssertions;
 using Xunit;
 
-using static BuildXL.Cache.ContentStore.Distributed.Sessions.ReadOnlyDistributedContentSession<BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath>.Counters;
+using static BuildXL.Cache.ContentStore.Distributed.Sessions.ReadOnlyDistributedContentSession.Counters;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -307,7 +307,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
                     else if (context.Iteration == 2)
                     {
-                        var proactiveStore = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(proactiveReplicator);
+                        var proactiveStore = (DistributedContentStore)context.GetDistributedStore(proactiveReplicator);
                         var proactiveSession = (await proactiveStore.ProactiveCopySession.Value).ThrowIfFailure();
                         var counters = proactiveSession.GetCounters().ToDictionaryIntegral();
                         counters["ProactiveCopy_OutsideRingFromPreferredLocations.Count"].Should().Be(usePreferredLocations ? 1 : 0);
@@ -557,10 +557,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 testFunc: async context =>
                 {
                     var session0 = context.GetDistributedSession(0);
-                    var store0 = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(0);
+                    var store0 = (DistributedContentStore)context.GetDistributedStore(0);
 
                     var session1 = context.GetSession(1);
-                    var store1 = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(1);
+                    var store1 = (DistributedContentStore)context.GetDistributedStore(1);
 
                     var putResult0 = await session0.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
                     var oldHash = putResult0.ContentHash;
@@ -576,10 +576,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Last eviction should be newer than last access time of the old hash.
                     var putResult2 = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
 
-                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
+                    store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
                     var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication);
                     result.Succeeded.Should().BeFalse();
-                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+                    store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
 
                     TestClock.UtcNow += TimeSpan.FromMinutes(2); // Need to increase to make checkpoints happen.
 
@@ -589,9 +589,9 @@ namespace ContentStoreTest.Distributed.Sessions
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
                     // Copy should not be rejected.
-                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+                    store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
                     await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication).ShouldBeSuccess();
-                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+                    store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
                 });
         }
 

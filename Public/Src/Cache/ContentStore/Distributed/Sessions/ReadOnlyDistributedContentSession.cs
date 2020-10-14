@@ -40,9 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// <summary>
     /// A read only content location based content session with an inner session for storage.
     /// </summary>
-    /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession, IConfigurablePin
-        where T : PathBase
+    public class ReadOnlyDistributedContentSession : ContentSessionBase, IHibernateContentSession, IConfigurablePin
     {
         internal enum Counters
         {
@@ -84,10 +82,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public IContentSession Inner { get; }
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentSession<T>));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentSession));
 
         /// <nodoc />
-        protected readonly DistributedContentCopier<T> DistributedCopier;
+        protected readonly DistributedContentCopier DistributedCopier;
 
         private readonly IDistributedContentCopierHost _copierHost;
 
@@ -106,14 +104,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         protected readonly SemaphoreSlim PutAndPlaceFileGate;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
-        /// </summary>
+        /// <nodoc />
         public ReadOnlyDistributedContentSession(
             string name,
             IContentSession inner,
             IContentLocationStore contentLocationStore,
-            DistributedContentCopier<T> contentCopier,
+            DistributedContentCopier contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
             DistributedContentStoreSettings? settings = default)

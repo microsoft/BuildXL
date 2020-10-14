@@ -23,18 +23,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// <summary>
     /// A content location based content session with an inner content session for storage.
     /// </summary>
-    /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession
-        where T : PathBase
+    public class DistributedContentSession : ReadOnlyDistributedContentSession, IContentSession
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
-        /// </summary>
+        /// <nodoc />
         public DistributedContentSession(
             string name,
             IContentSession inner,
             IContentLocationStore contentLocationStore,
-            DistributedContentCopier<T> contentCopier,
+            DistributedContentCopier contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
             DistributedContentStoreSettings settings = default)

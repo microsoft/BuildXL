@@ -13,11 +13,49 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
-    /// Represents an interface that allows copying files from a remote source to a local path using absolute paths.
+    /// Represents an interface that allows copying files from a remote source to a local stream
     /// </summary>
-    public interface IAbsolutePathRemoteFileCopier : IRemoteFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>
+    public interface IRemoteFileCopier
     {
+        /// <summary>
+        /// Return opaque content location data that will be set for locally produced content.
+        /// </summary>
+        /// <param name="cacheRoot">The cache root path to the local cache.</param>
+        /// <remarks>
+        /// Returned location data is saved to the ContentLocationStore
+        /// and used by peers for downloading content from local machine
+        /// e.g. An implementation could be \\machine\cacheRoot
+        /// </remarks>
+        MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot);
 
+        /// <summary>
+        /// Checks that the file represented by <paramref name="sourceLocation"/> exists.
+        /// </summary>
+        Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation);
+
+        /// <summary>
+        /// Copies a file represented by the path into the stream specified.
+        /// </summary>
+        Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options);
+    }
+
+    /// <summary>
+    /// Represents a location of content on a machine
+    /// </summary>
+    public struct ContentLocation
+    {
+        /// <nodoc />
+        public MachineLocation Machine { get; }
+
+        /// <nodoc />
+        public ContentHash Hash { get; }
+
+        /// <nodoc />
+        public ContentLocation(MachineLocation machine, ContentHash hash)
+        {
+            Machine = machine;
+            Hash = hash;
+        }
     }
 
     /// <summary>
@@ -25,6 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public interface IContentCommunicationManager
     {
+
         /// <summary>
         /// Requests another machine to copy a file.
         /// </summary>
@@ -42,10 +81,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Deletes content from a target machine
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="hash"></param>
-        /// <param name="targetMachine"></param>
-        /// <returns></returns>
         Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
     }
 }

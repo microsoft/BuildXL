@@ -17,18 +17,28 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
     /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
-    public class GrpcFileCopier : IAbsolutePathRemoteFileCopier, IContentCommunicationManager, IDisposable
+    public class GrpcFileCopier : IRemoteFileCopier, IContentCommunicationManager, IDisposable
     {
         private readonly Context _context;
         private readonly GrpcFileCopierConfiguration _configuration;
 
+        private const string GrpcUriSchemePrefix = "grpc://";
+
         private readonly GrpcCopyClientCache _clientCache;
+
+        private readonly IReadOnlyDictionary<AbsolutePath, AbsolutePath> _junctionsByDirectory;
+
+        /// <summary>
+        /// The resolved DNS host name or local machine name
+        /// </summary>
+        private readonly string _localMachineName;
 
         /// <summary>
         /// Extract the host name from an AbsolutePath's segments.
@@ -54,6 +64,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _context = context;
             _configuration = configuration;
             _clientCache = new GrpcCopyClientCache(context, _configuration.GrpcCopyClientCacheConfiguration);
+
+            _junctionsByDirectory = configuration.JunctionsByDirectory?.ToDictionary(kvp => new AbsolutePath(kvp.Key), kvp => new AbsolutePath(kvp.Value)) ?? new Dictionary<AbsolutePath, AbsolutePath>();
+
+            try
+            {
+                _localMachineName = System.Net.Dns.GetHostName();
+            }
+            catch (Exception e)
+            {
+                context.Warning($"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e.ToString()}");
+                _localMachineName = Environment.MachineName;
+            }
         }
 
         /// <inheritdoc />
@@ -63,51 +85,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
+        public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
         {
-            // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
+            // Extract host and port from machine location
+            (string host, int port) = ExtractHostInfo(sourceLocation.Machine);
 
-            var context = new OperationContext(_context, cancellationToken);
-            return _clientCache.UseAsync(context, host, _configuration.GrpcPort, (nestedContext, client) => client.CheckFileExistsAsync(nestedContext, contentHash));
-        }
-
-        private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
-        {
-            // TODO: Keep the segments in the AbsolutePath object?
-            // TODO: Indexable structure?
-            var segments = sourcePath.GetSegments();
-            Contract.Assert(segments.Count >= 4);
-
-            string host = GetHostName(sourcePath.IsLocal, segments);
-
-            var hashLiteral = segments.Last();
-            if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                hashLiteral = hashLiteral.Substring(0, hashLiteral.Length - GrpcDistributedPathTransformer.BlobFileExtension.Length);
-            }
-            var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
-
-            if (!Enum.TryParse(hashTypeLiteral, ignoreCase: true, out HashType hashType))
-            {
-                throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
-            }
-
-            var contentHash = new ContentHash(hashType, HexUtilities.HexToBytes(hashLiteral));
-
-            return (host, contentHash);
+            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.CheckFileExistsAsync(nestedContext, sourceLocation.Hash));
         }
 
         /// <inheritdoc />
         public async Task<CopyFileResult> CopyToAsync(
             OperationContext context,
-            AbsolutePath sourcePath,
+            ContentLocation sourceLocation,
             Stream destinationStream,
-            long expectedContentSize,
             CopyOptions options)
         {
-            // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
+            // Extract host and port from machine location
+            (string host, int port) = ExtractHostInfo(sourceLocation.Machine);
 
             // Contact hard-coded port on source
             try
@@ -117,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
                 return await _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
                 {
-                    var result = await clientWrapper.Value.CopyToAsync(nestedContext, contentHash, destinationStream, options);
+                    var result = await clientWrapper.Value.CopyToAsync(nestedContext, sourceLocation.Hash, destinationStream, options);
                     InvalidateResourceIfNeeded(nestedContext, options, result, clientWrapper);
                     return result;
                 });
@@ -166,35 +160,101 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <inheritdoc />
         public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
-            var targetPath = new AbsolutePath(targetMachine.Path);
-            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+            (string host, int port) = ExtractHostInfo(targetMachine);
 
-            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream, options));
+            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream, options));
         }
 
         /// <inheritdoc />
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            var targetPath = new AbsolutePath(targetMachine.Path);
-            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+            (string host, int port) = ExtractHostInfo(targetMachine);
 
-            return _clientCache.UseAsync(context, targetMachineName, _configuration.GrpcPort, (nestedContext, client) => client.RequestCopyFileAsync(nestedContext, hash));
+            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.RequestCopyFileAsync(nestedContext, hash));
         }
 
         /// <inheritdoc />
         public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            var targetPath = new AbsolutePath(targetMachine.Path);
-            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+            (string host, int port) = ExtractHostInfo(targetMachine);
 
             using (var client = new GrpcContentClient(
                 new ServiceClientContentSessionTracer(nameof(ServiceClientContentSessionTracer)),
                 new PassThroughFileSystem(),
-                new ServiceClientRpcConfiguration(_configuration.GrpcPort) { GrpcHost = targetMachineName },
+                new ServiceClientRpcConfiguration(port) { GrpcHost = host },
                 scenario: string.Empty))
             {
                 return await client.DeleteContentAsync(context, hash, deleteLocalOnly: true);
             }
+        }
+
+        private (string host, int port) ExtractHostInfo(MachineLocation machineLocation)
+        {
+            var path = machineLocation.Path;
+            if (path.StartsWith(GrpcUriSchemePrefix))
+            {
+                // This is a uri format machine location
+                var uri = new Uri(path);
+                return (uri.Host, uri.Port);
+            }
+
+            var sourcePath = new AbsolutePath(path);
+
+            // TODO: Keep the segments in the AbsolutePath object?
+            // TODO: Indexable structure?
+            var segments = sourcePath.GetSegments();
+            Contract.Assert(segments.Count >= 4);
+
+            string host = GetHostName(sourcePath.IsLocal, segments);
+
+            return (host, _configuration.GrpcPort);
+        }
+
+        /// <inheritdoc />
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
+        {
+            if (_configuration.UseUniversalLocations)
+            {
+                return new MachineLocation($"{GrpcUriSchemePrefix}{_localMachineName}:{_configuration.GrpcPort}/");
+            }
+
+            if (!cacheRoot.IsLocal)
+            {
+                throw new ArgumentException($"Local cache root must be a local path. Found {cacheRoot}.");
+            }
+
+            if (!cacheRoot.GetFileName().Equals(Constants.SharedDirectoryName))
+            {
+                cacheRoot = cacheRoot / Constants.SharedDirectoryName;
+            }
+
+            var cacheRootString = cacheRoot.Path.ToUpperInvariant();
+
+            // Determine if cacheRoot needs to be accessed through its directory junction
+            var directories = _junctionsByDirectory.Keys;
+            var directoryToReplace = directories.SingleOrDefault(directory =>
+                                        cacheRootString.StartsWith(directory.Path, StringComparison.OrdinalIgnoreCase));
+
+            if (directoryToReplace != null)
+            {
+                // Replace directory with its junction
+                var junction = _junctionsByDirectory[directoryToReplace];
+                cacheRootString = cacheRootString.Replace(directoryToReplace.Path.ToUpperInvariant(), junction.Path);
+            }
+
+            string networkPathRoot = null;
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // Only unify paths along casing if on Windows
+                networkPathRoot = Path.Combine(@"\\" + _localMachineName, cacheRootString.Replace(":", "$"));
+            }
+            else
+            {
+                // Path.Combine ignores the first parameter if the second is a rooted path. To get the machine name before the rooted network path, the combination must be done manually.
+                networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, cacheRootString.TrimStart(Path.DirectorySeparatorChar));
+            }
+
+            return new MachineLocation(networkPathRoot.ToUpperInvariant());
         }
     }
 }

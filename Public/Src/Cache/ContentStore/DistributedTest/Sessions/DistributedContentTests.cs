@@ -55,7 +55,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            IAbsolutePathRemoteFileCopier fileCopier,
+            IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             int iteration,
@@ -67,7 +67,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly Context Context;
             public readonly Context[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
-            public readonly IAbsolutePathRemoteFileCopier FileCopier;
+            public readonly IRemoteFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
             public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
@@ -89,7 +89,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public TestContext(
                 Context context,
-                IAbsolutePathRemoteFileCopier fileCopier,
+                IRemoteFileCopier fileCopier,
                 IList<DisposableDirectory> directories,
                 IList<(IContentStore store, IStartupShutdown server)> stores,
                 int iteration,
@@ -111,7 +111,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     for (int i = 0; i < Stores.Count; i++)
                     {
-                        var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
+                        var distributedStore = (DistributedContentStore)GetDistributedStore(i);
                         TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                         TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                         TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
@@ -225,9 +225,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 return Sessions[idx];
             }
 
-            public virtual DistributedContentSession<AbsolutePath> GetDistributedSession(int idx, bool primary = true)
+            public virtual DistributedContentSession GetDistributedSession(int idx, bool primary = true)
             {
-                return GetTypedSession<DistributedContentSession<AbsolutePath>>(idx, primary);
+                return GetTypedSession<DistributedContentSession>(idx, primary);
             }
 
             internal FileSystemContentSession GetFileSystemSession(int idx, bool primary = true)
@@ -259,7 +259,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var primarySession = multiplexSession.PreferredContentSession;
                     session = (IContentSession)(primary ? primarySession : multiplexSession.SessionsByCacheRoot.Values.Where(s => s != primarySession).First());
                 }
-                else if (session is DistributedContentSession<AbsolutePath> distributedSession)
+                else if (session is DistributedContentSession distributedSession)
                 {
                     session = distributedSession.Inner;
                 }
@@ -276,9 +276,9 @@ namespace ContentStoreTest.Distributed.Sessions
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
 
-            public virtual DistributedContentStore<AbsolutePath> GetDistributedStore(int idx, bool primary = true)
+            public virtual DistributedContentStore GetDistributedStore(int idx, bool primary = true)
             {
-                return GetTypedStore<DistributedContentStore<AbsolutePath>>(idx, primary);
+                return GetTypedStore<DistributedContentStore>(idx, primary);
             }
 
             internal FileSystemContentStore GetFileSystemStore(int idx, bool primary = true)
@@ -310,7 +310,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var primaryStore = multiplexStore.PreferredContentStore;
                     store = primary ? primaryStore : multiplexStore.DrivesWithContentStore.Values.Where(s => s != primaryStore).First();
                 }
-                else if (store is DistributedContentStore<AbsolutePath> distributedStore)
+                else if (store is DistributedContentStore distributedStore)
                 {
                     store = distributedStore.InnerContentStore;
                 }
@@ -342,7 +342,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetLocationStore(GetMasterIndex());
             }
 
-            internal IContentLocationStore GetContentLocationStore(DistributedContentSession<AbsolutePath> session)
+            internal IContentLocationStore GetContentLocationStore(DistributedContentSession session)
             {
                 return session.ContentLocationStore;
             }
@@ -873,7 +873,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
 
-                    IAbsolutePathRemoteFileCopier[] testFileCopiers;
+                    IRemoteFileCopier[] testFileCopiers;
                     if (UseGrpcServer && storeCount > 1)
                     {
                         Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");

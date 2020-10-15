@@ -22,6 +22,9 @@ export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os
         d`${Context.getMount("ProgramFiles").path}`,
         d`${Context.getMount("ProgramFilesX86").path}`,
         d`${Context.getMount("ProgramData").path}`,
+        d`${Context.getMount("AppData").path}`,
+        d`${Context.getMount("LocalAppData").path}`,
+        d`${Context.getMount("UserProfile").path}`
     ]),
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,

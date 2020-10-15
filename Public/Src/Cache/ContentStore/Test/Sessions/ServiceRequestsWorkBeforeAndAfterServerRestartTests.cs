@@ -116,41 +116,27 @@ namespace ContentStoreTest.Sessions
         
         private Task WorksBeforeAndAfterServerRestart(Func<Context, IContentSession, ContentHash, Task> requestFunc)
         {
-            int retryCount = 0;
-            int maxRetryCount = 2;
-            List<string> errorMessages = new List<string>();
-
-            while (retryCount < maxRetryCount)
+            // Scenario must be unique for different test cases to avoid getting CacheException like:
+            // BuildXL.Cache.ContentStore.Exceptions.CacheException : Shutdown event name=[InProcessServiceRequestsWorkAcrossServerRestartTestsDEBUGDEBUG] already exists
+            Scenario += Guid.NewGuid().ToString();
+            return RunSessionTestAsync(ImplicitPin.None, async (context, session) =>
             {
-                try
-                {
-                    return RunSessionTestAsync(ImplicitPin.None, async (context, session) =>
-                    {
-                        // Put some random content for requests that want to use it.
-                        var r1 = await session.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                // Put some random content for requests that want to use it.
+                var r1 = await session.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
-                        // Pin the content - this should survive the server restart.
-                         await session.PinAsync(context, r1.ContentHash, Token).ShouldBeSuccess();
+                // Pin the content - this should survive the server restart.
+                await session.PinAsync(context, r1.ContentHash, Token).ShouldBeSuccess();
 
-                        // Make sure request works before restarting the server.
-                        await requestFunc(context, session, r1.ContentHash);
+                // Make sure request works before restarting the server.
+                await requestFunc(context, session, r1.ContentHash);
 
-                        ITestServiceClientContentStore store = ((TestServiceClientContentSession)session).Store;
-                        await store.RestartServerAsync(context);
+                ITestServiceClientContentStore store = ((TestServiceClientContentSession)session).Store;
+                await store.RestartServerAsync(context);
 
-                        // Make sure request works after restarting the server.
-                        await requestFunc(context, session, r1.ContentHash);
-                    });
-                }
-                catch (Xunit.Sdk.XunitException e)
-                {
-                    errorMessages.Add(e.Message);
-                    retryCount++;
-                }
-            }
+                // Make sure request works after restarting the server.
+                await requestFunc(context, session, r1.ContentHash);
+            });
 
-            Assert.True(false, $"Failed after {retryCount} tries." + string.Join(Environment.NewLine, errorMessages));
-            return null;
         }
     }
 

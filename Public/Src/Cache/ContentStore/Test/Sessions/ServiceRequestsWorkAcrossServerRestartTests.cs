@@ -160,7 +160,7 @@ namespace ContentStoreTest.Sessions
             {
                 await session.PutRandomFileAsync(
                     context, FileSystem, ContentHashType, provideHash, ContentByteCount, Token).ShouldBeSuccess();
-            }, testCase: $"{nameof(PutFileRunManyAcrossServerRestart)}_{provideHash}");
+            });
         }
 
         private Task RunManyForStoreAcrossServerRestartAsync(Func<Context, IContentStore, Task> requestFunc)
@@ -188,11 +188,11 @@ namespace ContentStoreTest.Sessions
             });
         }
 
-        private Task RunManyForSessionAcrossServerRestartAsync(Func<Context, IContentSession, ContentHash, int, Task> requestFunc, [CallerMemberName]string testCase = null)
+        private Task RunManyForSessionAcrossServerRestartAsync(Func<Context, IContentSession, ContentHash, int, Task> requestFunc)
         {
             // Scenario must be unique for different test cases to avoid getting CacheException like:
             // BuildXL.Cache.ContentStore.Exceptions.CacheException : Shutdown event name=[InProcessServiceRequestsWorkAcrossServerRestartTestsDEBUGDEBUG] already exists
-            Scenario += testCase;
+            Scenario += Guid.NewGuid().ToString();
             return RunSessionTestAsync(ImplicitPin.PutAndGet, async (context, session) =>
             {
                 // Put some random content for requests that want to use it.

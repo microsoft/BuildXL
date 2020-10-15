@@ -13,7 +13,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// default
         /// </summary>
-        Invalid,
+        Invalid = 0,
 
         /// <summary>
         /// Number of times a process pip cache descriptor was not usable due to mismatched strong fingerprints

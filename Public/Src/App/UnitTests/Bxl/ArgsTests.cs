@@ -205,13 +205,13 @@ namespace Test.BuildXL
             XAssert.IsNotNull(chosen);
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config2));
-            XAssert.Equals(chosen, config2.Startup.ChosenABTestingKey);
+            XAssert.AreEqual(chosen, config2.Startup.ChosenABTestingKey);
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config3));
-            XAssert.Equals(chosen, config3.Startup.ChosenABTestingKey);
+            XAssert.AreEqual(chosen, config3.Startup.ChosenABTestingKey);
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config4));
-            XAssert.Equals(chosen, config4.Startup.ChosenABTestingKey);
+            XAssert.AreEqual(chosen, config4.Startup.ChosenABTestingKey);
         }        
     }
 }

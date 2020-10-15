@@ -245,7 +245,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 var disagreeingIndexes = Enumerable
                     .Range(0, expected.Length)
-                    .Where(x => !Equals(expected[x], actual[x]));
+                    .Where(x => !object.Equals(expected[x], actual[x]));
                 return disagreeingIndexes.Any() ? disagreeingIndexes.First() : -1;
             };
             int i = -1;
@@ -579,6 +579,14 @@ namespace Test.BuildXL.TestUtilities.Xunit
             }
 
             Fail(JoinNonEmpty(Environment.NewLine, message, result.Failure.DescribeIncludingInnerFailures()));
+        }
+
+        /// <summary>
+        /// Call <see cref="XAssert.AreEqual(object, object)" /> instead.
+        /// </summary>
+        public static void Equals<TL, TR>(TL lhs, TR rhs, params object[] rest)
+        {
+            Fail("Use XAssert.AreEqual instead of XAssert.Equals");
         }
     }
 }

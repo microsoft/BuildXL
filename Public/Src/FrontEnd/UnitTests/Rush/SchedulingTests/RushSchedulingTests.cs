@@ -143,7 +143,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .RetrieveSuccessfulProcess(project)
                 .OutputDirectoryExclusions;
 
-            XAssert.Equals(blockWritesUnderNodeModules? 1 : 0, exclusions.Length);
+            XAssert.AreEqual(blockWritesUnderNodeModules? 1 : 0, exclusions.Length);
         }
 
         [Fact]

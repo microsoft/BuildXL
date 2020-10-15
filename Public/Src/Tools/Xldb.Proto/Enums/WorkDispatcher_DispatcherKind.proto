@@ -10,7 +10,7 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 enum WorkDispatcher_DispatcherKind{
     WorkDispatcher_DispatcherKind_UNSPECIFIED = 0;
 
-    WorkDispatcherKind_None = 1;
+    WorkDispatcher_DispatcherKind_None = 1;
     IO = 2;
     WorkDispatcher_DispatcherKind_CPU = 3;
     Light = 4;

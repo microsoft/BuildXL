@@ -237,7 +237,7 @@ This message has been filtered by a regex. Please find the complete stdout/stder
 
             // Retrieve the error messages for the pip process error for both runs
             var pipProcessErrorMessages = EventListener.GetLogMessagesForEventId((int)LogEventId.PipProcessError);
-            XAssert.Equals(2, pipProcessErrorMessages.Length);
+            XAssert.AreEqual(2, pipProcessErrorMessages.Length);
 
             // On the first run, standard error should have been copied to a file named err.txt
             XAssert.Contains(pipProcessErrorMessages[0], "err.txt");

@@ -1472,7 +1472,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Let's validate the env var value matches the retry number
             var output = File.ReadAllText(standardOutput.Path.ToString(Context.PathTable));
-            XAssert.Equals(processRetry, int.Parse(output));
+            XAssert.AreEqual(processRetry, int.Parse(output));
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

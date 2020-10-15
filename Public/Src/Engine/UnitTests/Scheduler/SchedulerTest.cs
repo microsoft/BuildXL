@@ -2609,11 +2609,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt64(enumVal) == 2147483648)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.DesiredAccess), -2147483648).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.DesiredAccess), -2147483648).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.DesiredAccess), Convert.ToInt64(enumVal)).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.DesiredAccess), Convert.ToInt64(enumVal)).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2631,11 +2631,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt64(enumVal) == 2147483648)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FlagsAndAttributes), -2147483648).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FlagsAndAttributes), -2147483648).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FlagsAndAttributes), Convert.ToInt64(enumVal)).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FlagsAndAttributes), Convert.ToInt64(enumVal)).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2643,11 +2643,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt32(enumVal) == 810505046)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), 810505046).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), 810505046).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2657,11 +2657,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt32(enumVal) == 0)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.Options), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.Options), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.Options), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.Options), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2677,11 +2677,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt32(enumVal) == 0)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.RequestedAccess), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.RequestedAccess), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.RequestedAccess), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.RequestedAccess), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2692,11 +2692,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt32(enumVal) == 0)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2706,11 +2706,11 @@ namespace Test.BuildXL.Scheduler
             {
                 if (Convert.ToInt32(enumVal) == 0)
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ShareMode), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ShareMode), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
                 }
                 else
                 {
-                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ShareMode), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
+                    XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ShareMode), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
                 }
             }
 
@@ -2725,7 +2725,7 @@ namespace Test.BuildXL.Scheduler
         {
             foreach (var enumVal in Enum.GetValues(bxlEnum))
             {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal)).ToLowerInvariant().Replace("_", ""));
+                XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal)).ToLowerInvariant().Replace("_", ""));
             }
         }
 
@@ -2736,7 +2736,7 @@ namespace Test.BuildXL.Scheduler
         {
             foreach (var enumVal in Enum.GetValues(bxlEnum))
             {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                XAssert.AreEqual(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
             }
         }
         #endregion

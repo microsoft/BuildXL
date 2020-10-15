@@ -131,8 +131,8 @@ namespace Test.BuildXL.Utilities
             };
 
             var environmentVariable = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(translations);
-            XAssert.Equals(DirectoryTranslator.TranslatedDirectoriesEnvironmentVariable, environmentVariable.variable);
-            XAssert.Equals(environmentVariable.value, $"{someDir}|{anotherDir};{differentDir}|{differentVolume}");
+            XAssert.AreEqual(DirectoryTranslator.TranslatedDirectoriesEnvironmentVariable, environmentVariable.variable);
+            XAssert.AreEqual(environmentVariable.value, $"{someDir}|{anotherDir};{differentDir}|{differentVolume}");
 
             var translator = new DirectoryTranslator();
             translator.AddDirectoryTranslationFromEnvironment(environmentVariable.value);

@@ -121,7 +121,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             var result = RunScheduler(filter: filter).AssertSuccess();
             result.AssertCacheHit(firstProducer.Process.PipId);
             XAssert.IsTrue(File.Exists(doubleWritePath));
-            XAssert.Equals("first", File.ReadAllText(doubleWritePath));
+            XAssert.AreEqual("first", File.ReadAllText(doubleWritePath));
 
             // Same procedure with the second producer
             filter = new RootFilter(new PipIdFilter(secondProducer.Process.SemiStableHash));
@@ -129,7 +129,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             result.AssertCacheHit(secondProducer.Process.PipId);
 
             XAssert.IsTrue(File.Exists(doubleWritePath));
-            XAssert.Equals("second", File.ReadAllText(doubleWritePath));
+            XAssert.AreEqual("second", File.ReadAllText(doubleWritePath));
         }
 
         [TheoryIfSupported(requiresHeliumDriversAvailable: true)]

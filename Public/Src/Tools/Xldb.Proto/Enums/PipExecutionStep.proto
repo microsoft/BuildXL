@@ -13,7 +13,7 @@ enum PipExecutionStep{
     PipExecutionStep_None = 1;
     Start = 2;
     Cancel = 3;
-    SkipDueToFailedDependencies = 4;
+    Skip = 4;
     CheckIncrementalSkip = 5;
     MaterializeInputs = 6;
     MaterializeOutputs = 7;

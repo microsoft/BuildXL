@@ -8,7 +8,7 @@ package BuildXL.Xldb.Proto;
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
 enum PipCacheMissType{
-    PipCacheMissType_UNSPECIFIED = 0;
+    PipCacheMissType_INVALID = 0;
 
     Hit = 51;
     MissForDescriptorsDueToStrongFingerprints = 53;

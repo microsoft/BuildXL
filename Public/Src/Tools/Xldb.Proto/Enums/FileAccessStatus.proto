@@ -13,5 +13,5 @@ enum FileAccessStatus{
     FileAccessStatus_None = 1;
     Allowed = 2;
     Denied = 3;
-    CannotDetermineByPolicy = 4;
+    CannotDeterminePolicy = 4;
 }

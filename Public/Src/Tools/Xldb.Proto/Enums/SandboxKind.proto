@@ -13,7 +13,7 @@ enum SandboxKind{
     SandboxKind_None = 1;
     Default = 2;
     WinDetours = 3;
-    MaxOsKext = 4;
+    MacOsKext = 4;
     MacOsKextIgnoreFileAccesses = 5;
     MacOsEndpointSecurity = 6;
     MacOsDetours = 7;

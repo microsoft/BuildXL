@@ -365,13 +365,13 @@ namespace Test.BuildXL.Scheduler
                     var pip = new CopyFile(sourceArtifact, destinationArtifact, ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(env.Context));
 
                     await VerifyPipResult(PipResultStatus.Succeeded, env, pip);
-                    XAssert.Equals(PipOutputOrigin.Produced, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
+                    XAssert.AreEqual(PipOutputOrigin.Produced, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
 
                     await VerifyPipResult(PipResultStatus.UpToDate, env, pip);
-                    XAssert.Equals(PipOutputOrigin.UpToDate, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
+                    XAssert.AreEqual(PipOutputOrigin.UpToDate, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
 
                     await VerifyPipResult(PipResultStatus.UpToDate, env, pip);
-                    XAssert.Equals(PipOutputOrigin.UpToDate, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
+                    XAssert.AreEqual(PipOutputOrigin.UpToDate, env.State.FileContentManager.GetPipOutputOrigin(destinationArtifact));
 
                     string actual = File.ReadAllText(destination);
                     XAssert.AreEqual(Contents, actual);

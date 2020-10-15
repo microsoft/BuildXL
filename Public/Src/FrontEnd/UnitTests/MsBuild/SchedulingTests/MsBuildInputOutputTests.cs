@@ -118,7 +118,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // The only source file (besides MSBuild.exe itself) should be input3
             var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
-            XAssert.Equals("input3.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
+            XAssert.AreEqual("input3.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
         [Theory]
@@ -143,7 +143,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // The only source file (besides MSBuild.exe itself) should be input2
             var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
-            XAssert.Equals("input2.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
+            XAssert.AreEqual("input2.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
         [Fact]

@@ -64,6 +64,6 @@ namespace BuildXL.Processes
         /// The calling process must open the file with the GENERIC_WRITE bit set as part of the dwDesiredAccess parameter.
         /// </remarks>
         [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
-        TRUNCATE_EXSTING = 5,
+        TRUNCATE_EXISTING = 5,
     }
 }

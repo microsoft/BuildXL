@@ -330,7 +330,7 @@ namespace Test.BuildXL.Engine
 
             var numDeleted = Scrubber.DeleteFiles(files.ToArray(), testHook: testHook);
             XAssert.IsTrue(m_cancellationTokenSource.IsCancellationRequested);
-            XAssert.Equals(FileDeletionsAllowed, numDeleted);
+            XAssert.IsTrue(numDeleted >= FileDeletionsAllowed);
         }
 
         [Fact]
@@ -415,7 +415,7 @@ namespace Test.BuildXL.Engine
                         nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
             XAssert.IsFalse(File.Exists(fileUnderTarget));
-            XAssert.Equals(OperatingSystemHelper.IsMacOS, !Directory.Exists(fullSymlinkPath));
+            XAssert.AreEqual(OperatingSystemHelper.IsMacOS, !Directory.Exists(fullSymlinkPath));
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -491,8 +491,8 @@ namespace Test.BuildXL.Engine
                     nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
                 XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
-                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(realDirectory));
-                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(symlinkDirectory));
+                XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(realDirectory));
+                XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(symlinkDirectory));
             }
             finally 
             {

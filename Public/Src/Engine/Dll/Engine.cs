@@ -2054,9 +2054,11 @@ namespace BuildXL.Engine
 
                                 // Saving file content table and post execution tasks are happening in parallel.
                                 success &= postExecutionTasks.GetAwaiter().GetResult();
+                                success &= savingFileContentTableTask.GetAwaiter().GetResult();
+
                                 ValidateSuccessMatches(success, engineLoggingContext);
 
-                                if (!savingFileContentTableTask.GetAwaiter().GetResult())
+                                if (!savingFileContentTableTask.Result)
                                 {
                                     Contract.Assert(
                                         engineLoggingContext.ErrorWasLogged,

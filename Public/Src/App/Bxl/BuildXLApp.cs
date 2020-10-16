@@ -2176,16 +2176,26 @@ namespace BuildXL
             var asyncLoggingContext = new LoggingContext(loggingContext.ActivityId, loggingContext.LoggerComponentInfo, loggingContext.Session, loggingContext, loggingQueue);
 
             BuildXLEngineResult result = null;
-            // All async logging needs to complete before code that checks the state of logging contexts or tracking event listeners.
-            // The interactions with app loggers (specifically with the TrackingEventListener) presume all
-            // logged events have been flushed. If async logging were still active the state may not be correct
-            // with respect to the Engine's return value.
+            
             using (loggingQueue?.EnterAsyncLoggingScope(asyncLoggingContext))
             {
                 result = engine.Run(asyncLoggingContext, engineState);
             }
 
             Contract.AssertNotNull(result, "Running the engine should return a valid engine result.");
+
+            if (!result.IsSuccess)
+            {
+                // When async logging is enabled, all async logging needs to complete before the following code that checks for
+                // the state of logging contexts or tracking event listeners.
+                // The interactions with app loggers (specifically with the TrackingEventListener) presume all
+                // logged events have been flushed. If async logging were still active the state may not be correct
+                // with respect to the Engine's return value.
+
+                Contract.Assert(
+                    (trackingEventListener == null || trackingEventListener.HasFailures) && loggingContext.ErrorWasLogged,
+                    I($"The build has failed but the logging infrastructure has not encountered an error: TrackingEventListener has errors: {trackingEventListener == null || trackingEventListener.HasFailures} | LoggingContext has errors: [{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
+            }
 
             // Graph caching complicates some things. we'll have to reload state which invalidates the pathtable and everything that holds
             // a pathtable like configuration.

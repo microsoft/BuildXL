@@ -1584,7 +1584,7 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
         public BuildXLEngineResult Run(LoggingContext loggingContext, EngineState engineState = null)
         {
-            return DoRunAndVerifyResult(loggingContext, engineState, disposeFrontEnd: true);
+            return DoRunAndVerifyEngineState(loggingContext, engineState, disposeFrontEnd: true);
         }
 
         /// <summary>
@@ -1596,7 +1596,7 @@ namespace BuildXL.Engine
         /// </remarks>
         public BuildXLEngineResult RunForFrontEndTests(LoggingContext loggingContext, EngineState engineState = null)
         {
-            return DoRunAndVerifyResult(loggingContext, engineState, disposeFrontEnd: false);
+            return DoRunAndVerifyEngineState(loggingContext, engineState, disposeFrontEnd: false);
         }
 
         private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, MountsTable mountsTable, LoggingContext loggingContext)
@@ -1663,7 +1663,7 @@ namespace BuildXL.Engine
             return result.ToList();
         }
 
-        private BuildXLEngineResult DoRunAndVerifyResult(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
+        private BuildXLEngineResult DoRunAndVerifyEngineState(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
             Contract.Ensures(
@@ -1676,13 +1676,6 @@ namespace BuildXL.Engine
             // When failed, we cannot dispose the engine state in the DoRun method because its finally clause still need
             // the engine state (i.e., the pip table) to complete the stats logging.
             result.DisposePreviousEngineStateIfRequestedAndVerifyEngineStateTransition();
-
-            if (!result.IsSuccess)
-            {
-                Contract.Assert(
-                    (m_trackingEventListener == null || m_trackingEventListener.HasFailures) && loggingContext.ErrorWasLogged,
-                    I($"The build has failed but the logging infrastructure has not encountered an error: TrackingEventListener has errors: {m_trackingEventListener == null || m_trackingEventListener.HasFailures} | LoggingContext has errors: [{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
-            }
 
             return result;
         }

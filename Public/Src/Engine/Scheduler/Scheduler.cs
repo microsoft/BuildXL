@@ -2034,6 +2034,10 @@ namespace BuildXL.Scheduler
             return new StatusRows()
             {
                 { "Cpu Percent", data => data.CpuPercent },
+                { "Cpu Percent (WMI)", data => m_perfInfo.CpuWMIUsagePercentage },
+                { "BuildXL Cpu Percent", data => m_perfInfo.ProcessCpuPercentage },
+                { "JobObject Cpu Percent", data => m_perfInfo.JobObjectCpu },
+                { "JobObject Processes", data => m_perfInfo.JobObjectProcesses },
                 { "Ram Percent", data => data.RamPercent },
                 { "EffectiveRam Percent", data => m_perfInfo.EffectiveRamUsagePercentage ?? 0},
                 { "Used Ram Mb", data => data.RamUsedMb },

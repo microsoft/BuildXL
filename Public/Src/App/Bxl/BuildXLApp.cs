@@ -49,6 +49,7 @@ using Strings = bxl.Strings;
 using BuildXL.Utilities.CrashReporting;
 
 using static BuildXL.Utilities.FormattableStringEx;
+using System.Runtime.InteropServices;
 
 namespace BuildXL
 {
@@ -1850,7 +1851,8 @@ namespace BuildXL
                     collector = new PerformanceCollector(
                         TimeSpan.FromMilliseconds(EngineSchedule.UpdateStatusIntervalMs),
                         m_configuration.Logging.LogMemory,
-                        (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message));
+                        (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message),
+                        queryJobObject: BuildXLJobObjectCpu);
                 }
             }
 
@@ -1863,6 +1865,24 @@ namespace BuildXL
                 });
 
             return collector;
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
+        private static unsafe (ulong? KernelTime, ulong? UserTime, ulong? NumProcesses) BuildXLJobObjectCpu()
+        {
+            var info = default(JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION);
+
+            if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
+                  IntPtr.Zero,
+                  JOBOBJECTINFOCLASS.JobObjectBasicAndIOAccountingInformation,
+                  &info,
+                  (uint)Marshal.SizeOf(info),
+                  out _))
+            {
+                return (null, null, null);
+            }
+
+            return (info.BasicAccountingInformation.TotalKernelTime, info.BasicAccountingInformation.TotalUserTime, info.BasicAccountingInformation.TotalProcesses);
         }
 
         internal void OnUnexpectedCondition(string condition)

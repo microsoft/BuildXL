@@ -72,10 +72,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             }
 
             var failureRate = results[0].FailureRate;
+            var failed = results[0].Failed;
+            var total = results[0].Total;
             _configuration.FailureRateThresholds.Check(failureRate, (severity, threshold) =>
             {
                 Emit(context, "FailureRate", severity,
-                    $"Build failure rate `{Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
+                    $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
                     eventTimeUtc: now);
             });
         }

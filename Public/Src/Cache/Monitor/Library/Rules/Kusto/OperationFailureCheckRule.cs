@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Scheduling;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             {
                 BiThreshold(result.Count, result.Machines, _configuration.Check.CountThresholds, _configuration.Check.MachinesThresholds, (severity, countThreshold, machinesThreshold) =>
                 {
-                    Emit(context, $"Errors_Operation_{_configuration.Check.Name}_{result.Operation}", severity,
+                    Emit(context, $"Errors_Operation_{_configuration.Check.Name}_{result.Operation}", Severity.Info,
                         $"`{result.Machines}` machine(s) had `{result.Count}` errors (`{result.ExceptionType}`) in operation `{result.Operation}`",
                         eventTimeUtc: now);
                 });

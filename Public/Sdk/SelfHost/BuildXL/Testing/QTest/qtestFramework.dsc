@@ -24,7 +24,10 @@ export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os
         d`${Context.getMount("ProgramData").path}`,
         d`${Context.getMount("AppData").path}`,
         d`${Context.getMount("LocalAppData").path}`,
-        d`${Context.getMount("UserProfile").path}`
+        d`${Context.getMount("UserProfile").path}`,
+        // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
+        // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
+        d`C:/Debuggers`
     ]),
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,

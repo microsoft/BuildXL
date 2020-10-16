@@ -28,6 +28,9 @@ namespace MonitorTest {
 
             // Needed to get TestWithOutput
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
+
+            // Used for TestGlobal.Logger
+            importFrom("BuildXL.Cache.ContentStore").Test.dll,
             
             importFrom("RuntimeContracts").pkg,
             ...azureSdk,

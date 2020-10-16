@@ -4,16 +4,17 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class FireAndForgetExceptionsRule : KustoRuleBase
+    internal class FireAndForgetExceptionsRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -31,7 +32,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(FireAndForgetExceptionsRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(FireAndForgetExceptionsRule)}:{_configuration.Environment}";
 
         public FireAndForgetExceptionsRule(Configuration configuration)
             : base(configuration)
@@ -40,11 +42,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public string Operation = string.Empty;
             public long Machines;
             public long Count;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -59,14 +62,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
                 | where Message has ""Unhandled exception in fire and forget task""
                 | where Message !has ""RedisConnectionException"" // This is a transient error (i.e. server closed the socket)
                 | where Message !has ""TaskCanceledException"" // This is irrelevant
                 | parse Message with * ""operation '"" Operation:string ""'"" * ""FullException="" Exception:string
-                | project PreciseTimeStamp, Machine, Operation, Exception
-                | summarize Machines=dcount(Machine), Count=count() by Operation
+                | project PreciseTimeStamp, Machine, Operation, Exception, Stamp
+                | summarize Machines=dcount(Machine), Count=count() by Operation, Stamp
                 | where not(isnull(Machines))";
             var results = await QueryKustoAsync<Result>(context, query);
 
@@ -81,6 +82,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
                     Emit(context, $"FireAndForgetExceptions_Operation_{result.Operation}", severity,
                         $"`{result.Machines}` machines had `{result.Count}` errors in fire and forget tasks for operation `{result.Operation}`",
+                        result.Stamp,
                         eventTimeUtc: now);
                 });
             }

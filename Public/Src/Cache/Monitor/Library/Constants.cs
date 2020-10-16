@@ -8,6 +8,17 @@ namespace BuildXL.Cache.Monitor.App
 {
     internal static class Constants
     {
+        public enum ResultCode
+        {
+            Success,
+
+            Cancelled,
+
+            Faiilure,
+
+            CriticalFailure
+        }
+
         public static string ServiceName { get; } = "ContentAddressableStoreService";
 
         public static string MasterServiceName { get; } = "ContentAddressableStoreMasterService";

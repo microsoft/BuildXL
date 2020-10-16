@@ -4,6 +4,9 @@
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Monitor.Library.Client;
+using BuildXL.Cache.Monitor.Library.Rules;
+using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
@@ -18,7 +21,7 @@ namespace BuildXL.Cache.Monitor.App
 {
     internal static class ExternalDependenciesFactory
     {
-        public static Result<ICslQueryProvider> CreateKustoQueryClient(string kustoClusterUrl, string azureTenantId, string azureAppId, string azureAppKey)
+        public static Result<IKustoClient> CreateKustoQueryClient(string kustoClusterUrl, string azureTenantId, string azureAppId, string azureAppKey)
         {
             Contract.RequiresNotNullOrEmpty(kustoClusterUrl);
             Contract.RequiresNotNullOrEmpty(azureAppId);
@@ -27,7 +30,7 @@ namespace BuildXL.Cache.Monitor.App
 
             var kustoConnectionString = new KustoConnectionStringBuilder(kustoClusterUrl)
                 .WithAadApplicationKeyAuthentication(azureAppId, azureAppKey, azureTenantId);
-            return new Result<ICslQueryProvider>(KustoClientFactory.CreateCslQueryProvider(kustoConnectionString));
+            return new Result<IKustoClient>(new KustoClient(KustoClientFactory.CreateCslQueryProvider(kustoConnectionString)));
         }
 
         public static Result<IKustoIngestClient> CreateKustoIngestClient(string kustoIngestionClusterUrl, string azureTenantId, string azureAppId, string azureAppKey)

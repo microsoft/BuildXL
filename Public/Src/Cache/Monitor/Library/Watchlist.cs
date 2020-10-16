@@ -3,16 +3,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.Monitor.App.Az;
-using Kusto.Data.Common;
+using BuildXL.Cache.Monitor.Library.Client;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -68,14 +67,20 @@ namespace BuildXL.Cache.Monitor.App
 
         public IEnumerable<KeyValuePair<StampId, DynamicStampProperties>> Entries => _properties;
 
+        public IEnumerable<CloudBuildEnvironment> Environments => _environments.Select(kvp => kvp.Key);
+
+        public IReadOnlyDictionary<CloudBuildEnvironment, List<StampId>> EnvStamps =>
+            _properties.GroupBy(property => property.Key.Environment, property => property.Key)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
         private readonly ILogger _logger;
-        private readonly ICslQueryProvider _cslQueryProvider;
+        private readonly IKustoClient _kustoClient;
         private readonly IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> _environments;
 
-        private Watchlist(ILogger logger, ICslQueryProvider cslQueryProvider, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
+        private Watchlist(ILogger logger, IKustoClient kustoClient, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
         {
             _logger = logger;
-            _cslQueryProvider = cslQueryProvider;
+            _kustoClient = kustoClient;
             _environments = environments;
         }
 
@@ -93,12 +98,13 @@ namespace BuildXL.Cache.Monitor.App
 
             Func<KeyValuePair<StampId, DynamicStampProperties>, string> extract = kvp => kvp.Key.ToString();
             bool hasNotChanged = oldProperties.OrderBy(extract).SequenceEqual(newProperties.OrderBy(extract));
+
             return !hasNotChanged;
         }
 
-        public static async Task<Watchlist> CreateAsync(ILogger logger, ICslQueryProvider cslQueryProvider, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
+        public static async Task<Watchlist> CreateAsync(ILogger logger, IKustoClient kustoClient, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
         {
-            var watchlist = new Watchlist(logger, cslQueryProvider, environments);
+            var watchlist = new Watchlist(logger, kustoClient, environments);
             await watchlist.RefreshAsync();
             return watchlist;
         }
@@ -115,7 +121,7 @@ namespace BuildXL.Cache.Monitor.App
 
                 _logger.Info("Loading monitor stamps for environment `{0}`", envName);
 
-                var results = await _cslQueryProvider.QuerySingleResultSetAsync<DynamicStampProperties>(query, envConf.KustoDatabaseName);
+                var results = await _kustoClient.QueryAsync<DynamicStampProperties>(query, envConf.KustoDatabaseName);
                 foreach (var result in results)
                 {
                     Contract.AssertNotNullOrEmpty(result.Stamp);

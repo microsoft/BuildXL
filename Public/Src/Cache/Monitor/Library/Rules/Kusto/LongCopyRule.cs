@@ -13,11 +13,11 @@ using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 {
-    internal class LongCopyRule : KustoRuleBase
+    internal class LongCopyRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration other) : base(other)
+            public Configuration(MultiStampRuleConfiguration other) : base(other)
             {
             }
 
@@ -40,15 +40,17 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 
         public LongCopyRule(Configuration configuration) : base(configuration) => _configuration = configuration;
 
-        public override string Identifier => $"{nameof(LongCopyRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(LongCopyRule)}:{_configuration.Environment}";
 
         private readonly Configuration _configuration;
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public long TotalCopies;
             public long LongCopies;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -61,35 +63,38 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.ServiceName}""
-                | where Operation == ""RemoteCopyFile""
-                | summarize TotalCopies = count(), LongCopies = countif(Duration > {CslTimeSpanLiteral.AsCslString(_configuration.LongCopyDurationThreshold)})
+                | where Operation == ""RemoteCopyFile"" and isnotempty(Duration)
+                | summarize TotalCopies = count(), LongCopies = countif(Duration > {CslTimeSpanLiteral.AsCslString(_configuration.LongCopyDurationThreshold)}) by Stamp
                 | where isnotempty(TotalCopies)";
 
-            var result = (await QueryKustoAsync<Result>(context, query)).FirstOrDefault();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            if (result == null)
+            foreach(var result in results)
             {
-                return;
+                if (result == null)
+                {
+                    return;
+                }
+
+                var percentage = result.TotalCopies > 0 ? 100.0 * result.LongCopies / result.TotalCopies : 0;
+
+                _configuration.LongCopiesPercentThresholds.Check(percentage, (severity, pct) =>
+                {
+                    Emit(context, "LongCopyPercent", severity,
+                        $"{percentage}% of copies ({result.LongCopies}/{result.TotalCopies}) had a duration longer than {_configuration.LongCopyDurationThreshold}.",
+                        result.Stamp,
+                        eventTimeUtc: now);
+                });
+
+                _configuration.LongCopiesAmountThresholds.Check(result.LongCopies, (severity, amount) =>
+                {
+                    Emit(
+                        context, "LongCopyDetected", severity,
+                        $"Detected {result.LongCopies} copies that had a duration longer than {_configuration.LongCopyDurationThreshold}.",
+                        result.Stamp,
+                        eventTimeUtc: now);
+                });
             }
-
-            var percentage = result.TotalCopies > 0 ? 100.0 * result.LongCopies / result.TotalCopies : 0;
-
-            _configuration.LongCopiesPercentThresholds.Check(percentage, (severity, pct) =>
-            {
-                Emit(context, "LongCopyPercent", severity,
-                    $"{percentage}% of copies ({result.LongCopies}/{result.TotalCopies}) had a duration longer than {_configuration.LongCopyDurationThreshold}.",
-                    eventTimeUtc: now);
-            });
-
-            _configuration.LongCopiesAmountThresholds.Check(result.LongCopies, (severity, amount) =>
-            {
-                Emit(
-                    context, "LongCopyDetected", severity,
-                    $"Detected {result.LongCopies} copies that had a duration longer than {_configuration.LongCopyDurationThreshold}.",
-                    eventTimeUtc: now);
-            });
         }
     }
 }

@@ -2,15 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class OperationPerformanceOutliersRule : KustoRuleBase
+    internal class OperationPerformanceOutliersRule : MultipleStampRuleBase
     {
         public class DynamicCheck
         {
@@ -66,9 +68,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             public string Constraint { get; set; } = "true";
         }
 
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration, DynamicCheck check)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration, DynamicCheck check)
                 : base(kustoRuleConfiguration)
             {
                 Check = check;
@@ -79,7 +81,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(OperationPerformanceOutliersRule)};{_configuration.Check.Name}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(OperationPerformanceOutliersRule)};{_configuration.Check.Name}:{_configuration.Environment}";
 
         public OperationPerformanceOutliersRule(Configuration configuration)
             : base(configuration)
@@ -88,12 +91,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public DateTime PreciseTimeStamp;
             public string Machine = string.Empty;
             public string CorrelationId = string.Empty;
-            public double TimeMs;
+            public TimeSpan Duration;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -109,74 +113,78 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let detection = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.DetectionPeriod)};
                 let Events = materialize(table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
-                | where Message has ""{_configuration.Check.Match} stop ""
-                | where Message has ""result=[Success""
-                | parse Message with OperationId:string "" "" * "" stop "" TimeMs:double ""ms. "" *
-                | extend CorrelationId={(_configuration.CacheTableName == Constants.NewTableName ? "CorrelationId" : "OperationId")}
-                | project PreciseTimeStamp, Machine, CorrelationId, TimeMs);
+                | where Message has ""{_configuration.Check.Match}"" and isnotempty(Duration)
+                | where Result != ""Success""
+                | project PreciseTimeStamp, Machine, CorrelationId, Duration, Stamp);
                 let DetectionEvents = Events
                 | where PreciseTimeStamp between (detection .. end);
                 let DescriptiveStatistics = Events
                 | where PreciseTimeStamp between (start .. detection){perhapsLookbackFilter}
-                | summarize hint.shufflekey=Machine hint.num_partitions=64 (P50, P95)=percentiles(TimeMs, 50, 95) by Machine
+                | summarize hint.shufflekey=Machine hint.num_partitions=64 (P50, P95)=percentiles(Duration, 50, 95) by Machine, Stamp
                 | where not(isnull(Machine));
                 DescriptiveStatistics
                 | join kind=rightouter hint.strategy=broadcast hint.num_partitions=64 DetectionEvents on Machine
                 | where {_configuration.Check.Constraint ?? "true"}
-                | project PreciseTimeStamp, Machine, CorrelationId, TimeMs
+                | extend Machine = iif(isnull(Machine) or isempty(Machine), Machine1, Machine)
+                | extend Stamp = iif(isnull(Stamp) or isempty(Stamp), Stamp1, Stamp)
+                | project PreciseTimeStamp, Machine, CorrelationId, Duration, Stamp
                 | where not(isnull(Machine));";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            if (results.Count == 0)
+            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, operationPerformanceOutliersHelper);
+
+            void operationPerformanceOutliersHelper(string stamp, List<Result> results)
             {
-                return;
+                if (results.Count == 0)
+                {
+                    return;
+                }
+
+                var reports = results
+                    .AsParallel()
+                    .GroupBy(result => result.Machine)
+                    .Select(group => (
+                        Machine: group.Key,
+                        Operations: group
+                            .OrderByDescending(result => result.PreciseTimeStamp)
+                            .ToList()))
+                    .OrderByDescending(entry => entry.Operations.Count)
+                    .ToList();
+
+                var eventTimeUtc = reports.Max(report => report.Operations[0].PreciseTimeStamp);
+
+                var numberOfMachines = reports.Count;
+                var numberOfFailures = reports.Sum(entry => entry.Operations.Count);
+
+                BiThreshold(numberOfMachines, numberOfFailures, _configuration.Check.MachineThresholds, _configuration.Check.FailureThresholds, (severity, machineThreshold, failureThreshold) =>
+                {
+                    var examples = string.Join(".\r\n", reports
+                        .Select(entry =>
+                        {
+                            var failures = string.Join(", ", entry.Operations
+                                .Take(5)
+                                .Select(f => $"`{f.CorrelationId}` (`{f.Duration}`)"));
+
+                            return $"`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
+                        }));
+                    var summaryExamples = string.Join(".\r\n", reports
+                        .Take(3)
+                        .Select(entry =>
+                        {
+                            var failures = string.Join(", ", entry.Operations
+                                .Take(2)
+                                .Select(f => $"`{f.CorrelationId}` (`{f.Duration}`)"));
+
+                            return $"\t`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
+                        }));
+
+                    Emit(context, $"Performance_{_configuration.Check.Name}", severity,
+                        $"Operation `{_configuration.Check.Name}` has taken too long `{numberOfFailures}` time(s) across `{numberOfMachines}` machine(s) in the last `{_configuration.Check.DetectionPeriod}`. Examples:\r\n{examples}",
+                        stamp,
+                        $"Operation `{_configuration.Check.Name}` has taken too long `{numberOfFailures}` time(s) across `{numberOfMachines}` machine(s) in the last `{_configuration.Check.DetectionPeriod}`. Examples:\r\n{summaryExamples}",
+                        eventTimeUtc: eventTimeUtc);
+                });
             }
-
-            var reports = results
-                .AsParallel()
-                .GroupBy(result => result.Machine)
-                .Select(group => (
-                    Machine: group.Key,
-                    Operations: group
-                        .OrderByDescending(result => result.PreciseTimeStamp)
-                        .ToList()))
-                .OrderByDescending(entry => entry.Operations.Count)
-                .ToList();
-
-            var eventTimeUtc = reports.Max(report => report.Operations[0].PreciseTimeStamp);
-
-            var numberOfMachines = reports.Count;
-            var numberOfFailures = reports.Sum(entry => entry.Operations.Count);
-
-            BiThreshold(numberOfMachines, numberOfFailures, _configuration.Check.MachineThresholds, _configuration.Check.FailureThresholds, (severity, machineThreshold, failureThreshold) =>
-            {
-                var examples = string.Join(".\r\n", reports
-                    .Select(entry =>
-                    {
-                        var failures = string.Join(", ", entry.Operations
-                            .Take(5)
-                            .Select(f => $"`{f.CorrelationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
-
-                        return $"`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
-                    }));
-                var summaryExamples = string.Join(".\r\n", reports
-                    .Take(3)
-                    .Select(entry =>
-                    {
-                        var failures = string.Join(", ", entry.Operations
-                            .Take(2)
-                            .Select(f => $"`{f.CorrelationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
-
-                        return $"\t`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
-                    }));
-
-                Emit(context, $"Performance_{_configuration.Check.Name}", severity,
-                    $"Operation `{_configuration.Check.Name}` has taken too long `{numberOfFailures}` time(s) across `{numberOfMachines}` machine(s) in the last `{_configuration.Check.DetectionPeriod}`. Examples:\r\n{examples}",
-                    $"Operation `{_configuration.Check.Name}` has taken too long `{numberOfFailures}` time(s) across `{numberOfMachines}` machine(s) in the last `{_configuration.Check.DetectionPeriod}`. Examples:\r\n{summaryExamples}",
-                    eventTimeUtc: eventTimeUtc);
-            });
         }
     }
 }

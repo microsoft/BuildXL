@@ -4,19 +4,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Analysis;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class ActiveMachinesRule : KustoRuleBase
+    internal class ActiveMachinesRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -42,7 +44,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(ActiveMachinesRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(ActiveMachinesRule)}:{_configuration.Environment}";
 
         public ActiveMachinesRule(Configuration configuration)
             : base(configuration)
@@ -51,10 +54,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public DateTime PreciseTimeStamp;
             public long ActiveMachines;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -69,49 +73,45 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
-                | where Stamp == ""{_configuration.Stamp}""
-                | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
+                | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by Stamp, bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
                 | sort by PreciseTimeStamp asc
                 | where not(isnull(PreciseTimeStamp))";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
-
-            if (results.Count == 0)
-            {
-                Emit(context, "NoLogs", Severity.Fatal,
-                    $"Machines haven't produced any logs for at least `{_configuration.LookbackPeriod}`",
-                    eventTimeUtc: now);
-                return;
-            }
-
             var detectionHorizon = now - _configuration.AnomalyDetectionHorizon;
 
-            var training = new List<Result>();
-            var prediction = new List<Result>();
-            results.SplitBy(r => r.PreciseTimeStamp <= detectionHorizon, training, prediction);
+            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, activeMachineRuleHelper);
 
-            if (prediction.Count == 0)
+            void activeMachineRuleHelper(string stamp, List<Result> results)
             {
-                Emit(context, "NoLogs", Severity.Fatal,
-                    $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`",
-                    eventTimeUtc: now);
-                return;
+                var training = new List<Result>();
+                var prediction = new List<Result>();
+                results.SplitBy(r => r.PreciseTimeStamp <= detectionHorizon, training, prediction);
+
+                if (prediction.Count == 0)
+                {
+                    Emit(context, "NoLogs", Severity.Fatal,
+                        $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`",
+                        stamp,
+                        eventTimeUtc: now);
+                    return;
+                }
+
+                if (training.Count < _configuration.MinimumTrainingPercentOfData * results.Count)
+                {
+                    return;
+                }
+
+                var lookbackSizes = training.Select(r => r.ActiveMachines);
+                var lookbackMin = (long)Math.Ceiling((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
+                var lookbackMax = (long)Math.Floor((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
+                prediction.Select(p => p.ActiveMachines).NotInRange(lookbackMin, lookbackMax).Perform(index =>
+                {
+                    Emit(context, "ExpectedRange", Severity.Warning,
+                        $"`{prediction[index].ActiveMachines}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
+                        stamp,
+                        eventTimeUtc: prediction[index].PreciseTimeStamp);
+                });
             }
-
-            if (training.Count < _configuration.MinimumTrainingPercentOfData * results.Count)
-            {
-                return;
-            }
-
-            var lookbackSizes = training.Select(r => r.ActiveMachines);
-            var lookbackMin = (long)Math.Ceiling((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
-            var lookbackMax = (long)Math.Floor((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
-            prediction.Select(p => p.ActiveMachines).NotInRange(lookbackMin, lookbackMax).Perform(index =>
-            {
-                Emit(context, "ExpectedRange", Severity.Warning,
-                    $"`{prediction[index].ActiveMachines}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
-                    eventTimeUtc: prediction[index].PreciseTimeStamp);
-            });
         }
     }
 }

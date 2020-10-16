@@ -16,6 +16,7 @@ namespace Library {
             ]
             ),
             ...importFrom("BuildXL.Cache.ContentStore").kustoPackages,
+            ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
 
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,

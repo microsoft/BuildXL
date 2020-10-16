@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Az;
@@ -27,25 +28,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public abstract Task Run(RuleContext context);
 
-        protected void Emit(RuleContext context, string bucket, Severity severity, string message, string? summary = null, DateTime? eventTimeUtc = null)
-        {
-            var now = _configuration.Clock.UtcNow;
-            _configuration.Logger.Log(severity, $"[{Identifier}] {message}");
-            _configuration.Notifier.Emit(new Notification(
-                Identifier,
-                context.RunGuid,
-                context.RunTimeUtc,
-                now,
-                eventTimeUtc ?? now,
-                bucket,
-                severity,
-                _configuration.Environment,
-                _configuration.Stamp,
-                message,
-                summary ?? message));
-        }
-
-        protected Task<ObjectReader<T>> QueryKustoAsync<T>(RuleContext context, string query, string? database = null, ClientRequestProperties? requestProperties = null)
+        protected Task<IReadOnlyList<T>> QueryKustoAsync<T>(RuleContext context, string query, string? database = null, ClientRequestProperties? requestProperties = null)
         {
             if (database == null)
             {
@@ -58,7 +41,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
             requestProperties.ClientRequestId = context.RunGuid.ToString();
 
-            return _configuration.CslQueryProvider.QuerySingleResultSetAsync<T>(query, database, requestProperties);
+            return _configuration.KustoClient.QueryAsync<T>(query, database, requestProperties);
         }
     }
 }

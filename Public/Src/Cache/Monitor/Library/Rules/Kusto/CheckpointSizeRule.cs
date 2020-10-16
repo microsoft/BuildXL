@@ -9,15 +9,16 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Monitor.App.Analysis;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class CheckpointSizeRule : KustoRuleBase
+    internal class CheckpointSizeRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -64,7 +65,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(CheckpointSizeRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(CheckpointSizeRule)}:{_configuration.Environment}";
 
         public CheckpointSizeRule(Configuration configuration)
             : base(configuration)
@@ -73,10 +75,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public DateTime PreciseTimeStamp;
             public long TotalSize;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -89,76 +92,85 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.MasterServiceName}""
-                | where Message has ""CreateCheckpointAsync stop""
-                | project PreciseTimeStamp, Message
+                | where Role == ""Master""
+                | where Operation == ""CreateCheckpointAsync"" and isnotempty(Duration)
+                | where Result == ""{Constants.ResultCode.Success}""
+                | project PreciseTimeStamp, Message, Stamp
                 | parse Message with * ""SizeMb=["" SizeMb:double ""]"" *
-                | project PreciseTimeStamp, TotalSize=tolong(SizeMb * 1000000)
+                | project PreciseTimeStamp, TotalSize=tolong(SizeMb * 1000000), Stamp 
                 | sort by PreciseTimeStamp asc";
+
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            if (results.Count == 0)
+            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, checkpointSizeHelper);
+
+            void checkpointSizeHelper(string stamp, List<Result> results)
             {
-                _configuration.Logger.Error($"No checkpoints have been produced for at least {_configuration.LookbackPeriod}");
-                return;
-            }
-
-            var detectionHorizon = now - _configuration.AnomalyDetectionHorizon;
-
-            results
-                .Select(r => (double)r.TotalSize)
-                .OverPercentualDifference(_configuration.MaximumPercentualDifference)
-                .Where(evaluation => results[evaluation.Index].PreciseTimeStamp >= detectionHorizon)
-                .PerformOnLast(index =>
+                if (results.Count == 0)
                 {
-                    var result = results[index];
-                    var previousResult = results[index - 1];
-                    Emit(context, "SizeDerivative", Severity.Warning,
-                        $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`, which is higher than the threshold of `{_configuration.MaximumPercentualDifference * 100.0}%`",
-                        $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`",
-                        eventTimeUtc: result.PreciseTimeStamp);
-                });
+                    _configuration.Logger.Error($"No checkpoints have been produced for at least {_configuration.LookbackPeriod}");
+                    return;
+                }
 
-            var training = new List<Result>();
-            var prediction = new List<Result>();
-            results.SplitBy(r => r.PreciseTimeStamp <= detectionHorizon, training, prediction);
+                var detectionHorizon = now - _configuration.AnomalyDetectionHorizon;
 
-            if (prediction.Count == 0)
-            {
-                _configuration.Logger.Error($"No checkpoints have been produced for at least {_configuration.AnomalyDetectionHorizon}");
-                return;
-            }
+                results
+                    .Select(r => (double)r.TotalSize)
+                    .OverPercentualDifference(_configuration.MaximumPercentualDifference)
+                    .Where(evaluation => results[evaluation.Index].PreciseTimeStamp >= detectionHorizon)
+                    .PerformOnLast(index =>
+                    {
+                        var result = results[index];
+                        var previousResult = results[index - 1];
+                        Emit(context, "SizeDerivative", Severity.Warning,
+                            $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`, which is higher than the threshold of `{_configuration.MaximumPercentualDifference * 100.0}%`",
+                            stamp,
+                            $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`",
+                            eventTimeUtc: result.PreciseTimeStamp);
+                    });
 
-            prediction
-                .Select(p => p.TotalSize)
-                .NotInRange(_configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes)
-                .PerformOnLast(index =>
+                var training = new List<Result>();
+                var prediction = new List<Result>();
+                results.SplitBy(r => r.PreciseTimeStamp <= detectionHorizon, training, prediction);
+
+                if (prediction.Count == 0)
                 {
-                    var result = prediction[index];
-                    Emit(context, "SizeValidRange", Severity.Warning,
-                        $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
-                        eventTimeUtc: result.PreciseTimeStamp);
-                });
+                    _configuration.Logger.Error($"No checkpoints have been produced for at least {_configuration.AnomalyDetectionHorizon}");
+                    return;
+                }
 
-            if (training.Count < _configuration.MinimumTrainingPercentOfData * results.Count)
-            {
-                return;
-            }
+                prediction
+                    .Select(p => p.TotalSize)
+                    .NotInRange(_configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes)
+                    .PerformOnLast(index =>
+                    {
+                        var result = prediction[index];
+                        Emit(context, "SizeValidRange", Severity.Warning,
+                            $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
+                            stamp,
+                            eventTimeUtc: result.PreciseTimeStamp);
+                    });
 
-            var lookbackSizes = training.Select(r => r.TotalSize);
-            var expectedMin = (long)Math.Floor((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
-            var expectedMax = (long)Math.Ceiling((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
-            prediction
-                .Select(p => p.TotalSize)
-                .NotInRange(expectedMin, expectedMax)
-                .PerformOnLast(index =>
+                if (training.Count < _configuration.MinimumTrainingPercentOfData * results.Count)
                 {
-                    var result = prediction[index];
-                    Emit(context, "SizeExpectedRange", Severity.Warning,
-                        $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of expected range [`{expectedMin.ToSizeExpression()}`, `{expectedMax.ToSizeExpression()}`]",
-                        eventTimeUtc: result.PreciseTimeStamp);
-                });
+                    return;
+                }
+
+                var lookbackSizes = training.Select(r => r.TotalSize);
+                var expectedMin = (long)Math.Floor((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
+                var expectedMax = (long)Math.Ceiling((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
+                prediction
+                    .Select(p => p.TotalSize)
+                    .NotInRange(expectedMin, expectedMax)
+                    .PerformOnLast(index =>
+                    {
+                        var result = prediction[index];
+                        Emit(context, "SizeExpectedRange", Severity.Warning,
+                            $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of expected range [`{expectedMin.ToSizeExpression()}`, `{expectedMax.ToSizeExpression()}`]",
+                            stamp,
+                            eventTimeUtc: result.PreciseTimeStamp);
+                    });
+            }
         }
     }
 }

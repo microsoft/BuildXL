@@ -2,20 +2,22 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class EventHubProcessingDelayRule : KustoRuleBase
+    internal class EventHubProcessingDelayRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -33,7 +35,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(EventHubProcessingDelayRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(EventHubProcessingDelayRule)}:{_configuration.Environment}";
 
         public EventHubProcessingDelayRule(Configuration configuration)
             : base(configuration)
@@ -42,7 +45,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public string Machine = string.Empty;
             public DateTime PreciseTimeStamp;
@@ -52,9 +55,10 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             public long MessageCount;
             public long SumMessageCount;
             public long SumMessageSizeMb;
+            public string Stamp = string.Empty;
         }
 
-        private class Result2
+        internal class Result2
         {
             public long? OutstandingBatches;
             public long? OutstandingEvents;
@@ -71,43 +75,48 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let MasterEvents = table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.MasterServiceName}"";
+                | where Role == ""Master""
+                | where Component has ""EventHubContentLocationEventStore"";
                 let MaximumDelayFromReceivedEvents = MasterEvents
                 | where Message has ""ReceivedEvent""
                 | parse Message with * ""ProcessingDelay="" Lag:timespan "","" *
                 | project PreciseTimeStamp, Stamp, Machine, ServiceVersion, Message, Duration=Lag
                 | summarize MaxDelay=max(Duration) by Stamp, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
                 let MaximumDelayFromEH = MasterEvents
-                | where (Message has ""EventHubContentLocationEventStore"" and Message has ""processed"") 
+                | where Message has ""processed"" 
                 | parse Message with * ""processed "" MessageCount:long ""message(s) by "" Duration:long ""ms"" * ""TotalMessagesSize="" TotalSize:long *
                 | project PreciseTimeStamp, Stamp, MessageCount, Duration, TotalSize, Message, Machine
                 | summarize MessageCount=count(), ProcessingDurationMs=percentile(Duration, 50), MaxProcessingDurationMs=max(Duration), SumMessageCount=sum(MessageCount), SumMessageSize=sum(TotalSize) by Stamp, Machine, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
                 MaximumDelayFromReceivedEvents
                 | join MaximumDelayFromEH on Stamp, PreciseTimeStamp
-                | project Machine, PreciseTimeStamp, MaxDelay, AvgProcessingDuration=totimespan(ProcessingDurationMs*10000), MaxProcessingDuration=totimespan(MaxProcessingDurationMs*10000), MessageCount, SumMessageCount, SumMessageSizeMb=SumMessageSize / (1024*1024)
+                | project Stamp, Machine, PreciseTimeStamp, MaxDelay, AvgProcessingDuration=totimespan(ProcessingDurationMs*10000), MaxProcessingDuration=totimespan(MaxProcessingDurationMs*10000), MessageCount, SumMessageCount, SumMessageSizeMb=SumMessageSize / (1024*1024)
                 | order by PreciseTimeStamp desc";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            if (results.Count == 0)
+            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, eventHubProcessingDelayHelper);
+
+            async void eventHubProcessingDelayHelper(string stamp, List<Result> results)
             {
-                // If we reached this point, it means we don't have messages from master saying that it processed
-                // anything. We now need to check if clients actually sent anything at all!
-                var outstandingQuery = $@"
+                if (results.Count == 0)
+                {
+                    // If we reached this point, it means we don't have messages from master saying that it processed
+                    // anything. We now need to check if clients actually sent anything at all!
+                    var outstandingQuery = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                     let Events = table(""{_configuration.CacheTableName}"")
                     | where PreciseTimeStamp between (start .. end)
-                    | where Stamp == ""{_configuration.Stamp}""
+                    | where Stamp == ""{stamp}""
+                    | where Component has ""EventHubContentLocationEventStore""
                     | project PreciseTimeStamp, Service, Machine, Stamp, Message;
                     let Enqueued = Events
-                    | where Service == ""{Constants.ServiceName}""
-                    | where Message has ""EventHubContentLocationEventStore"" and Message has ""sending"" and Message has ""OpId""
+                    | where Role == ""Worker""
+                    | where Message has ""sending"" and Message has ""OpId""
                     | parse Message with * ""/"" NumEvents:long ""event."" * ""OpId="" OperationId "","" *
                     | project-away Message;
                     let Processed = Events
-                    | where Service == ""{Constants.MasterServiceName}""
-                    | where Message has ""EventHubContentLocationEventStore"" and Message has ""OpId""
+                    | where Role == ""Master""
+                    | where Message has ""OpId""
                     | parse Message with * ""OpId="" OperationId "","" *
                     | project-away Message;
                     let Outstanding = Enqueued
@@ -117,37 +126,41 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     | summarize ProcessedBatches=dcount(OperationId);
                     Outstanding | extend dummy=1 | join kind=inner (Done | extend dummy=1) on dummy | project-away dummy, dummy1";
 
-                var outstandingResults = (await QueryKustoAsync<Result2>(context, outstandingQuery)).ToList();
+                    var outstandingResults = (await QueryKustoAsync<Result2>(context, outstandingQuery)).ToList();
 
-                if (outstandingResults.Count != 1)
-                {
-                    Emit(context, "NoLogs", Severity.Fatal,
-                        $"No events processed for at least `{_configuration.LookbackPeriod}`",
-                        eventTimeUtc: now);
+                    if (outstandingResults.Count != 1)
+                    {
+                        Emit(context, "NoLogs", Severity.Fatal,
+                            $"No events processed for at least `{_configuration.LookbackPeriod}`",
+                            stamp,
+                            eventTimeUtc: now);
+                        return;
+                    }
+
+                    var result = outstandingResults[0];
+                    if (result.OutstandingBatches.HasValue && result.OutstandingBatches.Value > 0)
+                    {
+                        if (result.ProcessedBatches.HasValue && result.ProcessedBatches.Value == 0)
+                        {
+                            Emit(context, "MasterStuck", Severity.Fatal,
+                                $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
+                                stamp,
+                                eventTimeUtc: now);
+                        }
+                    }
+
                     return;
                 }
 
-                var result = outstandingResults[0];
-                if (result.OutstandingBatches.HasValue && result.OutstandingBatches.Value > 0)
+                var delay = results[0].MaxDelay;
+                _configuration.Thresholds.Check(delay, (severity, threshold) =>
                 {
-                    if (result.ProcessedBatches.HasValue && result.ProcessedBatches.Value == 0)
-                    {
-                        Emit(context, "MasterStuck", Severity.Fatal,
-                            $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
-                            eventTimeUtc: now);
-                    }
-                }
-
-                return;
+                    Emit(context, "DelayThreshold", severity,
+                        $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
+                        stamp,
+                        eventTimeUtc: results[0].PreciseTimeStamp);
+                });
             }
-
-            var delay = results[0].MaxDelay;
-            _configuration.Thresholds.Check(delay, (severity, threshold) =>
-            {
-                Emit(context, "DelayThreshold", severity,
-                    $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
-                    eventTimeUtc: results[0].PreciseTimeStamp);
-            });
         }
     }
 }

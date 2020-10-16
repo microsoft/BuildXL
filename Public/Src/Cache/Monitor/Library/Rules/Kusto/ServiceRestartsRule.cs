@@ -2,19 +2,21 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 {
-    internal class ServiceRestartsRule : KustoRuleBase
+    internal class ServiceRestartsRule : MultipleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : MultiStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(MultiStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -38,7 +40,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(ServiceRestartsRule)}:{_configuration.StampId}";
+        /// <inheritdoc />
+        public override string Identifier => $"{nameof(ServiceRestartsRule)}:{_configuration.Environment}";
 
         public ServiceRestartsRule(Configuration configuration)
             : base(configuration)
@@ -47,13 +50,14 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
 #pragma warning disable CS0649
-        private class Result
+        internal class Result
         {
             public string Machine = string.Empty;
             public string ExceptionType = string.Empty;
             public long Total;
             public DateTime LatestTimeUtc;
             public DateTime EarliestTimeUtc;
+            public string Stamp = string.Empty;
         }
 #pragma warning restore CS0649
 
@@ -66,8 +70,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let Exceptions = table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
-                | where Stamp == ""{_configuration.Stamp}""
                 | where Message has ""Unhandled Exception in service.""
                 | project PreciseTimeStamp, Stamp, Machine, Service, Exception
                 | extend KnownFormat=(Exception has ""Error=["" and Exception has ""Diagnostics=["");
@@ -86,32 +88,38 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | union UnknownExceptions
                 | extend ExceptionType=iif(isempty(ExceptionType) or isnull(ExceptionType), ""Unknown"", ExceptionType)
                 | extend ExceptionType=iif(ExceptionType has "" "", extract(""([A-Za-z0-9.]+) .*"", 1, ExceptionType), ExceptionType)
-                | summarize Total=count(), LatestTimeUtc=max(PreciseTimeStamp), EarliestTimeUtc=min(PreciseTimeStamp) by Machine, ExceptionType
+                | summarize Total=count(), LatestTimeUtc=max(PreciseTimeStamp), EarliestTimeUtc=min(PreciseTimeStamp) by Machine, ExceptionType, Stamp
                 | where not(isnull(Total));";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            if (results.Count == 0)
+            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, serviceRestartsHelper);
+
+            void serviceRestartsHelper(string stamp, List<Result> results)
             {
-                return;
-            }
-
-            foreach (var group in results.GroupBy(result => result.ExceptionType))
-            {
-                var numberOfMachines = group.Select(result => result.Machine).Distinct().Count();
-                var numberOfExceptions = group.Sum(result => result.Total);
-
-                var minTimeUtc = group.Min(result => result.EarliestTimeUtc);
-                var eventTimeUtc = group.Max(result => result.LatestTimeUtc);
-
-                BiThreshold(numberOfMachines, numberOfExceptions, _configuration.MachinesThresholds, _configuration.ExceptionsThresholds, (severity, machinesThreshold, exceptionsThreshold) =>
+                if (results.Count == 0)
                 {
-                    var examples = string.Join(".\r\n", group
-                        .Select(result => $"\t`{result.Machine}` had `{result.Total}` restart(s) between `{result.EarliestTimeUtc}` and `{result.LatestTimeUtc}` UTC"));
-                    Emit(context, $"ServiceRestarts_{group.Key}", severity,
-                        $"`{numberOfMachines}` machine(s) had `{numberOfExceptions}` unexpected service restart(s) due to exception `{group.Key}` since `{now - minTimeUtc}` ago. Examples:\r\n{examples}",
-                        $"`{numberOfMachines}` machine(s) had `{numberOfExceptions}` unexpected service restart(s) due to exception `{group.Key}` since `{now - minTimeUtc}` ago",
-                        eventTimeUtc: eventTimeUtc);
-                });
+                    return;
+                }
+
+                foreach (var group in results.GroupBy(result => result.ExceptionType))
+                {
+                    var numberOfMachines = group.Select(result => result.Machine).Distinct().Count();
+                    var numberOfExceptions = group.Sum(result => result.Total);
+
+                    var minTimeUtc = group.Min(result => result.EarliestTimeUtc);
+                    var eventTimeUtc = group.Max(result => result.LatestTimeUtc);
+
+                    BiThreshold(numberOfMachines, numberOfExceptions, _configuration.MachinesThresholds, _configuration.ExceptionsThresholds, (severity, machinesThreshold, exceptionsThreshold) =>
+                    {
+                        var examples = string.Join(".\r\n", group
+                            .Select(result => $"\t`{result.Machine}` had `{result.Total}` restart(s) between `{result.EarliestTimeUtc}` and `{result.LatestTimeUtc}` UTC"));
+                        Emit(context, $"ServiceRestarts_{group.Key}", severity,
+                            $"`{numberOfMachines}` machine(s) had `{numberOfExceptions}` unexpected service restart(s) due to exception `{group.Key}` since `{now - minTimeUtc}` ago. Examples:\r\n{examples}",
+                            stamp,
+                            $"`{numberOfMachines}` machine(s) had `{numberOfExceptions}` unexpected service restart(s) due to exception `{group.Key}` since `{now - minTimeUtc}` ago",
+                            eventTimeUtc: eventTimeUtc);
+                    });
+                }
             }
         }
     }

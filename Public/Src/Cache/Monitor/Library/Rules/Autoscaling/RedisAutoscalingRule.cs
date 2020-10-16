@@ -7,14 +7,15 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Rules;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 {
-    internal class RedisAutoscalingRule : KustoRuleBase
+    internal class RedisAutoscalingRule : SingleStampRuleBase
     {
-        public class Configuration : KustoRuleConfiguration
+        public class Configuration : SingleStampRuleConfiguration
         {
-            public Configuration(KustoRuleConfiguration kustoRuleConfiguration)
+            public Configuration(SingleStampRuleConfiguration kustoRuleConfiguration)
                 : base(kustoRuleConfiguration)
             {
             }
@@ -26,6 +27,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
         private readonly RedisInstance _primaryRedisInstance;
         private readonly RedisInstance _secondaryRedisInstance;
 
+        /// <inheritdoc />
         public override string Identifier => $"{nameof(RedisAutoscalingRule)}:{_configuration.StampId}";
 
         public override string ConcurrencyBucket => "RedisAutoscaler";

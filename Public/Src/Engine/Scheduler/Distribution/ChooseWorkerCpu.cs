@@ -91,6 +91,11 @@ namespace BuildXL.Scheduler.Distribution
         private readonly Dictionary<ModuleId, (int NumPips, List<Worker> Workers)> m_moduleWorkerMapping;
         private readonly PathTable m_pathTable;
 
+        /// <summary>
+        /// Number of modules exceeding max workers due to availability
+        /// </summary>
+        private int m_numModulesExceedingMaxWorkers;
+
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
             IScheduleConfiguration config,
@@ -296,6 +301,15 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         assignedWorkers.Add(worker);
                         Logger.Log.AddedNewWorkerToModuleAffinity(LoggingContext, $"Added a new worker due to {(isAnyAvailable ? "Rebalance" : "Availability")} - {limitingResourceForAssigned}: {runnablePip.Description} - {moduleId.Value.ToString(m_pathTable.StringTable)} - WorkerId: {worker.WorkerId}, MaterializeInputSlots: {worker.AcquiredMaterializeInputSlots}, AcquiredProcessSlots: {worker.AcquiredProcessSlots}");
+
+                        if (assignedWorkers.Count > m_scheduleConfig.MaxWorkersPerModule)
+                        {
+                            // If none of the assigned workers are available due to worker connection issues or earlyWorkerRelease, 
+                            // we need to add a new worker even though it exceeds the max worker count per module. 
+                            // This is to prevent Scheduler from being blocked.
+                            m_numModulesExceedingMaxWorkers++;
+                        }
+                        
                         return worker;
                     }
                 }
@@ -349,6 +363,8 @@ namespace BuildXL.Scheduler.Distribution
             {
                 statistics.Add($"LimitingResource_{kvp.Key}", kvp.Value);
             }
+
+            statistics.Add($"NumModulesExceedingMaxWorkers", m_numModulesExceedingMaxWorkers);
 
             Logger.Log.LimitingResourceStatistics(LoggingContext, limitingResourceStats);
         }

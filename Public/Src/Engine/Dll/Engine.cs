@@ -1187,6 +1187,10 @@ namespace BuildXL.Engine
                     // For Cosine builds, IsObsoleteCheck is very expensive, so we disable it.
                     // Cosine specs are automatically generated, so that check was not necessary.
                     mutableConfig.FrontEnd.DisableIsObsoleteCheckDuringConversion = true;
+
+                    // Early worker release gives very small benefit (1-2%) to Cosine builds, 
+                    // so it is disabled.
+                    mutableConfig.Distribution.EarlyWorkerRelease = false;
                 }
 
                 if (mutableConfig.Schedule.ManageMemoryMode == null)
@@ -1230,12 +1234,6 @@ namespace BuildXL.Engine
 
             // When replicating outputs to workers, workers cannot be released early.
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
-            {
-                mutableConfig.Distribution.EarlyWorkerRelease = false;
-            }
-
-            // When using module affinity, workers cannot be released early.
-            if (mutableConfig.Schedule.ModuleAffinityEnabled() == true)
             {
                 mutableConfig.Distribution.EarlyWorkerRelease = false;
             }

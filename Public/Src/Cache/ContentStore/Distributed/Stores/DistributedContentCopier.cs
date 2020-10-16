@@ -411,7 +411,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             traceOperationFinished: true,
                             extraEndMessage: (result) =>
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
-                                $"from=[{sourcePath}] " +
+                                $"from=[{sourcePath.Machine}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
                                 $"reason={reason} " +
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +

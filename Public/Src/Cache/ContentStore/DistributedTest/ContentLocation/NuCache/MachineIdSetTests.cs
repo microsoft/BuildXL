@@ -13,6 +13,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
     public class MachineIdSetTests
     {
         [Fact]
+        public void MachineIdIndexShouldBePresent()
+        {
+            var set1 = MachineIdSet.Empty;
+
+            set1 = set1.Add(MachineId.FromIndex(1));
+            set1.GetMachineIdIndex(MachineId.FromIndex(1)).Should().Be(0);
+            set1.GetMachineIdIndex(MachineId.FromIndex(2)).Should().Be(-1);
+        }
+
+        [Fact]
         public void BitMachineIdSet_SetExistenceForEmptyTests()
         {
             var set1 = MachineIdSet.Empty;
@@ -31,7 +41,43 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     MachineIdSet set = new BitMachineIdSet(new byte[length], 0);
                     set = set.Add(new MachineId(machineId));
 
+                    var index = set.GetMachineIdIndex(new MachineId(machineId));
+                    index.Should().NotBe(-1, $"Id={new MachineId(machineId)}, Ids in set=[{string.Join(", ", set.EnumerateMachineIds())}]");
+
+                    // We recreating a set each time, so the index is always 0.
+                    index.Should().Be(0);
+
+                    (set.EnumerateMachineIds().ToList()[index]).Should().Be(new MachineId(machineId));
+
                     set.Count.Should().Be(1, $"Set byte length={length}, Id(bit offset)={machineId}");
+                }
+            }
+        }
+
+        [Fact]
+        public void MachineIdSets_Are_TheSame_ExhaustiveTests()
+        {
+            // This test makes sure that the main functionality provides the same results for both BitMachineIdSet and ArrayMachineIdSet
+            for (int length = 0; length < 15; length++)
+            {
+                MachineIdSet set = new BitMachineIdSet(new byte[length], 0);
+
+                for (int machineId = 0; machineId < length * 8; machineId++)
+                {
+                    set = set.Add(new MachineId(machineId));
+
+                    var arrayIdSet = new ArrayMachineIdSet(set.EnumerateMachineIds().Select(i => (ushort)i.Index));
+                    set.EnumerateMachineIds().Should().BeEquivalentTo(arrayIdSet.EnumerateMachineIds());
+
+                    var indexFromArray = arrayIdSet.EnumerateMachineIds().ToList().IndexOf(new MachineId(machineId));
+                    var index = set.GetMachineIdIndex(new MachineId(machineId));
+
+                    index.Should().Be(indexFromArray);
+
+                    var index2 = arrayIdSet.GetMachineIdIndex(new MachineId(machineId));
+                    index2.Should().Be(index);
+
+                    
                 }
             }
         }
@@ -46,6 +92,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     MachineIdSet set = new ArrayMachineIdSet(new ushort[0]);
                     set = set.Add(new MachineId(machineId));
 
+                    set.GetMachineIdIndex(new MachineId(machineId)).Should().NotBe(-1);
                     set.Count.Should().Be(1, $"Set byte length={length}, Id(bit offset)={machineId}");
                 }
             }

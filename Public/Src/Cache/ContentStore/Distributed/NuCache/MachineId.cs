@@ -72,13 +72,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public static bool operator ==(MachineId left, MachineId right)
         {
-            return Equals(left, right);
+            return left.Equals(right);
         }
 
         /// <nodoc />
         public static bool operator !=(MachineId left, MachineId right)
         {
-            return !Equals(left, right);
+            return !left.Equals(right);
         }
 
         /// <inheritdoc />

@@ -162,7 +162,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return -1;
             }
 
-            var dataBitPosition = 7 - (currentMachineId.Index % 8);
             int machineIdIndex = 0;
             byte redisChar;
             for (int i = Offset; i < dataIndex; i++)
@@ -174,13 +173,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+            // The bit mask uses the most significant bits to specify lower machine ids.
+            // It means that 0b10000000 should return 0-th machine Id index.
+            var dataBitPosition = (currentMachineId.Index % 8);
             redisChar = Data[dataIndex];
             int position = 0;
             while (redisChar != 0)
             {
                 if ((redisChar & MaxCharBitMask) != 0)
                 {
-                    if (dataBitPosition == position)
+                    if (position == dataBitPosition)
                     {
                         return machineIdIndex;
                     }

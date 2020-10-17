@@ -264,20 +264,6 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)LogEventId.MoreBytesWrittenThanBufferSize,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = "More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}. NumAssignedProcess: {numAssignedProcesses}, NumProcessIdsInList: {numProcessIdsInList}.")]
-        public abstract void MoreBytesWrittenThanBufferSize(
-            LoggingContext context,
-            long bytesWritten,
-            long bufferSizeInBytes,
-            long numAssignedProcesses,
-            long numProcessIdsInList);
-
-        [GeneratedEvent(
             (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -919,24 +905,6 @@ namespace BuildXL.Processes.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = EventConstants.PipPrefix + "Detected double write in '{destinationFile}' when merging outputs to their original location. The double write is allowed due to configured policy.")]
         internal abstract void DoubleWriteAllowedDueToPolicy(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.FailedToCleanUpContainer,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "Cleaning up container for job object {jobObject} failed. {details}")]
-        internal abstract void FailedToCleanUpContainer(LoggingContext loggingContext, string jobObject, string details);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.WarningSettingUpContainer,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "A warning occurred when setting up a container for job object {jobObject}: {warning}")]
-        internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
 
         [GeneratedEvent(
             (int)LogEventId.PipInContainerStarted,

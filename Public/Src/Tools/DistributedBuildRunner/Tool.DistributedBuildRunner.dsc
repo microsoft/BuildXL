@@ -9,7 +9,7 @@ namespace DistributedBuildRunner {
         skipDocumentationGeneration: true,
         sources: globR(d`.`, "*.cs"),
         references: [
-            importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Utilities").Native.dll,
         ],
         embeddedResources: [
             {

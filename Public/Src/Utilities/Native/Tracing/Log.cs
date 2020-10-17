@@ -129,5 +129,38 @@ namespace BuildXL.Native.Tracing
             EventTask = (int)Tasks.SandboxedProcessExecutor,
             Message = "[{pipDescription}] AccessViolationException is occurred in Detours.")]
         public abstract void DetouredProcessAccessViolationException(LoggingContext context, string pipDescription);
+    
+        [GeneratedEvent(
+            (int)LogEventId.MoreBytesWrittenThanBufferSize,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}. NumAssignedProcess: {numAssignedProcesses}, NumProcessIdsInList: {numProcessIdsInList}.")]
+        public abstract void MoreBytesWrittenThanBufferSize(
+            LoggingContext context,
+            long bytesWritten,
+            long bufferSizeInBytes,
+            long numAssignedProcesses,
+            long numProcessIdsInList);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToCleanUpContainer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "Cleaning up container for job object {jobObject} failed. {details}")]
+        internal abstract void FailedToCleanUpContainer(LoggingContext loggingContext, string jobObject, string details);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.WarningSettingUpContainer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "A warning occurred when setting up a container for job object {jobObject}: {warning}")]
+        internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
+
     }
 }

@@ -114,7 +114,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// Memory counters
             /// </summary>
-            public ProcessMemoryCounters MemoryCounters; 
+            public ProcessMemoryCounters MemoryCounters;
 
             /// <summary>
             /// Number of processes started within or added to the job. This includes both running and already-terminated processes, if any.
@@ -333,7 +333,7 @@ namespace BuildXL.Processes
                         numProcessIdsInList = processIdListPtr->NumberOfProcessIdsInList;
                     }
 
-                    Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
+                    Native.Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
                         loggingContext,
                         bytesWritten,
                         bufferSizeInBytes,
@@ -384,12 +384,12 @@ namespace BuildXL.Processes
             }
 
             return new AccountingInformation()
-                   {
-                       IO = new IOCounters(info.IOCounters),
-                       KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
-                       UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
-                       NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses
-                    };
+            {
+                IO = new IOCounters(info.IOCounters),
+                KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
+                UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
+                NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses
+            };
         }
 
         /// <summary>
@@ -426,7 +426,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Checks if a particular process is part of this job.
         /// </summary>
-        internal bool ContainsProcess(SafeProcessHandle processHandle)
+        public bool ContainsProcess(SafeProcessHandle processHandle)
         {
             Contract.Requires(!processHandle.IsInvalid);
 

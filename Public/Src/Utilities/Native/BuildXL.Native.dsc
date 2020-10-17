@@ -71,6 +71,7 @@ namespace Native {
             ...nativeLinux,
         ],
         internalsVisibleTo: [
+            "BuildXL.Processes",
             "Test.BuildXL.Storage"
         ]
     });

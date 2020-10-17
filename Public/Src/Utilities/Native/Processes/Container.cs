@@ -48,7 +48,7 @@ namespace BuildXL.Processes.Containers
             // Log any warnings when setting up the container (at this point this is just WCI retries)
             foreach (var warning in warnings)
             {
-                Tracing.Logger.Log.WarningSettingUpContainer(m_loggingContext, handle.ToString(), warning);
+                Native.Tracing.Logger.Log.WarningSettingUpContainer(m_loggingContext, handle.ToString(), warning);
             }
         }
 
@@ -62,7 +62,7 @@ namespace BuildXL.Processes.Containers
                 foreach (var warning in warnings)
                 {
                     // This is logged as a warning
-                    Tracing.Logger.Log.FailedToCleanUpContainer(m_loggingContext, handle.ToString(), warning);
+                    Native.Tracing.Logger.Log.FailedToCleanUpContainer(m_loggingContext, handle.ToString(), warning);
                 }
             }
 

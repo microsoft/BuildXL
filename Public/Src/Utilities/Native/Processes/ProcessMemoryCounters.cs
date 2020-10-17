@@ -75,7 +75,7 @@ namespace BuildXL.Pips
                 peakCommitSizeMb,
                 averageCommitSizeMb);
         }
-        
+
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {

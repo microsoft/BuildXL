@@ -121,7 +121,8 @@ namespace BuildXL.Processes.Tracing
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         LogMismatchedDetoursVerboseCount = 2927,
         LogDetoursMaxHeapSize = 2928,
-        MoreBytesWrittenThanBufferSize = 2930,
+        // Moved to BuildXL.Native
+        // MoreBytesWrittenThanBufferSize = 2930,
 
         //DominoProcessesStart = 4400,
         PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds = 4401,
@@ -135,8 +136,9 @@ namespace BuildXL.Processes.Tracing
 
         //// Container related errors
         FailedToMergeOutputsToOriginalLocation = 12202,
-        FailedToCleanUpContainer = 12203,
-        WarningSettingUpContainer = 12204,
+        // Moved to BuildXL.Native
+        // FailedToCleanUpContainer = 12203,
+        // WarningSettingUpContainer = 12204,
 
         PipInContainerStarted = 12206,
         PipInContainerStarting = 12207,

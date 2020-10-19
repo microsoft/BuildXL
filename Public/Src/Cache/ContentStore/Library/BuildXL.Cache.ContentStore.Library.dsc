@@ -34,9 +34,7 @@ namespace Library {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...getGrpcPackages(true),
             ...BuildXLSdk.bclAsyncPackages,
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

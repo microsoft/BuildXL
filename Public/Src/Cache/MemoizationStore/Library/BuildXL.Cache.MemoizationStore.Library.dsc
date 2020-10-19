@@ -22,9 +22,7 @@ namespace Library {
 
             ...BuildXLSdk.bclAsyncPackages,
             
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").pkg.contents, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
         allowUnsafeBlocks: true,

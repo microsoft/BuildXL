@@ -65,6 +65,42 @@ export function getSerializationPackages(includeNetStandard: boolean) {
     ];
 }
 
+@@public
+export function getProtobufPackages(includeNetStandard: boolean) {
+    return [
+        ...(BuildXLSdk.isFullFramework && includeNetStandard ? [
+                NetFx.System.IO.dll,
+
+                ...(qualifier.targetFramework === "net462" ? [
+                    // HACK: Net462 doesn't ship with netstandard dlls, so we fetch them from Net472 instead. This
+                    // may not work.
+                    importFrom("Sdk.Managed.Frameworks.Net472").withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll
+                ] : [
+                    NetFx.Netstandard.dll,
+                ])
+            ] : []
+        ),
+
+        BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
+            importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
+            : importFrom("System.Memory").pkg,
+        BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
+            importFrom("System.Buffers").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
+            : importFrom("System.Buffers").pkg,
+
+        importFrom("Google.Protobuf").pkg,
+    ];
+}
+
+@@public
+export function getGrpcPackages(includeNetStandard: boolean) {
+    return [
+        ...getProtobufPackages(includeNetStandard),
+        importFrom("Grpc.Core").pkg,
+        importFrom("Grpc.Core.Api").pkg,
+    ];
+}
+
 namespace Default {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
@@ -165,9 +201,7 @@ export const deploymentForBuildXL: Deployment.Definition = {
     contents: [
         App.exe,
 
-        importFrom("Grpc.Core").pkg,
-        importFrom("Grpc.Core.Api").pkg,
-        importFrom("Google.Protobuf").pkg,
+        ...getGrpcPackages(true),
 
         ...addIf(qualifier.targetRuntime === "win-x64",
             importFrom("Grpc.Core").Contents.all.getFile("runtimes/win/native/grpc_csharp_ext.x64.dll"),

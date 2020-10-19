@@ -10,9 +10,7 @@ namespace Plugin {
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
         references: [
-            importFrom("Google.Protobuf").pkg,
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
             $.dll,
             $.Ipc.dll,
             $.PluginGrpc.dll,

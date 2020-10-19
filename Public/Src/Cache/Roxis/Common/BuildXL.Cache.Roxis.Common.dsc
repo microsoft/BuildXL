@@ -20,9 +20,7 @@ namespace Common {
 
             // Needed to implement gRPC service
             Grpc.dll,
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
 
             // Needed for serialization/deserialization.
             // TODO: figure out a way to remove this?

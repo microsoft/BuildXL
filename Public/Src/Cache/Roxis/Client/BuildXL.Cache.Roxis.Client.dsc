@@ -22,12 +22,8 @@ namespace Client {
             // Needed to implement gRPC service
             Common.dll,
             Grpc.dll,
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
-            ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0",
-                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
-            ),
+
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                     NetFx.System.Xml.dll,
                     NetFx.System.Xml.Linq.dll,

@@ -285,7 +285,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf",
-          "Version": "3.11.2"
+          "Version": "3.13.0"
         }
       }
     },
@@ -294,7 +294,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf.Tools",
-          "Version": "3.11.2"
+          "Version": "3.13.0"
         }
       }
     },
@@ -303,7 +303,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core",
-          "Version": "2.26.0"
+          "Version": "2.32.0"
         }
       }
     },
@@ -312,7 +312,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core.Api",
-          "Version": "2.26.0"
+          "Version": "2.32.0"
         }
       }
     },
@@ -321,7 +321,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client",
-          "Version": "2.26.0"
+          "Version": "2.32.0"
         }
       }
     },
@@ -330,7 +330,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Common",
-          "Version": "2.26.0"
+          "Version": "2.32.0"
         }
       }
     },
@@ -339,7 +339,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Tools",
-          "Version": "2.26.0"
+          "Version": "2.32.0"
         }
       }
     },

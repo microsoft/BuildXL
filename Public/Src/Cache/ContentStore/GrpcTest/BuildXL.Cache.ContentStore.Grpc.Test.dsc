@@ -26,9 +26,7 @@ namespace GrpcTest {
             UtilitiesCore.dll,
             InterfacesTest.dll,
 
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...getGrpcPackages(true),
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [

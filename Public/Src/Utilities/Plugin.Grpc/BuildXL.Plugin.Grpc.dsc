@@ -15,11 +15,10 @@ namespace PluginGrpc {
         ],
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.IO.dll
+                NetFx.System.IO.dll,
+                NetFx.Netstandard.dll
             ),
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
         ],
         tools: {
             csc: {

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -87,6 +88,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public sealed class GrpcCopyClientCache : IDisposable
     {
         private readonly GrpcCopyClientCacheConfiguration _configuration;
+        private readonly ByteArrayPool _grpcCopyClientBufferPool;
 
         // NOTE: Unifying interfaces here is pain for no gain. Just dispatch manually and remove when obsolete later.
         private readonly ResourcePool<GrpcCopyClientKey, GrpcCopyClient>? _resourcePool;
@@ -100,6 +102,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             configuration ??= new GrpcCopyClientCacheConfiguration();
             _configuration = configuration;
 
+            _grpcCopyClientBufferPool = new ByteArrayPool(configuration.GrpcCopyClientConfiguration.ClientBufferSizeBytes);
+
             switch (_configuration.ResourcePoolVersion)
             {
                 case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
@@ -108,14 +112,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
                         context,
                         _configuration.ResourcePoolConfiguration,
-                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration),
+                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
                         clock);
                     break;
                 case GrpcCopyClientCacheConfiguration.PoolVersion.V2:
                     _resourcePoolV2 = new ResourcePoolV2<GrpcCopyClientKey, GrpcCopyClient>(
                         context,
                         _configuration.ResourcePoolConfiguration,
-                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration),
+                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
                         clock);
                     break;
             }
@@ -131,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
                 {
-                    var client = new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration);
+                    var client = new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool);
 
                     await client.StartupAsync(context).ThrowIfFailure();
                     var result = await operation(context, new DefaultResourceWrapperAdapter<GrpcCopyClient>(client));

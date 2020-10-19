@@ -13,14 +13,7 @@ namespace Grpc {
         ],
         references: [
             importFrom("RuntimeContracts").pkg,
-
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.IO.dll
-            ),
-            
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             ...BuildXLSdk.bclAsyncPackages,
         ],
         internalsVisibleTo: [

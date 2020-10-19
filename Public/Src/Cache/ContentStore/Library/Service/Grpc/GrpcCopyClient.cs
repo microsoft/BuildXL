@@ -54,6 +54,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private readonly BandwidthChecker _bandwidthChecker;
 
+        private readonly ByteArrayPool _pool;
+
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
 
@@ -65,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null)
+        internal GrpcCopyClient(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null, ByteArrayPool? sharedBufferPool = null)
         {
             Key = key;
             _configuration = configuration;
@@ -79,6 +81,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _client = new ContentServer.ContentServerClient(_channel);
 
             _bandwidthChecker = new BandwidthChecker(configuration.BandwidthCheckerConfiguration);
+            _pool = sharedBufferPool ?? new ByteArrayPool(_configuration.ClientBufferSizeBytes);
         }
 
         /// <inheritdoc />
@@ -356,10 +359,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     switch (compression)
                     {
                         case CopyCompression.None:
-                            await StreamContentAsync(targetStream, response.ResponseStream, options, token);
+                            await StreamContentAsync(response.ResponseStream, targetStream, options, token);
                             break;
                         case CopyCompression.Gzip:
-                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, options, token);
+                            await StreamContentWithCompressionAsync(response.ResponseStream, targetStream, options, token);
                             break;
                         default:
                             throw new NotSupportedException($"CopyCompression {compression} is not supported.");
@@ -497,7 +500,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             async Task<PushFileResult> pushFileImplementation(Stream stream, CopyOptions options, long startingPosition, IClientStreamWriter<PushFileRequest> requestStream, IAsyncStreamReader<PushFileResponse> responseStream, Task<bool> responseMoveNext, Task responseCompletedTask, CancellationToken token)
             {
-                await StreamContentAsync(stream, new byte[_configuration.ClientBufferSizeBytes], requestStream, options, token);
+                using (var primaryBufferHandle = _pool.Get())
+                using (var secondaryBufferHandle = _pool.Get())
+                {
+                    await StreamContentAsync(stream, primaryBufferHandle.Value, secondaryBufferHandle.Value, requestStream, options, token);
+                }
 
                 token.ThrowIfCancellationRequested();
 
@@ -533,71 +540,43 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task StreamContentAsync(Stream input, byte[] buffer, IClientStreamWriter<PushFileRequest> requestStream, CopyOptions options, CancellationToken ct)
+        private Task<(long Chunks, long Bytes)> StreamContentAsync(Stream input, byte[] primaryBuffer, byte[] secondaryBuffer, IClientStreamWriter<PushFileRequest> requestStream, CopyOptions options, CancellationToken cancellationToken)
         {
-            Contract.Requires(!(input is null));
-            Contract.Requires(!(requestStream is null));
-
-            int chunkSize = 0;
-            long totalBytesRead = 0;
-
-            // Pre-fill buffer with the file's first chunk
-            await readNextChunk();
-
-            while (true)
-            {
-                if (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                if (chunkSize == 0) { break; }
-
-                totalBytesRead += chunkSize;
-
-                ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
-                var request = new PushFileRequest() { Content = content };
-
-                // Read the next chunk while waiting for the response
-                await Task.WhenAll(readNextChunk(), requestStream.WriteAsync(request));
-
-                options?.UpdateTotalBytesCopied(totalBytesRead);
-            }
-
-            async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
+            return GrpcExtensions.CopyStreamToChunksAsync(
+                input,
+                requestStream,
+                (content, _) => new PushFileRequest() { Content = content },
+                primaryBuffer,
+                secondaryBuffer,
+                progressReport: (totalBytesRead) => options?.UpdateTotalBytesCopied(totalBytesRead),
+                cancellationToken);
         }
 
-        private async Task<(long chunks, long bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyOptions? options, CancellationToken ct)
+        private Task<(long Chunks, long Bytes)> StreamContentAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
         {
-            long chunks = 0L;
-            long bytes = 0L;
-            while (await replyStream.MoveNext(ct))
-            {
-                chunks++;
-                CopyFileResponse reply = replyStream.Current;
-                bytes += reply.Content.Length;
-                reply.Content.WriteTo(targetStream);
-
-                options?.UpdateTotalBytesCopied(bytes);
-            }
-            return (chunks, bytes);
+            return GrpcExtensions.CopyChunksToStreamAsync(
+                input,
+                output,
+                response => response.Content,
+                totalBytes => options?.UpdateTotalBytesCopied(totalBytes),
+                cancellationToken);
         }
 
-        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CopyOptions? options, CancellationToken ct)
+        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
         {
             long chunks = 0L;
             long bytes = 0L;
 
             using (var grpcStream = new BufferedReadStream(async () =>
             {
-                if (await replyStream.MoveNext(ct))
+                if (await input.MoveNext(cancellationToken))
                 {
                     chunks++;
-                    bytes += replyStream.Current.Content.Length;
+                    bytes += input.Current.Content.Length;
 
                     options?.UpdateTotalBytesCopied(bytes);
 
-                    return replyStream.Current.Content;
+                    return input.Current.Content;
                 }
                 else
                 {
@@ -607,7 +586,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
                 {
-                    await decompressedStream.CopyToAsync(targetStream, _configuration.ClientBufferSizeBytes, ct);
+                    await decompressedStream.CopyToAsync(output, _configuration.ClientBufferSizeBytes, cancellationToken);
                 }
             }
 

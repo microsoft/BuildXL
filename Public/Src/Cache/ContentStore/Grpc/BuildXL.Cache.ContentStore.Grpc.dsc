@@ -12,13 +12,7 @@ namespace Grpc {
             ...GrpcSdk.generateCSharp({rpc: [f`ContentStore.proto`]}).sources,
         ],
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.IO.dll
-            ),
-            
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...getGrpcPackages(true),
             ...BuildXLSdk.bclAsyncPackages,
         ],
         tools: {

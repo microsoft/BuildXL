@@ -260,12 +260,17 @@ namespace BuildXL.Cache.Host.Service.Internal
             serviceConfiguration.ProactivePushCountLimit = localCasServiceSettings.MaxProactivePushRequestHandlers;
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
-            
+
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.GrpcCoreServerOptions, value => localContentServerConfiguration.GrpcCoreServerOptions = value);
             ApplyIfNotNull(localCasServiceSettings.GrpcEnvironmentOptions, value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
-            ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value => localContentServerConfiguration.UseUnsafeByteStringConstruction = value);
+
+            ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value =>
+            {
+                GrpcExtensions.UnsafeByteStringOptimizations = value;
+            });
+
             ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;

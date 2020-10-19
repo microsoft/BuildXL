@@ -15,9 +15,7 @@ namespace Distribution.Grpc {
                 NetFx.System.IO.dll
             ),
             
-            importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
         ],
         tools: {
             csc: {

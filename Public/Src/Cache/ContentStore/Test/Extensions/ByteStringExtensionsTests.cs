@@ -18,7 +18,7 @@ namespace ContentStoreTest.Extensions
         [Fact]
         public void UnsafeCreateFromBytesCreatesTheInstance()
         {
-            byte[] input = new byte[]{1,2,3};
+            byte[] input = new byte[] { 1, 2, 3 };
             var byteString = ByteStringExtensions.UnsafeCreateFromBytes(input);
 
             var byteString2 = ByteString.CopyFrom(input);
@@ -27,6 +27,18 @@ namespace ContentStoreTest.Extensions
             // when they point to different byte arrays.
             // This test mostely checks that the hacky solution works.
             Assert.Equal(byteString, byteString2);
+
+            var buffer = ByteStringExtensions.UnsafeExtractBytes(byteString);
+            Assert.True(ReferenceEquals(input, buffer));
+        }
+
+        [Fact]
+        public void ExtractBytesHasTheSameBuffer()
+        {
+            byte[] input = new byte[] { 1, 2, 3 };
+            var byteString = ByteStringExtensions.UnsafeCreateFromBytes(input);
+            var buffer = ByteStringExtensions.UnsafeExtractBytes(byteString);
+            Assert.True(ReferenceEquals(buffer, input));
         }
     }
 }

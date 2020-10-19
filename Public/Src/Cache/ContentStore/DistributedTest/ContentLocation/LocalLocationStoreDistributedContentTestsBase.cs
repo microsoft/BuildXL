@@ -157,6 +157,8 @@ namespace ContentStoreTest.Distributed.Sessions
                                IsDistributedEvictionEnabled = true,
                                IsRepairHandlingEnabled = true,
 
+                               UseUnsafeByteStringConstruction = true,
+
                                SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 
                                RestoreCheckpointIntervalMinutes = 1,

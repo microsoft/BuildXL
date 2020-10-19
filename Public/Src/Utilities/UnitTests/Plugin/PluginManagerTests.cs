@@ -12,13 +12,16 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using ILogger = Grpc.Core.Logging.ILogger;
+using System.Diagnostics;
+using Test.BuildXL.TestUtilities;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.Plugin
 {
     /// <summary>
     /// Tests for <see cref="PluginManager" />
     /// </summary>
-    public class PluginManagerTests: IAsyncLifetime
+    public class PluginManagerTests : TemporaryStorageTestBase, IAsyncLifetime
     {
         private PluginManager m_pluginManager;
         private LoggingContext m_loggingContext = new LoggingContext("UnitTest");
@@ -55,7 +58,7 @@ namespace Test.BuildXL.Plugin
         private readonly ILogger m_logger = new MockLogger();
         private readonly int m_port = TcpIpConnectivity.ParsePortNumber(m_pluginPort3);
 
-        public PluginManagerTests()
+        public PluginManagerTests(ITestOutputHelper output) : base(output)
         {
             m_pluginManager = new PluginManager(m_loggingContext, "empty", new[] { "empty" });
         }
@@ -299,7 +302,7 @@ namespace Test.BuildXL.Plugin
             });
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            Assert.True(res.Succeeded);
+            XAssert.PossiblySucceeded(res);
             Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
             Assert.Equal(m_pluginManager.PluginsCount, 1);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ParseLogMessage));

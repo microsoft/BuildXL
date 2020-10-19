@@ -14,7 +14,7 @@ namespace Xldb {
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
-            importFrom("Google.Protobuf").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(true),
             Xldb.Proto.dll,
         ],
     });

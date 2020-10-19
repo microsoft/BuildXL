@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -18,7 +17,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Native.Processes;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
@@ -244,19 +242,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var token = cts.Token;
-
+            bool exceptionThrown = false;
             TimeSpan? headerResponseTime = null;
             CopyFileResult? result = null;
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
-                {
-                    TraceId = context.TracingContext.Id.ToString(),
-                    HashType = (int)hash.HashType,
-                    ContentHash = hash.ToByteString(),
-                    Offset = 0,
-                    Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None
-                };
+                                          {
+                                              TraceId = context.TracingContext.Id.ToString(),
+                                              HashType = (int)hash.HashType,
+                                              ContentHash = hash.ToByteString(),
+                                              Offset = 0,
+                                              Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None
+                                          };
 
                 using AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, options: GetDefaultGrpcOptions(token));
                 Metadata headers;
@@ -281,7 +279,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // stream. To avoid that, exit early instead.
                 if (headers.Count == 0)
                 {
-                    result = new CopyFileResult(CopyResultCode.ServerUnavailable, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
+                    result = new CopyFileResult(
+                        CopyResultCode.ServerUnavailable,
+                        $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
                     return result;
                 }
 
@@ -345,10 +345,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 result = CreateResultFromException(r);
                 return result;
             }
+            catch (Exception)
+            {
+                exceptionThrown = true;
+                throw;
+            }
             finally
             {
-                Contract.AssertNotNull(result);
-                result.HeaderResponseTime = headerResponseTime;
+                // Even though we don't expect exceptions in this method, we can't assume they won't happen.
+                // So asserting that the result is not null only when the method completes successfully or with a known errors.
+                Contract.Assert(exceptionThrown || result != null);
+                if (result != null)
+                {
+                    result.HeaderResponseTime = headerResponseTime;
+                }
             }
 
             async Task<CopyFileResult> copyToCoreImplementation(bool closeStream, AsyncServerStreamingCall<CopyFileResponse> response, CopyCompression compression, Stream targetStream, CopyOptions options, CancellationToken token)
@@ -420,7 +430,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var token = cts.Token;
-
+            bool exceptionThrown = false;
             TimeSpan? headerResponseTime = null;
             PushFileResult? result = null;
             try
@@ -492,10 +502,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 result = new PushFileResult(r);
                 return result;
             }
+            catch (Exception)
+            {
+                exceptionThrown = true;
+                throw;
+            }
             finally
             {
-                Contract.AssertNotNull(result);
-                result.HeaderResponseTime = headerResponseTime;
+                // Even though we don't expect exceptions in this method, we can't assume they won't happen.
+                // So asserting that the result is not null only when the method completes successfully or with a known errors.
+                Contract.Assert(exceptionThrown || result != null);
+                if (result != null)
+                {
+                    result.HeaderResponseTime = headerResponseTime;
+                }
             }
 
             async Task<PushFileResult> pushFileImplementation(Stream stream, CopyOptions options, long startingPosition, IClientStreamWriter<PushFileRequest> requestStream, IAsyncStreamReader<PushFileResponse> responseStream, Task<bool> responseMoveNext, Task responseCompletedTask, CancellationToken token)
@@ -593,7 +613,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return (chunks, bytes);
         }
 
-        /// <inheritdoc />
+        /// <nodoc />
         public void Dispose()
         {
             if (ShutdownStarted && !ShutdownCompleted)

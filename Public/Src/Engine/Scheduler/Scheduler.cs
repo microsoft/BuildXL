@@ -2726,7 +2726,7 @@ namespace BuildXL.Scheduler
                     desiredRamPercentToFree = Math.Max(0, Math.Min(100, desiredRamPercentToFree));
 
                     // Get the megabytes to free, at least 1MB so that we can suspend/cancel/emptyWorkingSet one pip
-                    var desiredRamMbToFree = Math.Min(1, (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100);
+                    var desiredRamMbToFree = Math.Max(1, (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100);
 
                     resourceManager.TryManageResources(desiredRamMbToFree, defaultManageMemoryMode);
                 }

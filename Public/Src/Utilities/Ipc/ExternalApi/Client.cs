@@ -72,6 +72,14 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
+        /// Generates a BuildManifest.json file from hashes stored by <see cref="RegisterFileForBuildManifest"/>.
+        /// </summary>
+        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(string dropName)
+        {
+            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName));
+        }
+
+        /// <summary>
         /// Log a verbose or warning message on BuildXL side
         /// </summary>
         public Task<Possible<bool>> LogMessage(string message, bool isWarning = false)

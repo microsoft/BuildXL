@@ -77,6 +77,30 @@ namespace Tool.DropDaemon
         /// </summary>
         public byte? DomainId { get; }
 
+        /// <summary>
+        ///     Build Manifest generation flag.
+        /// </summary>
+        public bool EnableBuildManifestCreation { get; }
+
+        /// <summary>
+        ///     Repo path of the code being build
+        /// </summary>
+        public string Repo { get; }
+
+        /// <summary>
+        ///     Current Git branch within the specified <see cref="Repo"/>
+        /// </summary>
+        public string Branch { get; }
+
+        /// <summary>
+        ///     Current Git CommitId within the specified <see cref="Repo"/>
+        /// </summary>
+        public string CommitId { get; }
+
+        /// <summary>
+        ///     Represents the RelativeActivityId specific to the cloud build environment
+        /// </summary>
+        public string CloudBuildId { get; }
         #endregion
 
         #region Defaults
@@ -107,6 +131,9 @@ namespace Tool.DropDaemon
 
         /// <nodoc/>
         public static bool DefaultEnableChunkDedup { get; } = false;
+
+        /// <nodoc/>
+        public static bool DefaultEnableBuildManifestCreation { get; } = false;
         #endregion
 
         // ==================================================================================================
@@ -126,7 +153,12 @@ namespace Tool.DropDaemon
             string logDir = null,
             string artifactLogName = null,
             int? batchSize = null,
-            byte? dropDomainId = null)
+            byte? dropDomainId = null,
+            bool? enableBuildManifestCreation = null,
+            string repo = null,
+            string branch = null,
+            string commitId = null,
+            string cloudBuildId = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -140,6 +172,11 @@ namespace Tool.DropDaemon
             ArtifactLogName = artifactLogName;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
             DomainId = dropDomainId;
+            EnableBuildManifestCreation = enableBuildManifestCreation ?? DefaultEnableBuildManifestCreation;
+            Repo = repo ?? string.Empty;
+            Branch = branch ?? string.Empty;
+            CommitId = commitId ?? string.Empty;
+            CloudBuildId = cloudBuildId ?? string.Empty;
         }
     }
 }

@@ -790,15 +790,21 @@ namespace BuildXL.Scheduler.Tracing
         public string RelativePath;
 
         /// <summary>
+        /// Azure Artifact (VSO) Content Hash of the file.
+        /// </summary>
+        public ContentHash AzureArtifactsHash;
+
+        /// <summary>
         /// SHA-256 Content Hash of the file.
         /// </summary>
         public ContentHash BuildManifestHash;
 
         /// <nodoc/>
-        public RecordFileForBuildManifestEventData(string dropName, string relativePath, ContentHash buildManifestHash) : this()
+        public RecordFileForBuildManifestEventData(string dropName, string relativePath, ContentHash azureArtifactsHash, ContentHash buildManifestHash)
         {
             DropName = dropName;
             RelativePath = relativePath;
+            AzureArtifactsHash = azureArtifactsHash;
             BuildManifestHash = buildManifestHash;
         }
 
@@ -810,6 +816,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             writer.Write(DropName);
             writer.Write(RelativePath);
+            AzureArtifactsHash.Serialize(writer);
             BuildManifestHash.Serialize(writer);
         }
 
@@ -818,6 +825,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             DropName = reader.ReadString();
             RelativePath = reader.ReadString();
+            AzureArtifactsHash = new ContentHash(reader);
             BuildManifestHash = new ContentHash(reader);
         }
     }

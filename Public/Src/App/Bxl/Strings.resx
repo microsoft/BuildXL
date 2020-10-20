@@ -1069,9 +1069,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_TreatAbsentDirectoryAsExistentUnderOpaque" xml:space="preserve">
     <value>Treats absent directory as existent when it is probed and the path is under an opaque directory. Defaults to true. </value>
   </data>
-  <data name="HelpText_DisplayHelp_GenerateBuildManifest" xml:space="preserve">
-    <value>Enable Build Manifest Generation by Drop. When enabled generates a BuildManifest.json file and uploads it to drop. This file contains the SHA-256 content hash information for every file uploaded within the same drop.</value>
-  </data>
   <data name="HelpText_DisplayHelp_UpdateFileContentTableByScanningChangeJournal" xml:space="preserve">
     <value>When enabled, file content table is updated during the scanning of change journal. Defaults to on.</value>
   </data>

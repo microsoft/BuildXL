@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -12,12 +10,7 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     public sealed class BuildManifestStoreTarget : ExecutionLogTargetBase
     {
-        private readonly StringTable m_stringTable;
-
-        /// <summary>
-        /// Details of files added to drop.
-        /// </summary>
-        public readonly ConcurrentBigSet<BuildManifestEntry> BuildManifestEntries;
+        private readonly BuildManifestGenerator m_buildManifestGenerator;
 
         /// <summary>
         /// Handle the events from workers
@@ -27,42 +20,16 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Constructor.
         /// </summary>
-        public BuildManifestStoreTarget(StringTable stringTable)
+        public BuildManifestStoreTarget(BuildManifestGenerator buildManifestGenerator)
         {
-            BuildManifestEntries = new ConcurrentBigSet<BuildManifestEntry>();
-            m_stringTable = stringTable;
+            Contract.Requires(buildManifestGenerator != null);
+            m_buildManifestGenerator = buildManifestGenerator;
         }
 
         /// <inheritdoc/>
         public override void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data)
         {
-            BuildManifestEntries.Add(new BuildManifestEntry(
-                StringId.Create(m_stringTable, data.DropName),
-                RelativePath.Create(m_stringTable, data.RelativePath),
-                data.BuildManifestHash));
-        }
-
-        /// <summary>
-        /// Represents individual files added to drop
-        /// </summary>
-        public struct BuildManifestEntry
-        {
-            /// <nodoc/>
-            public StringId DropName { get; }
-
-            /// <nodoc/>
-            public RelativePath RelativePath { get; }
-
-            /// <nodoc/>
-            public ContentHash BuildManifestHash { get; }
-
-            /// <nodoc/>
-            public BuildManifestEntry(StringId dropName, RelativePath relativePath, ContentHash buildManifestHash)
-            {
-                DropName = dropName;
-                RelativePath = relativePath;
-                BuildManifestHash = buildManifestHash;
-            }
+            m_buildManifestGenerator.RecordFileForBuildManifest(data.DropName, data.RelativePath, data.AzureArtifactsHash, data.BuildManifestHash);
         }
     }
 }

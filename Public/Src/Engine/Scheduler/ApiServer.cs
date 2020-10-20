@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc.Common;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler.Artifacts;
@@ -35,10 +37,11 @@ namespace BuildXL.Scheduler
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
         private readonly Tracing.IExecutionLogTarget m_executionLog;
-        private readonly bool m_isGenerateBuildManifestEnabled;
+        private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
 
         private long m_numMaterializeFile;
-        private long m_numGetBuildManifestHash;
+        private long m_numRegisterBuildManifestHash;
+        private long m_numGenerateBuildManifestFile;
         private long m_numReportStatistics;
         private long m_numGetSealedDirectoryContent;
         private long m_numLogMessage;
@@ -56,7 +59,7 @@ namespace BuildXL.Scheduler
             IServerConfig config,
             EngineCache engineCache,
             Tracing.IExecutionLogTarget executionLog,
-            bool isGenerateBuildManifestEnabled)
+            Tracing.BuildManifestGenerator buildManifestGenerator)
         {
             Contract.Requires(ipcMonikerId != null);
             Contract.Requires(fileContentManager != null);
@@ -70,7 +73,7 @@ namespace BuildXL.Scheduler
             m_context = context;
             m_engineCache = engineCache;
             m_executionLog = executionLog;
-            m_isGenerateBuildManifestEnabled = isGenerateBuildManifestEnabled;
+            m_buildManifestGenerator = buildManifestGenerator;
             m_inMemoryBuildManifestStore = new ConcurrentDictionary<ContentHash, ContentHash>();
         }
 
@@ -182,7 +185,8 @@ namespace BuildXL.Scheduler
             Logger.Log.BulkStatistic(loggingContext, new Dictionary<string, long>
             {
                 [Statistics.ApiTotalMaterializeFileCalls] = Volatile.Read(ref m_numMaterializeFile),
-                [Statistics.ApiTotalGetBuildManifestCalls] = Volatile.Read(ref m_numGetBuildManifestHash),
+                [Statistics.ApiTotalRegisterBuildManifestHashCalls] = Volatile.Read(ref m_numRegisterBuildManifestHash),
+                [Statistics.ApiTotalGenerateBuildManifestFileCalls] = Volatile.Read(ref m_numGenerateBuildManifestFile),
                 [Statistics.ApiTotalReportStatisticsCalls] = Volatile.Read(ref m_numReportStatistics),
                 [Statistics.ApiTotalGetSealedDirectoryContentCalls] = Volatile.Read(ref m_numGetSealedDirectoryContent),
                 [Statistics.ApiTotalLogMessageCalls] = Volatile.Read(ref m_numLogMessage),
@@ -217,10 +221,17 @@ namespace BuildXL.Scheduler
                 return new Possible<IIpcResult>(result);
             }
 
-            var getBuildManifestHashCmd = cmd as RegisterFileForBuildManifestCommand;
-            if (getBuildManifestHashCmd != null)
+            var registerBuildManifestHashCmd = cmd as RegisterFileForBuildManifestCommand;
+            if (registerBuildManifestHashCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGetBuildManifestHashFromCacheAsync, getBuildManifestHashCmd, ref m_numGetBuildManifestHash);
+                var result = await ExecuteCommandWithStats(ExecuteGetBuildManifestHashFromCacheAsync, registerBuildManifestHashCmd, ref m_numRegisterBuildManifestHash);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var generateBuildManifestDataCmd = cmd as GenerateBuildManifestDataCommand;
+            if (generateBuildManifestDataCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestDataAsync, generateBuildManifestDataCmd, ref m_numGenerateBuildManifestFile);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -305,6 +316,23 @@ namespace BuildXL.Scheduler
             return IpcResult.Success(cmd.RenderResult(succeeded));
         }
 
+        private Task<IIpcResult> ExecuteGenerateBuildManifestDataAsync(GenerateBuildManifestDataCommand cmd)
+            => Task.FromResult(ExecuteGenerateBuildManifestData(cmd));
+
+        /// <summary>
+        /// Executes <see cref="GenerateBuildManifestDataCommand"/>. Generates a BuildManifest.json file for given
+        /// <see cref="GenerateBuildManifestDataCommand.DropName"/>.
+        /// </summary>
+        private IIpcResult ExecuteGenerateBuildManifestData(GenerateBuildManifestDataCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+            Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on master");
+
+            BuildManifestData buildManifestData = m_buildManifestGenerator.GenerateBuildManifestData(cmd.DropName);
+
+            return IpcResult.Success(cmd.RenderResult(buildManifestData));
+        }
+
         /// <summary>
         /// Executes <see cref="RegisterFileForBuildManifestCommand"/>. Checks if Cache contains SHA-256 Hash for given
         /// <see cref="RegisterFileForBuildManifestCommand.Hash"/> and returns true if SHA-256 ContentHash exists.
@@ -314,15 +342,9 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(cmd != null);
 
-            if (!m_isGenerateBuildManifestEnabled)
-            {
-                // Ignore Api calls if Build Mnaifest Generation is disabled
-                return IpcResult.Success(cmd.RenderResult(true));
-            }
-
             if (m_inMemoryBuildManifestStore.TryGetValue(cmd.Hash, out var buildManifestHash))
             {
-                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, buildManifestHash);
+                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, cmd.Hash, buildManifestHash);
                 return IpcResult.Success(cmd.RenderResult(true));
             }
 
@@ -331,7 +353,7 @@ namespace BuildXL.Scheduler
             if (sha256Hash.HasValue)
             {
                 m_inMemoryBuildManifestStore.Add(cmd.Hash, sha256Hash.Value);
-                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, sha256Hash.Value);
+                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, cmd.Hash, sha256Hash.Value);
                 return IpcResult.Success(cmd.RenderResult(true));
             }
 
@@ -339,7 +361,7 @@ namespace BuildXL.Scheduler
             if (computeHashResult.Succeeded)
             {
                 m_inMemoryBuildManifestStore.Add(cmd.Hash, computeHashResult.Result);
-                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, computeHashResult.Result);
+                RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, cmd.Hash, computeHashResult.Result);
                 await StoreBuildManifestHashAsync(cmd.Hash, computeHashResult.Result);
 
                 return IpcResult.Success(cmd.RenderResult(true));
@@ -349,9 +371,9 @@ namespace BuildXL.Scheduler
             return IpcResult.Success(cmd.RenderResult(false));
         }
 
-        private void RecordFileForBuildManifestInXLG(string dropName, string relativePath, ContentHash buildManifestHash)
+        private void RecordFileForBuildManifestInXLG(string dropName, string relativePath, ContentHash azureArtifactsHash, ContentHash buildManifestHash)
         {
-            Tracing.RecordFileForBuildManifestEventData data = new Tracing.RecordFileForBuildManifestEventData(dropName, relativePath, buildManifestHash);
+            Tracing.RecordFileForBuildManifestEventData data = new Tracing.RecordFileForBuildManifestEventData(dropName, relativePath, azureArtifactsHash, buildManifestHash);
             m_executionLog.RecordFileForBuildManifest(data);
         }
 

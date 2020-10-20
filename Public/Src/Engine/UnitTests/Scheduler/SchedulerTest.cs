@@ -2593,8 +2593,27 @@ namespace Test.BuildXL.Scheduler
 
         }
 
+        [Fact]
+        public void TestRecordFileForBuildManifest()
+        {
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, Context.StringTable, "cbId");
+
+            string relativePath = "/a/b";
+            ContentHash hash0 = ContentHash.Random();
+            ContentHash hash1 = ContentHash.Random();
+
+            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Will be added
+            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Duplicate entry will be ignored
+            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash1, hash1);     // Logs warning
+            buildManifestGenerator.RecordFileForBuildManifest("drop1", relativePath, hash0, hash0);     // Will be added
+            buildManifestGenerator.RecordFileForBuildManifest("drop2", relativePath, hash0, hash0);     // Will be added
+
+            XAssert.AreEqual(3, buildManifestGenerator.BuildManifestEntries.Count);
+            AssertWarningEventLogged(LogEventId.ApiServerRegisterBuildManifestHashFoundDuplicateEntry, 1);
+        }
+
         #region ProtoBufEnumsTests
-           
+
         /// <summary>
         /// Tests that the enums found in BXL code match those in ProtoBuf code in name and value (+1 or <<1 in some cases), so
         /// that if someone introduces new enums in either code, this test will fail and notify the developer to check the enums.

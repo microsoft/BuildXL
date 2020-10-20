@@ -72,6 +72,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return LogMessageCommand.InternalDeserialize(reader);
                     case nameof(RegisterFileForBuildManifestCommand):
                         return RegisterFileForBuildManifestCommand.InternalDeserialize(reader);
+                    case nameof(GenerateBuildManifestDataCommand):
+                        return GenerateBuildManifestDataCommand.InternalDeserialize(reader);
                     default:
                         throw new ArgumentException("unrecognized command type name: " + typeName);
                 }

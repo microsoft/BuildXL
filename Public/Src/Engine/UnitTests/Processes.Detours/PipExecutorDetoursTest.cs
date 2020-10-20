@@ -6237,6 +6237,104 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task ProbeDirectorySymlinkWithFullResolvingEnabledAsync()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory(pathTable, @"target");
+                var directoryLink = tempFiles.GetFileName("directory.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directoryLink, targetDirectory.ToString(pathTable), isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallProbeDirectorySymlink",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, directoryLink)) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString;
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    context: context,
+                    pip: process,
+                    ignoreFullReparsePointResolving: false,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
+                });
+
+                var allAccessPaths = result.AllReportedFileAccesses.Select(fa => fa.Path ?? fa.ManifestPath.ToString(pathTable));
+                XAssert.IsFalse(allAccessPaths.Any(p => p.Contains(targetDirectory.ToString(pathTable))));
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task UseCreateFileWToOpenAReparsePointNotTheTargetWithFullResolvingEnabledAsync()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory(pathTable, @"target");
+
+                var directoryLink = tempFiles.GetFileName("directory.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directoryLink, targetDirectory.ToString(pathTable), isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallProbeDirectorySymlinkTargetWithReparsePointFlag",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString;
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    context: context,
+                    pip: process,
+                    ignoreFullReparsePointResolving: false,
+                    unexpectedFileAccessesAreErrors: false,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
+                });
+
+                var allAccessPaths = result.AllReportedFileAccesses.Select(fa => fa.Path ?? fa.ManifestPath.ToString(pathTable));
+                XAssert.IsFalse(allAccessPaths.Any(p => p.Contains(targetDirectory.ToString(pathTable))));
+            }
+        }
+
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [MemberData(nameof(TruthTable.GetTable), 3, MemberType = typeof(TruthTable))]
         public async Task ProbeDirectorySymlinkTarget(bool targetExists, bool withReparsePointFlag, bool probeDirectorySymlinkAsDirectory)

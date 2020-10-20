@@ -1273,30 +1273,37 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void ResolvedSymlinkCachingBehavior()
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ResolvedSymlinkCachingBehavior(bool managedReparsePointProcessing)
         {
-            // Turn on symlink processing
-            // TODO: This flag can be removed once IgnoreFullReparsePointResolving becomes the default
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
 
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = true;
-
-            // Create a source file via a directory symlink
             string symlinkDir = Path.Combine(SourceRoot, "symlinkDir");
+            FileArtifact symlinkDirArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, symlinkDir));
+
             string targetDirectory = Path.Combine(SourceRoot, "targetDir");
             FileUtilities.CreateDirectory(targetDirectory);
 
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkDir, targetDirectory, isTargetFile: false));
 
-            FileArtifact symlinkFile = CreateSourceFile(symlinkDir);
+            FileArtifact targetFile = CreateSourceFile(targetDirectory);
+            FileArtifact symlinkFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, Path.Combine(symlinkDir, targetFile.Path.GetName(Context.PathTable).ToString(Context.StringTable))));
+
             FileArtifact outFile = CreateOutputFileArtifact();
 
-            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(symlinkFile),
                 Operation.WriteFile(outFile),
-            }).Process;
+            });
+
+            builder.AddInputFile(symlinkDirArtifact);
+            builder.AddInputFile(targetFile);
+
+            var pip = SchedulePipBuilder(builder).Process;
 
             // First run should be a miss, second one a hit
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
@@ -1311,11 +1318,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
-        public void ManifestOfResolvedAccessIsProperlyComputed()
+        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ManifestOfResolvedAccessIsProperlyComputed(bool managedReparsePointProcessing)
         {
-            // TODO: This flag can be removed once IgnoreFullReparsePointResolving becomes the default
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
 
             // Create the following layout
             // sodA
@@ -1339,6 +1348,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.CreateJunction(junctionDir, nestedDir, doNotInfer: true),
                 Operation.WriteFile(outputViaJunction, doNotInfer: true),
             });
+
             writerBuilder.AddOutputDirectory(sodA, SealDirectoryKind.SharedOpaque);
             writerBuilder.AddOutputDirectory(sodB, SealDirectoryKind.SharedOpaque);
 

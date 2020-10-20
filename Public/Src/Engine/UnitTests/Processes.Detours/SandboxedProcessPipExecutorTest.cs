@@ -2072,8 +2072,10 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
-        public async Task DirSymlinksAreProperlyResolvedAsync()
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task DirSymlinksAreProperlyResolvedAsync(bool managedReparsePointProcessing)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var symbolTable = context.SymbolTable;
@@ -2092,6 +2094,7 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.IsTrue(success.Succeeded);
 
                 var sharedOpaqueRoot = Path.Combine(symlinkDir, "sharedOpaque");
+                var sharedResolvedOpaqueRoot = Path.Combine(targetDirectory, "sharedOpaque");
 
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, sharedOpaqueRoot);
 
@@ -2100,11 +2103,20 @@ namespace Test.BuildXL.Processes.Detours
                 var sharedOpaqueInput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 1, isSharedOpaque: true);
                 var sharedOpaqueOutput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 2, isSharedOpaque: true);
 
+                var sharedResolvedOpaqueInput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedResolvedOpaqueRoot), 1, isSharedOpaque: true);
+                var sharedResolvedOpaqueOutput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedResolvedOpaqueRoot), 2, isSharedOpaque: true);
+
                 // The shared opaque input contains input/in.txt
                 var inputUndersharedOpaqueRoot = Path.Combine(sharedOpaqueRoot, "input", "in.txt");
                 Directory.CreateDirectory(sharedOpaqueRoot);
                 Directory.CreateDirectory(Path.Combine(sharedOpaqueRoot, "input"));
                 File.WriteAllText(inputUndersharedOpaqueRoot, "Foo");
+
+                var targetDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, targetDirectory);
+                var symlinkDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, symlinkDir);
+                var sharedOpaqueRootViaRealPath = targetDirectoryAbsolutePath.Combine(context.PathTable, "sharedOpaque");
+                var inputViaRealPath = sharedOpaqueRootViaRealPath.Combine(context.PathTable, RelativePath.Create(context.StringTable, "input/in.txt"));
+                var outputViaRealPath = sharedOpaqueRootViaRealPath.Combine(context.PathTable, RelativePath.Create(context.StringTable, "nested/out.txt"));
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
                 arguments.Add("/d");
@@ -2139,7 +2151,7 @@ namespace Test.BuildXL.Processes.Detours
                     null,
                     ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
                     ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueInput }),
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueInput, sharedResolvedOpaqueInput }),
                     ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueOutput }),
                     ReadOnlyArray<PipId>.Empty,
                     ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
@@ -2170,11 +2182,16 @@ namespace Test.BuildXL.Processes.Detours
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration 
-                    { 
-                        FileAccessIgnoreCodeCoverage = true, 
-                        FailUnexpectedFileAccesses = false, 
-                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { ProcessSymlinkedAccesses = true } 
+                    new SandboxConfiguration
+                    {
+                        FileAccessIgnoreCodeCoverage = true,
+                        FailUnexpectedFileAccesses = false,
+                        LogObservedFileAccesses = true,
+                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration
+                        {
+                            ProcessSymlinkedAccesses = managedReparsePointProcessing,
+                            IgnoreFullReparsePointResolving = managedReparsePointProcessing
+                        }
                     },
                     pip,
                     fileAccessAllowlist: null,
@@ -2185,35 +2202,30 @@ namespace Test.BuildXL.Processes.Detours
                             new FileArtifact[] { FileArtifact.CreateOutputFile(inputUnderSharedOpaqueAbsolutePath) }),
                     symlinkedAccessResolver: new SymlinkedAccessResolver(context, translator));
 
+                var allReportedFileAccesses = result.ObservedFileAccesses.SelectMany(fa => fa.Accesses).ToList();
+                if (!managedReparsePointProcessing)
+                {
+                    allReportedFileAccesses.AddRange(result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
+                }
+
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
-                var targetDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, targetDirectory);
-                var symlinkDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, symlinkDir);
-                var sharedOpaqueRootViaRealPath = targetDirectoryAbsolutePath.Combine(
-                    context.PathTable, "sharedOpaque");
-                var inputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
-                    context.PathTable, RelativePath.Create(context.StringTable, "input/in.txt"));
-                var outputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
-                    context.PathTable, RelativePath.Create(context.StringTable, "nested/out.txt"));
-
                 // There shouldn't be any file access that points to in.txt via the symlink
-                XAssert.ContainsNot(result.ObservedFileAccesses.Select(fa => fa.Path), inputUnderSharedOpaqueAbsolutePath);
-                // There should be an access that points to in.txt via the resolved path
-                var inputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == inputViaRealPath);
+                XAssert.ContainsNot(allReportedFileAccesses.Select(fa => fa.Path), inputUnderSharedOpaqueAbsolutePath.ToString(context.PathTable));
 
-                // TODO: BUG
-                /*
+                // There should be at least one access that points to in.txt via the resolved path
+                var inputAccessViaRealPath = allReportedFileAccesses.First(oa => oa.Path == inputViaRealPath.ToString(context.PathTable));
                 // The manifest path also has to be resolved (this is a declared input, so the manifest matches the path)
-                XAssert.AreEqual(inputViaRealPath, inputAccessViaRealPath.Accesses.First().ManifestPath);
+                XAssert.AreEqual(sharedOpaqueRootViaRealPath.ToString(context.PathTable), inputAccessViaRealPath.ManifestPath.ToString(context.PathTable));
+
                 // There should be an access that points to out.txt via the resolved path
-                var outputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == outputViaRealPath);
-                // The manifest path also has to be resolved (this is an output under a shared opaque, so 
-                // the manifest is the root of the opaque)
-                XAssert.AreEqual(sharedOpaqueRootViaRealPath, outputAccessViaRealPath.Accesses.Single().ManifestPath);
-                // There should be a read access on the symlink itself
-                var symlinkRead = result.ObservedFileAccesses.Single(oa => oa.Path == symlinkDirectoryAbsolutePath);
-                XAssert.AreEqual(FileDesiredAccess.GenericRead, symlinkRead.Accesses.Single().DesiredAccess);
-                */
+                var outputAccessViaRealPath = allReportedFileAccesses.Single(oa => oa.Path == outputViaRealPath.ToString(context.PathTable));
+                // The manifest path also has to be resolved (this is an output under a shared opaque, so the manifest is the root of the opaque)
+                XAssert.AreEqual(sharedOpaqueRootViaRealPath.ToString(context.PathTable), outputAccessViaRealPath.ManifestPath.ToString(context.PathTable));
+
+                // There should be a read access on the symlink itself, representing the intermediate result of the resolving process
+                var symlinkRead = allReportedFileAccesses.First(oa => (oa.Path ?? oa.ManifestPath.ToString(context.PathTable)) == symlinkDirectoryAbsolutePath.ToString(context.PathTable));
+                XAssert.IsTrue(symlinkRead.DesiredAccess.HasFlag(DesiredAccess.GENERIC_READ));
             }
         }
 
@@ -2328,6 +2340,15 @@ namespace Test.BuildXL.Processes.Detours
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
 
+            var directoryTranslator = new DirectoryTranslator();
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.AddDirectoryTranslationFromEnvironment();
+            directoryTranslator.Seal();
+
             return new SandboxedProcessPipExecutor(
                 context,
                 loggingContext,
@@ -2348,6 +2369,7 @@ namespace Test.BuildXL.Processes.Detours
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 processIdListener: processIdListener,
+                directoryTranslator: directoryTranslator,
                 symlinkedAccessResolver: symlinkedAccessResolver).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 

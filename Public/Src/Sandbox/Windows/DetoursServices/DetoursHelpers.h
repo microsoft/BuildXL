@@ -109,11 +109,11 @@ void InitProcessKind();
 void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName, _In_ bool debug);
 
 void ReportIfNeeded(
-    AccessCheckResult const& checkResult, 
-    FileOperationContext const& context, 
-    PolicyResult const& policyResult, 
-    DWORD error, 
-    USN usn = -1, 
+    AccessCheckResult const& checkResult,
+    FileOperationContext const& context,
+    PolicyResult const& policyResult,
+    DWORD error,
+    USN usn = -1,
     wchar_t const* filter = nullptr);
 
 bool EnumerateDirectory(

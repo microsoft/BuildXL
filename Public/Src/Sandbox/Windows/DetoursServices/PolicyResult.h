@@ -31,7 +31,7 @@ public:
     // to the correct ManifestRecord node.
     //
     // It doesn't perform any additional policy search, it simply initializes the
-    // following state: m_canonicalizedPath, m_policy, m_policySearchCursor.; it 
+    // following state: m_canonicalizedPath, m_policy, m_policySearchCursor.; it
     // also sets m_isIndeterminate to false.
     //
     // It does check the cursor to see if the search was truncated, and if so clears
@@ -42,7 +42,7 @@ public:
     PolicyResult& operator=(const PolicyResult&) = default;
 
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
-    void SetPath(CanonicalizedPathType path)  { m_canonicalizedPath = path; }
+    void SetPath(CanonicalizedPathType path);
 
 #if _WIN32
 
@@ -73,7 +73,7 @@ public:
         other.m_policy = (FileAccessPolicy)0;
         other.m_policySearchCursor = PolicySearchCursor();
         other.m_translatedPath.clear();
-        
+
         assert(other.m_canonicalizedPath.Type == PathType::Null);
         assert(other.m_policySearchCursor.Record == nullptr);
     }
@@ -93,7 +93,7 @@ public:
     void ReportIndeterminatePolicyAndSetLastError(FileOperationContext const& fileOperationContext) const;
 
     PCPathChar const GetTranslatedPath() const { return m_translatedPath.c_str(); }
-    
+
     PCPathChar const GetTranslatedPathWithoutTypePrefix() const {
         switch (m_canonicalizedPath.Type) {
             case PathType::Null:
@@ -109,7 +109,7 @@ public:
         }
     }
 #else // _WIN32
-    
+
 private:
     FileAccessManifestFlag m_famFlag;
 
@@ -118,7 +118,7 @@ public:
         : m_famFlag(famFlag), m_isIndeterminate(true)
     {
     }
-    
+
     PolicyResult(FileAccessManifestFlag famFlag, CanonicalizedPathType path, PolicySearchCursor cursor)
         : PolicyResult(famFlag)
     {
@@ -130,11 +130,11 @@ public:
     inline bool ReportAnyAccess(bool accessDenied) const { return CheckReportAnyAccess(m_famFlag, accessDenied); }
 
 #endif // _WIN32
-    
+
     // Performs an access check for a read-access, based on dynamically-observed read context (existence, etc.)
     // May only be called when !IsIndeterminate().
     AccessCheckResult CheckReadAccess(RequestedReadAccess readAccessRequested, FileReadContext const& context) const;
-    
+
     // Performs CheckRead access for and existing file.
     AccessCheckResult CheckExistingFileReadAccess() const;
 
@@ -149,13 +149,14 @@ public:
     // Performs an access check for a CreateDirectory-access, based only on static policy in the manifest (not existence, etc.)
     // May only be called when !IsIndeterminate().
     AccessCheckResult CheckCreateDirectoryAccess() const;
-    
+
     AccessCheckResult CheckDirectoryAccess(bool enforceCreationAccess) const;
 
     // Determines a policy result for the combined path GetCanonicalizedPath() + pathSuffix.
     PolicyResult GetPolicyForSubpath(wchar_t const* pathSuffix) const;
 
     CanonicalizedPathType const& GetCanonicalizedPath() const { return m_canonicalizedPath; }
+
     bool AllowRead() const { return (m_policy & FileAccessPolicy_AllowRead) != 0; }
     bool AllowReadIfNonexistent() const { return (m_policy & FileAccessPolicy_AllowReadIfNonExistent) != 0; }
 #if _WIN32
@@ -189,7 +190,7 @@ public:
     bool ShouldOverrideTimestamps(AccessCheckResult const& accessCheck) const {
         return (accessCheck.Result == ResultAction::Allow || accessCheck.Result == ResultAction::Warn) && !AllowRealInputTimestamps();
     }
-    
+
 private:
     /// Performs common work when checking for writable access
     AccessCheckResult CreateAccessCheckResult(ResultAction result, ReportLevel reportLevel) const;

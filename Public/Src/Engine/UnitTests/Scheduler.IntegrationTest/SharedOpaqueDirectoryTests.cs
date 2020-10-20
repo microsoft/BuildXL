@@ -727,7 +727,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             builderA.RewritePolicy = doubleWritePolicy;
-            
+
             var resA = SchedulePipBuilder(builderA);
 
             // The second pip depends on the shared opaque of the first pip, and tries to write to that same file (with same content)
@@ -833,7 +833,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// If a pip consumes a SOD that is a subDir of a produced SOD, that pip is allowed to write in the cone 
+        /// If a pip consumes a SOD that is a subDir of a produced SOD, that pip is allowed to write in the cone
         /// of the consumed SOD because the produced SOD subsumes it.
         /// </summary>
         [Fact]
@@ -1466,7 +1466,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var producerBuilder = CreatePipBuilder(new[]
             {
                 // establish dependency to prober
-                Operation.ReadFile(areDependent 
+                Operation.ReadFile(areDependent
                     ? proberPip.ProcessOutputs.GetOutputFiles().First()
                     : CreateSourceFile()),
 
@@ -1779,7 +1779,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 PipA -> [sod] \ sodFile
                         [sod\subDir1] \ sodSubDir1File
                         [sod\sibDir2] \ sodSubDir2File
-                
+
                 Allowed accesses:
                 PipB <- [sod] && sodFile
                 PipC <- [sod\subDir1] && sodSubDir1File
@@ -1854,11 +1854,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             /*
                 PipA -> [sod] \ sodFile
                         [sod\subDir1] \ sodSubDir1File
-                        [sod\sibDir2] \ sodSubDir2File                
+                        [sod\sibDir2] \ sodSubDir2File
 
                 PipB <- [sod] && sodFile && inputB
                 PipC <- [sod\subDir1] && sodSubDir1File && inputC
-                PipD <- [sod\sibDir2] && sodSubDir2File && inputD    
+                PipD <- [sod\sibDir2] && sodSubDir2File && inputD
              */
             Configuration.Schedule.EnableLazyOutputMaterialization = true;
             Configuration.Schedule.RequiredOutputMaterialization = RequiredOutputMaterialization.Minimal;
@@ -1894,11 +1894,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipA = SchedulePipBuilder(builderA);
 
             var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputB, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
-            var pipB = SchedulePipBuilder(builderB);            
-                       
+            var pipB = SchedulePipBuilder(builderB);
+
             var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputC, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir1Path), sodSubDir1File);
             var pipC = SchedulePipBuilder(builderC);
-                       
+
             var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputD, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir2Path), sodSubDir2File);
             var pipD = SchedulePipBuilder(builderD);
 
@@ -1970,26 +1970,26 @@ namespace IntegrationTest.BuildXL.Scheduler
             builderA.AddOutputDirectory(opaqueDirArtifact, outputDirectoryKind);
             // This although looking unrelated helps relaxing observed input processor
             // to make sure violations are properly generated (otherwise if we miss blocking a write
-            // it can reach the processor and it will misinterpreted as a read and flag it, so we'll 
+            // it can reach the processor and it will misinterpreted as a read and flag it, so we'll
             // see a violation but it is not the right one)
             builderA.Options |= Process.Options.AllowUndeclaredSourceReads;
 
             // Set up an exclusion
             var exclusion = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, exclusionRelativePath));
             builderA.AddOutputDirectoryExclusion(exclusion);
-            
+
             SchedulePipBuilder(builderA);
 
             var result = RunScheduler();
 
             // Validate the expected excluded files, which should manifest in DFAs for writing undeclared outputs
             if (expectedExcludedFiles == 0)
-            { 
-                result.AssertSuccess(); 
+            {
+                result.AssertSuccess();
             }
-            else 
-            { 
-                result.AssertFailure(); 
+            else
+            {
+                result.AssertFailure();
             }
 
             // On error, this event is logged once
@@ -2016,7 +2016,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(new Operation[]
             {
                 // a dummy output so the engine does not complain about a pip with no outputs
-                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt"))),                
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt"))),
                 // if untracked.txt contains "0", create sodOutput1
                 Operation.WriteFileIfInputEqual(sodOutput1, ToString(untrackedFile.Path), "0"),
                 // if untracked.txt contains "01", create sodOutput2 ("01" because WriteFile appends to the file)
@@ -2042,14 +2042,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertSuccess();
             AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, 1);
 
-            /* 
+            /*
              * sodOutput1 should not exist:
              *  pip starts
              *  untrackedFile.txt contains "0" -> sodOutput1 is created
              *  untrackedFile.txt contains "0" -> sodOutput2 is NOT created
              *  "1" is written to untrackedFile.txt
              *  pip exits with a retrieable exit code
-             *  
+             *
              *  pip is retried (previous outputs must be cleaned)
              *  untrackedFile.txt contains "01" -> sodOutput1 is NOT created
              *  untrackedFile.txt contains "01" -> sodOutput2 is created
@@ -2061,7 +2061,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void TreatAPathAsBothFileAndDirectoryIsHandled()
         {
-            // Creates a pip that writes and deletes a file and later creates a directory using the same path 
+            // Creates a pip that writes and deletes a file and later creates a directory using the same path
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
@@ -2237,9 +2237,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
         }
 
-        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
-        public void DirectoryJunctionIsInterpretedAsIsWhenResolutionIsOn()
+        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DirectoryJunctionIsInterpretedAsIsWhenResolutionIsOn(bool managedReparsePointProcessing)
         {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
+
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
             string targetDirString = Path.Combine(ObjectRoot, "target");
 
@@ -2257,9 +2262,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
-            // TODO: Remove this when IgnoreFullReparsePointResolving becomes the default
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
 
             SchedulePipBuilder(builderA);
 

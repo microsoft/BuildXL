@@ -38,7 +38,7 @@ void PolicyResult::InitializeFromCursor(CanonicalizedPathType const& canonicaliz
     assert(!canonicalizedPath.IsNull());
 
     // The path is already canonicalized; now we are committed to set a policy, which doesn't fail.
-    // We will do so via special-case rules (no policy search or cursor) or via the policy tree (which is searched, producing a cursor). 
+    // We will do so via special-case rules (no policy search or cursor) or via the policy tree (which is searched, producing a cursor).
     m_canonicalizedPath = canonicalizedPath;
 
     TranslateFilePath(std::wstring(canonicalizedPath.GetPathString()), m_translatedPath, false);
@@ -104,6 +104,12 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
         -1);
 }
 
+void PolicyResult::SetPath(CanonicalizedPathType path)
+{
+    m_canonicalizedPath = path;
+    TranslateFilePath(std::wstring(m_canonicalizedPath.GetPathString()), m_translatedPath, false);
+}
+
 #if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 bool PolicyResult::AllowWrite() const {
 
@@ -112,12 +118,12 @@ bool PolicyResult::AllowWrite() const {
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy (for the latter, if the write is denied, there is nothing to override)
     if (!IndicateUntracked() && isWriteAllowedByPolicy && OverrideAllowWriteForExistingFiles()) {
-        
-        // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same 
-        // as the current process so other child processes won't share it. 
+
+        // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same
+        // as the current process so other child processes won't share it.
         // But for the current process it will avoid probing the file system over and over for the same path.
         FilesCheckedForAccess* filesCheckedForWriteAccess = GetGlobalFilesCheckedForAccesses();
-        
+
         if (filesCheckedForWriteAccess->TryRegisterPath(m_canonicalizedPath)) {
             DWORD error = GetLastError();
 
@@ -130,13 +136,13 @@ bool PolicyResult::AllowWrite() const {
             bool fileExists = ExistsAsFile(m_canonicalizedPath.GetPathString());
 
             AccessCheckResult accessCheck = AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Ignore);
-            FileOperationContext operationContext = 
+            FileOperationContext operationContext =
                 FileOperationContext::CreateForRead(L"FirstAllowWriteCheckInProcess", this->GetCanonicalizedPath().GetPathString());
 
             ReportFileAccess(
                 operationContext,
-                fileExists? 
-                    FileAccessStatus_Denied : 
+                fileExists?
+                    FileAccessStatus_Denied :
                     FileAccessStatus_Allowed,
                 *this,
                 AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),

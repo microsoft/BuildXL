@@ -20,7 +20,7 @@ namespace BuildXL.Pips.Graph
     public struct ExtraFingerprintSalts : IEquatable<ExtraFingerprintSalts>
     {
         // For non-Unix platforms, this is an arbitrary fixed value
-        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS 
+        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS
             ? KextInfo.RequiredKextVersionNumber
             : "0";
 
@@ -76,7 +76,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreReparsePoints,
-                config.Sandbox.UnsafeSandboxConfiguration.IgnoreFullReparsePointResolving,
+                !config.Sandbox.UnsafeSandboxConfiguration.EnableFullReparsePointResolving(),
                 config.Sandbox.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                 config.Sandbox.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations,
@@ -218,7 +218,7 @@ namespace BuildXL.Pips.Graph
         /// Whether /unsafe_ignoreFullReparsePointResolving flag was passed to BuildXL.
         /// </summary>
         public bool IgnoreFullReparsePointResolving { get; }
-        
+
         /// <summary>
         /// Whether /unsafe_ignorePreloadedDlls flag was passed to BuildXL.
         /// </summary>

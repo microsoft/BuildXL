@@ -44,7 +44,7 @@ namespace BuildXL.Utilities.Configuration
         /// on the state of the outputs.
         /// </summary>
         PreserveOutputsMode PreserveOutputs { get; }
-        
+
         /// <summary>
         /// Trust levle of how much we trust the preserveoutputs per pip.
         /// </summary>
@@ -79,7 +79,7 @@ namespace BuildXL.Utilities.Configuration
         /// Whether BuildXL is to ignore reparse points. Ignoring reparse points is an unsafe configuration. Defaults to off (i.e., not ignoring reparse points).
         /// </summary>
         bool IgnoreReparsePoints { get; }
-        
+
         /// <summary>
         /// Whether BuildXL is to ignore fully resolving of reparse points. Ignoring reparse point resolving is an unsafe configuration. Defaults to on (i.e., skipping full resolving, due to backwards compatibility).
         /// </summary>
@@ -172,6 +172,11 @@ namespace BuildXL.Utilities.Configuration
         bool? ProcessSymlinkedAccesses { get; }
 
         /// <summary>
+        /// Indicates if full reparse point resolving should be enabled in the process sandbox.
+        /// </summary>
+        bool? EnableFullReparsePointResolving { get; }
+
+        /// <summary>
         /// When true, outputs produced under shared opaques won't be flagged as such.
         /// </summary>
         /// <remarks>
@@ -240,6 +245,11 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write(@this.SkipFlaggingSharedOpaqueOutputs.Value);
             }
+            writer.Write(@this.EnableFullReparsePointResolving.HasValue);
+            if (@this.EnableFullReparsePointResolving.HasValue)
+            {
+                writer.Write(@this.EnableFullReparsePointResolving.Value);
+            }
         }
 
         /// <nodoc/>
@@ -270,6 +280,7 @@ namespace BuildXL.Utilities.Configuration
                 ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
+                EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
             };
         }
 
@@ -301,7 +312,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
                 && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses()
-                && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs()));
+                && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs()))
+                && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving());
         }
 
         /// <nodoc />

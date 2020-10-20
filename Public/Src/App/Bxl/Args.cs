@@ -1127,6 +1127,7 @@ namespace BuildXL
                                     throw CommandLineUtilities.Error("/unsafe_IgnoreFullReparsePointResolving not allowed on non-Windows OS");
                                 }
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = sign;
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.EnableFullReparsePointResolving = !sign;
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
@@ -1221,7 +1222,7 @@ namespace BuildXL
                             sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = sign; },
                             isUnsafe: true),
                         // </ end unsafe options>
-                        
+
                         OptionHandlerFactory.CreateBoolOption(
                             "updateFileContentTableByScanningChangeJournal",
                             sign => schedulingConfiguration.UpdateFileContentTableByScanningChangeJournal = sign),

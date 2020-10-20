@@ -20,12 +20,15 @@ namespace BuildXL.Utilities.Configuration
         public const bool DefaultProcessSymlinkedAccesses = false;
 
         /// <nodoc/>
+        public const bool DefaultEnableFullReparsePointResolving = false;
+
+        /// <nodoc/>
         public const bool DefaultSkipFlaggingSharedOpaqueOutputs = false;
 
         // Extension methods
 
         /// <nodoc/>
-        public static RewritePolicy DoubleWritePolicy(this IUnsafeSandboxConfiguration configuration) => 
+        public static RewritePolicy DoubleWritePolicy(this IUnsafeSandboxConfiguration configuration) =>
             configuration.DoubleWritePolicy ?? DefaultDoubleWritePolicy;
 
         /// <nodoc/>
@@ -36,7 +39,13 @@ namespace BuildXL.Utilities.Configuration
         /// Whether <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is enabled and we are in a Windows-based OS
         /// </summary>
         public static bool ProcessSymlinkedAccesses(this IUnsafeSandboxConfiguration configuration) =>
-            (configuration.ProcessSymlinkedAccesses ?? DefaultProcessSymlinkedAccesses) && !OperatingSystemHelper.IsMacOS;
+            (configuration.ProcessSymlinkedAccesses ?? DefaultProcessSymlinkedAccesses) && !OperatingSystemHelper.IsUnixOS;
+
+        /// <summary>
+        /// Whether <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS
+        /// </summary>
+        public static bool EnableFullReparsePointResolving(this IUnsafeSandboxConfiguration configuration) =>
+            ((configuration.EnableFullReparsePointResolving ?? DefaultEnableFullReparsePointResolving) || !configuration.IgnoreFullReparsePointResolving) && !OperatingSystemHelper.IsUnixOS;
 
         /// <nodoc/>
         public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfiguration configuration) =>

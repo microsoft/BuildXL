@@ -164,7 +164,7 @@ namespace BuildXL.Scheduler
                     ReadOnlyArray<AbsolutePath> symlinkChain;
                     var symlinkTarget = AbsolutePath.Invalid;
                     bool isSymLink = false;
-               
+
                     var possibleSymlinkChain = CheckValidSymlinkChainAsync(pip.Source, environment);
                     if (!possibleSymlinkChain.Succeeded)
                     {
@@ -695,7 +695,7 @@ namespace BuildXL.Scheduler
 
         private static void MakeSharedOpaqueOutputIfNeeded(IPipExecutionEnvironment environment, AbsolutePath path)
         {
-            if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() && 
+            if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() &&
                 environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
             {
                 string expandedPath = path.ToString(environment.Context.PathTable);
@@ -1220,7 +1220,7 @@ namespace BuildXL.Scheduler
                     pip,
                     expectedMemoryCounters,
                     allowResourceBasedCancellation,
-                    async (resourceScope) => { return await ExecutePipAndHandleRetryAsync(resourceScope, 
+                    async (resourceScope) => { return await ExecutePipAndHandleRetryAsync(resourceScope,
                         operationContext, pip, expectedMemoryCounters, environment, state, processIdListener, detoursEventListener, start); });
 
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
@@ -1508,9 +1508,9 @@ namespace BuildXL.Scheduler
         /// Execute Pip and handle retries within the same worker
         /// </summary>
         private static async Task<SandboxedProcessPipExecutionResult> ExecutePipAndHandleRetryAsync(ProcessResourceManager.ResourceScope resourceScope,
-            OperationContext operationContext, 
-            Process pip, 
-            ProcessMemoryCounters expectedMemoryCounters, 
+            OperationContext operationContext,
+            Process pip,
+            ProcessMemoryCounters expectedMemoryCounters,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
             Action<int> processIdListener,
@@ -3277,8 +3277,8 @@ namespace BuildXL.Scheduler
                     foreach (var dynamicOutputFileAndInfo in cacheHitData.DynamicDirectoryContents[i])
                     {
                         fileList.Add(FileArtifactWithAttributes.Create(
-                            dynamicOutputFileAndInfo.fileArtifact, 
-                            FileExistence.Required, 
+                            dynamicOutputFileAndInfo.fileArtifact,
+                            FileExistence.Required,
                             dynamicOutputFileAndInfo.fileMaterializationInfo.IsUndeclaredFileRewrite));
                     }
 
@@ -4060,7 +4060,7 @@ namespace BuildXL.Scheduler
                     operationContext,
                     allHashes,
                     materialize: materializeToVerifyAvailability,
-                    onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) => 
+                    onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) =>
                     {
                         onContentUnavailable?.Invoke(allHashes[index].fileArtifact);
                     });

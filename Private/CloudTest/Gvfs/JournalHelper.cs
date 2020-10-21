@@ -56,8 +56,7 @@ namespace BuildXL.CloudTest.Gvfs
             m_changeTracker = FileChangeTrackingSet.CreateForAllCapableVolumes(
                 loggingContext,
                 volumeMap,
-                m_journal,
-                Utilities.Configuration.FileChangeTrackerSupersedeMode.All);
+                m_journal);
         }
 
         public virtual string GetPath(string path)
@@ -84,7 +83,7 @@ namespace BuildXL.CloudTest.Gvfs
                 StartTracking();
             }
 
-            var result = m_changeTracker.TryEnumerateDirectoryAndTrackMembership(dir, (_, __) => { });
+            var result = m_changeTracker.TryEnumerateDirectoryAndTrackMembership(dir, (_, _) => { });
             XAssert.PossiblySucceeded(result);
             return result.Result;
         }

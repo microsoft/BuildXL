@@ -56,7 +56,8 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public static Possible<DirectoryMembershipFingerprintResult> ComputeFingerprint(
             string path,
-            Action<string, FileAttributes> handleEntry = null)
+            Action<string, FileAttributes> handleEntry = null,
+            Func<string, FileAttributes, bool> shouldIncludeEntry = null)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
@@ -67,9 +68,12 @@ namespace BuildXL.Storage.ChangeTracking
                 path,
                 (entryName, entryAttributes) =>
                 {
-                    calculator = calculator.Accumulate(entryName, entryAttributes);
-                    memberCount++;
-                    handleEntry?.Invoke(entryName, entryAttributes);
+                    if (shouldIncludeEntry?.Invoke(entryName, entryAttributes) ?? true)
+                    {
+                        calculator = calculator.Accumulate(entryName, entryAttributes);
+                        memberCount++;
+                        handleEntry?.Invoke(entryName, entryAttributes);
+                    }
                 });
 
             DirectoryMembershipTrackingFingerprint fingerprint = calculator.GetFingerprint();
@@ -151,13 +155,16 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Compute directory membership fingerprint given its members.
         /// </summary>
-        public static DirectoryMembershipTrackingFingerprint ComputeFingerprint(IReadOnlyList<(string, FileAttributes)> members)
+        public static DirectoryMembershipTrackingFingerprint ComputeFingerprint(
+            IReadOnlyList<(string, FileAttributes)> members,
+            Action<string, FileAttributes> handle = null)
         {
             var calculator = DirectoryMembershipTrackingFingerprint.CreateCalculator();
 
-            foreach (var valueTuple in members.AsStructEnumerable())
+            foreach (var (entry, attributes) in members.AsStructEnumerable())
             {
-                calculator = calculator.Accumulate(valueTuple.Item1, valueTuple.Item2);
+                calculator = calculator.Accumulate(entry, attributes);
+                handle?.Invoke(entry, attributes);
             }
 
             return calculator.GetFingerprint();

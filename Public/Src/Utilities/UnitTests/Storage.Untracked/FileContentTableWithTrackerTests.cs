@@ -191,7 +191,6 @@ namespace Test.BuildXL.Storage.Admin
                     loggingContext,
                     volumeMap,
                     maybeJournal.Result,
-                    global::BuildXL.Utilities.Configuration.FileChangeTrackerSupersedeMode.FileAndParents,
                     null);
 
                 return new ChangeTrackerSupport(
@@ -218,7 +217,6 @@ namespace Test.BuildXL.Storage.Admin
                     m_loggingContext,
                     m_volumeMap,
                     m_journal,
-                    global::BuildXL.Utilities.Configuration.FileChangeTrackerSupersedeMode.FileAndParents,
                     m_fileChangeTrackerPath.ToString(m_pathTable),
                     m_buildEngineFingerprint,
                     out m_fileChangeTracker);

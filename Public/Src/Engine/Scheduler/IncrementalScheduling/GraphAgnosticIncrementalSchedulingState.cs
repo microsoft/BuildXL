@@ -872,7 +872,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             IEnumerable<string> dynamicallyObservedFilePaths,
             IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
-            IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> dynamicDirectoryContents)
+            IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> outputDirectoriesContents,
+            IEnumerable<string> untrackedScopes)
         {
             if (!PipGraph.TryGetPipFingerprint(nodeId.ToPipId(), out ContentFingerprint fingerprint))
             {
@@ -905,13 +906,19 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_dynamicallyObservedEnumerations.AddEntry(pipStableId, dynamicallyObservedEnumeration);
             }
 
-            foreach (var dynamicDirectoryContent in dynamicDirectoryContents)
+            foreach (var dynamicDirectoryContent in outputDirectoriesContents)
             {
                 var directoryPath = AbsolutePath.Create(m_internalPathTable, dynamicDirectoryContent.directory);
 
+                using (var untrackedScopesPool = Pools.GetAbsolutePathSet())
                 using (var pools = Pools.GetAbsolutePathSet())
                 {
                     var pathSet = pools.Instance;
+                    var untrackedScopeSet = untrackedScopesPool.Instance;
+                    untrackedScopeSet.UnionWith(
+                        untrackedScopes
+                            .Select(p => AbsolutePath.Create(m_internalPathTable, p))
+                            .Where(p => p.IsWithin(m_internalPathTable, directoryPath)));
 
                     foreach (var member in dynamicDirectoryContent.fileArtifactsCollection)
                     {
@@ -925,7 +932,9 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             {
                                 m_dynamicallyObservedFiles.AddEntry(pipStableId, currentPath);
                             }
-                            else
+                            else if (untrackedScopeSet.Count == 0 // Typical case.
+                                || (!untrackedScopeSet.Contains(currentPath)
+                                    && !untrackedScopeSet.Any(u => currentPath.IsWithin(m_internalPathTable, u))))
                             {
                                 m_dynamicallyObservedEnumerations.AddEntry(pipStableId, currentPath);
                             }

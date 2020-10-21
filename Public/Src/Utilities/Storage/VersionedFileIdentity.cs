@@ -103,6 +103,11 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Creates a new <see cref="VersionedFileIdentity"/> with a specified <see cref="Usn"/>.
+        /// </summary>
+        public VersionedFileIdentity WithUsn(Usn usn) => new VersionedFileIdentity(m_volumeSerialNumber, m_fileId, usn, Kind);
+
+        /// <summary>
         /// Failure reason for <see cref="VersionedFileIdentity.TryQuery" /> or <see cref="VersionedFileIdentity.TryEstablishStrong"/>
         /// </summary>
         public enum IdentityUnavailabilityReason

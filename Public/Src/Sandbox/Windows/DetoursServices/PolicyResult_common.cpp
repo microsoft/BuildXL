@@ -99,8 +99,8 @@ AccessCheckResult PolicyResult::CheckReadAccess(RequestedReadAccess readAccessRe
         : (FailUnexpectedFileAccesses() ? ResultAction::Deny : ResultAction::Warn);
 
     bool explicitReport = !context.OpenedDirectory &&
-        ((exists && ((m_policy & FileAccessPolicy_ReportAccessIfExistent) != 0)) ||
-         (!exists && ((m_policy & FileAccessPolicy_ReportAccessIfNonExistent) != 0)));
+        ((exists && ((m_policy & FileAccessPolicy::FileAccessPolicy_ReportAccessIfExistent) != 0)) ||
+         (!exists && ((m_policy & FileAccessPolicy::FileAccessPolicy_ReportAccessIfNonExistent) != 0)));
 
     ReportLevel reportLevel = explicitReport 
         ? ReportLevel::ReportExplicit 
@@ -151,7 +151,7 @@ AccessCheckResult PolicyResult::CreateAccessCheckResult(bool isAllowed) const
         ? ResultAction::Allow
         : (FailUnexpectedFileAccesses() ? ResultAction::Deny : ResultAction::Warn);
 
-    ReportLevel reportLevel = ((m_policy & FileAccessPolicy_ReportAccess) != 0)
+    ReportLevel reportLevel = ((m_policy & FileAccessPolicy::FileAccessPolicy_ReportAccess) != 0)
         ? ReportLevel::ReportExplicit
         : (ReportAnyAccess(result != ResultAction::Allow) ? ReportLevel::Report : ReportLevel::Ignore);
 

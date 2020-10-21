@@ -991,7 +991,7 @@ bool ParseFileAccessManifest(
 
         ReportFileAccess(
             fileOperationContextWithoutModuleName,
-            FileAccessStatus_CannotDeterminePolicy,
+            FileAccessStatus::FileAccessStatus_CannotDeterminePolicy,
             PolicyResult(), // Indeterminate
             AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
             GetLastError(),

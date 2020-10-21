@@ -225,7 +225,12 @@ namespace BuildXL.Scheduler.FileSystem
                     using (Counters.StartStopwatch(FileSystemViewCounters.RealFileSystemEnumerationsDuration))
                     {
 
-                        possibleExistence = LocalDiskFileSystem.TryEnumerateDirectoryAndTrackMembership(path, handleDirectoryEntry);
+                        possibleExistence = LocalDiskFileSystem.TryEnumerateDirectoryAndTrackMembership(
+                            path,
+                            handleDirectoryEntry,
+                            // This method is called during observed input processing. Currently, we simply include all entries.
+                            // TODO: In the future, we may want to restrict it based on pip's untracked scopes/paths.
+                            shouldIncludeEntry: null /* include all entries */);
                     }
 
                     if (possibleExistence.Succeeded)

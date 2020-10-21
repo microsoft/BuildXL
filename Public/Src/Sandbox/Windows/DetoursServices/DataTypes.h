@@ -158,7 +158,7 @@ enum FileAccessStatus
 };
 
 // Keep this in sync with the C# version declared in ReportType.cs
-enum ProcessDetouringStatus
+enum class ProcessDetouringStatus
 {
     ProcessDetouringStatus_None = 0,
     ProcessDetouringStatus_Starting = 1,
@@ -172,7 +172,7 @@ enum ProcessDetouringStatus
 };
 
 // Keep this in sync with the C# version declared in ReportType.cs
-enum ReportType
+enum class ReportType
 {
     ReportType_None = 0,
     ReportType_FileAccess = 1,
@@ -694,7 +694,7 @@ typedef const ManifestRecord * PCManifestRecord; // duplicated for use in scopes
 // Characterization of the currently running process
 // These are special processes for which we remove some artificial file accesses from reporting.
 // We should not detour anything if the process is WinDbg.
-enum SpecialProcessKind {
+enum class SpecialProcessKind {
     NotSpecial,
     WinDbg,
     RC,

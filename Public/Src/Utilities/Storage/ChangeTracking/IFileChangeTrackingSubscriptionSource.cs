@@ -40,9 +40,36 @@ namespace BuildXL.Storage.ChangeTracking
         /// The membership of the directory will be invalidated if a name is added or removed directly inside the directory (i.e., when <c>FindFirstFile</c>
         /// and <c>FindNextFile</c> would see a different set of names).
         /// </summary>
+        /// <remarks>
+        /// <paramref name="handleEntry"/> will only be called on an entry if <paramref name="shouldIncludeEntry"/> on that entry returns true.
+        /// <paramref name="supersedeWithStrongIdentity"/> is used to supersede the tracked USN of <paramref name="path"/> with the max USN of
+        /// its entries that are included by <paramref name="shouldIncludeEntry"/>. This is essential for tracking output directory.
+        /// 
+        /// Suppose that we have the following output directory:
+        /// D\
+        ///   1.txt
+        ///   2.txt
+        ///   3.txt
+        /// When we produce D, we track D and record its membership fingerprint. By tracking, D is recorded with some USN-D.
+        /// The issue is D's members are typically created after D. Thus, each of them has higher USN, and that USN contains CREATED change reason.
+        /// When we scan our journal later we find this higher USN containing CREATED, and journal processing thinks that D's membership
+        /// has probably changed. Our journal scanning then needs to work extra to prove that the membership has not changed by enumerating D again
+        /// and compare its recorded fingerprint with the current one. See CheckAndMaybeInvalidateEnumerationDependencies in FileChangeTrackingSet.cs
+        /// for details.
+        /// 
+        /// When <paramref name="supersedeWithStrongIdentity"/> is true, after the enumeration, we retrack again D by establishing a strong
+        /// identity for it, i.e., we create a dummy CLOSE record so that D will have higher USN than all of its members. Then, we use that higher
+        /// USN as D's supersession limit. Thus, any membership change below that higher USN will be ignored during the journal scanning.
+        /// 
+        /// One can think what about if D is superseded by max USN among its members. First, one needs to query the USNs of D's members, and it
+        /// affects performance of enumeration. Second, the enumeratioon only care about the member included by <paramref name="shouldIncludeEntry"/>.
+        /// The excluded member may have higher USN then any included members'.
+        /// </remarks>
         Possible<FileChangeTrackingSet.EnumerationResult> TryEnumerateDirectoryAndTrackMembership(
             [NotNull]string path,
-            [NotNull]Action<string, FileAttributes> handleEntry);
+            [NotNull]Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry,
+            bool supersedeWithStrongIdentity);
 
         /// <summary>
         /// Probes for the existence of a path, while also tracking the result (e.g. if a file does not exist and is later created, that change will be detected).

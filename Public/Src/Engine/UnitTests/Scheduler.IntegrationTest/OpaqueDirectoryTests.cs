@@ -9,7 +9,6 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Executables.TestProcess;
@@ -411,6 +410,181 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderB);
 
             RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void OutputDirectoryWithUntrackedPaths()
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFileA = CreateOutputFileArtifact(outputDirectory, "fileA");
+            var outputFileB = CreateOutputFileArtifact(outputDirectory, "fileB");
+            var outputFileC = CreateOutputFileArtifact(outputDirectory, "fileC");
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.WriteFile(outputFileA, doNotInfer: true),
+                    Operation.WriteFile(outputFileB, doNotInfer: true),
+                    Operation.WriteFile(outputFileC, doNotInfer: true),
+                });
+            builder.AddOutputDirectory(outputDirectory);
+            builder.AddUntrackedFile(outputFileC);
+            var process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileC)));
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileA)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileB)));
+
+            File.WriteAllText(ArtifactToString(outputFileC), "Modified-C");
+
+            var result = RunScheduler();
+
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(process.Process.PipId);
+
+                // Pip is not scheduled, output fileC is still there.
+                XAssert.IsTrue(File.Exists(ArtifactToString(outputFileC)));
+            }
+            else
+            {
+                result.AssertCacheHit(process.Process.PipId);
+
+                // Since output fileC is untracked, it should no longer exist when pip replayed outputs from cache.
+                XAssert.IsFalse(File.Exists(ArtifactToString(outputFileC)));
+            }
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileA)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileB)));
+        }
+
+        [Fact]
+        public void OutputDirectoryWithUntrackedScopes()
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var nestedOutputDirectory = outputDirectory.Combine(Context.PathTable, "nested");
+            var outputFileA = CreateOutputFileArtifact(nestedOutputDirectory, "fileA");
+            var outputFileB = CreateOutputFileArtifact(nestedOutputDirectory, "fileB");
+            var outputFileC = CreateOutputFileArtifact(nestedOutputDirectory, "fileC");
+            var outputFileX = CreateOutputFileArtifact(outputDirectory, "fileX");
+            var outputFileY = CreateOutputFileArtifact(outputDirectory, "fileY");
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.WriteFile(outputFileA, doNotInfer: true),
+                    Operation.WriteFile(outputFileB, doNotInfer: true),
+                    Operation.WriteFile(outputFileC),
+                    Operation.WriteFile(outputFileX, doNotInfer: true),
+                    Operation.WriteFile(outputFileY, doNotInfer: true),
+                });
+            builder.AddOutputDirectory(outputDirectory);
+            builder.AddUntrackedDirectoryScope(nestedOutputDirectory);
+            var process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileA)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileB)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileC)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileX)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileY)));
+
+            var result = RunScheduler();
+
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(process.Process.PipId);
+
+                XAssert.IsTrue(File.Exists(ArtifactToString(outputFileA)));
+                XAssert.IsTrue(File.Exists(ArtifactToString(outputFileB)));
+            }
+            else
+            {
+                result.AssertCacheHit(process.Process.PipId);
+
+                // Output fileA and fileB should no longer exist after cache replay, because nested directory is untracked.
+                XAssert.IsFalse(File.Exists(ArtifactToString(outputFileA)));
+                XAssert.IsFalse(File.Exists(ArtifactToString(outputFileB)));
+            }
+
+            // Although fileC is inside untracked nested directory, but it is specified as an output file, and so
+            // it has to exist after cache replay.
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileC)));
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileX)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileY)));
+
+            File.WriteAllText(ArtifactToString(outputFileC), "Modified-C");
+
+            result = RunScheduler();
+            result.AssertScheduled(process.Process.PipId).AssertCacheHit(process.Process.PipId);
+
+            // Output fileA and fileB should no longer exist after cache replay, because nested directory is untracked.
+            XAssert.IsFalse(File.Exists(ArtifactToString(outputFileA)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(outputFileB)));
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileC)));
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileX)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputFileY)));
+        }
+
+        [Fact]
+        public void EnumerateOutputDirectoryWithUntrackedPaths()
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFileA = CreateOutputFileArtifact(outputDirectory, "fileA");
+            var outputFileB = CreateOutputFileArtifact(outputDirectory, "fileB");
+            var outputFileC = CreateOutputFileArtifact(outputDirectory, "fileC");
+            var sourceFile = CreateSourceFile();
+
+            var builderA = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.WriteFile(outputFileA, doNotInfer: true),
+                    Operation.WriteFile(outputFileB, doNotInfer: true),
+                    Operation.WriteFile(outputFileC, doNotInfer: true),
+                });
+            builderA.AddOutputDirectory(outputDirectory);
+            builderA.AddUntrackedFile(outputFileC);
+            var processA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.EnumerateDir(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory)),
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                });
+            builderB.AddInputDirectory(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory));
+            var processB = SchedulePipBuilder(builderB);
+
+            // In this 1st build, process B will see the output directory outputDir consisting of
+            // outputDir\A, outputDir\B, and outputDirC.
+            RunScheduler().AssertSuccess();
+
+            var result = RunScheduler();
+
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(processA.Process.PipId, processB.Process.PipId);
+            }
+            else
+            {
+                // In the 2nd build, since process A comes from the cache, outputDir will only consist of
+                // outputDir\A and outputDir\B. Thus, in principle process B should re-run. However, due to
+                // graph file system enumeration, process B gets a cache hit.
+                RunScheduler().AssertCacheHit(processA.Process.PipId, processB.Process.PipId);
+            }
         }
     }
 }

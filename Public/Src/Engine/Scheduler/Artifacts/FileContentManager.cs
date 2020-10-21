@@ -189,6 +189,11 @@ namespace BuildXL.Scheduler.Artifacts
 
         private readonly ConcurrentBigSet<AbsolutePath> m_pathsWithoutFileArtifact = new ConcurrentBigSet<AbsolutePath>();
 
+        private readonly ObjectPool<OutputDirectoryEnumerationData> m_outputEnumerationDataPool =
+            new ObjectPool<OutputDirectoryEnumerationData>(
+                () => new OutputDirectoryEnumerationData(),
+                data => { data.Clear(); return data; });
+
         #endregion
 
         #region External State (i.e. passed into constructor)
@@ -390,7 +395,7 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                 }
 
-                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
+                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads, artifactsProducer: null);
             }
         }
 
@@ -410,7 +415,7 @@ namespace BuildXL.Scheduler.Artifacts
                 // by consumers of the seal directory
                 MarkDirectoryMaterializations(state);
 
-                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
+                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads, artifactsProducer: pip);
             }
         }
 
@@ -422,9 +427,13 @@ namespace BuildXL.Scheduler.Artifacts
             return m_allowedFileRewriteOutputs.Contains(path);
         }
 
-        private async Task<Possible<Unit>> TryHashArtifactsAsync(OperationContext operationContext, PipArtifactsState state, bool allowUndeclaredSourceReads)
+        private async Task<Possible<Unit>> TryHashArtifactsAsync(
+            OperationContext operationContext,
+            PipArtifactsState state,
+            bool allowUndeclaredSourceReads,
+            Pip artifactsProducer)
         {
-            var maybeReported = EnumerateAndReportDynamicOutputDirectories(state.PipArtifacts);
+            var maybeReported = EnumerateOutputDirectories(state, artifactsProducer, shouldReport: true);
 
             if (!maybeReported.Succeeded)
             {
@@ -569,6 +578,12 @@ namespace BuildXL.Scheduler.Artifacts
                     return state.GetFailure();
                 }
 
+                var enumerateResult = EnumerateOutputDirectories(state, pip, shouldReport: false);
+                if (!enumerateResult.Succeeded)
+                {
+                    return enumerateResult.Failure;
+                }
+
                 if (hasExcludedOutput)
                 {
                     return PipOutputOrigin.NotMaterialized;
@@ -671,41 +686,83 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Enumerates dynamic output directory.
         /// </summary>
-        public Possible<Unit> EnumerateDynamicOutputDirectory(
+        public Possible<Unit> EnumerateOutputDirectory(
             DirectoryArtifact directoryArtifact,
+            OutputDirectoryEnumerationData enumerationData,
             Action<FileArtifact> handleFile,
             Action<AbsolutePath> handleDirectory)
         {
             Contract.Requires(directoryArtifact.IsValid);
-
+            Contract.Requires(enumerationData != null);
+            
             var pathTable = Context.PathTable;
             var directoryPath = directoryArtifact.Path;
-            var queue = new Queue<AbsolutePath>();
-            queue.Enqueue(directoryPath);
+            var queue = new Queue<(AbsolutePath path, bool shouldTrack)>();
+            queue.Enqueue((directoryPath, true));
 
             while (queue.Count > 0)
             {
-                var currentDirectoryPath = queue.Dequeue();
-                var result = m_host.LocalDiskContentStore.TryEnumerateDirectoryAndTrackMembership(
-                    currentDirectoryPath,
-                    handleEntry: (entry, attributes) =>
-                    {
-                        var path = currentDirectoryPath.Combine(pathTable, entry);
-                        // must treat directory reparse points as files: recursing on directory reparse points can lead to infinite loops
-                        if (!FileUtilities.IsDirectoryNoFollow(attributes))
-                        {
-                            var fileArtifact = FileArtifact.CreateOutputFile(path);
-                            handleFile?.Invoke(fileArtifact);
-                        }
-                        else
-                        {
-                            handleDirectory?.Invoke(path);
-                            queue.Enqueue(path);
-                        }
-                    });
-                if (!result.Succeeded)
+                (AbsolutePath currentDirectoryPath, bool shouldTrack) = queue.Dequeue();
+
+                if (shouldTrack)
                 {
-                    return result.Failure;
+                    var result = m_host.LocalDiskContentStore.TryEnumerateDirectoryAndTrackMembership(
+                        currentDirectoryPath,
+                        handleEntry: (entry, attributes) =>
+                        {
+                            var path = currentDirectoryPath.Combine(pathTable, entry);
+                            
+                            if (!FileUtilities.IsDirectoryNoFollow(attributes))
+                            {
+                                handleFile?.Invoke(FileArtifact.CreateOutputFile(path));
+                            }
+                            else
+                            {
+                                handleDirectory?.Invoke(path);
+                            }
+                        },
+                        shouldIncludeEntry: (entry, attributes) =>
+                        {
+                            var path = currentDirectoryPath.Combine(pathTable, entry);
+                            bool shouldIncludeEntry = !enumerationData.UntrackedPaths.Contains(path) && !enumerationData.UntrackedScopes.Contains(path);
+
+                            // Treat directory reparse points as files: recursing on directory reparse points can lead to infinite loops
+                            if (FileUtilities.IsDirectoryNoFollow(attributes) && !enumerationData.OutputDirectoryExclusions.Contains(path))
+                            {
+                                queue.Enqueue((path, shouldIncludeEntry));
+                            }
+
+                            return shouldIncludeEntry;
+                        },
+                        supersedeWithLastEntryUsn: true);
+
+                    if (!result.Succeeded)
+                    {
+                        return result.Failure;
+                    }
+                }
+                else
+                {
+                    FileUtilities.EnumerateDirectoryEntries(
+                        currentDirectoryPath.ToString(pathTable),
+                        handleEntry: (entry, attributes) =>
+                        {
+                            var path = currentDirectoryPath.Combine(pathTable, entry);
+
+                            // Treat directory reparse points as files: recursing on directory reparse points can lead to infinite loops
+                            if (FileUtilities.IsDirectoryNoFollow(attributes))
+                            {
+                                // Once the directory is untracked, its descendent directories will always be untracked.
+                                queue.Enqueue((path, false));
+                            }
+                            else
+                            {
+                                if (enumerationData.OutputFilePaths.Contains(path))
+                                {
+                                    handleFile?.Invoke(FileArtifact.CreateOutputFile(path));
+                                }
+                            }
+                        });
                 }
             }
 
@@ -1160,32 +1217,57 @@ namespace BuildXL.Scheduler.Artifacts
 
         // TODO: Consider calling this from TryHashDependencies. That would allow us to remove logic which requires
         // that direct seal directory dependencies are scheduled
-        private Possible<Unit> EnumerateAndReportDynamicOutputDirectories(HashSet<FileOrDirectoryArtifact> artifacts)
+        private Possible<Unit> EnumerateOutputDirectories(PipArtifactsState state, Pip artifactsProducer, bool shouldReport)
         {
-            foreach (var artifact in artifacts)
+            using (var outputDirectoryEnumerationDataWrapper = m_outputEnumerationDataPool.GetInstance())
             {
-                if (artifact.IsDirectory)
+                OutputDirectoryEnumerationData outputDirectoryEnumerationData = null;
+                Process process = artifactsProducer as Process;
+
+                if (process != null)
                 {
-                    var directory = artifact.DirectoryArtifact;
-                    SealDirectoryKind sealDirectoryKind = m_host.GetSealDirectoryKind(directory);
+                    outputDirectoryEnumerationData = outputDirectoryEnumerationDataWrapper.Instance;
+                    outputDirectoryEnumerationData.Process = process;
+                }
 
-                    if (sealDirectoryKind == SealDirectoryKind.Opaque)
+                foreach (var artifact in state.PipArtifacts)
+                {
+                    if (artifact.IsDirectory)
                     {
-                        if (m_sealContents.ContainsKey(directory))
-                        {
-                            // Only enumerate and report if the directory has not already been reported
-                            continue;
-                        }
+                        var directory = artifact.DirectoryArtifact;
+                        SealDirectoryKind sealDirectoryKind = m_host.GetSealDirectoryKind(directory);
 
-                        if (Context.CancellationToken.IsCancellationRequested)
+                        if (sealDirectoryKind == SealDirectoryKind.Opaque)
                         {
-                            return Context.CancellationToken.CreateFailure();
-                        }
+                            if (m_sealContents.ContainsKey(directory))
+                            {
+                                // Only enumerate and report if the directory has not already been reported
+                                continue;
+                            }
 
-                        var result = EnumerateAndReportDynamicOutputDirectory(directory);
-                        if (!result.Succeeded)
-                        {
-                            return result;
+                            if (Context.CancellationToken.IsCancellationRequested)
+                            {
+                                return Context.CancellationToken.CreateFailure();
+                            }
+
+                            using var outputDirectoryEnumerationDataInnerWrapper = m_outputEnumerationDataPool.GetInstance();
+                            
+                            OutputDirectoryEnumerationData outputDirectoryEnumerationDataInner = outputDirectoryEnumerationData;
+                            
+                            if (outputDirectoryEnumerationDataInner == null)
+                            {
+                                process = m_host.GetProducer(directory) as Process;
+                                Contract.Assert(process != null, "Opaque directory artifact must be produced by a process");
+
+                                outputDirectoryEnumerationDataInner = outputDirectoryEnumerationDataInnerWrapper.Instance;
+                                outputDirectoryEnumerationDataInner.Process = process;
+                            }
+
+                            var result = EnumerateOutputDirectory(directory, outputDirectoryEnumerationDataInner, shouldReport);
+                            if (!result.Succeeded)
+                            {
+                                return result;
+                            }
                         }
                     }
                 }
@@ -1194,24 +1276,39 @@ namespace BuildXL.Scheduler.Artifacts
             return Unit.Void;
         }
 
-        private Possible<Unit> EnumerateAndReportDynamicOutputDirectory(DirectoryArtifact directory)
+        private Possible<Unit> EnumerateOutputDirectory(
+            DirectoryArtifact directoryArtifact,
+            OutputDirectoryEnumerationData outputDirectoryEnumerationData,
+            bool shouldReport)
         {
+            Contract.Requires(directoryArtifact.IsValid);
+            Contract.Requires(outputDirectoryEnumerationData != null);
+
             using (var poolFileList = Pools.GetFileArtifactList())
             {
                 var fileList = poolFileList.Instance;
                 fileList.Clear();
 
-                var result = EnumerateDynamicOutputDirectory(directory, handleFile: file => fileList.Add(file), handleDirectory: null);
+                var result = EnumerateOutputDirectory(
+                    directoryArtifact,
+                    outputDirectoryEnumerationData,
+                    handleFile: file => fileList.Add(file),
+                    handleDirectory: null);
 
                 if (!result.Succeeded)
                 {
                     return result.Failure;
                 }
 
-                // When enumerating the local disk in order to get an output directory contents, the result is always required artifacts with no rewritten sources
-                // The source of rewritten sources are always reported from the pip executor
-                ReportDynamicDirectoryContents(directory, fileList.Select(fa => 
-                    FileArtifactWithAttributes.Create(fa, FileExistence.Required, isUndeclaredFileRewrite: false)), PipOutputOrigin.UpToDate);
+                if (shouldReport)
+                {
+                    // When enumerating the local disk in order to get an output directory contents, the result is always required artifacts with no rewritten sources
+                    // The source of rewritten sources are always reported from the pip executor
+                    ReportDynamicDirectoryContents(
+                        directoryArtifact,
+                        fileList.Select(fa => FileArtifactWithAttributes.Create(fa, FileExistence.Required, isUndeclaredFileRewrite: false)),
+                        PipOutputOrigin.UpToDate);
+                }
             }
 
             return Unit.Void;
@@ -1355,9 +1452,8 @@ namespace BuildXL.Scheduler.Artifacts
                 {
                     // Directory artifact contents are not hashed since they will be hashed dynamically
                     // if the pip accesses them, so the file is the declared artifact
-                    FileMaterializationInfo fileContentInfo;
                     FileArtifact file = artifact.FileArtifact;
-                    if (!m_fileArtifactContentHashes.TryGetValue(file, out fileContentInfo))
+                    if (!m_fileArtifactContentHashes.TryGetValue(file, out _))
                     {
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact

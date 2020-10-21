@@ -515,7 +515,7 @@ InternalCreateDetouredProcess(
     if (LogProcessDetouringStatus())
     {
         ReportProcessDetouringStatus(
-            ProcessDetouringStatus_Starting,
+            ProcessDetouringStatus::ProcessDetouringStatus_Starting,
             lpApplicationName,
             lpCommandLine,
             needsInjection,
@@ -640,7 +640,7 @@ InternalCreateDetouredProcess(
     if (LogProcessDetouringStatus())
     {
         ReportProcessDetouringStatus(
-            ProcessDetouringStatus_Done,
+            ProcessDetouringStatus::ProcessDetouringStatus_Done,
             lpApplicationName,
             lpCommandLine,
             needsInjection,
@@ -808,7 +808,7 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
         if (LogProcessDetouringStatus())
         {
             ReportProcessDetouringStatus(
-                ProcessDetouringStatus_Done,
+                ProcessDetouringStatus::ProcessDetouringStatus_Done,
                 L"",
                 (LPWSTR)lpcwCommandLine,
                 0,
@@ -839,7 +839,7 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
         if (LogProcessDetouringStatus())
         {
             ReportProcessDetouringStatus(
-                ProcessDetouringStatus_Done,
+                ProcessDetouringStatus::ProcessDetouringStatus_Done,
                 L"",
                 (LPWSTR)lpcwCommandLine,
                 0,
@@ -869,7 +869,7 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
             if (LogProcessDetouringStatus())
             {
                 ReportProcessDetouringStatus(
-                    ProcessDetouringStatus_Done,
+                    ProcessDetouringStatus::ProcessDetouringStatus_Done,
                     L"",
                     (LPWSTR)lpcwCommandLine,
                     0,

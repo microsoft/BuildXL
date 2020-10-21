@@ -69,7 +69,6 @@ namespace BuildXL.Execution.Analyzer
                 loggingContext,
                 null,
                 null,
-                default(Utilities.Configuration.FileChangeTrackerSupersedeMode?),
                 trackerFile,
                 null, 
                 out fileChangeTracker,

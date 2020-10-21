@@ -17,7 +17,6 @@ using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -170,19 +169,13 @@ namespace BuildXL.Storage.ChangeTracking
         /// </remarks>
         private static readonly int s_maxConcurrencyForRecordProcessing = Math.Max(16, 256 / Environment.ProcessorCount);
 
-        /// <summary>
-        /// Supersede mode.
-        /// </summary>
-        public FileChangeTrackerSupersedeMode SupersedeMode { get; private set; }
-
         private FileChangeTrackingSet(
             LoggingContext loggingContext,
             PathTable internalPathTable,
             VolumeMap volumeMap,
             Dictionary<ulong, SingleVolumeFileChangeTrackingSet> perVolumeChangeTrackingSets,
             ConcurrentDictionary<AbsolutePath, DirectoryMembershipTrackingFingerprint> membershipFingerprints,
-            bool hasNewFileOrCheckpointData,
-            FileChangeTrackerSupersedeMode supersedeMode)
+            bool hasNewFileOrCheckpointData)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(volumeMap != null);
@@ -201,8 +194,6 @@ namespace BuildXL.Storage.ChangeTracking
             {
                 trackingSet.OwningFileChangeTrackingSet = this;
             }
-
-            SupersedeMode = supersedeMode;
         }
 
         /// <summary>
@@ -230,8 +221,7 @@ namespace BuildXL.Storage.ChangeTracking
         public static FileChangeTrackingSet CreateForAllCapableVolumes(
             LoggingContext loggingContext,
             VolumeMap volumeMap,
-            IChangeJournalAccessor journalAccessor,
-            FileChangeTrackerSupersedeMode supersedeMode)
+            IChangeJournalAccessor journalAccessor)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(volumeMap != null);
@@ -248,7 +238,6 @@ namespace BuildXL.Storage.ChangeTracking
                 membershipFingerprints: new ConcurrentDictionary<AbsolutePath, DirectoryMembershipTrackingFingerprint>(),
                 knownCheckpoints: null,
                 hasNewFileOrCheckpointData: true,
-                supersedeMode: supersedeMode,
                 trackedJournalsSizeBytes: out _,
                 nextUsns: out _);
         }
@@ -265,7 +254,6 @@ namespace BuildXL.Storage.ChangeTracking
             VolumeMap volumeMap,
             IChangeJournalAccessor journalAccessor,
             bool hasNewFileOrCheckpointData,
-            FileChangeTrackerSupersedeMode supersedeMode,
             PathTable internalPathTable,
             ConcurrentDictionary<AbsolutePath, DirectoryMembershipTrackingFingerprint> membershipFingerprints,
             Dictionary<ulong, Usn> knownCheckpoints,
@@ -296,8 +284,8 @@ namespace BuildXL.Storage.ChangeTracking
                 }
 
                 QueryUsnJournalResult journalStatus = response.Response;
-                Usn? maybeNextUsn = default(Usn?);
-                Usn? maybeCheckpoint = default(Usn?);
+                Usn? maybeNextUsn = default;
+                Usn? maybeCheckpoint = default;
 
                 if (journalStatus.Status == QueryUsnJournalStatus.Success)
                 {
@@ -344,15 +332,13 @@ namespace BuildXL.Storage.ChangeTracking
                 volumeMap: volumeMap,
                 perVolumeChangeTrackingSets: perVolumeChangeTrackingSets,
                 membershipFingerprints: membershipFingerprints,
-                hasNewFileOrCheckpointData: hasNewFileOrCheckpointData,
-                supersedeMode: supersedeMode);
+                hasNewFileOrCheckpointData: hasNewFileOrCheckpointData);
         }
 
         private static FileChangeTrackingSet CreateForKnownVolumesFromPriorCheckpoint(
             LoggingContext loggingContext,
             VolumeMap volumeMap,
             bool hasNewFileOrCheckpointData,
-            FileChangeTrackerSupersedeMode supersedeMode,
             PathTable internalPathTable,
             ConcurrentDictionary<AbsolutePath, DirectoryMembershipTrackingFingerprint> membershipFingerprints,
             Dictionary<ulong, ulong> knownJournalIds,
@@ -405,8 +391,7 @@ namespace BuildXL.Storage.ChangeTracking
                 volumeMap: volumeMap,
                 perVolumeChangeTrackingSets: perVolumeChangeTrackingSets,
                 membershipFingerprints: membershipFingerprints,
-                hasNewFileOrCheckpointData: hasNewFileOrCheckpointData,
-                supersedeMode: supersedeMode);
+                hasNewFileOrCheckpointData: hasNewFileOrCheckpointData);
         }
 
         /// <summary>
@@ -898,6 +883,20 @@ namespace BuildXL.Storage.ChangeTracking
                                 TryEnumerateDirectoryAndTrackMembership(
                                     expandedPath,
                                     (name, attributes) => { },
+                                    // Passing null here by default makes the enumeration include all directory entries into the membership. 
+                                    // Output directories of pips can have untracked scopes/paths. Since file change tracking set does not
+                                    // have any knowledge about pips, this can cause unnecassary invalidation of incremental scheduling.
+                                    //
+                                    // For example, suppose that a pip has an output directory whose content is D\E\1.txt and D\E\2.txt, and
+                                    // the latter is specified to be untracked by the pip. Pip executor and file content manager has knowledge
+                                    // about pip, and thus it can exclude D\E\2.txt from the membership.
+                                    // Now, if there is a change that potentially updates the membership of D\E, e.g., adding D\E\3.txt and deleting
+                                    // it again, then, although in principle the membership of D\E does not change in the eye of the pip,
+                                    // but since the file change tracking set does not have any knowledge about the pip, it will signal that the
+                                    // membership of D\E has changed because it includes D\E\2.txt in the computed membership.
+                                    //
+                                    // We consider such an above change rare.
+                                    null,
                                     fingerprintFilter: directoryAndFingerprint.Value);
 
                             bool shouldEmitChange = true;
@@ -1381,7 +1380,9 @@ namespace BuildXL.Storage.ChangeTracking
         public Possible<EnumerationResult> TryEnumerateDirectoryAndTrackMembership(
             string path,
             Action<string, FileAttributes> handleEntry,
-            DirectoryMembershipTrackingFingerprint? fingerprintFilter = null)
+            Func<string, FileAttributes, bool> shouldIncludeEntry = null,
+            DirectoryMembershipTrackingFingerprint? fingerprintFilter = null,
+            bool supersedeWithStrongIdentity = false)
         {
             using (Counters.StartStopwatch(FileChangeTrackingCounter.TryEnumerateDirectoryAndTrackMembershipTime))
             {
@@ -1395,7 +1396,11 @@ namespace BuildXL.Storage.ChangeTracking
                 Func<SafeFileHandle, bool> enumerateAndCheckFingerprint =
                     handle =>
                     {
-                        var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(path, handleEntry);
+                        var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(
+                            path,
+                            handleEntry,
+                            shouldIncludeEntry);
+
                         if (!possibleFingerprintResult.Succeeded)
                         {
                             possibleEnumeration = possibleFingerprintResult.Failure;
@@ -1425,14 +1430,15 @@ namespace BuildXL.Storage.ChangeTracking
                         ExistenceTrackingFilter.TrackAlways,
                         existentFileFilter: enumerateAndCheckFingerprint);
 
-                return TrackDirectoryMembership(possibleTrackAndOpenResult, possibleEnumeration, internalPath);
+                return TrackDirectoryMembership(possibleTrackAndOpenResult, possibleEnumeration, internalPath, supersedeWithStrongIdentity);
             }
         }
 
         private Possible<EnumerationResult> TrackDirectoryMembership(
             Possible<TrackAndOpenResult> possibleTrackAndOpenResult,
             Possible<(DirectoryMembershipTrackingFingerprint, PathExistence)>? possibleEnumeration,
-            AbsolutePath internalPath)
+            AbsolutePath internalPath,
+            bool supersedeWithStrongIdentity)
         {
             return possibleTrackAndOpenResult.Then(
                 trackAndOpenResult =>
@@ -1454,6 +1460,14 @@ namespace BuildXL.Storage.ChangeTracking
                                         // TODO: trackAndOpenResult should have a subscription on it.
                                         //       We have an existent path and tracking succeeded, so we can safely invent one here.
                                         TrackDirectoryMembership(new FileChangeTrackingSubscription(internalPath), enumeration.Item1);
+
+                                        if (supersedeWithStrongIdentity)
+                                        {
+                                            Analysis.IgnoreResult(TryTrackChangesToFileInternal(
+                                                trackAndOpenResult.Handle,
+                                                internalPath,
+                                                updateMode: TrackingUpdateMode.Supersede));
+                                        }
                                     }
 
                                     // possibleEnumeration contains a (fingerprint, file-or-directory) pair.
@@ -1479,9 +1493,11 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public Possible<EnumerationResult> TryTrackDirectoryMembership(
             string path,
-            IReadOnlyList<(string, FileAttributes)> members)
+            IReadOnlyList<(string, FileAttributes)> members,
+            bool supersedeWithStrongIdentity = false)
         {
             AbsolutePath internalPath = AbsolutePath.Create(m_internalPathTable, path);
+
             DirectoryMembershipTrackingFingerprint fingerprint = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(members);
 
             Possible<TrackAndOpenResult> possibleTrackAndOpenResult = TryOpenAndTrackPathInternal(
@@ -1499,7 +1515,7 @@ namespace BuildXL.Storage.ChangeTracking
                     fingerprint,
                     possibleTrackAndOpenResult.Result.Existent ? PathExistence.ExistsAsDirectory : PathExistence.Nonexistent);
 
-            return TrackDirectoryMembership(possibleTrackAndOpenResult, possibleEnumeration, internalPath);
+            return TrackDirectoryMembership(possibleTrackAndOpenResult, possibleEnumeration, internalPath, supersedeWithStrongIdentity);
         }
 
         #endregion
@@ -2121,8 +2137,6 @@ namespace BuildXL.Storage.ChangeTracking
         {
             Contract.Requires(writer != null);
 
-            writer.Write((byte)SupersedeMode);
-
             m_internalPathTable.StringTable.Serialize(writer);
             m_internalPathTable.Serialize(writer);
             
@@ -2184,7 +2198,6 @@ namespace BuildXL.Storage.ChangeTracking
             BuildXLReader reader,
             VolumeMap volumeMap,
             IChangeJournalAccessor journal,
-            FileChangeTrackerSupersedeMode? supersedeMode,
             Stopwatch stopwatch,
             bool createForAllCapableVolumes = true)
         {
@@ -2192,16 +2205,6 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(reader != null);
             Contract.Requires(!createForAllCapableVolumes || volumeMap != null);
             Contract.Requires(!createForAllCapableVolumes || journal != null);
-
-            byte sm = reader.ReadByte();
-            Contract.Assert(Enum.IsDefined(typeof(FileChangeTrackerSupersedeMode), sm));
-
-            var readSupersedeMode = (FileChangeTrackerSupersedeMode)sm;
-
-            if (supersedeMode.HasValue && supersedeMode.Value != readSupersedeMode)
-            {
-                return LoadingTrackerResult.FailMismatchedSupersedeModes(supersedeMode.Value, readSupersedeMode);
-            }
 
             StringTable internalStringTable = StringTable.DeserializeAsync(reader).GetAwaiter().GetResult();
             PathTable internalPathTable = PathTable.DeserializeAsync(reader, Task.FromResult(internalStringTable)).GetAwaiter().GetResult();
@@ -2260,7 +2263,6 @@ namespace BuildXL.Storage.ChangeTracking
                     internalPathTable: internalPathTable,
                     membershipFingerprints: membershipFingerprints,
                     hasNewFileOrCheckpointData: true,
-                    supersedeMode: readSupersedeMode,
                     knownCheckpoints: knownCheckpoints,
                     trackedJournalsSizeBytes: out trackedJournalsSizeBytes,
                     nextUsns: out nextUsns);
@@ -2275,8 +2277,7 @@ namespace BuildXL.Storage.ChangeTracking
                     internalPathTable: internalPathTable,
                     membershipFingerprints: membershipFingerprints,
                     knownJournalIds: knownJournalIds,
-                    knownCheckpoints: knownCheckpoints,
-                    supersedeMode: readSupersedeMode);
+                    knownCheckpoints: knownCheckpoints);
             }
 
             foreach (var knownVolumeSerial in trackedVolumeSerials)
@@ -2328,8 +2329,6 @@ namespace BuildXL.Storage.ChangeTracking
         public void WriteText(TextWriter writer)
         {
             Contract.Requires(writer != null);
-
-            writer.WriteLine(I($"Supersede mode: {SupersedeMode}"));
 
             foreach (var singleVolumeFileChangeTrackingSet in m_perVolumeChangeTrackingSets)
             {
@@ -2484,8 +2483,6 @@ namespace BuildXL.Storage.ChangeTracking
             /// </summary>
             public FileChangeTrackingSet OwningFileChangeTrackingSet { get; set; }
 
-            private FileChangeTrackerSupersedeMode SupersedeMode => OwningFileChangeTrackingSet.SupersedeMode;
-
             /// <summary>
             /// Creates an instance of <see cref="SingleVolumeFileChangeTrackingSet"/>.
             /// </summary>
@@ -2591,8 +2588,7 @@ namespace BuildXL.Storage.ChangeTracking
                     bool isPrimaryPath = currentPathHierarchicalNameId == path.Value;
                     isPathContainer = !isPrimaryPath || isPathContainer;
 
-                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0
-                        && (SupersedeMode == FileChangeTrackerSupersedeMode.FileOnly || SupersedeMode == FileChangeTrackerSupersedeMode.FileAndParents))
+                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0)
                     {
                         bool superseding = !isPathContainer && updateMode == TrackingUpdateMode.Supersede;
 
@@ -2611,11 +2607,6 @@ namespace BuildXL.Storage.ChangeTracking
                                 path,
                                 addValue: identity.Usn,
                                 updateValueFactory: (p, existingSupersessionUsn) => new Usn(Math.Max(identity.Usn.Value, existingSupersessionUsn.Value)));
-
-                            if (SupersedeMode == FileChangeTrackerSupersedeMode.FileAndParents)
-                            {
-                                SupersedeParentPaths(path, identity);
-                            }
                         }
 
                         // This path (and therefore all parent paths, by construction) have already been tracked.
@@ -2673,7 +2664,7 @@ namespace BuildXL.Storage.ChangeTracking
                                 Contract.Assert(otherVolumeTrackingSet != null);
 
                                 Possible<FileChangeTrackingSubscription> maybetrackingParent = otherVolumeTrackingSet.TryTrackChangesToParentPath(
-                                    SupersedeMode == FileChangeTrackerSupersedeMode.All ? updateMode : TrackingUpdateMode.Preserve,
+                                    TrackingUpdateMode.Preserve,
                                     currentPathHandle,
                                     currentPath,
                                     currentPathIdentity);
@@ -2689,19 +2680,7 @@ namespace BuildXL.Storage.ChangeTracking
                     }
 
                     AddRecordForFile(currentPathIdentity.FileId, currentPathIdentity.Usn, currentPath);
-
-                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0 && SupersedeMode == FileChangeTrackerSupersedeMode.All)
-                    {
-                        // Note that the intent of superseding is only relevant for path is already tracked (or else there is nothing to supersede).
-                        if (updateMode == TrackingUpdateMode.Supersede)
-                        {
-                            m_pathSupersessionLimits.AddOrUpdate(
-                                currentPath,
-                                addValue: currentPathIdentity.Usn,
-                                updateValueFactory: (p, existingSupersessionUsn) => new Usn(Math.Max(currentPathIdentity.Usn.Value, existingSupersessionUsn.Value)));
-                        }
-                    }
-
+                    
                     added = !isPathContainer ? true : added;
 
                     // We've succeeded in adding a file record sufficient to invalidate this path later. Marking the path notes this, so that we don't
@@ -2722,30 +2701,6 @@ namespace BuildXL.Storage.ChangeTracking
                 }
 
                 return new FileChangeTrackingSubscription(path);
-            }
-
-            private void SupersedeParentPaths(AbsolutePath path, VersionedFileIdentity identity)
-            {
-                // Superseding parent paths does not work if parents belong to a different volume. However, it is fine to add
-                // an entry about that parent in the current volume's supersession limits because that supersession limit entry
-                // will never be considered during the journal scanning.
-                AbsolutePath parentPath = path.GetParent(m_internalPathTable);
-                HierarchicalNameId parentNameId = parentPath.Value;
-
-                foreach (HierarchicalNameId currentPathNameId in m_internalPathTable.EnumerateHierarchyBottomUp(parentNameId))
-                {
-                    (HierarchicalNameId nameId, HierarchicalNameTable.NameFlags flags) containerOfCurrentPathAndFlagsOfCurrentPath =
-                        m_internalPathTable.GetContainerAndFlags(currentPathNameId);
-
-                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0)
-                    {
-                        m_pathSupersessionLimits.AddOrUpdate(
-                            new AbsolutePath(currentPathNameId),
-                            addValue: identity.Usn,
-                            updateValueFactory: (p, existingSupersessionUsn) => new Usn(Math.Max(identity.Usn.Value, existingSupersessionUsn.Value)));
-                    }
-
-                }
             }
 
             private void AddRecordForFile(FileId fileId, Usn usn, AbsolutePath path)
@@ -3229,9 +3184,9 @@ namespace BuildXL.Storage.ChangeTracking
                                         {
                                             // If childPath is non-existent, then it will be re-tracked by CheckAndMaybeInvalidateAntiDependencies.
                                             handleRelevantRecord(
-                                                    PathChanges.NewlyPresent,
-                                                    childPath,
-                                                    usnRecord);
+                                                PathChanges.NewlyPresent,
+                                                childPath,
+                                                usnRecord);
 
                                             if (FileUtilities.DirectoryExistsNoFollow(childPath.ToString(m_internalPathTable)))
                                             {
@@ -3253,13 +3208,39 @@ namespace BuildXL.Storage.ChangeTracking
                     }
 
                     // Deletion or Creation+Deletion may invalidate enumerated directories (the container itself).
-                    if (m_internalPathTable.SetFlags(containerPath.Value, Enumerated, clear: true))
+                    if (EmitMembershipChange(handleRelevantRecord, containerPath, ref usnRecord))
                     {
                         numberOfExistentialChanges++;
-                        handleRelevantRecord(PathChanges.MembershipChanged, containerPath, usnRecord);
                     }
                 }
             }
+
+            private bool EmitMembershipChange(
+                Action<PathChanges, AbsolutePath, UsnRecord> handle,
+                AbsolutePath containerPath,
+                ref UsnRecord record)
+            {
+                HierarchicalNameTable.NameFlags currentFlags = m_internalPathTable.GetContainerAndFlags(containerPath.Value).flags;
+
+                if ((Enumerated & currentFlags) == 0)
+                {
+                    return false;
+                }
+
+                Usn supersessionLowerBound;
+
+                if (m_pathSupersessionLimits.TryGetValue(containerPath, out supersessionLowerBound) &&
+                    record.Usn < supersessionLowerBound)
+                {
+                    return false;
+                }
+
+                m_internalPathTable.SetFlags(containerPath.Value, Enumerated, clear: true);
+                handle(PathChanges.MembershipChanged, containerPath, record);
+
+                return true;
+            }
+
 
             private bool EmitAllChangesIfTracked(
                 Action<PathChanges, AbsolutePath, UsnRecord> handle,
@@ -3309,15 +3290,13 @@ namespace BuildXL.Storage.ChangeTracking
                 }
 
                 // ifAnySet filter passed; for non-Container paths, we may additionally filter
-                // out changes preceding some supercede-level tracking. When path is a container and the superseding is applied
-                // to all subpaths (supersede mode == All), we distinguish whether the change is rename or delete. If it's a rename,
-                // then we should not supersede because the tracked children can be left orphan (see remarks on Container). If it's a delete,
-                // all the children will be deleted as well, and so they will be untracked automatically.
+                // out changes preceding some supercede-level tracking. When path is a container, we distinguish whether the change is rename or delete.
+                // If it's a rename, then we should not supersede because the tracked children can be left orphan (see remarks on Container).
+                // If it's a delete, all the children will be deleted as well, and so they will be untracked automatically.
                 bool shouldSupersede =
                     respectSupersession                                                 // Supersession limit should be respected,
                     && (((currentFlags & Container) == 0)                               // and, path is a file
-                        || (SupersedeMode != FileChangeTrackerSupersedeMode.FileOnly    //      or superseding is applied not only to file paths,
-                            && (record.Reason & UsnChangeReasons.RenameOldName) == 0)); //         but change is not rename/move.
+                        || (record.Reason & UsnChangeReasons.RenameOldName) == 0);      //      or change is not rename/move.
 
                 if (shouldSupersede)
                 {
@@ -3683,8 +3662,6 @@ namespace BuildXL.Storage.ChangeTracking
 
         private Usn m_checkPointUsn;
 
-        private (FileChangeTrackerSupersedeMode expected, FileChangeTrackerSupersedeMode loaded) m_supersedeModes;
-
         /// <summary>
         /// Return a description for each status
         /// </summary>
@@ -3713,8 +3690,6 @@ namespace BuildXL.Storage.ChangeTracking
                         return I($"Change tracking set could not be loaded due to build engine fingerprint mismatch.");
                     case LoadingTrackerStatus.JournalGoesBackInTime:
                         return I($"Journal goes back in time because the next Usn '{m_nextUsn}' is smaller than the checkpoint Usn '{m_checkPointUsn}'");
-                    case LoadingTrackerStatus.MismatchedSupersedeMode:
-                        return I($"Change tracking set has mismatched supersede modes, expected: '{m_supersedeModes.expected}, loaded: '{m_supersedeModes.loaded}'");
                     default:
                         throw Contract.AssertFailure(I($"Unrecognized {nameof(LoadingTrackerStatus)}"));
                 }
@@ -3832,18 +3807,6 @@ namespace BuildXL.Storage.ChangeTracking
         {
             return new LoadingTrackerResult(FileEnvelopeId.Invalid,  LoadingTrackerStatus.BuildEngineFingerprintMismatch, null);
         }
-
-        /// <summary>
-        /// Creates an instance of <see cref="LoadingTrackerResult"/> for failure due to mismatched supersede modes.
-        /// </summary>
-        public static LoadingTrackerResult FailMismatchedSupersedeModes(FileChangeTrackerSupersedeMode expected, FileChangeTrackerSupersedeMode loaded)
-        {
-            return new LoadingTrackerResult(FileEnvelopeId.Invalid, LoadingTrackerStatus.MismatchedSupersedeMode, null)
-            {
-                m_supersedeModes = (expected, loaded)
-            };
-        }
-
     }
 
     /// <summary>
@@ -3897,12 +3860,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Journal goes back in time because the next USN is smaller than the checkpoint.
         /// </summary>
-        JournalGoesBackInTime,
-
-        /// <summary>
-        /// Mismatched supersede mode.
-        /// </summary>
-        MismatchedSupersedeMode
+        JournalGoesBackInTime
     }
 
     /// <summary>

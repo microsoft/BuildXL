@@ -272,7 +272,10 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            public Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(AbsolutePath path, Action<string, FileAttributes> handleEntry)
+            public Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(
+                AbsolutePath path,
+                Action<string, FileAttributes> handleEntry,
+                Func<string, FileAttributes, bool> shouldIncludeEntry)
             {
                 AssertAdd(EnumeratedDirectories, path);
 

@@ -928,7 +928,6 @@ ENDLOCAL && EXIT /b 1
                 LoggingContext,
                 m_volumeMap,
                 m_journal,
-                m_configuration.Engine.FileChangeTrackerSupersedeMode,
                 fileChangeTrackerPath,
                 engineFingerprint,
                 out fileChangeTracker);
@@ -1108,7 +1107,6 @@ ENDLOCAL && EXIT /b 1
                 LoggingContext,
                 m_volumeMap,
                 m_journal,
-                m_configuration.Engine.FileChangeTrackerSupersedeMode,
                 null);
             IIncrementalSchedulingState iss = CreateNewState(tracker.FileEnvelopeId, pipGraph);
 

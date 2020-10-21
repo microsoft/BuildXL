@@ -53,13 +53,29 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <param name="dynamicallyObservedFilePaths">Dynamically observed read files.</param>
         /// <param name="dynamicallyProbedFilePaths">Dynamically observed probed files.</param>
         /// <param name="dynamicallyObservedEnumerationPaths">Dynamically observed enumerations.</param>
-        /// <param name="dynamicDirectoryContents">Dynamic directory contents.</param>
+        /// <param name="outputDirectoriesContents">Contents of output directories.</param>
+        /// <param name="untrackedScopes">Untracked scopes.</param>
+        /// <remarks>
+        /// <paramref name="untrackedScopes"/> is used to filter which directory in <paramref name="outputDirectoriesContents"/>
+        /// needs to be associated with directory enumeration. For example, suppose that we have an output directory D with
+        /// the following structure
+        /// D\E\
+        ///     1
+        ///     2
+        ///     3   -- untrack path
+        ///   F\    -- untracked scope
+        ///     4   -- statically declared output file
+        /// In this case, D\E\3 will not appear in the content of D. However, for tracking enumeration, we have to include D and D\E
+        /// as enumerated, but not F. At the same time, we need to include D\F\4 as dynamically observed. We use <paramref name="untrackedScopes"/>
+        /// to not associate D\F with enumeration.
+        /// </remarks>
         void RecordDynamicObservations(
             NodeId nodeId,
             IEnumerable<string> dynamicallyObservedFilePaths,
             IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
-            IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> dynamicDirectoryContents);
+            IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> outputDirectoriesContents,
+            IEnumerable<string> untrackedScopes);
 
         /// <summary>
         /// Writes textual format of the instance of <see cref="IIncrementalSchedulingState"/>.

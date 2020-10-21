@@ -13,7 +13,6 @@ using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
@@ -62,8 +61,10 @@ namespace BuildXL.Storage.ChangeTracking
         /// <remarks>
         /// 10: Added All supersede mode.
         /// 11: Added FileAndParents supersede mode.
+        /// 12: Supersede directory tracking.
+        /// 13: Remove kinds of supersede mode.
         /// </remarks>
-        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: nameof(FileChangeTracker), version: 11);
+        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: nameof(FileChangeTracker), version: 13);
 
         private int m_trackingStateValue;
 
@@ -169,7 +170,6 @@ namespace BuildXL.Storage.ChangeTracking
             LoggingContext loggingContext,
             VolumeMap volumeMap,
             IChangeJournalAccessor journal,
-            FileChangeTrackerSupersedeMode supersedeMode,
             string buildEngineFingerprint,
             FileEnvelopeId? correlatedId = default)
         {
@@ -184,7 +184,7 @@ namespace BuildXL.Storage.ChangeTracking
                 FileChangeTrackingState.BuildingInitialChangeTrackingSet,
                 volumeMap,
                 journal,
-                FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal, supersedeMode),
+                FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal),
                 buildEngineFingerprint);
 
             foreach (var gvfsProjectionFile in volumeMap.GvfsProjections)
@@ -240,7 +240,6 @@ namespace BuildXL.Storage.ChangeTracking
             LoggingContext loggingContext,
             VolumeMap volumeMap,
             IChangeJournalAccessor journal,
-            FileChangeTrackerSupersedeMode supersedeMode,
             string path,
             string buildEngineFingerprint,
             out FileChangeTracker tracker)
@@ -262,7 +261,7 @@ namespace BuildXL.Storage.ChangeTracking
             {
 
                 // Note that TryLoad may throw in the event of spooky I/O errors.
-                var loadingTrackerResult = TryLoad(pm.LoggingContext, path, volumeMap, journal, supersedeMode, buildEngineFingerprint);
+                var loadingTrackerResult = TryLoad(pm.LoggingContext, path, volumeMap, journal, buildEngineFingerprint);
 
                 if (loadingTrackerResult.Succeeded)
                 {
@@ -285,7 +284,7 @@ namespace BuildXL.Storage.ChangeTracking
                     // Or, we might be unable to re-use the persisted state. In that case we start over. Note that there's nothing to do with the correlating save token here;
                     // on save, a new or existing token will be provided as appropriate.
                     // The reason of the failure is already logged in the TryLoad() method above.
-                    tracker = StartTrackingChanges(pm.LoggingContext, volumeMap, journal, supersedeMode, buildEngineFingerprint);
+                    tracker = StartTrackingChanges(pm.LoggingContext, volumeMap, journal, buildEngineFingerprint);
                 }
 
                 Logger.Log.LoadingChangeTracker(
@@ -309,7 +308,6 @@ namespace BuildXL.Storage.ChangeTracking
             LoggingContext loggingContext,
             VolumeMap volumeMap,
             IChangeJournalAccessor journal,
-            FileChangeTrackerSupersedeMode? supersedeMode,
             string path,
             string buildEngineFingerprint,
             out FileChangeTracker tracker,
@@ -332,7 +330,6 @@ namespace BuildXL.Storage.ChangeTracking
                     path,
                     volumeMap,
                     journal,
-                    supersedeMode,
                     buildEngineFingerprint,
                     loadForAllCapableVolumes: loadForAllCapableVolumes);
 
@@ -383,7 +380,6 @@ namespace BuildXL.Storage.ChangeTracking
             string path,
             VolumeMap volumeMap,
             IChangeJournalAccessor journal,
-            FileChangeTrackerSupersedeMode? supersedeMode,
             string buildEngineFingerprint,
             bool loadForAllCapableVolumes = true)
         {
@@ -452,7 +448,6 @@ namespace BuildXL.Storage.ChangeTracking
                                             reader,
                                             volumeMap,
                                             journal,
-                                            supersedeMode,
                                             stopwatch,
                                             loadForAllCapableVolumes);
                                     }
@@ -638,14 +633,18 @@ namespace BuildXL.Storage.ChangeTracking
         /// The membership of the directory will be invalidated if a name is added or removed directly inside the directory (i.e., when <c>FindFirstFile</c>
         /// and <c>FindNextFile</c> would see a different set of names).
         /// </summary>
-        public Possible<FileChangeTrackingSet.EnumerationResult> TryEnumerateDirectoryAndTrackMembership(string path, Action<string, FileAttributes> handleEntry)
+        public Possible<FileChangeTrackingSet.EnumerationResult> TryEnumerateDirectoryAndTrackMembership(
+            string path,
+            Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry,
+            bool supersedeWithStrongIdentity)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             Contract.Requires(handleEntry != null);
 
             if (IsDisabledOrNullTrackingSet)
             {
-                var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(path, handleEntry);
+                var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(path, handleEntry, shouldIncludeEntry);
                 if (!possibleFingerprintResult.Succeeded)
                 {
                     return possibleFingerprintResult.Failure;
@@ -661,7 +660,10 @@ namespace BuildXL.Storage.ChangeTracking
             // (and if additional tracking succeeds while disabled, there's no harm).
             Possible<FileChangeTrackingSet.EnumerationResult> possibleEnumerationResult = m_changeTrackingSet.TryEnumerateDirectoryAndTrackMembership(
                 path,
-                handleEntry);
+                handleEntry,
+                shouldIncludeEntry,
+                fingerprintFilter: null,
+                supersedeWithStrongIdentity: supersedeWithStrongIdentity);
 
             if (!possibleEnumerationResult.Succeeded)
             {
@@ -677,7 +679,8 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public Possible<FileChangeTrackingSet.EnumerationResult> TryTrackDirectoryMembership(
             string path,
-            IReadOnlyList<(string, FileAttributes)> members)
+            IReadOnlyList<(string, FileAttributes)> members,
+            bool supersedeWithStrongIdentity)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
@@ -690,7 +693,10 @@ namespace BuildXL.Storage.ChangeTracking
                     new Failure<string>("Tracking set is disabled"));
             }
 
-            Possible<FileChangeTrackingSet.EnumerationResult> possibleEnumerationResult = m_changeTrackingSet.TryTrackDirectoryMembership(path, members);
+            Possible<FileChangeTrackingSet.EnumerationResult> possibleEnumerationResult = m_changeTrackingSet.TryTrackDirectoryMembership(
+                path,
+                members,
+                supersedeWithStrongIdentity);
 
             if (!possibleEnumerationResult.Succeeded)
             {
@@ -855,8 +861,7 @@ namespace BuildXL.Storage.ChangeTracking
                     m_changeTrackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(
                         m_loggingContext,
                         m_volumeMap,
-                        m_journal,
-                        m_changeTrackingSet.SupersedeMode);
+                        m_journal);
                 }
 
                 ReportProcessChangesCompletion(scanningJournalResult);

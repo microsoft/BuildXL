@@ -2309,8 +2309,8 @@ namespace BuildXL.Processes
                     {
                         // Compute whether the output directory is under an exclusion. In that case we want to block writes, but configure the rest of the policy in the regular way so tools
                         // can operate normally as long as they don't produce any outputs under it
-                        bool isUnderAnExclusion = (pip.OutputDirectoryExclusions.Any(exclusion => directory.Path.IsWithin(m_pathTable, exclusion)));
-
+                        bool isUnderAnExclusion = pip.OutputDirectoryExclusions.Any(exclusion => directory.Path.IsWithin(m_pathTable, exclusion));
+                        
                         // We need to allow the real timestamp to be seen under a directory output (since these are outputs). If this directory output happens to share the root with
                         // a directory dependency (shared opaque case), this is overridden for specific input files when processing directory dependencies below
                         var values =
@@ -2347,12 +2347,12 @@ namespace BuildXL.Processes
                     {
                         if (directory.IsSharedOpaque)
                         {
-                            // All members of the shared opaque need to be added to the manifest explicitly so timestamp faking happens for them
+                            // All members of the shared opaque need to be added to the manifest explicitly so timestamp faking happens for them.
                             AddSharedOpaqueInputContentToManifest(directory, allInputPathsUnderSharedOpaques);
                         }
 
-                        // If this directory dependency is also a directory output, then we don't set any additional policy: we don't want to restrict
-                        // writes
+                        // If this directory dependency is also a directory output, then we don't set any additional policy, i.e.,
+                        // we don't want to restrict writes.
                         if (!directoryOutputIds.Contains(directory.Path))
                         {
                             // Directories here represent inputs, we want to apply the timestamp faking logic
@@ -3615,15 +3615,17 @@ namespace BuildXL.Processes
 
                 foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses)
                 {
-                    Contract.Assume(reported.Status == FileAccessStatus.Allowed ||
-                        reported.Method == FileAccessStatusMethod.FileExistenceBased, "Explicitly reported accesses are defined to be successful or denied only based on file existence");
+                    Contract.Assert(
+                        reported.Status == FileAccessStatus.Allowed || reported.Method == FileAccessStatusMethod.FileExistenceBased,
+                        "Explicitly reported accesses are defined to be successful or denied only based on file existence");
 
                     // Enumeration probes have a corresponding Enumeration access (also explicitly reported).
                     // Presently we are interested in capturing the existence of enumerations themselves rather than what was seen
                     // (and for NtQueryDirectoryFile, we can't always report the individual probes anyway).
                     if (reported.RequestedAccess == RequestedAccess.EnumerationProbe)
                     {
-                        // If it is an incremental tool and the pip allows preserving outputs, do not ignore.
+                        // If it is an incremental tool and the pip allows preserving outputs, then do not ignore because
+                        // the tool may depend on the directory membership.
                         if (!IsIncrementalToolAccess(reported))
                         {
                             continue;
@@ -3643,7 +3645,8 @@ namespace BuildXL.Processes
                     // Let's resolve all intermediate symlink dirs if configured.
                     // TODO: this logic will be eventually replaced by doing the right thing on detours side.
                     // This option is Windows-specific
-                    ReportedFileAccess finalReported;
+                    ReportedFileAccess finalReported = reported;
+
                     if (m_sandboxConfig.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses())
                     {
                         Contract.Assume(m_symlinkedAccessResolver != null);
@@ -3663,11 +3666,7 @@ namespace BuildXL.Processes
                             parsedPath = finalPath;
                         }
                     }
-                    else
-                    {
-                        finalReported = reported;
-                    }
-
+                    
                     bool shouldExclude = false;
 
                     // Remove special accesses see Bug: #121875.
@@ -3690,10 +3689,7 @@ namespace BuildXL.Processes
                     }
 
                     accessesByPath.TryGetValue(parsedPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
-                    accessesByPath[parsedPath] =
-                        !shouldExclude
-                        ? existingAccessesToPath.Add(finalReported)
-                        : existingAccessesToPath;
+                    accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(finalReported) : existingAccessesToPath;
                 }
 
                 foreach (var output in m_pip.FileOutputs)
@@ -3702,7 +3698,7 @@ namespace BuildXL.Processes
                     {
                         if (RequireOutputObservation(output))
                         {
-                            unobservedOutputs = unobservedOutputs ?? new List<AbsolutePath>();
+                            unobservedOutputs ??= new List<AbsolutePath>();
                             unobservedOutputs.Add(output.Path);
                         }
                     }
@@ -3712,10 +3708,8 @@ namespace BuildXL.Processes
                     }
                 }
 
-                using (PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> dynamicWriteAccessWrapper =
-                    ProcessPools.DynamicWriteAccesses.GetInstance())
-                using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper =
-                    ProcessPools.AccessUnsorted.GetInstance())
+                using (PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> dynamicWriteAccessWrapper = ProcessPools.DynamicWriteAccesses.GetInstance())
+                using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper = ProcessPools.AccessUnsorted.GetInstance())
                 using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
                 using (var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet())
                 using (var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet())
@@ -3748,8 +3742,7 @@ namespace BuildXL.Processes
                         // Discard entries that have a single MacLookup report on a path that contains an intermediate directory symlink.
                         // Reason: observed accesses computed here should only contain fully expanded paths to avoid ambiguity;
                         //         on Mac, all access reports except for MacLookup report fully expanded paths, so only MacLookup paths need to be curated
-                        if (
-                            entry.Value.Count == 1 &&
+                        if (entry.Value.Count == 1 &&
                             firstAccess.Operation == ReportedFileOperation.MacLookup &&
                             firstAccess.ManifestPath.IsValid &&
                             CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
@@ -3762,28 +3755,21 @@ namespace BuildXL.Processes
                         foreach (var access in entry.Value)
                         {
                             // Detours reports a directory probe with a trailing backslash.
-                            if (// If the path is available and ends with a trailing backlash, we know that represents
+                            isDirectoryLocation =
+                                // If the path is available and ends with a trailing backlash, we know that represents
                                 // a directory
-                                ((isDirectoryLocation == null || isDirectoryLocation.Value) &&
+                                ((isDirectoryLocation == null || !isDirectoryLocation.Value) &&
                                  access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
                                 ||
                                 // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation
                                 // as happening on a directory.
                                 // TODO: this flag is not properly propagated for all detours operations.
-                                access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY))
-                            {
-                                isDirectoryLocation = true;
-                            }
-                            else
-                            {
-                                isDirectoryLocation = false;
-                            }
-
+                                access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
+                            
                             // To treat the paths as file probes, all accesses to the path must be the probe access.
                             isProbe &= access.RequestedAccess == RequestedAccess.Probe;
 
-                            if (access.RequestedAccess == RequestedAccess.Probe
-                                && IsIncrementalToolAccess(access))
+                            if (access.RequestedAccess == RequestedAccess.Probe && IsIncrementalToolAccess(access))
                             {
                                 isProbe = false;
                             }
@@ -3819,7 +3805,6 @@ namespace BuildXL.Processes
                         // in the cone of a shared opaque, then it is a dynamic write access
                         bool? isAccessUnderASharedOpaque = null;
                         if (isPathCandidateToBeOwnedByASharedOpaque && IsAccessUnderASharedOpaque(
-                                entry.Key,
                                 firstAccess,
                                 dynamicWriteAccesses,
                                 out AbsolutePath sharedDynamicDirectoryRoot))
@@ -3844,11 +3829,12 @@ namespace BuildXL.Processes
                             // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
                             // reported as observed accesses. This matches the same behavior that occurs on static outputs.
                             if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) &&
-                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(entry.Key, firstAccess, dynamicWriteAccesses, out _)))
+                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
                             {
                                 continue;
                             }
                         }
+
                         ObservationFlags observationFlags = ObservationFlags.None;
 
                         if (isProbe)
@@ -3981,9 +3967,8 @@ namespace BuildXL.Processes
         }
 
         private bool IsAccessUnderASharedOpaque(
-            AbsolutePath accessPath,
-            ReportedFileAccess access,
-            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses,
+            ReportedFileAccess access, 
+            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses, 
             out AbsolutePath sharedDynamicDirectoryRoot)
         {
             sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
@@ -4004,10 +3989,6 @@ namespace BuildXL.Processes
             // wins the ownership of a produced file.
 
             var initialNode = access.ManifestPath.Value;
-
-            using var outputDirectoryExclusionSetWrapper = Pools.AbsolutePathSetPool.GetInstance();
-            var outputDirectoryExclusionSet = outputDirectoryExclusionSetWrapper.Instance;
-            outputDirectoryExclusionSet.AddRange(m_pip.OutputDirectoryExclusions);
 
             // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
             // that many writes for a given pip happens under the same cones.
@@ -4031,7 +4012,7 @@ namespace BuildXL.Processes
         /// </summary>
         private static bool PathStartsWith(string path, string prefix, StringComparison? comparison = default)
         {
-            comparison = comparison ?? OperatingSystemHelper.PathComparison;
+            comparison ??= OperatingSystemHelper.PathComparison;
 
             return path.StartsWith(prefix, comparison.Value)
                    || path.StartsWith(@"\??\" + prefix, comparison.Value)

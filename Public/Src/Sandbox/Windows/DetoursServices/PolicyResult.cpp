@@ -97,7 +97,7 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
 
     ReportFileAccess(
         fileOperationContext,
-        FileAccessStatus_CannotDeterminePolicy,
+        FileAccessStatus::FileAccessStatus_CannotDeterminePolicy,
         *this,
         fakeAccessCheck,
         ERROR_SUCCESS,
@@ -135,17 +135,14 @@ bool PolicyResult::AllowWrite() const {
             // Observe this implies that in this case we never block accesses on detours based on file existence, but generate a DFA on managed code
             bool fileExists = ExistsAsFile(m_canonicalizedPath.GetPathString());
 
-            AccessCheckResult accessCheck = AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Ignore);
-            FileOperationContext operationContext =
+            FileOperationContext operationContext = 
                 FileOperationContext::CreateForRead(L"FirstAllowWriteCheckInProcess", this->GetCanonicalizedPath().GetPathString());
 
             ReportFileAccess(
                 operationContext,
-                fileExists?
-                    FileAccessStatus_Denied :
-                    FileAccessStatus_Allowed,
+                fileExists ? FileAccessStatus::FileAccessStatus_Denied : FileAccessStatus::FileAccessStatus_Allowed,
                 *this,
-                AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
+                AccessCheckResult(RequestedAccess::Write, fileExists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report),
                 0,
                 -1);
 

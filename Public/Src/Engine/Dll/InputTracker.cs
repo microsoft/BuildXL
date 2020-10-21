@@ -174,7 +174,6 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             FileContentTable fileContentTable,
             JournalState journalState,
-            FileChangeTrackerSupersedeMode supersedeMode,
             CompositeGraphFingerprint graphFingerprint)
         {
             Contract.Requires(loggingContext != null);
@@ -185,7 +184,7 @@ namespace BuildXL.Engine
                 fileContentTable,
                 graphFingerprint,
                 journalState.IsEnabled
-                    ? FileChangeTracker.StartTrackingChanges(loggingContext, journalState.VolumeMap, journalState.Journal, supersedeMode, graphFingerprint.BuildEngineHash.ToString())
+                    ? FileChangeTracker.StartTrackingChanges(loggingContext, journalState.VolumeMap, journalState.Journal, graphFingerprint.BuildEngineHash.ToString())
                     : FileChangeTracker.CreateDisabledTracker(loggingContext),
                 true);
         }
@@ -327,7 +326,10 @@ namespace BuildXL.Engine
 
             if (members != null)
             {
-                possibleEnumResult = FileChangeTracker.TryTrackDirectoryMembership(directoryPath, members);
+                possibleEnumResult = FileChangeTracker.TryTrackDirectoryMembership(
+                    directoryPath,
+                    members,
+                    supersedeWithStrongIdentity: false /* enumeration only happens in sources, no need to supersede */);
             }
             else
             {
@@ -335,7 +337,9 @@ namespace BuildXL.Engine
                 // In future, this method will be responsible for enumeration as well.
                 possibleEnumResult = FileChangeTracker.TryEnumerateDirectoryAndTrackMembership(
                     directoryPath,
-                    (entryName, entryAttributes) => { });
+                    (entryName, entryAttributes) => { },
+                    shouldIncludeEntry: null /* include all entries */,
+                    supersedeWithStrongIdentity: false /* enumeration only happens in sources, no need to supersede */);
             }
 
             Possible<DirectoryMembershipTrackingFingerprint> possiblyDirectoryFingerprint;
@@ -377,7 +381,9 @@ namespace BuildXL.Engine
 
             var possibleEnumResult = tracker.TryEnumerateDirectoryAndTrackMembership(
                     directoryPath,
-                    (entryName, entryAttributes) => { });
+                    (entryName, entryAttributes) => { },
+                    shouldIncludeEntry: null /* include all entries */,
+                    supersedeWithStrongIdentity: false);
 
             if (possibleEnumResult.Succeeded)
             {
@@ -995,7 +1001,6 @@ namespace BuildXL.Engine
                     loggingContext, 
                     journalState.VolumeMap, 
                     journalState.Journal,
-                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
             }
@@ -1005,7 +1010,6 @@ namespace BuildXL.Engine
                     loggingContext,
                     journalState.VolumeMap,
                     journalState.Journal,
-                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     changeTrackingStatePath,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     out fileChangeTracker);
@@ -1030,7 +1034,6 @@ namespace BuildXL.Engine
                         loggingContext,
                         journalState.VolumeMap,
                         journalState.Journal,
-                        configuration.Engine.FileChangeTrackerSupersedeMode,
                         graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                         atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
 
@@ -1071,7 +1074,6 @@ namespace BuildXL.Engine
                     loggingContext,
                     journalState.VolumeMap,
                     journalState.Journal,
-                    configuration.Engine.FileChangeTrackerSupersedeMode,
                     graphFingerprint.ExactFingerprint.BuildEngineHash.ToString(),
                     atomicSaveToken); // Passing the save token ensure that the file change tracker is owned by (or correlated to) the input tracker.
             }

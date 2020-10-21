@@ -2723,7 +2723,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
                 ReportFileAccess(
                     operationContext,
-                    FileAccessStatus_Allowed,
+                    FileAccessStatus::FileAccessStatus_Allowed,
                     policyResult,
                     AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                     0,
@@ -2817,7 +2817,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
             ReportFileAccess(
                 opContext,
-                FileAccessStatus_CannotDeterminePolicy,
+                FileAccessStatus::FileAccessStatus_CannotDeterminePolicy,
                 policyResult,
                 AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                 getUsnError,
@@ -5989,7 +5989,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
                 ReportFileAccess(
                     operationContext,
-                    FileAccessStatus_Allowed,
+                    FileAccessStatus::FileAccessStatus_Allowed,
                     policyResult,
                     AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                     0,
@@ -6285,7 +6285,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
                 ReportFileAccess(
                     operationContext,
-                    FileAccessStatus_Allowed,
+                    FileAccessStatus::FileAccessStatus_Allowed,
                     policyResult,
                     AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                     0,
@@ -6563,7 +6563,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
 
                 ReportFileAccess(
                     operationContext,
-                    FileAccessStatus_Allowed,
+                    FileAccessStatus::FileAccessStatus_Allowed,
                     policyResult,
                     AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                     0,

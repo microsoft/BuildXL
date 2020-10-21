@@ -17,7 +17,10 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Tries to enumerate a directory and track membership.
         /// </summary>
-        Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(AbsolutePath path, Action<string, FileAttributes> handleEntry);
+        Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(
+            AbsolutePath path,
+            Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry);
 
         /// <summary>
         /// Tracks a non-existent relative path chain from a tracked parent root.

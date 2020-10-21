@@ -147,7 +147,7 @@ void ReportFileAccess(
         std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
 
         constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
-            ReportType_FileAccess,
+            ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
             fileOperationContext.Id,
@@ -169,7 +169,7 @@ void ReportFileAccess(
     else
     {
         constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
-            ReportType_FileAccess,
+            ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
             fileOperationContext.Id,
@@ -270,7 +270,7 @@ void ReportProcessDetouringStatus(
 
 #pragma warning(suppress: 4826)
     int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%u|%s|%s|%u|%u|%u|%u|%u|%llu|%u|%u|%u|%u|%u|%s\r\n",
-        ReportType_ProcessDetouringStatus,
+        ReportType::ReportType_ProcessDetouringStatus,
         GetCurrentProcessId(),
         status,
         processName.get() != nullptr ? processName.get() : nullStringPtr,
@@ -351,7 +351,7 @@ void ReportProcessData(
     }
 
     int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%I64u|%I64u|%I64u|%I64u|%I64u|%I64u|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%s|%lu|%lu|%I64u|%lu|%I64u|%lu|%I64u|%I64u\r\n",
-        ReportType_ProcessData,
+        ReportType::ReportType_ProcessData,
         GetCurrentProcessId(),
         ioCounters.ReadOperationCount,
         ioCounters.WriteOperationCount,

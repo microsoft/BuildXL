@@ -3065,6 +3065,11 @@ namespace BuildXL.Scheduler
                                     {
                                         using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.RecordDynamicObservationsDuration))
                                         {
+                                            // Note that we don't include untracked paths when recoring dynamic observation for output
+                                            // directories. This is because m_fileContentManager.ListSealedDirectoryContents(d) contains
+                                            // only tracked paths. See m_fileContentManager.EnumerateOutputDirectory method for details.
+                                            // Also see the documentation of RecordDynamicObservations for details why untracked scopes
+                                            // are still needed for recording dynamic observation into incremental scheduling state.
                                             IncrementalSchedulingState.RecordDynamicObservations(
                                                 nodeId,
                                                 result.DynamicallyObservedFiles.Select(path => path.ToString(Context.PathTable)),
@@ -3075,7 +3080,8 @@ namespace BuildXL.Scheduler
                                                         (
                                                             d.Path.ToString(Context.PathTable),
                                                             m_fileContentManager.ListSealedDirectoryContents(d)
-                                                                .Select(f => f.Path.ToString(Context.PathTable)))));
+                                                                .Select(f => f.Path.ToString(Context.PathTable)))),
+                                                processPip.UntrackedScopes.Select(p => p.ToString(Context.PathTable)));
                                         }
                                     }
                                 }
@@ -6037,7 +6043,6 @@ namespace BuildXL.Scheduler
                         loggingContext,
                         m_journalState.VolumeMap,
                         m_journalState.Journal,
-                        m_configuration.Engine.FileChangeTrackerSupersedeMode,
                         m_buildEngineFingerprint);
                     loadingResult = null;
                 }
@@ -6047,7 +6052,6 @@ namespace BuildXL.Scheduler
                         loggingContext,
                         m_journalState.VolumeMap,
                         m_journalState.Journal,
-                        m_configuration.Engine.FileChangeTrackerSupersedeMode,
                         m_fileChangeTrackerFile.ToString(Context.PathTable),
                         m_buildEngineFingerprint,
                         out m_fileChangeTracker);

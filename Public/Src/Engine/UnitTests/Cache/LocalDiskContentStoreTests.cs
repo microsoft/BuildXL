@@ -581,7 +581,10 @@ namespace Test.BuildXL.Engine.Cache
 
                 // Not try directory operations against the parent path. The assumption is that the directory is at or under the inclusion/exclusion root as well
                 var directoryPath = filePath.GetParent(pathTable);
-                var enumerationResult = harness.Store.TryEnumerateDirectoryAndTrackMembership(directoryPath, (name, attr) => { });
+                var enumerationResult = harness.Store.TryEnumerateDirectoryAndTrackMembership(
+                    directoryPath,
+                    (name, attr) => { },
+                    shouldIncludeEntry: null /* include all entries */);
                 XAssert.IsTrue(enumerationResult.Succeeded);
                 XAssert.AreEqual(PathExistence.ExistsAsDirectory, enumerationResult.Result);
 

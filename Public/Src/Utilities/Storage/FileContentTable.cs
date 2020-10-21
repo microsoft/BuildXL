@@ -13,7 +13,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Tracing;

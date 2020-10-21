@@ -1549,6 +1549,37 @@ namespace Test.BuildXL.Storage.Admin
             changedPaths.AssertNoChangesDetected();
         }
 
+        [FactIfSupported(requiresJournalScan: true)]
+        public void TrackDirectoryWithFilter()
+        {
+            const string DirectoryName = "D";
+            const string FileA = @"D\A";
+            const string FileB = @"D\B";
+            const string FileC = @"D\C";
+
+            CreateDirectory(DirectoryName);
+            WriteFile(FileA, "A");
+            WriteFile(FileB, "B");
+
+            ChangeDetectionSupport support = InitializeChangeDetectionSupport();
+            support.TrackDirectoryMembership(
+                DirectoryName,
+                (relativeName, _) => string.Equals(FileA, relativeName, OperatingSystemHelper.PathComparison),
+                true,
+                FileA);
+
+            WriteFile(FileB, "B-modified");
+            DetectedChanges changedPaths = support.ProcessChanges();
+            changedPaths.AssertNoChangesDetected();
+
+            WriteFile(FileC, "C");
+            changedPaths = support.ProcessChanges();
+
+            // Although D is tracked with a filter, but during the journal scanning, the tracker
+            // does not have the filter, and so it detects some membership change.
+            changedPaths.AssertChangedExactly(MembershipChanged(DirectoryName));
+        }
+
         #endregion
 
         #region Superseding updates (last tracker wins)
@@ -1699,21 +1730,20 @@ namespace Test.BuildXL.Storage.Admin
             changedPaths.AssertChangedExactly(Removed(Directory1), MembershipChanged(Directory1));
         }
 
-        [TheoryIfSupported(requiresJournalScan: true)]
-        [InlineData(FileChangeTrackerSupersedeMode.All)]
-        [InlineData(FileChangeTrackerSupersedeMode.FileOnly)]
-        [InlineData(FileChangeTrackerSupersedeMode.FileAndParents)]
-        public void SupersedeRetrackingEffectiveOnDirectoryDeletionInAllSupersede(FileChangeTrackerSupersedeMode supersedeMode)
+        [FactIfSupported(requiresJournalScan: true)]
+        public void SupersedeTrackingWithLatestUsnEffectiveOnDirectoryDeletion()
         {
             const string Directory = @"D";
             const string File1 = @"D\F1";
             const string File2 = @"D\F2";
 
-            ChangeDetectionSupport support = InitializeChangeDetectionSupport(supersedeMode);
+            ChangeDetectionSupport support = InitializeChangeDetectionSupport();
 
             CreateDirectory(Directory);
             WriteFile(File1, "Stuff1");
             WriteFile(File2, "Stuff2");
+            
+            support.TrackDirectoryMembership(Directory, File1, File2);
             support.Track(File1);
             support.Track(File2);
 
@@ -1722,20 +1752,38 @@ namespace Test.BuildXL.Storage.Admin
             // Now recreate Directory and File1, then retrack with 'supersede'.
             CreateDirectory(Directory);
             WriteFile(File1, "Re-stuff1");
+            support.TrackDirectoryMembership(Directory, null, true, File1);
             support.Track(File1, TrackingUpdateMode.Supersede);
 
             DetectedChanges changedPaths = support.ProcessChanges();
 
-            if (supersedeMode == FileChangeTrackerSupersedeMode.All
-                || supersedeMode == FileChangeTrackerSupersedeMode.FileAndParents)
-            {
-                // Removal of Directory and File1 has been superseded. 
-                changedPaths.AssertChangedExactly(Removed(File2));
-            }
-            else if (supersedeMode == FileChangeTrackerSupersedeMode.FileOnly)
-            {
-                changedPaths.AssertChangedExactly(Removed(File1), Removed(File2), Removed(Directory));
-            }
+            // Removal of Directory and File1 has been superseded. 
+            changedPaths.AssertChangedExactly(Removed(File2));
+        }
+
+        [FactIfSupported(requiresJournalScan: true)]
+        public void SupersedeTrackingWithLatestUsnEffectiveOnDirectoryEnumeration()
+        {
+            const string Directory = @"D";
+            const string File1 = @"D\F1";
+            const string File2 = @"D\F2";
+
+            ChangeDetectionSupport support = InitializeChangeDetectionSupport();
+
+            CreateDirectory(Directory);
+            WriteFile(File1, "Stuff1");
+            WriteFile(File2, "Stuff2");
+
+            // System.Diagnostics.Debugger.Launch();
+            support.TrackDirectoryMembership(
+                Directory,
+                (relativePath, _) => string.Equals(relativePath, File1, OperatingSystemHelper.PathComparison),
+                true,
+                File1);
+            support.Track(File1, TrackingUpdateMode.Supersede);
+
+            DetectedChanges changedPaths = support.ProcessChanges();
+            changedPaths.AssertNoChangesDetected();
         }
 
         #endregion
@@ -2087,7 +2135,14 @@ namespace Test.BuildXL.Storage.Admin
                 }
             }
 
-            public void TrackDirectoryMembership(string relative, params string[] expectedMembers)
+            public void TrackDirectoryMembership(string relative, params string[] expectedMembers) =>
+                TrackDirectoryMembership(relative, null, false, expectedMembers);
+
+            public void TrackDirectoryMembership(
+                string relative,
+                Func<string, FileAttributes, bool> shouldIncludeRelativeEntry,
+                bool supersedeWithLastestEntryUsn,
+                params string[] expectedMembers)
             {
                 string path = GetFullPath(relative);
 
@@ -2100,7 +2155,9 @@ namespace Test.BuildXL.Storage.Admin
                     {
                         diff.Add(Path.Combine(path, entry));
                         calculator = calculator.Accumulate(entry, attributes);
-                    });
+                    },
+                    shouldIncludeEntry: (entry, attributes) => shouldIncludeRelativeEntry?.Invoke(Path.Combine(relative, entry), attributes) ?? true,
+                    supersedeWithStrongIdentity: supersedeWithLastestEntryUsn);
 
                 var fingerprint = calculator.GetFingerprint();
 
@@ -2273,7 +2330,7 @@ namespace Test.BuildXL.Storage.Admin
             }
         }
 
-        private ChangeDetectionSupport InitializeChangeDetectionSupport(FileChangeTrackerSupersedeMode supersedeMode = FileChangeTrackerSupersedeMode.FileAndParents)
+        private ChangeDetectionSupport InitializeChangeDetectionSupport()
         {
             var loggingContext = new LoggingContext("Dummy", "Dummy");
             VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
@@ -2282,7 +2339,7 @@ namespace Test.BuildXL.Storage.Admin
             var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);
             XAssert.IsTrue(maybeJournal.Succeeded, "Could not connect to journal");
 
-            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, maybeJournal.Result, supersedeMode);
+            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, maybeJournal.Result);
 
             return new ChangeDetectionSupport(TemporaryDirectory, JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result), trackingSet);
         }

@@ -345,11 +345,21 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         public Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(
             AbsolutePath path,
-            Action<string, FileAttributes> handleEntry)
+            Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry) => TryEnumerateDirectoryAndTrackMembership(path, handleEntry, shouldIncludeEntry, false);
+
+        /// <summary>
+        /// Tries to enumerate a directory and track membership.
+        /// </summary>
+        public Possible<PathExistence> TryEnumerateDirectoryAndTrackMembership(
+            AbsolutePath path,
+            Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry,
+            bool supersedeWithLastEntryUsn)
         {
             return m_fileChangeTrackerSelector
                 .GetTracker(path)
-                .TryEnumerateDirectoryAndTrackMembership(path.ToString(m_pathTable), handleEntry)
+                .TryEnumerateDirectoryAndTrackMembership(path.ToString(m_pathTable), handleEntry, shouldIncludeEntry, supersedeWithLastEntryUsn)
                 .Then(enumerationResult => enumerationResult.Existence);
         }
 

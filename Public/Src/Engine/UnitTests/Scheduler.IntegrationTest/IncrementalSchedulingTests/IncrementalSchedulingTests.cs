@@ -619,15 +619,8 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Theory]
-        [InlineData(true, FileChangeTrackerSupersedeMode.FileOnly)]
-        [InlineData(true, FileChangeTrackerSupersedeMode.All)]
-        [InlineData(true, FileChangeTrackerSupersedeMode.FileAndParents)]
-        [InlineData(false, FileChangeTrackerSupersedeMode.FileOnly)]
-        [InlineData(false, FileChangeTrackerSupersedeMode.All)]
-        [InlineData(false, FileChangeTrackerSupersedeMode.FileAndParents)]
-        public void ProducingNestedOutputDirectoryShouldNotInvalidateIncrementalScheduling(
-            bool runPosixDeleteFirst,
-            FileChangeTrackerSupersedeMode supersedeMode)
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void ProducingNestedOutputDirectoryShouldNotInvalidateIncrementalScheduling(bool runPosixDeleteFirst)
         {
             var outputDirectory = CreateOutputDirectoryArtifact();
             var outputFileInNestedOutputDirectory = CreateOutputFileArtifact(outputDirectory.Path.Combine(Context.PathTable, "nested"));
@@ -644,8 +637,6 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             var originalPosixDeleteMode = FileUtilities.PosixDeleteMode;
             FileUtilities.PosixDeleteMode = runPosixDeleteFirst ? PosixDeleteMode.RunFirst : PosixDeleteMode.NoRun;
-
-            Configuration.Engine.FileChangeTrackerSupersedeMode = supersedeMode;
 
             try
             {
@@ -664,8 +655,8 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 RunScheduler(runNameOrDescription: "2nd Run").AssertCacheMiss(process.PipId);
 
                 var runResult = RunScheduler(runNameOrDescription: "3rd Run");
-
-                if (supersedeMode != FileChangeTrackerSupersedeMode.FileOnly && runPosixDeleteFirst)
+                
+                if (runPosixDeleteFirst)
                 {
                     runResult.AssertNotScheduled(process.PipId);
                 }

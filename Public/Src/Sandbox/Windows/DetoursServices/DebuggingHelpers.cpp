@@ -136,7 +136,7 @@ void Dbg(PCWSTR format, ...)
         return;
     }
 
-    std::wstring report = DebugStringFormat(L"%d,", ReportType_DebugMessage);
+    std::wstring report = DebugStringFormat(L"%d,", ReportType::ReportType_DebugMessage);
     report.append(resultArgs);
     report.append(L"\r\n");
 

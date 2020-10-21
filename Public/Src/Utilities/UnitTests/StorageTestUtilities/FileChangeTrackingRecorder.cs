@@ -83,12 +83,14 @@ namespace Test.BuildXL.StorageTestUtilities
 
         public Possible<FileChangeTrackingSet.EnumerationResult> TryEnumerateDirectoryAndTrackMembership(
             string path,
-            Action<string, FileAttributes> handleEntry)
+            Action<string, FileAttributes> handleEntry,
+            Func<string, FileAttributes, bool> shouldIncludeEntry,
+            bool supersedeWithStrongIdentity)
         {
             Contract.Requires(path != null);
             Contract.Requires(handleEntry != null);
 
-            var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(path, handleEntry);
+            var possibleFingerprintResult = DirectoryMembershipTrackingFingerprinter.ComputeFingerprint(path, handleEntry, shouldIncludeEntry);
 
             if (!possibleFingerprintResult.Succeeded)
             {

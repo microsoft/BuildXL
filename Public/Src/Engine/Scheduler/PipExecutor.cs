@@ -84,6 +84,11 @@ namespace BuildXL.Scheduler
                 () => new Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>(),
                 map => { map.Clear(); return map; });
 
+        private static readonly ObjectPool<OutputDirectoryEnumerationData> s_outputEnumerationDataPool =
+            new ObjectPool<OutputDirectoryEnumerationData>(
+                () => new OutputDirectoryEnumerationData(),
+                data => { data.Clear(); return data; });
+
         /// <summary>
         /// Materializes pip's inputs.
         /// </summary>
@@ -4315,6 +4320,10 @@ namespace BuildXL.Scheduler
                     allOutputs.Add(output);
                 }
 
+                using var outputDirectoryDataWrapper = s_outputEnumerationDataPool.GetInstance();
+                var outputDirectoryData = outputDirectoryDataWrapper.Instance;
+                outputDirectoryData.Process = process;
+
                 // We need to discover dynamic outputs in the given opaque directories.
                 var fileList = poolFileList.Instance;
 
@@ -4329,8 +4338,9 @@ namespace BuildXL.Scheduler
                     // For the case of an opaque directory, the content is determined by scanning the file system
                     if (!directoryArtifact.IsSharedOpaque)
                     {
-                        var enumerationResult = environment.State.FileContentManager.EnumerateDynamicOutputDirectory(
+                        var enumerationResult = environment.State.FileContentManager.EnumerateOutputDirectory(
                             directoryArtifact,
+                            outputDirectoryData,
                             handleFile: fileArtifact =>
                             {
                                 if (!CheckForAllowedReparsePointProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))

@@ -475,9 +475,6 @@ namespace BuildXL
                             "fileChangeTrackerInitializationMode",
                             opt => engineConfiguration.FileChangeTrackerInitializationMode = CommandLineUtilities.ParseEnumOption<FileChangeTrackerInitializationMode>(opt)),
                         OptionHandlerFactory.CreateOption(
-                            "fileChangeTrackerSupersedeMode",
-                            opt => engineConfiguration.FileChangeTrackerSupersedeMode = CommandLineUtilities.ParseEnumOption<FileChangeTrackerSupersedeMode>(opt)),
-                        OptionHandlerFactory.CreateOption(
                             "fileChangeTrackingExclusionRoot",
                             opt => cacheConfiguration.FileChangeTrackingExclusionRoots.Add(CommandLineUtilities.ParsePathOption(opt, pathTable))),
                         OptionHandlerFactory.CreateOption(

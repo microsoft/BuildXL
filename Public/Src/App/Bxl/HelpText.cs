@@ -776,11 +776,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/fileChangeTrackerSupersedeMode:<mode>",
-                Strings.HelpText_DisplayHelp_FileChangeTrackerSupersedeMode,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/fileChangeTrackingExclusionRoot:<path>",
                 Strings.HelpText_DisplayHelp_FileChangeTrackingExclusionRoot,
                 HelpLevel.Verbose);

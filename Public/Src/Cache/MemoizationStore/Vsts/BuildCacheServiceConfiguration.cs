@@ -316,7 +316,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// downloads using basic http requests.
         /// </remarks>
         [DataMember]
-        public bool DownloadBlobsUsingHttpClient { get; set; } = Environment.GetEnvironmentVariable("BUILD_CACHE_BLOB_USE_HTTPCLIENT") == "1";
+        public bool DownloadBlobsUsingHttpClient { get; set; } = Environment.GetEnvironmentVariable("BUILD_CACHE_BLOB_USE_HTTPCLIENT") != "0";
 
     }
 }

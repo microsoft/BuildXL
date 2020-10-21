@@ -61,9 +61,9 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Operation == ""RemoteCopyFile"" and isnotempty(Duration)
+                | where Operation == 'RemoteCopyFile' and isnotempty(Duration)
                 | summarize TotalCopies = count(), LongCopies = countif(Duration > {CslTimeSpanLiteral.AsCslString(_configuration.LongCopyDurationThreshold)}) by Stamp
                 | where isnotempty(TotalCopies)";
 
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                     return;
                 }
 
-                var percentage = result.TotalCopies > 0 ? 100.0 * result.LongCopies / result.TotalCopies : 0;
+                var percentage = result.TotalCopies > 0 ? Math.Round(100.0 * result.LongCopies / result.TotalCopies, 8, MidpointRounding.AwayFromZero) : 0;
 
                 _configuration.LongCopiesPercentThresholds.Check(percentage, (severity, pct) =>
                 {

@@ -59,11 +59,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Role == ""Master""
-                | where Operation == ""CreateCheckpointAsync"" and isnotempty(Duration)
-                | where Result == ""{Constants.ResultCode.Success}""
+                | where Role == 'Master'
+                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
+                | where Result == '{Constants.ResultCode.Success}'
                 | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine) by Stamp
                 | extend Age = end - PreciseTimeStamp
                 | where not(isnull(PreciseTimeStamp))";

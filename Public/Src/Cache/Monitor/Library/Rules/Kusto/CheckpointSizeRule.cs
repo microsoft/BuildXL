@@ -92,11 +92,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Role == ""Master""
-                | where Operation == ""CreateCheckpointAsync"" and isnotempty(Duration)
-                | where Result == ""{Constants.ResultCode.Success}""
+                | where Role == 'Master'
+                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
+                | where Result == '{Constants.ResultCode.Success}'
                 | project PreciseTimeStamp, Message, Stamp
-                | parse Message with * ""SizeMb=["" SizeMb:double ""]"" *
+                | parse Message with * 'SizeMb=[' SizeMb:double ']' *
                 | project PreciseTimeStamp, TotalSize=tolong(SizeMb * 1000000), Stamp 
                 | sort by PreciseTimeStamp asc";
 

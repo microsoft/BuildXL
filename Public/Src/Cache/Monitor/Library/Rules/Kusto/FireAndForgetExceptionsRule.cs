@@ -60,12 +60,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Message has ""Unhandled exception in fire and forget task""
-                | where Message !has ""RedisConnectionException"" // This is a transient error (i.e. server closed the socket)
-                | where Message !has ""TaskCanceledException"" // This is irrelevant
-                | parse Message with * ""operation '"" Operation:string ""'"" * ""FullException="" Exception:string
+                | where Message has 'Unhandled exception in fire and forget task'
+                | where Message !has 'RedisConnectionException' // This is a transient error (i.e. server closed the socket)
+                | where Message !has 'TaskCanceledException' // This is irrelevant
+                | parse Message with * 'operation '' Operation:string ''' * 'FullException=' Exception:string
                 | project PreciseTimeStamp, Machine, Operation, Exception, Stamp
                 | summarize Machines=dcount(Machine), Count=count() by Operation, Stamp
                 | where not(isnull(Machines))";

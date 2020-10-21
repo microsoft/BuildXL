@@ -68,26 +68,26 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let Exceptions = table(""{_configuration.CacheTableName}"")
+                let Exceptions = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Message has ""Unhandled Exception in service.""
+                | where Message has 'Unhandled Exception in service.'
                 | project PreciseTimeStamp, Stamp, Machine, Service, Exception
-                | extend KnownFormat=(Exception has ""Error=["" and Exception has ""Diagnostics=["");
+                | extend KnownFormat=(Exception has 'Error=[' and Exception has 'Diagnostics=[');
                 let FormattedExceptions = Exceptions
                 | where KnownFormat
-                | parse Exception with ExceptionType:string "": Error=["" Error:string ""] Diagnostics=["" Diagnostics:string
-                | parse Diagnostics with ExceptionTypeFromDiagnostics:string "": "" *
+                | parse Exception with ExceptionType:string ': Error=[' Error:string '] Diagnostics=[' Diagnostics:string
+                | parse Diagnostics with ExceptionTypeFromDiagnostics:string ': ' *
                 | extend ExceptionType = iif(isnull(ExceptionTypeFromDiagnostics), ExceptionType, ExceptionTypeFromDiagnostics)
                 | project-away ExceptionTypeFromDiagnostics
                 | project-away Exception;
                 let UnknownExceptions = Exceptions
                 | where not(KnownFormat)
-                | parse Exception with ExceptionType:string "": "" *
+                | parse Exception with ExceptionType:string ': ' *
                 | project-rename Diagnostics=Exception;
                 FormattedExceptions
                 | union UnknownExceptions
-                | extend ExceptionType=iif(isempty(ExceptionType) or isnull(ExceptionType), ""Unknown"", ExceptionType)
-                | extend ExceptionType=iif(ExceptionType has "" "", extract(""([A-Za-z0-9.]+) .*"", 1, ExceptionType), ExceptionType)
+                | extend ExceptionType=iif(isempty(ExceptionType) or isnull(ExceptionType), 'Unknown', ExceptionType)
+                | extend ExceptionType=iif(ExceptionType has ' ', extract('([A-Za-z0-9.]+) .*', 1, ExceptionType), ExceptionType)
                 | summarize Total=count(), LatestTimeUtc=max(PreciseTimeStamp), EarliestTimeUtc=min(PreciseTimeStamp) by Machine, ExceptionType, Stamp
                 | where not(isnull(Total));";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();

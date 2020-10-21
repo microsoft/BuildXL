@@ -83,17 +83,17 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             var query  = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                    table(""{_configuration.CacheTableName}"")
+                    table('{_configuration.CacheTableName}')
                     | where PreciseTimeStamp between (start .. end)
-                    | where Operation == ""{_configuration.Check.Match}"" and isnotempty(Duration)
-                    | where Result == ""{Constants.ResultCode.Faiilure}"" // Looking only at failures
+                    | where Operation == '{_configuration.Check.Match}' and isnotempty(Duration)
+                    | where Result == '{Constants.ResultCode.Faiilure}' // Looking only at failures
                     | project PreciseTimeStamp, Machine, Message, CorrelationId, Stamp, Operation, Component
-                    | parse Message with * ""result=["" Result:string ""]."" *
-                    | parse Result with ""Error=["" * ""] Diagnostics=["" Diagnostics:string ""]""
-                    | parse Diagnostics with ExceptionType:string "": "" *
-                    | extend Result=iif(isnull(Diagnostics) or isempty(Diagnostics), Result, """")
-                    | extend Operation=iif(isnull(Operation) or isempty(Operation), ""Unknown"", Operation)
-                    | extend ExceptionType=iif(isnull(ExceptionType) or isempty(ExceptionType), ""Unknown"", ExceptionType)
+                    | parse Message with * 'result=[' Result:string '].' *
+                    | parse Result with 'Error=[' * '] Diagnostics=[' Diagnostics:string ']'
+                    | parse Diagnostics with ExceptionType:string ': ' *
+                    | extend Result=iif(isnull(Diagnostics) or isempty(Diagnostics), Result, '')
+                    | extend Operation=iif(isnull(Operation) or isempty(Operation), 'Unknown', Operation)
+                    | extend ExceptionType=iif(isnull(ExceptionType) or isempty(ExceptionType), 'Unknown', ExceptionType)
                     | project-away Message
                     | summarize Count=count(), Machines=dcount(Machine, 2) by Component, Operation, ExceptionType, Stamp
                     | where not(isnull(Machines))

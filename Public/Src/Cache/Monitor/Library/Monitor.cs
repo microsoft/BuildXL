@@ -371,21 +371,21 @@ namespace BuildXL.Cache.Monitor.App
                     LookbackPeriod = TimeSpan.FromMinutes(60),
                     DetectionPeriod = TimeSpan.FromMinutes(30),
                     Match = "LocalCacheServer.StartupAsync",
-                    Constraint = $"Duration >= {TimeSpan.FromMinutes(1)}",
+                    Constraint = $"Duration >= {CslTimeSpanLiteral.AsCslString(TimeSpan.FromMinutes(1))}",
                 },
                 new OperationPerformanceOutliersRule.DynamicCheck()
                 {
                     LookbackPeriod = TimeSpan.FromHours(12),
                     DetectionPeriod = TimeSpan.FromHours(1),
                     Match = "CheckpointManager.CreateCheckpointAsync",
-                    Constraint = $"Duration >= {TimeSpan.FromMinutes(1)}",
+                    Constraint = $"Duration >= {CslTimeSpanLiteral.AsCslString(TimeSpan.FromMinutes(1))}",
                 },
                 new OperationPerformanceOutliersRule.DynamicCheck()
                 {
                     LookbackPeriod = TimeSpan.FromHours(12),
                     DetectionPeriod = TimeSpan.FromHours(1),
                     Match = "CheckpointManager.RestoreCheckpointAsync",
-                    Constraint = $"Duration >= P95 and P95 >= {TimeSpan.FromMinutes(30)}",
+                    Constraint = $"Duration >= P95 and P95 >= {CslTimeSpanLiteral.AsCslString(TimeSpan.FromMinutes(30))}",
                 },
             };
 
@@ -497,25 +497,25 @@ namespace BuildXL.Cache.Monitor.App
         /// </summary>
         private void OncePerEnvironment(Func<MultiStampRuleArguments, IEnumerable<Instantiation>> generator, Watchlist watchlist)
         {
-            var tableNames = watchlist.Entries.Select(kvp => (kvp.Key.Environment, kvp.Value.CacheTableName))
-                .ToDictionary(keySelector: pair => pair.Environment);
+            var tableNames = watchlist.Entries.Select(kvp => (kvp.Key.Environment, kvp.Value.CacheTableName)).Distinct()
+                .ToDictionary(keySelector: pair => pair.Environment, elementSelector: pair => pair.CacheTableName);
 
-            foreach (var env in watchlist.Environments)
+            foreach (var kvp in tableNames)
             {
                 var configuration = new MultiStampRuleConfiguration(
                     _clock,
                     _logger,
                     _alertNotifier,
                     _kustoClient,
-                    _configuration.Environments[env].KustoDatabaseName,
-                    tableNames[env].CacheTableName,
-                    env,
+                    _configuration.Environments[kvp.Key].KustoDatabaseName,
+                    kvp.Value,
+                    kvp.Key,
                     watchlist);
 
                 var request = new MultiStampRuleArguments
                               {
                                   BaseConfiguration = configuration,
-                                  EnvironmentResources = _environmentResources[env],
+                                  EnvironmentResources = _environmentResources[kvp.Key],
                               };
 
                 foreach (var rule in generator(request))

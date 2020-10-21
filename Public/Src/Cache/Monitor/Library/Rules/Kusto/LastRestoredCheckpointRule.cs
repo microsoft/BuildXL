@@ -79,17 +79,17 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let activity = end - {CslTimeSpanLiteral.AsCslString(_configuration.ActivityPeriod)};
                 let masterActivity = end - {CslTimeSpanLiteral.AsCslString(_configuration.MasterActivityPeriod)};
-                let Events = table(""{_configuration.CacheTableName}"")
-                | where PreciseTimeStamp between (start .. end)
+                let Events = table('{_configuration.CacheTableName}')
+                | where PreciseTimeStamp between (start .. end);
                 let Machines = Events
                 | where PreciseTimeStamp >= activity
-                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine
+                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine, Stamp
                 | where not(isnull(Machine));
                 let CurrentMaster = Events
                 | where PreciseTimeStamp >= masterActivity
-                | where Role == ""Master""
-                | where Operation == ""CreateCheckpointAsync"" and isnotempty(Duration)
-                | where Result == ""{Constants.ResultCode.Success}""
+                | where Role == 'Master'
+                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
+                | where Result == '{Constants.ResultCode.Success}'
                 | summarize (PreciseTimeStamp, Master)=arg_max(PreciseTimeStamp, Machine)
                 | project-away PreciseTimeStamp
                 | where not(isnull(Master));
@@ -98,8 +98,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | extend IsWorkerMachine=iif(isnull(Master) or isempty(Master), true, false)
                 | project-away Master;
                 let Restores = Events
-                | where Operation == ""RestoreCheckpointAsync"" and isnotempty(Duration)
-                | where Result == ""{Constants.ResultCode.Success}""
+                | where Operation == 'RestoreCheckpointAsync' and isnotempty(Duration)
+                | where Result == '{Constants.ResultCode.Success}'
                 | summarize LastRestoreTime=max(PreciseTimeStamp) by Machine;
                 MachinesWithRole
                 | where IsWorkerMachine
@@ -163,7 +163,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                         eventTimeUtc: now);
                 });
             }
-
         }
     }
 }

@@ -73,18 +73,18 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let MasterEvents = table(""{_configuration.CacheTableName}"")
+                let MasterEvents = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Role == ""Master""
-                | where Component has ""EventHubContentLocationEventStore"";
+                | where Role == 'Master'
+                | where Component has 'EventHubContentLocationEventStore';
                 let MaximumDelayFromReceivedEvents = MasterEvents
-                | where Message has ""ReceivedEvent""
-                | parse Message with * ""ProcessingDelay="" Lag:timespan "","" *
+                | where Message has 'ReceivedEvent'
+                | parse Message with * 'ProcessingDelay=' Lag:timespan ',' *
                 | project PreciseTimeStamp, Stamp, Machine, ServiceVersion, Message, Duration=Lag
                 | summarize MaxDelay=max(Duration) by Stamp, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
                 let MaximumDelayFromEH = MasterEvents
-                | where Message has ""processed"" 
-                | parse Message with * ""processed "" MessageCount:long ""message(s) by "" Duration:long ""ms"" * ""TotalMessagesSize="" TotalSize:long *
+                | where Message has 'processed' 
+                | parse Message with * 'processed ' MessageCount:long 'message(s) by ' Duration:long 'ms' * 'TotalMessagesSize=' TotalSize:long *
                 | project PreciseTimeStamp, Stamp, MessageCount, Duration, TotalSize, Message, Machine
                 | summarize MessageCount=count(), ProcessingDurationMs=percentile(Duration, 50), MaxProcessingDurationMs=max(Duration), SumMessageCount=sum(MessageCount), SumMessageSize=sum(TotalSize) by Stamp, Machine, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
                 MaximumDelayFromReceivedEvents
@@ -104,20 +104,20 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     var outstandingQuery = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                    let Events = table(""{_configuration.CacheTableName}"")
+                    let Events = table('{_configuration.CacheTableName}')
                     | where PreciseTimeStamp between (start .. end)
-                    | where Stamp == ""{stamp}""
-                    | where Component has ""EventHubContentLocationEventStore""
-                    | project PreciseTimeStamp, Service, Machine, Stamp, Message;
+                    | where Stamp == '{stamp}'
+                    | where Component has 'EventHubContentLocationEventStore'
+                    | project PreciseTimeStamp, Role, Machine, Stamp, Message;
                     let Enqueued = Events
-                    | where Role == ""Worker""
-                    | where Message has ""sending"" and Message has ""OpId""
-                    | parse Message with * ""/"" NumEvents:long ""event."" * ""OpId="" OperationId "","" *
+                    | where Role == 'Worker'
+                    | where Message has 'sending' and Message has 'OpId'
+                    | parse Message with * '/' NumEvents:long 'event.' * 'OpId=' OperationId ',' *
                     | project-away Message;
                     let Processed = Events
-                    | where Role == ""Master""
-                    | where Message has ""OpId""
-                    | parse Message with * ""OpId="" OperationId "","" *
+                    | where Role == 'Master'
+                    | where Message has 'OpId'
+                    | parse Message with * 'OpId=' OperationId ',' *
                     | project-away Message;
                     let Outstanding = Enqueued
                     | join kind=leftanti Processed on OperationId

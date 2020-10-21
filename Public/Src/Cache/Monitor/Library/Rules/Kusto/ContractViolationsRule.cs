@@ -52,15 +52,15 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | where Result == ""{Constants.ResultCode.CriticalFailure}""
+                | where Result == '{Constants.ResultCode.CriticalFailure}'
                 | project PreciseTimeStamp, Machine, Message, Stamp, Component, Operation
-                | parse Message with * ""occurred: "" ErrorMessage:string ""Diagnostics=["" Exception:string
-                | extend Operation = strcat(Component, ""."", Operation)
-                | parse Exception with ExceptionType:string "": "" ExceptionMessage ""\n"" * // Fetch first line of the exception
+                | parse Message with * 'occurred: ' ErrorMessage:string 'Diagnostics=[' Exception:string
+                | extend Operation = strcat(Component, '.', Operation)
+                | parse Exception with ExceptionType:string ': ' ExceptionMessage '\n' * // Fetch first line of the exception
                 | project-away Message, ErrorMessage
-                | where ExceptionType != ""System.UnauthorizedAccessException""
+                | where ExceptionType != 'System.UnauthorizedAccessException'
                 | summarize Machines=dcount(Machine, 2), Count=count() by ExceptionType, ExceptionMessage, Operation, Stamp
                 | where not(isnull(Machines))";
             var results = await QueryKustoAsync<Result>(context, query);

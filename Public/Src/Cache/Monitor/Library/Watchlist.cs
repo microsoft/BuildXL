@@ -67,8 +67,6 @@ namespace BuildXL.Cache.Monitor.App
 
         public IEnumerable<KeyValuePair<StampId, DynamicStampProperties>> Entries => _properties;
 
-        public IEnumerable<CloudBuildEnvironment> Environments => _environments.Select(kvp => kvp.Key);
-
         public IReadOnlyDictionary<CloudBuildEnvironment, List<StampId>> EnvStamps =>
             _properties.GroupBy(property => property.Key.Environment, property => property.Key)
             .ToDictionary(group => group.Key, group => group.ToList());

@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                CacheInvocationsWithErrors("", start, end)
+                CacheInvocationsWithErrors('', start, end)
                 | summarize Total=count(), Failed=countif(CacheImplicated) by Stamp
                 | extend FailureRate=(toreal(Failed)/toreal(Total))
                 | where not(isnull(Failed))";

@@ -71,7 +71,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table(""{_configuration.CacheTableName}"")
+                table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
                 | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by Stamp, bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
                 | sort by PreciseTimeStamp asc

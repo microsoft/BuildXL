@@ -3,11 +3,14 @@
 
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -91,6 +94,40 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void AlienFilesInsideDirectoryArePartOfTheFingerprint()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            
+            // Create the directory to be enumerated with one file inside
+            FileUtilities.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "file.txt"), "some text");
+
+            var operations = new List<Operation>
+            {
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            };
+
+            var builder = CreatePipBuilder(operations);
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            // Run once
+            var pip = SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+
+            // Create a file under a nested dir
+            string nestedDir = Path.Combine(dir, "nested");
+            FileUtilities.CreateDirectory(nestedDir);
+            File.WriteAllText(Path.Combine(nestedDir, "another-file.txt"), "some text");
+
+            // The presence of the new file under a nested dir should trigger a cache miss
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+        }
+
+        [Fact]
         public void StaleSharedOpaqueOutputsAreNotPartOfTheFingerprint()
         {
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
@@ -122,7 +159,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void DirectoriesAreNotPartOfTheFingerprint()
+        public void ExistingDirectoriesArePartOfTheFingerprint()
         {
             string dir = Path.Combine(SourceRoot, "dir");
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
@@ -148,8 +185,52 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Run once
             RunScheduler().AssertSuccess();
 
-            // Delete the directory. We should get a hit on re-run since directories are not part of the fingerprint
+            // Delete the directory. We should get a miss on re-run since directories not created by this pip are part of the fingerprint
             Directory.Delete(nestedDir);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+        }
+
+        /// <summary>
+        /// Requiring Windows for this test is not actually a limitation of the enumeration mode (which should work fine in non-windows OSs) but
+        /// a limitation of <see cref="IScheduleConfiguration.TreatAbsentDirectoryAsExistentUnderOpaque"/>, where directory probes cannot be simulated
+        /// Creating a directory (see below) involves probing.
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void CreatedDirectoriesUnderSharedOpaquesAreNotPartOfTheFingerprint()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            Configuration.Logging.CacheMissAnalysisOption = CacheMissAnalysisOption.LocalMode();
+
+            AbsolutePath nestedDirPath = dirPath.Combine(Context.PathTable, "nested");
+            var nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(nestedDirPath);
+
+            var operations = new List<Operation>
+            {
+                // Create a directory nested into the one that is going to be enumerated
+                Operation.CreateDir(nestedDir, doNotInfer: true),
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            };
+
+            var builder = CreatePipBuilder(operations);
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            builder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+
+            var pip = SchedulePipBuilder(builder);
+
+            // Run once
+            RunScheduler().AssertSuccess();
+
+            // Simulate shared opaque scrubbing
+            FileUtilities.DeleteDirectoryContents(nestedDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+
+            // This should be a cache hit. Directories created by a pip are not part of the fingerprint
             RunScheduler().AssertCacheHit(pip.Process.PipId);
         }
 

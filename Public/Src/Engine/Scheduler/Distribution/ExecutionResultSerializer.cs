@@ -164,6 +164,8 @@ namespace BuildXL.Scheduler.Distribution
                 pipRetryInfo = RetryInfo.Deserialize(reader);
             }
 
+            var createdDirectories = reader.ReadReadOnlySet(ReadAbsolutePath);
+
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
                 numberOfWarnings,
@@ -186,6 +188,7 @@ namespace BuildXL.Scheduler.Distribution
                 cacheLookupCounters,
                 pipProperties,
                 hasUserRetries,
+                createdDirectories,
                 pipRetryInfo);
 
             return processExecutionResult;
@@ -251,6 +254,7 @@ namespace BuildXL.Scheduler.Distribution
             writer.Write(result.HasUserRetries);
 
             writer.Write(result.RetryInfo, (w, ri) => ri.Serialize(w));
+            writer.Write(result.CreatedDirectories, WriteAbsolutePath);
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)

@@ -943,6 +943,17 @@ namespace BuildXL.Scheduler
                     doubleWriteErrorsAreWarnings);
             }
 
+            // The file content manager is not really aware of directories, unless there are files
+            // underneath them. But in order to properly compute directory enumeration fingerprints for
+            // minimal graph with alien files mode, we need to make the output file system aware of
+            // created directories, even if they are empty
+            foreach (var directory in processExecutionResult.CreatedDirectories)
+            {
+                // We explicitly don't update parents, since we want to keep track of directories that were actual 
+                // outputs of the build.
+                environment.State.FileSystemView.ReportOutputFileSystemExistence(directory, PathExistence.ExistsAsDirectory, updateParents: false);
+            }
+
             if (processExecutionResult.NumberOfWarnings > 0)
             {
                 environment.ReportWarnings(fromCache: false, count: processExecutionResult.NumberOfWarnings);
@@ -1320,6 +1331,7 @@ namespace BuildXL.Scheduler
                             fileAccessReportingContext,
                             executionResult.ObservedFileAccesses,
                             executionResult.SharedDynamicDirectoryWriteAccesses,
+                            executionResult.CreatedDirectories,
                             trackFileChanges: succeeded);
                     LogSubPhaseDuration(
                         operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
@@ -1332,6 +1344,7 @@ namespace BuildXL.Scheduler
                 processExecutionResult.DynamicallyObservedEnumerations = observedInputValidationResult.DynamicallyObservedEnumerations;
                 processExecutionResult.AllowedUndeclaredReads = observedInputValidationResult.AllowedUndeclaredSourceReads;
                 processExecutionResult.AbsentPathProbesUnderOutputDirectories = observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories;
+                processExecutionResult.CreatedDirectories = executionResult.CreatedDirectories;
 
                 if (observedInputValidationResult.Status == ObservedInputProcessingStatus.Aborted)
                 {
@@ -3909,6 +3922,7 @@ namespace BuildXL.Scheduler
             FileAccessReportingContext fileAccessReportingContext,
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedFileAccesses,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            IReadOnlyCollection<AbsolutePath> createdDirectories,
             bool trackFileChanges = true)
         {
             Contract.Requires(environment != null);
@@ -3930,6 +3944,7 @@ namespace BuildXL.Scheduler
                 pip,
                 observedFileAccesses,
                 sharedDynamicDirectoryWriteAccesses,
+                createdDirectories,
                 trackFileChanges);
 
             LogInputAssertions(

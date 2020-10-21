@@ -499,9 +499,9 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Reports existence of path in output file system
         /// </summary>
-        public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence)
+        public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence, bool updateParents = true)
         {
-            GetOrAddExistence(path, FileSystemViewMode.Output, existence);
+            GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents);
         }
 
         private static bool ExistsInGraphFileSystem(FileArtifact artifact, FileSystemViewMode mode)

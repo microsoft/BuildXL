@@ -59,6 +59,7 @@ namespace BuildXL.Scheduler
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
         private RetryInfo m_retryInfo;
+        private IReadOnlySet<AbsolutePath> m_createdDirectories;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -109,6 +110,29 @@ namespace BuildXL.Scheduler
             {
                 EnsureUnsealed();
                 InnerUnsealedState.AllowedUndeclaredSourceReads = value;
+            }
+        }
+
+        /// <summary>
+        /// Collection of directories that were succesfully created during pip execution. 
+        /// </summary>
+        /// <remarks>
+        /// Observe there is no guarantee those directories still exist. However, there was a point during the execution of the associated pip when these directories 
+        /// were not there, the running pip created them and the creation was successful. 
+        /// Only populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed.
+        /// </remarks>
+        public IReadOnlySet<AbsolutePath> CreatedDirectories
+        {
+            get
+            {
+                EnsureSealed();
+                return m_createdDirectories;
+            }
+
+            set
+            {
+                EnsureUnsealed();
+                InnerUnsealedState.CreatedDirectories = value;
             }
         }
 
@@ -453,6 +477,7 @@ namespace BuildXL.Scheduler
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
+            IReadOnlySet<AbsolutePath> createdDirectories,
             RetryInfo pipRetryInfo = null)
         {
             var processExecutionResult =
@@ -482,6 +507,7 @@ namespace BuildXL.Scheduler
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
                     m_retryInfo = pipRetryInfo,
+                    m_createdDirectories = createdDirectories
                 };
             return processExecutionResult;
         }
@@ -524,6 +550,7 @@ namespace BuildXL.Scheduler
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
+                CreatedDirectories,
                 RetryInfo);
         }
 
@@ -557,6 +584,7 @@ namespace BuildXL.Scheduler
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
+                CreatedDirectories,
                 RetryInfo);
         }
 
@@ -710,6 +738,7 @@ namespace BuildXL.Scheduler
                     m_dynamicallyObservedEnumerations = m_unsealedState.DynamicallyObservedEnumerations;
                     m_allowedUndeclaredSourceReads = m_unsealedState.AllowedUndeclaredSourceReads;
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
+                    m_createdDirectories = m_unsealedState.CreatedDirectories;
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
 
@@ -769,6 +798,7 @@ namespace BuildXL.Scheduler
                     m_dynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
                     m_allowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
                     m_absentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
+                    m_createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
                 }
 
                 m_unsealedState = null;
@@ -818,6 +848,7 @@ namespace BuildXL.Scheduler
             public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
             public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
             public IReadOnlySet<AbsolutePath> AbsentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
+            public IReadOnlySet<AbsolutePath> CreatedDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
 
             public readonly List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> OutputContent =
                 new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>();

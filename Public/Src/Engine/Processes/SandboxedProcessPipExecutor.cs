@@ -1555,7 +1555,8 @@ namespace BuildXL.Processes
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
                     out var sharedDynamicDirectoryWriteAccesses,
-                    out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed);
+                    out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
+                    out IReadOnlySet<AbsolutePath> createdDirectories);
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
 
@@ -1948,7 +1949,8 @@ namespace BuildXL.Processes
                 containerConfiguration: m_containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: result.TimedOut,
-                retryInfo: retryInfo);
+                retryInfo: retryInfo,
+                createdDirectories: createdDirectories);
         }
 
         private async Task<(bool Success, Dictionary<string, int> PipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)
@@ -3573,6 +3575,9 @@ namespace BuildXL.Processes
         /// <remarks>
         /// Additionally, it returns the write accesses that were observed in shared dynamic
         /// directories, which are used later to determine pip ownership.
+        /// <paramref name="createdDirectories"/> contains the set of directories that were succesfully created during the pip execution. Observe
+        /// there is no guarantee those directories still exist, but there was a point in time when they were not there and the creation was successful. Only
+        /// populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed
         /// </remarks>
         /// <returns>Whether the operation succeeded. This operation may fail only in regards to shared dynamic write access processing.</returns>
         private bool TryGetObservedFileAccesses(
@@ -3580,7 +3585,8 @@ namespace BuildXL.Processes
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             out List<AbsolutePath> unobservedOutputs,
             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
-            out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedAccesses)
+            out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedAccesses,
+            out IReadOnlySet<AbsolutePath> createdDirectories)
         {
             unobservedOutputs = null;
             if (result.ExplicitlyReportedFileAccesses == null || result.ExplicitlyReportedFileAccesses.Count == 0)
@@ -3590,6 +3596,8 @@ namespace BuildXL.Processes
                 observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(
                         ReadOnlyArray<ObservedFileAccess>.Empty,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+                createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
+
                 return true;
             }
 
@@ -3710,8 +3718,10 @@ namespace BuildXL.Processes
                     ProcessPools.AccessUnsorted.GetInstance())
                 using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
                 using (var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet())
+                using (var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet())
                 {
                     var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
+                    var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
 
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
@@ -3790,6 +3800,13 @@ namespace BuildXL.Processes
                                 access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
                                 !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY) &&
                                 !access.IsDirectoryCreationOrRemoval();
+
+                            if (m_pip.AllowUndeclaredSourceReads &&
+                                access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
+                                access.IsDirectoryEffectivelyCreated())
+                            {
+                                createdDirectoriesMutable.Add(entry.Key);
+                            }
 
                             // If the access is a shared opaque candidate and it was denied based on file existence, keep track of it
                             if (isPathCandidateToBeOwnedByASharedOpaque && access.Method == FileAccessStatusMethod.FileExistenceBased && access.Status == FileAccessStatus.Denied)
@@ -3876,6 +3893,8 @@ namespace BuildXL.Processes
                     observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
                         filteredAccessesUnsorted,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+
+                    createdDirectories = createdDirectoriesMutable.ToReadOnlySet();
 
                     var mutableWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(dynamicWriteAccesses.Count);
 

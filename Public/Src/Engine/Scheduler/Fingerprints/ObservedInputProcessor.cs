@@ -11,7 +11,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.FileSystem;
@@ -23,7 +22,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using RocksDbSharp;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -89,6 +87,8 @@ namespace BuildXL.Scheduler.Fingerprints
                     // When processing a prior path set, shared opaques are already flagged as such, and therefore
                     // there are not non-populated ones
                     unPopulatedSharedOpaqueOutputs: null,
+                    // Created directories are not known at this stage
+                    createdDirectories: CollectionUtilities.EmptyArray<AbsolutePath>(),
                     pathSet.ObservedAccessedFileNames,
                     isCacheLookup: true);
             }
@@ -107,6 +107,7 @@ namespace BuildXL.Scheduler.Fingerprints
             CacheablePipInfo pip,
             ReadOnlyArray<ObservedFileAccess> accesses,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            IReadOnlyCollection<AbsolutePath> createdDirectories,
             bool trackFileChanges = true)
             where TTarget : struct, IObservedInputProcessingTarget<ObservedFileAccess>
         {
@@ -119,6 +120,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     pip,
                     accesses,
                     sharedDynamicDirectoryWriteAccesses,
+                    createdDirectories,
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                     isCacheLookup: false,
                     trackFileChanges: trackFileChanges);
@@ -138,6 +140,7 @@ namespace BuildXL.Scheduler.Fingerprints
             CacheablePipInfo pip,
             ReadOnlyArray<TObservation> observations,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> unPopulatedSharedOpaqueOutputs,
+            IReadOnlyCollection<AbsolutePath> createdDirectories,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             bool isCacheLookup,
             bool trackFileChanges = true)
@@ -145,6 +148,7 @@ namespace BuildXL.Scheduler.Fingerprints
             where TEnv : IObservedInputProcessingEnvironment
         {
             Contract.Requires(!isCacheLookup ^ observedAccessedFileNames.IsValid);
+            Contract.RequiresNotNull(createdDirectories);
 
             var envAdapter = environment as ObservedInputProcessingEnvironmentAdapter;
 
@@ -643,6 +647,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                             EnumeratePatternRegex = enumeratePatternRegex
                                         },
                                         sharedOpaqueOutputs,
+                                        createdDirectories,
                                         enumerationMode: out mode,
                                         trackPathExistence: trackFileChanges);
 
@@ -1247,6 +1252,7 @@ namespace BuildXL.Scheduler.Fingerprints
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
             IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
+            IReadOnlyCollection<AbsolutePath> createdDirectories,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence);
 
@@ -1788,8 +1794,8 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             producer = PipId.Invalid;
             var fileArtifact = m_env.PipGraphView.TryGetLatestFileArtifactForPath(filePath);
-            return 
-                fileArtifact.IsValid && 
+            return
+                fileArtifact.IsValid &&
                 m_env.TryGetProducerPip(fileArtifact, out producer);
         }
 
@@ -1852,7 +1858,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 rule = null;
                 return DirectoryEnumerationMode.MinimalGraph;
             }
-            
+
             // Similarly with the minimal graph with alien files file system enumeration mode
             if (m_env.Configuration.Sandbox.FileSystemMode == BuildXL.Utilities.Configuration.FileSystemMode.AlwaysMinimalWithAlienFilesGraph)
             {
@@ -1922,6 +1928,7 @@ namespace BuildXL.Scheduler.Fingerprints
             bool isReadOnlyDirectory,
             DirectoryMembershipHashedEventData eventData,
             IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
+            IReadOnlyCollection<AbsolutePath> createdDirectories,
             out DirectoryEnumerationMode enumerationMode,
             bool trackPathExistence = true)
         {
@@ -1930,11 +1937,12 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Assume(filter != null);
             Contract.Assert(m_directoryMembershipFilter == null, "This method may not be called concurrently");
             Contract.RequiresNotNull(sharedOpaqueOutputs);
+            Contract.RequiresNotNull(createdDirectories);
 
             try
             {
                 m_directoryMembershipFilter = filter;
-                
+
                 DirectoryMembershipFingerprinterRule rule = null;
                 bool allowsUndeclaredSourceReads = process.UnderlyingPip.ProcessAllowsUndeclaredSourceReads;
                 enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, allowsUndeclaredSourceReads, out rule);
@@ -2005,7 +2013,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
-                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs),
+                                TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, createdDirectories),
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
                                 eventData: eventData);
@@ -2084,7 +2092,9 @@ namespace BuildXL.Scheduler.Fingerprints
             return TryEnumerateDirectory(request, FileSystemViewMode.FullGraph, trackPathExistence: false);
         }
 
-        private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(IReadOnlyCollection<AbsolutePath> sharedDynamicOutputs)
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(
+            IReadOnlyCollection<AbsolutePath> sharedDynamicOutputs,
+            IReadOnlyCollection<AbsolutePath> createdDirectories)
         {
             return (request =>
             {
@@ -2128,7 +2138,9 @@ namespace BuildXL.Scheduler.Fingerprints
                             // not part of the immediate dependencies. So we don't add it.
                             // The only exception is when the file is flagged as an undeclared source/alien file rewrite. In this case the file was there
                             // before the build started, and therefore it makes sense to include it in the fingerprint
-                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent && 
+                            // Observe that if the entry is a directory created by other pip, even if that directory is empty, it will be
+                            // ruled out here, since the output file system is also updated with created directories
+                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent &&
                                 !m_env.State.FileContentManager.IsAllowedFileRewriteOutput(realFileEntryPath))
                             {
                                 continue;
@@ -2146,16 +2158,18 @@ namespace BuildXL.Scheduler.Fingerprints
                             // in a post-execution step which is not reached yet on cache miss, so the output file system may have not captured them yet
                             if (sharedDynamicOutputs.Contains(realFileEntryPath))
                             {
-                                continue; 
+                                continue;
                             }
 
-                            // Finally, we can always remove any stale shared opaque files since those are permanently flagged. 
-                            // Observe that as a side effect of IsSharedOpaqueOutput, we won't include directories in the fingerprint (since directories are always considered
-                            // shared opaque outputs). This is intentional since even though ignoring the presence of directories could result in an under build, directories
-                            // in general are too unstable in bxl land, where we don't keep track of them fully.
                             try
                             {
-                                if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntry.Item1.ToString(PathTable)))
+                                // We can always remove any stale shared opaque files since those are permanently flagged. 
+                                if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntryPath.ToString(PathTable), out var sharedOpaqueExistence) &&
+                                // If the path under consideration is a directory, we want to distinguish between a directory that is part of the original sources
+                                // and a directory that was created during the build (and exclude the latter). Observe that if we are in the cache
+                                // look up case, createdDirectories will always be empty, but at the same time the scrubber will guarantee that directories created
+                                // by this pip containing shared opaques will also be removed. TODO: enabling lazy shared opaques implies start using sideband information
+                                    (sharedOpaqueExistence != PathExistence.ExistsAsDirectory || createdDirectories.Contains(realFileEntryPath)))
                                 {
                                     continue;
                                 }

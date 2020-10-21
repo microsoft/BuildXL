@@ -96,6 +96,9 @@ namespace Test.BuildXL.Scheduler
                 pathSet: null,
                 cacheLookupStepDurations: null,
                 pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
+                createdDirectories: new ReadOnlyHashSet<AbsolutePath> {
+                    CreateSourceFile().Path
+                },
                 hasUserRetries: true);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
@@ -156,6 +159,7 @@ namespace Test.BuildXL.Scheduler
 
                 r => r.PipProperties.Count,
                 r => r.HasUserRetries,
+                r => r.CreatedDirectories,
                 r => r.RetryInfo
                 );
 
@@ -221,6 +225,8 @@ namespace Test.BuildXL.Scheduler
             }
 
             XAssert.AreEqual(9, deserializedProcessExecutionResult.PipProperties["Bar"]);
+
+            XAssert.AreSetsEqual(processExecutionResult.CreatedDirectories, deserializedProcessExecutionResult.CreatedDirectories, expectedResult: true);
         }
 
         private (FileArtifact, FileMaterializationInfo, PipOutputOrigin) CreateRandomOutputContent()

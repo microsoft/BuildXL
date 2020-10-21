@@ -187,7 +187,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc/>
-        public ReportedFileAccess CreateWithPath(string path, AbsolutePath manifestPath)
+        public ReportedFileAccess CreateWithPathAndAttributes(string path, AbsolutePath manifestPath, FlagsAndAttributes flagsAndAttributes)
         {
             return new ReportedFileAccess(
                 Operation,
@@ -200,7 +200,7 @@ namespace BuildXL.Processes
                 DesiredAccess,
                 ShareMode,
                 CreationDisposition,
-                FlagsAndAttributes,
+                flagsAndAttributes,
                 manifestPath,
                 path,
                 EnumeratePattern,
@@ -448,6 +448,15 @@ namespace BuildXL.Processes
         public bool IsDirectoryCreation() => 
             Operation == ReportedFileOperation.CreateDirectory || 
             Operation == ReportedFileOperation.KAuthCreateDir;
+
+        /// <summary>
+        /// Whether this access represents a directory creation, and the directory was effectively created
+        /// </summary>
+        public bool IsDirectoryEffectivelyCreated() =>
+            // For the MacOS case, only effectively created directories are reported
+            Operation == ReportedFileOperation.KAuthCreateDir ||
+            // For the Windows case, this is the case when the return code is zero
+            (Operation == ReportedFileOperation.CreateDirectory && Error == 0);
 
         /// <summary>
         /// Whether this access represents a directory removal

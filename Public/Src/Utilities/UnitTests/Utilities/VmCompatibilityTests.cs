@@ -233,7 +233,24 @@ namespace Test.BuildXL.Utilities
                 }
             });
         }
-        
+
+        [Fact(Skip = "Tested in CI/CB test. Enable this test once VmCommandProxy is deployed to CB from CB test.")]
+        public void DnsGetHostNameReturnsExpectedHostName()
+        {
+            EnsureRunInVm(() =>
+            {
+                try
+                {
+                    var entry = System.Net.Dns.GetHostEntry(VmConstants.Host.IpAddress);
+                    XAssert.AreEqual(VmConstants.Host.Name.ToUpperInvariant(), entry.HostName.ToUpperInvariant());
+                }
+                catch (Exception e)
+                {
+                    XAssert.Fail(e.ToString());
+                }
+            });
+        }
+
         private void EnsureRunInVm(Action verify)
         {
             if (VmSpecialEnvironmentVariables.IsRunningInVm)

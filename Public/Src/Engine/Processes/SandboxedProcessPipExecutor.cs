@@ -1140,6 +1140,7 @@ namespace BuildXL.Processes
         {
             DirectoryTranslator newTranslator = info.FileAccessManifest.DirectoryTranslator?.GetUnsealedClone() ?? new DirectoryTranslator();
             newTranslator.AddTranslation($@"\\{VmConstants.Host.IpAddress}\{VmConstants.Host.NetUseDrive}", $@"{VmConstants.Host.NetUseDrive}:");
+            newTranslator.AddTranslation($@"\\{VmConstants.Host.Name}\{VmConstants.Host.NetUseDrive}", $@"{VmConstants.Host.NetUseDrive}:");
             newTranslator.Seal();
             info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }

@@ -161,6 +161,11 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// Host IP address.
             /// </summary>
             public const string IpAddress = "192.168.0.1";
+
+            /// <summary>
+            /// Host name.
+            /// </summary>
+            public const string Name = "BuilderHost";
         }
 
         /// <summary>

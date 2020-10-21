@@ -26,6 +26,91 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         {
         }
 
+        public enum AsyncOperationKind
+        {
+            Initialization,
+            AsyncOperation,
+            AsyncOperationWithTimeout,
+        }
+
+        [Theory]
+        [InlineData(AsyncOperationKind.Initialization)]
+        [InlineData(AsyncOperationKind.AsyncOperation)]
+        [InlineData(AsyncOperationKind.AsyncOperationWithTimeout)]
+        public async Task AsyncOperationShouldNotBeExecutedIfCancellationTokenIsSet(AsyncOperationKind kind)
+        {
+            var tracer = new Tracer("MyTracer");
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+
+            cts.Cancel();
+            bool callbackIsCalled = false;
+
+            Func<Task<BoolResult>> operation = async () =>
+                                               {
+                                                   callbackIsCalled = true;
+                                                   await Task.Delay(TimeSpan.FromSeconds(1));
+                                                   return BoolResult.Success;
+                                               };
+
+            Task<BoolResult> resultTask = kind switch
+            {
+                AsyncOperationKind.AsyncOperation => context.PerformOperationAsync(tracer, operation),
+                AsyncOperationKind.AsyncOperationWithTimeout => context.PerformOperationWithTimeoutAsync(tracer, _ => operation()),
+                AsyncOperationKind.Initialization => context.PerformInitializationAsync(tracer, operation),
+                _ => throw new InvalidOperationException(),
+            };
+
+            var r = await resultTask;
+
+            callbackIsCalled.Should().BeFalse();
+            r.ShouldBeError();
+            r.IsCancelled.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task NonResultOperationShouldNotBeExecutedIfCancellationTokenIsSet()
+        {
+            var tracer = new Tracer("MyTracer");
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+
+            cts.Cancel();
+            bool callbackIsCalled = false;
+            var r = context.PerformNonResultOperationAsync(
+                tracer,
+                async () =>
+                {
+                    callbackIsCalled = true;
+                    await Task.Yield();
+                    return BoolResult.Success;
+                });
+            await Assert.ThrowsAsync<OperationCanceledException>(() => r);
+            callbackIsCalled.Should().BeFalse();
+        }
+
+        [Fact]
+        public void OperationShouldNotBeExecutedIfCancellationTokenIsSet()
+        {
+            var tracer = new Tracer("MyTracer");
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+
+            cts.Cancel();
+            bool callbackIsCalled = false;
+            var r = context.PerformOperation(
+                tracer,
+                () =>
+                {
+                    callbackIsCalled = true;
+                    return BoolResult.Success;
+                });
+
+            callbackIsCalled.Should().BeFalse();
+            r.ShouldBeError();
+            r.IsCancelled.Should().BeTrue();
+        }
+
         [Fact]
         public async Task TraceLongRunningOperationPeriodically()
         {

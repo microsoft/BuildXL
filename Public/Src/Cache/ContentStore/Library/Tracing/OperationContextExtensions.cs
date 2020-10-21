@@ -209,17 +209,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             try
             {
+                // No need to run anything if the cancellation is requested already.
+                _context.Token.ThrowIfCancellationRequested();
                 return operation();
             }
             catch (Exception ex)
             {
-                var result = new ErrorResult(ex).AsResult<T>();
-                if (_context.Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(ex))
-                {
-                    result.IsCancelled = true;
-                }
-
-                return result;
+                return FromException<T>(ex);
             }
         }
 
@@ -229,18 +225,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             try
             {
+                // No need to run anything if the cancellation is requested already.
+                _context.Token.ThrowIfCancellationRequested();
+
                 using var timer = CreatePeriodicTimerIfNeeded();
                 return await operation();
             }
             catch (Exception ex)
             {
-                var result = new ErrorResult(ex).AsResult<T>();
-                if (_context.Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(ex))
-                {
-                    result.IsCancelled = true;
-                }
-
-                return result;
+                return FromException<T>(ex);
             }
         }
 
@@ -261,6 +254,24 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 this,
                 PendingOperationTracingInterval.Value,
                 PendingOperationTracingInterval.Value);
+        }
+
+        /// <nodoc />
+        protected T FromException<T>(Exception ex) where T : ResultBase
+        {
+            var result = new ErrorResult(ex).AsResult<T>();
+            MarkResultIsCancelledIfNeeded(result, ex);
+            return result;
+        }
+
+        /// <nodoc />
+        protected void MarkResultIsCancelledIfNeeded(ResultBase result, Exception ex)
+        {
+            if (_context.Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(ex))
+            {
+                // Set the cancellation flag only when the error is non-critical.
+                result.IsCancelled = true;
+            }
         }
     }
 
@@ -289,6 +300,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 try
                 {
+                    // No need to run anything if the cancellation is requested already.
+                    _context.Token.ThrowIfCancellationRequested();
+
                     var result = await AsyncOperation();
                     TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
@@ -302,6 +316,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                     {
                         resultBase.MakeCritical();
                     }
+
+                    MarkResultIsCancelledIfNeeded(resultBase, e);
 
                     TraceResultOperationFinished(resultBase, stopwatch.Elapsed, caller!);
 
@@ -404,18 +420,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         {
             try
             {
+                // No need to run anything if the cancellation is requested already.
+                _context.Token.ThrowIfCancellationRequested();
+
                 using var timer = CreatePeriodicTimerIfNeeded();
                 return await WithOptionalTimeoutAsync(operation, _timeout, _context);
             }
             catch (Exception ex)
             {
-                var result = new ErrorResult(ex).AsResult<T>();
-                if (_context.Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(ex))
-                {
-                    result.IsCancelled = true;
-                }
-
-                return result;
+                return FromException<T>(ex);
             }
         }
 

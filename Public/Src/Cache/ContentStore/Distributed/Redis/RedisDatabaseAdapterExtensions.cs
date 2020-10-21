@@ -53,7 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 traceOperationStarted: false,
                 traceOperationFinished: false);
 
-            executeBatchResult.IsCancelled = isCancelled;
+            // Don't override the cancellation flag if its already set but isCancelled is false.
+            executeBatchResult.IsCancelled |= isCancelled;
             return executeBatchResult;
         }
 

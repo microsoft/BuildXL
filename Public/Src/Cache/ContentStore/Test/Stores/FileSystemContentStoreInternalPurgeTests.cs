@@ -36,6 +36,7 @@ namespace ContentStoreTest.Stores
             Context = new Context(Logger);
 
             Clock = FileSystem is MemoryFileSystem fileSystem ? fileSystem.Clock : new TestSystemClock();
+            AdjustTestClock();
         }
 
         protected abstract int ContentSizeToStartSoftPurging(int numberOfBlobs);
@@ -82,6 +83,7 @@ namespace ContentStoreTest.Stores
         [Fact]
         public async Task PutAcrossRunsPurgesOldest()
         {
+            AdjustTestClock();
             var contentSize = ContentSizeToStartSoftPurging(3);
 
             using (MemoryStream
@@ -97,11 +99,11 @@ namespace ContentStoreTest.Stores
                     await TestStore(Context, Clock, directory, async store =>
                     {
                         hash1 = await PutAsync(store, stream1);
-                        Clock.Increment();
+                        IncrementTestClock();
                         hash2 = await PutAsync(store, stream2);
                     });
 
-                    Clock.Increment();
+                    IncrementTestClock();
 
                     await TestStore(Context, Clock, directory, async store =>
                     {
@@ -111,6 +113,29 @@ namespace ContentStoreTest.Stores
                         await AssertContainsHash(store, hash3);
                     });
                 }
+            }
+        }
+
+        private void AdjustTestClock()
+        {
+            if (Clock is MemoryClock mc)
+            {
+                // Moving the clock back, because when we'll move the clock forward in test
+                // we may not achieve what we want because some components (like MemoryContentDirectory)
+                // will adjust the time if the "last access time" written to disc is ahead of current time.
+                mc.UtcNow -= TimeSpan.FromHours(1);
+            }
+        }
+
+        private void IncrementTestClock()
+        {
+            if (Clock is MemoryClock mc)
+            {
+                mc.Increment(TimeSpan.FromMinutes(10));
+            }
+            else
+            {
+                Clock.Increment();
             }
         }
 

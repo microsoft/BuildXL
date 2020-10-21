@@ -13,7 +13,6 @@ namespace BuildXL.Cache.Host.Configuration
         public const string DefaultFileName = "CASaaS GRPC port";
 
         public const string DefaultCacheName = "DEFAULT";
-        public const string InProcCacheName = "INPROC";
 
         public const uint DefaultGracefulShutdownSeconds = 15;
         public const uint DefaultMaxPipeListeners = 128;

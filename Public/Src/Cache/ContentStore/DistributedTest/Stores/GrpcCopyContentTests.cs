@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,10 @@ namespace ContentStoreTest.Distributed.Stores
                 {
                     MaximumResourceCount = 1024,
                 },
+                GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
+                {
+                    PropagateCallingMachineName = true,
+                }
             });
         }
 
@@ -77,6 +82,16 @@ namespace ContentStoreTest.Distributed.Stores
                 var copiedHash = copied.CalculateHash(DefaultHashType);
                 Assert.Equal(originalHash, copiedHash);
             });
+        }
+
+        [Fact]
+        public async Task CopyFileShouldPropagateMachineName()
+        {
+            await CopyExistingFile();
+
+            var copyFileStopLines = GetOutputLines().Where(l => l.Contains("GrpcContentServer.CopyFileAsync stop")).ToList();
+            copyFileStopLines.FirstOrDefault(l => l.Contains("Sender=[localhost")).Should().BeNull($"'localhost' should not be present in the output lines: {string.Join(", ", copyFileStopLines)}");
+            copyFileStopLines.All(l => l.Contains("Sender=[")).Should().BeTrue();
         }
 
         [Fact]

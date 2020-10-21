@@ -1,9 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.Host.Configuration;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
@@ -50,5 +53,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// allows communication across machines of different platforms
         /// </summary>
         public bool UseUniversalLocations { get; set; }
+
+        /// <nodoc />
+        public static GrpcFileCopierConfiguration FromDistributedContentSettings(DistributedContentSettings dcs, int grpcPort)
+        {
+            var grpcCopyClientCacheConfiguration = GrpcCopyClientCacheConfiguration.FromDistributedContentSettings(dcs);
+
+            var grpcFileCopierConfiguration = new GrpcFileCopierConfiguration()
+                                              {
+                                                  GrpcPort = (int)grpcPort,
+                                                  GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
+                                                  JunctionsByDirectory = dcs.AlternateDriveMap
+                                              };
+
+            ApplyIfNotNull(
+                dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy,
+                v =>
+                {
+                    if (!Enum.TryParse<GrpcFileCopierConfiguration.ClientInvalidationPolicy>(v, out var parsed))
+                    {
+                        throw new ArgumentException(
+                            $"Failed to parse `{nameof(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy)}` setting with value `{dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy}` into type `{nameof(GrpcFileCopierConfiguration.ClientInvalidationPolicy)}`");
+                    }
+
+                    grpcFileCopierConfiguration.GrpcCopyClientInvalidationPolicy = parsed;
+                });
+
+            grpcFileCopierConfiguration.UseUniversalLocations = dcs.UseUniversalLocations;
+
+            return grpcFileCopierConfiguration;
+        }
     }
 }

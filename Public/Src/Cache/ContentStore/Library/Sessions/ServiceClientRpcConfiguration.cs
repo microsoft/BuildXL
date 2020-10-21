@@ -57,12 +57,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <nodoc />
         public TimeSpan? PlaceDeadline { get; set; }
 
-        /// <summary>
-        /// Whether to send a calling machine name via a message header.
-        /// False by default.
-        /// </summary>
-        public bool PropagateCallingMachineName { get; set; }
-
         /// <nodoc />
         public bool TraceGrpcCalls { get; set; }
 

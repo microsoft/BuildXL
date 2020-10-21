@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -19,7 +20,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             foreach (var entry in metadata)
             {
-                if (entry.Key == GrpcConstants.MachineMetadataFieldName)
+                // Grpc sends the metadata in lower case.
+                if (string.Equals(entry.Key, GrpcConstants.MachineMetadataFieldName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     machineName = entry.Value;
                     return true;

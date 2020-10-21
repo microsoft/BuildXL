@@ -476,14 +476,25 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (settings.BackingGrpcPort != null)
             {
+                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration(settings.BackingGrpcPort.Value)
+                {
+                    GrpcCoreClientOptions = settings.GrpcCopyClientGrpcCoreClientOptions,
+                };
+
+                var retryCount = arguments.Configuration.LocalCasSettings.CasClientSettings.RetryIntervalSecondsOnFailServiceCalls;
+                var retryIntervalInSeconds = arguments.Configuration.LocalCasSettings.CasClientSettings.RetryCountOnFailServiceCalls;
+                var serviceClientConfiguration =
+                    new ServiceClientContentStoreConfiguration(resolvedSettings.Name, serviceClientRpcConfiguration, settings.BackingScenario)
+                    {
+                        RetryCount = retryCount,
+                        RetryIntervalSeconds = retryIntervalInSeconds,
+                        GrpcEnvironmentOptions = arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcEnvironmentOptions
+                    };
+
                 var backingStore = new ServiceClientContentStore(
                     arguments.Logger,
                     arguments.FileSystem,
-                    resolvedSettings.Name,
-                    new ServiceClientRpcConfiguration(settings.BackingGrpcPort.Value),
-                    arguments.Configuration.LocalCasSettings.CasClientSettings.RetryIntervalSecondsOnFailServiceCalls,
-                    arguments.Configuration.LocalCasSettings.CasClientSettings.RetryCountOnFailServiceCalls,
-                    scenario: settings.BackingScenario);
+                    serviceClientConfiguration);
 
                 return new MultiLevelContentStore(localStore, backingStore);
             }

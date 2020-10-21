@@ -3,9 +3,9 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Grpc;
-using System.Collections.Generic;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -60,10 +60,34 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public TimeSpan OperationDeadline { get; set; } = TimeSpan.FromHours(2);
 
+        /// <summary>
+        /// Whether to send a calling machine name via a message header.
+        /// False by default.
+        /// </summary>
+        public bool PropagateCallingMachineName { get; set; }
+
         /// <nodoc />
         public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
 
         /// <nodoc />
         public BandwidthChecker.Configuration BandwidthCheckerConfiguration { get; set; } = BandwidthChecker.Configuration.Disabled;
+
+        /// <nodoc />
+        public static GrpcCopyClientConfiguration FromDistributedContentSettings(DistributedContentSettings dcs)
+        {
+            var grpcCopyClientConfiguration = new GrpcCopyClientConfiguration();
+            ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientUseGzipCompression, v => grpcCopyClientConfiguration.UseGzipCompression = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.TimeToFirstByteTimeoutInSeconds, v => grpcCopyClientConfiguration.TimeToFirstByteTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientOperationDeadlineSeconds, v => grpcCopyClientConfiguration.OperationDeadline = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientPropagateCallingMachineName, v => grpcCopyClientConfiguration.PropagateCallingMachineName = v);
+            ApplyIfNotNull(dcs.GrpcCopyClientGrpcCoreClientOptions, v => grpcCopyClientConfiguration.GrpcCoreClientOptions = v);
+            grpcCopyClientConfiguration.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.FromDistributedContentSettings(dcs);
+
+            return grpcCopyClientConfiguration;
+        }
     }
 }

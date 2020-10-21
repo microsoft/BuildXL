@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.Host.Configuration;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -34,5 +36,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Used only in <see cref="ResourcePool{TKey, TObject}"/>
         /// </remarks>
         public bool EnableInstanceInvalidation { get; set; } = false;
+
+        /// <nodoc />
+        public static ResourcePoolConfiguration FromDistributedContentSettings(DistributedContentSettings dcs)
+        {
+            var resourcePoolConfiguration = new ResourcePoolConfiguration();
+
+            ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);
+            ApplyIfNotNull(dcs.MaxGrpcClientAgeMinutes, v => resourcePoolConfiguration.MaximumAge = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientCacheGarbageCollectionPeriodMinutes, v => resourcePoolConfiguration.GarbageCollectionPeriod = TimeSpan.FromMinutes(v));
+
+            return resourcePoolConfiguration;
+        }
     }
 }

@@ -40,6 +40,7 @@ namespace Distributed {
             Hashing.dll,
             Interfaces.dll,
             Library.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,

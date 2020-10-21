@@ -270,24 +270,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private CallOptions GetCallOptions(TimeSpan? operationOverrideDeadline, CancellationToken token)
         {
-            var headers = CreateMetadata();
-            return new CallOptions(headers: headers, deadline: GetDeadline(operationOverrideDeadline), cancellationToken: token);
+            return new CallOptions(headers: null, deadline: GetDeadline(operationOverrideDeadline), cancellationToken: token);
         }
-
-        private Metadata? CreateMetadata()
-        {
-            if (Configuration.PropagateCallingMachineName)
-            {
-                var metadata = new Metadata();
-                metadata.Add(GrpcConstants.MachineMetadataFieldName, Environment.MachineName);
-                return metadata;
-            }
-            else
-            {
-                return null;
-            }
-        }
-
+        
         private DateTime? GetDeadline(TimeSpan? operationOverrideDeadline)
         {
             var timeout = operationOverrideDeadline ?? Configuration.Deadline;

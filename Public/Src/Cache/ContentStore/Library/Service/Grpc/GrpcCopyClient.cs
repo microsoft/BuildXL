@@ -334,7 +334,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 result = await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
                     context,
-                    innerToken => copyToCoreImplementation(closeStream, response, compression, targetStream, options, innerToken),
+                    innerToken => copyToCoreImplementation(response, compression, targetStream, innerToken),
                     options,
                     getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
 
@@ -361,7 +361,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            async Task<CopyFileResult> copyToCoreImplementation(bool closeStream, AsyncServerStreamingCall<CopyFileResponse> response, CopyCompression compression, Stream targetStream, CopyOptions options, CancellationToken token)
+            async Task<CopyFileResult> copyToCoreImplementation(AsyncServerStreamingCall<CopyFileResponse> response, CopyCompression compression, Stream targetStream, CancellationToken token)
             {
                 // Copy the content to the target stream.
                 try
@@ -394,7 +394,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private CallOptions GetDefaultGrpcOptions(CancellationToken token)
         {
-            return new CallOptions(deadline: _clock.UtcNow + _configuration.OperationDeadline, cancellationToken: token);
+            return GetDefaultGrpcOptions(headers: null, token);
+        }
+
+        private CallOptions GetDefaultGrpcOptions(Metadata? headers, CancellationToken token)
+        {
+            return new CallOptions(headers: GetHeaders(headers), deadline: _clock.UtcNow + _configuration.OperationDeadline, cancellationToken: token);
+        }
+
+        private Metadata? GetHeaders(Metadata? headers)
+        {
+            if (_configuration.PropagateCallingMachineName)
+            {
+                headers ??= new Metadata();
+                headers.Add(GrpcConstants.MachineMetadataFieldName, Environment.MachineName);
+            }
+
+            return headers;
         }
 
         /// <summary>
@@ -440,7 +456,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var pushRequest = new PushRequest(hash, traceId: context.TracingContext.Id);
                 var headers = pushRequest.GetMetadata();
 
-                using var call = _client.PushFile(options: GetDefaultGrpcOptions(token).WithHeaders(headers));
+                using var call = _client.PushFile(options: GetDefaultGrpcOptions(headers, token));
                 var requestStream = call.RequestStream;
                 Metadata responseHeaders;
 

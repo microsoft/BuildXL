@@ -4,21 +4,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
-using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using static BuildXL.Utilities.ConfigurationHelper;
 
@@ -75,43 +70,7 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
                 }
 
-                var grpcCopyClientConfiguration = new GrpcCopyClientConfiguration();
-                ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
-                ApplyIfNotNull(dcs.GrpcCopyClientUseGzipCompression, v => grpcCopyClientConfiguration.UseGzipCompression = v);
-                ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
-                ApplyIfNotNull(dcs.TimeToFirstByteTimeoutInSeconds, v => grpcCopyClientConfiguration.TimeToFirstByteTimeout = TimeSpan.FromSeconds(v));
-                ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
-                ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
-                ApplyIfNotNull(dcs.GrpcCopyClientOperationDeadlineSeconds, v => grpcCopyClientConfiguration.OperationDeadline = TimeSpan.FromSeconds(v));
-                ApplyIfNotNull(dcs.GrpcCopyClientGrpcCoreClientOptions, v => grpcCopyClientConfiguration.GrpcCoreClientOptions = v);
-                grpcCopyClientConfiguration.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.FromDistributedContentSettings(dcs);
-
-                var resourcePoolConfiguration = new ResourcePoolConfiguration();
-                ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);
-                ApplyIfNotNull(dcs.MaxGrpcClientAgeMinutes, v => resourcePoolConfiguration.MaximumAge = TimeSpan.FromMinutes(v));
-                ApplyIfNotNull(dcs.GrpcCopyClientCacheGarbageCollectionPeriodMinutes, v => resourcePoolConfiguration.GarbageCollectionPeriod = TimeSpan.FromMinutes(v));
-
-                // We don't have to dispose the copier here. RunAsync will take care of that.
-                var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
-                {
-                    ResourcePoolConfiguration = resourcePoolConfiguration,
-                    GrpcCopyClientConfiguration = grpcCopyClientConfiguration,
-                };
-                ApplyIfNotNull(dcs.GrpcCopyClientCacheResourcePoolVersion, v => grpcCopyClientCacheConfiguration.ResourcePoolVersion = (GrpcCopyClientCacheConfiguration.PoolVersion)v);
-
-                var grpcFileCopierConfiguration = new GrpcFileCopierConfiguration()
-                {
-                    GrpcPort = grpcPort,
-                    GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
-                };
-                ApplyIfNotNull(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy, v => {
-                    if (!Enum.TryParse<GrpcFileCopierConfiguration.ClientInvalidationPolicy>(v, out var parsed))
-                    {
-                        throw new ArgumentException($"Failed to parse `{nameof(dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy)}` setting with value `{dcs.GrpcFileCopierGrpcCopyClientInvalidationPolicy}` into type `{nameof(GrpcFileCopierConfiguration.ClientInvalidationPolicy)}`");
-                    }
-
-                    grpcFileCopierConfiguration.GrpcCopyClientInvalidationPolicy = parsed;
-                });
+                var grpcFileCopierConfiguration = GrpcFileCopierConfiguration.FromDistributedContentSettings(dcs, grpcPort);
 
                 var grpcCopier = new GrpcFileCopier(context: new Interfaces.Tracing.Context(_logger), grpcFileCopierConfiguration);
 

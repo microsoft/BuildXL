@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201017.0 (Release [83009](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=83009)) Released 10/21/2020
+- ModuleAffinity extra logging when used with earlyWorkerRelease
+- Add a new machine CPU reporting and jobObject stats
+- Untrack AppData and LocalAppData for QTest
+- CancelSuspend mode to avoid slow thrashing
+- Introduce FileAndParents supersede mode to address slowness in file change tracker
+- [QTest support] Expose an option to let bxl communicate the retry attempt number to a pip via an env variable
+- Various bug fixes
+
 # 0.1.0-20201010.0.1 (Release [82325](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=82325)) Released 10/14/2020
 - Support for specifying per process pip retry.
 - Allow for specifying domain id in drop daemon.

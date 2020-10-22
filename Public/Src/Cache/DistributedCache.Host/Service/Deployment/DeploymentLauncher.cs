@@ -29,6 +29,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Launcher.Server;
+using BuildXL.Processes;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Practices.TransientFaultHandling;
@@ -69,8 +70,6 @@ namespace BuildXL.Cache.Host.Service
         private FileSystemContentStoreInternal Store { get; }
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(DeploymentLauncher));
-
-        private HashSet<ContentHash> PinnedHashes { get; } = new HashSet<ContentHash>();
 
         private DeployedTool _currentRun;
 
@@ -134,7 +133,12 @@ namespace BuildXL.Cache.Host.Service
                 {
                     while (!ctx.Token.IsCancellationRequested)
                     {
-                        await GetDownloadAndRunDeployment(ctx).IgnoreFailure();
+                        using var timeoutSource = new CancellationTokenSource();
+                        timeoutSource.CancelAfter(Settings.DeployTimeout);
+
+                        using var timeoutContext = ctx.WithCancellationToken(timeoutSource.Token);
+
+                        await GetDownloadAndRunDeployment(timeoutContext).IgnoreFailure();
 
                         // Wait before querying for deployment updates again
                         await Task.Delay(TimeSpan.FromSeconds(Settings.QueryIntervalSeconds));
@@ -148,6 +152,11 @@ namespace BuildXL.Cache.Host.Service
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             var result = await Store.StartupAsync(context);
+
+            if (Settings.CreateJobObject && JobObject.OSSupportsNestedJobs)
+            {
+                JobObject.SetTerminateOnCloseOnCurrentProcessJob();
+            }
 
             if (Settings.RunInBackgroundOnStartup)
             {
@@ -187,33 +196,37 @@ namespace BuildXL.Cache.Host.Service
 
                     using var client = _host.CreateServiceClient();
 
-                    // Get the launch manifest
-                    var manifest = await GetLaunchManifestAsync(context, client).ThrowIfFailureAsync();
-                    if (!manifest.IsComplete)
-                    {
-                        return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}");
-                    }
-
+                    // Get the launch manifest with only content id populated
+                    var manifest = await GetLaunchManifestAsync(context, client, getContentIdOnly: true).ThrowIfFailureAsync();
                     if (manifest.ContentId == _currentRun?.Manifest.ContentId && _currentRun.IsActive)
                     {
                         return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
                     }
 
+                    // The content has changed from the active run. Get full manifest.
+                    manifest = await GetLaunchManifestAsync(context, client, getContentIdOnly: false).ThrowIfFailureAsync();
+                    if (!manifest.IsComplete)
+                    {
+                        return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}");
+                    }
+
                     var hashes = manifest.Deployment.Select(f => new ContentHash(f.Value.Hash)).Distinct().ToList();
 
-                    var directory = new DisposableDirectory(FileSystem, DeploymentDirectory.Path / manifest.Tool.ServiceId / $"{DateTime.Now.ToReadableString()}_{manifest.ContentId}");
+                    var deploymentTargetDirectoryPath =
+                        Settings.OverrideServiceDeploymentLocation ??
+                        (DeploymentDirectory.Path / manifest.Tool.ServiceId / $"{DateTime.Now.ToReadableString()}_{manifest.ContentId}").Path;
+
+                    if (_currentRun != null && Settings.OverrideServiceDeploymentLocation != null)
+                    {
+                        // Stop the currently active run
+                        await _currentRun.ShutdownAsync(context).IgnoreFailure();
+                        _currentRun = null;
+                    }
+
+                    var directory = new DisposableDirectory(FileSystem, new AbsolutePath(deploymentTargetDirectoryPath));
                     var deployedTool = new DeployedTool(this, manifest, directory, Store.CreatePinContext());
 
                     var pinResults = await Store.PinAsync(context, hashes, pinContext: deployedTool.PinRequest.PinContext, options: null);
-
-                    PinnedHashes.Clear();
-                    foreach (var pinResult in pinResults)
-                    {
-                        if (pinResult.Item.Succeeded)
-                        {
-                            PinnedHashes.Add(hashes[pinResult.Index]);
-                        }
-                    }
 
                     var result = await DownloadAndDeployAsync(context, client, deployedTool);
                     if (!result)
@@ -226,6 +239,7 @@ namespace BuildXL.Cache.Host.Service
                     {
                         // Stop the currently active run
                         await _currentRun.ShutdownAsync(context).IgnoreFailure();
+                        _currentRun = null;
                     }
 
                     // Start up the tool
@@ -243,12 +257,13 @@ namespace BuildXL.Cache.Host.Service
                 });
         }
 
-        private Task<Result<LauncherManifest>> GetLaunchManifestAsync(OperationContext context, IDeploymentServiceClient client)
+        private Task<Result<LauncherManifest>> GetLaunchManifestAsync(OperationContext context, IDeploymentServiceClient client, bool getContentIdOnly)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
                 // Set the trace id
                 Settings.DeploymentParameters.ContextId = context.TracingContext.Id;
+                Settings.DeploymentParameters.GetContentIdOnly = getContentIdOnly;
 
                 // Query for launcher manifest from remote service
                 var manifest = await client.GetLaunchManifestAsync(context, Settings);
@@ -263,7 +278,7 @@ namespace BuildXL.Cache.Host.Service
         {
             var manifest = deploymentInfo.Manifest;
 
-            return context.PerformOperationAsync<BoolResult>(Tracer, async () =>
+            return context.PerformOperationWithTimeoutAsync<BoolResult>(Tracer, async context =>
             {
                 // Stores files into CAS and populate file specs with hash and size info
                 var results = await DownloadQueue.SelectAsync(manifest.Deployment.GroupBy(kvp => kvp.Value.Hash), (filesByHash, index) =>
@@ -272,6 +287,8 @@ namespace BuildXL.Cache.Host.Service
                     var file = filesByHash.First().Key;
                     var count = filesByHash.Count();
 
+                    context.Token.ThrowIfCancellationRequested();
+
                     return context.PerformOperationAsync(
                         Tracer,
                         async () =>
@@ -279,7 +296,7 @@ namespace BuildXL.Cache.Host.Service
                             var hash = new ContentHash(filesByHash.Key);
 
                             // Hash is not pinned. Need to download into cache
-                            if (!PinnedHashes.Contains(hash))
+                            if (!deploymentInfo.PinRequest.PinContext.Contains(hash))
                             {
                                 // Download the file matching the hash
                                 await DownloadFileAsync(context, client, fileInfo, deploymentInfo, file);

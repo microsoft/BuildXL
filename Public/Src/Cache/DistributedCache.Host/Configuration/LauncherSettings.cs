@@ -38,6 +38,11 @@ namespace BuildXL.Cache.Host.Configuration
         public string TargetDirectory { get; set; }
 
         /// <summary>
+        /// Forces all downloads of deployments to be deployed to the given location
+        /// </summary>
+        public string OverrideServiceDeploymentLocation { get; set; }
+
+        /// <summary>
         /// The size of retained content in download cache
         /// </summary>
         public int RetentionSizeGb { get; set; }
@@ -52,5 +57,21 @@ namespace BuildXL.Cache.Host.Configuration
         /// to requiring an explicit call to RunAsync.
         /// </summary>
         public bool RunInBackgroundOnStartup { get; set; } = true;
+
+        /// <summary>
+        /// Indicates whether a job object is created with terminate on close to prevent orphaned child processes.
+        /// TODO: Non-windows platforms?
+        /// </summary>
+        public bool CreateJobObject { get; set; } = true;
+
+        /// <summary>
+        /// Indicates how long deployment should allow for downloads and placement before timing out the entire operation
+        /// </summary>
+        public TimeSpan DeployTimeout { get; set; } = TimeSpan.FromMinutes(3);
+
+        /// <summary>
+        /// The service id used for service lifetime of the launcher
+        /// </summary>
+        public string LauncherServiceId { get; set; } = "Launcher";
     }
 }

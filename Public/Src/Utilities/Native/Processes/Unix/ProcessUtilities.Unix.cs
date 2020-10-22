@@ -159,7 +159,7 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public bool OSSupportsNestedJobs() => true;
+        public bool OSSupportsNestedJobs() => false;
 
         /// <inheritdoc />
         public void AttachContainerToJobObject(

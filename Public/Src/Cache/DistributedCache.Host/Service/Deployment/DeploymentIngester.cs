@@ -393,7 +393,11 @@ namespace BuildXL.Cache.Host.Service
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var result = await Store.PutFileAsync(context, file.fullPath, FileRealizationMode.Copy, HashType.MD5, PinRequest).ThrowIfFailure();
+                // Hash file before put to prevent copying file in common case where it is already in the cache
+                var hashResult = await Store.TryHashFileAsync(context, file.fullPath, HashType.MD5);
+                Contract.Check(hashResult != null)?.Assert($"Missing file '{file.fullPath}'");
+
+                var result = await Store.PutFileAsync(context, file.fullPath, FileRealizationMode.Copy, hashResult.Value.Hash, PinRequest).ThrowIfFailure();
 
                 var spec = drop.Files[index];
                 spec.Hash = result.ContentHash;

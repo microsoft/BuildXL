@@ -40,6 +40,8 @@ namespace BuildXL.Launcher.Server
     {
         private Tracer Tracer { get; } = new Tracer(nameof(DeploymentService));
 
+        private DeploymentServiceConfiguration Configuration { get; }
+
         /// <summary>
         /// The root of the mounted deployment folder created by the <see cref="DeploymentIngester"/>
         /// </summary>
@@ -94,8 +96,9 @@ namespace BuildXL.Launcher.Server
         public Func<(string storageSecretName, AzureBlobStorageCredentials credentials), CentralStorage> OverrideCreateCentralStorage { get; set; }
 
         /// <nodoc />
-        public DeploymentService(AbsolutePath deploymentRoot, Func<string, ISecretsProvider> secretsProviderFactory, IClock clock, int uploadConcurrency = 1)
+        public DeploymentService(DeploymentServiceConfiguration configuration, AbsolutePath deploymentRoot, Func<string, ISecretsProvider> secretsProviderFactory, IClock clock, int uploadConcurrency = 1)
         {
+            Configuration = configuration;
             DeploymentRoot = deploymentRoot;
             Clock = clock;
             SecretsProviderFactory = secretsProviderFactory;
@@ -121,14 +124,17 @@ namespace BuildXL.Launcher.Server
                 Tracer,
                 async () =>
                 {
+                    context.TraceDebug("IsAuthorizedAsync: Reading deployment configuration");
                     var deployConfig = ReadDeploymentConfiguration(parameters, out var deploymentManifest, out var contentId);
                     if (!deployConfig.AuthorizationSecretNames.Contains(parameters.AuthorizationSecretName))
                     {
                         throw new UnauthorizedAccessException($"Secret names do not match: Expected='{string.Join(", ", deployConfig.AuthorizationSecretNames)}' Actual='{parameters.AuthorizationSecretName}'");
                     }
 
-                    var secretsProvider = GetSecretsProvider(deployConfig.KeyVaultUri);
+                    context.TraceDebug("IsAuthorizedAsync: Loading secrets provider");
+                    var secretsProvider = await GetSecretsProviderAsync(context, deployConfig.KeyVaultUri);
 
+                    context.TraceDebug("IsAuthorizedAsync: Getting secret");
                     var secret = await GetSecretAsync(context, secretsProvider, new SecretConfiguration()
                     {
                         Name = parameters.AuthorizationSecretName,
@@ -136,6 +142,7 @@ namespace BuildXL.Launcher.Server
                         Kind = SecretKind.PlainText
                     });
 
+                    context.TraceDebug("IsAuthorizedAsync: Comparing secret");
                     if (secret != parameters.AuthorizationSecret)
                     {
                         throw new UnauthorizedAccessException($"Secret values do not match for secret name: '{parameters.AuthorizationSecretName}'");
@@ -149,15 +156,19 @@ namespace BuildXL.Launcher.Server
             return result.Succeeded;
         }
 
-        private ISecretsProvider GetSecretsProvider(string keyVaultUri)
+        private Task<ISecretsProvider> GetSecretsProviderAsync(OperationContext context, string keyVaultUri)
         {
             AsyncLazy<ISecretsProvider> lazySecretsProvider = GetOrAddExpirableAsyncLazy<string, ISecretsProvider>(
                 SecretsProvidersByUri,
                 keyVaultUri,
                 TimeSpan.FromHours(2),
-                () => Task.FromResult(SecretsProviderFactory?.Invoke(keyVaultUri)));
+                () => context.PerformOperationAsync(
+                    Tracer,
+                    () => Task.FromResult(Result.Success(SecretsProviderFactory.Invoke(keyVaultUri))),
+                    extraStartMessage: keyVaultUri,
+                    extraEndMessage: r => keyVaultUri).ThrowIfFailureAsync());
 
-            return lazySecretsProvider.Value;
+            return lazySecretsProvider.GetValueAsync();
         }
 
         /// <summary>
@@ -182,7 +193,7 @@ namespace BuildXL.Launcher.Server
                     resultManifest.Tool = deployConfig.Tool;
                     resultManifest.Drops = deployConfig.Drops;
 
-                    var secretsProvider = GetSecretsProvider(deployConfig.KeyVaultUri);
+                    var secretsProvider = await GetSecretsProviderAsync(context, deployConfig.KeyVaultUri);
 
                     if (deployConfig.Tool?.SecretEnvironmentVariables != null)
                     {
@@ -212,7 +223,7 @@ namespace BuildXL.Launcher.Server
 
                     var storage = await LoadStorageAsync(context, secretsProvider, deployConfig.AzureStorageSecretInfo);
 
-                    var proxyBaseAddress = GetProxyBaseAddress(context, () => deployConfig, parameters);
+                    var proxyBaseAddress = GetProxyBaseAddress(context, () => (deployConfig, deploymentManifest), parameters);
                     
                     var filesAndTargetPaths = deployConfig.Drops
                         .Where(drop => drop.Url != null)
@@ -231,6 +242,8 @@ namespace BuildXL.Launcher.Server
 
                     foreach ((var fileSpec, var targetPath) in filesAndTargetPaths)
                     {
+                        resultManifest.Deployment[targetPath] = fileSpec;
+
                         // Queue file for deployment
                         uploadTasks.Add(ensureUploadedAndGetEntry());
 
@@ -251,6 +264,11 @@ namespace BuildXL.Launcher.Server
                             });
                         }
                     }
+
+                    var deploymentContentId = ComputeContentId(JsonSerialize(resultManifest.Deployment));
+
+                    // NOTE: We append the content id so that we can distinguish purely secrets changes in logging
+                    resultManifest.ContentId += $"_{deploymentContentId}";
 
                     var uploadCompletion = Task.WhenAll(uploadTasks);
                     if (waitForCompletion)
@@ -290,19 +308,22 @@ namespace BuildXL.Launcher.Server
         {
             return GetProxyBaseAddress(
                 context,
-                () => ReadDeploymentConfiguration(parameters, out _, out _),
+                () => (ReadDeploymentConfiguration(parameters, out var manifest, out _), manifest),
                 parameters,
                 // Return service url to route content requests to this service if this is a seed machine
                 getDefaultBaseAddress: config => config.Proxy.ServiceConfiguration.DeploymentServiceUrl);
         }
 
-        private string GetProxyBaseAddress(OperationContext context, Func<DeploymentConfiguration> getConfiguration, HostParameters parameters, Func<DeploymentConfiguration, string> getDefaultBaseAddress = null)
+        private string GetProxyBaseAddress(OperationContext context, Func<(DeploymentConfiguration configuration, DeploymentManifest manifest)> getConfiguration, HostParameters parameters, Func<DeploymentConfiguration, string> getDefaultBaseAddress = null)
         {
             return context.PerformOperation(
                 Tracer,
                 () =>
                 {
-                    var configuration = getConfiguration();
+                    var (configuration, manifest) = getConfiguration();
+
+                    // Invalidate proxy on any changes to deployment configuration
+                    var contentId = manifest.GetDeploymentConfigurationSpec().Hash;
                     if (configuration.Proxy == null)
                     {
                         return new Result<string>(null, isNullAllowed: true);
@@ -310,11 +331,11 @@ namespace BuildXL.Launcher.Server
 
                     var proxyManager = GetOrAddExpirableLazy(
                         ProxyManagers,
-                        parameters.Stamp + configuration.Proxy.Domain,
+                        parameters.Stamp + configuration.Proxy.Domain + contentId,
                         configuration.Proxy.ServiceConfiguration.ProxyAddressTimeToLive,
                         () => new ProxyManager(configuration));
 
-                    return new Result<string>(proxyManager.GetBaseAddress(parameters) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
+                    return new Result<string>(proxyManager.GetBaseAddress(parameters, configuration.Proxy.OverrideProxyHost) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
                 },
                 messageFactory: r => $"BaseAddress={r.GetValueOrDefault()}").Value;
         }
@@ -478,7 +499,7 @@ namespace BuildXL.Launcher.Server
 
             var config = JsonSerializer.Deserialize<DeploymentConfiguration>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
 
-            CachedDeploymentInfo.TryAdd(UnitValue.Unit, cachedValue, TimeSpan.FromMinutes(5));
+            CachedDeploymentInfo.TryAdd(UnitValue.Unit, cachedValue, TimeSpan.FromMinutes(1));
 
             manifest = cachedValue.manifest;
 
@@ -487,7 +508,7 @@ namespace BuildXL.Launcher.Server
 
         private static string ComputeContentId(string value)
         {
-            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex().Substring(0, 16);
+            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex().Substring(0, 8);
         }
 
         private AsyncLazy<TValue> GetOrAddExpirableAsyncLazy<TKey, TValue>(
@@ -532,23 +553,29 @@ namespace BuildXL.Launcher.Server
                 _configuration = configuration;
             }
 
-            public string GetBaseAddress(HostParameters parameters)
+            public string GetBaseAddress(HostParameters parameters, string overrideHost)
             {
-                var result = _machines.GetOrAdd(parameters.Machine);
-                var index = result.Index;
-                if (index < _configuration.Proxy.Seeds)
+                var host = overrideHost;
+                if (host == null)
                 {
-                    // Seed machines do not use proxy. Instead they use the real storage SAS url
-                    return null;
+                    var result = _machines.GetOrAdd(parameters.Machine);
+                    var machineIndex = result.Index;
+                    if (machineIndex < _configuration.Proxy.Seeds)
+                    {
+                        // Seed machines do not use proxy. Instead they use the real storage SAS url
+                        return null;
+                    }
+
+                    int minProxyMachineIndexInclusive = machineIndex / _configuration.Proxy.FanOutFactor;
+                    int maxProxyMachineIndexExclusive = Math.Min(machineIndex, minProxyMachineIndexInclusive + _configuration.Proxy.FanOutFactor);
+
+                    int proxyMachineIndex = ThreadSafeRandom.Generator.Next(minProxyMachineIndexInclusive, maxProxyMachineIndexExclusive);
+                    host = _machines[proxyMachineIndex];
                 }
 
-                int minProxyMachineIndexInclusive = index / _configuration.Proxy.FanOutFactor;
-                int maxProxyMachineIndexExclusive = Math.Min(index, minProxyMachineIndexInclusive + _configuration.Proxy.FanOutFactor);
-
-                int proxyMachineIndex = ThreadSafeRandom.Generator.Next(minProxyMachineIndexInclusive, maxProxyMachineIndexExclusive);
                 return new UriBuilder()
                 {
-                    Host = _machines[proxyMachineIndex],
+                    Host = host,
                     Port = _configuration.Proxy.ServiceConfiguration.Port
                 }.Uri.ToString();
             }

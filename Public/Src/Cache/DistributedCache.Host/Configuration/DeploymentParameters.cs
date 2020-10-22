@@ -74,5 +74,6 @@ namespace BuildXL.Cache.Host.Configuration
         public string AuthorizationSecretName { get; set; }
         public string AuthorizationSecret { get; set; }
         public bool GetContentInfoOnly { get; set; }
+        public bool GetContentIdOnly { get; set; }
     }
 }

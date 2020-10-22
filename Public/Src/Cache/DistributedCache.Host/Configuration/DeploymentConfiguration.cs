@@ -188,6 +188,11 @@ namespace BuildXL.Cache.Host.Configuration
         public int FanOutFactor { get; set; } = 10;
 
         /// <summary>
+        /// Overrides the normal proxy behavior and forces the machine to use the corresponding machine as its proxy
+        /// </summary>
+        public string OverrideProxyHost { get; set; }
+
+        /// <summary>
         /// Configuration for proxy service on machine
         /// </summary>
         public ProxyServiceConfiguration ServiceConfiguration { get; set; }

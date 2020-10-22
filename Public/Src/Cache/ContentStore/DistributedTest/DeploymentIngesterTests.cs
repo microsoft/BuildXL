@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             }
 
             var clock = new MemoryClock();
-            var deploymentService = new DeploymentService(deploymentRoot, _ => new TestSecretsProvider(), clock);
+            var deploymentService = new DeploymentService(new DeploymentServiceConfiguration(), deploymentRoot, _ => new TestSecretsProvider(), clock);
 
             BoxRef<Task> uploadFileCompletion = Task.CompletedTask;
 

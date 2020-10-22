@@ -20,13 +20,10 @@ namespace BuildXL.Cache.Host.Service
     ///     created on the side of whoever is using the cache, and will be processed by the cache to build all of the
     ///     required objects.
     /// </remarks>
-    public class DistributedCacheServiceArguments
+    public class DistributedCacheServiceArguments : LoggerFactoryArguments
     {
         /// <nodoc />
         public DistributedCacheServiceHostOverrides Overrides { get; set; } = DistributedCacheServiceHostOverrides.Default;
-
-        /// <nodoc />
-        public ILogger Logger { get; internal set; }
 
         /// <summary>
         ///     When this functor is present, and assuming the cache replaces the host's logger with its own, it is
@@ -66,9 +63,6 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public string Keyspace { get; }
 
-        /// <nodoc />
-        public ITelemetryFieldsProvider TelemetryFieldsProvider { get; set; }
-
         /// <inheritdoc />
         public DistributedCacheServiceArguments(
             ILogger logger,
@@ -81,6 +75,7 @@ namespace BuildXL.Cache.Host.Service
             DistributedCacheServiceConfiguration configuration,
             string keyspace,
             IAbsFileSystem fileSystem = null)
+            : base(logger, host, configuration.LoggingSettings)
         {
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(host);

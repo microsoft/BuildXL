@@ -11,7 +11,7 @@ namespace LauncherServer {
 
     @@public
     export const exe = BuildXLSdk.executable({
-        assemblyName: "DepSvc",
+        assemblyName: "CacheService",
         skipDocumentationGeneration: true,
         deployRuntimeConfigFile: true,
        // We filter out obj and bin folders since we sometimes still develop with an msbuild file for F5 debugging of aspnet apps which is not yet available in BuildXL's IDE integraiotn.

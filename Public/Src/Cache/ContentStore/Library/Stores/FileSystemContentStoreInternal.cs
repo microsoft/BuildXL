@@ -237,7 +237,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream>? wrapStream = null)
+        /// <summary>
+        /// Attempts to hash the given file and returns null if file does not exist
+        /// </summary>
+        public async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream>? wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
             using var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);

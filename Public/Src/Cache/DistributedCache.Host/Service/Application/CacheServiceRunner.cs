@@ -88,35 +88,5 @@ namespace BuildXL.Cache.Host.Service
                 throw;
             }
         }
-
-        private class HostTelemetryFieldsProvider : ITelemetryFieldsProvider
-        {
-            private readonly HostParameters _hostParmeters;
-
-            public string BuildId => "Unknown";
-
-            public string ServiceName { get; } = "CacheService";
-
-            public string APEnvironment => "Unknown";
-
-            public string APCluster => "None";
-
-            public string APMachineFunction => _hostParmeters.MachineFunction;
-
-            public string MachineName => Environment.MachineName;
-
-            public string ServiceVersion => "None";
-
-            public string Stamp => _hostParmeters.Stamp;
-
-            public string Ring => _hostParmeters.Ring;
-
-            public string ConfigurationId { get; set; } = "None";
-
-            public HostTelemetryFieldsProvider(HostParameters hostParameters)
-            {
-                _hostParmeters = hostParameters;
-            }
-        }
     }
 }

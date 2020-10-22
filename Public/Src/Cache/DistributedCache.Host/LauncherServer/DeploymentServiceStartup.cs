@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server.Controllers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -33,19 +37,35 @@ namespace BuildXL.Launcher.Server
         {
             base.ConfigureServices(services);
 
+            var configurationFile = Configuration["ConfigurationPath"];
+            var configJson = File.ReadAllText(configurationFile);
+
+            var configuration = JsonSerializer.Deserialize<DeploymentServiceConfiguration>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);
+
+            var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
+            var arguments = new LoggerFactoryArguments(new Logger(consoleLog), new EnvironmentVariableHost(), configuration.LoggingSettings)
+            {
+                TelemetryFieldsProvider = new HostTelemetryFieldsProvider(HostParameters.FromEnvironment())
+            };
+
             var deploymentService = new DeploymentService(
+                configuration: configuration,
                 deploymentRoot: new AbsolutePath(Configuration["DeploymentRoot"]),
                 secretsProviderFactory: keyVaultUri => new KeyVaultSecretsProvider(keyVaultUri),
                 clock: SystemClock.Instance,
                 uploadConcurrency: Environment.ProcessorCount);
 
-            var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
-            var logger = new Logger(consoleLog);
-
             services.AddSingleton(deploymentService);
-            services.AddSingleton<ILogger>(logger);
-
-            // TODO: Dispose loggers? Does service collection already handle this?
+            services.AddSingleton<ILogger>(sp =>
+            {
+                var lifetime = sp.GetRequiredService<IHostApplicationLifetime>();
+                var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);
+                lifetime.ApplicationStopped.Register(() =>
+                {
+                    replacementLogger.DisposableToken?.Dispose();
+                });
+                return replacementLogger.Logger;
+            });
         }
     }
 }

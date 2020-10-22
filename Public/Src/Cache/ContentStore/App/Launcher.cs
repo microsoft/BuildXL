@@ -40,7 +40,8 @@ namespace BuildXL.Cache.ContentStore.App
         internal void Launcher
             (
             [Required, Description("Path to LauncherSettings file")] string settingsPath,
-            [DefaultValue(false)] bool debug
+            [DefaultValue(false)] bool debug,
+            [DefaultValue(false)] bool shutdown = false
             )
         {
             Initialize();
@@ -56,25 +57,49 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var configJson = File.ReadAllText(settingsPath);
 
-                var settings = JsonSerializer.Deserialize<LauncherSettings>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);
+                var settings = JsonSerializer.Deserialize<LauncherApplicationSettings>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);
+
+                var launcher = new DeploymentLauncher(settings, _fileSystem);
 
                 runAsync().GetAwaiter().GetResult();
-
                 async Task runAsync()
                 {
-                    var launcher = new DeploymentLauncher(settings, _fileSystem);
-                    var token = _cancellationToken;
-                    var context = new OperationContext(new Context(_logger), token);
-
-                    try
+                    if (shutdown)
                     {
-                        await launcher.StartupAsync(context).ThrowIfFailureAsync();
-                        var task = token.WaitForCancellationAsync();
-                        await task;
+                        var context = new OperationContext(new Context(_logger), _cancellationToken);
+                        await launcher.LifetimeManager.ShutdownServiceAsync(context, settings.LauncherServiceId);
+                        return;
                     }
-                    finally
+
+                    var host = new EnvironmentVariableHost();
+                    settings.DeploymentParameters.AuthorizationSecret ??= await host.GetPlainSecretAsync(settings.DeploymentParameters.AuthorizationSecretName, _cancellationToken);
+
+                    var arguments = new LoggerFactoryArguments(_logger, host, settings.LoggingSettings)
                     {
-                        await launcher.ShutdownAsync(context).ThrowIfFailureAsync();
+                        TelemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)
+                    };
+
+                    var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);
+                    using (replacementLogger.DisposableToken)
+                    {
+                        var token = _cancellationToken;
+                        var context = new OperationContext(new Context(replacementLogger.Logger), token);
+
+                        await launcher.LifetimeManager.RunInterruptableServiceAsync(context, settings.LauncherServiceId, async token =>
+                        {
+                            try
+                            {
+                                await launcher.StartupAsync(context).ThrowIfFailureAsync();
+                                var task = token.WaitForCancellationAsync();
+                                await task;
+                            }
+                            finally
+                            {
+                                await launcher.ShutdownAsync(context).ThrowIfFailureAsync();
+                            }
+
+                            return true;
+                        });
                     }
                 }
             }

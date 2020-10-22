@@ -1977,6 +1977,7 @@ namespace BuildXL.Scheduler
             }
 
             m_chooseWorkerCpu?.LogStats(statistics);
+            ExecutionSampler.GetLimitingResourcePercentages().AddToStats(statistics);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 

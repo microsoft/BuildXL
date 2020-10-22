@@ -64,7 +64,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         [Fact]
         public async Task CheckpointSizeTestAsync()
         {
-            Debugger.Launch();
             (var mockKusto, var baseConfiguration) = await CreateClientAndConfigAsync();
             var configuration = new CheckpointSizeRule.Configuration(baseConfiguration);
             var rule = new CheckpointSizeRule(configuration);

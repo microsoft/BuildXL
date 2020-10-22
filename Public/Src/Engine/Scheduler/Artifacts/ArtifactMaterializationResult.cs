@@ -5,7 +5,7 @@ namespace BuildXL.Scheduler.Artifacts
 {
     /// <summary>
     /// Possible results of materializing files through 
-    /// <see cref="FileContentManager.TryMaterializeArtifactsCore(PipInfo, OperationContext, FileContentManager.PipArtifactsState, bool, bool)"/>.
+    /// <see cref="FileContentManager.TryMaterializeArtifactsCore(PipInfo, OperationContext, FileContentManager.PipArtifactsState, bool, bool, bool)"/>.
     /// </summary>
     public enum ArtifactMaterializationResult
     {
@@ -40,7 +40,7 @@ namespace BuildXL.Scheduler.Artifacts
         PlaceFileFailed = 5,
 
         /// <summary>
-        /// Placing the file from cache failed due to exisiting file deletion failure.
+        /// Placing the file from cache failed due to existing file deletion failure.
         /// </summary>
         PlaceFileFailedDueToDeletionFailure = 6,
     }

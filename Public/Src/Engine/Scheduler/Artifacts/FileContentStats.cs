@@ -98,6 +98,11 @@ namespace BuildXL.Scheduler
         public long TotalMaterializedOutputsSize;
 
         /// <summary>
+        /// The total size of outputs materialized for the API Server.
+        /// </summary>
+        public long TotalApiServerMaterializedOutputsSize;
+
+        /// <summary>
         /// The total count of materialized inputs.
         /// </summary>
         public long TotalMaterializedInputsCount;
@@ -106,6 +111,11 @@ namespace BuildXL.Scheduler
         /// The total count of materialized outputs.
         /// </summary>
         public long TotalMaterializedOutputsCount;
+
+        /// <summary>
+        /// The total count of outputs materialized for the API Server.
+        /// </summary>
+        public long TotalApiServerMaterializedOutputsCount;
 
         /// <summary>
         /// The total count of expensive materialized input operations.

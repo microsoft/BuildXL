@@ -3444,7 +3444,8 @@ namespace BuildXL.Scheduler
                     operationContext: operationContext,
                     filesToMaterialize: filesToMaterialize,
                     materializatingOutputs: true,
-                    isDeclaredProducer: pip.GetOutputs().Contains(file));
+                    isDeclaredProducer: pip.GetOutputs().Contains(file),
+                    isApiServerRequest: false);
 
             if (result != ArtifactMaterializationResult.Succeeded)
             {

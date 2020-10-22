@@ -486,7 +486,7 @@ namespace BuildXL.Scheduler.Artifacts
                 PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true);
 
                 // Materialize inputs
-                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: false, isDeclaredProducer: false);
+                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: false, isDeclaredProducer: false, isApiServerRequest: false);
                 Contract.Assert(result != ArtifactMaterializationResult.None);
 
                 switch (result)
@@ -572,7 +572,7 @@ namespace BuildXL.Scheduler.Artifacts
                 RegisterDirectoryContents(state.PipArtifacts);
 
                 // Materialize outputs
-                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: true, isDeclaredProducer: true);
+                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: true, isDeclaredProducer: true, isApiServerRequest: false);
                 if (result != ArtifactMaterializationResult.Succeeded)
                 {
                     return state.GetFailure();
@@ -1082,14 +1082,17 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Attempts to materialize the given file
+        /// Attempts to materialize the given file.
         /// </summary>
+        /// <remarks>
+        /// Note: this method is only used by the API Server.
+        /// </remarks>
         public async Task<ArtifactMaterializationResult> TryMaterializeFileAsync(FileArtifact outputFile)
         {
             var producer = GetDeclaredProducer(outputFile);
             using (var operationContext = OperationTracker.StartOperation(PipExecutorCounter.FileContentManagerTryMaterializeFileDuration, m_host.LoggingContext))
             {
-                return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
+                return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true, isApiServerRequest: true);
             }
         }
 
@@ -1099,6 +1102,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <remarks>
         /// NOTE: this only works for sealed files (i.e., files where path->artifact mapping is known to FileContentManager).
         /// If FileArtifact value cannot be inferred, the call will fail (even if the path already exists).
+        /// This method is only used by the API Server.
         /// </remarks>
         public async Task<ArtifactMaterializationResult> TryMaterializeSealedFileAsync(AbsolutePath outputFilePath)
         {
@@ -1120,7 +1124,8 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             IEnumerable<FileArtifact> filesToMaterialize,
             bool materializatingOutputs,
-            bool isDeclaredProducer)
+            bool isDeclaredProducer,
+            bool isApiServerRequest)
         {
             Contract.Requires(requestingPip != null);
 
@@ -1138,7 +1143,8 @@ namespace BuildXL.Scheduler.Artifacts
                                     operationContext,
                                     state,
                                     materializatingOutputs: materializatingOutputs,
-                                    isDeclaredProducer: isDeclaredProducer);
+                                    isDeclaredProducer: isDeclaredProducer,
+                                    isApiServerRequest: isApiServerRequest);
             }
         }
 
@@ -1556,7 +1562,8 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             PipArtifactsState state,
             bool materializatingOutputs,
-            bool isDeclaredProducer)
+            bool isDeclaredProducer,
+            bool isApiServerRequest)
         {
             // If materializing outputs, all files come from the same pip and therefore have the same
             // policy for whether they are readonly
@@ -1565,6 +1572,7 @@ namespace BuildXL.Scheduler.Artifacts
             state.PipInfo = pipInfo;
             state.MaterializingOutputs = materializatingOutputs;
             state.IsDeclaredProducer = isDeclaredProducer;
+            state.IsApiServerRequest = isApiServerRequest;
 
             // Get the files which need to be materialized
             // We reserve completion of directory deletions and file materialization so only a single deleter/materializer of a
@@ -2116,7 +2124,7 @@ namespace BuildXL.Scheduler.Artifacts
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
             using (await m_materializationSemaphore.AcquireAsync())
             {  
-                // Quickily fail pending placements when cancellation is requested
+                // Quickly fail pending placements when cancellation is requested
                 if (Context.CancellationToken.IsCancellationRequested)
                 {
                     var possiblyPlaced = new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure());
@@ -2206,8 +2214,19 @@ namespace BuildXL.Scheduler.Artifacts
 
                                 if (state.MaterializingOutputs)
                                 {
-                                    Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
-                                    Interlocked.Increment(ref m_stats.TotalMaterializedOutputsCount);
+                                    // Count output materialization requested by API Server (i.e., an external call to the MaterializeFile API)
+                                    // separately from output materialization done by the engine.
+                                    if (state.IsApiServerRequest)
+                                    {
+                                        Interlocked.Add(ref m_stats.TotalApiServerMaterializedOutputsSize, materializationInfo.Length);
+                                        Interlocked.Increment(ref m_stats.TotalApiServerMaterializedOutputsCount);
+                                    }
+                                    else
+                                    {
+                                        Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
+                                        Interlocked.Increment(ref m_stats.TotalMaterializedOutputsCount);
+                                    }
+
                                     if (longOperation)
                                     {
                                         Interlocked.Increment(ref m_stats.TotalMaterializedOutputsExpensiveCount);
@@ -3772,6 +3791,11 @@ namespace BuildXL.Scheduler.Artifacts
             /// Indicates pip is the declared producer for the materialized files
             /// </summary>
             public bool IsDeclaredProducer { get; set; }
+
+            /// <summary>
+            /// Indicates whether the operation is triggered by an API Server
+            /// </summary>
+            public bool IsApiServerRequest { get; set; }
 
             /// <summary>
             /// The overall output origin result for materializing outputs

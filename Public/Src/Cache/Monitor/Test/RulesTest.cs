@@ -171,9 +171,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             });
 
             await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(3);
-            _notifier.Results[1].Severity.Should().Be(Severity.Warning);
-            _notifier.Results[2].Severity.Should().Be(Severity.Fatal);
+            _notifier.Results.Count.Should().Be(2);
+            _notifier.Results[0].Severity.Should().Be(Severity.Info);
+            _notifier.Results[1].Severity.Should().Be(Severity.Fatal);
         }
 
         [Fact]

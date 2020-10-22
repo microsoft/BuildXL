@@ -323,6 +323,7 @@ namespace BuildXL.Cache.Monitor.App
                 new OperationFailureCheckRule.Check()
                 {
                     Match = "StartupAsync",
+                    Constraint = "Component != 'GrpcCopyClient'",
                 },
                 new OperationFailureCheckRule.Check()
                 {

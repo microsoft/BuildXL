@@ -31,16 +31,16 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
             public Thresholds<int> MissingRestoreMachinesThresholds = new Thresholds<int>()
             {
-                Info = 1,
-                Warning = 5,
+                Info = 5,
+                Warning = 10,
                 Error = 20,
                 Fatal = 50,
             };
 
             public Thresholds<int> OldRestoreMachinesThresholds = new Thresholds<int>()
             {
-                Info = 1,
-                Warning = 5,
+                Info = 5,
+                Warning = 10,
                 Error = 20,
                 Fatal = 50,
             };

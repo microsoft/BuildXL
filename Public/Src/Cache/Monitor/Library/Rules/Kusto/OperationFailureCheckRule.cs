@@ -38,6 +38,15 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 Error = 5,
                 Fatal = 50,
             };
+
+            /// <summary>
+            /// Must be a valid KQL string that can be put right after a
+            /// 
+            ///  | where {string here}
+            ///
+            /// Certain descriptive statistics are provided. See the actual query for more information.
+            /// </summary>
+            public string Constraint { get; set; } = "true";
         }
 
         public class Configuration : MultiStampRuleConfiguration
@@ -87,6 +96,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     | where PreciseTimeStamp between (start .. end)
                     | where Operation == '{_configuration.Check.Match}' and isnotempty(Duration)
                     | where Result == '{Constants.ResultCode.Faiilure}' // Looking only at failures
+                    | where {_configuration.Check.Constraint}
                     | project PreciseTimeStamp, Machine, Message, CorrelationId, Stamp, Operation, Component
                     | parse Message with * 'result=[' Result:string '].' *
                     | parse Result with 'Error=[' * '] Diagnostics=[' Diagnostics:string ']'

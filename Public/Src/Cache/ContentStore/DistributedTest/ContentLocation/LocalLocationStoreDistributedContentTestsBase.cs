@@ -158,6 +158,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                IsRepairHandlingEnabled = true,
 
                                UseUnsafeByteStringConstruction = true,
+                               Unsafe_DisableDeprecatedConcurrentAccessLock = true,
 
                                SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 

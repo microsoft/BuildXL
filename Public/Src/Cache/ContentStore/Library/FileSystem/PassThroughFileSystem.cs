@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <summary>
         ///     Semaphore to throttle concurrent disk accesses.
         /// </summary>
-        private static readonly SemaphoreSlim ConcurrentAccess = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
+        public static SemaphoreSlim ConcurrentAccess = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
 
         /// <summary>
         ///     File size, over which FileOptions.SequentialScan is used to open files.

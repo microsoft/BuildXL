@@ -6014,12 +6014,17 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                fileChangeProcessor.TryProcessChanges(
+                ScanningJournalResult scanningJournalResult = fileChangeProcessor.TryProcessChanges(
                     m_configuration.Engine.ScanChangeJournalTimeLimitInSec < 0
                         ? (TimeSpan?)null
                         : TimeSpan.FromSeconds(m_configuration.Engine.ScanChangeJournalTimeLimitInSec),
                     Logger.Log.JournalProcessingStatisticsForScheduler,
                     Logger.Log.JournalProcessingStatisticsForSchedulerTelemetry);
+
+                if (m_testHooks != null)
+                {
+                    m_testHooks.ScanningJournalResult = scanningJournalResult;
+                }
 
                 if (m_shouldCreateIncrementalSchedulingState)
                 {

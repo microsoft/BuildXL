@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -410,6 +411,98 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderB);
 
             RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void OutputDirectoryNoChangeTracking()
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFileA = CreateOutputFileArtifact(outputDirectory, "fileA");
+            var outputFileB = CreateOutputFileArtifact(outputDirectory, "fileB");
+            var outputFileC = CreateOutputFileArtifact(outputDirectory, "fileC");
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.WriteFile(outputFileA, doNotInfer: true),
+                    Operation.WriteFile(outputFileB, doNotInfer: true),
+                    Operation.WriteFile(outputFileC, doNotInfer: true),
+                });
+            builder.AddOutputDirectory(outputDirectory);
+            var process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+            
+            var testHooks = new SchedulerTestHooks();
+            var result = RunScheduler(testHooks: testHooks);
+            
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(process.Process.PipId);
+
+                // This assertion ensures that journal processing does not detect possibility of membership change.
+                // If it detects so, then the jounral processing has to do extra enumeration to validate that possibility.
+                XAssert.AreEqual(
+                    0,
+                    testHooks.ScanningJournalResult.Stats.GetCounterValue(
+                        global::BuildXL.Storage.ChangeJournalService.Protocol.ReadJournalCounter.ExistentialChangesSuppressedAfterVerificationCount));
+            }
+            else
+            {
+                result.AssertCacheHit(process.Process.PipId);
+            }
+        }
+
+        [Fact]
+        public void OutputDirectoryWithMembershipChange()
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFileA = CreateOutputFileArtifact(outputDirectory, "fileA");
+            var outputFileB = CreateOutputFileArtifact(outputDirectory, "fileB");
+            var outputFileC = CreateOutputFileArtifact(outputDirectory, "fileC");
+            var sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(sourceFile),
+                    Operation.WriteFile(outputFileA, doNotInfer: true),
+                    Operation.WriteFile(outputFileB, doNotInfer: true),
+                    Operation.WriteFile(outputFileC, doNotInfer: true),
+                });
+            builder.AddOutputDirectory(outputDirectory);
+            var process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+
+            // Change membership of output directory by adding an extra file.
+            File.WriteAllText(outputDirectory.Combine(Context.PathTable, "fileD").ToString(Context.PathTable), "foo");
+
+            RunScheduler()
+                .AssertSuccess()
+                .AssertScheduled(process.Process.PipId)
+                .AssertCacheHit(process.Process.PipId);
+
+            var testHooks = new SchedulerTestHooks();
+            var result = RunScheduler(testHooks: testHooks);
+
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(process.Process.PipId);
+
+                // This assertion ensures that journal processing does not detect possibility of membership change.
+                // If it detects so, then the jounral processing has to do extra enumeration to validate that possibility.
+                XAssert.AreEqual(
+                    0,
+                    testHooks.ScanningJournalResult.Stats.GetCounterValue(
+                        global::BuildXL.Storage.ChangeJournalService.Protocol.ReadJournalCounter.ExistentialChangesSuppressedAfterVerificationCount));
+            }
+            else
+            {
+                result.AssertCacheHit(process.Process.PipId);
+            }
         }
 
         [Fact]

@@ -3,10 +3,10 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Threading;
 using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -64,5 +64,10 @@ namespace BuildXL.Scheduler
         /// Flag used to enable Pip Cancellation due to high memory on Mac
         /// </summary>
         public bool SimulateHighMemoryPressure { get; set; }
+
+        /// <summary>
+        /// Scanning journal result.
+        /// </summary>
+        public ScanningJournalResult ScanningJournalResult { get; set; }
     }
 }

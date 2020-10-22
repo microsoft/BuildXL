@@ -1264,7 +1264,19 @@ namespace BuildXL.Scheduler
         /// Number of times non-existent directory probes for paths under opaque directories
         /// re-classified as existing directory probes.
         /// </summary>
-        NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe
+        NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe,
+
+        /// <summary>
+        /// Time spent enumerating output directory when materializing outputs.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerEnumerateOutputDirectoryMaterializeOutputs,
+
+        /// <summary>
+        /// Time spent enumerating output directory when hashing artifacts.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerEnumerateOutputDirectoryHashArtifacts,
     }
 
     /// <summary>

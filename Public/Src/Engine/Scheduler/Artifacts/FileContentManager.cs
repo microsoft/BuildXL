@@ -433,11 +433,14 @@ namespace BuildXL.Scheduler.Artifacts
             bool allowUndeclaredSourceReads,
             Pip artifactsProducer)
         {
-            var maybeReported = EnumerateOutputDirectories(state, artifactsProducer, shouldReport: true);
-
-            if (!maybeReported.Succeeded)
+            using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerEnumerateOutputDirectoryHashArtifacts))
             {
-                return maybeReported.Failure;
+                var maybeReported = EnumerateAndTrackOutputDirectories(state, artifactsProducer, shouldReport: true);
+
+                if (!maybeReported.Succeeded)
+                {
+                    return maybeReported.Failure;
+                }
             }
 
             // Register the seal file contents of the directory dependencies
@@ -492,6 +495,13 @@ namespace BuildXL.Scheduler.Artifacts
                 switch (result)
                 {
                     case ArtifactMaterializationResult.Succeeded:
+                        // TODO:
+                        // There's an asymmetry here between materializing dependencies and materializing outputs.
+                        // In materializing outputs we enumerate and track output directories because we need to ensure
+                        // the incremental scheduling gets the latest version/fingerprints of the output directory.
+                        // Materializing dependencies are only applied to lazy materialization, and that mode
+                        // is incompatible with incremental scheduling. In the future, if we want to make lazy materialization
+                        // compatible with incremental scheduling, then we need to address this issue.
                         break;
                     case ArtifactMaterializationResult.PlaceFileFailed:
                         if (state.InnerFailure is CacheTimeoutFailure)
@@ -578,10 +588,17 @@ namespace BuildXL.Scheduler.Artifacts
                     return state.GetFailure();
                 }
 
-                var enumerateResult = EnumerateOutputDirectories(state, pip, shouldReport: false);
-                if (!enumerateResult.Succeeded)
+                using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerEnumerateOutputDirectoryMaterializeOutputs))
                 {
-                    return enumerateResult.Failure;
+                    var enumerateResult = EnumerateAndTrackOutputDirectories(
+                        state,
+                        pip,
+                        shouldReport: false /* RegisterDirectoryContents has reported the contents */);
+
+                    if (!enumerateResult.Succeeded)
+                    {
+                        return enumerateResult.Failure;
+                    }
                 }
 
                 if (hasExcludedOutput)
@@ -684,9 +701,9 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Enumerates dynamic output directory.
+        /// Enumerates and tracks dynamic output directory.
         /// </summary>
-        public Possible<Unit> EnumerateOutputDirectory(
+        public Possible<Unit> EnumerateAndTrackOutputDirectory(
             DirectoryArtifact directoryArtifact,
             OutputDirectoryEnumerationData enumerationData,
             Action<FileArtifact> handleFile,
@@ -1223,7 +1240,7 @@ namespace BuildXL.Scheduler.Artifacts
 
         // TODO: Consider calling this from TryHashDependencies. That would allow us to remove logic which requires
         // that direct seal directory dependencies are scheduled
-        private Possible<Unit> EnumerateOutputDirectories(PipArtifactsState state, Pip artifactsProducer, bool shouldReport)
+        private Possible<Unit> EnumerateAndTrackOutputDirectories(PipArtifactsState state, Pip artifactsProducer, bool shouldReport)
         {
             using (var outputDirectoryEnumerationDataWrapper = m_outputEnumerationDataPool.GetInstance())
             {
@@ -1269,7 +1286,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 outputDirectoryEnumerationDataInner.Process = process;
                             }
 
-                            var result = EnumerateOutputDirectory(directory, outputDirectoryEnumerationDataInner, shouldReport);
+                            var result = EnumerateAndTrackOutputDirectory(directory, outputDirectoryEnumerationDataInner, shouldReport);
                             if (!result.Succeeded)
                             {
                                 return result;
@@ -1282,7 +1299,7 @@ namespace BuildXL.Scheduler.Artifacts
             return Unit.Void;
         }
 
-        private Possible<Unit> EnumerateOutputDirectory(
+        private Possible<Unit> EnumerateAndTrackOutputDirectory(
             DirectoryArtifact directoryArtifact,
             OutputDirectoryEnumerationData outputDirectoryEnumerationData,
             bool shouldReport)
@@ -1293,12 +1310,11 @@ namespace BuildXL.Scheduler.Artifacts
             using (var poolFileList = Pools.GetFileArtifactList())
             {
                 var fileList = poolFileList.Instance;
-                fileList.Clear();
 
-                var result = EnumerateOutputDirectory(
+                var result = EnumerateAndTrackOutputDirectory(
                     directoryArtifact,
                     outputDirectoryEnumerationData,
-                    handleFile: file => fileList.Add(file),
+                    handleFile: shouldReport ? (file => fileList.Add(file)) : (Action<FileArtifact>)null,
                     handleDirectory: null);
 
                 if (!result.Succeeded)

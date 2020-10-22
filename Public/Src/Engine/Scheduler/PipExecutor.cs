@@ -4339,7 +4339,7 @@ namespace BuildXL.Scheduler
                     // For the case of an opaque directory, the content is determined by scanning the file system
                     if (!directoryArtifact.IsSharedOpaque)
                     {
-                        var enumerationResult = environment.State.FileContentManager.EnumerateOutputDirectory(
+                        var enumerationResult = environment.State.FileContentManager.EnumerateAndTrackOutputDirectory(
                             directoryArtifact,
                             outputDirectoryData,
                             handleFile: fileArtifact =>

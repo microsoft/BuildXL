@@ -855,9 +855,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () => GetBulkCoreAsync(context, requestingMachineId, contentHashes, origin),
                 traceOperationStarted: false,
-                extraEndMessage: r => $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]");
+                extraEndMessage: r => getExtraEndMessage(r));
 
             return result;
+
+            string getExtraEndMessage(GetBulkLocationsResult r)
+            {
+                // Print the resulting hashes with locations if succeeded, but still print the set of hashes to simplify diagnostics in case of a failure as well.
+                return r.Succeeded
+                    ? $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]"
+                    : $"GetBulk({origin}) => [{contentHashes.GetShortHashesTraceString()}]";
+            }
         }
 
         private Task<GetBulkLocationsResult> GetBulkCoreAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)

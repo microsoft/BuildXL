@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -79,10 +80,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         /// <nodoc />
         public static string GetShortHashesTraceString(this GetBulkLocationsResult result)
         {
-            if (!result)
-            {
-                return result.ToString();
-            }
+            Contract.Requires(result.Succeeded);
 
             return string.Join(", ", result.ContentHashesInfo.Select(info => $"{info.ContentHash.ToShortString()}={info.Locations?.Count ?? 0}"));
         }

@@ -4,10 +4,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -20,12 +20,13 @@ namespace ContentStoreTest.Service
     {
         private const string InterruptableServiceId = "Interruptable";
         private const string InterrupterServiceId = "Interrupter";
+        private static readonly TimeSpan LifetimeManagerPollInterval = TimeSpan.FromMilliseconds(1);
 
         public ServiceLifetimeManagerTests(ITestOutputHelper output)
             : base(TestGlobal.Logger, output)
         {
         }
-
+        
         [Fact]
         public async Task TestTriggerShutdown()
         {
@@ -48,6 +49,9 @@ namespace ContentStoreTest.Service
 
             await manager.ShutdownServiceAsync(context, InterruptableServiceId);
 
+            // It is possible that the manager shuts down before the service recognizes interruption.
+            // Waiting a few polling intervals to make sure the service stopped.
+            await Task.Delay(LifetimeManagerPollInterval.Multiply(50));
             interruptableServiceTask.IsCompleted.Should().BeTrue();
             var interruptableServiceResult = await interruptableServiceTask;
             interruptableServiceResult.Should().BeTrue("Service should be completed due to cancellation caused by trigger shutdown");
@@ -149,7 +153,7 @@ namespace ContentStoreTest.Service
             // Don't allow tests to run over 30 seconds
             var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             context = new OperationContext(new Context(Logger), cts.Token);
-            return new ServiceLifetimeManager(TestRootDirectoryPath, TimeSpan.FromMilliseconds(1));
+            return new ServiceLifetimeManager(TestRootDirectoryPath, pollingInterval: LifetimeManagerPollInterval);
         }
     }
 }

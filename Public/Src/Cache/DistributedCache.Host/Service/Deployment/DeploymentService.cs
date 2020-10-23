@@ -50,12 +50,7 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Cached expirable value for read deployment info
         /// </summary>
-        private VolatileMap<UnitValue, (DeploymentManifest manifest, string configJson)> CachedDeploymentInfo { get; }
-
-        /// <summary>
-        /// Cache of secrets for authorization
-        /// </summary>
-        private VolatileMap<string, string> AuthorizationSecretCache { get; }
+        private VolatileMap<string, Lazy<object>> CachedDeploymentInfo { get; }
 
         /// <summary>
         /// Map for getting expirable sas urls by storage account and hash 
@@ -106,7 +101,7 @@ namespace BuildXL.Launcher.Server
             SecretsProvidersByUri = new VolatileMap<string, AsyncLazy<ISecretsProvider>>(clock);
             SasUrls = new VolatileMap<(string storageName, string hash), AsyncLazy<DownloadInfo>>(clock);
             SasUrlsByToken = new VolatileMap<string, string>(clock);
-            CachedDeploymentInfo = new VolatileMap<UnitValue, (DeploymentManifest manifest, string configJson)>(clock);
+            CachedDeploymentInfo = new VolatileMap<string, Lazy<object>>(clock);
             CachedSecrets = new VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>>(clock);
             ProxyManagers = new VolatileMap<string, Lazy<ProxyManager>>(clock);
 
@@ -125,7 +120,7 @@ namespace BuildXL.Launcher.Server
                 async () =>
                 {
                     context.TraceDebug("IsAuthorizedAsync: Reading deployment configuration");
-                    var deployConfig = ReadDeploymentConfiguration(parameters, out var deploymentManifest, out var contentId);
+                    var deployConfig = ReadDeploymentConfiguration(parameters, out _, out var contentId);
                     if (!deployConfig.AuthorizationSecretNames.Contains(parameters.AuthorizationSecretName))
                     {
                         throw new UnauthorizedAccessException($"Secret names do not match: Expected='{string.Join(", ", deployConfig.AuthorizationSecretNames)}' Actual='{parameters.AuthorizationSecretName}'");
@@ -158,7 +153,7 @@ namespace BuildXL.Launcher.Server
 
         private Task<ISecretsProvider> GetSecretsProviderAsync(OperationContext context, string keyVaultUri)
         {
-            AsyncLazy<ISecretsProvider> lazySecretsProvider = GetOrAddExpirableAsyncLazy<string, ISecretsProvider>(
+           return GetOrAddExpirableAsync<string, ISecretsProvider>(
                 SecretsProvidersByUri,
                 keyVaultUri,
                 TimeSpan.FromHours(2),
@@ -167,8 +162,6 @@ namespace BuildXL.Launcher.Server
                     () => Task.FromResult(Result.Success(SecretsProviderFactory.Invoke(keyVaultUri))),
                     extraStartMessage: keyVaultUri,
                     extraEndMessage: r => keyVaultUri).ThrowIfFailureAsync());
-
-            return lazySecretsProvider.GetValueAsync();
         }
 
         /// <summary>
@@ -183,10 +176,12 @@ namespace BuildXL.Launcher.Server
                 Tracer,
                 async () =>
                 {
-                    var resultManifest = new LauncherManifest();
                     var deployConfig = ReadDeploymentConfiguration(parameters, out var deploymentManifest, out var contentId);
-
-                    resultManifest.ContentId = contentId;
+                    var resultManifest = new LauncherManifest()
+                    {
+                        ContentId = contentId,
+                        DeploymentManifestChangeId = deploymentManifest.ChangeId
+                    };
 
                     var uploadTasks = new List<Task<(string targetPath, FileSpec spec)>>();
 
@@ -215,7 +210,7 @@ namespace BuildXL.Launcher.Server
                             }
                         }
 
-                        var secretsContentId = ComputeContentId(JsonSerialize(resultManifest.Tool.EnvironmentVariables));
+                        var secretsContentId = ComputeShortContentId(JsonSerialize(resultManifest.Tool.EnvironmentVariables));
 
                         // NOTE: We append the content id so that we can distinguish purely secrets changes in logging
                         resultManifest.ContentId += $"_{secretsContentId}";
@@ -224,7 +219,7 @@ namespace BuildXL.Launcher.Server
                     var storage = await LoadStorageAsync(context, secretsProvider, deployConfig.AzureStorageSecretInfo);
 
                     var proxyBaseAddress = GetProxyBaseAddress(context, () => (deployConfig, deploymentManifest), parameters);
-                    
+
                     var filesAndTargetPaths = deployConfig.Drops
                         .Where(drop => drop.Url != null)
                         .SelectMany(drop => deploymentManifest.Drops[drop.Url]
@@ -265,7 +260,7 @@ namespace BuildXL.Launcher.Server
                         }
                     }
 
-                    var deploymentContentId = ComputeContentId(JsonSerialize(resultManifest.Deployment));
+                    var deploymentContentId = ComputeShortContentId(JsonSerialize(resultManifest.Deployment));
 
                     // NOTE: We append the content id so that we can distinguish purely secrets changes in logging
                     resultManifest.ContentId += $"_{deploymentContentId}";
@@ -342,7 +337,7 @@ namespace BuildXL.Launcher.Server
 
         private Task<string> GetSecretAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration secretInfo)
         {
-            AsyncLazy<string> lazySecret = GetOrAddExpirableAsyncLazy(
+            return GetOrAddExpirableAsync(
                 CachedSecrets,
                 (secretInfo.Name, secretInfo.Kind),
                 secretInfo.TimeToLive,
@@ -372,13 +367,11 @@ namespace BuildXL.Launcher.Server
                         },
                         extraEndMessage: r => $"Name={secretInfo.Name} TimeToLiveMinutes={secretInfo.TimeToLive}").ThrowIfFailureAsync();
                 });
-
-            return lazySecret.GetValueAsync();
         }
 
         private Task<CentralStorage> LoadStorageAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration storageSecretInfo)
         {
-            AsyncLazy<CentralStorage> lazyCentralStorage = GetOrAddExpirableAsyncLazy<string, CentralStorage>(
+            return GetOrAddExpirableAsync<string, CentralStorage>(
                 StorageAccountsBySecretName,
                 storageSecretInfo.Name,
                 storageSecretInfo.TimeToLive,
@@ -397,8 +390,6 @@ namespace BuildXL.Launcher.Server
 
                     return centralStorage;
                 });
-
-            return lazyCentralStorage.GetValueAsync();
         }
 
         /// <summary>
@@ -408,7 +399,7 @@ namespace BuildXL.Launcher.Server
         {
             var sasUrlTimeToLive = configuration.SasUrlTimeToLive;
             var key = (configuration.AzureStorageSecretInfo.Name, value.Hash);
-            AsyncLazy<DownloadInfo> lazySasUrl = GetOrAddExpirableAsyncLazy(
+            return GetOrAddExpirableAsync(
                 SasUrls,
                 key,
                 sasUrlTimeToLive,
@@ -450,8 +441,6 @@ namespace BuildXL.Launcher.Server
                         sasUrlTimeToLive.Multiply(1.5));
                     return downloadInfo;
                 });
-
-            return lazySasUrl.GetValueAsync();
         }
 
         /// <summary>
@@ -475,43 +464,60 @@ namespace BuildXL.Launcher.Server
         }
 
         /// <summary>
+        /// Reads the current manifest id for high-level change detection for deployment configuration
+        /// </summary>
+        public string ReadManifestChangeId()
+        {
+            var manifestId = GetOrAddExpirableValue(CachedDeploymentInfo, "MANIFEST_ID", TimeSpan.FromMinutes(1), () =>
+            {
+                return File.ReadAllText(DeploymentUtilities.GetDeploymentManifestIdPath(DeploymentRoot).Path);
+            });
+
+            return manifestId;
+        }
+
+        /// <summary>
         /// Gets the deployment configuration based on the manifest, preprocesses it, and returns the deserialized value
         /// </summary>
         private DeploymentConfiguration ReadDeploymentConfiguration(HostParameters parameters, out DeploymentManifest manifest, out string contentId)
         {
-            if (!CachedDeploymentInfo.TryGetValue(UnitValue.Unit, out var cachedValue))
+            var manifestId = ReadManifestChangeId();
+
+            var cachedValue = GetOrAddExpirableValue(CachedDeploymentInfo, manifestId, TimeSpan.FromMinutes(10), () =>
             {
                 var manifestText = File.ReadAllText(DeploymentUtilities.GetDeploymentManifestPath(DeploymentRoot).Path);
 
-                manifest = JsonSerializer.Deserialize<DeploymentManifest>(manifestText);
+                var manifest = JsonSerializer.Deserialize<DeploymentManifest>(manifestText);
+                manifest.ChangeId = manifestId;
 
                 var configurationPath = DeploymentUtilities.GetDeploymentConfigurationPath(DeploymentRoot, manifest);
 
                 var configJson = File.ReadAllText(configurationPath.Path);
 
-                cachedValue = (manifest, configJson);
-            }
+                return (manifest, configJson);
+            },
+            // Force update since for the same manifest id, this will always return the same value
+            // We only utilize this helper to ensure calls are deduplicated
+            update: true);
 
             var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(parameters);
 
             var preprocessedConfigJson = preprocessor.Preprocess(cachedValue.configJson);
-            contentId = ComputeContentId(preprocessedConfigJson);
+            contentId = ComputeShortContentId(preprocessedConfigJson);
 
             var config = JsonSerializer.Deserialize<DeploymentConfiguration>(preprocessedConfigJson, DeploymentUtilities.ConfigurationSerializationOptions);
-
-            CachedDeploymentInfo.TryAdd(UnitValue.Unit, cachedValue, TimeSpan.FromMinutes(1));
 
             manifest = cachedValue.manifest;
 
             return config;
         }
 
-        private static string ComputeContentId(string value)
+        private static string ComputeShortContentId(string value)
         {
-            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex().Substring(0, 8);
+            return DeploymentUtilities.ComputeContentId(value).Substring(0, 8);
         }
 
-        private AsyncLazy<TValue> GetOrAddExpirableAsyncLazy<TKey, TValue>(
+        private async Task<TValue> GetOrAddExpirableAsync<TKey, TValue>(
             VolatileMap<TKey, AsyncLazy<TValue>> map,
             TKey key,
             TimeSpan timeToLive,
@@ -520,24 +526,60 @@ namespace BuildXL.Launcher.Server
             AsyncLazy<TValue> asyncLazyValue;
             while (!map.TryGetValue(key, out asyncLazyValue))
             {
-                asyncLazyValue = new AsyncLazy<TValue>(func);
+                asyncLazyValue = new AsyncLazy<TValue>(async () =>
+                {
+                    // Ensure no synchronous portion to execution of async delegate
+                    await Task.Yield();
+                    return await func();
+                });
                 map.TryAdd(key, asyncLazyValue, timeToLive);
             }
 
-            return asyncLazyValue;
+            bool isCompleted = asyncLazyValue.IsCompleted;
+            var result = await asyncLazyValue.GetValueAsync();
+            if (!isCompleted)
+            {
+                // Ensure continuations run asynchronously
+                await Task.Yield();
+            }
+
+            return result;
+        }
+
+        private TValue GetOrAddExpirableValue<TKey, TValue>(
+            VolatileMap<TKey, Lazy<object>> map,
+            TKey key,
+            TimeSpan timeToLive,
+            Func<TValue> func,
+            bool update = false)
+        {
+            var untypedValue = GetOrAddExpirableLazy<TKey, object>(
+                map,
+                key,
+                timeToLive,
+                () => func(),
+                update);
+
+            return (TValue)untypedValue;
         }
 
         private TValue GetOrAddExpirableLazy<TKey, TValue>(
             VolatileMap<TKey, Lazy<TValue>> map,
             TKey key,
             TimeSpan timeToLive,
-            Func<TValue> func)
+            Func<TValue> func,
+            bool update = false)
         {
             Lazy<TValue> lazyValue;
             while (!map.TryGetValue(key, out lazyValue))
             {
                 lazyValue = new Lazy<TValue>(func);
                 map.TryAdd(key, lazyValue, timeToLive);
+            }
+
+            if (update)
+            {
+                map.TryAdd(key, lazyValue, timeToLive, replaceIfExists: true);
             }
 
             return lazyValue.Value;

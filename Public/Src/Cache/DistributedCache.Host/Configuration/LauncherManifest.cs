@@ -18,6 +18,14 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentId { get; set; }
 
         /// <summary>
+        /// Identifier used for determining if service should be requeried
+        /// NOTE: This serves essentially the same purpose as <see cref="ContentId"/> but tracks more coarse data
+        /// which requires less computation (namely the hash of the global deployment manifest). It changes somewhat more often
+        /// than <see cref="ContentId"/> since unrelated deployment changes will trigger this to change.
+        /// </summary>
+        public string DeploymentManifestChangeId { get; set; }
+
+        /// <summary>
         /// Gets where deployment content is fully available
         /// </summary>
         public bool IsComplete { get; set; }

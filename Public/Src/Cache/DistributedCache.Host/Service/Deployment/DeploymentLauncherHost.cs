@@ -28,6 +28,8 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public static DeploymentLauncherHost Instance { get; } = new DeploymentLauncherHost();
 
+        private readonly IDeploymentServiceClient _client = new DeploymentServiceClient();
+
         /// <inheritdoc />
         public ILauncherProcess CreateProcess(ProcessStartInfo info)
         {
@@ -37,18 +39,38 @@ namespace BuildXL.Cache.Host.Service
         /// <inheritdoc />
         public IDeploymentServiceClient CreateServiceClient()
         {
-            return new DeploymentServiceClient();
+            return _client;
         }
 
         private class DeploymentServiceClient : IDeploymentServiceClient
         {
             private readonly HttpClient _client = new HttpClient();
 
+            private LauncherManifest _lastManifest;
+
             public async Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
             {
+                // First query for change id to detect if deployment manifest has changed. If
+                // deployment manifest has not changed then, launcher manifest which is derived from it
+                // also has not changed, so just return prior launcher manifest in that case. This avoids
+                // a lot of unnecessary computation on the server.
+                string newChangeId = await _client.GetStringAsync($"{settings.ServiceUrl}/deploymentChangeId");
+                var lastManifest = _lastManifest;
+                if (lastManifest?.DeploymentManifestChangeId == newChangeId)
+                {
+                    return lastManifest;
+                }
+
                 // Query for launcher manifest from remote service
-                var content = await PostJsonAsync(context, settings.ServiceUrl, settings.DeploymentParameters);
-                return JsonSerializer.Deserialize<LauncherManifest>(content, DeploymentUtilities.ConfigurationSerializationOptions);
+                var content = await PostJsonAsync(context, $"{settings.ServiceUrl}/deployment", settings.DeploymentParameters);
+                var manifest = JsonSerializer.Deserialize<LauncherManifest>(content, DeploymentUtilities.ConfigurationSerializationOptions);
+
+                if (manifest.IsComplete)
+                {
+                    _lastManifest = manifest;
+                }
+
+                return manifest;
             }
 
             public Task<Stream> GetStreamAsync(OperationContext context, string downloadUrl)
@@ -86,7 +108,7 @@ namespace BuildXL.Cache.Host.Service
 
             public void Dispose()
             {
-                _client.Dispose();
+                // Do nothing. This instance is reused
             }
         }
 

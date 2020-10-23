@@ -236,7 +236,7 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         private void WriteDeploymentManifest()
         {
-            Context.PerformOperation(Tracer, () =>
+            Context.PerformOperation<BoolResult>(Tracer, () =>
             {
                 var deploymentManifest = new DeploymentManifest();
                 foreach (var drop in Drops.Values)
@@ -259,14 +259,24 @@ namespace BuildXL.Cache.Host.Service
                     WriteIndented = true
                 });
 
+                var path = DeploymentManifestPath;
+
                 // Write deployment manifest under deployment root for access by deployment service
                 // NOTE: This is done as two step process to ensure file is replaced atomically.
-                var tempDeploymentManifestPath = new AbsolutePath(DeploymentManifestPath.Path + ".tmp");
-                FileSystem.WriteAllText(tempDeploymentManifestPath, manifestText);
-                FileSystem.MoveFile(tempDeploymentManifestPath, DeploymentManifestPath, replaceExisting: true);
+                AtomicWriteFileText(path, manifestText);
+
+                // Write the deployment manifest id file used for up to date check by deployment service
+                AtomicWriteFileText(DeploymentUtilities.GetDeploymentManifestIdPath(DeploymentRoot), DeploymentUtilities.ComputeContentId(manifestText));
                 return BoolResult.Success;
             },
-            extraStartMessage: $"DropCount={Drops.Count}").ThrowIfFailure();
+            extraStartMessage: $"DropCount={Drops.Count}").ThrowIfFailure<BoolResult>();
+        }
+
+        private void AtomicWriteFileText(AbsolutePath path, string manifestText)
+        {
+            var tempDeploymentManifestPath = new AbsolutePath(path.Path + ".tmp");
+            FileSystem.WriteAllText(tempDeploymentManifestPath, manifestText);
+            FileSystem.MoveFile(tempDeploymentManifestPath, path, replaceExisting: true);
         }
 
         /// <summary>

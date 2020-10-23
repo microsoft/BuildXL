@@ -12,6 +12,13 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         public Dictionary<string, LayoutSpec> Drops { get; set; } = new Dictionary<string, LayoutSpec>();
 
+        /// <summary>
+        /// The content id of the deployment manifest.
+        /// This is not persisted but is instead computed based on the hash of deployment manifest.
+        /// This value should be set on <see cref="LauncherManifest.DeploymentManifestChangeId"/>
+        /// </summary>
+        public string ChangeId;
+
         public class FileSpec
         {
             /// <summary>

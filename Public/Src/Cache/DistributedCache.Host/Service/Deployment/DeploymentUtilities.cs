@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -58,6 +59,11 @@ namespace BuildXL.Cache.Host.Service
         private static RelativePath CasRelativeRoot { get; } = new RelativePath("cas");
 
         /// <summary>
+        /// Relative path to deployment manifest reference file from deployment root
+        /// </summary>
+        private static RelativePath DeploymentManifestIdRelativePath { get; } = new RelativePath("DeploymentManifestId.txt");
+
+        /// <summary>
         /// Relative path to deployment manifest from deployment root
         /// </summary>
         private static RelativePath DeploymentManifestRelativePath { get; } = new RelativePath("DeploymentManifest.json");
@@ -89,6 +95,14 @@ namespace BuildXL.Cache.Host.Service
         public static AbsolutePath GetDeploymentManifestPath(AbsolutePath deploymentRoot)
         {
             return deploymentRoot / DeploymentManifestRelativePath;
+        }
+
+        /// <summary>
+        /// Gets the absolute path to the deployment manifest reference file
+        /// </summary>
+        public static AbsolutePath GetDeploymentManifestIdPath(AbsolutePath deploymentRoot)
+        {
+            return deploymentRoot / DeploymentManifestIdRelativePath;
         }
 
         /// <summary>
@@ -194,6 +208,14 @@ namespace BuildXL.Cache.Host.Service
 
             result = result.Multiply(isNegative ? -1 : 1);
             return start == value.Length;
+        }
+
+        /// <summary>
+        /// Computes an hexidecimal content id for the given string
+        /// </summary>
+        public static string ComputeContentId(string value)
+        {
+            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex();
         }
 
         /// <summary>

@@ -63,7 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public interface IContentCommunicationManager
     {
-
         /// <summary>
         /// Requests another machine to copy a file.
         /// </summary>

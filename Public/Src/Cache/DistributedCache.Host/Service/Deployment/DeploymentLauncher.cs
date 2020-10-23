@@ -197,17 +197,17 @@ namespace BuildXL.Cache.Host.Service
                     using var client = _host.CreateServiceClient();
 
                     // Get the launch manifest with only content id populated
-                    var manifest = await GetLaunchManifestAsync(context, client, getContentIdOnly: true).ThrowIfFailureAsync();
-                    if (manifest.ContentId == _currentRun?.Manifest.ContentId && _currentRun.IsActive)
-                    {
-                        return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
-                    }
+                    var manifest = await GetLaunchManifestAsync(context, client).ThrowIfFailureAsync();
 
                     // The content has changed from the active run. Get full manifest.
-                    manifest = await GetLaunchManifestAsync(context, client, getContentIdOnly: false).ThrowIfFailureAsync();
                     if (!manifest.IsComplete)
                     {
                         return BoolResult.WithSuccessMessage($"Skipped because manifest ingestion is not complete. Id={manifest.ContentId}");
+                    }
+
+                    if (manifest.ContentId == _currentRun?.Manifest.ContentId && _currentRun.IsActive)
+                    {
+                        return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
                     }
 
                     var hashes = manifest.Deployment.Select(f => new ContentHash(f.Value.Hash)).Distinct().ToList();
@@ -257,13 +257,12 @@ namespace BuildXL.Cache.Host.Service
                 });
         }
 
-        private Task<Result<LauncherManifest>> GetLaunchManifestAsync(OperationContext context, IDeploymentServiceClient client, bool getContentIdOnly)
+        private Task<Result<LauncherManifest>> GetLaunchManifestAsync(OperationContext context, IDeploymentServiceClient client)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
                 // Set the trace id
                 Settings.DeploymentParameters.ContextId = context.TracingContext.Id;
-                Settings.DeploymentParameters.GetContentIdOnly = getContentIdOnly;
 
                 // Query for launcher manifest from remote service
                 var manifest = await client.GetLaunchManifestAsync(context, Settings);
@@ -398,6 +397,7 @@ namespace BuildXL.Cache.Host.Service
             /// </summary>
             protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
             {
+                int? processId = null;
                 return context.PerformOperationAsync(
                     Tracer,
                     async () =>
@@ -436,6 +436,7 @@ namespace BuildXL.Cache.Host.Service
                                 };
 
                                 RunningProcess.Start(context);
+                                processId = RunningProcess.Id;
                             }
 
                             return BoolResult.Success;
@@ -443,7 +444,7 @@ namespace BuildXL.Cache.Host.Service
                     },
                     traceOperationStarted: true,
                     extraStartMessage: $"ServiceId={Manifest.Tool.ServiceId}",
-                    extraEndMessage: r => $"ProcessId={RunningProcess?.Id ?? -1}, ServiceId={Manifest.Tool.ServiceId}");
+                    extraEndMessage: r => $"ProcessId={processId ?? -1}, ServiceId={Manifest.Tool.ServiceId}");
             }
 
             private static string QuoteArgumentIfNecessary(string arg)

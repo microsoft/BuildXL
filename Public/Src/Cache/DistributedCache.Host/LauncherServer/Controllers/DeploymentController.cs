@@ -24,6 +24,16 @@ namespace BuildXL.Launcher.Server.Controllers
             _service = service;
         }
 
+        [HttpGet]
+        [Route("deploymentChangeId")]
+        public async Task<ActionResult> GetDeploymentChangeIdAsync()
+        {
+            await Task.Yield();
+
+            var manifestId = _service.ReadManifestChangeId();
+            return Ok(manifestId);
+        }
+
         [HttpPost]
         [Route("deployment")]
         public async Task<ActionResult> GetAsync(DeploymentParameters parameters)

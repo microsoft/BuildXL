@@ -1599,13 +1599,6 @@ typedef enum _FILE_INFORMATION_CLASS_EXTRA {
     FileMaximumInformation
 } FILE_INFORMATION_CLASS_EXTRA, *PFILE_INFORMATION_CLASS_EXTRA;
 
-typedef struct _FILE_RENAME_INFORMATION {
-    BOOLEAN ReplaceIfExists;
-    HANDLE  RootDirectory;
-    ULONG   FileNameLength;
-    WCHAR   FileName[1];
-} FILE_RENAME_INFORMATION, *PFILE_RENAME_INFORMATION;
-
 typedef struct _FILE_LINK_INFORMATION {
     BOOLEAN ReplaceIfExists;
     HANDLE  RootDirectory;
@@ -1633,10 +1626,6 @@ typedef struct _FILE_NAME_INFORMATION {
     ULONG FileNameLength;
     WCHAR FileName[1];
 } FILE_NAME_INFORMATION, *PFILE_NAME_INFORMATION;
-
-typedef struct _FILE_DISPOSITION_INFORMATION {
-    BOOLEAN DeleteFile;
-} FILE_DISPOSITION_INFORMATION, *PFILE_DISPOSITION_INFORMATION;
 
 typedef struct _FILE_MODE_INFORMATION {
     ULONG Mode;
@@ -1689,7 +1678,12 @@ NTSTATUS HandleFileRenameInformation(
     _In_  ULONG                  Length,
     _In_  FILE_INFORMATION_CLASS FileInformationClass)
 {
-    assert((FILE_INFORMATION_CLASS_EXTRA)FileInformationClass == FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
+    FILE_INFORMATION_CLASS_EXTRA fiExtra = (FILE_INFORMATION_CLASS_EXTRA)FileInformationClass;
+
+    assert(fiExtra == FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation
+        || fiExtra == FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationEx
+        || fiExtra == FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationBypassAccessCheck
+        || fiExtra == FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationExBypassAccessCheck);
 
     DetouredScope scope;
     if (scope.Detoured_IsDisabled())
@@ -1723,7 +1717,7 @@ NTSTATUS HandleFileRenameInformation(
             FileInformationClass);
     }
 
-    PFILE_RENAME_INFORMATION pRenameInfo = (PFILE_RENAME_INFORMATION)FileInformation;
+    PFILE_RENAME_INFO pRenameInfo = (PFILE_RENAME_INFO)FileInformation;
 
     wstring targetPath;
 
@@ -1958,12 +1952,25 @@ NTSTATUS HandleFileDispositionInformation(
     _In_  ULONG                  Length,
     _In_  FILE_INFORMATION_CLASS FileInformationClass)
 {
-    assert((FILE_INFORMATION_CLASS_EXTRA)FileInformationClass == FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation);
+    FILE_INFORMATION_CLASS_EXTRA fiClass = (FILE_INFORMATION_CLASS_EXTRA)FileInformationClass;
 
-    PFILE_DISPOSITION_INFORMATION pDispositionInfo = (PFILE_DISPOSITION_INFORMATION)FileInformation;
+    bool isDeleteOperation = false;
+
+    if (fiClass == FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation)
+    {
+        PFILE_DISPOSITION_INFO pDispositionInfo = (PFILE_DISPOSITION_INFO)FileInformation;
+        isDeleteOperation = pDispositionInfo->DeleteFile;
+    }
+    else
+    {
+        assert(fiClass == FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx);
+
+        PFILE_DISPOSITION_INFO_EX pDispositionInfo = (PFILE_DISPOSITION_INFO_EX)FileInformation;
+        isDeleteOperation = (pDispositionInfo->Flags & FILE_DISPOSITION_FLAG_DELETE) != 0;
+    }
 
     DetouredScope scope;
-    if (scope.Detoured_IsDisabled() || !pDispositionInfo->DeleteFile)
+    if (scope.Detoured_IsDisabled() || !isDeleteOperation)
     {
         return Real_ZwSetInformationFile(
             FileHandle,
@@ -2306,6 +2313,9 @@ NTSTATUS NTAPI Detoured_ZwSetInformationFile(
     switch (fileInformationClassExtra)
     {
         case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation:
+        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationEx:
+        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationBypassAccessCheck:
+        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationExBypassAccessCheck:
             if (!IgnoreZwRenameFileInformation())
             {
                 return HandleFileRenameInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
@@ -2319,6 +2329,7 @@ NTSTATUS NTAPI Detoured_ZwSetInformationFile(
             }
             break;
         case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation:
+        case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx:
             if (!IgnoreZwOtherFileInformation())
             {
                 return HandleFileDispositionInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
@@ -4680,7 +4691,7 @@ static BOOL RenameUsingSetFileInformationByHandle(
 
     DWORD lastError = GetLastError();
 
-    PFILE_RENAME_INFORMATION pRenameInfo = (PFILE_RENAME_INFORMATION)lpFileInformation;
+    PFILE_RENAME_INFO pRenameInfo = (PFILE_RENAME_INFO)lpFileInformation;
 
     if (!TryGetFileNameFromFileInformation(
         pRenameInfo->FileName,

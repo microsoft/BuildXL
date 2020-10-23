@@ -853,6 +853,142 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Theory]
+        [InlineData("CallDetouredSetFileDispositionByHandle")]
+        [InlineData("CallDetouredSetFileDispositionByHandleEx", Skip = "Undocumented API, and keeps returning incorrect parameter")]
+        [InlineData("CallDetouredZwSetFileDispositionByHandle")]
+        [InlineData("CallDetouredZwSetFileDispositionByHandleEx")]
+        public async Task CallDetouredSetFileDispositionByHandle(string functionName)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+                Contract.Assume(currentCodeFolder != null);
+
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
+
+                XAssert.IsTrue(File.Exists(executable));
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
+
+                string workingDirectory = tempFiles.RootDirectory;
+                Contract.Assume(workingDirectory != null);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
+
+                string testDirPath = Path.Combine(workingDirectory, "input");
+                tempFiles.GetDirectory("input");
+
+                string firstTestFile = Path.Combine(testDirPath, "SetFileDisposition.txt");
+                XAssert.IsFalse(File.Exists(firstTestFile));
+                AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
+                createdInputPaths[firstTestFile] = firstAbsPath;
+
+                FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
+                if (File.Exists(firstTestFile))
+                {
+                    File.Delete(firstTestFile);
+                }
+
+                // Create the file.
+                using (FileStream fs = File.Create(firstTestFile))
+                {
+                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("aaa");
+
+                    // Add some information to the file.
+                    await fs.WriteAsync(info, 0, info.Length);
+                    fs.Close();
+                }
+
+                XAssert.IsTrue(File.Exists(firstTestFile));
+
+                var allDependencies = new List<FileArtifact>(2);
+                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
+                allDependencies.Add(executableFileArtifact);
+
+                var arguments = new PipDataBuilder(pathTable.StringTable);
+                arguments.Add(functionName);
+
+                var environmentVariables = new List<EnvironmentVariable>();
+                Process pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.From(environmentVariables),
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(pathTable),
+                    null,
+                    null,
+                    dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(allDependencies.ToArray<FileArtifact>()),
+                    outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    orderDependencies: ReadOnlyArray<PipId>.Empty,
+                    untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                    tags: ReadOnlyArray<StringId>.Empty,
+
+                    // We expect the CreateFile call to fail, but with no monitoring error logged.
+                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
+                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    provenance: PipProvenance.CreateDummy(context),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    ignoreZwOtherFileInformation: false,
+                    unexpectedFileAccessesAreErrors: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    context: context,
+                    pip: pip,
+                    errorString: out errorString);
+
+                XAssert.IsFalse(File.Exists(firstTestFile));
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (createdInputPaths[firstTestFile], RequestedAccess.Write, FileAccessStatus.Denied),
+                    });
+
+                bool zwFunction =
+                    string.Equals(functionName, "CallDetouredZwSetFileDispositionByHandle")
+                    || string.Equals(functionName, "CallDetouredZwSetFileDispositionByHandleEx");
+
+                ReportedFileOperation op = zwFunction
+                    ? ReportedFileOperation.ZwSetDispositionInformationFile
+                    : ReportedFileOperation.SetFileInformationByHandleSource;
+
+                bool foundDelete = false;
+                foreach (var rfa in result.AllReportedFileAccesses)
+                {
+                    var path = !string.IsNullOrEmpty(rfa.Path) ? AbsolutePath.Create(context.PathTable, rfa.Path) : rfa.ManifestPath;
+                    if (path == createdInputPaths[firstTestFile]
+                        && rfa.DesiredAccess == DesiredAccess.DELETE
+                        && rfa.Operation == op)
+                    {
+                        foundDelete = true;
+                        break;
+                    }
+                }
+
+                XAssert.IsTrue(foundDelete);
+            }
+        }
+        
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
@@ -2826,7 +2962,9 @@ namespace Test.BuildXL.Processes.Detours
         [Theory]
         [InlineData("CallDetouredMoveFileExWForRenamingDirectory")]
         [InlineData("CallDetouredSetFileInformationByHandleForRenamingDirectory")]
-        [InlineData("CallDetouredZwSetFileInformationByHandleForRenamingDirectory")]
+        [InlineData("CallDetouredZwSetFileInformationByHandleExForRenamingDirectory")]
+        [InlineData("CallDetouredZwSetFileInformationByHandleByPassForRenamingDirectory")]
+        [InlineData("CallDetouredZwSetFileInformationByHandleExByPassForRenamingDirectory")]
         public async Task CallMoveDirectoryReportSelectiveAccesses(string callArgument)
         {
             var context = BuildXLContext.CreateInstanceForTesting();

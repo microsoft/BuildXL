@@ -130,13 +130,6 @@ typedef struct _FILE_LINK_INFORMATION_EX {
     WCHAR   FileName[1];
 } FILE_LINK_INFORMATION_EX, * PFILE_LINK_INFORMATION_EX;
 
-typedef struct _FILE_RENAME_INFORMATION {
-    BOOLEAN ReplaceIfExists;
-    HANDLE RootDirectory;
-    ULONG FileNameLength;
-    WCHAR FileName[1];
-} FILE_RENAME_INFORMATION, * PFILE_RENAME_INFORMATION;
-
 extern "C" {
     NTSTATUS NTAPI ZwSetInformationFile(
         _In_  HANDLE                 FileHandle,
@@ -170,7 +163,9 @@ extern "C" {
 }
 
 BOOL SetRenameFileByHandle(HANDLE hFile, const wstring& target);
-NTSTATUS ZwSetRenameFileByHandle(HANDLE hFile, LPCWSTR targetName);
+NTSTATUS ZwSetRenameFileByHandle(HANDLE hFile, LPCWSTR targetName, FILE_INFORMATION_CLASS_EXTRA fileInfoClass);
+BOOL SetFileDispositionByHandle(HANDLE hFile, FILE_INFO_BY_HANDLE_CLASS fileInfoClass);
+NTSTATUS ZwSetFileDispositionByHandle(HANDLE hFile, FILE_INFORMATION_CLASS_EXTRA fileInfoClass);
 
 _NtCreateFile GetNtCreateFile();
 _NtClose GetNtClose();

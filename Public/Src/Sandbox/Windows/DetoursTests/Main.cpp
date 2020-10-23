@@ -288,6 +288,65 @@ int CallDetouredSetFileInformationByHandle()
     return (int)GetLastError();
 }
 
+int CallDetouredSetFileDispositionByHandleCore(FILE_INFO_BY_HANDLE_CLASS fileInfoClass, FILE_INFORMATION_CLASS_EXTRA zwFileInfoClass)
+{
+    HANDLE hFile = CreateFileW(
+        L"input\\SetFileDisposition.txt",
+        DELETE,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    if (zwFileInfoClass == FILE_INFORMATION_CLASS_EXTRA::FileMaximumInformation
+        && fileInfoClass != FILE_INFO_BY_HANDLE_CLASS::MaximumFileInfoByHandleClass)
+    {
+        SetFileDispositionByHandle(hFile, fileInfoClass);
+    }
+    else if (zwFileInfoClass != FILE_INFORMATION_CLASS_EXTRA::FileMaximumInformation
+        && fileInfoClass == FILE_INFO_BY_HANDLE_CLASS::MaximumFileInfoByHandleClass)
+    {
+        ZwSetFileDispositionByHandle(hFile, zwFileInfoClass);
+    }
+
+    CloseHandle(hFile);
+    
+    return (int)GetLastError();
+}
+
+int CallDetouredSetFileDispositionByHandle()
+{
+    return CallDetouredSetFileDispositionByHandleCore(
+        FILE_INFO_BY_HANDLE_CLASS::FileDispositionInfo,
+        FILE_INFORMATION_CLASS_EXTRA::FileMaximumInformation);
+}
+
+int CallDetouredSetFileDispositionByHandleEx()
+{
+    return CallDetouredSetFileDispositionByHandleCore(
+        FILE_INFO_BY_HANDLE_CLASS::FileDispositionInfoEx,
+        FILE_INFORMATION_CLASS_EXTRA::FileMaximumInformation);
+}
+
+int CallDetouredZwSetFileDispositionByHandle()
+{
+    return CallDetouredSetFileDispositionByHandleCore(
+        FILE_INFO_BY_HANDLE_CLASS::MaximumFileInfoByHandleClass,
+        FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation);
+}
+
+int CallDetouredZwSetFileDispositionByHandleEx()
+{
+    return CallDetouredSetFileDispositionByHandleCore(
+        FILE_INFO_BY_HANDLE_CLASS::MaximumFileInfoByHandleClass,
+        FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx);
+}
 int CallDetouredGetFinalPathNameByHandle() 
 {
     // input\GetFinalPathNameByHandleTest.txt points to inputTarget\GetFinalPathNameByHandleTest.txt
@@ -556,7 +615,7 @@ int CallDetouredSetFileInformationByHandleForRenamingDirectory()
     return (int)GetLastError();
 }
 
-int CallDetouredZwSetFileInformationByHandleForRenamingDirectory()
+int CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA fileInfoClass)
 {
     DWORD attributes = GetFileAttributesW(L"OutputDirectory\\NewDirectory");
 
@@ -578,7 +637,7 @@ int CallDetouredZwSetFileInformationByHandleForRenamingDirectory()
             return (int)GetLastError();
         }
         
-        ZwSetRenameFileByHandle(hNewDirectory, L"TempDirectory");
+        ZwSetRenameFileByHandle(hNewDirectory, L"TempDirectory", FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
 
         CloseHandle(hNewDirectory);
     }
@@ -597,11 +656,31 @@ int CallDetouredZwSetFileInformationByHandleForRenamingDirectory()
         return (int)GetLastError();
     }
 
-    ZwSetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory");
+    ZwSetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory", fileInfoClass);
 
     CloseHandle(hOldDirectory);
 
     return (int)GetLastError();
+}
+
+int CallDetouredZwSetFileInformationByHandleForRenamingDirectory()
+{
+    return CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
+}
+
+int CallDetouredZwSetFileInformationByHandleExForRenamingDirectory()
+{
+    return CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationEx);
+}
+
+int CallDetouredZwSetFileInformationByHandleByPassForRenamingDirectory()
+{
+    return CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationBypassAccessCheck);
+}
+
+int CallDetouredZwSetFileInformationByHandleExByPassForRenamingDirectory()
+{
+    return CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationExBypassAccessCheck);
 }
 
 int CallDetouredCreateFileWWrite()
@@ -1030,6 +1109,13 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDetouredMoveFileExWForRenamingDirectory);
     IF_COMMAND(CallDetouredSetFileInformationByHandleForRenamingDirectory);
     IF_COMMAND(CallDetouredZwSetFileInformationByHandleForRenamingDirectory);
+    IF_COMMAND(CallDetouredZwSetFileInformationByHandleExForRenamingDirectory);
+    IF_COMMAND(CallDetouredZwSetFileInformationByHandleByPassForRenamingDirectory);
+    IF_COMMAND(CallDetouredZwSetFileInformationByHandleExByPassForRenamingDirectory);
+    IF_COMMAND(CallDetouredSetFileDispositionByHandle);
+    IF_COMMAND(CallDetouredSetFileDispositionByHandleEx);
+    IF_COMMAND(CallDetouredZwSetFileDispositionByHandle);
+    IF_COMMAND(CallDetouredZwSetFileDispositionByHandleEx);
     IF_COMMAND(CallDetouredCreateFileWWrite);
     IF_COMMAND(CallCreateFileWithZeroAccessOnDirectory);
     IF_COMMAND(CallCreateFileOnNtEscapedPath);

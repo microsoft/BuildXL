@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -109,9 +110,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxConcurrentCopyOperations { get; set; } = 512;
 
         /// <summary>
+        /// Order for copies within the IO gate.
+        /// </summary>
+        public SemaphoreOrder OrderForCopies { get; set; } = SemaphoreOrder.NonDeterministic;
+
+        /// <summary>
         /// Maximum number of concurrent proactive copies.
         /// </summary>
         public int MaxConcurrentProactiveCopyOperations { get; set; } = 512;
+
+        /// <summary>
+        /// Order for proactive copies within the IO gate.
+        /// </summary>
+        public SemaphoreOrder OrderForProactiveCopies { get; set; } = SemaphoreOrder.NonDeterministic;
 
         /// <summary>
         /// Maximum number of files to copy locally in parallel for a given operation

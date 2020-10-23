@@ -27,6 +27,18 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
+        public static void ApplyEnumIfNotNull<TEnum>(string value, Action<TEnum> apply) where TEnum : struct
+        {
+            if (value != null)
+            {
+                if (Enum.TryParse<TEnum>(value, out var parsed))
+                {
+                    apply(parsed);
+                }
+            }
+        }
+
+        /// <nodoc />
         public static TOutput IfNotNull<TInput, TOutput>(TInput? value, Func<TInput, TOutput> apply) where TInput : struct
         {
             if (value != null)

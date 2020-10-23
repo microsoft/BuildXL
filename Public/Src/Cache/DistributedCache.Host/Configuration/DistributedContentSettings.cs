@@ -3,12 +3,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -832,6 +832,10 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
+        [DataMember]
+        [Validation.Enum(typeof(SemaphoreOrder))]
+        public string OrderForCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
+
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
@@ -918,6 +922,10 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        [DataMember]
+        [Validation.Enum(typeof(SemaphoreOrder))]
+        public string OrderForProactiveCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
 
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)

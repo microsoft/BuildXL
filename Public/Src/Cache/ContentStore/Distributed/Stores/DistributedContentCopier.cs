@@ -10,12 +10,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -34,10 +37,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public class DistributedContentCopier : IDistributedContentCopier
     {
         // Gate to control the maximum number of simultaneously active IO operations.
-        private readonly SemaphoreSlim _ioGate;
+        private readonly OrderedSemaphore _ioGate;
 
         // Gate to control the maximum number of simultaneously active proactive copies.
-        private readonly SemaphoreSlim _proactiveCopyIoGate;
+        private readonly OrderedSemaphore _proactiveCopyIoGate;
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _ioGateTimeoutForProactiveCopies;
@@ -61,7 +64,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IRemoteFileCopier fileCopier,
             IContentCommunicationManager copyRequester,
-            IClock clock)
+            IClock clock,
+            ILogger logger)
         {
             Contract.Requires(settings != null);
             Contract.Requires(settings.ParallelHashingFileSizeBoundary >= -1);
@@ -72,8 +76,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             FileSystem = fileSystem;
             _clock = clock;
 
-            _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
-            _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
+            _ioGate = new OrderedSemaphore(_settings.MaxConcurrentCopyOperations, _settings.OrderForCopies, new Context(logger));
+            _proactiveCopyIoGate = new OrderedSemaphore(_settings.MaxConcurrentProactiveCopyOperations, _settings.OrderForProactiveCopies, new Context(logger));
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
             _ioGateTimeoutForProactiveCopies = settings.ProactiveCopyIOGateTimeout;
@@ -249,8 +253,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             return await context.PerformOperationAsync(
                 Tracer,
-                operation: () => _proactiveCopyIoGate.GatedOperationAsync((timeWaiting, currentCount) =>
+                operation: () => _proactiveCopyIoGate.GatedOperationAsync(pair =>
                     {
+                        var (timeWaiting, currentCount) = pair;
                         ioGateTimedOut = false;
                         ioGateWaitTime = timeWaiting;
                         ioGateCurrentCount = currentCount;
@@ -395,9 +400,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                         copyFileResult = await context.PerformOperationAsync(
                             Tracer,
-                            async () => await _ioGate.GatedOperationAsync(async (timeWaiting, currentCount) =>
-                                {
-                                    ioGateWait = timeWaiting.TotalMilliseconds;
+                            async () => await _ioGate.GatedOperationAsync(async pair =>
+                            {
+                                var (timeWaiting, currentCount) = pair;
+                                ioGateWait = timeWaiting.TotalMilliseconds;
                                     ioGateCurrentCount = currentCount;
 
                                     return await TaskUtilities.AwaitWithProgressReporting(
@@ -759,7 +765,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Task<FileExistenceResult> GatedCheckFileExistenceAsync(OperationContext context, ContentLocation location)
         {
             return _ioGate.GatedOperationAsync(
-                (_, _) => _remoteFileCopier.CheckFileExistsAsync(context, location), context.Token, Timeout.InfiniteTimeSpan);
+                pair => _remoteFileCopier.CheckFileExistsAsync(context, location), context.Token, Timeout.InfiniteTimeSpan);
         }
 
         /// <nodoc />

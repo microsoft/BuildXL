@@ -30,6 +30,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Microsoft.Practices.TransientFaultHandling;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -82,7 +83,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _fileSystem,
                 fileCopier: _arguments.Copier,
                 copyRequester: _arguments.CopyRequester,
-                _arguments.Overrides.Clock
+                _arguments.Overrides.Clock,
+                _logger
             );
 
             _redisMemoizationStoreFactory = new Lazy<RedisMemoizationStoreFactory>(() => CreateRedisCacheFactory());
@@ -433,6 +435,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             ApplyIfNotNull(distributedSettings.MaximumConcurrentPutAndPlaceFileOperations, v => distributedContentStoreSettings.MaximumConcurrentPutAndPlaceFileOperations = v);
+            ApplyEnumIfNotNull<SemaphoreOrder>(distributedSettings.OrderForCopies, v => distributedContentStoreSettings.OrderForCopies = v);
+            ApplyEnumIfNotNull<SemaphoreOrder>(distributedSettings.OrderForProactiveCopies, v => distributedContentStoreSettings.OrderForCopies = v);
 
             arguments.Overrides.Override(distributedContentStoreSettings);
 

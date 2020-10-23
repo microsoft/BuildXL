@@ -268,7 +268,7 @@ namespace ContentStoreTest.Distributed.Stores
             IAbsFileSystem fileSystem,
             IRemoteFileCopier fileCopier,
             IContentCommunicationManager copyRequester)
-            : base(settings, fileSystem, fileCopier, copyRequester, TestSystemClock.Instance)
+            : base(settings, fileSystem, fileCopier, copyRequester, TestSystemClock.Instance, TestGlobal.Logger)
         {
             Settings = settings;
             WorkingFolder = workingDirectory;

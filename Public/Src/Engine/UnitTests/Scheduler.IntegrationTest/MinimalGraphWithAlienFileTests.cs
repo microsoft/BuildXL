@@ -323,5 +323,40 @@ namespace IntegrationTest.BuildXL.Scheduler
             // it shouldn't have been part of the fingerprint to begin with
             RunScheduler().AssertCacheHit(enumeratorPip.Process.PipId);
         }
+
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        public void EnumeratedReparsePointIsTreatedAsFile()
+        {
+            // Create sharedOpaque/junctionDir -> target
+            string sharedOpaqueDirString = Path.Combine(ObjectRoot, "sod");
+            string junctionDirString = Path.Combine(sharedOpaqueDirString, "junction");
+            string targetDirString = Path.Combine(ObjectRoot, "target");
+
+            Directory.CreateDirectory(sharedOpaqueDirString);
+            Directory.CreateDirectory(targetDirString);
+            FileUtilities.CreateJunction(junctionDirString, targetDirString, createDirectoryForJunction: true);
+
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDirString);
+            AbsolutePath junctionDirPath = AbsolutePath.Create(Context.PathTable, junctionDirString);
+            DirectoryArtifact sharedOpaqueDir = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            // Schedule a pip that enumerates the shared opaque, turning on undeclared source reads so we make sure minimal graph with alien files is used
+            var enumeratorBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(sharedOpaqueDir, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            enumeratorBuilder.AddOutputDirectory(sharedOpaqueDir, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+            enumeratorBuilder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            SchedulePipBuilder(enumeratorBuilder);
+
+            var result = RunScheduler().AssertSuccess();
+
+            var existence = result.FileSystemView.GetExistence(junctionDirPath, global::BuildXL.Scheduler.FileSystem.FileSystemViewMode.Real);
+
+            XAssert.AreEqual(PathExistence.ExistsAsFile, existence.Result);
+        }
     }
 }

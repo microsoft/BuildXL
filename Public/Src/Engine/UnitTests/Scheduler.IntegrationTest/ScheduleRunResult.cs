@@ -12,6 +12,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Instrumentation.Common.LoggingContext;
+using BuildXL.Scheduler.FileSystem;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -41,6 +42,8 @@ namespace Test.BuildXL.Scheduler
         public SchedulerState SchedulerState { get; set; }
 
         public SessionInfo Session { get; set; }
+
+        public FileSystemView FileSystemView { get; set; }
 
         public ScheduleRunResult AssertSuccess()
         {

@@ -204,7 +204,14 @@ namespace BuildXL.Scheduler.FileSystem
             {
                 var handleDirectoryEntry = new Action<string, FileAttributes>((entryName, entryAttributes) =>
                 {
-                    var childExistence = (entryAttributes & FileAttributes.Directory) != 0 ? PathExistence.ExistsAsDirectory : PathExistence.ExistsAsFile;
+                    // Reparse points are always treated as files. Otherwise, honor the directory attribute to determine 
+                    // existence
+                    var childExistence = (entryAttributes & FileAttributes.ReparsePoint) != 0 ?
+                        PathExistence.ExistsAsFile :
+                        (entryAttributes & FileAttributes.Directory) != 0 ? 
+                            PathExistence.ExistsAsDirectory : 
+                            PathExistence.ExistsAsFile;
+                    
                     var childPath = path.Combine(PathTable, entryName);
 
                     childExistence = GetOrAddExistence(childPath, mode, childExistence, updateParents: false);

@@ -566,7 +566,7 @@ namespace Test.BuildXL.Scheduler
 
                 // Verify internal data of scheduler.
                 verifySchedulerPostRun?.Invoke(testScheduler);
-
+                
                 var runResult = new ScheduleRunResult
                 {
                     Graph = graph,
@@ -578,6 +578,7 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler),
                     Session = localLoggingContext.Session,
+                    FileSystemView = testScheduler.State?.FileSystemView
                 };
 
                 runResult.AssertSuccessMatchesLogging(localLoggingContext);

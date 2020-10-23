@@ -31,6 +31,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -326,60 +327,52 @@ namespace BuildXL.Cache.ContentStore.Service
             _grpcServer.Start();
         }
 
-        private async Task LogIncrementalStatsAsync(OperationContext context, bool logAtShutdown)
+        private Task LogIncrementalStatsAsync(OperationContext context, bool logAtShutdown)
         {
-            if (Interlocked.CompareExchange(ref _loggingIncrementalStats, 1, 0) != 0)
-            {
-                // Prevent re-entrancy so this method may be called during shutdown in addition
-                // to being called in the timer
-                return;
-            }
-
-            try
-            {
-                TraceLeakedFilePath(context);
-
-                var statistics = new Dictionary<string, long>();
-                var previousStatistics = _previousStatistics;
-
-                var stats = await GetStatsAsync(context);
-                if (stats.Succeeded)
+            return ConcurrencyHelper.RunOnceIfNeeded(
+                ref _loggingIncrementalStats,
+                async () =>
                 {
-                    var counters = stats.Value!.ToDictionaryIntegral();
-                    FillTrackingStreamStatistics(counters);
-                    foreach (var counter in counters)
+                    TraceLeakedFilePath(context);
+
+                    var statistics = new Dictionary<string, long>();
+                    var previousStatistics = _previousStatistics;
+
+                    var stats = await GetStatsAsync(context);
+                    if (stats.Succeeded)
                     {
-                        var key = counter.Key;
-
-                        if (!logAtShutdown && !PrintStatisticsForKey(key))
+                        var counters = stats.Value!.ToDictionaryIntegral();
+                        FillTrackingStreamStatistics(counters);
+                        foreach (var counter in counters)
                         {
-                            continue;
+                            var key = counter.Key;
+
+                            if (!logAtShutdown && !PrintStatisticsForKey(key))
+                            {
+                                continue;
+                            }
+
+                            var value = counter.Value;
+                            var incrementalValue = value;
+                            statistics[key] = value;
+
+                            if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
+                            {
+                                incrementalValue -= oldValue;
+                            }
+
+                            context.TracingContext.TraceMessage(
+                                Severity.Info,
+                                $"{key}=[{incrementalValue}]",
+                                component: Name,
+                                operation: "IncrementalStatistics");
+                            context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
                         }
-
-                        var value = counter.Value;
-                        var incrementalValue = value;
-                        statistics[key] = value;
-
-                        if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
-                        {
-                            incrementalValue -= oldValue;
-                        }
-
-                        context.TracingContext.TraceMessage(
-                            Severity.Info,
-                            $"{key}=[{incrementalValue}]",
-                            component: Name,
-                            operation: "IncrementalStatistics");
-                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
                     }
-                }
 
-                _previousStatistics = statistics;
-            }
-            finally
-            {
-                Volatile.Write(ref _loggingIncrementalStats, 0);
-            }
+                    _previousStatistics = statistics;
+                },
+                funcIsRunningResultProvider: () => Task.CompletedTask);
         }
 
         private bool PrintStatisticsForKey(string key)

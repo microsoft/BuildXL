@@ -3,79 +3,140 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
+using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <summary>
-    /// "Tracks" the key startup metrics.
+    /// A utility class that helps computing service lifetime metrics.
     /// </summary>
     /// <remarks>
-    /// <see cref="LifetimeTrackerTracer"/> remarks section for more details.
+    /// <see cref="LifetimeTracker"/> remarks section for more details.
     /// </remarks>
-    internal class LifetimeTracker
+    internal class LifetimeTrackerHelper
     {
-        private readonly IClock _clock;
+        // The fields are declared from the oldest time (usually) to the newest.
+        private readonly Result<DateTime> _lastKnownHeartbeatTimeUtc; // Last heartbeat of the previous process
         private readonly DateTime _processStartTimeUtc;
+        private readonly DateTime _serviceStartingTimeUtc; // the time when the service began initialization
 
-        private readonly Result<DateTime> _shutdownTimeUtc;
-        private readonly DateTime _serviceStartedTimeUtc;
+        private DateTime? _serviceStartedTimeUtc;
+        private DateTime? _serviceReadyTimeUtc;
 
-        private Result<DateTime> _serviceReadyTimeUtc = new Result<DateTime>("Not available");
-
-        private LifetimeTracker(
-            IClock clock,
-            TimeSpan startupDuration,
-            DateTime processStartupTimeUtc,
-            Result<DateTime> shutdownTimeUtc)
+        private LifetimeTrackerHelper(
+            DateTime serviceStartingTimeUtc,
+            DateTime processStartTimeUtc,
+            Result<DateTime> lastKnownHeartbeatTimeUtc)
         {
-            _clock = clock;
-            StartupDuration = startupDuration;
-            _serviceStartedTimeUtc = _clock.UtcNow;
-            _shutdownTimeUtc = shutdownTimeUtc;
-            _processStartTimeUtc = processStartupTimeUtc;
+            _serviceStartingTimeUtc = serviceStartingTimeUtc;
+            _lastKnownHeartbeatTimeUtc = lastKnownHeartbeatTimeUtc;
+            _processStartTimeUtc = processStartTimeUtc;
         }
 
         /// <nodoc />
-        public static LifetimeTracker Started(IClock? clock, TimeSpan startupDuration, Result<DateTime> shutdownTimeUtc, DateTime processStartupTimeUtc)
-            => new LifetimeTracker(clock ?? SystemClock.Instance, startupDuration, processStartupTimeUtc, shutdownTimeUtc);
+        public static LifetimeTrackerHelper Starting(DateTime nowUtc, DateTime processStartTimeUtc, Result<DateTime> lastKnownHeartbeatTimeUtc)
+            => new LifetimeTrackerHelper(nowUtc, processStartTimeUtc, lastKnownHeartbeatTimeUtc);
 
-        public TimeSpan StartupDuration { get; }
+        /// <summary>
+        /// Notify that the service has started (but not necessarily ready to process the requests).
+        /// </summary>
+        public void Started(DateTime nowUtc) => _serviceStartedTimeUtc = nowUtc;
 
-        public TimeSpan FullStartupDuration => _serviceStartedTimeUtc - _processStartTimeUtc;
+        /// <summary>
+        /// Notifies that the service is ready processing requests (it still does not necessarily means that the service is fully ready
+        /// because this method may be called before the startup is fully done).
+        /// </summary>
+        public void Ready(DateTime nowUtc) => _serviceReadyTimeUtc = nowUtc;
 
-        public Result<TimeSpan> RestartDelay => _shutdownTimeUtc.Then(st => Result.Success(_processStartTimeUtc - st));
+        /// <summary>
+        /// The service is fully initialized when <see cref="Started"/> and <see cref="Ready(DateTime)"/> methods are called.
+        /// </summary>
+        public bool IsFullyInitialized() => _serviceStartedTimeUtc != null && _serviceReadyTimeUtc != null;
 
-        public Result<TimeSpan> FullInitializationDuration => _serviceReadyTimeUtc.Then(srt => Result.Success(srt - _processStartTimeUtc));
+        /// <summary>
+        /// The time took to initialize the service.
+        /// </summary>
+        public TimeSpan StartupDuration
+        {
+            get
+            {
+                Contract.Requires(IsFullyInitialized());
+                Contract.Assert(_serviceStartedTimeUtc != null);
 
+                return _serviceStartedTimeUtc.Value - _serviceStartingTimeUtc;
+            }
+        }
+
+        /// <summary>
+        /// The time took to initialized the service from the process's start time.
+        /// </summary>
+        public TimeSpan FullStartupDuration
+        {
+            get
+            {
+                Contract.Requires(IsFullyInitialized());
+                Contract.Assert(_serviceStartedTimeUtc != null);
+                return _serviceStartedTimeUtc.Value - _processStartTimeUtc;
+            }
+        }
+
+        /// <summary>
+        /// The time took to fully initialized the service (the time since the process start till the ready event).
+        /// </summary>
+        public TimeSpan FullInitializationDuration
+        {
+            get
+            {
+                Contract.Requires(IsFullyInitialized());
+                return ServiceReadyTimeUtc - _processStartTimeUtc;
+            }
+        }
+
+        /// <summary>
+        /// The time when the service is ready to process the requests (the max of service started time and ready).
+        /// </summary>
+        public DateTime ServiceReadyTimeUtc
+        {
+            get
+            {
+                Contract.Requires(IsFullyInitialized());
+                Contract.Assert(_serviceReadyTimeUtc != null);
+                Contract.Assert(_serviceStartedTimeUtc != null);
+
+                // Service ready time is the later of two: startup time and "service ready" time.
+                return _serviceReadyTimeUtc.Value > _serviceStartedTimeUtc.Value ? _serviceReadyTimeUtc.Value : _serviceStartedTimeUtc.Value;
+            }
+        }
+
+        /// <summary>
+        /// The time between the last known heartbeat and the service is ready.
+        /// </summary>
         public Result<TimeSpan> OfflineTime
         {
             get
             {
-                if (_serviceReadyTimeUtc.Succeeded && _shutdownTimeUtc.Succeeded)
-                {
-                    return _serviceReadyTimeUtc.Value - _shutdownTimeUtc.Value;
-                }
-                else
-                {
-                    return new Result<TimeSpan>("Unavailable");
-                }
+                Contract.Requires(IsFullyInitialized());
+                return _lastKnownHeartbeatTimeUtc.Then(st => Result.Success(ServiceReadyTimeUtc - st));
             }
         }
-        /// <nodoc />
-        public void Ready()
-        {
-            _serviceReadyTimeUtc = _clock.UtcNow;
-        }
+
+        /// <summary>
+        /// Returns the time between last known heartbeat of the previous service instance till the process startup time of the current instance.
+        /// </summary>
+        public Result<TimeSpan> RestartDelay => _lastKnownHeartbeatTimeUtc.Then(st => Result.Success(_processStartTimeUtc - st));
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"StartupDuration=[{StartupDuration}], FullStartupDuration=[{FullStartupDuration}], RestartDelay=[{RestartDelay.ToStringWithValue()}], FullInitializationDuration=[{FullInitializationDuration.ToStringWithValue()}], OfflineTime=[{OfflineTime.ToStringWithValue()}]";
+            return $"StartupDuration=[{StartupDuration}], FullStartupDuration=[{FullStartupDuration}], RestartDelay=[{RestartDelay.ToStringWithValue()}], FullInitializationDuration=[{FullInitializationDuration}], OfflineTime=[{OfflineTime.ToStringWithValue()}]";
         }
     }
 
@@ -86,39 +147,76 @@ namespace BuildXL.Cache.ContentStore.Tracing
     /// This tracer is responsible for tracking the following important information about the service's lifetime:
     /// 1. Service startup duration: ServiceStarted - ServiceStarting
     /// 2. Full startup duration: ServiceStarted - ProcessStartTime
-    /// 3. Restart delay: ProcessStartTime - LastShutdownTime
-    /// 
+    /// 3. Restart delay: ProcessStartTime - LastKnownHeartbeatTime
+    /// 4. Service readiness: when the services is fully initialized (StartupAsync is done) *and* ready processing requests.
     /// 4. Full initialization duration: ServiceReadyTime - ProcessStartTime
-    /// 5. Offline time: ServiceReadyTime - LastShutdownTime
+    /// 5. Offline time: ServiceReadyTime - LastKnownHeartbeatTime
     /// </remarks>
-    public class LifetimeTrackerTracer
+    public class LifetimeTracker
     {
         private const string ComponentName = "LifetimeTracker";
 
-        /// <summary>
-        /// Tracks the service's lifetime.
-        /// </summary>
-        private static Result<LifetimeTracker> LifetimeTracker = new Result<LifetimeTracker>("Not available");
+        private static readonly Result<ServiceOfflineDurationTracker> ServiceRunningTrackerUnavailableResult = new Result<ServiceOfflineDurationTracker>($"{nameof(ServiceStarting)} method was not called yet.");
+        private static readonly Result<LifetimeTrackerHelper> LifetimeTrackerHelperUnavailableResult = new Result<LifetimeTrackerHelper>($"{nameof(ServiceStarted)} method was not called yet.");
+
+        private static Result<ServiceOfflineDurationTracker> ServiceRunningTrackerResult = ServiceRunningTrackerUnavailableResult;
+        private static Result<LifetimeTrackerHelper> LifetimeTrackerHelper = LifetimeTrackerHelperUnavailableResult;
 
         /// <summary>
         /// Trace that the service is starting.
         /// </summary>
-        public static void StartingService(Context context)
+        public static void ServiceStarting(Context context, TimeSpan? serviceRunningLogInterval, AbsolutePath logFilePath, IClock? clock = null, DateTime? processStartupTime = null)
         {
-            Trace(context, "Starting CaSaaS instance");
+            var operationContext = new OperationContext(context);
+            ServiceRunningTrackerResult = ServiceOfflineDurationTracker.Create(
+                operationContext,
+                SystemClock.Instance,
+                new PassThroughFileSystem(),
+                serviceRunningLogInterval,
+                logFilePath);
+
+            var offlineTime = ServiceRunningTrackerResult.Then(r => r.GetLastServiceHeartbeatTime(operationContext));
+
+            LifetimeTrackerHelper = Tracing.LifetimeTrackerHelper.Starting(clock.GetUtcNow(), processStartupTime ?? GetProcessStartupTimeUtc(), offlineTime.Then(v => Result.Success(v.lastServiceHeartbeatTime)));
+
+            Trace(context, $"Starting CaSaaS instance{offlineTime.ToStringSelect(r => $". LastHeartBeatTime={r.lastServiceHeartbeatTime}, ShutdownCorrectly={r.shutdownCorrectly}")}");
         }
 
         /// <summary>
-        /// Trace that the service started successfully but it doesn't mean that its ready to process incoming requests.
-        /// The service is fully ready only when <see cref="ServiceReadyToProcessRequests"/> is called.
+        /// Trace that the service started successfully.
         /// </summary>
-        public static void ServiceStarted(Context context, TimeSpan startupDuration, Result<DateTime> shutdownTimeUtc, IClock? clock = null)
+        public static void ServiceStarted(Context context, IClock? clock = null)
         {
-            LifetimeTracker = Tracing.LifetimeTracker.Started(clock, startupDuration, shutdownTimeUtc, GetProcessStartupTimeUtc());
             Trace(context, "CaSaaS started.");
+
+            LifetimeTrackerHelper.Match(
+                successAction: helper =>
+                {
+                    helper.Started(clock.GetUtcNow());
+                    TraceIfReady(context, helper);
+                },
+                failureAction: r => TraceHelperIsNotAvailable(context, r));
         }
 
-        private static DateTime GetProcessStartupTimeUtc() => Process.GetCurrentProcess().StartTime.ToUniversalTime();
+        /// <summary>
+        /// Trace that the service is ready.
+        /// </summary>
+        /// <remarks>
+        /// The call of this method  doesn't mean that it is fully initialized ready to process incoming requests.
+        /// The service is fully ready only when <see cref="ServiceStarted"/> is called as well.
+        /// </remarks>
+        public static void ServiceReadyToProcessRequests(Context context, IClock? clock = null)
+        {
+            Trace(context, "CaSaaS is ready.");
+
+            LifetimeTrackerHelper.Match(
+                successAction: helper =>
+                               {
+                                   helper.Ready(clock.GetUtcNow());
+                                   TraceIfReady(context, helper);
+                               },
+                failureAction: r => TraceHelperIsNotAvailable(context, r));
+        }
 
         /// <summary>
         /// Trace that service initialization has failed.
@@ -128,20 +226,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(context, $"CaSaaS initialization failed by {startupDuration.TotalMilliseconds}ms with error: {e}");
         }
 
-        /// <summary>
-        /// Trace that the service is fully initialized and ready to process incoming requests.
-        /// </summary>
-        public static void ServiceReadyToProcessRequests(Context context)
-        {
-            var lifetime = LifetimeTracker;
-            if (lifetime.Succeeded)
-            {
-                lifetime.Value!.Ready();
-            }
-
-            Trace(context, $"CaSaaS instance is fully initialized and ready to process requests. {lifetime.ToStringWithValue()}");
-        }
-
         /// <nodoc />
         public static void ShuttingDownService(Context context)
         {
@@ -149,8 +233,17 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <nodoc />
-        public static void ServiceStopped(Context context, BoolResult result, TimeSpan shutdownDuration)
+        public static void ServiceStopped(Context context, BoolResult result)
         {
+            var shutdownDuration = result.Duration;
+            // Need to dispose the service tracker because the service has stopped.
+            ServiceRunningTrackerResult.Match(
+                successAction: r => r.Dispose(),
+                failureAction: _ => { });
+
+            ServiceRunningTrackerResult = ServiceRunningTrackerUnavailableResult;
+            LifetimeTrackerHelper = LifetimeTrackerHelperUnavailableResult;
+
             if (!result)
             {
                 Trace(context, $"CaSaaS instance failed to stop by {shutdownDuration.TotalMilliseconds}ms: {result}", Severity.Warning);
@@ -168,6 +261,21 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             Trace(context, $"Teardown is requested. Reason={reason}.");
         }
+
+        private static void TraceIfReady(Context context, LifetimeTrackerHelper helper)
+        {
+            if (helper.IsFullyInitialized())
+            {
+                Trace(context, $"CaSaaS instance is fully initialized and ready to process requests. {helper}");
+            }
+        }
+
+        private static void TraceHelperIsNotAvailable(Context context, Result<LifetimeTrackerHelper> helper, [CallerMemberName]string? caller = null)
+        {
+            Trace(context, $"Can't perform {caller} because {nameof(ServiceStartupFailed)} method was not called. Error={helper}.");
+        }
+        
+        private static DateTime GetProcessStartupTimeUtc() => Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
         private static void Trace(Context context, string message, Severity severity = Severity.Info, [CallerMemberName]string? operation = null)
         {

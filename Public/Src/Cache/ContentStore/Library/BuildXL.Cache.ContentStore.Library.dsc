@@ -53,6 +53,7 @@ namespace Library {
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Test",
             "BuildXL.Cache.ContentStore.Distributed.Test",
+            "BuildXL.Cache.Host.Test",
             "BuildXL.Cache.ContentStore.Distributed.Test.LongRunning",
         ],
     });

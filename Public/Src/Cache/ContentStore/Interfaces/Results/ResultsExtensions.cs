@@ -96,6 +96,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             return new ErrorResult(result).AsResult<TResult>();
         }
 
+        /// <nodoc />
+        public static void Match<T>(this Result<T> result, Action<T> successAction, Action<Result<T>> failureAction)
+        {
+            if (result)
+            {
+                successAction(result.Value!);
+            }
+            else
+            {
+                failureAction(result);
+            }
+        }
+
         /// <summary>
         /// Maps result into different result type or propagates error to result type
         /// </summary>
@@ -200,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Special method to ignore potentially not successful result of an operation explicitly.
         /// </summary>
-        public static void IgnoreFailure(this ResultBase result)
+        public static void IgnoreFailure(this ResultBase? result)
         {
         }
 
@@ -290,6 +303,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
 
             return result.Value!.ToString();
+        }
+
+        /// <summary>
+        /// Returns a result of <paramref name="toStringProjection"/> call if the <paramref name="result"/> succeeded, otherwise returns an error representation of the result.
+        /// </summary>
+        public static string ToStringSelect<T>(this Result<T> result, Func<T, string> toStringProjection)
+        {
+            if (!result)
+            {
+                return result.ToString();
+            }
+
+            return toStringProjection(result.Value!);
         }
     }
 }

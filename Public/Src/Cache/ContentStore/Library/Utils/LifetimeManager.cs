@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
             else
             {
-                LifetimeTrackerTracer.TeardownRequested(context, reason);
+                LifetimeTracker.TeardownRequested(context, reason);
                 lifetimeManager.RequestTeardown(reason);
             }
         }

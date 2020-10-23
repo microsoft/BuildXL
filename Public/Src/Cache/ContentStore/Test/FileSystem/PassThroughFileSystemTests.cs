@@ -31,6 +31,18 @@ namespace ContentStoreTest.FileSystem
             : base(helper, () => new PassThroughFileSystem(TestGlobal.Logger))
         {
         }
+
+
+        [Fact]
+        public void DeletingAbsentFileShouldNotFail()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var path = testDirectory.Path / "source.txt";
+                FileSystem.DeleteFile(path);
+            }
+        }
+
         [Fact]
         public async Task CopyFileAsyncShouldOverrideContentWhenReplaceExistingFlagIsPassed()
         {

@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
@@ -412,31 +413,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private void UpdatingPendingEventProcessingStates()
         {
             // Prevent concurrent access to dequeuing from the queue and updating the last processed sequence point
-            if (Interlocked.CompareExchange(ref _updatingPendingEventProcessingStates, value: 1, comparand: 0) == 0)
-            {
-                var pendingEventProcessingStates = _pendingEventProcessingStates;
-
-                // Look at top event on queue, to see if it is complete, and dequeue and set as last processed event if it is. Otherwise,
-                // just exit.
-                while (pendingEventProcessingStates.TryPeek(out var peekPendingEventProcessingState))
+            ConcurrencyHelper.RunOnceIfNeeded(
+                ref _updatingPendingEventProcessingStates,
+                () =>
                 {
-                    if (peekPendingEventProcessingState.IsComplete)
-                    {
-                        bool found = pendingEventProcessingStates.TryDequeue(out var pendingEventProcessingState);
-                        Contract.Assert(found, "There should be no concurrent access to _pendingEventProcessingStates, so after peek a state should be dequeued.");
-                        Contract.Assert(peekPendingEventProcessingState == pendingEventProcessingState, "There should be no concurrent access to _pendingEventProcessingStates, so the state for peek and dequeue should be the same.");
+                    var pendingEventProcessingStates = _pendingEventProcessingStates;
 
-                        _lastProcessedSequencePoint = new EventSequencePoint(pendingEventProcessingState!.SequenceNumber);
-                    }
-                    else
+                    // Look at top event on queue, to see if it is complete, and dequeue and set as last processed event if it is. Otherwise,
+                    // just exit.
+                    while (pendingEventProcessingStates.TryPeek(out var peekPendingEventProcessingState))
                     {
-                        // Top event batch on queue is not complete, no need to continue.
-                        break;
-                    }
-                }
+                        if (peekPendingEventProcessingState.IsComplete)
+                        {
+                            bool found = pendingEventProcessingStates.TryDequeue(out var pendingEventProcessingState);
+                            Contract.Assert(
+                                found,
+                                "There should be no concurrent access to _pendingEventProcessingStates, so after peek a state should be dequeued.");
+                            Contract.Assert(
+                                peekPendingEventProcessingState == pendingEventProcessingState,
+                                "There should be no concurrent access to _pendingEventProcessingStates, so the state for peek and dequeue should be the same.");
 
-                Volatile.Write(ref _updatingPendingEventProcessingStates, 0);
-            }
+                            _lastProcessedSequencePoint = new EventSequencePoint(pendingEventProcessingState!.SequenceNumber);
+                        }
+                        else
+                        {
+                            // Top event batch on queue is not complete, no need to continue.
+                            break;
+                        }
+                    }
+
+                    Volatile.Write(ref _updatingPendingEventProcessingStates, 0);
+                });
         }
 
         /// <inheritdoc />

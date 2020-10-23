@@ -28,35 +28,53 @@ namespace BuildXL.Cache.Host.Test
         {
             var context = new OperationContext(new Context(Logger));
             using var testDirectory = new DisposableDirectory(FileSystem);
-            var logFilePath = testDirectory.CreateRandomFileName();
+            var logFilePath = testDirectory.Path;
 
             // Intentionally making the interval longer to test the logic manually instead of relying on the tracker's
             // logic to write to the file when the timer fires.
-            var logIntervalSeconds = 10_000;
+            var logIntervalSeconds = TimeSpan.FromSeconds(10_000);
             var expectedOfflineTime = 10;
             var testClock = new MemoryClock();
 
-            using (var testServiceTracker = Service.ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
             {
                 // Offline time is not available, because the file is missing.
-                testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeError();
-                testServiceTracker.LogCurrentTimeStampToFile(context);
+                tracker.GetLastServiceHeartbeatTime(context).ShouldBeError();
+
+                tracker.LogCurrentTimeStampToFile(context);
 
                 // Moving the clock forward
                 testClock.UtcNow += TimeSpan.FromSeconds(expectedOfflineTime);
 
+                // GetLastServiceHeartbeatTime is memoized, so we can't change the state and get different results!
+                tracker.GetLastServiceHeartbeatTime(context).ShouldBeError();
+                // Need to create another tracker to test the behavior
+                using var nestedTracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure();
+
+                var lastHeartbeat = nestedTracker.GetLastServiceHeartbeatTime(context).ShouldBeSuccess();
+                
                 // From the previous simulated interval, we created a new file and wrote a timestamp to it.
                 // Now we should be able to determine previous offlineTIme
                 // Intentionally converting the offline time to int to simplify the comparison.
-                int offlineDuration = (int)testClock.UtcNow.Subtract(testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeSuccess().Value).TotalSeconds;
+                int offlineDuration = (int)testClock.UtcNow.Subtract(lastHeartbeat.Value.lastServiceHeartbeatTime).TotalSeconds;
                 offlineDuration.Should().Be(expectedOfflineTime);
+
+                lastHeartbeat.Value.shutdownCorrectly.Should().BeFalse();
             }
 
-            // Making sure that once the tracker is re-created
-            // we can get the right offline time.
-            using (var testServiceTracker = Service.ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            // Moving the clock forward
+            testClock.UtcNow += TimeSpan.FromSeconds(expectedOfflineTime);
+
+            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
             {
-                int offlineDuration = (int)testClock.UtcNow.Subtract(testServiceTracker.GetShutdownTime(context, logTimeStampToFile: false).ShouldBeSuccess().Value).TotalSeconds;
+                // The previous tracker should have written the files.
+                var result = tracker.GetLastServiceHeartbeatTime(context).ShouldBeSuccess();
+                result.Value.shutdownCorrectly.Should().BeTrue();
+
+                // From the previous simulated interval, we created a new file and wrote a timestamp to it.
+                // Now we should be able to determine previous offlineTIme
+                // Intentionally converting the offline time to int to simplify the comparison.
+                int offlineDuration = (int)testClock.UtcNow.Subtract(result.Value.lastServiceHeartbeatTime).TotalSeconds;
                 offlineDuration.Should().Be(expectedOfflineTime);
             }
         }

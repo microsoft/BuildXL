@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
@@ -14,9 +15,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
         // ReSharper disable once ArrangeModifiersOrder
         public static new readonly TestSystemClock Instance = new TestSystemClock();
 
-        public void Increment()
+        public DateTime Increment()
         {
             Thread.Sleep(1);
+            return UtcNow;
         }
     }
 }

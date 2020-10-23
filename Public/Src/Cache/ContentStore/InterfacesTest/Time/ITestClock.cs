@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
@@ -13,6 +14,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
         /// <summary>
         ///     Make sure clock is incremented by some amount.
         /// </summary>
-        void Increment();
+        DateTime Increment();
     }
 }

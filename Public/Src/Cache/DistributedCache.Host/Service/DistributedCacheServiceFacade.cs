@@ -107,11 +107,9 @@ namespace BuildXL.Cache.Host.Service
 
             AdjustCopyInfrastructure(arguments);
 
-            await ReportStartingServiceAsync(operationContext, host);
+            await ReportStartingServiceAsync(operationContext, host, arguments.Configuration);
 
             var factory = new CacheServerFactory(arguments);
-
-            ServiceOfflineDurationTracker serviceRunningTracker = null;
 
             // Technically, this method doesn't own the file copier, but no one actually owns it.
             // So to clean up the resources (and print some stats) we dispose it here.
@@ -126,15 +124,8 @@ namespace BuildXL.Cache.Host.Service
                         throw new CacheException(startupResult.ToString());
                     }
 
-                    var serviceRunningTrackerResult = ServiceOfflineDurationTracker.Create(
-                        operationContext,
-                        SystemClock.Instance,
-                        new PassThroughFileSystem(),
-                        arguments.Configuration);
+                    ReportServiceStarted(operationContext, host);
 
-                    ReportServiceStarted(operationContext, host, serviceRunningTrackerResult, timer.Elapsed);
-
-                    serviceRunningTracker = serviceRunningTrackerResult.GetValueOrDefault();
                     await arguments.Cancellation.WaitForCancellationAsync();
                     await ReportShuttingDownServiceAsync(operationContext, host);
                 }
@@ -145,17 +136,11 @@ namespace BuildXL.Cache.Host.Service
                 }
                 finally
                 {
-                    // Writing the current time before shutting the service down.
-                    serviceRunningTracker?.LogCurrentTimeStampToFile(operationContext);
-
-                    timer.Reset();
                     var timeoutInMinutes = arguments.Configuration?.DistributedContentSettings?.MaxShutdownDurationInMinutes ?? 30;
                     var result = await server
                         .ShutdownAsync(context)
                         .WithTimeoutAsync("Server shutdown", TimeSpan.FromMinutes(timeoutInMinutes));
-
-                    serviceRunningTracker?.Dispose();
-                    ReportServiceStopped(context, host, result, timer.Elapsed);
+                    ReportServiceStopped(context, host, result);
                 }
             }
         }
@@ -172,12 +157,19 @@ namespace BuildXL.Cache.Host.Service
 
         private static void ReportServiceStartupFailed(Context context, Exception exception, TimeSpan startupDuration)
         {
-            LifetimeTrackerTracer.ServiceStartupFailed(context, exception, startupDuration);
+            LifetimeTracker.ServiceStartupFailed(context, exception, startupDuration);
         }
 
-        private static async Task ReportStartingServiceAsync(OperationContext context, IDistributedCacheServiceHost host)
+        private static async Task ReportStartingServiceAsync(
+            OperationContext context,
+            IDistributedCacheServiceHost host,
+            DistributedCacheServiceConfiguration configuration)
         {
-            LifetimeTrackerTracer.StartingService(context);
+            var logIntervalSeconds = configuration.DistributedContentSettings.ServiceRunningLogInSeconds;
+            var logInterval = logIntervalSeconds != null ? (TimeSpan?)TimeSpan.FromSeconds(logIntervalSeconds.Value) : null;
+            var logFilePath = configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName);
+
+            LifetimeTracker.ServiceStarting(context, logInterval, logFilePath);
 
             if (host is IDistributedCacheServiceHostInternal hostInternal)
             {
@@ -189,18 +181,15 @@ namespace BuildXL.Cache.Host.Service
 
         private static void ReportServiceStarted(
             OperationContext context,
-            IDistributedCacheServiceHost host,
-            Result<ServiceOfflineDurationTracker> trackerResult,
-            TimeSpan startupDuration)
+            IDistributedCacheServiceHost host)
         {
-            var shutdownTimeUtc = trackerResult.Then(v => v.GetShutdownTime(context, logTimeStampToFile: true));
-            LifetimeTrackerTracer.ServiceStarted(context, startupDuration, shutdownTimeUtc);
+            LifetimeTracker.ServiceStarted(context);
             host.OnStartedService();
         }
 
         private static async Task ReportShuttingDownServiceAsync(OperationContext context, IDistributedCacheServiceHost host)
         {
-            LifetimeTrackerTracer.ShuttingDownService(context);
+            LifetimeTracker.ShuttingDownService(context);
 
             if (host is IDistributedCacheServiceHostInternal hostInternal)
             {
@@ -208,10 +197,10 @@ namespace BuildXL.Cache.Host.Service
             }
         }
 
-        private static void ReportServiceStopped(Context context, IDistributedCacheServiceHost host, BoolResult result, TimeSpan shutdownDuration)
+        private static void ReportServiceStopped(Context context, IDistributedCacheServiceHost host, BoolResult result)
         {
             CacheActivityTracker.Stop();
-            LifetimeTrackerTracer.ServiceStopped(context, result, shutdownDuration);
+            LifetimeTracker.ServiceStopped(context, result);
             host.OnTeardownCompleted();
         }
 

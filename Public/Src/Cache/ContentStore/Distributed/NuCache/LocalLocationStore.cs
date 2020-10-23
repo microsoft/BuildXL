@@ -353,7 +353,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         // It is very important to explicitly trace when the post initialization is done,
                         // because only after that the service can process the requests.
-                        LifetimeTrackerTracer.ServiceReadyToProcessRequests(context);
+                        LifetimeTracker.ServiceReadyToProcessRequests(context);
                     }));
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;

@@ -330,4 +330,10 @@
   <data name="PerformanceCollectorInitializationDurationMs" xml:space="preserve">
     <value>PerformanceCollectorInitializationDurationMs</value>
   </data>
+  <data name="TotalApiServerMaterializedOutputsSize" xml:space="preserve">
+    <value>TotalApiServerMaterializedOutputsSize</value>
+  </data>
+  <data name="TotalApiServerMaterializedOutputsCount" xml:space="preserve">
+    <value>TotalApiServerMaterializedOutputsCount</value>
+  </data>
 </root>

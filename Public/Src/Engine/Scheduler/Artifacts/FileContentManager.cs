@@ -3639,6 +3639,8 @@ namespace BuildXL.Scheduler.Artifacts
             statistics.Add(Statistics.TotalMaterializedOutputsCount, m_stats.TotalMaterializedOutputsCount);
             statistics.Add(Statistics.TotalMaterializedInputsExpensiveCount, m_stats.TotalMaterializedInputsExpensiveCount);
             statistics.Add(Statistics.TotalMaterializedOutputsExpensiveCount, m_stats.TotalMaterializedOutputsExpensiveCount);
+            statistics.Add(Statistics.TotalApiServerMaterializedOutputsCount, m_stats.TotalApiServerMaterializedOutputsCount);
+            statistics.Add(Statistics.TotalApiServerMaterializedOutputsSize, m_stats.TotalApiServerMaterializedOutputsSize);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
         }

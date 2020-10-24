@@ -11,6 +11,7 @@ namespace BuildXL.Utilities
     /// </summary>
     public static class CharUtilities
     {
+        private static readonly char[] s_toLowerInvariantCache = CreateToLowerInvariantCache();
         private static readonly char[] s_toUpperInvariantCache = CreateToUpperInvariantCache();
 
         /// <summary>
@@ -29,6 +30,17 @@ namespace BuildXL.Utilities
             return a;
         }
 
+        private static char[] CreateToLowerInvariantCache()
+        {
+            var a = new char[char.MaxValue + 1];
+            for (int c = char.MinValue; c <= char.MaxValue; c++)
+            {
+                a[c] = char.ToLowerInvariant((char)c);
+            }
+
+            return a;
+        }
+
         /// <summary>
         /// <code>code.ToUpperInvariant</code> is surprisingly expensive; this is a cache
         /// </summary>
@@ -36,6 +48,15 @@ namespace BuildXL.Utilities
         public static char ToUpperInvariantFast(this char character)
         {
             return s_toUpperInvariantCache[character];
+        }
+
+        /// <summary>
+        /// <code>code.ToLowerInvariant</code> is surprisingly expensive; this is a cache
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static char ToLowerInvariantFast(this char character)
+        {
+            return s_toLowerInvariantCache[character];
         }
     }
 }

@@ -26,12 +26,12 @@ namespace BuildXL.Cache.Tests
             ""FilteredCache"":{2}
         }}";
 
-        private readonly string file = PathGeneratorUtilities.GetAbsolutePath("X", "DIR1", "FILE.TXT");
-        private readonly string libraryDll = PathGeneratorUtilities.GetAbsolutePath("X", "DIR1", "SUBDIR", "LIBRARY.DLL");
-        private readonly string libDll = PathGeneratorUtilities.GetAbsolutePath("X", "DIR1", "SUBDIR", "LIB.DLL");
-        private readonly string tool = PathGeneratorUtilities.GetAbsolutePath("X", "DIR2", "TOOL.EXE");
-        private readonly string dllLib = PathGeneratorUtilities.GetAbsolutePath("X", "DIR1", "SUBDIR", "DLL.LIB");
-        private readonly string toolPdb = PathGeneratorUtilities.GetAbsolutePath("X", "DIR2", "TOOL.EXE.PDB");
+        private readonly string file = PathGeneratorUtilities.GetAbsolutePath("x", "dir1", "file.txt");
+        private readonly string libraryDll = PathGeneratorUtilities.GetAbsolutePath("x", "dir1", "subdir", "library.dll");
+        private readonly string libDll = PathGeneratorUtilities.GetAbsolutePath("x", "dir1", "subdir", "lib.dll");
+        private readonly string tool = PathGeneratorUtilities.GetAbsolutePath("x", "dir2", "tool.exe");
+        private readonly string dllLib = PathGeneratorUtilities.GetAbsolutePath("x", "dir1", "subdir", "dll.lib");
+        private readonly string toolPdb = PathGeneratorUtilities.GetAbsolutePath("x", "dir2", "tool.exe.pdb");
 
         protected override IEnumerable<EventSource> EventSources
         {
@@ -116,7 +116,7 @@ namespace BuildXL.Cache.Tests
         {
             const string TestName = "TestMustInclude";
             string testCacheId = MakeCacheId(TestName);
-            var cache = await CreateFilterCacheAsync(testCacheId, @".*\\.(EXE|DLL)$", string.Empty).SuccessAsync();
+            var cache = await CreateFilterCacheAsync(testCacheId, @".*\\.(exe|dll)$", string.Empty).SuccessAsync();
 
             string sessionId = "Session";
             ICacheSession session = (await cache.CreateSessionAsync(sessionId)).Success();
@@ -142,7 +142,7 @@ namespace BuildXL.Cache.Tests
         {
             const string TestName = "TestMustNotInclude";
             string testCacheId = MakeCacheId(TestName);
-            var cache = await CreateFilterCacheAsync(testCacheId, string.Empty, @".*\\.LIB$").SuccessAsync();
+            var cache = await CreateFilterCacheAsync(testCacheId, string.Empty, @".*\\.lib$").SuccessAsync();
 
             string sessionId = "Session";
             ICacheSession session = (await cache.CreateSessionAsync(sessionId)).Success();

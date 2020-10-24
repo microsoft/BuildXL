@@ -112,7 +112,7 @@ namespace BuildXL.Storage.Fingerprints
         public void Add(string text)
         {
             BeginItem(HashValueType.String);
-            AddInnerString(text, forceUppercase: false);
+            AddInnerString(text, forceLowercase: false);
             EndItem();
         }
 
@@ -184,7 +184,7 @@ namespace BuildXL.Storage.Fingerprints
         {
             string pathString = path.IsValid ? m_pathExpander.ExpandPath(m_pathTable, path) : "??Invalid";
 
-            AddInnerString(pathString, forceUppercase: !OperatingSystemHelper.IsPathComparisonCaseSensitive);
+            AddInnerString(pathString, forceLowercase: !OperatingSystemHelper.IsPathComparisonCaseSensitive);
         }
 
         /// <summary>
@@ -195,7 +195,7 @@ namespace BuildXL.Storage.Fingerprints
         private void AddInnerString(StringId text)
         {
             string textString = text.IsValid ? m_pathTable.StringTable.GetString(text) : "??Invalid";
-            AddInnerString(textString, forceUppercase: false);
+            AddInnerString(textString, forceLowercase: false);
         }
 
         /// <inheritdoc />

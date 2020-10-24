@@ -829,16 +829,16 @@ namespace BuildXL.Cache.Tests
             ICache cache = await InitializeCache("TestCacheId");
 
             string[] inputs = new string[3];
-            inputs[0] = PathGeneratorUtilities.GetAbsolutePath("B", "FIRSTINPUT.CS");
-            inputs[1] = PathGeneratorUtilities.GetAbsolutePath("B", "SECONDINPUT.CS");
-            inputs[2] = PathGeneratorUtilities.GetAbsolutePath("B", "THIRDINPUT.TXT");
+            inputs[0] = PathGeneratorUtilities.GetAbsolutePath("b", "firstinput.cs");
+            inputs[1] = PathGeneratorUtilities.GetAbsolutePath("b", "secondinput.cs");
+            inputs[2] = PathGeneratorUtilities.GetAbsolutePath("b", "thirdinput.txt");
             await AddRealInputAssertionListSessionToCache(cache, sessionName, inputs);
 
             InputAssertionListChecker inputAssertionListChecker = new InputAssertionListChecker(cache);
             ConcurrentDictionary<CacheError, int> cacheErrors = new ConcurrentDictionary<CacheError, int>();
             Func<string, bool> inputListCheck;
-            Regex inputAssertionListDumpMustIncludeRegex = new Regex("FIRST");
-            Regex inputAssertionListDumpMustNotIncludeRegex = new Regex("OUTPUT");
+            Regex inputAssertionListDumpMustIncludeRegex = new Regex("first");
+            Regex inputAssertionListDumpMustNotIncludeRegex = new Regex("output");
             inputListCheck = (inputList) =>
             {
                 return inputAssertionListDumpMustIncludeRegex.IsMatch(inputList) && !inputAssertionListDumpMustNotIncludeRegex.IsMatch(inputList);

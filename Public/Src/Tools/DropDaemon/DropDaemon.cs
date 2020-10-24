@@ -852,15 +852,17 @@ namespace Tool.DropDaemon
                     filePath: files[i],
                     fileId: fileIds[i],
                     fileContentInfo: FileContentInfo.Parse(hashes[i]),
-                    relativeDropPath: dropPaths[i])).ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
+                    relativeDropPath: dropPaths[i]))
+                .ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
 
             // If a user specified a particular file to be added to drop, this file must be a part of drop.
             // The missing files will not get into the drop, so we emit an error.
             if (dropFileItemsKeyedByIsAbsent[true].Any())
             {
+                string missingFiles = string.Join(Environment.NewLine, dropFileItemsKeyedByIsAbsent[true].Select(f => $"{f.FullFilePath} ({f})"));
                 return new IpcResult(
                     IpcResultStatus.InvalidInput,
-                    I($"The following files are missing, but they are a part of the drop command:{Environment.NewLine}{string.Join(Environment.NewLine, dropFileItemsKeyedByIsAbsent[true])}"));
+                    I($"Cannot add the following files to drop because they do not exist:{Environment.NewLine}{missingFiles}"));
             }
 
             (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(

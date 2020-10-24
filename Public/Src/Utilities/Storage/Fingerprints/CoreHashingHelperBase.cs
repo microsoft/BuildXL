@@ -147,7 +147,7 @@ namespace BuildXL.Storage.Fingerprints
             Contract.Requires(text != null);
 
             BeginItem(HashValueType.String, name);
-            AddInnerString(text, forceLowercase: false);
+            AddInnerString(text, forceUppercase: false);
             EndItem();
         }
 
@@ -390,7 +390,7 @@ namespace BuildXL.Storage.Fingerprints
 
             if (name != null)
             {
-                AddInnerString(name, forceLowercase: false);
+                AddInnerString(name, forceUppercase: false);
                 AddInnerCharacter(':');
             }
 
@@ -428,7 +428,7 @@ namespace BuildXL.Storage.Fingerprints
         /// <summary>
         /// Adds an inner string
         /// </summary>
-        protected void AddInnerString(string value, bool forceLowercase)
+        protected void AddInnerString(string value, bool forceUppercase)
         {
             Contract.Requires(value != null);
 
@@ -436,21 +436,21 @@ namespace BuildXL.Storage.Fingerprints
             AddInnerInt32(value.Length);
             AddInnerCharacterDebug(']');
 
-            AddInnerStringLiteral(value, forceLowercase);
+            AddInnerStringLiteral(value, forceUppercase);
         }
 
         /// <summary>
         /// Adds an inner string literal
         /// </summary>
-        protected void AddInnerStringLiteral(string value, bool forceLowercase)
+        protected void AddInnerStringLiteral(string value, bool forceUppercase)
         {
             Contract.Requires(value != null);
 
-            if (forceLowercase)
+            if (forceUppercase)
             {
                 foreach (char ch in value)
                 {
-                    AddInnerCharacter(ch.ToLowerInvariantFast());
+                    AddInnerCharacter(ch.ToUpperInvariantFast());
                 }
             }
             else

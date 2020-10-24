@@ -65,8 +65,7 @@ namespace BuildXL.Pips.Graph
         /// 88: ObservationFlags are preserved for AbsentPathProbe.
         /// 89: Add unsafe sandbox option SkipFlaggingSharedOpaqueOutputs
         /// 90: Add RetryAttempEnvironmentVariable
-        /// 91: Lower-case path canonicalization
         /// </remarks>
-        TwoPhaseV2 = 91,
+        TwoPhaseV2 = 90,
     }
 }

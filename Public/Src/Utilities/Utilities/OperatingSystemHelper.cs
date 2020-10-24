@@ -138,10 +138,9 @@ namespace BuildXL.Utilities
         /// Returns method for canonicalizing paths as strings.
         /// </summary>
         /// <remarks>
-        /// The canonicalization is only turning the path into all lowercase letters if path comparison is case insensitive, i.e.,
+        /// The canonicalization is only turning the path into all uppercase letters if path comparison is case insensitive, i.e.,
         /// <see cref="IsPathComparisonCaseSensitive"/> is false. The canonicalization does not eliminate '.' or '..', nor dedupe directory
         /// separators. If path comparison is case sensitive, then the canonicalization method simply returns the string as is.
-        /// We use lowercase compared to uppercase; because it is more common. It will reduce the number of instances where we hit an issue of case-sensitive tools.
         /// </remarks>
         public static Func<string, string> CanonicalizePath { get; } = GetPathCanonicalizer();
 
@@ -149,7 +148,7 @@ namespace BuildXL.Utilities
         {
             if (!IsPathComparisonCaseSensitive)
             {
-                return path => path.ToLowerInvariant();
+                return path => path.ToUpperInvariant();
             }
 
             return path => path;

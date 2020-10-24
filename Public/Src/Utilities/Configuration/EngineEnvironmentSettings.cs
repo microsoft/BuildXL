@@ -208,6 +208,14 @@ namespace BuildXL.Utilities.Configuration
             "BuildXL.HashingConcurrency",
             value => ParseInt32(value) ?? Environment.ProcessorCount * 2);
 
+        /// <summary>
+        /// Whether we skip IPC pips when materializing outputs
+        /// </summary>
+        /// <remarks>
+        /// Default disabled (we skip IPC pips when materializing outputs)
+        /// </remarks>
+        public static readonly Setting<bool> DoNotSkipIpcWhenMaterializingOutputs = CreateSetting("BuildXLDoNotSkipIpcWhenMaterializingOutputs", value => value == "1");
+
         #endregion
 
         #region Cache-related timeouts

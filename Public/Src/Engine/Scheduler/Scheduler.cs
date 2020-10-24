@@ -3684,6 +3684,14 @@ namespace BuildXL.Scheduler
                 return;
             }
 
+            if (!EngineEnvironmentSettings.DoNotSkipIpcWhenMaterializingOutputs && 
+                runnablePip.PipType == PipType.Ipc)
+            {
+                // By default, we skip IPC pips when materializing outputs because the outputs of IPC pips are not important
+                // to materialize on the machines.
+                return;
+            }
+
             if (!runnablePip.Result.Value.Status.IndicatesNoOutput() &&
                 PipArtifacts.CanProduceOutputs(runnablePip.PipType) &&
                 runnablePip.Step != PipExecutionStep.MaterializeOutputs &&

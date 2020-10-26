@@ -161,7 +161,7 @@ export namespace DropDaemonRunner {
                 args.dropDomainId >= 0 && args.dropDomainId <= 255,
                 "DropDomainId value must be within [0..255] interval.");
         }
-        
+ 
         // start service
         const shutdownCmdName = "stop";
         const finalizationCmdName = "finalize";

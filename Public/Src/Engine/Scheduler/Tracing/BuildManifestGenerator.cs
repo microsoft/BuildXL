@@ -75,6 +75,8 @@ namespace BuildXL.Scheduler.Tracing
                     existingEntry.OldItem.Value.AzureArtifactsHash.Serialize(),
                     azureArtifactsHash.Serialize());
             }
+
+            Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"RecordFileForBuildManifest added a file at RelativePath '{relativePath}'. AzureArtifactsHash: '{azureArtifactsHash.Serialize()}'. BuildManifestHash: '{buildManifestHash.Serialize()}'");
         }
 
         /// <summary>

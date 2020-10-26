@@ -124,6 +124,27 @@ namespace BuildXL.Scheduler
             return null;
         }
 
+        private async Task<ContentHash?> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath)
+        {
+            if (File.Exists(fullFilePath))
+            {
+                try
+                {
+                    var hash = await ContentHashingUtilities.HashFileForBuildManifestAsync(fullFilePath);
+                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}'. BuildManifestHash: '{hash.Serialize()}'");
+                    return hash;
+                }
+                catch (BuildXLException ex)
+                {
+                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash: {ex.Message}");
+                    return null;
+                }
+            }
+
+            Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
+            return null;
+        }
+
         /// <summary>
         /// Compute the SHA-256 hash for file stored in Cache. Required for Build Manifets generation.
         /// </summary>
@@ -224,7 +245,7 @@ namespace BuildXL.Scheduler
             var registerBuildManifestHashCmd = cmd as RegisterFileForBuildManifestCommand;
             if (registerBuildManifestHashCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGetBuildManifestHashFromCacheAsync, registerBuildManifestHashCmd, ref m_numRegisterBuildManifestHash);
+                var result = await ExecuteCommandWithStats(ExecuteGetBuildManifestHashAsync, registerBuildManifestHashCmd, ref m_numRegisterBuildManifestHash);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -334,11 +355,12 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Executes <see cref="RegisterFileForBuildManifestCommand"/>. Checks if Cache contains SHA-256 Hash for given
-        /// <see cref="RegisterFileForBuildManifestCommand.Hash"/> and returns true if SHA-256 ContentHash exists.
+        /// Executes <see cref="RegisterFileForBuildManifestCommand"/>. Checks if local file exists and computes it's ContentHash. 
+        /// Else checks if Cache contains SHA-256 Hash for given <see cref="RegisterFileForBuildManifestCommand.Hash"/>.
+        /// Returns true if SHA-256 ContentHash exists.
         /// Else the file is materialized using <see cref="ExecuteMaterializeFileAsync"/>, the build manifest hash is computed and stored into cache.
         /// </summary>
-        private async Task<IIpcResult> ExecuteGetBuildManifestHashFromCacheAsync(RegisterFileForBuildManifestCommand cmd)
+        private async Task<IIpcResult> ExecuteGetBuildManifestHashAsync(RegisterFileForBuildManifestCommand cmd)
         {
             Contract.Requires(cmd != null);
 
@@ -348,11 +370,13 @@ namespace BuildXL.Scheduler
                 return IpcResult.Success(cmd.RenderResult(true));
             }
 
-            ContentHash? sha256Hash = await TryGetBuildManifestHashAsync(cmd.Hash);
+            ContentHash? sha256Hash =
+                await TryGetBuildManifestHashFromLocalFileAsync(cmd.FullFilePath) ??
+                await TryGetBuildManifestHashAsync(cmd.Hash);
 
             if (sha256Hash.HasValue)
             {
-                m_inMemoryBuildManifestStore.Add(cmd.Hash, sha256Hash.Value);
+                m_inMemoryBuildManifestStore.TryAdd(cmd.Hash, sha256Hash.Value);
                 RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, cmd.Hash, sha256Hash.Value);
                 return IpcResult.Success(cmd.RenderResult(true));
             }
@@ -360,13 +384,12 @@ namespace BuildXL.Scheduler
             var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(cmd);
             if (computeHashResult.Succeeded)
             {
-                m_inMemoryBuildManifestStore.Add(cmd.Hash, computeHashResult.Result);
+                m_inMemoryBuildManifestStore.TryAdd(cmd.Hash, computeHashResult.Result);
                 RecordFileForBuildManifestInXLG(cmd.DropName, cmd.RelativePath, cmd.Hash, computeHashResult.Result);
                 await StoreBuildManifestHashAsync(cmd.Hash, computeHashResult.Result);
 
                 return IpcResult.Success(cmd.RenderResult(true));
             }
-
             Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromCacheFailed(m_loggingContext, cmd.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             return IpcResult.Success(cmd.RenderResult(false));
         }

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -51,6 +52,8 @@ namespace Tool.DropDaemon
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
 
         internal static readonly List<Option> DropConfigOptions = new List<Option>();
+
+        private const string DropBuildManifestPath = "/_manifest/manifest.json"; // This folder is placed directly under the drop root
 
         /// <summary>Drop configuration.</summary>
         public DropConfig DropConfig { get; }
@@ -257,35 +260,9 @@ namespace Tool.DropDaemon
                    return -1;
                }
 
-               if (dropConfig.EnableBuildManifestCreation == true)
+               if (!VerifyBuildManifestRequirements(conf, dropConfig))
                {
-                   List<string> missingFields = new List<string>();
-
-                   if (string.IsNullOrEmpty(dropConfig.Repo))
-                   {
-                       missingFields.Add("repo");
-                   }
-
-                   if (string.IsNullOrEmpty(dropConfig.Branch))
-                   {
-                       missingFields.Add("branch");
-                   }
-
-                   if (string.IsNullOrEmpty(dropConfig.CommitId))
-                   {
-                       missingFields.Add("commitId");
-                   }
-
-                   if (string.IsNullOrEmpty(dropConfig.CloudBuildId))
-                   {
-                       missingFields.Add("cloudBuildId");
-                   }
-
-                   if (missingFields.Count != 0)
-                   {
-                       conf.Logger.Error($"EnableBuildManifestCreation set to true, but the following required fields are missing: {string.Join(",", missingFields)}");
-                       return -1;
-                   }
+                   return -1;
                }
 
                using (var client = CreateClient(conf.Get(IpcServerMonikerOptional), daemonConf))
@@ -348,8 +325,12 @@ namespace Tool.DropDaemon
 
                 if (daemon.DropConfig.EnableBuildManifestCreation)
                 {
-                    var buildManifestResult = await GenerateBuildManifestFileAsync(daemon);
-                    // TODO: Call AddArtifactsToDropCmd or AddFileToDropCmd to store BuildManifest.json
+                    var buildManifestResult = await GenerateAndUploadBuildManifestFileAsync(daemon);
+                    if (!buildManifestResult.Succeeded)
+                    {
+                        daemon.Logger.Info($"[FINALIZE] Failure occured during Build Manifest upload: {buildManifestResult.Payload}");
+                        return buildManifestResult;
+                    }
                 }
 
                 IIpcResult result = await daemon.FinalizeAsync();
@@ -439,6 +420,42 @@ namespace Tool.DropDaemon
             }
         }
 
+        internal static bool VerifyBuildManifestRequirements(ConfiguredCommand conf, DropConfig dropConfig)
+        {
+            if (dropConfig.EnableBuildManifestCreation == true)
+            {
+                List<string> missingFields = new List<string>();
+
+                if (string.IsNullOrEmpty(dropConfig.Repo))
+                {
+                    missingFields.Add("repo");
+                }
+
+                if (string.IsNullOrEmpty(dropConfig.Branch))
+                {
+                    missingFields.Add("branch");
+                }
+
+                if (string.IsNullOrEmpty(dropConfig.CommitId))
+                {
+                    missingFields.Add("commitId");
+                }
+
+                if (string.IsNullOrEmpty(dropConfig.CloudBuildId))
+                {
+                    missingFields.Add("cloudBuildId");
+                }
+
+                if (missingFields.Count != 0)
+                {
+                    conf.Logger.Error($"EnableBuildManifestCreation set to true, but the following required fields are missing: {string.Join(", ", missingFields)}");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Synchronous version of <see cref="CreateAsync"/>
         /// </summary>
@@ -491,25 +508,71 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Generates a BuildManifest.json on the master using all file hashes computed and stored 
+        /// Generates and uploads the Manifest.json on the master using all file hashes computed and stored 
         /// by workers using <see cref="RegisterFileForBuildManifestAsync"/> for the given drop.
         /// Should be called only when DropConfig.EnableBuildManifestCreation is true.
         /// </summary>
-        public async static Task<BuildManifestData> GenerateBuildManifestFileAsync(DropDaemon daemon)
+        public async static Task<IIpcResult> GenerateAndUploadBuildManifestFileAsync(DropDaemon daemon)
         {
             Contract.Requires(daemon.DropConfig.EnableBuildManifestCreation == true, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            // TODO: API call returns BuildManifestData, use it to create a local file
-            // TODO: Use branch, commitId and Repo, RelativeActivityId/cloudBuildId info available inside dropConfig
             var bxlResult = await daemon.ApiClient.GenerateBuildManifestData(daemon.DropName);
             if (!bxlResult.Succeeded)
             {
-                return new BuildManifestData();
+                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure}");
             }
 
-            return bxlResult.Result;
+            string localFilePath;
+            string buildManifestJsonStr = GenerateBuildManifestFileViaLibrary(daemon, bxlResult.Result);
+
+            try
+            {
+                localFilePath = Path.GetTempFileName();
+                System.IO.File.WriteAllText(localFilePath, buildManifestJsonStr);
+            }
+            catch (Exception ex)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Exception while trying to store Build Manifest locally before drop upload: {ex}");
+            }
+
+            var dropItem = new DropItemForFile(localFilePath, relativeDropPath: DropBuildManifestPath);
+            return await daemon.AddFileAsync(dropItem);
         }
 
+        /// <summary>
+        /// Generates the Build Manifest as a json string for the specified Drop. 
+        /// This function will be moved to an external library common between BuildXL and QuickBuild
+        /// </summary>
+        public static string GenerateBuildManifestFileViaLibrary(DropDaemon daemon, BuildManifestData data)
+        {
+            var outputsAsJson = data.Outputs.Select(output => {
+                return new
+                {
+                    Source = output.RelativePath.Replace('\\', '/'),
+                    AzureArtifactsHash = output.AzureArtifactsHash,
+                    Sha256Hash = output.BuildManifestHash
+                };
+            }).ToArray();
+
+            var buildManifestObj = new
+            {
+                Version = data.Version,
+                Timestamp = data.Timestamp,
+                CloudBuildId = daemon.DropConfig.CloudBuildId,
+                Repo = daemon.DropConfig.Repo,
+                Branch = daemon.DropConfig.Branch,
+                CommitId = daemon.DropConfig.CommitId,
+                Outputs = outputsAsJson
+            };
+
+            using (var writer = new StringWriter())
+            {
+                writer.NewLine = "\r\n";
+                var serializer = JsonSerializer.Create(new JsonSerializerSettings { Formatting = Formatting.Indented });
+                serializer.Serialize(writer, buildManifestObj);
+                return writer.ToString();
+            }
+        }
 
         /// <summary>
         /// Synchronous version of <see cref="FinalizeAsync"/>
@@ -820,29 +883,10 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
             }
 
-            ContentHash[] parsedHashes;
-
-            try
+            var registerFilesResult = await RegisterFilesForBuildManifestInternalAsync(daemon, dropPaths, fileIds, files, hashes);
+            if (!registerFilesResult.Succeeded)
             {
-                parsedHashes = hashes.Select(hash => FileContentInfo.Parse(hash).Hash).ToArray();
-            }
-            catch (ArgumentException e)
-            {
-                return new IpcResult(IpcResultStatus.InvalidInput, "Content Hash Parsing exception: " + e.InnerException);
-            }
-
-            if (daemon.DropConfig.EnableBuildManifestCreation)
-            {
-                var buildManifestHashTasks = Enumerable
-                .Range(0, parsedHashes.Length)
-                .Select(i => RegisterFileForBuildManifestAsync(daemon, dropPaths[i], parsedHashes[i], BuildXL.Ipc.ExternalApi.FileId.Parse(fileIds[i]), files[i]));
-
-                var buildManifestHashes = await TaskUtilities.SafeWhenAll(buildManifestHashTasks);
-
-                if (buildManifestHashes.Any(h => h == false))
-                {
-                    return new IpcResult(IpcResultStatus.ExecutionError, "Failure during BuildManifest Hash generation");
-                }
+                return registerFilesResult;
             }
 
             var dropFileItemsKeyedByIsAbsent = Enumerable
@@ -897,6 +941,53 @@ namespace Tool.DropDaemon
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
+        private static async Task<IIpcResult> RegisterFilesForBuildManifestInternalAsync(
+            DropDaemon daemon,
+            string[] dropPaths,
+            string[] fileIds,
+            string[] files,
+            string[] hashes)
+        {
+            if (daemon.DropConfig.EnableBuildManifestCreation)
+            {
+                ContentHash[] parsedHashes;
+
+                try
+                {
+                    parsedHashes = hashes.Select(hash => FileContentInfo.Parse(hash).Hash).ToArray();
+                }
+                catch (ArgumentException e)
+                {
+                    return new IpcResult(IpcResultStatus.InvalidInput, $"Content Hash Parsing exception: {e}");
+                }
+
+                var buildManifestHashTasks = Enumerable
+                .Range(0, parsedHashes.Length)
+                .Select(i => RegisterFileForBuildManifestAsync(daemon,
+                    dropPaths[i],
+                    parsedHashes[i],
+                    BuildXL.Ipc.ExternalApi.FileId.Parse(fileIds[i]),
+                    files[i]));
+
+                var buildManifestHashes = await TaskUtilities.SafeWhenAll(buildManifestHashTasks);
+
+                if (buildManifestHashes.Any(h => h == false))
+                {
+                    string[] failedFiles = Enumerable
+                        .Range(0, parsedHashes.Length)
+                        .Where(i => buildManifestHashes[i] == false)
+                        .Select(i => files[i])
+                        .ToArray();
+
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"Failure during BuildManifest Hash generation for files: '{string.Join("', '", failedFiles)}'");
+                }
+
+                return new IpcResult(IpcResultStatus.Success, "Registered {files.Length} files via RegisterFileForBuildManifest");
+            }
+
+            return new IpcResult(IpcResultStatus.Success, "Build manifest generation is disabled");
+        }
+
         /// <summary>
         /// Takes a hash as string and registers it's corresponding SHA-256 ContentHash using BuildXL Api
         /// Should be called only when DropConfig.EnableBuildManifestCreation is true
@@ -912,6 +1003,7 @@ namespace Tool.DropDaemon
             var bxlResult = await daemon.ApiClient.RegisterFileForBuildManifest(daemon.DropName, relativePath, hash, fileId, fullFilePath);
             if (!bxlResult.Succeeded)
             {
+                daemon.Logger.Log(LogLevel.Verbose, $"ApiClient.RegisterFileForBuildManifest unsuccessful for '{fullFilePath}'. Failure: {bxlResult.Failure.Describe()}");
                 return false;
             }
 
@@ -972,7 +1064,7 @@ namespace Tool.DropDaemon
                     var buildManifestHashResult = await RegisterFileForBuildManifestAsync(daemon, remoteFileName, file.ContentInfo.Hash, file.Artifact, file.FileName);
                     if (!buildManifestHashResult)
                     {
-                        return (null, "Failure during BuildManifest Hash generation");
+                        return (null, $"Failure during BuildManifest Hash generation for file: '{file.FileName}'");
                     }
                 }
 

@@ -102,7 +102,7 @@ namespace BuildXL.Cache.Host.Service
             DeploymentDirectory = new DisposableDirectory(fileSystem, targetDirectory / "bin");
             _host = host ?? OverrideHost ?? DeploymentLauncherHost.Instance;
 
-            LifetimeManager = new ServiceLifetimeManager(DeploymentDirectory.Path / "lifetime", TimeSpan.FromSeconds(Settings.ServiceLifetimePollingIntervalSeconds));
+            LifetimeManager = new ServiceLifetimeManager(targetDirectory / "lifetime", TimeSpan.FromSeconds(Settings.ServiceLifetimePollingIntervalSeconds));
 
             Store = new FileSystemContentStoreInternal(
                 fileSystem,
@@ -152,6 +152,16 @@ namespace BuildXL.Cache.Host.Service
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             var result = await Store.StartupAsync(context);
+
+            await context.PerformNonResultOperationAsync(
+                Tracer,
+                () =>
+                {
+                    // Clear deployment directory on startup
+                    FileSystem.DeleteDirectory(DeploymentDirectory.Path, DeleteOptions.All);
+                    return BoolResult.SuccessTask;
+                },
+                caller: "ClearDeploymentDirectory").IgnoreFailure();
 
             if (Settings.CreateJobObject && JobObject.OSSupportsNestedJobs)
             {
@@ -266,6 +276,9 @@ namespace BuildXL.Cache.Host.Service
 
                 // Query for launcher manifest from remote service
                 var manifest = await client.GetLaunchManifestAsync(context, Settings);
+
+                // Reset ForceUpdate now that launch manifest has been retrieved
+                Settings.DeploymentParameters.ForceUpdate = false;
                 return Result.Success(manifest);
             });
         }
@@ -312,7 +325,6 @@ namespace BuildXL.Cache.Host.Service
                                     FileReplacementMode.ReplaceExisting,
                                     FileRealizationMode.Any,
                                     deploymentInfo.PinRequest).ThrowIfFailureAsync();
-
                             }
 
                             return BoolResult.Success;
@@ -328,24 +340,48 @@ namespace BuildXL.Cache.Host.Service
 
         private Task DownloadFileAsync(OperationContext context, IDeploymentServiceClient client, FileSpec fileInfo, DeployedTool deploymentInfo, string firstFile)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
+            var url = new Uri(fileInfo.DownloadUrl);
+            var prunedUrl = new UriBuilder()
             {
-                var hash = new ContentHash(fileInfo.Hash);
+                Host = url.Host,
+                Port = url.Port
+            };
 
-                using (var downloadStream = await client.GetStreamAsync(context, fileInfo.DownloadUrl))
+            return context.PerformOperationAsync<BoolResult>(Tracer, async () =>
+            {
+                try
                 {
-                    await Store.PutStreamAsync(
-                        context,
-                        downloadStream,
-                        hash,
-                        deploymentInfo.PinRequest).ThrowIfFailureAsync();
+                    var hash = new ContentHash(fileInfo.Hash);
+
+                    using (var downloadStream = await client.GetStreamAsync(context, fileInfo.DownloadUrl))
+                    {
+                        await Store.PutStreamAsync(
+                            context,
+                            downloadStream,
+                            hash,
+                            deploymentInfo.PinRequest).ThrowIfFailureAsync();
+                    }
+                }
+                catch (Exception) when (forceUpdateOnDownloadFailure())
+                {
+                    // This code should never be reached since exception filter returns false
+                    throw;
                 }
 
                 return BoolResult.Success;
             },
-            extraStartMessage: $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}",
-            extraEndMessage: r => $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}"
+            extraStartMessage: $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}",
+            extraEndMessage: r => $"Hash={fileInfo.Hash}, Size={fileInfo.Size}, Host={prunedUrl.Uri}, FirstTarget={firstFile}, Folder={deploymentInfo.Directory.Path}"
             ).ThrowIfFailureAsync();
+
+            bool forceUpdateOnDownloadFailure()
+            {
+                // Force update of manifest on download failure to try a new proxy address if available
+                Settings.DeploymentParameters.ForceUpdate = true;
+
+                // Return false to allow exception to propagate
+                return false;
+            }
         }
 
         /// <summary>

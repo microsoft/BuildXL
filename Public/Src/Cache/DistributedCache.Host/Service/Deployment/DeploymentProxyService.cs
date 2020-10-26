@@ -190,8 +190,8 @@ namespace BuildXL.Launcher.Server
                                 // Cache the content in local store and return stream from local store
                                 return await Store.PutStreamAsync(innerContext, stream, contentHash, pinRequest: null).ThrowIfFailure();
                             },
-                            extraStartMessage: $"Hash={hash}",
-                            extraEndMessage: r => $"Hash={hash} Size={r.ContentSize}",
+                            extraStartMessage: $"Hash={hash} BaseAddress={proxyBaseAddress}",
+                            extraEndMessage: r => $"Hash={hash} Size={r.ContentSize} BaseAddress={proxyBaseAddress}",
                             timeout: cacheRequestTimeToLive);
                     });
                 });

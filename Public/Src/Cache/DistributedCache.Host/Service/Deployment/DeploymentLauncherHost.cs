@@ -50,15 +50,18 @@ namespace BuildXL.Cache.Host.Service
 
             public async Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
             {
-                // First query for change id to detect if deployment manifest has changed. If
-                // deployment manifest has not changed then, launcher manifest which is derived from it
-                // also has not changed, so just return prior launcher manifest in that case. This avoids
-                // a lot of unnecessary computation on the server.
-                string newChangeId = await _client.GetStringAsync($"{settings.ServiceUrl}/deploymentChangeId");
-                var lastManifest = _lastManifest;
-                if (lastManifest?.DeploymentManifestChangeId == newChangeId)
+                if (!settings.DeploymentParameters.ForceUpdate)
                 {
-                    return lastManifest;
+                    // First query for change id to detect if deployment manifest has changed. If
+                    // deployment manifest has not changed then, launcher manifest which is derived from it
+                    // also has not changed, so just return prior launcher manifest in that case. This avoids
+                    // a lot of unnecessary computation on the server.
+                    string newChangeId = await _client.GetStringAsync($"{settings.ServiceUrl}/deploymentChangeId");
+                    var lastManifest = _lastManifest;
+                    if (lastManifest?.DeploymentManifestChangeId == newChangeId)
+                    {
+                        return lastManifest;
+                    }
                 }
 
                 // Query for launcher manifest from remote service
@@ -84,11 +87,11 @@ namespace BuildXL.Cache.Host.Service
                 return PostJsonAsync(context, GetProxyBaseAddressQueryUrl(context, serviceUrl, token), parameters);
             }
 
-            internal static string GetProxyBaseAddressQueryUrl(OperationContext context, string baseAddress, string token)
+            internal static string GetProxyBaseAddressQueryUrl(OperationContext context, string baseAddress, string accessToken)
             {
                 static string escape(string value) => Uri.EscapeDataString(value);
 
-                return $"{baseAddress}/getproxyaddress?contextId={escape(context.TracingContext.Id.ToString())}&token={escape(token)}";
+                return $"{baseAddress}/getproxyaddress?contextId={escape(context.TracingContext.Id.ToString())}&accessToken={escape(accessToken)}";
             }
 
             private async Task<string> PostJsonAsync<TBody>(OperationContext context, string url, TBody body)

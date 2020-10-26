@@ -332,7 +332,7 @@ namespace BuildXL.Launcher.Server
 
                     return new Result<string>(proxyManager.GetBaseAddress(parameters, configuration.Proxy.OverrideProxyHost) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
                 },
-                messageFactory: r => $"BaseAddress={r.GetValueOrDefault()}").Value;
+                messageFactory: r => $"{parameters} BaseAddress={r.GetValueOrDefault()}").Value;
         }
 
         private Task<string> GetSecretAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration secretInfo)
@@ -446,13 +446,13 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Attempts to get the storage sas url given the token
         /// </summary>
-        public Result<string> TryGetDownloadUrl(OperationContext context, string token, string traceInfo)
+        public Result<string> TryGetDownloadUrl(OperationContext context, string accessToken, string traceInfo)
         {
             return context.PerformOperation(
                 Tracer,
                 () =>
                 {
-                    if (SasUrlsByToken.TryGetValue(token, out var sasUrl))
+                    if (SasUrlsByToken.TryGetValue(accessToken, out var sasUrl))
                     {
                         return Result.Success(sasUrl);
                     }

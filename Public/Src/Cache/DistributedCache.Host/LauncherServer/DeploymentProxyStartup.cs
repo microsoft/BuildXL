@@ -243,7 +243,7 @@ namespace BuildXL.Launcher.Server
                 if (key == WebHostDefaults.ServerUrlsKey)
                 {
                     Contract.Assert(Configuration != null);
-                    value = $"http://localhost:{Configuration.Port}";
+                    value = $"http://*:{Configuration.Port}";
                     return true;
                 }
 

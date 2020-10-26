@@ -205,12 +205,14 @@ namespace BuildXL.Cache.Host.Service
                 var document = JsonDocument.Parse(text, DeploymentUtilities.ConfigurationDocumentOptions);
 
                 var urls = document.RootElement
-                    .GetProperty(nameof(DeploymentConfiguration.Drops))
-                    .EnumerateArray()
-                    .SelectMany(e =>
-                        e.EnumerateObject()
-                         .Where(e => e.Name.StartsWith(nameof(DropDeploymentConfiguration.Url))))
-                    .Select(e => e.Value.GetString());
+                    .EnumerateObject()
+                    .Where(e => e.Name.StartsWith(nameof(DeploymentConfiguration.Drops)))
+                    .SelectMany(d => d.Value
+                        .EnumerateArray()
+                        .SelectMany(e =>
+                            e.EnumerateObject()
+                             .Where(e => e.Name.StartsWith(nameof(DropDeploymentConfiguration.Url))))
+                        .Select(e => e.Value.GetString()));
 
                 foreach (var url in new[] { DeploymentUtilities.ConfigDropUri.ToString() }.Concat(urls))
                 {

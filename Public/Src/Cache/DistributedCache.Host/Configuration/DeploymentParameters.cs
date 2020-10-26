@@ -74,6 +74,10 @@ namespace BuildXL.Cache.Host.Configuration
         public string AuthorizationSecretName { get; set; }
         public string AuthorizationSecret { get; set; }
         public bool GetContentInfoOnly { get; set; }
-        public bool GetContentIdOnly { get; set; }
+
+        /// <summary>
+        /// Indicates whether deployment client should bypass up to date check
+        /// </summary>
+        public bool ForceUpdate;
     }
 }

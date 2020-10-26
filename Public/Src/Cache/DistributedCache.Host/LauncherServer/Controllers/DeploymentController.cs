@@ -51,12 +51,12 @@ namespace BuildXL.Launcher.Server.Controllers
 
         [HttpPost]
         [Route("getproxyaddress")]
-        public ActionResult GetProxyAddress(Guid contextId, string token, [FromBody] HostParameters parameters)
+         public ActionResult GetProxyAddress(Guid contextId, string accessToken, [FromBody] HostParameters parameters)
         {
             OperationContext context = new OperationContext(new Context(contextId, _logger));
 
             //  Use download token to authenticate.
-            if (!_service.TryGetDownloadUrl(context, token: token, traceInfo: parameters.ToString()).Succeeded)
+            if (!_service.TryGetDownloadUrl(context, accessToken: accessToken, traceInfo: parameters.ToString()).Succeeded)
             {
                 return Unauthorized();
             }
@@ -66,12 +66,12 @@ namespace BuildXL.Launcher.Server.Controllers
 
         [HttpGet]
         [Route("content")]
-        public async Task<ActionResult> GetContentAsync(Guid contextId, string hash, string token)
+        public async Task<ActionResult> GetContentAsync(Guid contextId, string hash, string accessToken)
         {
             await Task.Yield();
 
             OperationContext context = new OperationContext(new Context(contextId, _logger));
-            if (!_service.TryGetDownloadUrl(context, token: token, traceInfo: $"Hash={hash}").TryGetValue(out var downloadUrl))
+            if (!_service.TryGetDownloadUrl(context, accessToken: accessToken, traceInfo: $"Hash={hash}").TryGetValue(out var downloadUrl))
             {
                 return Unauthorized();
             }

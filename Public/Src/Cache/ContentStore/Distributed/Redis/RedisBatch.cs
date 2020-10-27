@@ -543,7 +543,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             batch.Execute();
 
             // The following call with throw an exception if token triggers before the completion of the tasks.
-            await TaskUtilities.WhenAllWithCancellation(taskToTrack, token);
+            await TaskUtilities.WhenAllWithCancellationAsync(taskToTrack, token);
         }
 
         /// <inheritdoc />

@@ -349,7 +349,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                             await batch.ExecuteBatchOperationAndGetCompletion(withTimeoutContext, database, token);
                                         }
                                     },
-                                    token);
+                                    token,
+                                    databaseName: DatabaseName);
 
                                 await batch.NotifyConsumersOfSuccess();
 

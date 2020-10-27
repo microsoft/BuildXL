@@ -47,7 +47,8 @@ namespace ContentStoreTest.Distributed.Redis
                         await Task.Yield();
                         throw new ApplicationException("1");
                     },
-                    CancellationToken.None);
+                    CancellationToken.None,
+                    databaseName: string.Empty);
                 Assert.True(false, "ExecuteAsync should fail.");
             }
             catch (ApplicationException)
@@ -91,7 +92,8 @@ namespace ContentStoreTest.Distributed.Redis
                         await Task.Yield();
                         throw new ApplicationException($"{callBackCallCount}");
                     },
-                    context.Token);
+                    context.Token,
+                    databaseName: string.Empty);
                 Assert.True(false, "ExecuteAsync should fail.");
             }
             catch (ApplicationException e)

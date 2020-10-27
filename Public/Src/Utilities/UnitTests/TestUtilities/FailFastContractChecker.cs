@@ -86,7 +86,8 @@ namespace Test.BuildXL.TestUtilities
                                 if (!s_testRunnerActiveSinceContractFailure)
                                 {
                                     var msg = "MS Test can't deal with exception serialization. Killing the app in fail fast way!";
-                                    ExceptionHandling.OnFatalException(null, msg);
+                                    // Need to provide an exception.
+                                    ExceptionHandling.OnFatalException(new Exception(msg), msg);
                                 }
                             }
                         }),

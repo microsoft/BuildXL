@@ -15,11 +15,7 @@ namespace BuildXL.Cache.Logging.External
 
         public TaskExceptionObserver()
         {
-            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unavailable");
-            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unknown");
-            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Cancelled");
-            // Suppressing the errors like: System.Net.WebException: The request was aborted: The request was canceled. at at System.Net.ConnectStream.EndRead(IAsyncResult asyncResult)
-            AddExceptionHelper(exceptionType: "System.Net.WebException", msg: "Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead");
+            IgnoreGrpcErrors();
             IgnoreWindowsStorageByteCountingStreamError();
         }
 
@@ -95,6 +91,26 @@ namespace BuildXL.Cache.Logging.External
             {
                 _wellKnownExceptions.Add(exceptionType, new List<string>() { msg });
             }
+        }
+
+        private void IgnoreGrpcErrors()
+        {
+            // Some Grpc.Core versions generate an error in a form of: StatusCode=Unavailable
+            // but some are using quotes: StatusCode="Unavailable"
+
+            // Ignoring errors like this:
+
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unavailable");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=\"Unavailable\"");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Unknown");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=\"Unknown\"");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=Cancelled");
+            AddExceptionHelper(exceptionType: "Grpc.Core.RpcException", msg: "StatusCode=\"Cancelled\"");
+
+            // Here is an example:
+            // Exception has occurred in an unobserved task. Process may exit. Exception=[System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. ---> Grpc.Core.RpcException: Status(StatusCode="Unavailable", Detail="failed to connect to all addresses", DebugException="Grpc.Core.Internal.CoreErrorDetailException: {"created":"@1603384575.432000000","description":"Failed to pick subchannel","file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\client_channel.cc","file_line":4134,"referenced_errors":[{"created":"@1603384575.432000000","description":"failed to connect to all addresses","file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\lb_policy\pick_first\pick_first.cc","file_line":398,"grpc_status":14}]}")
+            //--- End of inner exception stack trace ---
+            //---> (Inner Exception #0) Grpc.Core.RpcException: Status(StatusCode="Unavailable", Detail="failed to connect to all addresses", DebugException="Grpc.Core.Internal.CoreErrorDetailException: {"created":"@1603384575.432000000","description":"Failed to pick subchannel","file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\client_channel.cc","file_line":4134,"referenced_errors":[{"created":"@1603384575.432000000","description":"failed to connect to all addresses","file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\lb_policy\pick_first\pick_first.cc","file_line":398,"grpc_status":14}]}")<---
         }
 
         private void IgnoreWindowsStorageByteCountingStreamError()

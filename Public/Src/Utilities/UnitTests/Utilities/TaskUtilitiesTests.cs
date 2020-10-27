@@ -17,13 +17,46 @@ namespace Test.BuildXL.Utilities
     public sealed class TaskUtilitiesTests
     {
         [Fact]
+        public async Task WhenAllWithCancellationShouldNotCauseUnobservedTaskExceptions()
+        {
+            // This test checks that if the task awaited as part of WhenAllWithCancellationAsync call
+            // fails, it should not cause any unobserved task errors.
+            await Task.Yield();
+            await UnobservedTaskExceptionHelper.RunAsync(
+                async () =>
+                {
+                    using var cts = new CancellationTokenSource();
+                    
+                    cts.CancelAfter(10);
+
+                    // The task will after a small delay
+                    var failure = Task.Run(async () =>
+                                           {
+                                               await Task.Delay(500);
+                                               throw new Exception("1");
+                                           });
+
+                    try
+                    {
+                        await TaskUtilities.WhenAllWithCancellationAsync(new[] { failure }, cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+
+                    }
+
+                    await Task.Delay(1000);
+                });
+        }
+        
+        [Fact]
         public async Task WhenAllWithCancellationPropagatesSingleExceptionCorrectly()
         {
             var task = Task.Run(() => throw new ApplicationException());
 
             try
             {
-                await TaskUtilities.WhenAllWithCancellation(new[] { task }, CancellationToken.None);
+                await TaskUtilities.WhenAllWithCancellationAsync(new[] { task }, CancellationToken.None);
                 Assert.True(false, "The method should fail");
             }
             catch (ApplicationException) { }
@@ -37,7 +70,7 @@ namespace Test.BuildXL.Utilities
 
             try
             {
-                await TaskUtilities.WhenAllWithCancellation(new[] {task1, task2}, CancellationToken.None);
+                await TaskUtilities.WhenAllWithCancellationAsync(new[] {task1, task2}, CancellationToken.None);
                 Assert.True(false, "The method should fail");
             }
             catch (ApplicationException) { }
@@ -52,7 +85,7 @@ namespace Test.BuildXL.Utilities
 
             try
             {
-                await TaskUtilities.WhenAllWithCancellation(new[] {task}, tcs.Token);
+                await TaskUtilities.WhenAllWithCancellationAsync(new[] {task}, tcs.Token);
                 Assert.True(false, "The method should fail");
             }
             catch (OperationCanceledException) { }

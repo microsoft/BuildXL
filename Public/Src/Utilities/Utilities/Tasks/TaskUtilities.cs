@@ -74,15 +74,23 @@ namespace BuildXL.Utilities.Tasks
         /// Creates a task that will complete when all of the <see cref="T:System.Threading.Tasks.Task" /> objects in an enumerable collection have completed or when the <paramref name="token"/> is triggered.
         /// </summary>
         /// <exception cref="OperationCanceledException">The exception is thrown if the <paramref name="token"/> is canceled before the completion of <paramref name="tasks"/></exception>
-        public static async Task WhenAllWithCancellation(IEnumerable<Task> tasks, CancellationToken token)
+        public static async Task WhenAllWithCancellationAsync(IEnumerable<Task> tasks, CancellationToken token)
         {
+            // If one of the tasks passed here fails, we want to make sure that the task created by 'Task.WhenAll(tasks)' is observed
+            // in order to avoid unobserved task errors.
+            
+            var whenAllTask = Task.WhenAll(tasks);
+            
             var completedTask = await Task.WhenAny(
                 Task.Delay(Timeout.InfiniteTimeSpan, token),
-                Task.WhenAll(tasks));
+                whenAllTask);
 
             // We have one of two cases here: either all the tasks are done or the cancellation was requested.
 
-            // First, triggering 'OperationCancelledException' if the token is canceled.
+            // If the cancellation is requested we need to make sure we observe the result of the when all task created earlier.
+            whenAllTask.Forget();
+
+            // Now, we can trigger 'OperationCancelledException' if the token is canceled.
             // (Yes, its possible that all the tasks are done already, but this is a natural race condition for this pattern).
             token.ThrowIfCancellationRequested();
 
@@ -281,6 +289,7 @@ namespace BuildXL.Utilities.Tasks
             {
                 if (t.IsFaulted)
                 {
+                    Analysis.IgnoreArgument(t.Exception);
                     var e = (t.Exception as AggregateException)?.InnerException ?? t.Exception;
                     unobservedExceptionHandler?.Invoke(e);
                 }

@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Context context,
             Func<Task> func,
             CancellationToken token,
-            string? databaseName = null,
+            string? databaseName,
             [CallerMemberName] string? caller = null)
         {
             await policy.ExecuteAsync(
@@ -74,7 +74,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             };
 
             return await policy.ExecuteAsync(outerFunc, token);
-
         }
     }
 }

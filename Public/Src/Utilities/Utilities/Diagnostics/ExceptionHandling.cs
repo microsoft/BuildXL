@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 
+#nullable enable
 namespace BuildXL.Utilities.Diagnostics
 {
     /// <summary>
@@ -19,7 +20,7 @@ namespace BuildXL.Utilities.Diagnostics
         /// This is typically the exception in a catch block.</param>
         /// <param name="message">A message that explains why the process was terminated,
         /// or null if no explanation is provided.</param>
-        public static void OnFatalException(Exception exception, string message = null)
+        public static void OnFatalException(Exception exception, string? message = null)
         {
             Contract.RequiresNotNull(exception);
 

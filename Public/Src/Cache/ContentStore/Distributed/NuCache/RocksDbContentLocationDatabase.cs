@@ -865,7 +865,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
 
-        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string columnFamilyName)
+        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string columnFamilyName = null)
         {
             try
             {
@@ -960,10 +960,52 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }).ToBoolResult();
         }
 
-        /// <inheritdoc />
-        public override Result<long> GetContentDatabaseSizeBytes()
+        /// <nodoc />
+        public enum LongProperty
         {
-            return _keyValueStore.Use(store => long.Parse(store.GetProperty("rocksdb.live-sst-files-size"))).ToResult();
+            /// <summary>
+            /// Size of live data.
+            /// </summary>
+            /// <remarks>
+            ///  This differs from <see cref="LiveFilesSizeBytes"/> because the files include the size of tombstones
+            ///  and other stuff that's in there, not just actual data.
+            /// </remarks>
+            LiveDataSizeBytes,
+
+            /// <summary>
+            /// Size of live files.
+            /// </summary>
+            LiveFilesSizeBytes,
+        }
+
+        /// <nodoc />
+        public enum Entity
+        {
+            /// <nodoc />
+            ContentTracking = 0,
+
+            /// <nodoc />
+            Metadata = 1,
+        }
+
+        /// <nodoc />
+        public Result<long> GetLongProperty(LongProperty property, Entity entity)
+        {
+            var propertyName = property switch
+            {
+                LongProperty.LiveFilesSizeBytes => "rocksdb.live-sst-files-size",
+                LongProperty.LiveDataSizeBytes => "rocksdb.estimate-live-data-size",
+                _ => throw new NotImplementedException($"Unhandled property `{property}` for entity `{entity}`"),
+            };
+
+            var columnFamilyName = entity switch
+            {
+                Entity.ContentTracking => null,
+                Entity.Metadata => nameof(Columns.Metadata),
+                _ => throw new NotImplementedException($"Unhandled entity `{entity}`"),
+            };
+
+            return _keyValueStore.Use(store => GetLongProperty(store, propertyName, columnFamilyName)).Result;
         }
 
         private void FullRangeCompaction(OperationContext context)

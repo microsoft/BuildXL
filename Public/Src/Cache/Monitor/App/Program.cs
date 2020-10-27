@@ -14,6 +14,8 @@ using System.Diagnostics;
 using BuildXL.Cache.ContentStore.Logging;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -134,12 +136,16 @@ namespace BuildXL.Cache.Monitor.App
                 };
             }
 
-            await WithLoggerAsync(async (logger) => {
-                using (var monitor = await Monitor.CreateAsync(configuration, logger).ThrowIfFailureAsync())
-                {
-                    await monitor.RunAsync(onWatchlistUpdated, cancellationToken);
-                }
-            }, logFilePath);
+            await WithLoggerAsync(async (logger) =>
+                                  {
+                                      var context = new Context(logger);
+                                      var operationContext = new OperationContext(context, cancellationToken);
+
+                                      using (var monitor = await Monitor.CreateAsync(operationContext, configuration).ThrowIfFailureAsync())
+                                      {
+                                          await monitor.RunAsync(operationContext, onWatchlistUpdated);
+                                      }
+                                  }, logFilePath);
         }
 
         private static async Task WithLoggerAsync(Func<ILogger, Task> action, string? logFilePath)
@@ -202,7 +208,7 @@ namespace BuildXL.Cache.Monitor.App
                 }
                 configuration.AzureAppKey = applicationKey;
 
-                configuration.TestMode = !production;
+                configuration.ReadOnly = !production;
                 return configuration;
             }
 
@@ -232,9 +238,9 @@ namespace BuildXL.Cache.Monitor.App
                     nameof(configurationFilePath));
             }
 
-            if (configuration.TestMode == production)
+            if (configuration.ReadOnly == production)
             {
-                throw new ArgumentException($"TestMode is set to {configuration.TestMode}, but should not be equal to {production}");
+                throw new ArgumentException($"Command line arguments and configuration diverge on whether to run in production or test mode. CLI=[{production}], Configuration=[{configuration.ReadOnly}]");
             }
 
             return configuration;

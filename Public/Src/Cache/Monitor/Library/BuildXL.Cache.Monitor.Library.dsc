@@ -9,12 +9,6 @@ namespace Library {
         assemblyName: "BuildXL.Cache.Monitor.Library",
         sources: globR(d`.`,"*.cs"),
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-            ] : [
-                NetFx.System.Data.dll,
-                NetFx.System.Net.Http.dll,
-            ]
-            ),
             ...importFrom("BuildXL.Cache.ContentStore").kustoPackages,
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
 

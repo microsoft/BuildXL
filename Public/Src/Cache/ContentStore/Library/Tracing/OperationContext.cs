@@ -106,6 +106,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        public void TraceWarning(string message)
+        {
+            TracingContext.TraceMessage(Severity.Warning, message);
+        }
+
+        /// <nodoc />
         public void TraceError(string message)
         {
             TracingContext.TraceMessage(Severity.Error, message);

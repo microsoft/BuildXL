@@ -11,12 +11,16 @@ using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
 using BuildXL.Cache.Monitor.Library.Client;
+using BuildXL.Cache.Monitor.Library.Notifications;
+using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using BuildXL.Cache.Monitor.Library.Scheduling;
 using Kusto.Data.Common;
@@ -41,14 +45,14 @@ namespace BuildXL.Cache.Monitor.App
 
             public string AzureAppKey { get; set; } = string.Empty;
 
-            public bool TestMode { get; set; } = true;
+            public bool ReadOnly { get; set; } = true;
 
             /// <summary>
             /// Which environments to monitor
             /// </summary>
-            public Dictionary<CloudBuildEnvironment, EnvironmentConfiguration> Environments { get; set; } = Constants.DefaultEnvironments.ToDictionary(x => x.Key, x => x.Value);
+            public IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> Environments { get; set; } = Constants.DefaultEnvironments;
 
-            public KustoWriter<Notification>.Configuration KustoNotifier { get; set; } = new KustoWriter<Notification>.Configuration
+            public KustoNotifier<Notification>.Configuration KustoNotifier { get; set; } = new KustoNotifier<Notification>.Configuration
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitor",
@@ -73,7 +77,7 @@ namespace BuildXL.Cache.Monitor.App
             /// into Kusto. This is used to know when an event has passed (i.e. if a rule has been run again since
             /// the last check and didn't produce a notification, that means the event has passed).
             /// </summary>
-            public KustoWriter<RuleScheduler.LogEntry>.Configuration SchedulerKustoNotifier { get; set; } = new KustoWriter<RuleScheduler.LogEntry>.Configuration
+            public KustoNotifier<RuleScheduler.LogEntry>.Configuration SchedulerKustoNotifier { get; set; } = new KustoNotifier<RuleScheduler.LogEntry>.Configuration
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitorSchedulerLog",
@@ -96,17 +100,19 @@ namespace BuildXL.Cache.Monitor.App
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly IKustoClient _kustoClient;
 
+        private static Tracer Tracer { get; } = new Tracer(nameof(Monitor));
+
         #region Initialization
-        public static async Task<Result<Monitor>> CreateAsync(Configuration configuration, ILogger logger)
+        public static async Task<Result<Monitor>> CreateAsync(OperationContext context, Configuration configuration)
         {
-            logger.Info("Creating Kusto ingest client");
+            Tracer.Info(context, "Creating Kusto ingest client");
             var kustoIngestClient = ExternalDependenciesFactory.CreateKustoIngestClient(
                 configuration.KustoIngestionClusterUrl,
                 configuration.AzureTenantId,
                 configuration.AzureAppId,
                 configuration.AzureAppKey).ThrowIfFailure();
 
-            logger.Info("Creating Kusto query client");
+            Tracer.Info(context, "Creating Kusto query client");
             var kustoClient = ExternalDependenciesFactory.CreateKustoQueryClient(
                 configuration.KustoClusterUrl,
                 configuration.AzureTenantId,
@@ -122,8 +128,8 @@ namespace BuildXL.Cache.Monitor.App
                 var environment = keyValuePair.Key;
                 var environmentConfiguration = keyValuePair.Value;
 
-                logger.Info($"Loading resources for environment `{environment}`");
-                var resources = await CreateEnvironmentResourcesAsync(configuration, environmentConfiguration);
+                Tracer.Info(context, $"Loading resources for environment `{environment}`");
+                var resources = await CreateEnvironmentResourcesAsync(context, configuration, environmentConfiguration);
 
                 lock (environmentResources)
                 {
@@ -131,10 +137,11 @@ namespace BuildXL.Cache.Monitor.App
                 }
             });
 
-            return new Monitor(configuration, kustoIngestClient, kustoClient, SystemClock.Instance, environmentResources, logger);
+            context.Token.ThrowIfCancellationRequested();
+            return new Monitor(configuration, kustoIngestClient, kustoClient, SystemClock.Instance, environmentResources, context.TracingContext.Logger);
         }
 
-        private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(Configuration configuration, EnvironmentConfiguration environmentConfiguration)
+        private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, Configuration configuration, EnvironmentConfiguration environmentConfiguration)
         {
             var azure = ExternalDependenciesFactory.CreateAzureClient(
                 configuration.AzureTenantId,
@@ -148,8 +155,13 @@ namespace BuildXL.Cache.Monitor.App
                 configuration.AzureAppId,
                 configuration.AzureAppKey).ThrowIfFailureAsync();
 
-            var redisCaches = (await azure.RedisCaches.ListAsync()).ToDictionary(cache => cache.Name, cache => cache);
+            var redisCaches =
+                (await azure
+                    .RedisCaches
+                    .ListAsync(cancellationToken: context.Token))
+                .ToDictionary(cache => cache.Name, cache => cache);
 
+            context.Token.ThrowIfCancellationRequested();
             return new EnvironmentResources(azure, monitorManagementClient, redisCaches);
         }
 
@@ -163,15 +175,15 @@ namespace BuildXL.Cache.Monitor.App
             _kustoClient = kustoClient;
             _environmentResources = environmentResources;
 
-            if (configuration.TestMode)
+            if (configuration.ReadOnly)
             {
-                _alertNotifier = new LogWriter<Notification>(_logger);
-                _schedulerLogWriter = new LogWriter<RuleScheduler.LogEntry>(_logger);
+                _alertNotifier = new LogNotifier<Notification>(_logger);
+                _schedulerLogWriter = new LogNotifier<RuleScheduler.LogEntry>(_logger);
             }
             else
             {
-                _alertNotifier = new KustoWriter<Notification>(_configuration.KustoNotifier, _logger, _kustoIngestClient);
-                _schedulerLogWriter = new KustoWriter<RuleScheduler.LogEntry>(_configuration.SchedulerKustoNotifier, _logger, _kustoIngestClient);
+                _alertNotifier = new KustoNotifier<Notification>(_configuration.KustoNotifier, _logger, _kustoIngestClient);
+                _schedulerLogWriter = new KustoNotifier<RuleScheduler.LogEntry>(_configuration.SchedulerKustoNotifier, _logger, _kustoIngestClient);
             }
 
             _scheduler = new RuleScheduler(_configuration.Scheduler, _logger, _clock, _schedulerLogWriter);
@@ -194,15 +206,15 @@ namespace BuildXL.Cache.Monitor.App
         }
         #endregion
 
-        public async Task RunAsync(Action? onWatchlistChange = null, CancellationToken cancellationToken = default)
+        public async Task RunAsync(OperationContext context, Action? onWatchlistChange = null)
         {
-            _logger.Info("Loading stamps to watch");
+            Tracer.Info(context, "Loading stamps to watch");
 
             // The watchlist is essentially immutable on every run. The reason is that a change to the Watchlist
             // likely triggers a change in the scheduled rules, so we need to regenerate the entire schedule.
             var watchlist = await Watchlist.CreateAsync(_logger, _kustoClient, _configuration.Environments);
 
-            _logger.Info("Creating rules schedule");
+            Tracer.Info(context, "Creating rules schedule");
             CreateSchedule(watchlist);
 
             if (onWatchlistChange != null)
@@ -212,7 +224,7 @@ namespace BuildXL.Cache.Monitor.App
                 _scheduler.Add(new LambdaRule(
                     identifier: "WatchlistUpdate",
                     concurrencyBucket: "Kusto",
-                    lambda: async (context) =>
+                    lambda: async (ruleContext) =>
                     {
                         if (await watchlist.RefreshAsync())
                         {
@@ -221,8 +233,8 @@ namespace BuildXL.Cache.Monitor.App
                     }), TimeSpan.FromMinutes(30));
             }
 
-            _logger.Info("Entering scheduler loop");
-            await _scheduler.RunAsync(cancellationToken);
+            Tracer.Info(context, "Entering scheduler loop");
+            await _scheduler.RunAsync(context.Token);
         }
 
         #region Schedule Generation
@@ -241,10 +253,10 @@ namespace BuildXL.Cache.Monitor.App
                 {
                     var configuration = new LastProducedCheckpointRule.Configuration(arguments.BaseConfiguration);
                     return Analysis.Utilities.Yield(new Instantiation()
-                        {
-                            Rule = new LastProducedCheckpointRule(configuration),
-                            PollingPeriod = TimeSpan.FromMinutes(40),
-                        });
+                    {
+                        Rule = new LastProducedCheckpointRule(configuration),
+                        PollingPeriod = TimeSpan.FromMinutes(40),
+                    });
                 }, watchlist);
 
             OncePerEnvironment(arguments =>
@@ -424,16 +436,19 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
-            if (!_configuration.TestMode)
-            {
-                OncePerStamp(GenerateRedisAutoscalingRules, watchlist);
-            }
+            OncePerStamp(GenerateRedisAutoscalingRules, watchlist);
         }
 
         private IEnumerable<Instantiation> GenerateRedisAutoscalingRules(SingleStampRuleArguments arguments)
         {
             if (!arguments.DynamicStampProperties.RedisAutoscalingEnabled)
             {
+                yield break;
+            }
+
+            if (!arguments.EnvironmentResources.RedisCaches.ContainsKey(arguments.StampId.PrimaryRedisName) || !arguments.EnvironmentResources.RedisCaches.ContainsKey(arguments.StampId.SecondaryRedisName))
+            {
+                _logger.Error($"Attempt to create Redis autoscaler for stamp `{arguments.StampId}` failed due to missing Redis instance. Skipping rule");
                 yield break;
             }
 
@@ -447,11 +462,17 @@ namespace BuildXL.Cache.Monitor.App
             var configuration = new RedisAutoscalingRule.Configuration(arguments.BaseConfiguration);
 
             var primaryRedisInstance = RedisInstance
-                .FromPreloaded(arguments.EnvironmentResources.Azure, arguments.EnvironmentResources.RedisCaches[arguments.StampId.PrimaryRedisName])
+                .FromPreloaded(
+                    arguments.EnvironmentResources.Azure,
+                    arguments.EnvironmentResources.RedisCaches[arguments.StampId.PrimaryRedisName],
+                    readOnly: _configuration.ReadOnly)
                 .ThrowIfFailure();
 
             var secondaryRedisInstance = RedisInstance
-                .FromPreloaded(arguments.EnvironmentResources.Azure, arguments.EnvironmentResources.RedisCaches[arguments.StampId.SecondaryRedisName])
+                .FromPreloaded(
+                    arguments.EnvironmentResources.Azure,
+                    arguments.EnvironmentResources.RedisCaches[arguments.StampId.SecondaryRedisName],
+                    readOnly: _configuration.ReadOnly)
                 .ThrowIfFailure();
 
             yield return new Instantiation
@@ -514,10 +535,10 @@ namespace BuildXL.Cache.Monitor.App
                     watchlist);
 
                 var request = new MultiStampRuleArguments
-                              {
-                                  BaseConfiguration = configuration,
-                                  EnvironmentResources = _environmentResources[kvp.Key],
-                              };
+                {
+                    BaseConfiguration = configuration,
+                    EnvironmentResources = _environmentResources[kvp.Key],
+                };
 
                 foreach (var rule in generator(request))
                 {

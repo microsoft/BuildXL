@@ -10,13 +10,7 @@ namespace App {
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.config`,
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-                importFrom("CLAP-DotNetCore").pkg,
-            ] : [
-                importFrom("CLAP").pkg,
-            ]
-            ),
-            
+            importFrom("CLAP-DotNetCore").pkg,            
             ContentStore.Library.dll,
             ContentStore.Interfaces.dll,
             Library.dll,

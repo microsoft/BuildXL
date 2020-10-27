@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 
-namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
+namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
 {
     public class RedisTier : IEquatable<RedisTier>
     {
@@ -252,7 +253,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             }
 
             var capacityString = redisTier.Substring(1);
-            if (!int.TryParse(capacityString, out int capacity))
+            if (!int.TryParse(capacityString, out var capacity))
             {
                 return new Result<RedisTier>(errorMessage: $"Could not parse capacity from `{capacityString}`");
             }

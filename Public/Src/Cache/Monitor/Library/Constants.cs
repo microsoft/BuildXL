@@ -58,16 +58,17 @@ namespace BuildXL.Cache.Monitor.App
                         AzureKeyVaultSubscriptionId = "30c83465-21e5-4a97-9df2-d8dd19881d24",
                     }
                 },
-                {
-                    CloudBuildEnvironment.ContinuousIntegration,
-                    new EnvironmentConfiguration
-                    {
-                        KustoDatabaseName = "CloudBuildCI",
-                        AzureSubscriptionName = "CloudBuild_Test",
-                        AzureSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                        AzureKeyVaultSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                    }
-                },
+                // Removing until we actually support/care about this
+                //{
+                //    CloudBuildEnvironment.ContinuousIntegration,
+                //    new EnvironmentConfiguration
+                //    {
+                //        KustoDatabaseName = "CloudBuildCI",
+                //        AzureSubscriptionName = "CloudBuild_Test",
+                //        AzureSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
+                //        AzureKeyVaultSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
+                //    }
+                //},
             };
 
         public static TimeSpan RedisScaleTimePerShard { get; } = TimeSpan.FromMinutes(20);

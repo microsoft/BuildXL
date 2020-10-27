@@ -10,32 +10,37 @@ using Microsoft.Azure.Management.Monitor.Models;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using Microsoft.Rest.TransientFaultHandling;
+using Microsoft.Rest.Azure.OData;
 
-namespace BuildXL.Cache.Monitor.App.Az
+namespace BuildXL.Cache.Monitor.Library.Az
 {
-    internal struct Measurement
-    {
-        public DateTime TimeStamp { get; }
-
-        public double? Value { get; }
-
-        public Measurement(DateTime timeStamp, double? value)
-        {
-            TimeStamp = timeStamp;
-            Value = value;
-        }
-    }
-
-    internal struct MetricName
+    internal class MetricName
     {
         public string Name { get; }
 
-        public MetricName(string name)
+        public Dictionary<string, string>? Group { get; }
+
+        public MetricName(string name, Dictionary<string, string>? group = null)
         {
+            Contract.RequiresNotNullOrEmpty(name);
             Name = name;
+            Group = group;
         }
 
-        public static implicit operator string(MetricName metric) => metric.Name;
+        public static implicit operator string(MetricName metric) => metric.ToString();
+
+        public override string ToString()
+        {
+            if (Group != null && Group.Count > 0)
+            {
+                var groupAsString = string.Join(
+                    ", ",
+                    Group.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+                return $"{Name}({groupAsString})";
+            }
+
+            return $"{Name}";
+        }
     }
 
     internal enum AzureRedisClusterMetric
@@ -117,62 +122,117 @@ namespace BuildXL.Cache.Monitor.App.Az
             return new MetricName($"{AzureRedisShardMetricsMap[metric]}{shard}");
         }
 
-        private static Dictionary<AggregationType, Func<MetricValue, double?>> ExtractMetric { get; } =
-            new Dictionary<AggregationType, Func<MetricValue, double?>>
-            {
-                // Since we always know which aggregation type we're fetching, it should never be null
-                { AggregationType.Average, metricValue => metricValue.Average },
-                { AggregationType.Count, metricValue => metricValue.Count },
-                { AggregationType.Minimum, metricValue => metricValue.Minimum },
-                { AggregationType.Maximum, metricValue => metricValue.Maximum  },
-                { AggregationType.Total, metricValue => metricValue.Total },
-            };
-
         private class MetricsClientErrorDetectionStrategy : ITransientErrorDetectionStrategy
         {
-            public bool IsTransient(Exception ex)
+            public bool IsTransient(Exception ex) => ex is AzureMetricsClientValidationException;
+        }
+
+        public class AzureMetricsClientValidationException : Exception
+        {
+            public AzureMetricsClientValidationException(string message) : base(message)
             {
-                // This exception has happened a couple of times. Looks like it gets fixed by retrying.
-                return ex is ArgumentOutOfRangeException;
+            }
+
+            public AzureMetricsClientValidationException(string message, Exception innerException) : base(message, innerException)
+            {
             }
         }
 
-        private static readonly MetricsClientErrorDetectionStrategy ErrorDetectionStrategy = new MetricsClientErrorDetectionStrategy();
         private static readonly ExponentialBackoffRetryStrategy RetryStrategy = new ExponentialBackoffRetryStrategy();
-        private static readonly RetryPolicy RetryPolicy = new RetryPolicy(ErrorDetectionStrategy, RetryStrategy);
+        private static readonly MetricsClientErrorDetectionStrategy ErrorDetectionStrategyV2 = new MetricsClientErrorDetectionStrategy();
+        private static readonly RetryPolicy RetryPolicy = new RetryPolicy(ErrorDetectionStrategyV2, RetryStrategy);
 
-        public static async Task<List<Measurement>> GetMetricAsync(
+        public static async Task<Dictionary<MetricName, List<MetricValue>>> GetMetricsWithDimensionAsync(
             this IMonitorManagementClient monitorManagementClient,
             string resourceUri,
-            MetricName metricName,
+            IReadOnlyList<MetricName> metrics,
+            string dimension,
             DateTime startTimeUtc, DateTime endTimeUtc,
             TimeSpan samplingInterval,
-            AggregationType aggregation,
+            IReadOnlyList<AggregationType> aggregations,
             CancellationToken cancellationToken = default)
         {
-            Contract.Requires(aggregation != AggregationType.None);
+            Contract.Requires(startTimeUtc < endTimeUtc);
 
-            // Unfortunately, the Azure Metrics API is pretty bad and lacking documentation, so we do our best here to
-            // get things working. However, API may fail anyways if an invalid set of sampling frequency vs time length
-            // is input.
-            var startTime = startTimeUtc.ToString("o").Replace("+", "%2b");
-            var endTime = endTimeUtc.ToString("o").Replace("+", "%2b");
+            // HERE BE DRAGONS. The Azure Monitor Metrics API is basically nondeterministic. It may fail at random, for
+            // unknown periods of time, and for unknown reasons. This function is an attempt to make a sane wrapper
+            // over it.
+
+            // We remove the seconds in an attempt to play nicely with the Azure Metrics API. Format is not strictly
+            // ISO, as they claim is supported, but what we have found to work by trial and error and looking at
+            // examples.
+            var startTime = startTimeUtc.ToString("yyyy-MM-ddTHH:mm:00Z");
+            var endTime = endTimeUtc.ToString("yyyy-MM-ddTHH:mm:00Z");
+            var interval = $"{startTime}/{endTime}";
 
             return await RetryPolicy.ExecuteAsync(async () =>
             {
+                var metricNames = string.Join(",", metrics.Select(name => name.Name.ToLower()));
+                var odataQuery = new ODataQuery<MetadataValue>(odataExpression: $"{dimension} eq '*'");
+                var aggregation = string.Join(
+                    ",",
+                    aggregations.Select(
+                        agg =>
+                        {
+                            Contract.Assert(agg != AggregationType.None); return agg.ToString().ToLower();
+                        }));
                 var result = await monitorManagementClient.Metrics.ListAsync(
                     resourceUri: resourceUri,
-                    metricnames: metricName,
-                    timespan: $"{startTime}/{endTime}",
+                    metricnames: metricNames,
+                    odataQuery: odataQuery,
+                    timespan: interval,
                     interval: samplingInterval,
-                    aggregation: aggregation.ToString(),
+                    aggregation: aggregation,
                     cancellationToken: cancellationToken);
+                result.Validate();
 
-                var metric = result.Value[0];
-                var extract = ExtractMetric[aggregation];
-                var timeSeries = metric.Timeseries[0];
+                if (result.Value.Count == 0)
+                {
+                    // Sometimes, for unknown reasons, this can be empty. This is an error, but can go away when
+                    // retried. That's exactly what we do here (look at the retry policy's detection strategy).
+                    throw new AzureMetricsClientValidationException("Invalid `result.Value` returned");
+                }
 
-                return timeSeries.Data.Select(metricValue => new Measurement(metricValue.TimeStamp, extract(metricValue))).ToList();
+                var output = new Dictionary<MetricName, List<MetricValue>>();
+                foreach (var metric in result.Value)
+                {
+                    if (metric.Timeseries.Count == 0)
+                    {
+                        // Sometimes, there may be no timeseries. Reasons seem to be varied, but here's the predominant
+                        // example that would brick us in production:
+                        //  - We'd attempt to fetch operationsPerSecond going back several weeks for all possible 10
+                        //    shards.
+                        //  - The current number of shards is less than 10, say 1
+                        //  - Shard 0 would have a result. Shards 1-9 wouldn't.
+                        // WARNING: this continue means that we won't report the result for this metric. Usages must
+                        // account for arbitrary metric disappearance.
+                        continue;
+                    }
+
+                    var metricNameFromApi = metric.Name.Value;
+                    if (string.IsNullOrEmpty(metricNameFromApi))
+                    {
+                        throw new AzureMetricsClientValidationException("Received empty metric name");
+                    }
+
+                    foreach (var timeseries in metric.Timeseries)
+                    {
+                        var metricGroupFromApi = timeseries.Metadatavalues.ToDictionary(v => v.Name.Value, v => v.Value);
+
+                        var timeSeriesFromApi = timeseries.Data;
+                        if (timeSeriesFromApi == null || timeSeriesFromApi.Count < 1)
+                        {
+                            throw new AzureMetricsClientValidationException($"Received invalid time series for metric `{metricNameFromApi}`. Size=[{timeSeriesFromApi?.Count ?? -1}]");
+                        }
+
+                        var metricName = new MetricName(metricNameFromApi, metricGroupFromApi);
+                        output[metricName] = timeSeriesFromApi
+                            .OrderBy(m => m.TimeStamp)
+                            .ToList();
+                    }
+                }
+
+                return output;
             }, cancellationToken);
         }
     }

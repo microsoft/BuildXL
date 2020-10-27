@@ -5,11 +5,9 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+export declare const qualifier : BuildXLSdk.NetCoreAppQualifier;
 
 export {BuildXLSdk};
-
-export const NetFx = BuildXLSdk.NetFx;
 
 @@public
 export const azureSdk = [

@@ -3,6 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
+using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;

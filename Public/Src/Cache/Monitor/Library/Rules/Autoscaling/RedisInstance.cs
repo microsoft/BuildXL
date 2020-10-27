@@ -2,76 +2,27 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Azure.Management.Redis.Fluent;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 {
-    internal sealed class RedisInstance
+    internal sealed class RedisInstance : RedisInstanceBase
     {
-        private readonly IAzure _azure;
-        private readonly string _resourceId;
-
-        public IRedisCache RedisCache { get; private set; }
-
-        public RedisClusterSize ClusterSize { get; private set; }
-
-        public string Name => RedisCache.Name;
-
-        public bool IsReadyToScale => RedisCache.ProvisioningState == "Succeeded";
-
-        private RedisInstance(IAzure azure, string resourceId, IRedisCache redisCache, RedisClusterSize clusterSize)
+        internal RedisInstance(IAzure azure, string resourceId, IRedisCache redisCache, RedisClusterSize clusterSize)
+            : base(azure, resourceId, redisCache, clusterSize)
         {
-            Contract.RequiresNotNullOrEmpty(resourceId);
-
-            _azure = azure;
-            _resourceId = resourceId;
-            RedisCache = redisCache;
-            ClusterSize = clusterSize;
         }
 
-        public async Task<BoolResult> RefreshAsync(CancellationToken cancellationToken = default)
+        public override async Task<BoolResult> ScaleAsync(IReadOnlyList<RedisClusterSize> scalePath, CancellationToken cancellationToken = default)
         {
-            return (await GenerateInstanceMetadataAsync(_azure, _resourceId, cancellationToken))
-                .Select(result =>
-                {
-                    RedisCache = result.Cache;
-                    ClusterSize = result.Size;
-                    return BoolResult.Success;
-                });
-        }
-
-        public static async Task<Result<(IRedisCache Cache, RedisClusterSize Size)>> GenerateInstanceMetadataAsync(IAzure azure, string resourceId, CancellationToken cancellationToken = default)
-        {
-            // TODO: error handling
-            var redisCache = await azure.RedisCaches.GetByIdAsync(resourceId, cancellationToken);
-            var clusterSize = RedisClusterSize.FromAzureCache(redisCache).ThrowIfFailure();
-
-            Contract.AssertNotNull(clusterSize);
-            return new Result<(IRedisCache Cache, RedisClusterSize Size)>((redisCache, clusterSize));
-        }
-
-        public static async Task<Result<RedisInstance>> FromAzureAsync(IAzure azure, string resourceId, CancellationToken cancellationToken = default)
-        {
-            return (await GenerateInstanceMetadataAsync(azure, resourceId, cancellationToken))
-                .Select(result => new RedisInstance(azure, resourceId, result.Cache, result.Size));
-        }
-
-        public static Result<RedisInstance> FromPreloaded(IAzure azure, IRedisCache redisCache)
-        {
-            return RedisClusterSize
-                .FromAzureCache(redisCache)
-                .Select(clusterSize => new RedisInstance(azure, redisCache.Id, redisCache, clusterSize));
-        }
-
-        public async Task<BoolResult> ScaleAsync(IReadOnlyList<RedisClusterSize> scalePath, CancellationToken cancellationToken = default)
-        {
-            for (var i = 0; i < scalePath.Count; i++) {
+            for (var i = 0; i < scalePath.Count; i++)
+            {
                 await RefreshAsync(cancellationToken).ThrowIfFailureAsync();
                 if (i > 0)
                 {
@@ -107,6 +58,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 return new BoolResult(errorMessage: $"Redis instance `{Name}` is not ready to scale, current provisioning state is `{RedisCache.ProvisioningState}`");
             }
 
+            return await SubmitScaleRequestAsync(targetClusterSize, cancellationToken);
+        }
+
+        private async Task<BoolResult> SubmitScaleRequestAsync(RedisClusterSize targetClusterSize, CancellationToken cancellationToken)
+        {
             var instance = RedisCache.Update();
 
             if (!ClusterSize.Tier.Equals(targetClusterSize.Tier))
@@ -133,6 +89,39 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             await instance.ApplyAsync(cancellationToken);
 
             return BoolResult.Success;
+        }
+
+        public static async Task<Result<IRedisInstance>> FromAzureAsync(IAzure azure, string resourceId, bool readOnly, CancellationToken cancellationToken = default)
+        {
+            return (await GenerateInstanceMetadataAsync(azure, resourceId, cancellationToken))
+                .Select(result =>
+                {
+                    if (readOnly)
+                    {
+                        return (IRedisInstance)new ReadOnlyRedisInstance(azure, resourceId, result.Cache, result.Size);
+                    }
+                    else
+                    {
+                        return (IRedisInstance)new RedisInstance(azure, resourceId, result.Cache, result.Size);
+                    }
+                });
+        }
+
+        public static Result<IRedisInstance> FromPreloaded(IAzure azure, IRedisCache redisCache, bool readOnly)
+        {
+            return RedisClusterSize
+                .FromAzureCache(redisCache)
+                .Select(clusterSize =>
+                {
+                    if (readOnly)
+                    {
+                        return (IRedisInstance)new ReadOnlyRedisInstance(azure, redisCache.Id, redisCache, clusterSize);
+                    }
+                    else
+                    {
+                        return (IRedisInstance)new RedisInstance(azure, redisCache.Id, redisCache, clusterSize);
+                    }
+                });
         }
     }
 }

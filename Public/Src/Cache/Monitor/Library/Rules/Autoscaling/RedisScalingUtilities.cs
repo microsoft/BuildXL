@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 {

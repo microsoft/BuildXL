@@ -6,16 +6,20 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using Microsoft.Azure.Management.Redis.Fluent;
 
 namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 {
     public class RedisClusterSize : IEquatable<RedisClusterSize>
     {
-        public static IReadOnlyList<RedisClusterSize> Instances =
-            RedisTier.Instances.SelectMany(tier => Enumerable
-                .Range(1, 10)
-                .Select(shards => new RedisClusterSize(tier, shards))).ToList();
+        public static int MaxRedisShardsPerCluster { get; } = 10;
+
+        public static IReadOnlyList<RedisClusterSize> Instances { get; } =
+            RedisTier.Instances.SelectMany(
+                tier => Enumerable
+                    .Range(1, MaxRedisShardsPerCluster)
+                    .Select(shards => new RedisClusterSize(tier, shards))).ToList();
 
         public RedisTier Tier { get; }
 

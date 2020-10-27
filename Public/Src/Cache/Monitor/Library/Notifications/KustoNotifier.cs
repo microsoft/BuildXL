@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App.Notifications
 {
-    public class KustoWriter<T> : IDisposable, INotifier<T>
+    public class KustoNotifier<T> : IDisposable, INotifier<T>
     {
         public class Configuration
         {
@@ -41,7 +41,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         private readonly NagleQueue<T> _queue;
 
-        public KustoWriter(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
+        public KustoNotifier(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
         {
             _configuration = configuration;
             _logger = logger;

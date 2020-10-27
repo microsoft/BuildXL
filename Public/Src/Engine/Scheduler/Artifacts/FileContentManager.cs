@@ -1589,6 +1589,9 @@ namespace BuildXL.Scheduler.Artifacts
             state.MaterializingOutputs = materializatingOutputs;
             state.IsDeclaredProducer = isDeclaredProducer;
             state.IsApiServerRequest = isApiServerRequest;
+            // We only enforce exclusion roots when we are materializing outputs of MaterializeOutputs execution step.
+            // We materialize everything for input materialization and when we materialize artifacts for API Server.
+            state.EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts = materializatingOutputs && !isApiServerRequest;
 
             // Get the files which need to be materialized
             // We reserve completion of directory deletions and file materialization so only a single deleter/materializer of a
@@ -1649,7 +1652,7 @@ namespace BuildXL.Scheduler.Artifacts
                     DirectoryArtifact directory = artifact.DirectoryArtifact;
                     if (m_materializedDirectories.Contains(directory))
                     {
-                        // Directory is already materialized, no need to materialize its contents
+                        // Directory is already fully materialized, no need to materialize its contents
                         continue;
                     }
 
@@ -1659,8 +1662,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                     if (sealDirectoryKind == SealDirectoryKind.Opaque)
                     {
-                        if (Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Enabled || 
-                            !PipArtifacts.IsPreservedOutputByPip(state.PipInfo.UnderlyingPip, directory.Path, Context.PathTable, Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel))
+                        if (!m_host.IsPreservedOutputArtifact(artifact))
                         {
                             // Dynamic directories must be deleted before materializing files
                             // We don't want this to happen for shared dynamic ones
@@ -1697,6 +1699,14 @@ namespace BuildXL.Scheduler.Artifacts
                             state.MaterializedDirectoryContents.Add(file);
                         }
 
+                        // if required, ensure that we are not materializing files that are under any exclusion root
+                        if (state.EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts
+                            && m_outputMaterializationExclusionMap.TryGetFirstMapping(file.Path.Value, out var _))
+                        {
+                            // the file is under an exclusion root
+                            continue;
+                        }
+
                         AddFileMaterialization(state, file, directoryAllowReadOnlyOverride, AbsolutePath.Invalid);
                     }
                 }
@@ -1709,11 +1719,16 @@ namespace BuildXL.Scheduler.Artifacts
 
         private void MarkDirectoryMaterializations(PipArtifactsState state)
         {
-            foreach (var artifact in state.PipArtifacts)
+            // Mark directories as materialized only if the exclusion roots were NOT enforced, 
+            // i.e., all the content was materialized.
+            if (!state.EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts)
             {
-                if (artifact.IsDirectory)
+                foreach (var artifact in state.PipArtifacts)
                 {
-                    MarkDirectoryMaterialization(artifact.DirectoryArtifact);
+                    if (artifact.IsDirectory)
+                    {
+                        MarkDirectoryMaterialization(artifact.DirectoryArtifact);
+                    }
                 }
             }
         }
@@ -3814,6 +3829,11 @@ namespace BuildXL.Scheduler.Artifacts
             /// Indicates whether the operation is triggered by an API Server
             /// </summary>
             public bool IsApiServerRequest { get; set; }
+
+            /// <summary>
+            /// If set, ensures that exclusion roots are applied to the content of directory artifacts
+            /// </summary>
+            public bool EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts { get; set; }
 
             /// <summary>
             /// The overall output origin result for materializing outputs

@@ -2299,6 +2299,68 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId);
         }
 
+        [Fact]
+        public void OutputMaterializationExclusionRootsAreProperlyAppliedToTheContentOfSharedOpaques()
+        {
+            /*
+               Pip outputs:
+               \sod
+                   \file1
+                   \subDir
+                       \file2
+               \file3
+
+               Exclusion root:
+               \sod\subDir 
+            */
+
+            var sod = Path.Combine(ObjectRoot, "sod");
+            var sodSubDir = Path.Combine(sod, "subDir");
+            var sodPath = AbsolutePath.Create(Context.PathTable, sod);
+            var sodSubDirPath = AbsolutePath.Create(Context.PathTable, sodSubDir);
+
+            var sodArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sodPath);
+
+            var fileUnderSod = CreateOutputFileArtifact(sod);
+            var fileUnderSubdirUnderSod = CreateOutputFileArtifact(sodSubDir);
+            var fileOutsideSod = CreateOutputFileArtifact();
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(fileUnderSod, doNotInfer: true),
+                Operation.WriteFile(fileUnderSubdirUnderSod, doNotInfer: true),
+
+                Operation.WriteFile(fileOutsideSod)
+            });
+            builderA.AddOutputDirectory(sodArtifact, kind: SealDirectoryKind.SharedOpaque);
+            
+            Configuration.Schedule.RequiredOutputMaterialization = RequiredOutputMaterialization.Explicit;
+            Configuration.Schedule.OutputMaterializationExclusionRoots.Add(sodSubDirPath);
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            RunScheduler().AssertSuccess();
+
+            // For uncached execution, all outputs will be written
+            XAssert.IsTrue(Exists(fileUnderSod));
+            XAssert.IsTrue(Exists(fileUnderSubdirUnderSod));
+            XAssert.IsTrue(Exists(fileOutsideSod));
+
+            // Delete the outputs in order to test whether they are materialized for cached execution
+            Delete(fileUnderSod);
+            Delete(fileUnderSubdirUnderSod);
+            Delete(fileOutsideSod);
+
+            RunScheduler().AssertCacheHit(pipA.Process.PipId);
+
+            // File is not under the exclusion root, so it must be present.
+            XAssert.IsTrue(Exists(fileUnderSod));            
+            // File is under the exclusion root, it should not have been materialized.
+            XAssert.IsFalse(Exists(fileUnderSubdirUnderSod));
+            // File is neither under sod nor exclusion root, so it should be present.
+            XAssert.IsTrue(Exists(fileOutsideSod));
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

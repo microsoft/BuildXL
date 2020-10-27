@@ -78,34 +78,32 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let activity = end - {CslTimeSpanLiteral.AsCslString(_configuration.ActivityPeriod)};
-                let masterActivity = end - {CslTimeSpanLiteral.AsCslString(_configuration.MasterActivityPeriod)};
+                //
+                // All the events limited by the given time range
+                //
                 let Events = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end);
-                let Machines = Events
+                //
+                // Last events per stamp per worker machine
+                // Machine, Stamp, LastActiveTime
+                //
+                let MachineLatestActivityEvents = Events
                 | where PreciseTimeStamp >= activity
-                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine, Stamp
-                | where not(isnull(Machine));
-                let CurrentMaster = Events
-                | where PreciseTimeStamp >= masterActivity
-                | where Role == 'Master'
-                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
-                | where Result == '{Constants.ResultCode.Success}'
-                | summarize (PreciseTimeStamp, Master)=arg_max(PreciseTimeStamp, Machine)
-                | project-away PreciseTimeStamp
-                | where not(isnull(Master));
-                let MachinesWithRole = CurrentMaster
-                | join hint.strategy=broadcast kind=rightouter Machines on $left.Master == $right.Machine
-                | extend IsWorkerMachine=iif(isnull(Master) or isempty(Master), true, false)
-                | project-away Master;
-                let Restores = Events
+                | where Role == 'Worker'
+                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine, Stamp;
+                //
+                // The most recent restore checkpoint events
+                //
+                let RestoreCheckpointEvents = Events
                 | where Operation == 'RestoreCheckpointAsync' and isnotempty(Duration)
                 | where Result == '{Constants.ResultCode.Success}'
-                | summarize LastRestoreTime=max(PreciseTimeStamp) by Machine;
-                MachinesWithRole
-                | where IsWorkerMachine
-                | project-away IsWorkerMachine
-                | join hint.strategy=broadcast kind=leftouter Restores on Machine
-                | project-away Machine1
+                | summarize LastRestoreTime=max(PreciseTimeStamp) by Machine, Stamp;
+                //
+                // Final results
+                //
+                MachineLatestActivityEvents 
+                | join hint.strategy=broadcast kind=leftouter RestoreCheckpointEvents on Machine, Stamp
+                | project-away Machine1, Stamp1
                 | extend Age=LastActivityTime - LastRestoreTime";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 

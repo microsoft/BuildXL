@@ -4,6 +4,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -21,16 +23,16 @@ namespace ContentStoreTest.Service
         private const string InterruptableServiceId = "Interruptable";
         private const string InterrupterServiceId = "Interrupter";
         private static readonly TimeSpan LifetimeManagerPollInterval = TimeSpan.FromMilliseconds(1);
-
         public ServiceLifetimeManagerTests(ITestOutputHelper output)
-            : base(TestGlobal.Logger, output)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
         }
-        
+
         [Fact]
         public async Task TestTriggerShutdown()
         {
-            var manager = Create(out var context);
+            using var testDirectory = new DisposableDirectory(_fileSystem.Value);
+            var manager = Create(testDirectory.Path, out var context);
 
             var interruptableServiceTask = manager.RunInterruptableServiceAsync(context, InterruptableServiceId, async token =>
             {
@@ -66,18 +68,18 @@ namespace ContentStoreTest.Service
         [Fact]
         public async Task TestInterruption()
         {
-            if (BuildXL.Cache.ContentStore.Interfaces.Utils.OperatingSystemHelper.IsLinuxOS)
-            {
-                // TODO: flaky on Linux, often causes xunit to crash
-                return;
-            }
-
-            var manager = Create(out var context);
+            using var testDirectory = new DisposableDirectory(_fileSystem.Value);
+            var manager = Create(testDirectory.Path, out var context);
 
             var interruptableServiceTask = manager.RunInterruptableServiceAsync(context, InterruptableServiceId, async token =>
             {
                 try
                 {
+                    token.Register(
+                        () =>
+                        {
+                            Output.WriteLine("Callback!1!");
+                        });
                     await Task.Delay(Timeout.InfiniteTimeSpan, token);
                     return ServiceResult.Completed;
                 }
@@ -141,7 +143,7 @@ namespace ContentStoreTest.Service
             });
 
             await Task.Delay(5);
-            interruptorTask.IsCompleted.Should().BeFalse("Interruptor should not be completed until signaled");
+            secondInterruptableTask.IsCompleted.Should().BeFalse("Interruptor should not be completed until signaled");
             secondInterruptableStart.Task.IsCompleted.Should().BeFalse("Interruptable should not start until interruptor is completed");
             interruptorCompletion.SetResult(ServiceResult.Completed);
             var interruptorResult = await interruptorTask;
@@ -154,12 +156,12 @@ namespace ContentStoreTest.Service
             isInterruptorCanceled.Should().BeFalse("Interruptor service should not be cancelled");
         }
 
-        private ServiceLifetimeManager Create(out OperationContext context)
+        private ServiceLifetimeManager Create(AbsolutePath testDirectoryPath, out OperationContext context)
         {
             // Don't allow tests to run over 30 seconds
             var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             context = new OperationContext(new Context(Logger), cts.Token);
-            return new ServiceLifetimeManager(TestRootDirectoryPath, pollingInterval: LifetimeManagerPollInterval);
+            return new ServiceLifetimeManager(testDirectoryPath, pollingInterval: LifetimeManagerPollInterval);
         }
     }
 }

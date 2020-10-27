@@ -161,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
                         {
                             _cacheTracer.AddContentHashListStart(context);
                             bool result = await StringSetWithExpiryBumpAsync(context, cacheKey, cacheValue);
-                            context.Debug($"Added redis cache entry for {strongFingerprint}: {getResult}. Result: {result}");
+                            _tracer.Debug(context, $"Added redis cache entry for {strongFingerprint}: {getResult}. Result: {result}");
                         }
                         finally
                         {

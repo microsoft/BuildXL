@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -125,22 +126,22 @@ namespace BuildXL.Cache.ContentStore.Tracing
             return callsCounterSet.Merge(counterSet);
         }
 
-        public void StartStats(Context context, long curBytesCount, long curFilesCount)
+        public void StartStats(Context context, long curBytesCount, long curFilesCount, [CallerMemberName] string? operation = null)
         {
             _startBytesCount.Add(curBytesCount);
             _startFilesCount.Add(curFilesCount);
 
             if (context.IsEnabled)
             {
-                Info(context, $"{Name} starting with {curBytesCount / 1024 / 1024}MB, {curFilesCount} files");
+                Info(context, $"{Name} starting with {curBytesCount / 1024 / 1024}MB, {curFilesCount} files", operation);
             }
         }
 
-        public void EndStats(Context context, long curBytesCount, long curFilesCount)
+        public void EndStats(Context context, long curBytesCount, long curFilesCount, [CallerMemberName] string? operation = null)
         {
             if (context.IsEnabled)
             {
-                Info(context, $"{Name} ending with {curBytesCount / 1024 / 1024}MB, {curFilesCount} files");
+                Info(context, $"{Name} ending with {curBytesCount / 1024 / 1024}MB, {curFilesCount} files", operation);
             }
         }
 
@@ -150,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _putFilesCount.Add(1);
         }
 
-        public override void Always(Context context, string message)
+        public override void Always(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Always, context, message);
         }

@@ -173,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (IsStoredEpochInvalid(out var epoch))
                     {
                         Counters[ContentLocationDatabaseCounters.EpochMismatches].Increment();
-                        context.TraceDebug($"Stored epoch '{epoch}' does not match configured epoch '{_configuration.Epoch}'. Retrying with clean=true.");
+                        Tracer.Debug(context, $"Stored epoch '{epoch}' does not match configured epoch '{_configuration.Epoch}'. Retrying with clean=true.");
                         reload = true;
                     }
                     else
@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (!result.Succeeded)
                 {
-                    context.TracingContext.Warning($"Failed to load database without cleaning. Retrying with clean=true. Failure: {result}");
+                    Tracer.Warning(context, $"Failed to load database without cleaning. Retrying with clean=true. Failure: {result}");
                     reload = true;
                 }
             }

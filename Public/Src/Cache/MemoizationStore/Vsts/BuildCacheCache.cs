@@ -217,7 +217,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 }
                 else
                 {
-                    context.Debug($"Getting stats failed: [{statsResult}]");
+                    _tracer.Debug(context, $"Getting stats failed: [{statsResult}]");
                 }
 
                 var backingContentStoreTask = Task.Run(async () => await _backingContentStore.ShutdownAsync(context).ConfigureAwait(false));

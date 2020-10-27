@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             if (_settings.SetPostInitializationCompletionAfterStartup)
             {
-                context.Debug("Linking post-initialization completion task with the result of StartupAsync.");
+                _tracer.Debug(context, "Linking post-initialization completion task with the result of StartupAsync.");
                 _postInitializationCompletion.LinkToTask(startupTask);
             }
 
@@ -149,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result)
         {
-            context.Debug($"Setting result for post-initialization completion task to '{result}'.");
+            _tracer.Debug(context, $"Setting result for post-initialization completion task to '{result}'.");
             _postInitializationCompletion.TrySetResult(result);
         }
 
@@ -527,7 +527,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             BoolResult waitForCompletion()
             {
-                context.Debug($"Post-initialization is not done. Waiting for it to finish...");
+                _tracer.Debug(context, $"Post-initialization is not done. Waiting for it to finish...");
                 return task.GetAwaiter().GetResult();
             }
         }

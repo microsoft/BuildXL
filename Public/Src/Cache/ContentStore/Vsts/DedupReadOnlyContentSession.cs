@@ -408,7 +408,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
             catch (Exception ex)
             {
-                context.TracingContext.Warning($"Exception when querying pins against the VSTS services {ex}");
+                Tracer.Warning(context, $"Exception when querying pins against the VSTS services {ex}");
                 return Task.FromResult(contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index))));
             }
         }
@@ -768,7 +768,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
             catch (Exception ex)
             {
-                context.TracingContext.Warning($"Exception when querying pins against the VSTS services {ex}");
+                Tracer.Warning(context, $"Exception when querying pins against the VSTS services {ex}");
                 return Task.FromResult(contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex))));
             }
 

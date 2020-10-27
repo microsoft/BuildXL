@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -307,7 +308,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         private void LogIncorporateOptions(Context context)
         {
-            context.Debug($"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
+            Tracer.Debug(context, $"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
                           $"InlineFingerprintIncorporationExpiry={_inlineFingerprintIncorporationExpiry}, " +
                           $"EagerFingerprintIncorporationInterval={_eagerFingerprintIncorporationInterval}, EagerFingerprintIncorporationBatchSize={_eagerFingerprintIncorporationBatchSize}.");
         }
@@ -692,7 +693,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             {
                 if (expirationUtc != null && (expirationUtc.Value - DateTime.UtcNow < _inlineFingerprintIncorporationExpiry))
                 {
-                    context.Debug($"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
+                    Tracer.Debug(context, $"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
 
                     await IncorporateFingerprintAsync(new OperationContext(context), strongFingerprint);
                 }
@@ -1006,10 +1007,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             }
         }
 
-        private void ReportSealingError(Context context, string errorMessage)
+        private void ReportSealingError(Context context, string errorMessage, [CallerMemberName] string operation = null)
         {
             Interlocked.Increment(ref _sealingErrorCount);
-            context.Error(errorMessage);
+            Tracer.Error(context, errorMessage, operation);
             if (_sealingErrorCount < MaxSealingErrorsToPrintOnShutdown)
             {
                 _sealingErrorsToPrintOnShutdown.Add(errorMessage);

@@ -1321,7 +1321,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var first = contentHashesWithInfo[0];
                 var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
 
-                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}");
+                Tracer.Debug(context, $"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}");
             }
 
             var operationContext = new OperationContext(context);
@@ -1469,7 +1469,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
             Counters[ContentLocationStoreCounters.EvictionMinAge].Increment();
-            context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {Configuration.EvictionPoolSize}." +
+            Tracer.Debug(context, $"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {Configuration.EvictionPoolSize}." +
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;
         }

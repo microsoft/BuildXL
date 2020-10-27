@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (_serviceUnavailable)
                 {
-                    context.TracingContext.Debug("Skipping session shutdown because service is unavailable.");
+                    Tracer.Debug(context, "Skipping session shutdown because service is unavailable.");
                 }
                 else
                 {
@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                     catch (RpcException e)
                     {
-                        context.TracingContext.Error($"Failed to shut down session with error: {e}");
+                        Tracer.Error(context, $"Failed to shut down session with error: {e}");
                     }
                 }
 

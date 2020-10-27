@@ -68,11 +68,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Name = name;
         }
 
-        public virtual void Always(Context context, string message)
+        public virtual void Always(Context context, string message, [CallerMemberName] string? operation = null)
         {
             if (context.IsEnabled)
             {
-                context.Always(message);
+                context.Always(message, Name, operation);
             }
         }
 
@@ -90,47 +90,46 @@ namespace BuildXL.Cache.ContentStore.Tracing
             CriticalErrorsObserver.RaiseRecoverableError(result);
         }
 
-        public void Error(Context context, string message)
+        public void Error(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Error, context, message);
+            Trace(Severity.Error, context, message, operation);
         }
 
-        public void Error(Context context, Exception exception)
+        public void Error(Context context, Exception exception, [CallerMemberName] string? operation = null)
         {
-            Error(context, exception.Message);
-            Debug(context, exception.ToString());
+            Error(context, exception.Message, operation);
+            Debug(context, exception.ToString(), operation);
         }
 
-        public void Error(Context context, Exception exception, string message)
+        public void Error(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
         {
-            Error(context, $"{message}:{exception}");
-            Debug(context, exception.ToString());
+            Error(context, $"{message}:{exception}", operation);
+            Debug(context, exception.ToString(), operation);
         }
 
-        public void Warning(Context context, string message)
+        public void Warning(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Warning, context, message);
+            Trace(Severity.Warning, context, message, operation);
         }
 
-        public void Info(Context context, string message)
+        public void Info(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Info, context, message);
+            Trace(Severity.Info, context, message, operation);
         }
 
-        public void Debug(Context context, string message)
+        public void Debug(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Debug, context, message);
+            Trace(Severity.Debug, context, message, operation);
         }
 
-        public void Diagnostic(Context context, string message)
+        public void Diagnostic(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Diagnostic, context, message);
+            Trace(Severity.Diagnostic, context, message, operation);
         }
 
         public virtual void StartupStart(Context context)
         {
             Debug(context, $"{Name}.Startup start");
-            // TODO: Emit version info (commit / build date) (bug 1365340)
         }
 
         public virtual void StartupStop(Context context, BoolResult result)

@@ -314,7 +314,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (Exception exception)
             {
-                context.Warning($"{Name} failed to deserialize header of {FilePath} - starting with empty directory: {exception}");
+                Tracer.Warning(context, $"{Name} failed to deserialize header of {FilePath} - starting with empty directory: {exception}");
                 return new MemoryContentDirectoryHeader();
             }
         }
@@ -461,7 +461,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     await TaskSafetyHelpers.WhenAll(tasks);
 
-                    context.Debug($"{Name}: Loaded content directory with {entries.Count} entries by {sw.ElapsedMilliseconds}ms: TotalContentSize={totalSize}, TotalUniqueSize={totalUniqueSize}, TotalReplicaCount={totalReplicaCount}, OldestContentTime={DateTime.FromFileTimeUtc(oldestContentAccessTimeUtc)}.");
+                    Tracer.Debug(context, $"{Name}: Loaded content directory with {entries.Count} entries by {sw.ElapsedMilliseconds}ms: TotalContentSize={totalSize}, TotalUniqueSize={totalUniqueSize}, TotalReplicaCount={totalReplicaCount}, OldestContentTime={DateTime.FromFileTimeUtc(oldestContentAccessTimeUtc)}.");
 
                     if (entries.Count == header.EntryCount)
                     {
@@ -483,7 +483,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (Exception exception)
             {
-                context.Warning($"{Name} failed to deserialize {FilePath} - starting with empty directory: {exception}");
+                Tracer.Warning(context, $"{Name} failed to deserialize {FilePath} - starting with empty directory: {exception}");
                 contentDirectory.Clear();
             }
 

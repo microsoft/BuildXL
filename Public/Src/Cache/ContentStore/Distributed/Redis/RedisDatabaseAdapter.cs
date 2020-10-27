@@ -386,7 +386,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             void cancelTheBatch(string reason)
             {
-                context.Debug($"Cancelling {batch.Operation} against {batch.DatabaseName} because {reason}.");
+                _tracer.Debug(context, $"Cancelling {batch.Operation} against {batch.DatabaseName} because {reason}.");
                 batch.NotifyConsumersOfCancellation();
             }
         }
@@ -411,7 +411,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (previousConnectionErrorCount != 0)
             {
                 // It means that the service just reconnected to a redis instance.
-                context.Info($"Successfully reconnected to {DatabaseName}. Previous ConnectionErrorCount={previousConnectionErrorCount}, previous ReconnectionCount={previousReconnectionCount}");
+                _tracer.Info(context, $"Successfully reconnected to {DatabaseName}. Previous ConnectionErrorCount={previousConnectionErrorCount}, previous ReconnectionCount={previousReconnectionCount}");
             }
         }
 
@@ -435,7 +435,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                         {
                             // This means that there is no successful operations happening, and all the errors that we're seeing are redis connectivity issues.
                             // This is, effectively, a work-around for the issue in StackExchange.Redis library (https://github.com/StackExchange/StackExchange.Redis/issues/559).
-                            context.Warning($"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}, ReconnectCount={_reconnectionCount}, LastReconnectDateTimeUtc={_lastRedisReconnectDateTime}.");
+                            _tracer.Warning(context, $"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}, ReconnectCount={_reconnectionCount}, LastReconnectDateTimeUtc={_lastRedisReconnectDateTime}.");
 
                             _databaseFactory.ResetConnectionMultiplexer();
 

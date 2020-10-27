@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -95,7 +96,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             return callsCounterSet.Merge(counterSet);
         }
 
-        public override void Always(Context context, string message)
+        public override void Always(Context context, string message, [CallerMemberName] string operation = null)
         {
             Trace(Severity.Always, context, message);
         }

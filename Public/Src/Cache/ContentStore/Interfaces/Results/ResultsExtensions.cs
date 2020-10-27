@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var result = await task;
             if (!result)
             {
-                context.Warning($"Operation '{operationName}' failed with an error={result}");
+                context.Warning($"Operation '{operationName}' failed with an error={result}", operation: operationName);
             }
 
             return result;
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (!result.Succeeded)
             {
-                context.Warning($"Operation '{operationName}' failed with an error={result}");
+                context.Warning($"Operation '{operationName}' failed with an error={result}", operation: operationName);
             }
 
             return result;

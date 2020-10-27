@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             {
                 var errorMessage =
                     $"Failed to get connection string from provider {connectionStringProvider.GetType().Name}. {connectionStringResult.ErrorMessage}. Diagnostics: {connectionStringResult.Diagnostics}";
-                context.Error(errorMessage);
+                Tracer.Error(context, errorMessage);
                 throw new ArgumentException(errorMessage, nameof(connectionStringProvider));
             }
 
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var endpoints = options.GetRedisEndpoint();
 
-            context.Debug($"{nameof(RedisConnectionMultiplexer)}: creating {nameof(RedisConnectionMultiplexer)} for {endpoints}.");
+            Tracer.Debug(context, $"{nameof(RedisConnectionMultiplexer)}: creating {nameof(RedisConnectionMultiplexer)} for {endpoints}.");
 
             // Enforce SSL if password is specified. This allows connecting to non password protected local server without SSL
             if (!string.IsNullOrWhiteSpace(options.Password))
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 Tracer,
                 async () =>
                 {
-                    context.Debug($"{nameof(RedisConnectionMultiplexer)}: Connecting to redis endpoint: {endpoint}");
+                    Tracer.Debug(context, $"{nameof(RedisConnectionMultiplexer)}: Connecting to redis endpoint: {endpoint}");
                     var result = await CreateMultiplexerCoreAsync(context, options, logSeverity);
                     
                     return result;
@@ -127,17 +127,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public static async Task ForgetAsync(Context context, ConfigurationOptions options)
         {
             RedisEndpoint endPoints = options.GetRedisEndpoint();
-            context.Debug($"Removing {nameof(RedisConnectionMultiplexer)} for endpoint: {endPoints}");
+            Tracer.Debug(context, $"Removing {nameof(RedisConnectionMultiplexer)} for endpoint: {endPoints}");
             if (Multiplexers.TryRemove(endPoints, out var multiplexerTask))
             {
-                context.Debug($"Closing connection multiplexer. Endpoint: {options.GetRedisEndpoint()}");
+                Tracer.Debug(context, $"Closing connection multiplexer. Endpoint: {options.GetRedisEndpoint()}");
                 IConnectionMultiplexer multiplexer = await multiplexerTask.Value;
                 await multiplexer.CloseAsync(allowCommandsToComplete: true);
                 multiplexer.Dispose();
             }
             else
             {
-                context.Warning($"Can't find {nameof(RedisConnectionMultiplexer)} for endpoint: {endPoints}");
+                Tracer.Warning(context, $"Can't find {nameof(RedisConnectionMultiplexer)} for endpoint: {endPoints}");
             }
         }
     }

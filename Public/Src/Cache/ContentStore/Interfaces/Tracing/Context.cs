@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
             : this(id, other.Logger)
         {
-            Debug($"{caller}: {other._idAsString} parent to {_idAsString}");
+            Debug($"{caller}: {other._idAsString} parent to {_idAsString}", operation: caller);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 prefix = string.Concat(componentName, ".", prefix);
             }
 
-            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}");
+            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}", component: componentName, operation: caller);
         }
 
         /// <nodoc />
@@ -109,61 +109,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Always.
         /// </summary>
-        public void Always(string message)
+        public void Always(string message, string? component = null, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Always, message);
+            TraceMessage(Severity.Always, message, component, operation);
         }
 
         /// <summary>
         ///     Log a message if current severity is set to at least Error.
         /// </summary>
-        public void Error(string message)
+        public void Error(string message, string? component = null, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Error, message);
+            TraceMessage(Severity.Error, message, component, operation);
         }
 
         /// <summary>
         ///     Log a message if current severity is set to at least Warning.
         /// </summary>
-        public void Warning(string message)
+        public void Warning(string message, string? component = null, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Warning, message);
+            TraceMessage(Severity.Warning, message, component, operation);
         }
 
         /// <summary>
         ///     Log a message if current severity is set to at least Info.
         /// </summary>
-        public void Info(string message)
+        public void Info(string message, string? component = null, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Info, message);
+            TraceMessage(Severity.Info, message, component, operation);
         }
 
         /// <summary>
         ///     Log a message if current severity is set to at least Debug.
         /// </summary>
-        public void Debug(string message)
+        public void Debug(string message, string? component = null, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Debug, message);
-        }
-
-        /// <summary>
-        ///     Trace a message if current severity is set to at least the given severity.
-        /// </summary>
-        public void TraceMessage(Severity severity, string message)
-        {
-            if (Logger == null)
-            {
-                return;
-            }
-
-            if (Logger is IStructuredLogger structuredLogger)
-            {
-                structuredLogger.Log(severity, _idAsString, message);
-            }
-            else
-            {
-                Logger.Log(severity, $"{_idAsString} {message}");
-            }
+            TraceMessage(Severity.Debug, message, component, operation);
         }
 
         /// <summary>

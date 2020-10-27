@@ -1243,7 +1243,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 catch (IOException ex)
                 {
-                    context.Warning("AllowAttributeWrites failed: " + ex);
+                    _tracer.Warning(context, "AllowAttributeWrites failed: " + ex);
                 }
             }
         }

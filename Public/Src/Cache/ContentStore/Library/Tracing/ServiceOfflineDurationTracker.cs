@@ -243,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
             catch (Exception e)
             {
-                _originalTracingContext.Warning($"Fail to swap '{_currentLogFilePath}' with '{_previousLogFilePath}': {e}");
+                Tracer.Warning(_originalTracingContext, $"Fail to swap '{_currentLogFilePath}' with '{_previousLogFilePath}': {e}");
             }
         }
     }

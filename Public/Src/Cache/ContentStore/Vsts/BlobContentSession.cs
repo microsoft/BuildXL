@@ -268,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 }
                 catch (Exception deleteEx)
                 {
-                    context.Error($"Failed to delete temp file {tempFile} on error with failure {deleteEx}");
+                    Tracer.Error(context, $"Failed to delete temp file {tempFile} on error with failure {deleteEx}");
                 }
 
                 throw;

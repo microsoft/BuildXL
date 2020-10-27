@@ -504,12 +504,12 @@ namespace BuildXL.Cache.Host.Service
 
                             process.OutputDataReceived += (s, e) =>
                             {
-                                context.TracingContext.Debug("Drop Output: " + e.Data);
+                                Tracer.Debug(context, "Drop Output: " + e.Data);
                             };
 
                             process.ErrorDataReceived += (s, e) =>
                             {
-                                context.TracingContext.Error("Drop Error: " + e.Data);
+                                Tracer.Error(context, "Drop Error: " + e.Data);
                             };
 
                             process.Start();

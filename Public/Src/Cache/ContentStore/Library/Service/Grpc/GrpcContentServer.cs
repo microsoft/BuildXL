@@ -507,7 +507,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         }
 
                         var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
-                        cacheContext.Debug($"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
+                        _tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
                         return;
                     }
 
@@ -841,14 +841,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 if (trace)
                 {
-                    tracingContext.Debug($"Starting GRPC operation {caller} for session {sessionId}.");
+                    Tracer.Debug(tracingContext, $"Starting GRPC operation {caller} for session {sessionId}.");
                 }
 
                 var result = await taskFunc(context, session!);
 
                 if (trace)
                 {
-                    tracingContext.Debug($"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms for session {sessionId}.");
+                    Tracer.Debug(tracingContext, $"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms for session {sessionId}.");
                 }
 
                 return result;
@@ -856,12 +856,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             catch (TaskCanceledException)
             {
                 var message = $"The GRPC server operation {caller} was canceled in {sw.Elapsed.TotalMilliseconds}ms.";
-                tracingContext.Info(message);
+                Tracer.Info(tracingContext, message);
                 return failFunc(context, message);
             }
             catch (Exception e)
             {
-                tracingContext.Error($"GRPC server operation {caller} failed in {sw.Elapsed.TotalMilliseconds}ms. {e}");
+                Tracer.Error(tracingContext, $"GRPC server operation {caller} failed in {sw.Elapsed.TotalMilliseconds}ms. {e}");
                 return failFunc(context, e.ToString());
             }
         }

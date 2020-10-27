@@ -107,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                     sb.AppendSequence(page.Select(p => p.hash), (builder, hash) => hash.ToString(builder));
 
                     sb.Append("]");
-                    context.Debug(sb.ToString());
+                    context.Debug(sb.ToString(), component: tracerName);
                 }
             }
         }

@@ -247,7 +247,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             try
             {
                 var lazyValueTask = wrapper.LazyValue;
-                if (lazyValueTask.IsFaulted)
+
+                // When running GC on Dispose, it is possible for this method to be called with an uninitialized or
+                // faulted.
+                if (!wrapper.IsValueCreated || lazyValueTask.IsFaulted)
                 {
                     // We will still dispose in the finally block
                     return;
@@ -268,7 +271,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             catch (Exception exception)
             {
                 Counter[ResourcePoolV2Counters.ShutdownExceptions].Increment();
-                context.Error($"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
+                _tracer.Error(context, $"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
             }
             finally
             {
@@ -314,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             var wrapperId = Guid.NewGuid();
             var wrapper = new ResourceWrapperV2<TObject>(wrapperId, lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token);
             Counter[ResourcePoolV2Counters.CreatedResources].Increment();
-            context.Info($"Created wrapper with id {wrapperId}");
+            _tracer.Info(context, $"Created wrapper with id {wrapperId}");
             return wrapper;
         }
 

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -17,6 +18,8 @@ namespace BuildXL.Cache.ContentStore.Utils
     public sealed class ResourceWrapperV2<TObject>
         where TObject : IStartupShutdownSlim
     {
+        private static Tracer Tracer { get; } = new Tracer(nameof(ResourceWrapperV2<TObject>));
+
         private readonly object _syncRoot = new object();
 
         private readonly Guid _id;
@@ -36,6 +39,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <nodoc />
         internal bool Invalid => _invalidated || (_lazy.IsValueCreated && _lazy.GetValueAsync().IsFaulted);
+
+        internal bool IsValueCreated => _lazy.IsValueCreated;
 
         /// <nodoc />
         public Task<TObject> LazyValue => _lazy.GetValueAsync();
@@ -93,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             lock (_syncRoot)
             {
-                context.Debug($"Invalidating `{nameof(ResourceWrapperV2<TObject>)}` ({_id}). Previous value is `{_invalidated}`");
+                Tracer.Debug(context, $"Invalidating `{nameof(ResourceWrapperV2<TObject>)}` ({_id}). Previous value is `{_invalidated}`");
                 _invalidated = true;
             }
         }
@@ -101,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         internal void CancelOngoingOperations(Context context)
         {
-            context.Debug($"Cancelling ongoing operations for `{nameof(ResourceWrapperV2<TObject>)}` ({_id})");
+            Tracer.Debug(context, $"Cancelling ongoing operations for `{nameof(ResourceWrapperV2<TObject>)}` ({_id})");
             _shutdownCancellationTokenSource.Cancel();
         }
 
@@ -113,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // This can only ever happen if an usage of the resource doesn't respect cancellation tokens. In this
                 // case, a Dispose of the pool will force a Dispose of the wrapper. We shouldn't fail in this case,
                 // because not obeying cancellation is external to the pool.
-                context.Warning($"Disposing `{nameof(ResourceWrapperV2<TObject>)}` ({_id}) which has a reference count of `{_referenceCount}`");
+                Tracer.Warning(context, $"Disposing `{nameof(ResourceWrapperV2<TObject>)}` ({_id}) which has a reference count of `{_referenceCount}`");
             }
 
             if (!_shutdownCancellationTokenSource.IsCancellationRequested)
@@ -121,12 +126,12 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // This should never happen, and hence signals that a bug occurred. However, it is a bug that we can
                 // live with: we just cancel the operations and move on to dispose. Since no other usage of the
                 // resource can possibly happen, this is safe.
-                context.Error($"Disposing `{nameof(ResourceWrapperV2<TObject>)}` ({_id}) which hasn't been cancelled");
+                Tracer.Error(context, $"Disposing `{nameof(ResourceWrapperV2<TObject>)}` ({_id}) which hasn't been cancelled");
                 _shutdownCancellationTokenSource.Cancel();
             }
 
             _shutdownCancellationTokenSource.Dispose();
-            context.Warning($"Disposed `{nameof(ResourceWrapperV2<TObject>)}` ({_id})");
+            Tracer.Debug(context, $"Disposed `{nameof(ResourceWrapperV2<TObject>)}` ({_id})");
         }
     }
 }

@@ -702,7 +702,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private async Task ProcessReserveRequestsAsync(Context context)
         {
-            context.Debug($"{Component}: Starting reservation processing loop. Current content size={CurrentSize}");
+            Tracer.Debug(context, $"{Component}: Starting reservation processing loop. Current content size={CurrentSize}");
             var operationContext = new OperationContext(context);
             long requestCount = 0;
 

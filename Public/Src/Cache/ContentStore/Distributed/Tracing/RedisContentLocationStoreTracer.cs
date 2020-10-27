@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
             foreach (var hashBatch in contentHashes.GetPages(DefaultArgsPerLog))
             {
-                context.Debug($"{nameof(TrimBulkLocalStart)} {string.Join(",", hashBatch)}");
+                Debug(context, $"{nameof(TrimBulkLocalStart)} {string.Join(",", hashBatch)}");
             }
 
             _trimBulkLocalCallCounter.Started();
@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
                 foreach (var hashBatch in contentHashesWithInfo.GetPages(DefaultArgsPerLog))
                 {
-                    context.Debug($"{nameof(TrimOrGetLastAccessTimeStart)} {string.Join(",", hashBatch)}");
+                    Debug(context, $"{nameof(TrimOrGetLastAccessTimeStart)} {string.Join(",", hashBatch)}");
                 }
             }
 

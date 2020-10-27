@@ -93,14 +93,14 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 var innerCacheStarted = await _innerICache.StartupAsync(context);
                 if (!innerCacheStarted)
                 {
-                    context.Error("StartUp call on inner cache failed.");
+                    _tracer.Error(context, "StartUp call on inner cache failed.");
                     return new BoolResult(innerCacheStarted);
                 }
 
                 var metadataCacheStarted = await _metadataCache.StartupAsync(context);
                 if (!metadataCacheStarted)
                 {
-                    context.Error("StartUp call on metadata cache failed. Shutting down inner cache.");
+                    _tracer.Error(context, "StartUp call on metadata cache failed. Shutting down inner cache.");
                     await _innerICache.ShutdownAsync(context).ThrowIfFailure();
                     return new BoolResult(metadataCacheStarted);
                 }
@@ -120,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 GetStatsResult stats = GetStatsInternal();
                 if (!stats)
                 {
-                    context.Debug($"Get stats failed with error {stats.ErrorMessage}; Diagnostics {stats.Diagnostics}");
+                    _tracer.Debug(context, $"Get stats failed with error {stats.ErrorMessage}; Diagnostics {stats.Diagnostics}");
                 }
                 else
                 {
@@ -133,13 +133,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 if (!innerCacheShutdown)
                 {
                     // TODO: should print errors as well.
-                    context.Error("Shutdown call on inner cache failed.");
+                    _tracer.Error(context, "Shutdown call on inner cache failed.");
                     return new BoolResult(innerCacheShutdown);
                 }
 
                 if (!metadataCacheShutdown)
                 {
-                    context.Error("Shutdown call on metadata cache failed.");
+                    _tracer.Error(context, "Shutdown call on metadata cache failed.");
                     return new BoolResult(metadataCacheShutdown);
                 }
 

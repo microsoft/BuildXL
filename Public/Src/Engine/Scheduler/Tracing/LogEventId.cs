@@ -410,7 +410,6 @@ namespace BuildXL.Scheduler.Tracing
         ApiServerReceivedWarningMessage = 12108,
         ApiServerStoreBuildManifestHashToCacheFailed = 12109,
         ErrorApiServerGetBuildManifestHashFromCacheFailed = 12110,
-        ApiServerRegisterBuildManifestHashFoundDuplicateEntry = 12111,
 
         // Copy file cont'd.
         // Elsewhere = 12201,

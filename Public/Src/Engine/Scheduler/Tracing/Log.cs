@@ -3746,15 +3746,6 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from cache for Hash: '{hash}' failed. Reason: {reason}.")]
         internal abstract void ErrorApiServerGetBuildManifestHashFromCacheFailed(LoggingContext loggingContext, string hash, string reason);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ApiServerRegisterBuildManifestHashFoundDuplicateEntry,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation Register BuildManifest Hash for Drop '{dropName}' failed due to files with different hashes being uploaded to the same path: '{relativePath}'. OldHash: '{oldHash}'. NewHash: '{newHash}'.")]
-        internal abstract void ApiServerRegisterBuildManifestHashFoundDuplicateEntry(LoggingContext loggingContext, string dropName, string relativePath, string oldHash, string newHash);
     }
 }
 #pragma warning restore CA1823 // Unused field

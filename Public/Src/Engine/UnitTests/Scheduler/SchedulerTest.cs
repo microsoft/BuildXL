@@ -2604,12 +2604,12 @@ namespace Test.BuildXL.Scheduler
 
             buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Will be added
             buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Duplicate entry will be ignored
-            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash1, hash1);     // Logs warning
+            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash1, hash1);     // Records duplicate entry
             buildManifestGenerator.RecordFileForBuildManifest("drop1", relativePath, hash0, hash0);     // Will be added
             buildManifestGenerator.RecordFileForBuildManifest("drop2", relativePath, hash0, hash0);     // Will be added
 
             XAssert.AreEqual(3, buildManifestGenerator.BuildManifestEntries.Count);
-            AssertWarningEventLogged(LogEventId.ApiServerRegisterBuildManifestHashFoundDuplicateEntry, 1);
+            XAssert.AreEqual(1, buildManifestGenerator.DuplicateEntries("drop0").Count);
         }
 
         #region ProtoBufEnumsTests

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -20,6 +21,16 @@ namespace BuildXL.Scheduler.Tracing
     {
         private readonly StringTable m_stringTable;
         private readonly LoggingContext m_loggingContext;
+        private readonly ConcurrentBag<(string dropName, string relativePath, string recordedHash, string rejectedHash)> m_duplicateEntries;
+
+        /// <summary>
+        /// Records duplicate file registrations for a given relative drop path with mismatching hashes
+        /// </summary>
+        public IReadOnlyList<(string relativePath, string recordedHash, string rejectedHash)> DuplicateEntries(string dropName) =>
+            m_duplicateEntries
+                .Where(o => o.dropName == dropName)
+                .Select(o => (o.relativePath, o.recordedHash, o.rejectedHash))
+                .ToList();
 
         /// <summary>
         /// Details of files added to drop.
@@ -44,6 +55,7 @@ namespace BuildXL.Scheduler.Tracing
 
             m_loggingContext = loggingContext;
             m_stringTable = stringTable;
+            m_duplicateEntries = new ConcurrentBag<(string, string, string, string)>();
             Version = version;
             BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestEntry>();
         }
@@ -69,14 +81,14 @@ namespace BuildXL.Scheduler.Tracing
             if (existingEntry.IsFound && 
                 !azureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
             {
-                Logger.Log.ApiServerRegisterBuildManifestHashFoundDuplicateEntry(m_loggingContext,
-                    dropName,
-                    relativePath,
-                    existingEntry.OldItem.Value.AzureArtifactsHash.Serialize(),
-                    azureArtifactsHash.Serialize());
+                m_duplicateEntries.Add((dropName, relativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), azureArtifactsHash.Serialize()));
             }
-
-            Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"RecordFileForBuildManifest added a file at RelativePath '{relativePath}'. AzureArtifactsHash: '{azureArtifactsHash.Serialize()}'. BuildManifestHash: '{buildManifestHash.Serialize()}'");
+            else
+            {
+                Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext,
+                    "Verbose",
+                    $"RecordFileForBuildManifest added a file at RelativePath '{relativePath}'. AzureArtifactsHash: '{azureArtifactsHash.Serialize()}'. BuildManifestHash: '{buildManifestHash.Serialize()}'");
+            }
         }
 
         /// <summary>

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -348,6 +349,19 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(cmd != null);
             Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on master");
+
+            var duplicateEntries = m_buildManifestGenerator.DuplicateEntries(cmd.DropName);
+            if (duplicateEntries.Count != 0)
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append($"Operation Register BuildManifest Hash for Drop '{cmd.DropName}' failed due to files with different hashes being uploaded to the same path: ");
+                foreach (var entry in duplicateEntries)
+                {
+                    sb.Append($"[Path: {entry.relativePath}'. RecordedHash: '{entry.recordedHash}'. RejectedHash: '{entry.rejectedHash}'] ");
+                }
+
+                return new IpcResult(IpcResultStatus.ExecutionError, sb.ToString());
+            }
 
             BuildManifestData buildManifestData = m_buildManifestGenerator.GenerateBuildManifestData(cmd.DropName);
 

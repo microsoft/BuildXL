@@ -437,7 +437,7 @@ export function cacheTest(args: TestArguments) : TestResult {
  * Gets binding redirects required for running tests from the IDE.
  */
 @@public
-export function cacheTestBindingRedirects() {
+export function cacheBindingRedirects() {
     return [
             // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
             // but System.Memory.dll from netstandard2.0 references System.Buffer.dll v.4.0.2.0!
@@ -471,7 +471,28 @@ export function cacheTestBindingRedirects() {
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.99.99.99",
                 newVersion: "4.0.2.1", // Corresponds to: { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
-            }
+            },
+            {
+                name: "System.Memory",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.0.1.1",
+                newVersion: "4.0.1.1", // Corresponds to: { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
+            },
+            {
+                name: "System.Interactive.Async",
+                publicKeyToken: "94bc3704cddfc263",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-3.0.3000.0",
+                newVersion: "3.0.3000.0",
+            },
+            {
+                name: "Microsoft.IdentityModel.Clients.ActiveDirectory",
+                publicKeyToken: "31bf3856ad364e35",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.5.1.0",
+                newVersion: "4.5.1.0", // Corresponds to: { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.6",
+            },
         ];
 }
 

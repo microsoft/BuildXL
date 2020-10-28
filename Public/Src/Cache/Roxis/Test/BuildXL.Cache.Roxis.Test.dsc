@@ -16,7 +16,7 @@ namespace RoxisTest {
             // TODO: without this, we get DFAs on each test run because of RocksDb. Do we really need it?
             untrackTestDirectory: true,
         },
-        assemblyBindingRedirects: BuildXLSdk.cacheTestBindingRedirects(),
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
             // Assertions

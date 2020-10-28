@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -18,6 +19,7 @@ using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
+using UnixIO = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Native.IO
 {
@@ -1337,6 +1339,43 @@ namespace BuildXL.Native.IO
             }
 
             return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
+        }
+
+        /// <summary>
+        /// Unix only (no-op on windows): sets u+x on <paramref name="fileName"/>.  Throws if file doesn't exists and <paramref name="throwIfNotFound"/> is true.
+        /// </summary>
+        /// <returns>
+        /// true if file exists and already has execute permissions or execute permissions were set. Otherwise, false.
+        /// </returns>
+        public static bool TrySetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
+        {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                var mode = UnixIO.GetFilePermissionsForFilePath(fileName, followSymlink: false);
+                if (mode < 0)
+                {
+                    if (throwIfNotFound)
+                    {
+                        throw new BuildXLException($"Process creation failed: File '{fileName}' not found", new Win32Exception(0x2));
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+                var filePermissions = checked((UnixIO.FilePermissions)mode);
+                UnixIO.FilePermissions exePermission = UnixIO.FilePermissions.S_IXUSR;
+                if (!filePermissions.HasFlag(exePermission))
+                {
+                    var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
+                    return result >= 0;
+                }
+
+                return true;
+            }
+
+            return true;
         }
 
         /// <summary>

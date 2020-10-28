@@ -15,7 +15,7 @@ namespace DistributedTest {
                 parallelBucketCount: 8,
             },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
-        assemblyBindingRedirects: BuildXLSdk.cacheTestBindingRedirects(),
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

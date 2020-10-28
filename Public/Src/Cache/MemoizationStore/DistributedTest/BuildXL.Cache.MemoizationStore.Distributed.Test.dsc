@@ -13,7 +13,7 @@ namespace DistributedTest {
                 untrackTestDirectory: true,
                 parallelBucketCount: 8,
             },
-        assemblyBindingRedirects: BuildXLSdk.cacheTestBindingRedirects(),
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,

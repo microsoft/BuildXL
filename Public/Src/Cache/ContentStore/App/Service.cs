@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.App
                 args.Cancel = true;
             };
 
-            var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, serverDataRootPath.Path, names[0], grpcPort);
+            var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, serverDataRootPath.Path, names[0], grpcPort, grpcPortFileName);
             localCasSettings.ServiceSettings.ScenarioName = _scenario;
 
             var distributedContentSettings = DistributedContentSettings.CreateDisabled();

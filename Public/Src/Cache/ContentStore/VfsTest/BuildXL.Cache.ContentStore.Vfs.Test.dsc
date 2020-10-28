@@ -15,7 +15,7 @@ namespace VfsTest {
                 parallelBucketCount: 8,
             },
         skipTestRun: !BuildXLSdk.isHostOsWin || BuildXLSdk.restrictTestRunToSomeQualifiers,
-        assemblyBindingRedirects: BuildXLSdk.cacheTestBindingRedirects(),
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
             

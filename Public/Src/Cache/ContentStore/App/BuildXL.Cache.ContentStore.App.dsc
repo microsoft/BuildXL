@@ -12,6 +12,7 @@ namespace App {
         assemblyName: "ContentStoreApp",
         sources: globR(d`.`,"*.cs"),
         skipDocumentationGeneration: true,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.Config`,
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [

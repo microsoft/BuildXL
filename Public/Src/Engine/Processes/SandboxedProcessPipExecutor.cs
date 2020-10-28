@@ -3759,7 +3759,7 @@ namespace BuildXL.Processes
                             isDirectoryLocation =
                                 // If the path is available and ends with a trailing backlash, we know that represents
                                 // a directory
-                                ((isDirectoryLocation == null || !isDirectoryLocation.Value) &&
+                                ((isDirectoryLocation == null || isDirectoryLocation.Value) &&
                                  access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
                                 ||
                                 // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation

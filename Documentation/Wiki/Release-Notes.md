@@ -1,6 +1,19 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201023.7.4 (Release [84361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84361)) Released 10/28/2020
+- Expose a DScript flag to control full reparse point resolving
+- Detours Reparse Point Resolver Improvements
+- Made directory fingerprint sensible to new undeclared directories for MinimalGraphWithAlienFiles
+- Added support for untracked scopes/paths in output directories
+- Pip executing in VM can access files using newly introduced fixed host name
+- Add Kusto logging support to launcher and deployment service
+- Split TotalMaterializedOutputsSize into two counters: TotalMaterializedOutputsSize and TotalMaterializedApiServerFilesSize
+- Added limiting resource percentages to stats
+- Detours: Implemented ZwSetFileInformationByHandle with FILE_DISPOSITION_INFO_EX
+- Skip IPC pips when materializing outputs by default
+- Minor bug fixes, flaky Unit Test fixes and some performance improvements
+
 # 0.1.0-20201017.0 (Release [83009](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=83009)) Released 10/21/2020
 - ModuleAffinity extra logging when used with earlyWorkerRelease
 - Add a new machine CPU reporting and jobObject stats

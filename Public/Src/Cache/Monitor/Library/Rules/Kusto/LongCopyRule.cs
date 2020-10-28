@@ -32,9 +32,9 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 
             public Thresholds<double> LongCopiesPercentThresholds = new Thresholds<double>()
             {
-                Warning =   0.00001,
-                Error =     0.0001,
-                Fatal =     0.001,
+                Warning =   0.01,
+                Error =     0.1,
+                Fatal =     1,
             };
         }
 

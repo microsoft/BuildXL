@@ -32,10 +32,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <nodoc />
         public ReadOnlyDatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore)
         {
-            Contract.RequiresNotNull(name);
-            Contract.RequiresNotNull(memoizationStore);
+            Contract.Requires(name != null);
+            Contract.Requires(memoizationStore != null);
 
-            Tracer = new Tracer(name);
+            Tracer = new Tracer(nameof(ReadOnlyDatabaseMemoizationSession));
             Name = name;
             MemoizationStore = memoizationStore;
         }

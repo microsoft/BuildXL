@@ -33,7 +33,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             Contract.Requires(memoizationStore != null);
 
             Name = name;
-            Tracer = new Tracer(name);
+            Tracer = new Tracer(nameof(ReadOnlyMemoryMemoizationSession));
             MemoizationStore = memoizationStore;
         }
 

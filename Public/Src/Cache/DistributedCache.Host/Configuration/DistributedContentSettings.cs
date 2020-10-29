@@ -140,8 +140,31 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? RedisConnectionErrorLimit { get; set; }
 
+        #region Redis Connection Multiplexer Configuration
+
         [DataMember]
         public bool? UseRedisPreventThreadTheftFeature { get; set; }
+
+        [DataMember]
+        [Validation.Enum(typeof(Severity), allowNull: true)]
+        public string RedisInternalLogSeverity { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? RedisConfigCheckInSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? RedisKeepAliveInSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? RedisConnectionTimeoutInSeconds { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? RedisMultiplexerOperationTimeoutTimeoutInSeconds { get; set; }
+        #endregion Redis Connection Multiplexer Configuration
 
         [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
@@ -747,10 +770,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string SecondaryGlobalRedisSecretName { get; set; }
-
-        [DataMember]
-        [Validation.Enum(typeof(Severity), allowNull: true)]
-        public string RedisInternalLogSeverity { get; set; }
 
         [DataMember]
         public bool? MirrorClusterState { get; set; }

@@ -614,7 +614,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
-            ApplyIfNotNull(_distributedSettings.UseRedisPreventThreadTheftFeature, value => configuration.UsePreventThreadTheftFeature = value);
             ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.MemoizationOperationTimeout = TimeSpan.FromSeconds(value));
             ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.MemoizationSlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
 
@@ -626,15 +625,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
             }
 
-            ApplyIfNotNull(_distributedSettings.RedisInternalLogSeverity, value =>
-            {
-                if (!Enum.TryParse<Severity>(value, out var parsedValue))
-                {
-                    throw new ArgumentException($"Failed to parse `{nameof(_distributedSettings.RedisInternalLogSeverity)}` setting with value `{value}` into type `{nameof(Severity)}`");
-                }
-
-                configuration.RedisInternalLogSeverity = parsedValue;
-            });
+            configuration.RedisConnectionMultiplexerConfiguration = RedisConnectionMultiplexerConfiguration.FromDistributedContentSettings(_distributedSettings);
 
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 

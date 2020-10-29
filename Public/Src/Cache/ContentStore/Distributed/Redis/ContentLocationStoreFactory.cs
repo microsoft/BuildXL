@@ -164,16 +164,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             RedisDatabaseFactoryForRedisGlobalStore = await RedisDatabaseFactory.CreateAsync(
                 context,
                 new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString),
-                logSeverity: Configuration.RedisInternalLogSeverity ?? Severity.Unknown,
-                usePreventThreadTheft: Configuration.UsePreventThreadTheftFeature);
+                Configuration.RedisConnectionMultiplexerConfiguration);
 
             if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
             {
                 RedisDatabaseFactoryForRedisGlobalStoreSecondary = await RedisDatabaseFactory.CreateAsync(
                     context,
                     new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString),
-                    logSeverity: Configuration.RedisInternalLogSeverity ?? Severity.Unknown,
-                    usePreventThreadTheft: Configuration.UsePreventThreadTheftFeature);
+                    Configuration.RedisConnectionMultiplexerConfiguration);
             }
 
             return BoolResult.Success;

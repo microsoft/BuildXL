@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -105,25 +106,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public string? RedisGlobalStoreConnectionString { get; set; }
 
-        /// <summary>
-        /// Gets or sets the flag to enable thread theft prevention feature.
-        /// </summary>
-        /// <remarks>
-        /// See this article about thread theft: https://stackexchange.github.io/StackExchange.Redis/ThreadTheft
-        /// Basically, this feature forces all the continuations running asynchronously, i.e. all the user code is detached from the redis library's code.
-        /// </remarks>
-        public bool UsePreventThreadTheftFeature { get; set; } = false;
+        /// <nodoc />
+        public RedisConnectionMultiplexerConfiguration RedisConnectionMultiplexerConfiguration { get; set; } = new RedisConnectionMultiplexerConfiguration();
 
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
         public string? RedisGlobalStoreSecondaryConnectionString { get; set; }
-
-        /// <summary>
-        /// The Redis.StackExchange library performs its own internal logging. If the flag is not null, we pipe the
-        /// library's logging out through our own logger, at the specified severity.
-        /// </summary>
-        public Severity? RedisInternalLogSeverity { get; set; }
 
         /// <summary>
         /// Configuration of reputation tracker.

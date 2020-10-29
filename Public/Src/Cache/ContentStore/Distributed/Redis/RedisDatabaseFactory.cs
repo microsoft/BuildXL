@@ -48,9 +48,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Factory method for a database factory.
         /// </summary>
-        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, Severity logSeverity, bool usePreventThreadTheft)
+        public static Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, Severity logSeverity, bool usePreventThreadTheft)
         {
-            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider, logSeverity, usePreventThreadTheft);
+            return CreateAsync(
+                context,
+                provider,
+                new RedisConnectionMultiplexerConfiguration(logSeverity, usePreventThreadTheft));
+        }
+
+        /// <summary>
+        /// Factory method for a database factory.
+        /// </summary>
+        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, RedisConnectionMultiplexerConfiguration configuration)
+        {
+            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider, configuration);
 
             Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = async m =>
             {

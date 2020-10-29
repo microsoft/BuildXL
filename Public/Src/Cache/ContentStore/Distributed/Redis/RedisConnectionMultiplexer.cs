@@ -10,10 +10,75 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Configuration;
 using StackExchange.Redis;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
+    /// <summary>
+    /// Configuration options for <see cref="RedisConnectionMultiplexer"/>.
+    /// </summary>
+    /// <remarks>
+    /// See https://stackexchange.github.io/StackExchange.Redis/Configuration#configuration-options for more details.
+    /// </remarks>
+    public class RedisConnectionMultiplexerConfiguration
+    {
+        /// <nodoc />
+        public RedisConnectionMultiplexerConfiguration()
+        {
+        }
+
+        /// <nodoc />
+        public RedisConnectionMultiplexerConfiguration(Severity loggingSeverity, bool usePreventThreadTheft) =>
+            (LoggingSeverity, UsePreventThreadTheft) = (loggingSeverity, usePreventThreadTheft);
+
+        /// <nodoc />
+        public Severity LoggingSeverity { get; set; }
+
+        /// <summary>
+        /// Whether to run internal continuation in a separate thread.
+        /// </summary>
+        public bool UsePreventThreadTheft { get; set; }
+
+        /// <summary>
+        /// Time to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
+        /// In practice (with Azure Redis) this option uses to check how fast we can detect the fail-over.
+        /// </summary>
+        /// <remarks>
+        /// The default value is 60 seconds.
+        /// </remarks>
+        public TimeSpan? ConfigCheck { get; set; }
+
+        /// <summary>
+        /// Time at which to send a message to help keep sockets alive (60 seconds default).
+        /// </summary>
+        public TimeSpan? KeepAlive { get; set; }
+
+        /// <summary>
+        /// Timeout for connect operations.
+        /// </summary>
+        public TimeSpan? ConnectionTimeout { get; set; }
+
+        /// <summary>
+        /// Time to allow for synchronous operations and asynchronous operations.
+        /// </summary>
+        public TimeSpan? OperationTimeout { get; set; }
+
+        /// <nodoc />
+        public static RedisConnectionMultiplexerConfiguration FromDistributedContentSettings(DistributedContentSettings dcs)
+        {
+            var result = new RedisConnectionMultiplexerConfiguration();
+            ApplyEnumIfNotNull<Severity>(dcs.RedisInternalLogSeverity, nameof(dcs.RedisInternalLogSeverity), value => result.LoggingSeverity = value);
+            ApplyIfNotNull(dcs.UseRedisPreventThreadTheftFeature, value => result.UsePreventThreadTheft = value);
+            ApplyIfNotNull(dcs.RedisConfigCheckInSeconds, value => result.ConfigCheck = TimeSpan.FromSeconds(value));
+            ApplyIfNotNull(dcs.RedisKeepAliveInSeconds, value => result.KeepAlive = TimeSpan.FromSeconds(value));
+            ApplyIfNotNull(dcs.RedisMultiplexerOperationTimeoutTimeoutInSeconds, value => result.OperationTimeout = TimeSpan.FromSeconds(value));
+
+            return result;
+        }
+    }
+
     /// <summary>
     /// Helper class to create a <see cref="ConnectionMultiplexer"/> object
     /// </summary>
@@ -31,7 +96,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Creates a <see cref="IConnectionMultiplexer"/> using given <see cref="IConnectionStringProvider"/>
         /// </summary>
-        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity, bool usePreventThreadTheft)
+        public static Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity, bool usePreventThreadTheft)
+        {
+            return CreateAsync(
+                context,
+                connectionStringProvider,
+                new RedisConnectionMultiplexerConfiguration(logSeverity, usePreventThreadTheft));
+        }
+
+        /// <summary>
+        /// Creates a <see cref="IConnectionMultiplexer"/> using given <see cref="IConnectionStringProvider"/>
+        /// </summary>
+        public static async Task<IConnectionMultiplexer> CreateAsync(
+            Context context,
+            IConnectionStringProvider connectionStringProvider,
+            RedisConnectionMultiplexerConfiguration configuration)
         {
             if (TestConnectionMultiplexer != null)
             {
@@ -54,6 +133,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             options.ConnectTimeout = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
             options.SyncTimeout = (int)TimeSpan.FromSeconds(30).TotalMilliseconds;
 
+            ApplyIfNotNull(configuration.KeepAlive, value => options.KeepAlive = (int)value.TotalSeconds);
+            ApplyIfNotNull(configuration.ConfigCheck, value => options.ConfigCheckSeconds = (int)value.TotalSeconds);
+            ApplyIfNotNull(configuration.ConnectionTimeout, value => options.ConnectTimeout = (int)value.TotalMilliseconds);
+            ApplyIfNotNull(configuration.OperationTimeout, value => options.SyncTimeout = (int)value.TotalMilliseconds);
+            ApplyIfNotNull(configuration.OperationTimeout, value => options.AsyncTimeout = (int)value.TotalMilliseconds);
+
             var endpoints = options.GetRedisEndpoint();
 
             Tracer.Debug(context, $"{nameof(RedisConnectionMultiplexer)}: creating {nameof(RedisConnectionMultiplexer)} for {endpoints}.");
@@ -66,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var multiplexerTask = Multiplexers.GetOrAdd(
                 endpoints,
-                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, logSeverity, usePreventThreadTheft)));
+                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, configuration.LoggingSeverity, configuration.UsePreventThreadTheft)));
 
             return await multiplexerTask.Value;
         }

@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Practices.TransientFaultHandling;
 using StackExchange.Redis;
@@ -260,6 +261,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <returns>A task that completes when all items in the batch are done.</returns>
         public async Task<BoolResult> ExecuteBatchOperationAsync(Context context, IRedisBatch batch, CancellationToken cancellationToken)
         {
+            var operationContext = new OperationContext(context, cancellationToken);
+
+            using var batchCounter = Counters[RedisOperation.Batch].Start();
+            using var operationCounter = Counters[batch.Operation].Start();
+            Counters[RedisOperation.BatchSize].Add(batch.BatchSize);
+
+            var result = await PerformRedisOperationAsync(
+                operationContext,
+                operation: async (nestedContext, database) =>
+                           {
+                               await batch.ExecuteBatchOperationAndGetCompletion(nestedContext, database, nestedContext.Token);
+                               return Unit.Void;
+                           },
+                onSuccess: () => batch.NotifyConsumersOfSuccess(),
+                onFailure: ex => batch.NotifyConsumersOfFailure(ex),
+                onCancel: () => batch.NotifyConsumersOfCancellation(),
+                extraEndMessage: $"Operation={batch.Operation}, ",
+                operationName: batch.Operation.ToString()
+            );
+
+            return result.Succeeded ? BoolResult.Success : new BoolResult(result);
+        }
+
+        private async Task<Result<TResult>> PerformRedisOperationAsync<TResult>(
+            OperationContext context,
+            Func<OperationContext, IDatabase, Task<TResult>> operation,
+            string operationName,
+            Func<Task>? onSuccess = null,
+            Action<Exception>? onFailure = null,
+            Action? onCancel = null,
+            string? extraEndMessage = null)
+        {
             // The cancellation logic in this method is quite complicated.
             // We have following "forces" that can cancel the operation:
             // 1. A token provided to this method is triggered.
@@ -267,20 +300,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             // 2. Operation exceeds a timeout
             // 3. A multiplexer is closed and we need to retry with a newly created connection multiplexer.
 
-            var operationContext = new OperationContext(context, cancellationToken);
+            bool operationIsCanceled = false;
 
             // Cancellation token can be changed in this method so we need another local to avoid re-assigning an argument.
-            var token = cancellationToken;
-            var result = await operationContext.PerformOperationWithTimeoutAsync(
+            CancellationToken token;
+
+            var result = await context.PerformOperationWithTimeoutAsync(
                 _tracer,
                 async (withTimeoutContext) =>
                 {
                     string getCancellationReason(bool multiplexerIsClosed)
                     {
-                        bool externalTokenIsCancelled = operationContext.Token.IsCancellationRequested;
+                        bool externalTokenIsCancelled = context.Token.IsCancellationRequested;
                         bool timeoutTokenIsCancelled = withTimeoutContext.Token.IsCancellationRequested;
 
                         Contract.Assert(externalTokenIsCancelled || timeoutTokenIsCancelled || multiplexerIsClosed);
+
+                        operationIsCanceled = true;
 
                         // Its possible to have more than one token to be triggered, in this case we'll report based on the check order.
                         // Have to put '!' at the end of each return statement due to this bug: https://github.com/dotnet/roslyn/issues/42396
@@ -298,11 +334,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     token = withTimeoutContext.Token;
 
                     using (Counters[RedisOperation.All].Start())
-                    using (Counters[RedisOperation.Batch].Start())
-                    using (Counters[batch.Operation].Start())
                     {
-                        Counters[RedisOperation.BatchSize].Add(batch.BatchSize);
-
                         try
                         {
                             // Need to register the cancellation here and not inside the ExecuteAsync callback,
@@ -310,7 +342,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                             // And we still need to cancel the batch operations to finish all the tasks associated with them.
                             using (token.Register(() => { cancelTheBatch(getCancellationReason(multiplexerIsClosed: false)); }))
                             {
-                                await _redisRetryStrategy.ExecuteAsync(
+                                var r = await _redisRetryStrategy.ExecuteAsync(
                                     withTimeoutContext,
                                     async () =>
                                     {
@@ -346,39 +378,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                         // referencing a lot of token sources created here.
                                         using (linkedCts)
                                         {
-                                            await batch.ExecuteBatchOperationAndGetCompletion(withTimeoutContext, database, token);
+                                            return await operation(new OperationContext(withTimeoutContext, token), database);
                                         }
                                     },
                                     token,
                                     databaseName: DatabaseName);
 
-                                await batch.NotifyConsumersOfSuccess();
+                                if (onSuccess != null)
+                                {
+                                    await onSuccess();
+                                }
 
-                                return BoolResult.Success;
+                                return new Result<TResult>(r, isNullAllowed: true);
                             }
                         }
                         catch (TaskCanceledException e)
                         {
                             // Don't have to cancel batch here, because we track the cancellation already and call 'cancelBatch' if needed
-                            return new BoolResult(e) {IsCancelled = true};
+                            return new Result<TResult>(e) { IsCancelled = true };
                         }
                         catch (OperationCanceledException e)
                         {
                             // The same applies to OperationCanceledException as for TaskCanceledException
-                            return new BoolResult(e) {IsCancelled = true};
+                            return new Result<TResult>(e) { IsCancelled = true };
                         }
                         catch (Exception ex)
                         {
-                            batch.NotifyConsumersOfFailure(ex);
-                            return new BoolResult(ex) {IsCancelled = token.IsCancellationRequested};
+                            onFailure?.Invoke(ex);
+                            return new Result<TResult>(ex) { IsCancelled = operationIsCanceled };
                         }
                     }
                 },
                 // Tracing errors all the time. They're not happening too frequently and its useful to know about all of them.
                 traceErrorsOnly: true,
                 traceOperationStarted: false,
-                //traceOperationFinished: _configuration.TraceOperationFailures,
-                extraEndMessage: r => $"Operation={batch.Operation}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}, IsCancelled={token.IsCancellationRequested}",
+                extraEndMessage: r => $"{extraEndMessage}Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}, IsCancelled={operationIsCanceled}",
                 timeout: _configuration.OperationTimeout);
 
             HandleOperationResult(context, result);
@@ -386,9 +420,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             void cancelTheBatch(string reason)
             {
-                _tracer.Debug(context, $"Cancelling {batch.Operation} against {batch.DatabaseName} because {reason}.");
-                batch.NotifyConsumersOfCancellation();
+                _tracer.Debug(context, $"Cancelling {operationName} against {DatabaseName} because {reason}.");
+                onCancel?.Invoke();
             }
+        }
+
+        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token, [CallerMemberName] string? operationName = null)
+        {
+            var operationContext = new OperationContext(context, token);
+
+            var result = await PerformRedisOperationAsync(
+                operationContext,
+                operation: (nestedContext, database) => operation(database),
+                operationName: operationName!);
+            return result.ThrowIfFailure();
         }
 
         private void HandleOperationResult(Context context, BoolResult result)
@@ -557,47 +602,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public Task<bool> SetHashValueAsync(Context context, RedisKey key, RedisValue hashField, RedisValue value, When when, CancellationToken token)
             => PerformDatabaseOperationAsync(context, db => db.HashSetAsync(key, hashField, value, when), Counters[RedisOperation.HashSetValue], token);
-
-        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token, [CallerMemberName]string? operationName = null)
-        {
-            var operationContext = new OperationContext(context, token);
-            
-            var result = await operationContext
-                .PerformOperationWithTimeoutAsync(
-                    _tracer,
-                    async nestedContext =>
-                    {
-                        using (Counters[RedisOperation.All].Start())
-                        using (stopwatch.Start())
-                        {
-                            try
-                            {
-                                var r = await _redisRetryStrategy.ExecuteAsync(
-                                    nestedContext,
-                                    async () =>
-                                    {
-                                        var (database, _) = await GetDatabaseAsync(nestedContext);
-                                        return await operation(database);
-                                    },
-                                    token,
-                                    _configuration.DatabaseName);
-
-                                return new Result<T>(r, isNullAllowed: true);
-                            }
-                            catch (Exception e)
-                            {
-                                return new Result<T>(e);
-                            }
-                        }
-                    },
-                    traceErrorsOnly: true, // Tracing only errors
-                    traceOperationStarted: false,
-                    extraEndMessage: r => $"Operation={operationName}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}",
-                    timeout: _configuration.OperationTimeout);
-
-            HandleOperationResult(context, result);
-            return result.ThrowIfFailure();
-        }
 
         private Task<(IDatabase database, CancellationToken databaseLifetimeToken)> GetDatabaseAsync(Context context)
         {

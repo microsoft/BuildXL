@@ -29,6 +29,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Launcher.Server;
+using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
@@ -444,18 +445,29 @@ namespace BuildXL.Cache.Host.Service
                         {
                             if (RunningProcess == null)
                             {
+                                var executablePath = (Directory.Path / Manifest.Tool.Executable).Path;
+                                if (!File.Exists(executablePath))
+                                {
+                                    return new BoolResult($"Executable '{executablePath}' does not exist.");
+                                }
+
+                                if (!FileUtilities.TrySetExecutePermissionIfNeeded(executablePath))
+                                {
+                                    return new BoolResult($"Executable permissions could not be set on '{executablePath}'.");
+                                }
+
                                 RunningProcess = Launcher._host.CreateProcess(new ProcessStartInfo()
                                 {
                                     UseShellExecute = false,
 
-                                    FileName = (Directory.Path / Manifest.Tool.Executable).Path,
+                                    FileName = executablePath,
                                     Arguments = string.Join(" ", Manifest.Tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg)))),
                                     Environment =
-                                        {
-                                            Launcher.Settings.DeploymentParameters.ToEnvironment(),
-                                            Manifest.Tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
-                                            Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(Manifest.Tool.ServiceId)
-                                        }
+                                    {
+                                        Launcher.Settings.DeploymentParameters.ToEnvironment(),
+                                        Manifest.Tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
+                                        Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(Manifest.Tool.ServiceId)
+                                    }
                                 }); ;
 
                                 ProcessExitSource = TaskSourceSlim.Create<bool>();

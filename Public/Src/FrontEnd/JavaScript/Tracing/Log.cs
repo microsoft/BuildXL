@@ -207,6 +207,15 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void ConstructingGraphScript(LoggingContext context, string script);
 
-        
+        [GeneratedEvent(
+            (ushort)LogEventId.JavaScriptCommandGroupCanOnlyContainRegularCommands,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "JavaScript command '{command}' specified in group '{commandGroup}' can only be a regular command, " +
+            "but it is also being defined as a command group.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void JavaScriptCommandGroupCanOnlyContainRegularCommands(LoggingContext context, Location location, string commandGroup, string command);
     }
 }

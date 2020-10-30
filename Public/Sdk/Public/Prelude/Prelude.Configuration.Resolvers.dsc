@@ -318,8 +318,13 @@ interface LageResolver extends JavaScriptResolver {
 
     /**
      * The script command names to execute.
+     * Individual names can be provided, e.g. ["build", "test"] to indicate what script commands to include in the build. The
+     * dependencies across script commands will honor what Lage specifies.
+     * Script commands can also be grouped, e.g. ["prepare", {commandName:"build-and-postbuild", commands:["build", "postbuild"], "test"}]. This
+     * instructs BuildXL to treat the command group as a single unit of scheduling, which sequentially executes each command. Any other build
+     * script depending on the individual commands of a group will be depending on the group itself
      */
-    execute?: string[];
+    execute?: (string | JavaScriptCommandGroup)[];
 
     /**
      * The location of NPM.  If not provided, BuildXL will try to look for it under PATH.
@@ -419,7 +424,7 @@ interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
      * If not provided, ["build"] is used.
      * Any command specified here that doesn't have a corresponding script is ignored.
      */
-    execute?: (string | JavaScriptCommand)[];   
+    execute?: (string | JavaScriptCommand | JavaScriptCommandGroupWithDependencies)[];   
 }
 
 /**
@@ -474,6 +479,23 @@ type JavaScriptArgument = string | PathAtom | RelativePath | Path;
  */
 interface JavaScriptCommand {
     command: string;
+    dependsOn: JavaScriptCommandDependency[];
+}
+
+/**
+ * A sequence of commands that will be executed as a single unit. The execution order will honor the sequence specified of commands
+ * specified. A command in the sequence will be executed if the previous one succeeded.
+ * The commandName can be used for specifying dependencies as if it was a regular command.
+ */
+interface JavaScriptCommandGroup {
+    commandName: string;
+    commands: string[];
+}
+
+/**
+ * The version of a command group for resolvers extending JavaScriptResolverWithExecutionSemantics
+ */
+interface JavaScriptCommandGroupWithDependencies extends JavaScriptCommandGroup {
     dependsOn: JavaScriptCommandDependency[];
 }
 

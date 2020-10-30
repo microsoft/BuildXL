@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration
         /// {command: "localize", dependsOn: {kind: "project", command: "build"}} makes the 'localize' script depend on 
         /// the 'build' script of all of the project declared dependencies
         /// </summary>
-        IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> Execute { get; }
+        IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup>> Execute { get; }
 
         /// <summary>
         /// Defines a collection of custom JavaScript commands that can later be used as part of 'execute'.
@@ -79,14 +79,19 @@ namespace BuildXL.Utilities.Configuration
     public static class IJavaScriptResolverSettingsExtensions
     {
         /// <nodoc/>
-        public static string GetCommandName(this DiscriminatingUnion<string, IJavaScriptCommand> command)
+        public static string GetCommandName(this DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup> command)
         {
-            if (command.GetValue() is string simpleCommand)
+            object value = command.GetValue();
+            if (value is string simpleCommand)
             {
                 return simpleCommand;
             }
+            else if (value is IJavaScriptCommand)
+            {
+                return ((IJavaScriptCommand)command.GetValue()).Command;
+            }
 
-            return ((IJavaScriptCommand)command.GetValue()).Command;
+            return ((IJavaScriptCommandGroup)command.GetValue()).CommandName;
         }
     }
 }

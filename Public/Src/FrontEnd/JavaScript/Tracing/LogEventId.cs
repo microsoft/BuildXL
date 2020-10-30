@@ -32,5 +32,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         RequestedExportIsNotPresent = 11915,
         SpecifiedExportIsAReservedName = 11916,
         ConstructingGraphScript = 11917,
+        JavaScriptCommandGroupCanOnlyContainRegularCommands = 11918,
     }
 }

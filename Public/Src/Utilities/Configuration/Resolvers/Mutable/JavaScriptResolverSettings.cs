@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> Execute { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup>> Execute { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<IExtraArgumentsJavaScript> CustomCommands { get; set; }

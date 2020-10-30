@@ -116,4 +116,108 @@ namespace BuildXL.Utilities.Configuration
             TrySetValue(value);
         }
     }
+
+    /// <summary>
+    /// A specialization of <see cref="DiscriminatingUnion"/> for the case of three disjuncts
+    /// </summary>
+    public sealed class DiscriminatingUnion<T, Q, R> : DiscriminatingUnion
+    {
+        /// <nodoc/>
+        public DiscriminatingUnion() : base(typeof(T), typeof(Q), typeof(R))
+        { }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(T value) : base(typeof(T), typeof(Q), typeof(R))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(Q value) : base(typeof(T), typeof(Q), typeof(R))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(R value) : base(typeof(T), typeof(Q), typeof(R))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(T value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(Q value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(R value)
+        {
+            TrySetValue(value);
+        }
+    }
+
+    /// <summary>
+    /// A specialization of <see cref="DiscriminatingUnion"/> for the case of four disjuncts
+    /// </summary>
+    public sealed class DiscriminatingUnion<T, Q, R, S> : DiscriminatingUnion
+    {
+        /// <nodoc/>
+        public DiscriminatingUnion() : base(typeof(T), typeof(Q), typeof(R), typeof(S))
+        { }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(T value) : base(typeof(T), typeof(Q), typeof(R), typeof(S))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(Q value) : base(typeof(T), typeof(Q), typeof(R), typeof(S))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(R value) : base(typeof(T), typeof(Q), typeof(R), typeof(S))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(S value) : base(typeof(T), typeof(Q), typeof(R), typeof(S))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(T value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(Q value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(R value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(S value)
+        {
+            TrySetValue(value);
+        }
+    }
 }

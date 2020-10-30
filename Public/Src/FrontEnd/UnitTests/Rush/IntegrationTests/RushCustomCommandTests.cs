@@ -86,7 +86,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
-        public void ComplextCustomCommand()
+        public void ComplexCustomCommand()
         {
             // Exercise custom commands with other types
             var config = Build(customRushCommands: "[{command: 'build', extraArguments: ['--test', a`atom`, r`relative/path`, p`C:/absolute/path`]}]")

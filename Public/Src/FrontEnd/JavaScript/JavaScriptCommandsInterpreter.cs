@@ -24,10 +24,11 @@ namespace BuildXL.FrontEnd.JavaScript
         public static bool TryComputeAndValidateCommands(
             LoggingContext context,
             Location location,
-            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> commands,
-            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> computedCommands)
+            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup>> commands,
+            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> computedCommands,
+            out IReadOnlyDictionary<string, IReadOnlyList<string>> commandGroups)
         {
-            if (!ComputeCommands(context, location, commands, out computedCommands))
+            if (!ComputeCommands(context, location, commands, out computedCommands, out commandGroups))
             {
                 // Error is already logged
                 return false;
@@ -39,21 +40,24 @@ namespace BuildXL.FrontEnd.JavaScript
         private static bool ComputeCommands(
             LoggingContext context,
             Location location,
-            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> commands,
-            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> resultingCommands)
+            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup>> commands,
+            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> resultingCommands,
+            out IReadOnlyDictionary<string, IReadOnlyList<string>> resultingCommandGroups)
         {
             if (commands == null)
             {
                 // If not defined, the default is ["build"]
-                commands = new[] { new DiscriminatingUnion<string, IJavaScriptCommand>("build") };
+                commands = new[] { new DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup>("build") };
             }
 
             var computedCommands = new Dictionary<string, IReadOnlyList<IJavaScriptCommandDependency>>(commands.Count);
             resultingCommands = computedCommands;
+            var commandGroups = new Dictionary<string, IReadOnlyList<string>>();
+            resultingCommandGroups = commandGroups;
 
             for (int i = 0; i < commands.Count; i++)
             {
-                DiscriminatingUnion<string, IJavaScriptCommand> command = commands[i];
+                DiscriminatingUnion<string, IJavaScriptCommand, IJavaScriptCommandGroupWithDependencies, IJavaScriptCommandGroup> command = commands[i];
                 string commandName = command.GetCommandName();
 
                 if (string.IsNullOrEmpty(commandName))
@@ -68,7 +72,8 @@ namespace BuildXL.FrontEnd.JavaScript
                     return false;
                 }
 
-                if (command.GetValue() is string simpleCommand)
+                object commandValue = command.GetValue();
+                if (commandValue is string simpleCommand)
                 {
                     // A simple string command first on the list means depending on the same command of all its dependencies.
                     // Canonical example: 'build'
@@ -89,9 +94,36 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
                 else
                 {
-                    // Otherwise if a full fledge command is specified, then we honor it as is
-                    var javaScriptCommand = (IJavaScriptCommand)command.GetValue();
-                    computedCommands.Add(commandName, javaScriptCommand.DependsOn);
+                    // Otherwise if a full fledge command is specified, we honor it as is
+
+                    // The command may specify dependencies, in which case we add it to the map
+                    // of computed commands. Cases like the Lage resolver explicitly don't expose
+                    // commands with dependencies since it is Lage the one that defines them
+                    if (commandValue is IJavaScriptCommandWithDependencies commandWithDependencies)
+                    {
+                        computedCommands.Add(commandName, commandWithDependencies.DependsOn);
+                    }
+
+                    // Deal with the case of group commands
+                    if (commandValue is IJavaScriptCommandGroup commandGroup)
+                    {
+                        var emptyCommands = commandGroup.Commands.Where(command => string.IsNullOrEmpty(command));
+                        if (emptyCommands.Any())
+                        {
+                            Tracing.Logger.Log.JavaScriptCommandIsEmpty(context, location);
+                            return false;
+                        }
+
+                        // Check that command members cannot be groups commands as well
+                        var dup = commandGroup.Commands.FirstOrDefault(command => computedCommands.ContainsKey(command));
+                        if (dup != default)
+                        {
+                            Tracing.Logger.Log.JavaScriptCommandGroupCanOnlyContainRegularCommands(context, location, commandGroup.CommandName, dup);
+                            return false;
+                        }
+
+                        commandGroups.Add(commandGroup.CommandName, commandGroup.Commands);
+                    }
                 }
             }
 

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
@@ -71,6 +72,14 @@ namespace Test.BuildXL.FrontEnd.Core
             var processes = engineState.PipGraph.RetrievePipsOfType(Pips.PipType.Process);
 
             return (Pips.Process)processes.FirstOrDefault(process => process.Provenance.OutputValueSymbol == projectSymbol);
+        }
+
+        /// <summary>
+        /// Retrieves all process pips
+        /// </summary>
+        public static IEnumerable<Pips.Process> RetrieveProcesses(this EngineState engineState)
+        {
+            return engineState.PipGraph.RetrievePipsOfType(Pips.PipType.Process).Select(pip => (Pips.Process) pip);
         }
 
         public static string CreatePackageJson(

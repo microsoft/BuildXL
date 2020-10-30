@@ -14,7 +14,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
     /// <summary>
     /// There is a 1:1 relationship between a JavaScript project and a tuple (package.json, requested script command name)
     /// </summary>
-    [DebuggerDisplay("{Name}")]
+    [DebuggerDisplay("{Name}-{ScriptCommandName}")]
     public sealed class JavaScriptProject : GenericJavaScriptProject<JavaScriptProject>, IProjectWithDependencies<JavaScriptProject>
     {
         /// <nodoc/>

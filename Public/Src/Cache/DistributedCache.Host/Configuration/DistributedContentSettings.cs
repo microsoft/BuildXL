@@ -996,7 +996,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Enum(typeof(MultiplexMode))]
-        public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Legacy);
+        public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Unified);
 
         /// <summary>
         /// Indicates whether machine locations should use universal format (i.e. uri) which

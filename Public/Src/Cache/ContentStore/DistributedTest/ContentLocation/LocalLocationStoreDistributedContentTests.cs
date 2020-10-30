@@ -43,6 +43,7 @@ using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using BuildXL.Cache.Host.Service.Internal;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -972,7 +973,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             _registerAdditionalLocationPerMachine = true;
 
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(c => c.MultiplexStoreMode = nameof(MultiplexMode.Legacy));
 
             return RunTestAsync(
                 new Context(Logger),
@@ -2777,7 +2778,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 async context =>
                 {
                     var lls = context.GetLocalLocationStore(0);
-                    var localStore = (FileSystemContentStore)context.GetLocationStore(0).LocalContentStore;
+                    var localStore = (FileSystemContentStore)((MultiplexedContentStore)context.GetLocationStore(0).LocalContentStore).PreferredContentStore;
                     var contentDirectory = (MemoryContentDirectory)localStore.Store.ContentDirectory;
 
                     var baseTime = TestClock.UtcNow;

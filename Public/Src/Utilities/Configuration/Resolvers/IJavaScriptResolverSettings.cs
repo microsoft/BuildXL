@@ -65,6 +65,14 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to false.
         /// </remarks>
         bool? BlockWritesUnderNodeModules { get; }
+
+        /// <summary>
+        /// Policy to apply when a double write occurs.
+        /// </summary>
+        /// <remarks>
+        /// By default double writes are only allowed if the produced content is the same.
+        /// </remarks>
+        RewritePolicy? DoubleWritePolicy { get; }
     }
 
     /// <nodoc/>

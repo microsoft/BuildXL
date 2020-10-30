@@ -395,6 +395,11 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     blockWritesUnderNodeModules?: boolean;
+
+    /**
+     * Policy to apply when a double write occurs. By default double writes are only allowed if the produced content is the same.
+     */
+    doubleWritePolicy?: DoubleWritePolicy;
 }
 
 /**

@@ -336,7 +336,10 @@ namespace BuildXL.FrontEnd.JavaScript
             processBuilder.Options |= Process.Options.PreservePathSetCasing;
 
             // By default the double write policy is to allow same content double writes and safe rewrites.
-            processBuilder.RewritePolicy |= RewritePolicy.DefaultSafe;
+            // Otherwise we honor the double write policy specified in the resolver configuration
+            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue ? 
+                (m_resolverSettings.DoubleWritePolicy.Value | RewritePolicy.SafeSourceRewritesAreAllowed) : 
+                RewritePolicy.DefaultSafe;
 
             // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
             // any attempt to read into the user profile will fail to compute its corresponding hash

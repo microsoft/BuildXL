@@ -38,6 +38,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CustomCommands = resolverSettings.CustomCommands;
             Exports = resolverSettings.Exports;
             WritingToStandardErrorFailsExecution = resolverSettings.WritingToStandardErrorFailsExecution;
+            DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
         }
 
         /// <inheritdoc/>
@@ -84,5 +85,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
+
+        /// <inheritdoc />
+        public RewritePolicy? DoubleWritePolicy { get; set; }
     }
 }

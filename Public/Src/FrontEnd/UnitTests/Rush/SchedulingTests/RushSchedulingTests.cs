@@ -167,5 +167,19 @@ namespace Test.BuildXL.FrontEnd.Rush
             // The untracked scope should be configured under every project root
             XAssert.Contains(untrackedScopes, projectA.ProjectFolder.Combine(PathTable, relativeScopeToUntrack), projectB.ProjectFolder.Combine(PathTable, relativeScopeToUntrack));
         }
+
+        [Fact]
+        public void DoubleWritePolicyIsHonored()
+        {
+            var project = CreateRushProject();
+
+            var rewritePolicy = Start(new RushResolverSettings { DoubleWritePolicy = global::BuildXL.Utilities.Configuration.RewritePolicy.UnsafeFirstDoubleWriteWins })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .RewritePolicy;
+
+            XAssert.AreEqual(global::BuildXL.Utilities.Configuration.RewritePolicy.UnsafeFirstDoubleWriteWins, rewritePolicy & global::BuildXL.Utilities.Configuration.RewritePolicy.UnsafeFirstDoubleWriteWins);
+        }
     }
 }

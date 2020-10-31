@@ -119,17 +119,17 @@ namespace BuildXL.Launcher.Server
                 Tracer,
                 async () =>
                 {
-                    context.TraceDebug("IsAuthorizedAsync: Reading deployment configuration");
+                    Tracer.Debug(context, "IsAuthorizedAsync: Reading deployment configuration");
                     var deployConfig = ReadDeploymentConfiguration(parameters, out _, out var contentId);
                     if (!deployConfig.AuthorizationSecretNames.Contains(parameters.AuthorizationSecretName))
                     {
                         throw new UnauthorizedAccessException($"Secret names do not match: Expected='{string.Join(", ", deployConfig.AuthorizationSecretNames)}' Actual='{parameters.AuthorizationSecretName}'");
                     }
 
-                    context.TraceDebug("IsAuthorizedAsync: Loading secrets provider");
+                    Tracer.Debug(context, "IsAuthorizedAsync: Loading secrets provider");
                     var secretsProvider = await GetSecretsProviderAsync(context, deployConfig.KeyVaultUri);
 
-                    context.TraceDebug("IsAuthorizedAsync: Getting secret");
+                    Tracer.Debug(context, "IsAuthorizedAsync: Getting secret");
                     var secret = await GetSecretAsync(context, secretsProvider, new SecretConfiguration()
                     {
                         Name = parameters.AuthorizationSecretName,
@@ -137,7 +137,7 @@ namespace BuildXL.Launcher.Server
                         Kind = SecretKind.PlainText
                     });
 
-                    context.TraceDebug("IsAuthorizedAsync: Comparing secret");
+                    Tracer.Debug(context, "IsAuthorizedAsync: Comparing secret");
                     if (secret != parameters.AuthorizationSecret)
                     {
                         throw new UnauthorizedAccessException($"Secret values do not match for secret name: '{parameters.AuthorizationSecretName}'");

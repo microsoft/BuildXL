@@ -228,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Service
             }
             else
             {
-                context.TraceDebug($"{Name} creating temporary directory for session {sessionId}.");
+                Tracer.Debug(context, $"{Name} creating temporary directory for session {sessionId}.");
                 var disposableDirectory = _tempDirectoryForStreamsBySessionId.GetOrAdd(
                     sessionId,
                     (_) => new DisposableDirectory(FileSystem, tempDirectoryRoot / sessionId.ToString()));
@@ -684,7 +684,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private void CleanSessionTempDirectories(OperationContext context)
         {
             int count = 0;
-            context.TraceDebug($"{Name} cleaning up session's temp directories.");
+            Tracer.Debug(context, $"{Name} cleaning up session's temp directories.");
             foreach (var tempDirectory in _tempDirectoryForStreamsBySessionId.Values)
             {
                 count++;
@@ -693,7 +693,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _tempDirectoryForStreamsBySessionId.Clear();
 
-            context.TraceDebug($"{Name} cleaned {count} session's temp directories.");
+            Tracer.Debug(context, $"{Name} cleaned {count} session's temp directories.");
         }
 
         private Task<Result<TSession>> CreateSessionAsync(

@@ -35,7 +35,7 @@ namespace BuildXL.Cache.Roxis.Server
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             var bindAddress = _configuration.BindAddress;
-            context.TraceInfo($"gRPC service binding on address {bindAddress}:{_configuration.Port}");
+            context.TraceInfo($"gRPC service binding on address {bindAddress}:{_configuration.Port}", component: nameof(RoxisGrpcService));
 
             _grpcServer = new GrpcCore.Server(GrpcEnvironment.GetServerOptions())
             {

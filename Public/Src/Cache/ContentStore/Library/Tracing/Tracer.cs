@@ -36,7 +36,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
     public class Tracer
     {
         // If this flag is set, then the trace name will be used in all the tracing operations.
-        private readonly bool _useTracerName;
         private const int DefaultArgsPerLog = 500;
 
         private int _numberOfRecoverableErrors;
@@ -59,21 +58,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         public int NumberOfCriticalErrors => _numberOfCriticalErrors;
 
-        public Tracer(string name, bool useTracerName = false)
+        public Tracer(string name)
         {
             Contract.Requires(name != null);
-
-            _useTracerName = useTracerName;
-
             Name = name;
-        }
-
-        public virtual void Always(Context context, string message, [CallerMemberName] string? operation = null)
-        {
-            if (context.IsEnabled)
-            {
-                context.Always(message, Name, operation);
-            }
         }
 
         /// <nodoc />
@@ -88,6 +76,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             Interlocked.Increment(ref _numberOfRecoverableErrors);
             CriticalErrorsObserver.RaiseRecoverableError(result);
+        }
+
+        public virtual void Always(Context context, string message, [CallerMemberName] string? operation = null)
+        {
+            if (context.IsEnabled)
+            {
+                context.Always(message, Name, operation);
+            }
         }
 
         public void Error(Context context, string message, [CallerMemberName] string? operation = null)
@@ -134,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public virtual void StartupStop(Context context, BoolResult result)
         {
-            InitializationFinished(context, result, result.Duration, $"{Name}.Startup stop {result.DurationMs}ms result=[{result}]", nameof(StartupStop));
+            InitializationFinished(context, result, result.Duration, $"{Name}.Startup stop {result.DurationMs}ms result=[{result}]", "StartupStop");
         }
 
         public virtual void ShutdownStart(Context context)
@@ -184,12 +180,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public virtual void GetStatsStart(Context context)
         {
-            Debug(context, $"{Name}.GetStats start");
+            Debug(context, $"{Name}.GetStats start", operation: "GetStats");
         }
 
         public virtual void GetStatsStop(Context context, GetStatsResult result)
         {
-            TracerOperationFinished(context, result, $"{Name}.GetStats stop {result.DurationMs}ms result=[{result}]");
+            TracerOperationFinished(context, result, $"{Name}.GetStats stop {result.DurationMs}ms result=[{result}]", callerName: "GetStats");
 
             if (result.Succeeded)
             {
@@ -208,13 +204,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             if (!context.IsSeverityEnabled(severity))
             {
                 return;
-            }
-
-            if (_useTracerName && !message.StartsWith(Name))
-            {
-                // Augmenting the message with the tracer name if specified and if this operation
-                // is not called from OperationStarted method.
-                message = string.Concat(Name, ": ", message);
             }
 
             context.TraceMessage(severity, message, component: Name, operation: operationName);

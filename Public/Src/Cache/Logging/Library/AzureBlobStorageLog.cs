@@ -333,7 +333,7 @@ namespace BuildXL.Cache.Logging
 
                     if (await blob.ExistsAsync())
                     {
-                        context.TraceDebug($"Log file `{logFilePath}` already exists");
+                        Tracer.Debug(context, $"Log file `{logFilePath}` already exists");
                         _fileSystem.DeleteFile(logFilePath);
 
                         Tracer.TrackMetric(context, $"UploadAlreadyExists", 1);

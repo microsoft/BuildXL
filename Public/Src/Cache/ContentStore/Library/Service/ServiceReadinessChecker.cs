@@ -45,14 +45,16 @@ namespace BuildXL.Cache.ContentStore.Service
             var currentUser = UserUtilities.CurrentUserName();
 
 #if PLATFORM_WIN
-            context.TraceMessage(Severity.Debug, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.");
+            context.TraceMessage(Severity.Debug, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.",
+                component: nameof(ServiceReadinessChecker));
             var stopwatch = Stopwatch.StartNew();
 
             bool running = ensureRunningCore();
 
             if (running)
             {
-                context.TraceMessage(Severity.Debug, $"Opened ready event name=[{scenario}] by {stopwatch.ElapsedMilliseconds}ms.");
+                context.TraceMessage(Severity.Debug, $"Opened ready event name=[{scenario}] by {stopwatch.ElapsedMilliseconds}ms.",
+                    component: nameof(ServiceReadinessChecker));
             }
 
             return running;
@@ -63,7 +65,8 @@ namespace BuildXL.Cache.ContentStore.Service
                 {
                     if (!IpcUtilities.TryOpenExistingReadyWaitHandle(scenario, out var readyEvent, waitMs))
                     {
-                        context.TraceMessage(Severity.Debug, "Ready event does not exist");
+                        context.TraceMessage(Severity.Debug, "Ready event does not exist",
+                            component: nameof(ServiceReadinessChecker));
                         return false;
                     }
 
@@ -72,7 +75,8 @@ namespace BuildXL.Cache.ContentStore.Service
                         var waitMsRemaining = Math.Max(0, waitMs - (int)stopwatch.ElapsedMilliseconds);
                         if (!readyEvent.WaitOne(waitMsRemaining))
                         {
-                            context.TraceMessage(Severity.Debug, "Ready event was opened but remained unset until timeout");
+                            context.TraceMessage(Severity.Debug, "Ready event was opened but remained unset until timeout",
+                                component: nameof(ServiceReadinessChecker));
                             return false;
                         }
 
@@ -81,14 +85,16 @@ namespace BuildXL.Cache.ContentStore.Service
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    context.TraceMessage(Severity.Debug, "Ready event exists, but user does not have acceptable security access");
+                    context.TraceMessage(Severity.Debug, "Ready event exists, but user does not have acceptable security access",
+                        component: nameof(ServiceReadinessChecker));
                 }
 
                 return false;
             }
 
 #else
-            context.TraceMessage(Severity.Debug, $"Not validating ready event (OSX) name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}");
+            context.TraceMessage(Severity.Debug, $"Not validating ready event (OSX) name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}",
+                component: nameof(ServiceReadinessChecker));
             return true;
 #endif
         }
@@ -99,19 +105,22 @@ namespace BuildXL.Cache.ContentStore.Service
         public static EventWaitHandle? OpenShutdownEvent(Context context, string? scenario)
         {
             var currentUser = UserUtilities.CurrentUserName();
-            context.TraceMessage(Severity.Debug, $"Opening shutdown event name=[{scenario}] for user=[{currentUser}]");
+            context.TraceMessage(Severity.Debug, $"Opening shutdown event name=[{scenario}] for user=[{currentUser}]",
+                component: nameof(ServiceReadinessChecker));
 
             EventWaitHandle? handle = null;
             try
             {
                 if (!IpcUtilities.TryOpenExistingShutdownWaitHandle(scenario, out handle))
                 {
-                    context.TraceMessage(Severity.Debug, "Shutdown event does not exist");
+                    context.TraceMessage(Severity.Debug, "Shutdown event does not exist",
+                        component: nameof(ServiceReadinessChecker));
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                context.TraceMessage(Severity.Debug, "Shutdown event exists, but user does not have acceptable security access");
+                context.TraceMessage(Severity.Debug, "Shutdown event exists, but user does not have acceptable security access",
+                    component: nameof(ServiceReadinessChecker));
             }
 
             return handle;

@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public override void Always(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            Trace(Severity.Always, context, message);
+            Trace(Severity.Always, context, message, operation);
         }
 
         public override void StartupStart(Context context)
@@ -370,7 +370,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            TraceDiagnostic(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms", TimeSpan.FromMilliseconds(ms));
+            TraceDiagnostic(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms", TimeSpan.FromMilliseconds(ms), operation: "CreateHardLink");
         }
 
         public void PlaceFileCopy(Context context, AbsolutePath path, ContentHash contentHash, TimeSpan duration)
@@ -388,7 +388,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            TraceDiagnostic(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms", TimeSpan.FromMilliseconds(ms));
+            TraceDiagnostic(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms", TimeSpan.FromMilliseconds(ms), operation: "PlaceFileCopy");
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)
@@ -545,7 +545,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TraceDiagnostic(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms", duration);
+                TraceDiagnostic(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms", duration, operation: HashContentFileCallName);
             }
 
             _hashContentFileCallCounter.Completed(duration.Ticks);
@@ -565,9 +565,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
             return _traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic;
         }
 
-        private void TraceDiagnostic(Context context, string message, TimeSpan operationDuration)
+        private void TraceDiagnostic(Context context, string message, TimeSpan operationDuration, string? operation)
         {
-            Trace(DiagnosticLevelSeverity(operationDuration), context, message);
+            Trace(DiagnosticLevelSeverity(operationDuration), context, message, operation);
         }
 
         public void PutFileExistingHardLinkStart()
@@ -620,7 +620,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _applyPermsCallCounter.Completed(duration.Ticks);
         }
 
-        private void Trace(Severity severity, Context context, string message)
+        private void Trace(Severity severity, Context context, string message, string? operation)
         {
             var eventSourceEnabled = _eventSource.IsEnabled(EventLevel.Verbose, ContentStoreInternalEventSource.Keywords.Message);
             var contextEnabled = context.IsEnabled;
@@ -637,7 +637,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             if (contextEnabled)
             {
-                context.TraceMessage(severity, message);
+                context.TraceMessage(severity, message, component: Name, operation: operation);
             }
         }
     }

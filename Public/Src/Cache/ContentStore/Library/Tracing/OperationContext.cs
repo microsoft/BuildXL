@@ -94,27 +94,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         public static implicit operator Context(OperationContext context) => context.TracingContext;
 
         /// <nodoc />
-        public void TraceDebug(string message)
+        public void TraceDebug(string message, string component, [CallerMemberName] string? operation = null)
         {
-            TracingContext.TraceMessage(Severity.Debug, message);
+            TracingContext.TraceMessage(Severity.Debug, message, component, operation);
         }
 
         /// <nodoc />
-        public void TraceInfo(string message)
+        public void TraceInfo(string message, string component, [CallerMemberName] string? operation = null)
         {
-            TracingContext.TraceMessage(Severity.Info, message);
-        }
-
-        /// <nodoc />
-        public void TraceWarning(string message)
-        {
-            TracingContext.TraceMessage(Severity.Warning, message);
-        }
-
-        /// <nodoc />
-        public void TraceError(string message)
-        {
-            TracingContext.TraceMessage(Severity.Error, message);
+            TracingContext.TraceMessage(Severity.Info, message, component, operation);
         }
 
         /// <nodoc />

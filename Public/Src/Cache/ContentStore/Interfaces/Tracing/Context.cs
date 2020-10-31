@@ -203,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             }
             else
             {
-                TraceMessage(severity, message);
+                TraceMessage(severity, message, componentName, operationName);
             }
         }
 
@@ -248,7 +248,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 
             if (!messageWasTraced)
             {
-                TraceMessage(severity, message);
+                TraceMessage(severity, message, componentName, operationName);
             }
 
             static OperationStatus statusFromResult(ResultBase resultBase)

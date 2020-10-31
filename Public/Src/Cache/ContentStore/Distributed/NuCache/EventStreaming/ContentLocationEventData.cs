@@ -178,7 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 var estimatedSize = r.EstimateSerializedInstanceSize();
                 if (estimatedSize > maxEstimatedSize)
                 {
-                    context.TraceDebug($"An estimated size is '{estimatedSize}' is greater then the max size '{maxEstimatedSize}' for event '{r.Kind}'.");
+                    context.TraceDebug($"An estimated size is '{estimatedSize}' is greater then the max size '{maxEstimatedSize}' for event '{r.Kind}'.", component: nameof(ContentLocationEventData));
                 }
             }
 

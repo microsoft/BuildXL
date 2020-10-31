@@ -174,7 +174,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 _fileSystem.CreateDirectory(targetCheckpointFile.GetParent());
 
-                nestedContext.TraceDebug($@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
+                Tracer.Debug(
+                    nestedContext,
+                    $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
 
                 await blob.DownloadToStreamAsync(fileStream, null, DefaultBlobStorageRequestOptions, null, nestedContext.Token);
 

@@ -233,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (IsInitialized)
                 {
-                    context.TraceInfo("Attempt to initialize gRPC environment aborted due to a previous initialization.");
+                    Tracer.Info(context, "Attempt to initialize gRPC environment aborted due to a previous initialization.");
                     if (overwriteSafeOptions)
                     {
                         InitializeSafeGrpcOptions(context, options, logger);
@@ -269,14 +269,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             if (options.ExperimentalDisableFlowControl ?? false)
             {
-                context.TraceInfo("Disabling gRPC flow control");
+                Tracer.Info(context, "Disabling gRPC flow control");
                 Environment.SetEnvironmentVariable("GRPC_EXPERIMENTAL_DISABLE_FLOW_CONTROL", "1");
             }
 
             if (options.ClientChannelBackupPollIntervalMs != null && options.ClientChannelBackupPollIntervalMs >= 0)
             {
                 var value = options.ClientChannelBackupPollIntervalMs.Value.ToString();
-                context.TraceInfo($"Setting gRPC ClientChannelBackupPollIntervalMs to `{value}`");
+                Tracer.Info(context, $"Setting gRPC ClientChannelBackupPollIntervalMs to `{value}`");
                 Environment.SetEnvironmentVariable("GRPC_CLIENT_CHANNEL_BACKUP_POLL_INTERVAL_MS", value);
             }
 
@@ -292,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Environment.SetEnvironmentVariable("GRPC_TRACE", traceValue);
                 }
 
-                context.TraceInfo($"Initializing gRPC logger to verbosity `{verbosityValue}` with traces: {traceValue}");
+                Tracer.Info(context, $"Initializing gRPC logger to verbosity `{verbosityValue}` with traces: {traceValue}");
                 global::Grpc.Core.GrpcEnvironment.SetLogger(new GrpcLoggerAdapter(context.TracingContext));
             }
         }
@@ -301,19 +301,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (options.ThreadPoolSize != null && options.ThreadPoolSize > 0)
             {
-                context.TraceInfo($"Setting gRPC ThreadPoolSize to `{options.ThreadPoolSize.Value}`");
+                Tracer.Info(context, $"Setting gRPC ThreadPoolSize to `{options.ThreadPoolSize.Value}`");
                 global::Grpc.Core.GrpcEnvironment.SetThreadPoolSize(options.ThreadPoolSize.Value);
             }
 
             if (options.CompletionQueueCount != null && options.CompletionQueueCount > 0)
             {
-                context.TraceInfo($"Setting gRPC CompletionQueueCount to `{options.CompletionQueueCount.Value}`");
+                Tracer.Info(context, $"Setting gRPC CompletionQueueCount to `{options.CompletionQueueCount.Value}`");
                 global::Grpc.Core.GrpcEnvironment.SetCompletionQueueCount(options.CompletionQueueCount.Value);
             }
 
             if (options.HandlerInlining ?? false)
             {
-                context.TraceInfo($"Setting gRPC HandlerInlining to `{options.HandlerInlining.Value}`");
+                Tracer.Info(context, $"Setting gRPC HandlerInlining to `{options.HandlerInlining.Value}`");
                 global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(options.HandlerInlining.Value);
             }
         }

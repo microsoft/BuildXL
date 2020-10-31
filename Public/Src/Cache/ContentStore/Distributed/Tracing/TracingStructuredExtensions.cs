@@ -129,7 +129,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[UpdateMetadata, #{eventStoreCounters[DispatchUpdateMetadata].Value}, N/A, {(long)eventStoreCounters[DispatchUpdateMetadata].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Stored, #{eventStoreCounters[DispatchBlob].Value}, N/A, {(long)eventStoreCounters[DispatchBlob].Duration.TotalMilliseconds}ms].");
             context.TraceInfo(
-                $"{nameof(EventHubContentLocationEventStore)}: processed {eventStoreCounters[ReceivedEventBatchCount].Value} message(s) by {duration}ms. {sb}");
+                $"Processed {eventStoreCounters[ReceivedEventBatchCount].Value} message(s) by {duration}ms. {sb}",
+                component: nameof(EventHubContentLocationEventStore));
 
             var totalEvents = eventStoreCounters[DispatchAddLocations].Value + eventStoreCounters[DispatchRemoveLocations].Value +
                 eventStoreCounters[DispatchTouch].Value + eventStoreCounters[DispatchUpdateMetadata].Value;
@@ -159,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Touch, #{eventStoreCounters[SentTouchLocationsEvents].Value}, #{eventStoreCounters[SentTouchLocationsHashes].Value}], ")
                 .Append($"[UpdateMetadata, #{eventStoreCounters[SentUpdateMetadataEntryEvents].Value}, N/A, {(long)eventStoreCounters[SentUpdateMetadataEntryEvents].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Stored, #{eventStoreCounters[SentStoredEvents].Value}, N/A].");
-            context.TraceInfo($"{nameof(EventHubContentLocationEventStore)}: sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}");
+            context.TraceInfo($"Sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}", component: nameof(EventHubContentLocationEventStore));
 
             var totalEvents = eventStoreCounters[SentAddLocationsEvents].Value + eventStoreCounters[SentRemoveLocationsEvents].Value +
                 eventStoreCounters[SentTouchLocationsEvents].Value + eventStoreCounters[SentUpdateMetadataEntryEvents].Value;

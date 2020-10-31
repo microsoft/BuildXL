@@ -36,7 +36,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                         string extraMessageText = string.IsNullOrEmpty(extraMessage) ? string.Empty : " " + extraMessage;
                         context.TraceMessage(
                             failureSeverity,
-                            $"Unhandled exception in fire and forget task for operation '{operation}'{extraMessageText}: {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                            $"Unhandled exception in fire and forget task for operation '{operation}'{extraMessageText}: {t.Exception?.Message}. FullException={t.Exception?.ToString()}",
+                            operation: operation);
                     }
 
                     if (failFast)
@@ -124,13 +125,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                     {
                         context.TraceMessage(
                             failureSeverity,
-                            $"'{operation}' has failed: {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                            $"'{operation}' has failed: {t.Exception?.Message}. FullException={t.Exception?.ToString()}",
+                            operation: operation);
                     }
                     else if (!t.Result.Succeeded && !traceTaskExceptionsOnly)
                     {
                         context.TraceMessage(
                             failureSeverity,
-                            $"'{operation}' has failed: {t.Result.ToString()}");
+                            $"'{operation}' has failed: {t.Result.ToString()}",
+                            operation: operation);
                     }
                 });
         }

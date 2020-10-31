@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// Initializes a new instance of the <see cref="ServiceClientContentSessionTracer"/> class.
         /// </summary>
         public ServiceClientContentSessionTracer(string name)
-            : base(name, useTracerName: true)
+            : base(name)
         {
             Counters.Add(_clientWaitForServer = new Counter(ClientWaitForServerName));
         }

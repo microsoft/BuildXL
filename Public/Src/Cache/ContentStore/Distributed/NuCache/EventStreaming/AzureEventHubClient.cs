@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private EventPosition GetInitialOffset(OperationContext context, EventSequencePoint sequencePoint)
         {
-            context.TraceDebug($"{Tracer.Name}.GetInitialOffset: consuming events from '{sequencePoint}'.");
+            Tracer.Debug(context, $"Consuming events from '{sequencePoint}'.");
             return sequencePoint.EventPosition;
         }
     }

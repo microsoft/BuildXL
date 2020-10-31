@@ -217,7 +217,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             if (splitLargeInstancesIfNeeded.Count != eventDatas.Count)
             {
-                context.TraceDebug($"{Prefix}: split {eventDatas.Count} to {splitLargeInstancesIfNeeded.Count} because of size restrictions.");
+                context.TraceDebug($"Split {eventDatas.Count} to {splitLargeInstancesIfNeeded.Count} because of size restrictions.", component: nameof(ContentLocationEventDataSerializer));
             }
 
             using (_writer.PreservePosition())

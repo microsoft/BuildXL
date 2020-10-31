@@ -77,7 +77,7 @@ namespace BuildXL.Cache.Roxis.App
 
             foreach (var result in commandResponse.Results)
             {
-                context.TraceInfo(JsonSerializer.Serialize(result, result.GetType(), jsonSerializerOptions));
+                context.TraceInfo(JsonSerializer.Serialize(result, result.GetType(), jsonSerializerOptions), component: nameof(Client));
             }
 
             await client.ShutdownAsync(context).ThrowIfFailureAsync();

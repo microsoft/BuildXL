@@ -1280,7 +1280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             foreach (var contentHashesPage in contentHashes.GetPages(100))
             {
-                context.TraceDebug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})");
+                context.TraceDebug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})", component: nameof(LocalLocationStore));
             }
 
             return context.PerformOperation(

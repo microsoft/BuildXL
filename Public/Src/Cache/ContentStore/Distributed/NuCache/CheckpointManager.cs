@@ -342,7 +342,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var createHardLinkResult = _fileSystem.CreateHardLink(source, target, replaceExisting: true);
             if (createHardLinkResult != CreateHardLinkResult.Success)
             {
-                context.TraceDebug($"{_tracer.Name}: Hardlinking {source} to {target} failed: {createHardLinkResult}. Copying...");
+                _tracer.Debug(context, $"Hardlinking {source} to {target} failed: {createHardLinkResult}. Copying...");
                 await _fileSystem.CopyFileAsync(source, target, replaceExisting: true);
             }
         }

@@ -490,7 +490,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 ));
 
             // We are trying tracing here we did not want to change the signature for PlaceFileCoreAsync, which is implemented in multiple locations
-            operationContext.TraceDebug($"PlaceFileBulk, Gate.OccupiedCount={resultWithData.Metadata.GateOccupiedCount} Gate.Wait={resultWithData.Metadata.GateWaitTime.TotalMilliseconds}ms");
+            operationContext.TraceDebug($"PlaceFileBulk, Gate.OccupiedCount={resultWithData.Metadata.GateOccupiedCount} Gate.Wait={resultWithData.Metadata.GateWaitTime.TotalMilliseconds}ms",
+                component: nameof(ReadOnlyDistributedContentSession),
+                operation: "PlaceFileBulk");
 
             return resultWithData.Result;
         }

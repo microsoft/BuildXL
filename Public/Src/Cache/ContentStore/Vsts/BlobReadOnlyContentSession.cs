@@ -595,7 +595,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string errorMessage = $"{operation} failed. ContentHash=[{hash.ToShortString()}], BaseAddress=[{BlobStoreHttpClient.BaseAddress}], BlobUri=[{getBlobUri(azureBlobUri)}]";
 
             // Explicitly trace all the failures here to simplify errors analysis.
-            context.TraceDebug($"{errorMessage}. Error=[{e}]");
+            Tracer.Debug(context, $"{errorMessage}. Error=[{e}]");
 
             static string getBlobUri(Uri? uri)
             {

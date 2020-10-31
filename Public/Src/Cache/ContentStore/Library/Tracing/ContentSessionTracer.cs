@@ -45,8 +45,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
         protected readonly Collection<Counter> Counters = new Collection<Counter>();
         private readonly Counter _pinBulkFileCountCounter;
 
-        public ContentSessionTracer(string name, bool useTracerName = false)
-            : base(name, useTracerName)
+        public ContentSessionTracer(string name)
+            : base(name)
         {
             CallCounters.Add(_getStatsCallCounter = new CallCounter(GetStatsCallName));
             CallCounters.Add(_pinCallCounter = new CallCounter(PinCallName));
@@ -57,12 +57,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             CallCounters.Add(_putFileCallCounter = new CallCounter(PutFileCallName));
 
             Counters.Add(_pinBulkFileCountCounter = new Counter(PinBulkFileCountCounterName));
-        }
-
-        [Obsolete("Performance counters are not supported. Please use another constructor")]
-        public ContentSessionTracer(string name, string categoryName)
-            : this(name)
-        {
         }
 
         public virtual CounterSet GetCounters()

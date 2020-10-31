@@ -160,13 +160,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (_processReserveRequestsTask != null)
             {
-                context.TraceDebug($"{Tracer.Name}: waiting for pending reservation requests.");
+                Tracer.Debug(context, $"Waiting for pending reservation requests.");
                 await _processReserveRequestsTask;
             }
 
             if (!_purgeTask.IsCompleted)
             {
-                context.TraceDebug($"{Tracer.Name}: waiting for purge task.");
+                Tracer.Debug(context, $"Waiting for purge task.");
                 return await _purgeTask;
             }
 

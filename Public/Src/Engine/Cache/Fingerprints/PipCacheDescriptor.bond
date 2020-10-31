@@ -280,6 +280,14 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     /// Related session Id of the build who creates this metadata
     /// </summary>
     17: string RelatedSessionId;
+
+    /// <summary>
+    /// Collection of directories that were succesfully created during pip execution. 
+    /// </summary>
+    /// <remarks>
+    /// Only populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed.
+    /// </remarks>
+    18: vector<string> CreatedDirectories;
 };
 
 /// <summary>

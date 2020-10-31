@@ -15,12 +15,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Plugin;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
+using BuildXL.Plugin;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
 using BuildXL.Processes.Sideband;
@@ -214,6 +214,8 @@ namespace BuildXL.Processes
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
         private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
+        
+        private readonly ISandboxFileSystemView m_fileSystemView;
 
         /// <summary>
         /// Name of the diretory in Log directory for std output files
@@ -256,7 +258,8 @@ namespace BuildXL.Processes
             IDetoursEventListener detoursListener = null,
             SymlinkedAccessResolver symlinkedAccessResolver = null,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
-            PluginManager pluginManager = null)
+            PluginManager pluginManager = null,
+            ISandboxFileSystemView sandboxFileSystemView = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -397,6 +400,7 @@ namespace BuildXL.Processes
             m_detoursListener = detoursListener;
             m_symlinkedAccessResolver = symlinkedAccessResolver;
             m_staleOutputsUnderSharedOpaqueDirectories = staleOutputsUnderSharedOpaqueDirectories;
+            m_fileSystemView = sandboxFileSystemView; 
         }
 
         /// <inheritdoc />
@@ -742,7 +746,8 @@ namespace BuildXL.Processes
         public async Task<SandboxedProcessPipExecutionResult> RunAsync(
             CancellationToken cancellationToken = default,
             ISandboxConnection sandboxConnection = null,
-            SidebandWriter sidebandWriter = null)
+            SidebandWriter sidebandWriter = null,
+            ISandboxFileSystemView fileSystemView = null)
         {
 
             if (m_context?.TestHooks?.FailVmCommandProxy == true)
@@ -832,7 +837,8 @@ namespace BuildXL.Processes
                         m_pip.TestRetries,
                         sandboxConnection: sandboxConnection,
                         sidebandWriter: sidebandWriter,
-                        detoursEventListener: m_detoursListener)
+                        detoursEventListener: m_detoursListener,
+                        fileSystemView: fileSystemView)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

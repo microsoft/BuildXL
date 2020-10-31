@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Processes;
@@ -232,6 +233,68 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // This should be a cache hit. Directories created by a pip are not part of the fingerprint
             RunScheduler().AssertCacheHit(pip.Process.PipId);
+        }
+
+        /// <summary>
+        /// Requiring Windows for this test is not actually a limitation of the enumeration mode (which should work fine in non-windows OSs) but
+        /// a limitation of <see cref="IScheduleConfiguration.TreatAbsentDirectoryAsExistentUnderOpaque"/>, where directory probes cannot be simulated
+        /// Creating a directory (see below) involves probing.
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void FingerprintIsStableForCreatedDirectories()
+        {
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            Configuration.Logging.CacheMissAnalysisOption = CacheMissAnalysisOption.LocalMode();
+
+            AbsolutePath nestedDirPath = dirPath.Combine(Context.PathTable, "nested");
+            var nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(nestedDirPath);
+            var outputInNestedDor = CreateOutputFileArtifact(nestedDirPath.ToString(Context.PathTable));
+
+            // Create a pip that creates the directory to be enumerated
+            var dirCreatorBuilder = CreatePipBuilder(new List<Operation>
+            {
+                // Create a directory nested into the one that is going to be enumerated
+                Operation.CreateDir(nestedDir, doNotInfer: true),
+                // Create a file underneath
+                Operation.WriteFile(outputInNestedDor, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            dirCreatorBuilder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            dirCreatorBuilder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+
+            var dirCreator = SchedulePipBuilder(dirCreatorBuilder);
+
+            // Create a pip that enumerates the directory
+            var dirEnumeratorBuilder = CreatePipBuilder(new List<Operation>
+            {
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            dirEnumeratorBuilder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            // Define the shared opaque
+            dirEnumeratorBuilder.AddOutputDirectory(dirPath, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+            // Make the enumerator depend on the creator
+            dirEnumeratorBuilder.AddInputFile(dirCreator.ProcessOutputs.GetRequiredOutputFiles().Single());
+
+            var dirEnumerator = SchedulePipBuilder(dirEnumeratorBuilder);
+
+            // Run once. The created directory should be ignored for the enumeration fingerprint computation.
+            RunScheduler().AssertSuccess();
+
+            // Simulate shared opaque scrubbing
+            FileUtilities.DeleteDirectoryContents(nestedDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+
+            // This should be a cache hit. By replaying the dirCreator pip, the enumerated directory is re-created. However, 
+            // it should still be ignored by the fingerprint computation and we should get a cache hit.
+            RunScheduler().AssertCacheHit(dirEnumerator.Process.PipId);
         }
 
         [Fact]

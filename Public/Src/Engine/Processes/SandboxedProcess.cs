@@ -135,7 +135,8 @@ namespace BuildXL.Processes
                     info.PipDescription,
                     info.LoggingContext,
                     info.DetoursEventListener,
-                    info.SidebandWriter) : null;
+                    info.SidebandWriter,
+                    info.FileSystemView) : null;
             
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);

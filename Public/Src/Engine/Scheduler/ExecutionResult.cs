@@ -125,14 +125,13 @@ namespace BuildXL.Scheduler
         {
             get
             {
-                EnsureSealed();
                 return m_createdDirectories;
             }
 
             set
             {
                 EnsureUnsealed();
-                InnerUnsealedState.CreatedDirectories = value;
+                m_createdDirectories = value;
             }
         }
 
@@ -634,6 +633,7 @@ namespace BuildXL.Scheduler
             m_retryInfo = executionResult.RetryInfo;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
+            CreatedDirectories = executionResult.CreatedDirectories;
         }
 
         /// <summary>
@@ -662,6 +662,15 @@ namespace BuildXL.Scheduler
         {
             EnsureUnsealed();
             InnerUnsealedState.DirectoryOutputs.Add((directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>.From(contents)));
+        }
+
+        /// <summary>
+        /// Records that a collection of directories was created
+        /// </summary>
+        public void ReportCreatedDirectories(IReadOnlySet<AbsolutePath> directories)
+        {
+            EnsureUnsealed();
+            m_createdDirectories = directories;
         }
 
         private void EnsureSealed()
@@ -738,7 +747,7 @@ namespace BuildXL.Scheduler
                     m_dynamicallyObservedEnumerations = m_unsealedState.DynamicallyObservedEnumerations;
                     m_allowedUndeclaredSourceReads = m_unsealedState.AllowedUndeclaredSourceReads;
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
-                    m_createdDirectories = m_unsealedState.CreatedDirectories;
+                    m_createdDirectories ??= CollectionUtilities.EmptySet<AbsolutePath>();
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
 
@@ -848,7 +857,6 @@ namespace BuildXL.Scheduler
             public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
             public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
             public IReadOnlySet<AbsolutePath> AbsentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
-            public IReadOnlySet<AbsolutePath> CreatedDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
 
             public readonly List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> OutputContent =
                 new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>();

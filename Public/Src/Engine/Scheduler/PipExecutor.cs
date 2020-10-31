@@ -954,9 +954,7 @@ namespace BuildXL.Scheduler
             // created directories, even if they are empty
             foreach (var directory in processExecutionResult.CreatedDirectories)
             {
-                // We explicitly don't update parents, since we want to keep track of directories that were actual 
-                // outputs of the build.
-                environment.State.FileSystemView.ReportOutputFileSystemExistence(directory, PathExistence.ExistsAsDirectory, updateParents: false);
+                environment.State.FileSystemView.ReportOutputFileSystemDirectoryCreated(directory);
             }
 
             if (processExecutionResult.NumberOfWarnings > 0)
@@ -1349,7 +1347,6 @@ namespace BuildXL.Scheduler
                 processExecutionResult.DynamicallyObservedEnumerations = observedInputValidationResult.DynamicallyObservedEnumerations;
                 processExecutionResult.AllowedUndeclaredReads = observedInputValidationResult.AllowedUndeclaredSourceReads;
                 processExecutionResult.AbsentPathProbesUnderOutputDirectories = observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories;
-                processExecutionResult.CreatedDirectories = executionResult.CreatedDirectories;
 
                 if (observedInputValidationResult.Status == ObservedInputProcessingStatus.Aborted)
                 {
@@ -1712,7 +1709,7 @@ namespace BuildXL.Scheduler
                 while (true)
                 {
                     lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
-
+                    
                     var executor = new SandboxedProcessPipExecutor(
                         context,
                         operationContext.LoggingContext,
@@ -1744,8 +1741,9 @@ namespace BuildXL.Scheduler
                         detoursListener: detoursEventListener,
                         symlinkedAccessResolver: environment.SymlinkedAccessResolver,
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
-                        pluginManager: environment.PluginManager);
-
+                        pluginManager: environment.PluginManager,
+                        sandboxFileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
+                    
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
                         {
@@ -1796,7 +1794,11 @@ namespace BuildXL.Scheduler
                     {
                         staleDynamicOutputs = null;
                         start = DateTime.UtcNow;
-                        result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
+                        result = await executor.RunAsync(
+                            innerResourceLimitCancellationTokenSource.Token, 
+                            sandboxConnection: environment.SandboxConnection, 
+                            sidebandWriter: sidebandWriter, 
+                            fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
                         LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                         staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
                     }
@@ -3332,6 +3334,9 @@ namespace BuildXL.Scheduler
                 executionResult.ReportOutputContent(fileArtifact, fileMaterializationInfo, PipOutputOrigin.NotMaterialized);
             }
 
+            // Populate created directories from the cache hit data
+            executionResult.ReportCreatedDirectories(cacheHitData.CreatedDirectories);
+
             executionResult.SetResult(operationContext, PipResultStatus.NotMaterialized);
             return executionResult;
         }
@@ -3406,7 +3411,8 @@ namespace BuildXL.Scheduler
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
                 incrementalTools: configuration.IncrementalTools,
-                symlinkedAccessResolver: environment.SymlinkedAccessResolver);
+                symlinkedAccessResolver: environment.SymlinkedAccessResolver,
+                sandboxFileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {
@@ -3618,12 +3624,15 @@ namespace BuildXL.Scheduler
                 lastDynamicArtifactIndex += directoryContentsCount;
             }
 
+            var createdDirectories = metadata.CreatedDirectories.Select(directory => AbsolutePath.Create(pathTable, directory)).ToReadOnlySet();
+
             return new RunnableFromCacheResult.CacheHitData(
                     pathSetHash: pathSetHash,
                     strongFingerprint: strongFingerprint,
                     metadata: metadata,
                     cachedArtifactContentHashes: cachedArtifactContentHashesArray,
                     absentArtifacts: (IReadOnlyList<FileArtifact>)absentArtifacts ?? CollectionUtilities.EmptyArray<FileArtifact>(),
+                    createdDirectories: createdDirectories,
                     standardError: standardError,
                     standardOutput: standardOutput,
                     dynamicDirectoryContents: dynamicDirectoryContents,
@@ -4595,6 +4604,8 @@ namespace BuildXL.Scheduler
 
                     RecordOutputsOnMetadata(metadata, process, allOutputData, outputHashPairs, pathTable);
 
+                    RecordCreatedDirectoriesOnMetadata(metadata, pathTable, processExecutionResult.CreatedDirectories);
+
                     // An assertion for the static outputs
                     Contract.Assert(metadata.StaticOutputHashes.Count == process.GetCacheableOutputsCount());
 
@@ -4635,6 +4646,11 @@ namespace BuildXL.Scheduler
 
                 return true;
             }
+        }
+
+        private static void RecordCreatedDirectoriesOnMetadata(PipCacheDescriptorV2Metadata metadata, PathTable pathTable, IReadOnlySet<AbsolutePath> createdDirectories)
+        {
+            metadata.CreatedDirectories.AddRange(createdDirectories.Select(directory => directory.ToString(pathTable)));
         }
 
         private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, IPipExecutionEnvironment environment, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)

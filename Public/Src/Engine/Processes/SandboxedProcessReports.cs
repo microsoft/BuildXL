@@ -99,6 +99,8 @@ namespace BuildXL.Processes
         private readonly FileAccessManifest m_manifest;
 
         private readonly LoggingContext m_loggingContext;
+        
+        private readonly ISandboxFileSystemView m_fileSystemView;
 
         /// <summary>
         /// The max Detours heap size for processes of this pip.
@@ -119,7 +121,8 @@ namespace BuildXL.Processes
             string pipDescription,
             LoggingContext loggingContext,
             [CanBeNull] IDetoursEventListener detoursEventListener,
-            [CanBeNull] SidebandWriter sharedOpaqueOutputLogger)
+            [CanBeNull] SidebandWriter sharedOpaqueOutputLogger,
+            [CanBeNull] ISandboxFileSystemView fileSystemView)
         {
             Contract.RequiresNotNull(manifest);
             Contract.RequiresNotNull(pathTable);
@@ -135,6 +138,7 @@ namespace BuildXL.Processes
             m_detoursEventListener = detoursEventListener;
             m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
             m_loggingContext = loggingContext;
+            m_fileSystemView = fileSystemView;
         }
 
         /// <summary>
@@ -866,6 +870,17 @@ namespace BuildXL.Processes
                     path,
                     enumeratePattern,
                     method);
+
+            // By reporting created directories as soon as possible we minimize the chance of a race for
+            // long running processes, where a produced directory is already created but the output file
+            // system is notified of this only when the pip finishes
+            // The output file system is eventually notified of this as part of the regular flow under PipExecutor,
+            // this is an optimization to minimize cache misses when MinimalGraphWithAlienFiles is used to
+            // compute the directory enumeration fingerprint, since created directories matter for it.
+            if (finalPath.IsValid && m_fileSystemView != null && reportedAccess.IsDirectoryEffectivelyCreated())
+            {
+                m_fileSystemView.ReportOutputFileSystemDirectoryCreated(finalPath);
+            }
 
             // The access was denied based on file existence. Store it since we can change our minds later if
             // a trusted access arrives for the same path

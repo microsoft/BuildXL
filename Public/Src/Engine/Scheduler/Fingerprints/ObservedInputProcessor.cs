@@ -2134,13 +2134,19 @@ namespace BuildXL.Scheduler.Fingerprints
                                 continue;
                             }
 
+                            // If the entry is a directory created by other pip, even if that directory is empty, it will be
+                            // ruled out here
+                            if (FileSystemView.ExistCreatedDirectoryInOutputFileSystem(realFileEntryPath))
+                            {
+                                continue;
+                            }
+
                             // If the entry is reported as existent from the output file system, this means it is an output that is
                             // not part of the immediate dependencies. So we don't add it.
                             // The only exception is when the file is flagged as an undeclared source/alien file rewrite. In this case the file was there
                             // before the build started, and therefore it makes sense to include it in the fingerprint
-                            // Observe that if the entry is a directory created by other pip, even if that directory is empty, it will be
-                            // ruled out here, since the output file system is also updated with created directories
-                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result != PathExistence.Nonexistent &&
+                            // If the path exists as a directory, we know it is not one created by a pip, so it is a directory part of the sources, and in that case we keep it.
+                            if (FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.Output).Result == PathExistence.ExistsAsFile &&
                                 !m_env.State.FileContentManager.IsAllowedFileRewriteOutput(realFileEntryPath))
                             {
                                 continue;

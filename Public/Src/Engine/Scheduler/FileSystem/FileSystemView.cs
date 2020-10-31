@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
+using BuildXL.Processes;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -29,7 +30,7 @@ namespace BuildXL.Scheduler.FileSystem
     /// It is the responsiblity of the caller to call this class in a way that minimizes this possibility. Namely, querying the
     /// output graph file system first as an overlay, gives a view of all known produced files/directories.
     /// </summary>
-    public class FileSystemView : ILocalDiskFileSystemExistenceView
+    public class FileSystemView : ILocalDiskFileSystemExistenceView, ISandboxFileSystemView
     {
         /// <summary>
         /// The local disk file system for querying real file system state
@@ -386,25 +387,29 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Adds the existence state of the path if not present or returns the current cached existence state of the path
         /// </summary>
-        private PathExistence GetOrAddExistence(AbsolutePath path, FileSystemViewMode mode, PathExistence existence, bool updateParents = true)
+        private PathExistence GetOrAddExistence(AbsolutePath path, FileSystemViewMode mode, PathExistence existence, bool updateParents = true, FileSystemEntryFlags flags = FileSystemEntryFlags.None)
         {
-            return GetOrAddExistence(path, mode, existence, out var added, updateParents);
+            return GetOrAddExistence(path, mode, existence, out var added, updateParents, flags);
         }
 
         /// <summary>
         /// Adds the existence state of the path if not present or returns the current cached existence state of the path
         /// </summary>
-        private PathExistence GetOrAddExistence(AbsolutePath path, FileSystemViewMode mode, PathExistence existence, out bool added, bool updateParents = true)
+        /// <remarks>
+        /// If flags are provided, those are added to potentially existing flags
+        /// </remarks>
+        private PathExistence GetOrAddExistence(AbsolutePath path, FileSystemViewMode mode, PathExistence existence, out bool added, bool updateParents = true, FileSystemEntryFlags flags = FileSystemEntryFlags.None)
         {
             PathExistence result = existence;
             var originalPath = path;
             while (path.IsValid)
             {
-                var getOrAddResult = PathExistenceCache.GetOrAdd(path, FileSystemEntry.Create(mode, existence));
+                var getOrAddResult = PathExistenceCache.GetOrAdd(path, FileSystemEntry.Create(mode, existence).SetFlag(flags));
                 if (getOrAddResult.IsFound)
                 {
                     var currentExistence = getOrAddResult.Item.Value.GetExistence(mode);
-                    if (currentExistence != null)
+                    var currentFlags = getOrAddResult.Item.Value.Flags;
+                    if (currentExistence != null && currentFlags.HasFlag(flags))
                     {
                         if (originalPath != path)
                         {
@@ -422,12 +427,13 @@ namespace BuildXL.Scheduler.FileSystem
 
                     // found entry for the 'path', but it does not contain existence for the specified 'mode'
                     var updateResult = PathExistenceCache.AddOrUpdate(path, (mode, existence),
-                        (key, data) => FileSystemEntry.Create(data.mode, data.existence),
-                        (key, data, oldValue) => oldValue.TryUpdate(data.mode, data.existence));
+                        (key, data) => FileSystemEntry.Create(data.mode, data.existence).SetFlag(flags),
+                        (key, data, oldValue) => oldValue.TryUpdate(data.mode, data.existence).SetFlag(flags));
 
                     // the same entry might be updated concurrently; check whether we lost the race, and if we did, stop further processing 
                     currentExistence = updateResult.OldItem.Value.GetExistence(mode);
-                    if (currentExistence != null)
+                    currentFlags = updateResult.OldItem.Value.Flags;
+                    if (currentExistence != null && currentFlags.HasFlag(flags))
                     {
                         if (originalPath != path)
                         {
@@ -516,6 +522,31 @@ namespace BuildXL.Scheduler.FileSystem
             GetOrAddExistence(path, FileSystemViewMode.Output, existence, updateParents);
         }
 
+        /// <summary>
+        /// Reports that a given directory was created by a pip to the output file system
+        /// </summary>
+        public void ReportOutputFileSystemDirectoryCreated(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+            // We want to be able to later identify if the directory was created by a pip, as opposed to being
+            // part of the output file system just because a file was created underneath. We flag the directory
+            // with FileSystemEntryFlags.IsDirectoryCreatedByPip for that purpose
+            GetOrAddExistence(path, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory, updateParents: false, FileSystemEntryFlags.IsDirectoryCreatedByPip);
+        }
+
+        /// <summary>
+        /// Returns whether the give path represents a directory created by a pip the output file system knows about
+        /// </summary>
+        public bool ExistCreatedDirectoryInOutputFileSystem(AbsolutePath path)
+        {
+            if (PathExistenceCache.TryGetValue(path, out var entry) && entry.TryGetExistence(FileSystemViewMode.Output, out var existence) && entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip))
+            {
+                return existence == PathExistence.ExistsAsDirectory;
+            }
+
+            return false;
+        }
+
         private static bool ExistsInGraphFileSystem(FileArtifact artifact, FileSystemViewMode mode)
         {
             return artifact.IsValid && (mode == FileSystemViewMode.FullGraph || artifact.IsOutputFile);
@@ -579,7 +610,8 @@ namespace BuildXL.Scheduler.FileSystem
             None,
             IsRealFileSystemEnumerated = 1 << 0,
             IsDirectorySymlink = 1 << 1,
-            CheckedIsDirectorySymlink = 1 << 2
+            CheckedIsDirectorySymlink = 1 << 2,
+            IsDirectoryCreatedByPip = 1 << 3,
         }
 
         private readonly struct FileSystemEntry

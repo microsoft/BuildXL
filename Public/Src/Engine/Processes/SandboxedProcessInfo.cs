@@ -74,6 +74,11 @@ namespace BuildXL.Processes
         public SidebandWriter SidebandWriter { get; }
 
         /// <summary>
+        /// An optional file system view to report outputs as soon as they are produced
+        /// </summary>
+        public ISandboxFileSystemView FileSystemView { get; }
+
+        /// <summary>
         /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object 
         /// with limit <see cref="JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"/>
         /// </summary>
@@ -132,7 +137,8 @@ namespace BuildXL.Processes
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
             SidebandWriter sidebandWriter = null,
-            bool createJobObjectForCurrentProcess = true)
+            bool createJobObjectForCurrentProcess = true,
+            ISandboxFileSystemView fileSystemView = null)
         {
             Contract.RequiresNotNull(pathTable);
             Contract.RequiresNotNull(fileName);
@@ -153,6 +159,7 @@ namespace BuildXL.Processes
             ContainerConfiguration = containerConfiguration;
             SidebandWriter = sidebandWriter;
             CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
+            FileSystemView = fileSystemView;
         }
 
         /// <summary>

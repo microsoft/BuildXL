@@ -109,6 +109,16 @@ namespace BuildXL.Scheduler
             public readonly IReadOnlyList<FileArtifact> AbsentArtifacts;
 
             /// <summary>
+            /// Collection of directories that were succesfully created during pip execution. 
+            /// </summary>
+            /// <remarks>
+            /// Observe there is no guarantee those directories still exist. However, there was a point during the execution of the associated pip when these directories 
+            /// were not there, the running pip created them and the creation was successful. 
+            /// Only populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed.
+            /// </remarks>
+            public readonly IReadOnlySet<AbsolutePath> CreatedDirectories;
+
+            /// <summary>
             /// Standard output.
             /// </summary>
             public readonly Tuple<AbsolutePath, ContentHash, string> StandardOutput;
@@ -131,6 +141,7 @@ namespace BuildXL.Scheduler
                 (FileArtifact, FileMaterializationInfo)[] cachedArtifactContentHashes,
                 ArrayView<(FileArtifact, FileMaterializationInfo)>[] dynamicDirectoryContents,
                 IReadOnlyList<FileArtifact> absentArtifacts,
+                IReadOnlySet<AbsolutePath> createdDirectories,
                 Tuple<AbsolutePath, ContentHash, string> standardOutput,
                 Tuple<AbsolutePath, ContentHash, string> standardError,
                 PublishedEntryRefLocality locality,
@@ -143,6 +154,7 @@ namespace BuildXL.Scheduler
                 CachedArtifactContentHashes = cachedArtifactContentHashes;
                 DynamicDirectoryContents = dynamicDirectoryContents;
                 AbsentArtifacts = absentArtifacts;
+                CreatedDirectories = createdDirectories;
                 StandardOutput = standardOutput;
                 StandardError = standardError;
                 Locality = locality;

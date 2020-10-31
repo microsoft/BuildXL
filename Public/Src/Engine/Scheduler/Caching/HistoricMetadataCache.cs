@@ -179,7 +179,7 @@ namespace BuildXL.Scheduler.Cache
             Contract.Requires(storeLocation.IsValid);
 
             StoreLocation = storeLocation.ToString(context.PathTable);
-            LogDirectoryLocation = logDirectoryLocation.HasValue ? logDirectoryLocation.Value.ToString(context.PathTable) : null;
+            LogDirectoryLocation = logDirectoryLocation.HasValue && logDirectoryLocation.Value.IsValid ? logDirectoryLocation.Value.ToString(context.PathTable) : null;
             m_storeAccessor = new Lazy<KeyValueStoreAccessor>(OpenStore);
             Valid = false;
 

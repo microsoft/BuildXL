@@ -13,14 +13,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public static class AlgorithmIdLookup
     {
         private static readonly IReadOnlyDictionary<HashType, byte> AlgorithmIdByHashType = new Dictionary<HashType, byte>
-            {
-                {HashType.Vso0, VsoHash.VsoAlgorithmId},
-                {HashType.DedupSingleChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
-                {HashType.DedupNode, (byte)NodeAlgorithmId.Node64K},
-                {HashType.Dedup64K, (byte)NodeAlgorithmId.Node64K},
-                {HashType.Dedup1024K, (byte)NodeAlgorithmId.Node1024K},
-                {HashType.Murmur, MurmurHashInfo.MurmurAlgorithmId}
-            };
+        {
+            {HashType.Vso0, VsoHash.VsoAlgorithmId},
+            {HashType.DedupSingleChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
+            {HashType.DedupNode, (byte)NodeAlgorithmId.Node64K},
+            {HashType.Dedup64K, (byte)NodeAlgorithmId.Node64K},
+            {HashType.Dedup1024K, (byte)NodeAlgorithmId.Node1024K},
+            {HashType.Murmur, MurmurHashInfo.MurmurAlgorithmId}
+        };
 
         /// <summary>
         ///     Retrieve algorithm id.

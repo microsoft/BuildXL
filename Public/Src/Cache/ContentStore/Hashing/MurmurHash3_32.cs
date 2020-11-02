@@ -6,6 +6,9 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
+#pragma warning disable CS3001 // CLS
+#pragma warning disable CS3003
+
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>

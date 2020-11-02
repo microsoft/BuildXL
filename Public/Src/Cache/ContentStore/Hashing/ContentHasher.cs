@@ -12,6 +12,10 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
+#pragma warning disable CS3001 // CLS
+#pragma warning disable CS3002
+#pragma warning disable CS3003
+
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>

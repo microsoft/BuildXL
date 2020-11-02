@@ -174,7 +174,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 var blobContentHashListWithDeterminism =
                     new BlobContentHashListWithDeterminism(
                         valueToAdd.ContentHashListWithDeterminism.Determinism.EffectiveGuid,
-                        BlobIdentifierToContentHashExtensions.ToBlobIdentifier(blobIdOfContentHashListResult.Data));
+                        BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(blobIdOfContentHashListResult.Data));
 
                 var blobContentHashListWithCacheMetadata = new BlobContentHashListWithCacheMetadata(
                     blobContentHashListWithDeterminism,

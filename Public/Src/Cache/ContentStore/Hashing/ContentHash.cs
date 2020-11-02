@@ -7,6 +7,8 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
+#pragma warning disable CS3008 // CLS
+
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>

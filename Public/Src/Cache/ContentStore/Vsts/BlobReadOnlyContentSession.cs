@@ -321,7 +321,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateBlobStoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime endDateTime)
         {
             // Convert missing content hashes to blob Ids
-            var blobIds = contentHashes.Select(c => ToVstsBlobIdentifier(c.ToBlobIdentifier())).ToList();
+            var blobIds = contentHashes.Select(c => ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(c))).ToList();
 
             // Call TryReference on the blob ids
             var references = blobIds.Distinct().ToDictionary(
@@ -539,7 +539,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
             {
                 _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
-                var blobId = contentHash.ToBlobIdentifier();
+                var blobId = BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash);
 
                 var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                     context,

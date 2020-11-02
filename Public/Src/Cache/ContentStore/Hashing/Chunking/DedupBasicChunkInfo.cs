@@ -5,6 +5,9 @@ using System;
 using size_t = System.UInt64;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CS3001 // CLS
+#pragma warning disable CS3002
+#pragma warning disable CS3003
 #pragma warning disable SA1121 // Use built-in type alias
 #pragma warning disable SA1210
 #pragma warning disable SA1307 // Accessible fields must begin with upper-case letter

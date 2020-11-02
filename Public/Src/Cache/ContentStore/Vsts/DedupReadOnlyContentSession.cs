@@ -185,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return pinResult;
             }
 
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
+            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash));
             VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
             if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
@@ -245,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 PinResult pinResult;
-                var dedupId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier()).ToDedupIdentifier();
+                var dedupId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash)).ToDedupIdentifier();
                 if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
                 {
                     pinResult = await TryPinChunkAsync(context, dedupId, keepUntil);
@@ -461,7 +461,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private async Task<BoolResult> GetFileWithDedupAsync(OperationContext context, ContentHash contentHash, string path)
         {
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
+            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash));
             VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
             try

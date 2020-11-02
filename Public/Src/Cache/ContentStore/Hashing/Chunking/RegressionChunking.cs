@@ -7,6 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.ContractsLight;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CS3003
+#pragma warning disable CS3008
 #pragma warning disable SA1000
 #pragma warning disable SA1002
 #pragma warning disable SA1003

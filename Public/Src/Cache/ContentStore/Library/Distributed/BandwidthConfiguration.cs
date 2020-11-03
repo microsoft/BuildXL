@@ -37,11 +37,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public long RequiredBytes { get; set; }
 
         /// <summary>
+        /// If true, the server will return an error response immediately if the number of pending copy operations crosses a threshold.
+        /// </summary>
+        public bool FailFastIfServerIsBusy { get; set; }
+
+        /// <summary>
         /// Gets the required megabytes per second.
         /// </summary>
         public double RequiredMegabytesPerSecond => (double)(RequiredBytes / BytesInMb) / Interval.TotalSeconds;
 
         /// <inheritdoc />
-        public override string ToString() => $"{RequiredBytes / Interval.TotalSeconds}";
+        public override string ToString() => $"Throughput={RequiredBytes / Interval.TotalSeconds}, FailFast={FailFastIfServerIsBusy}";
     }
 }

@@ -454,6 +454,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 var result = new BandwidthConfiguration()
                 {
                     Interval = TimeSpan.FromSeconds(configuration.IntervalInSeconds), RequiredBytes = configuration.RequiredBytes,
+                    FailFastIfServerIsBusy = configuration.FailFastIfServerIsBusy,
                 };
 
                 ApplyIfNotNull(configuration.ConnectionTimeoutInSeconds, v => result.ConnectionTimeout = TimeSpan.FromSeconds(v));
@@ -469,7 +470,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ResolvedNamedCacheSettings resolvedSettings,
             IDistributedLocationStore distributedStore = null)
         {
-            settings = settings ?? DistributedContentSettings.CreateDisabled();
+            settings ??= DistributedContentSettings.CreateDisabled();
             var contentStoreSettings = FromDistributedSettings(settings);
 
             ConfigurationModel configurationModel

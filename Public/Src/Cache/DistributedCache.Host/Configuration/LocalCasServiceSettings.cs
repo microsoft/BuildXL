@@ -101,10 +101,16 @@ namespace BuildXL.Cache.Host.Configuration
         public int? BufferSizeForGrpcCopies { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the the max number of proactive pushes requests handled at the same time by a server.
+        /// Gets or sets the max number of proactive pushes requests handled at the same time by a server.
         /// </summary>
         [DataMember]
         public int? MaxProactivePushRequestHandlers { get; set; }
+
+        /// <summary>
+        /// Gets or sets the max number of copy operations that can happen at the same time from this machine.
+        /// </summary>
+        [DataMember]
+        public int? MaxCopyFromHandlers { get; set; }
 
         /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.

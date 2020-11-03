@@ -27,7 +27,8 @@ namespace BuildXL.Cache.ContentStore.Service
             int? proactivePushCountLimit = null,
             TimeSpan? logIncrementalStatsInterval = null,
             TimeSpan? logMachineStatsInterval = null,
-            bool traceGrpcOperations = false
+            bool traceGrpcOperations = false,
+            int? copyRequestHandlingCountLimit = null
         )
         {
             DataRootPath = dataRootPath;
@@ -36,6 +37,7 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
+            CopyRequestHandlingCountLimit = copyRequestHandlingCountLimit;
             FileSystem = fileSystem;
 
             LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
@@ -55,6 +57,7 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
+            CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
@@ -72,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
+            CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
@@ -154,6 +158,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         public int? BufferSizeForGrpcCopies { get; private set; }
 
+        /// <summary>
+        /// If true, then the unsafe version of ByteString construction is used that avoids extra copy of the byte[].
+        /// </summary>
+        public bool UseUnsafeByteStringConstruction { get; set; }
+
         /// <nodoc />
         public const int DefaultProactivePushCountLimit = 128;
 
@@ -161,6 +170,17 @@ namespace BuildXL.Cache.ContentStore.Service
         /// The max number of proactive pushes that can happen at the same time.
         /// </summary>
         public int? ProactivePushCountLimit { get; private set; }
+
+        /// <nodoc />
+        public const int DefaultCopyRequestHandlingCountLimit = 128;
+
+        /// <summary>
+        /// The max number of copy operations that can happen at the same time from this machine.
+        /// </summary>
+        /// <remarks>
+        /// Once the limit is reached the server starts returning error responses but only when the client is willing to fail fast.
+        /// </remarks>
+        public int? CopyRequestHandlingCountLimit { get; private set; }
 
         /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.

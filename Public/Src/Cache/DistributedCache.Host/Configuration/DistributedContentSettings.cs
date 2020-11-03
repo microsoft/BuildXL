@@ -1130,5 +1130,10 @@ namespace BuildXL.Cache.Host.Configuration
         /// The number of required bytes that should be copied within a given interval. Otherwise the copy would be canceled.
         /// </summary>
         public long RequiredBytes { get; set; }
+
+        /// <summary>
+        /// If true, the server will return an error response immediately if the number of pending copy operations crosses a threshold.
+        /// </summary>
+        public bool FailFastIfServerIsBusy { get; set; }
     }
 }

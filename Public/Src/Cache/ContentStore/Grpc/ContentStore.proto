@@ -186,6 +186,7 @@ message CopyFileRequest {
     bytes contentHash = 3;
     int64 offset = 4;
     CopyCompression compression = 5;
+    bool failFastIfBusy = 6;
 }
 
 message CopyFileResponse {

@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
@@ -42,7 +43,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        StreamContentDuration,
+        CopyStreamContentDuration,
+
+        /// <nodoc />
+        CopyRequestRejected,
+
+        /// <nodoc />
+        CopyContentNotFound,
+
+        /// <nodoc />
+        CopyError,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        HandlePushFile,
+
+        /// <nodoc />
+        PushFileRejectNotSupported,
+
+        /// <nodoc />
+        PushFileRejectCopyLimitReached,
+
+        /// <nodoc />
+        PushFileRejectCopyOngoingCopy,
     }
 
     /// <summary>
@@ -89,17 +112,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         protected virtual ISessionHandler<IContentSession> ContentSessionHandler { get; }
 
-        /// <summary>
-        /// A set of hashes currently handled by the server.
-        /// </summary>
-        private readonly HashSet<ContentHash> _ongoingPushes = new HashSet<ContentHash>();
+        private readonly ConcurrencyLimiter<Guid> _copyFromConcurrencyLimiter;
 
-        private readonly object _pushesLock = new object();
+        private readonly ConcurrencyLimiter<ContentHash> _ongoingPushesConcurrencyLimiter;
 
-        /// <summary>
-        /// The max number of push handlers running at the same time.
-        /// </summary>
-        private readonly int _ongoingPushCountLimit;
 
         private readonly bool _traceGrpcOperations;
 
@@ -111,14 +127,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             IReadOnlyDictionary<string, IContentStore> storesByName,
             LocalServerConfiguration? localServerConfiguration = null)
         {
-            Contract.RequiresNotNull(storesByName);
+            Contract.Requires(storesByName != null);
 
             _serviceCapabilities = serviceCapabilities;
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
-            _ongoingPushCountLimit = localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit;
             _traceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
+            _ongoingPushesConcurrencyLimiter = new ConcurrencyLimiter<ContentHash>(localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit);
+            _copyFromConcurrencyLimiter = new ConcurrencyLimiter<Guid>(localServerConfiguration?.CopyRequestHandlingCountLimit ?? LocalServerConfiguration.DefaultCopyRequestHandlingCountLimit);
             _pool = new ByteArrayPool(_bufferSize);
             ContentSessionHandler = sessionHandler;
 
@@ -290,13 +307,58 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash.ToShortString()} not found in the cache") };
         }
 
-        /// <summary>
-        /// Implements a copy file request.
-        /// </summary>
-        private async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
+        private CopyLimiter CanHandleCopyRequest(bool respectConcurrencyLimit)
         {
-            // Get the content stream.
-            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var operationId = Guid.NewGuid();
+            var (_, overTheLimit) = _copyFromConcurrencyLimiter.TryAdd(operationId, respectTheLimit: respectConcurrencyLimit);
+
+            return new CopyLimiter(_copyFromConcurrencyLimiter, operationId, overTheLimit);
+        }
+
+        private Task SendErrorResponseAsync(ServerCallContext context, string errorType, string errorMessage)
+        {
+            Metadata headers = new Metadata();
+            headers.Add("Exception", errorType);
+            headers.Add("Message", errorMessage);
+            return context.WriteResponseHeadersAsync(headers);
+        }
+
+        private async Task HandleCopyRequestAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
+        {
+            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var operationContext = new OperationContext(cacheContext);
+
+            var result = await operationContext
+                .PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        await HandleCopyRequestCoreAsync(cacheContext, request, responseStream, callContext);
+                        return BoolResult.Success;
+                    },
+                    traceErrorsOnly: true);
+
+            if (!result.Succeeded)
+            {
+                var exception = result.Exception!;
+                await SendErrorResponseAsync(callContext, exception.GetType().Name, exception.Message);
+            }
+        }
+
+        private async Task HandleCopyRequestCoreAsync(Context cacheContext, CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
+        {
+            using var limiter = CanHandleCopyRequest(request.FailFastIfBusy);
+
+            if (limiter.OverTheLimit)
+            {
+                Counters[GrpcContentServerCounters.CopyRequestRejected].Increment();
+                await SendErrorResponseAsync(
+                    callContext,
+                    errorType: "ConcurrencyLimitReached",
+                    errorMessage: $"Copy limit of '{limiter.Limit}' reached. Current number of pending copies: {limiter.CurrentCount}");
+                return;
+            }
+
             ContentHash hash = request.GetContentHash();
             long size = -1;
             OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
@@ -306,41 +368,48 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 // Figure out response headers.
                 CopyCompression compression = CopyCompression.None;
-                Metadata headers = new Metadata();
+                
                 switch (result.Code)
                 {
                     case OpenStreamResult.ResultCode.ContentNotFound:
-                        headers.Add("Exception", "ContentNotFound");
-                        headers.Add("Message", $"Requested content at {hash} not found.");
+                        Counters[GrpcContentServerCounters.CopyContentNotFound].Increment();
+                        await SendErrorResponseAsync(
+                            callContext,
+                            errorType: "ContentNotFound",
+                            errorMessage: $"Requested content at {hash.ToString()} not found.");
                         break;
                     case OpenStreamResult.ResultCode.Error:
-                        Contract.AssertNotNull(result.Exception);
-                        headers.Add("Exception", result.Exception.GetType().Name);
-                        headers.Add("Message", result.Exception.Message);
+                        Contract.Assert(result.Exception != null);
+                        Counters[GrpcContentServerCounters.CopyError].Increment();
+                        await SendErrorResponseAsync(
+                            callContext,
+                            errorType: result.Exception.GetType().Name,
+                            errorMessage: result.Exception.Message);
                         break;
                     case OpenStreamResult.ResultCode.Success:
-                        Contract.AssertNotNull(result.Stream);
+                        Contract.Assert(result.Stream != null);
                         size = result.Stream.Length;
+                        Metadata headers = new Metadata();
                         headers.Add("FileSize", size.ToString());
                         if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
                         {
                             compression = CopyCompression.Gzip;
                         }
+
                         headers.Add("Compression", compression.ToString());
                         headers.Add("ChunkSize", _bufferSize.ToString());
+                        // Send the response headers.
+                        await callContext.WriteResponseHeadersAsync(headers);
                         break;
                     default:
                         throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
                 }
 
-                // Send the response headers.
-                await context.WriteResponseHeadersAsync(headers);
-
                 // Send the content.
                 if (result.Succeeded)
                 {
                     // Need to cancel the operation when the instance is shut down.
-                    using var shutdownTracker = TrackShutdown(cacheContext, context.CancellationToken);
+                    using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
                     var operationContext = shutdownTracker.Context;
 
                     using var arrayHandle = _pool.Get();
@@ -353,8 +422,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             _tracer,
                             () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(context)}], ReadTime=[{GetFileIODuration(result.Stream)}].",
-                            counter: Counters[GrpcContentServerCounters.StreamContentDuration])
+                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(callContext)}], ReadTime=[{GetFileIODuration(result.Stream)}].",
+                            counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration])
                         .IgnoreFailure(); // The error was already logged.
                 }
             }
@@ -416,38 +485,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 cancellationToken);
         }
 
-        private RejectionReason CanHandlePushRequest(Context cacheContext, ContentHash hash, IPushFileHandler store)
-        {
-            if (store == null)
-            {
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because no stores implement {nameof(IPushFileHandler)}.");
-                return RejectionReason.NotSupported;
-            }
-
-            if (!store.CanAcceptContent(cacheContext, hash, out var rejectionReason))
-            {
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped: {rejectionReason}");
-                return rejectionReason;
-            }
-
-            lock (_pushesLock)
-            {
-                if (_ongoingPushes.Count >= _ongoingPushCountLimit)
-                {
-                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because the max number of proactive pushes of '{_ongoingPushCountLimit}' is reached. OngoingPushes.Count={_ongoingPushes.Count}.");
-                    return RejectionReason.CopyLimitReached;
-                }
-
-                if (!_ongoingPushes.Add(hash))
-                {
-                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
-                    return RejectionReason.OngoingCopy;
-                }
-            }
-
-            return RejectionReason.Accepted;
-        }
-
         /// <summary>
         /// Handles a request to copy content to this machine.
         /// </summary>
@@ -456,12 +493,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
             await Task.Yield();
 
-            var startTime = DateTime.UtcNow;
-
             var pushRequest = PushRequest.FromMetadata(callContext.RequestHeaders);
+            var cacheContext = new OperationContext(new Context(pushRequest.TraceId, Logger));
 
+            // Using PerformOperation to return the information about any potential errors happen in this code.
+            var result = await cacheContext.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    await HandlePushFileCoreAsync(cacheContext, pushRequest, requestStream, responseStream, callContext);
+                    return BoolResult.Success;
+                },
+                traceErrorsOnly: true);
+
+            if (!result)
+            {
+                var exception = result.Exception!;
+                await SendErrorResponseAsync(callContext, exception.GetType().Name, exception.ToString());
+            }
+        }
+
+        private async Task HandlePushFileCoreAsync(Context cacheContext, PushRequest pushRequest, IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext callContext)
+        {
+            var startTime = DateTime.UtcNow;
             var hash = pushRequest.Hash;
-            var cacheContext = new Context(pushRequest.TraceId, Logger);
 
             // Cancelling the operation when the instance is shut down.
             using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
@@ -469,64 +524,69 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
 
-            var rejection = CanHandlePushRequest(cacheContext, hash, store);
-            if (rejection != RejectionReason.Accepted)
+            using var limiter = PushCopyLimiter.Create(cacheContext, _ongoingPushesConcurrencyLimiter, hash, store);
+            if (limiter.RejectionReason != RejectionReason.Accepted)
             {
-                await callContext.WriteResponseHeadersAsync(PushResponse.DoNotCopy(rejection).Metadata);
+                var rejectCounter = limiter.RejectCounter;
+                if (rejectCounter != null)
+                {
+                    Counters[rejectCounter.Value].Increment();
+                }
+
+                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileCoreAsync)}: Copy is skipped. Hash={hash.ToShortString()}, Reason={limiter.RejectionReason}, Limit={limiter.Limit}, CurrentCount={limiter.CurrentCount}.");
+                await callContext.WriteResponseHeadersAsync(PushResponse.DoNotCopy(limiter.RejectionReason).Metadata);
                 return;
             }
 
-            try
-            {
-                // Running the logic inside try/finally block to remove the hash being processed regardless of the result of this method.
-                await callContext.WriteResponseHeadersAsync(PushResponse.Copy.Metadata);
-
-                PutResult? result = null;
-                using (var disposableFile = new DisposableFile(cacheContext, _fileSystem, _temporaryDirectory!.CreateRandomFileName()))
+            var operationContext = new OperationContext(cacheContext, token);
+            await operationContext.PerformNonResultOperationAsync(
+                Tracer,
+                async () =>
                 {
-                    // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
-                    // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
-                    // that needs to be tested on a case by case basis. Since we don't know what the underlying store
-                    // plans to do with the file, it is more robust to just use the DisposableFile construct.
-                    using (var tempFile = await _fileSystem.OpenSafeAsync(disposableFile.Path, FileAccess.Write, FileMode.CreateNew, FileShare.None))
-                    {
-                        // From the docs: On the server side, MoveNext() does not throw exceptions.
-                        // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
-                        // and the CancellationToken associated with the call will be cancelled to signal the failure.
-                        await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
-                    }
+                    await callContext.WriteResponseHeadersAsync(PushResponse.Copy.Metadata);
 
-                    if (token.IsCancellationRequested)
+                    PutResult? result = null;
+                    using (var disposableFile = new DisposableFile(cacheContext, _fileSystem, _temporaryDirectory!.CreateRandomFileName()))
                     {
-                        if (!callContext.CancellationToken.IsCancellationRequested)
+                        // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
+                        // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
+                        // that needs to be tested on a case by case basis. Since we don't know what the underlying store
+                        // plans to do with the file, it is more robust to just use the DisposableFile construct.
+                        using (var tempFile = await _fileSystem.OpenSafeAsync(disposableFile.Path, FileAccess.Write, FileMode.CreateNew, FileShare.None))
                         {
-                            await responseStream.WriteAsync(new PushFileResponse()
-                            {
-                                Header = ResponseHeader.Failure(startTime, "Operation cancelled by handler.")
-                            });
+                            // From the docs: On the server side, MoveNext() does not throw exceptions.
+                            // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
+                            // and the CancellationToken associated with the call will be cancelled to signal the failure.
+                            await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
                         }
 
-                        var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
-                        _tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
-                        return;
+                        if (token.IsCancellationRequested)
+                        {
+                            if (!callContext.CancellationToken.IsCancellationRequested)
+                            {
+                                await responseStream.WriteAsync(new PushFileResponse()
+                                {
+                                    Header = ResponseHeader.Failure(startTime, "Operation cancelled by handler.")
+                                });
+                            }
+
+                            var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
+                            cacheContext.Debug($"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
+                            return Unit.Void;
+                        }
+
+                        result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);
                     }
 
-                    result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);
-                }
+                    var response = result
+                        ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
+                        : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
 
-                var response = result
-                    ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
-                    : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
-
-                await responseStream.WriteAsync(response);
-            }
-            finally
-            {
-                lock (_pushesLock)
-                {
-                    _ongoingPushes.Remove(hash);
-                }
-            }
+                    await responseStream.WriteAsync(response);
+                    return Unit.Void;
+                },
+                traceErrorsOnly: true,
+                counter: Counters[GrpcContentServerCounters.HandlePushFile]);
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
@@ -881,6 +941,104 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <summary>
+        /// A helper struct for limiting the number of concurrent copy operations.
+        /// </summary>
+        private readonly struct CopyLimiter : IDisposable
+        {
+            private readonly ConcurrencyLimiter<Guid> _limiter;
+            private readonly Guid _operationId;
+
+            public bool OverTheLimit { get; }
+
+            public int CurrentCount => _limiter.Count;
+
+            public int Limit => _limiter.Limit;
+
+            public CopyLimiter(ConcurrencyLimiter<Guid> limiter, Guid operationId, bool overTheLimit)
+            {
+                _limiter = limiter;
+                _operationId = operationId;
+                OverTheLimit = overTheLimit;
+            }
+
+            public void Dispose()
+            {
+                _limiter.Remove(_operationId);
+            }
+        }
+
+        /// <summary>
+        /// A helper struct for limiting the number of concurrent push operations.
+        /// </summary>
+        private readonly struct PushCopyLimiter : IDisposable
+        {
+            private readonly ConcurrencyLimiter<ContentHash> _limiter;
+            private readonly ContentHash _contentHash;
+
+            public int CurrentCount => _limiter.Count;
+
+            public int Limit => _limiter.Limit;
+            public RejectionReason RejectionReason { get; }
+
+            public string RejectionDescription => RejectionReason switch
+            {
+                RejectionReason.Accepted => "Accepted",
+                RejectionReason.NotSupported => $"No stores implement {nameof(IPushFileHandler)}",
+                RejectionReason.CopyLimitReached => $"The max number of proactive pushes of {Limit} is reached. OngoingPushes.Count={CurrentCount}",
+                RejectionReason.OngoingCopy => $"Another request to push it is already being handled",
+                _ => string.Empty
+            };
+
+            public GrpcContentServerCounters? RejectCounter =>
+                RejectionReason switch
+                {
+                    RejectionReason.NotSupported => GrpcContentServerCounters.PushFileRejectNotSupported,
+                    RejectionReason.CopyLimitReached => GrpcContentServerCounters.PushFileRejectCopyLimitReached,
+                    RejectionReason.OngoingCopy => GrpcContentServerCounters.PushFileRejectCopyOngoingCopy,
+                    _ => null,
+                };
+
+            public PushCopyLimiter(ConcurrencyLimiter<ContentHash> limiter, ContentHash contentHash, RejectionReason rejectionReason)
+            {
+                RejectionReason = rejectionReason;
+                _limiter = limiter;
+                _contentHash = contentHash;
+            }
+
+            public static PushCopyLimiter Create(Context context, ConcurrencyLimiter<ContentHash> limiter, ContentHash hash, IPushFileHandler store)
+            {
+                var (added, overTheLimit) = limiter.TryAdd(hash, respectTheLimit: true);
+
+                if (store == null)
+                {
+                    return new PushCopyLimiter(limiter, hash, RejectionReason.NotSupported);
+                }
+
+                if (!store.CanAcceptContent(context, hash, out var rejectionReason))
+                {
+                    return new PushCopyLimiter(limiter, hash, rejectionReason);
+                }
+                
+                if (overTheLimit)
+                {
+                    return new PushCopyLimiter(limiter, hash, RejectionReason.CopyLimitReached);
+                }
+
+                if (!added)
+                {
+                    return new PushCopyLimiter(limiter, hash, RejectionReason.OngoingCopy);
+                }
+
+                return new PushCopyLimiter(limiter, hash, RejectionReason.Accepted);
+            }
+
+            public void Dispose()
+            {
+                _limiter.Remove(_contentHash);
+            }
+        }
+
+        /// <summary>
         /// Glue logic between this class and the Grpc abstract class.
         /// </summary>
         /// <remarks>
@@ -901,7 +1059,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => _contentServer.CheckFileExistsAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
-            public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);
+            public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.HandleCopyRequestAsync(request, responseStream, context);
 
             /// <inheritdoc />
             public override Task<RequestCopyFileResponse> RequestCopyFile(RequestCopyFileRequest request, ServerCallContext context) => _contentServer.RequestCopyFileAsync(request, context.CancellationToken);

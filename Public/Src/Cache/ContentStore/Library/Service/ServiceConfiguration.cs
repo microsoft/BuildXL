@@ -146,6 +146,11 @@ namespace BuildXL.Cache.ContentStore.Service
         public int? ProactivePushCountLimit { get; set; }
 
         /// <summary>
+        /// The max number of copy operations that can happen at the same time from this machine.
+        /// </summary>
+        public int? CopyRequestHandlingCountLimit { get; set; }
+
+        /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.
         /// </summary>
         [DataMember]

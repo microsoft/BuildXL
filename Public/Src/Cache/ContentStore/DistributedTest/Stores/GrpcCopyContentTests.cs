@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
@@ -38,7 +39,10 @@ namespace ContentStoreTest.Distributed.Stores
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
         private readonly Context _context;
-        private readonly GrpcCopyClientCache _clientCache;
+        private GrpcCopyClientCache _clientCache;
+
+        private int? _copyToLimit = null;
+        private int? _proactivePushCountLimit = null;
 
         public GrpcCopyContentTests(ITestOutputHelper output)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
@@ -55,6 +59,30 @@ namespace ContentStoreTest.Distributed.Stores
                     PropagateCallingMachineName = true,
                 }
             });
+        }
+
+        [Fact]
+        public async Task CopyFileAndConnectAtStartup()
+        {
+            await Task.Yield();
+
+            _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration()
+            {
+                ResourcePoolConfiguration = new BuildXL.Cache.ContentStore.Utils.ResourcePoolConfiguration()
+                {
+                    MaximumResourceCount = 1024,
+                    
+                },
+                GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
+                {
+                    PropagateCallingMachineName = true,
+                    
+                    ConnectOnStartup = true,
+                },
+                ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,
+            });
+
+            await CopyExistingFile();
         }
 
         [Fact]
@@ -82,6 +110,144 @@ namespace ContentStoreTest.Distributed.Stores
                 var copiedHash = copied.CalculateHash(DefaultHashType);
                 Assert.Equal(originalHash, copiedHash);
             });
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CopyFileRejectedIfTooMany(bool failFastIfServerBusy)
+        {
+            var failFastBandwidthConfiguration = new BandwidthConfiguration()
+            {
+                Interval = TimeSpan.FromSeconds(10),
+                RequiredBytes = 10_000_000,
+                FailFastIfServerIsBusy = failFastIfServerBusy,
+            };
+
+            int numberOfFiles = 100;
+            _copyToLimit = 1;
+
+            await RunTestCase(async (rootPath, session, client) =>
+            {
+                // Add random files to the cache.
+                var tasks = Enumerable.Range(1, numberOfFiles).Select(_ => putRandomFile()).ToList();
+                var hashes = await Task.WhenAll(tasks);
+
+                var copyTasks = hashes.Select(
+                    hash =>
+                    {
+                        var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                        return client.CopyFileAsync(
+                            new OperationContext(_context),
+                            hash,
+                            destinationPath,
+                            new CopyOptions(failFastBandwidthConfiguration));
+                    });
+
+                var results = await Task.WhenAll(copyTasks);
+
+                if (failFastIfServerBusy)
+                {
+                    // We're doing 100 simultaneous copies, at least some of them should fail, because we're not willing to wait for the response.
+                    var error = results.FirstOrDefault(r => !r.Succeeded);
+                    error.Should().NotBeNull("At least one copy operation should fail.");
+
+                    error!.ErrorMessage.Should().Contain("Copy limit of");
+                }
+                else
+                {
+                    // All operation should succeed!
+                    results.All(r => r.ShouldBeSuccess()).Should().BeTrue();
+                }
+
+                async Task<ContentHash> putRandomFile()
+                {
+                    var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                    var content = ThreadSafeRandom.GetBytes(FileSize);
+                    FileSystem.WriteAllBytes(sourcePath, content);
+
+                    // Put the random file
+                    PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                    putResult.ShouldBeSuccess();
+                    return putResult.ContentHash;
+                }
+            });
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task PushFileAsync(bool limitProactiveCopies)
+        {
+            await Task.Yield();
+
+            _proactivePushCountLimit = limitProactiveCopies ? 1 : 10000;
+            int numberOfPushes = 100;
+            await RunTestCase(async (rootPath, session, client) =>
+                              {
+                                  var input = Enumerable.Range(1, numberOfPushes)
+                                      .Select(r => ThreadSafeRandom.GetBytes(1 + 42))
+                                      .Select(data => (stream: new MemoryStream(data), hash: ContentHashers.Get(HashType.Vso0).GetContentHash(data)))
+                                      .ToList();
+
+                                  var pushTasks = input.Select(
+                                      tpl =>
+                                          client.PushFileAsync(
+                                              new OperationContext(_context),
+                                              tpl.hash,
+                                              tpl.stream,
+                                              new CopyOptions(bandwidthConfiguration: null))).ToList();
+
+                                  var results = await Task.WhenAll(pushTasks);
+
+                                  if (limitProactiveCopies)
+                                  {
+                                      // We're doing 100 simultaneous copies, at least some of them should fail, because we're not willing to wait for the response.
+                                      var error = results.FirstOrDefault(r => !r.Succeeded);
+                                      error.Should().NotBeNull("At least one copy operation should fail.");
+
+                                      error!.ErrorMessage.Should().Contain("CopyLimitReached");
+                                  }
+                                  else
+                                  {
+                                      // All operation should succeed!
+                                      results.All(r => r.ShouldBeSuccess().Succeeded).Should().BeTrue();
+                                  }
+                              });
+        }
+
+        [Fact]
+        public async Task PushIsRejectedForTheSameHash()
+        {
+            await Task.Yield();
+
+            int numberOfPushes = 100;
+            await RunTestCase(async (rootPath, session, client) =>
+                              {
+                                  var bytes = ThreadSafeRandom.GetBytes(1 + 42);
+                                  var input = Enumerable.Range(1, numberOfPushes)
+                                      .Select(data => (stream: new MemoryStream(bytes), hash: ContentHashers.Get(HashType.Vso0).GetContentHash(bytes)))
+                                      .ToList();
+
+                                  var pushTasks = input.Select(
+                                      tpl =>
+                                          client.PushFileAsync(
+                                              new OperationContext(_context),
+                                              tpl.hash,
+                                              tpl.stream,
+                                              new CopyOptions(bandwidthConfiguration: null))).ToList();
+
+                                  var results = await Task.WhenAll(pushTasks);
+
+                                  results.Any(r => r.Status == CopyResultCode.Rejected_OngoingCopy).Should().BeTrue();
+
+                                  var result = await client.PushFileAsync(
+                                      new OperationContext(_context),
+                                      input[0].hash,
+                                      input[0].stream,
+                                      new CopyOptions(bandwidthConfiguration: null));
+                                  result.Status.Should().Be(CopyResultCode.Rejected_ContentAvailableLocally);
+                              });
         }
 
         [Fact]
@@ -160,7 +326,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
 
                 Assert.False(copyFileResult.Succeeded);
-                Assert.Equal(CopyResultCode.FileNotFoundError, copyFileResult.Code);
+                copyFileResult.Code.Should().Be(CopyResultCode.FileNotFoundError, copyFileResult.ToString());
             });
         }
 
@@ -194,6 +360,7 @@ namespace ContentStoreTest.Distributed.Stores
         private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)
         {
             var cacheName = testName + "_cache";
+            testName += Guid.NewGuid(); // Using a guid to disambiguate scenario name.
 
             using (var directory = new DisposableDirectory(FileSystem))
             {
@@ -203,12 +370,12 @@ namespace ContentStoreTest.Distributed.Stores
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
                 var configuration = new ServiceConfiguration(
-                    namedCacheRoots,
-                    rootPath,
-                    42,
-                    ServiceConfiguration.DefaultGracefulShutdownSeconds,
-                    grpcPort,
-                    grpcPortFileName);
+                                        namedCacheRoots,
+                                        rootPath,
+                                        42,
+                                        ServiceConfiguration.DefaultGracefulShutdownSeconds,
+                                        grpcPort,
+                                        grpcPortFileName) {CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit};
 
                 var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>
@@ -224,7 +391,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var createSessionResult = await server.CreateSessionAsync(new OperationContext(_context), testName, cacheName, ImplicitPin.PutAndGet, Capabilities.ContentOnly);
                 createSessionResult.ShouldBeSuccess();
 
-                (int sessionId, AbsolutePath tempDir) = createSessionResult.Value;
+                (int sessionId, _) = createSessionResult.Value;
                 var session = server.GetSession(sessionId);
 
                 // Create a GRPC client to connect to the server

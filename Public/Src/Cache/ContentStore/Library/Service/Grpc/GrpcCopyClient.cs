@@ -253,7 +253,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                               HashType = (int)hash.HashType,
                                               ContentHash = hash.ToByteString(),
                                               Offset = 0,
-                                              Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None
+                                              Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None,
+                                              FailFastIfBusy = options.BandwidthConfiguration?.FailFastIfServerIsBusy ?? false,
                                           };
 
                 using AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, options: GetDefaultGrpcOptions(token));

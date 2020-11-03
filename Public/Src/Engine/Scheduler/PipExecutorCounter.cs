@@ -530,10 +530,28 @@ namespace BuildXL.Scheduler
         FileContentManagerDeleteDirectoriesPathParsingDuration,
 
         /// <summary>
-        /// The amount of time FileContentManager spent materializing content (excluding pinning content)
+        /// The amount of time FileContentManager spent materializing output content
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        FileContentManagerPlaceFilesDuration,
+        FileContentManagerPlaceFilesOutputsDuration,
+
+        /// <summary>
+        /// The amount of time FileContentManager spent materializing input content
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerPlaceFilesInputsDuration,
+
+        /// <summary>
+        /// The amount of time FileContentManager spent materializing Api Server content
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerPlaceFilesApiServerDuration,
+
+        /// <summary>
+        /// The amount of time FileContentManager spent materializing files when verifying pin operations
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerPlaceFilesVerifiedPinDuration,
 
         /// <summary>
         /// The time pips spent in the running state

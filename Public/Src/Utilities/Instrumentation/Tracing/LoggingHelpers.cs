@@ -33,6 +33,9 @@ namespace BuildXL.Tracing
                 int processMaximumHeldMegaBytess = ConvertToInt(aggregator.ProcessHeldMB.Maximum);
                 int processAverageCPUTime = ConvertToInt(aggregator.ProcessCpu.Average);
                 int machineAverageCPUTime = ConvertToInt(aggregator.MachineCpu.Average);
+                int machineAverageCPUWMITime = ConvertToInt(aggregator.MachineCpuWMI.Average);
+                int jobObjectAverageCPUTime = ConvertToInt(aggregator.JobObjectCpu.Average);
+
                 int machineMinimumAvailableMemoryMegabytes = ConvertToInt(aggregator.MachineAvailablePhysicalMB.Minimum);
 
                 Dictionary<string, long> dict = new Dictionary<string, long>(8 + aggregator.DiskStats.Count);
@@ -47,6 +50,9 @@ namespace BuildXL.Tracing
 
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageCPUTime), processAverageCPUTime);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_MachineAverageCPUTime), machineAverageCPUTime);
+                dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_MachineAverageCPUWMITime), machineAverageCPUWMITime);
+                dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_JobObjectAverageCPUTime), jobObjectAverageCPUTime);
+
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_MachineMinimumAvailableMemoryMB), machineMinimumAvailableMemoryMegabytes);
 
                 if (duration != null)

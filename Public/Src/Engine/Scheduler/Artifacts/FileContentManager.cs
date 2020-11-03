@@ -661,7 +661,7 @@ namespace BuildXL.Scheduler.Artifacts
                             reparsePointTarget: AbsolutePath.Invalid);
                     }
 
-                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state);
                     return placeResult == PlaceFile.Success;
                 }
             }
@@ -2005,45 +2005,46 @@ namespace BuildXL.Scheduler.Artifacts
         private async Task<PlaceFile> PlaceFilesAsync(
             OperationContext operationContext,
             PipInfo pipInfo,
-            PipArtifactsState state,
-            bool materialize = true)
+            PipArtifactsState state)
         {
             bool success = true;
             bool userError = false;
 
-            if (state.MaterializationFiles.Count != 0)
+            var counter =
+              state.VerifyMaterializationOnly ? PipExecutorCounter.FileContentManagerPlaceFilesVerifiedPinDuration : (
+              state.IsApiServerRequest ? PipExecutorCounter.FileContentManagerPlaceFilesApiServerDuration : (
+              state.MaterializingOutputs ? PipExecutorCounter.FileContentManagerPlaceFilesOutputsDuration :
+              PipExecutorCounter.FileContentManagerPlaceFilesInputsDuration));
+
+            using (operationContext.StartOperation(counter))
             {
-                var pathTable = Context.PathTable;
-
-                // Remove the completed materializations (this is mainly to remove source file 'materializations') which
-                // may have already completed if running in the mode where source files are assumed to be materialized prior to the
-                // start of the build on a distributed worker
-                state.RemoveCompletedMaterializations();
-
-                success &= await TryLoadAvailableContentAsync(
-                    operationContext,
-                    pipInfo,
-                    state);
-
-                if (!success && state.InnerFailure is FailToDeleteForMaterializationFailure)
+                if (state.MaterializationFiles.Count != 0)
                 {
-                    userError = true;
-                }
+                    var pathTable = Context.PathTable;
 
-                if (!materialize)
-                {
-                    return success ? PlaceFile.Success : (userError ? PlaceFile.UserError : PlaceFile.InternalError);
-                }
+                    // Remove the completed materializations (this is mainly to remove source file 'materializations') which
+                    // may have already completed if running in the mode where source files are assumed to be materialized prior to the
+                    // start of the build on a distributed worker
+                    state.RemoveCompletedMaterializations();
 
-                // Remove the failures
-                // After calling TryLoadAvailableContentAsync some files may be marked completed (as failures)
-                // we need to remove them so we don't try to place them
-                state.RemoveCompletedMaterializations();
+                    success &= await TryLoadAvailableContentAsync(
+                        operationContext,
+                        pipInfo,
+                        state);
 
-                // Maybe we didn't manage to fetch all of the remote content. However, for the content that was fetched,
-                // we still are mandated to finish materializing if possible and eventually complete the materialization task.
-                using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerPlaceFilesDuration))
-                {
+                    if (!success && state.InnerFailure is FailToDeleteForMaterializationFailure)
+                    {
+                        userError = true;
+                    }
+
+                    // Remove the failures
+                    // After calling TryLoadAvailableContentAsync some files may be marked completed (as failures)
+                    // we need to remove them so we don't try to place them
+                    state.RemoveCompletedMaterializations();
+
+                    // Maybe we didn't manage to fetch all of the remote content. However, for the content that was fetched,
+                    // we still are mandated to finish materializing if possible and eventually complete the materialization task.
+
                     for (int i = 0; i < state.MaterializationFiles.Count; i++)
                     {
                         MaterializationFile materializationFile = state.MaterializationFiles[i];
@@ -2077,8 +2078,8 @@ namespace BuildXL.Scheduler.Artifacts
                                 }
                                 else
                                 {
-                                    // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
-                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
+                                // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
+                                if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
                                         possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
                                     {
                                         Logger.Log.StorageCacheGetContentWarning(
@@ -2096,18 +2097,16 @@ namespace BuildXL.Scheduler.Artifacts
                                         userError = true;
                                     }
 
-                                    // Latch overall success (across all placements) to false.
-                                    success = false;
+                                // Latch overall success (across all placements) to false.
+                                success = false;
                                 }
                             }));
                     }
                     await Task.WhenAll(state.PlacementTasks);
-                }
-            }
 
-            // Wait on any placements for files already in progress by other pips
-            using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerPlaceFilesDuration))
-            {
+                }
+
+                // Wait on any placements for files already in progress by other pips
                 state.PlacementTasks.Clear();
                 foreach (var pendingPlacementTask in state.PendingPlacementTasks)
                 {

@@ -4438,7 +4438,7 @@ namespace BuildXL.Scheduler
 
                 bool successfullyProcessedOutputs = true;
 
-                SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(Environment.ProcessorCount);
+                SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(EngineEnvironmentSettings.StoringOutputsToCacheConcurrency);
                 foreach (var output in allOutputs)
                 {
                     var outputData = allOutputData[output.Path];

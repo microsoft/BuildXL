@@ -48,6 +48,8 @@ namespace BuildXL.Scheduler
 
         internal TimeSpan CacheMissAnalysisDuration { get; private set; }
 
+        internal TimeSpan ExeDuration { get; set; }
+
         internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
 
         internal bool IsExecuted { get; private set; }

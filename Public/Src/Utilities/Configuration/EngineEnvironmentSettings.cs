@@ -202,6 +202,13 @@ namespace BuildXL.Utilities.Configuration
             value => ParseInt32(value) ?? Environment.ProcessorCount);
 
         /// <summary>
+        /// The amount of concurrency to allow for storing outputs
+        /// </summary>
+        public static readonly Setting<int> StoringOutputsToCacheConcurrency = CreateSetting(
+            "BuildXL.StoringOutputsToCacheConcurrency",
+            value => ParseInt32(value) ?? Environment.ProcessorCount);
+
+        /// <summary>
         /// The amount of concurrency to allow for hashing files
         /// </summary>
         public static readonly Setting<int> HashingConcurrency = CreateSetting(

@@ -5559,6 +5559,11 @@ namespace BuildXL.Scheduler
                     {
                         stringBuilder.AppendLine(I($"\t\t  {"RetryCount",-88}: {performanceInfo.RetryCount,10}"));
                     }
+
+                    if (performanceInfo.ExeDuration.TotalMilliseconds != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"ExeDurationMs",-88}: {performanceInfo.ExeDuration.TotalMilliseconds,10}"));
+                    }
                 }
 
                 if (stepDuration != 0 && step == PipExecutionStep.MaterializeOutputs)
@@ -5648,6 +5653,7 @@ namespace BuildXL.Scheduler
                 processPerf != null)
             {
                 HistoricPerfDataTable[pip.SemiStableHash] = new ProcessPipHistoricPerfData(processPerf);
+                runnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
             }
 
             if (ExecutionLog != null && performance != null)

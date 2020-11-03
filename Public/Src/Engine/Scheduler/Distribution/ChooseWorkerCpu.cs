@@ -64,7 +64,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// The number of choose worker iterations
         /// </summary>
-        public int ChooseIterations { get; private set; }
+        public ulong ChooseIterations { get; private set; }
 
         /// <summary>
         /// The total time spent choosing a worker
@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private readonly ContentTrackingSet m_executedProcessOutputs;
 
-        protected readonly Dictionary<WorkerResource, BoxRef<int>> m_limitingResourceCounts = new Dictionary<WorkerResource, BoxRef<int>>();
+        protected readonly Dictionary<WorkerResource, BoxRef<ulong>> m_limitingResourceCounts = new Dictionary<WorkerResource, BoxRef<ulong>>();
 
         private int m_totalAcquiredProcessSlots;
 
@@ -185,7 +185,7 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         m_lastIterationBlockedPip = runnablePip;
                         LastBlockedPip = runnablePip;
-                        var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<int>());
+                        var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<ulong>());
                         limitingResourceCount.Value++;
                     }
                     else

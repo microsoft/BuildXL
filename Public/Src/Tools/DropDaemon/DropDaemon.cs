@@ -53,7 +53,9 @@ namespace Tool.DropDaemon
 
         internal static readonly List<Option> DropConfigOptions = new List<Option>();
 
-        private const string DropBuildManifestPath = "/_manifest/manifest.json"; // This folder is placed directly under the drop root
+        // Files associated with Build Manifest SBOMs are stored inside '_manifest' folder, placed directly under the drop root.
+        private const string DropBuildManifestPath = "/_manifest/manifest.json";
+        private const string DropBsiPath = "/_manifest/bsi.json";
 
         /// <summary>Drop configuration.</summary>
         public DropConfig DropConfig { get; }
@@ -197,6 +199,14 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
+        internal static readonly StrOption BsiFileLocation = RegisterDropConfigOption(new StrOption("bsiFileLocation")
+        {
+            ShortName = "bsi",
+            HelpText = "Represents the BuildSessionInfo: bsi.json file path.",
+            IsRequired = false,
+            DefaultValue = string.Empty,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -325,10 +335,17 @@ namespace Tool.DropDaemon
 
                 if (daemon.DropConfig.EnableBuildManifestCreation)
                 {
+                    var bsiResult = await UploadBsiFileAsync(daemon);
+                    if (!bsiResult.Succeeded)
+                    {
+                        daemon.Logger.Error($"[FINALIZE] Failure occured during BuildSessionInfo (bsi) upload: {bsiResult.Payload}");
+                        return bsiResult;
+                    }
+
                     var buildManifestResult = await GenerateAndUploadBuildManifestFileAsync(daemon);
                     if (!buildManifestResult.Succeeded)
                     {
-                        daemon.Logger.Info($"[FINALIZE] Failure occured during Build Manifest upload: {buildManifestResult.Payload}");
+                        daemon.Logger.Error($"[FINALIZE] Failure occured during Build Manifest upload: {buildManifestResult.Payload}");
                         return buildManifestResult;
                     }
                 }
@@ -446,6 +463,11 @@ namespace Tool.DropDaemon
                     missingFields.Add("cloudBuildId");
                 }
 
+                if (string.IsNullOrEmpty(dropConfig.BsiFileLocation))
+                {
+                    missingFields.Add("BsiFileLocation");
+                }
+
                 if (missingFields.Count != 0)
                 {
                     conf.Logger.Error($"EnableBuildManifestCreation set to true, but the following required fields are missing: {string.Join(", ", missingFields)}");
@@ -505,6 +527,23 @@ namespace Tool.DropDaemon
                 AddFileResult result = await dropClient.AddFileAsync(dropItem);
                 return IpcResult.Success(I($"File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{DropName}'."));
             });
+        }
+
+        /// <summary>
+        /// Uploads the bsi.json for the given drop.
+        /// Should be called only when DropConfig.EnableBuildManifestCreation is true.
+        /// </summary>
+        public async static Task<IIpcResult> UploadBsiFileAsync(DropDaemon daemon)
+        {
+            Contract.Requires(daemon.DropConfig.EnableBuildManifestCreation == true, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
+
+            if (!System.IO.File.Exists(daemon.DropConfig.BsiFileLocation))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{daemon.DropConfig.BsiFileLocation}'");
+            }
+
+            var bsiDropItem = new DropItemForFile(daemon.DropConfig.BsiFileLocation, relativeDropPath: DropBsiPath);
+            return await daemon.AddFileAsync(bsiDropItem);
         }
 
         /// <summary>
@@ -839,7 +878,8 @@ namespace Tool.DropDaemon
                 repo: conf.Get(Repo),
                 branch: conf.Get(Branch),
                 commitId: conf.Get(CommitId),
-                cloudBuildId: conf.Get(CloudBuildId));
+                cloudBuildId: conf.Get(CloudBuildId),
+                bsiFileLocation: conf.Get(BsiFileLocation));
         }
 
         private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);

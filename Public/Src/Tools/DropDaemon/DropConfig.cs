@@ -101,6 +101,11 @@ namespace Tool.DropDaemon
         ///     Represents the RelativeActivityId specific to the cloud build environment
         /// </summary>
         public string CloudBuildId { get; }
+
+        /// <summary>
+        ///     Represents the BuildSessionInfo: bsi.json file path.
+        /// </summary>
+        public string BsiFileLocation { get; }
         #endregion
 
         #region Defaults
@@ -158,7 +163,8 @@ namespace Tool.DropDaemon
             string repo = null,
             string branch = null,
             string commitId = null,
-            string cloudBuildId = null)
+            string cloudBuildId = null,
+            string bsiFileLocation = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -177,6 +183,7 @@ namespace Tool.DropDaemon
             Branch = branch ?? string.Empty;
             CommitId = commitId ?? string.Empty;
             CloudBuildId = cloudBuildId ?? string.Empty;
+            BsiFileLocation = bsiFileLocation ?? string.Empty;
         }
     }
 }

@@ -7012,6 +7012,61 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDetoursResolvedPathPreservingLastSegmentCacheTests()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var directory = tempFiles.GetDirectory(pathTable, "Directory");
+                var symlinkSource = directory.Combine(pathTable, "FileSymlink");
+                var symlinkTarget = directory.Combine(pathTable, "Target");
+
+                File.WriteAllText(symlinkTarget.ToString(pathTable), "content");
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkSource.ToString(pathTable), symlinkTarget.ToString(pathTable), true));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDetoursResolvedPathPreservingLastSegmentCacheTests",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(symlinkSource), FileArtifact.CreateSourceFile(symlinkTarget) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var directlyReportedFileAccesses = new List<ReportedFileAccess>();
+                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
+                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false,
+                    detoursListener: accumulator);
+
+                VerifyNormalSuccess(context, result);
+
+                // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results
+                // Assert we got two accesses that where cached, one for the operation that preserves the last reparse point and another for the operation that doesn't
+                XAssert.IsTrue(directlyReportedFileAccesses.Any(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached && report.Path != null && AbsolutePath.Create(pathTable, report.Path) == symlinkSource));
+                XAssert.IsTrue(directlyReportedFileAccesses.Any(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached && report.Path != null && AbsolutePath.Create(pathTable, report.Path) == symlinkTarget));
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public async Task CallDetoursValidateResolvedReparsePointAccesses()
         {
             var context = BuildXLContext.CreateInstanceForTesting();

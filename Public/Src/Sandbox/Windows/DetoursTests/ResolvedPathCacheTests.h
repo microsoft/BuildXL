@@ -4,3 +4,4 @@
 #pragma once
 
 int ValidateResolvedPathCache();
+int ValidateResolvedPathPreservingLastSegmentCache();

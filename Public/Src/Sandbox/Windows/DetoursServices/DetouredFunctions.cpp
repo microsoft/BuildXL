@@ -1113,7 +1113,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         bool isFilteredPath = !preserveLastReparsePointInPath && (PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true));
         if (result && !isFilteredPath)
         {
-            // The last part is a reparse point, rsolve it and repeat the resolving, re-running the outer while loop
+            // The last part is a reparse point, resolve it and repeat the resolving, re-running the outer while loop
             // is ok as each resolving step is cached from previous resolution steps
             order.push_back(resolved);
             resolvedPaths.emplace(resolved, ResolvedPathType::Intermediate);
@@ -1190,7 +1190,11 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         break;
     }
 
-    ResolvedPathCache::Instance().InsertResolvedPaths(path.GetPathStringWithoutTypePrefix(), std::move(order), std::move(resolvedPaths));
+    ResolvedPathCache::Instance().InsertResolvedPaths(
+        path.GetPathStringWithoutTypePrefix(), 
+        preserveLastReparsePointInPath, 
+        std::move(order), 
+        std::move(resolvedPaths));
     return success;
 }
 
@@ -1222,7 +1226,9 @@ static bool EnforceChainOfReparsePointAccesses(
     }
 
     bool cached = true;
-    const ResolvedPathCacheEntries* cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(path.GetPathStringWithoutTypePrefix());
+    const ResolvedPathCacheEntries* cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(
+        path.GetPathStringWithoutTypePrefix(),
+        preserveLastReparsePoint);
 
     if (cachedEntries == nullptr)
     {
@@ -1232,8 +1238,14 @@ static bool EnforceChainOfReparsePointAccesses(
             auto paths = map<wstring, ResolvedPathType>();
 
             DetourGetFinalPaths(path, reparsePointHandle, order, paths);
-            ResolvedPathCache::Instance().InsertResolvedPaths(path.GetPathStringWithoutTypePrefix(), std::move(order), std::move(paths));
-            cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(path.GetPathStringWithoutTypePrefix());
+            ResolvedPathCache::Instance().InsertResolvedPaths(
+                path.GetPathStringWithoutTypePrefix(), 
+                preserveLastReparsePoint,
+                std::move(order), 
+                std::move(paths));
+            cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(
+                path.GetPathStringWithoutTypePrefix(),
+                preserveLastReparsePoint);
             cached = false;
         }
         else
@@ -5570,7 +5582,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
             PolicyResult directoryPolicyResult = overlay->Policy;
             FileOperationContext fileOperationContext = FileOperationContext::CreateForRead(L"NtQueryDirectoryFile", directoryName);
 
-            if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, FileInformationClass == FileReparsePointInformation))
+            if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, false))
             {
                 return DETOURS_STATUS_ACCESS_DENIED;
             }
@@ -5698,7 +5710,7 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
             PolicyResult directoryPolicyResult = overlay->Policy;
             FileOperationContext fileOperationContext = FileOperationContext::CreateForRead(L"ZwQueryDirectoryFile", directoryName);
 
-            if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, FileInformationClass == FileReparsePointInformation))
+            if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, false))
             {
                 return DETOURS_STATUS_ACCESS_DENIED;
             }

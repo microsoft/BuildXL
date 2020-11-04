@@ -41,15 +41,15 @@ public:
         return Find(m_targetCache, path);
     }
 
-    inline bool InsertResolvedPaths(const std::wstring& path, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType>&& resolved_paths)
+    inline bool InsertResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType>&& resolved_paths)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
-        return m_paths.emplace(path, std::make_pair(insertion_order, resolved_paths)).second;
+        return m_paths.emplace(std::make_pair(path, preserveLastReparsePointInPath), std::make_pair(insertion_order, resolved_paths)).second;
     }
 
-    inline const ResolvedPathCacheEntries* GetResolvedPaths(const std::wstring& path)
+    inline const ResolvedPathCacheEntries* GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
     {
-        return Find(m_paths, path);
+        return Find(m_paths, std::make_pair(path, preserveLastReparsePointInPath));
     }
 
     void Invalidate(const std::wstring& path)
@@ -59,7 +59,10 @@ public:
         m_resolverCache.erase(path);
         m_targetCache.erase(path);
 
-        m_paths.erase(path);
+        // Let's make sure we invalidate the cache for both preserveLastReparsePoint options
+        m_paths.erase(std::make_pair(path, true));
+        m_paths.erase(std::make_pair(path, false));
+
         for (auto it = m_paths.begin(), it_next = it; it != m_paths.end(); it = it_next)
         {
             ++it_next;
@@ -84,7 +87,7 @@ public:
 
 private:
     template<typename K, typename V>
-    const V* Find(const std::map<K, V>& map, const std::wstring& path)
+    const V* Find(const std::map<K, V>& map, const K& path)
     {
         ResolvedPathCacheReadLock r_lock(m_lock);
 
@@ -105,6 +108,7 @@ private:
     // A mapping used to cache DeviceControl calls when querying targets of reparse points, used to avoid unnecessary I/O
     std::map<std::wstring, std::pair<std::wstring, DWORD>> m_targetCache;
 
-    // A mapping used to cache all intermediate paths and the final fully resolved path (value) of an unresolved base path (key)
-    std::map<std::wstring, ResolvedPathCacheEntries> m_paths;
+    // A mapping used to cache all intermediate paths and the final fully resolved path (value) of an unresolved base 
+    // path where its last segment has to be resolved or not(key)
+    std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries> m_paths;
 };

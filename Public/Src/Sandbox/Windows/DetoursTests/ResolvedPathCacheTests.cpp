@@ -107,3 +107,48 @@ int ValidateResolvedPathCache()
     CloseHandle(hFile);
     return 0;
 }
+
+// Tests the resolved path cache works as expected when the same path has to be resolved with and without preserving
+// its last reparse point segment
+int ValidateResolvedPathPreservingLastSegmentCache()
+{
+    // GetFileAttributes preserves the last reparse point
+    GetFileAttributes(L"Directory\\FileSymlink");
+
+    // Read the symlink. This operation does not preserve the last reparse point
+    HANDLE hFile = CreateFileW(
+        L"Directory\\FileSymlink",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    // Repeat the steps above, so we exercize the cache
+    GetFileAttributes(L"Directory\\FileSymlink");
+    hFile = CreateFileW(
+        L"Directory\\FileSymlink",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return 0;
+}

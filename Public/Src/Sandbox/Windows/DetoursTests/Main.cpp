@@ -1082,6 +1082,11 @@ int CallDetoursResolvedPathCacheTests()
     return ValidateResolvedPathCache();
 }
 
+int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
+{
+    return ValidateResolvedPathPreservingLastSegmentCache();
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1124,6 +1129,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteOnOpenedHardlink);
     IF_COMMAND(CallCreateSelfForWrite);
     IF_COMMAND(CallDetoursResolvedPathCacheTests);
+    IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

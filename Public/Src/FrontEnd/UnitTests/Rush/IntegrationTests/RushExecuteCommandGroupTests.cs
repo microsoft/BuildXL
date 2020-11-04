@@ -10,7 +10,7 @@ using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
-    [Trait("Category", "RushCustomCommandsTests")]
+    [Trait("Category", "RushExecuteCommandGroupTests")]
     public class RushExecuteCommandGroupTests : RushIntegrationTestBase
     {
         public RushExecuteCommandGroupTests(ITestOutputHelper output)

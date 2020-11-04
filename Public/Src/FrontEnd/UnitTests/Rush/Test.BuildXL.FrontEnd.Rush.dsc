@@ -36,6 +36,7 @@ namespace Test.Rush {
                  "BxlRushConfigurationTests",
                  "RushCustomCommandsTests",
                  "RushExecuteTests",
+                 "RushExecuteCommandGroupTests",
                  "RushExportsTests",
                  "RushIntegrationTests",
                  "RushLibLocationTests",

@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "outDir": "lib",
+
+        "target": "ES2017",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "lib": ["ES2017"],
+        "sourceMap": true,
+        "declaration": true,
+        "strict": true,
+        "preserveConstEnums": true,
+        "noUnusedLocals": true,
+        "noImplicitReturns": true,
+        "noImplicitAny": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+    },
+    "include": ["src"],
+  }

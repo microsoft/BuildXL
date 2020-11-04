@@ -124,6 +124,7 @@ echo ###########################################################################
 echo.
 
 REM Ensure that the replicated output fail is replicated in all workers and its content is "FAIL"
+cd %TEST_SOLUTION_ROOT%
 for /f "delims=" %%a in ('findstr /SPC:FAIL %OUTPUT_FILENAME_FOR_REPLICATION% ^| find /v /c ""') do set "numOfReplicatedFiles=%%a"
 if %numOfReplicatedFiles% NEQ 3 (
     echo.

@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201030.5 (Release [84823](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84823)) Released 11/04/2020
+-	[JavaScript] Support grouping script commands into a single pip
+-	Handle duplicate file registration with different content in drop
+-	Build manifest uploads from master to drop
+-	Extra telemetry
+-	Various bug fixes
+
 # 0.1.0-20201023.7.4 (Release [84361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84361)) Released 10/28/2020
 - Expose a DScript flag to control full reparse point resolving
 - Detours Reparse Point Resolver Improvements

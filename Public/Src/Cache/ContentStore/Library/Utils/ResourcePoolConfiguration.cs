@@ -35,16 +35,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <remarks>
         /// Used only in <see cref="ResourcePool{TKey, TObject}"/>
         /// </remarks>
-        public bool EnableInstanceInvalidation { get; set; } = false;
+        public bool EnableInstanceInvalidation { get; set; }
 
         /// <nodoc />
         public static ResourcePoolConfiguration FromDistributedContentSettings(DistributedContentSettings dcs)
         {
             var resourcePoolConfiguration = new ResourcePoolConfiguration();
 
-            ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);
             ApplyIfNotNull(dcs.MaxGrpcClientAgeMinutes, v => resourcePoolConfiguration.MaximumAge = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(dcs.MaxGrpcClientCount, v => resourcePoolConfiguration.MaximumResourceCount = v);
             ApplyIfNotNull(dcs.GrpcCopyClientCacheGarbageCollectionPeriodMinutes, v => resourcePoolConfiguration.GarbageCollectionPeriod = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(dcs.GrpcCopyClientCacheEnableInstanceInvalidation, v => resourcePoolConfiguration.EnableInstanceInvalidation = v);
 
             return resourcePoolConfiguration;
         }

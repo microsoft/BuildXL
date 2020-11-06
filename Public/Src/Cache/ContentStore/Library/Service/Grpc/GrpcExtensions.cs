@@ -11,6 +11,8 @@ using Google.Protobuf;
 using Grpc.Core;
 using System.Diagnostics.ContractsLight;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
@@ -48,17 +50,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        public static async Task<(long Chunks, long Bytes)> CopyChunksToStreamAsync<T>(
+        public static async Task<(long totalChunkCount, long totalBytes)> CopyChunksToStreamAsync<T>(
             IAsyncStreamReader<T> input,
             Stream output,
             Func<T, ByteString> transform,
             Action<long>? progressReport = null,
             CancellationToken cancellationToken = default)
         {
-            Contract.Requires(input != null);
-            Contract.Requires(output != null);
-            Contract.Requires(transform != null);
-
             long totalChunksRead = 0L;
             long totalBytesRead = 0L;
 
@@ -80,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        public static async Task<(long Chunks, long Bytes)> CopyStreamToChunksAsync<T>(
+        public static async Task<(long totalChunkCount, long totalBytes)> CopyStreamToChunksAsync<T>(
             Stream input,
             IAsyncStreamWriter<T> output,
             Func<ByteString, long, T> transform,
@@ -89,12 +87,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Action<long>? progressReport = null,
             CancellationToken cancellationToken = default)
         {
-            Contract.Requires(input != null);
-            Contract.Requires(output != null);
-            Contract.Requires(transform != null);
-            Contract.Requires(primaryBuffer != null);
-            Contract.Requires(secondaryBuffer != null);
-
             long totalChunksRead = 0L;
             long totalBytesRead = 0L;
 
@@ -161,9 +153,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public static async Task WriteByteStringAsync(this Stream stream, ByteString byteString, CancellationToken cancellationToken = default)
         {
-            Contract.Requires(stream != null);
-            Contract.Requires(byteString != null);
-
             // Support for using Span in Stream's WriteAsync started in .NET Core 3.0 and .NET Standard 2.1. Since we
             // may run in older runtimes, we fallback into using the unsafe bytes extraction technique, whereby we
             // fetch the inner byte[] inside of the ByteString and write using that directly.

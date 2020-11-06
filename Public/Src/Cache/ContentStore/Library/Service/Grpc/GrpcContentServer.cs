@@ -29,6 +29,7 @@ using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 #nullable enable
 
@@ -418,13 +419,31 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                     byte[] buffer = arrayHandle.Value;
                     byte[] secondaryBuffer = arraySecondaryHandle.Value;
-                    await operationContext.PerformOperationAsync(
+                    (await operationContext.PerformOperationAsync(
                             _tracer,
                             () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(callContext)}], ReadTime=[{GetFileIODuration(result.Stream)}].",
+                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(callContext)}], ReadTime=[{getFileIoDurationAsString()}].",
                             counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration])
+                        ).Then((r, duration) => trackMetrics(r.totalChunksCount, r.totalBytes, duration))
                         .IgnoreFailure(); // The error was already logged.
+
+                    BoolResult trackMetrics(long totalChunksCount, long totalBytes, TimeSpan duration)
+                    {
+                        Tracer.TrackMetric(operationContext, "HandleCopyFile_TotalChunksCount", totalChunksCount);
+                        Tracer.TrackMetric(operationContext, "HandleCopyFile_TotalBytes", totalBytes);
+                        Tracer.TrackMetric(operationContext, "HandleCopyFile_StreamDurationMs", (long)duration.TotalMilliseconds);
+                        Tracer.TrackMetric(operationContext, "HandleCopyFile_OpenStreamDurationMs", result.DurationMs);
+
+                        ApplyIfNotNull(GetFileIODuration(result.Stream), d => Tracer.TrackMetric(operationContext, "HandleCopyFile_FileIoDurationMs", (long)d.TotalMilliseconds));
+                        return BoolResult.Success;
+                    }
+
+                    string getFileIoDurationAsString()
+                    {
+                        var duration = GetFileIODuration(result.Stream);
+                        return duration != null ? $"{(long)duration.Value.TotalMilliseconds}ms" : string.Empty;
+                    }
                 }
             }
         }
@@ -439,15 +458,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return context.Host;
         }
 
-        private string GetFileIODuration(Stream? resultStream)
+        private TimeSpan? GetFileIODuration(Stream? resultStream)
         {
             if (resultStream is TrackingFileStream tfs)
             {
                 Counters.AddToCounter(GrpcContentServerCounters.StreamContentReadFromDiskDuration, tfs.ReadDuration);
-                return $"{tfs.ReadDuration.TotalMilliseconds}ms";
+                return tfs.ReadDuration;
             }
 
-            return string.Empty;
+            return null;
         }
 
         /// <summary>
@@ -589,9 +608,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 counter: Counters[GrpcContentServerCounters.HandlePushFile]);
         }
 
-        private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
+        private delegate Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentDelegate(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
 
-        private async Task<Result<(long Chunks, long Bytes)>> StreamContentAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
+        private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
             return await GrpcExtensions.CopyStreamToChunksAsync(input, responseStream, (content, chunks) => new CopyFileResponse()
             {
@@ -600,7 +619,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }, buffer, secondaryBuffer, cancellationToken: ct);
         }
 
-        private async Task<Result<(long Chunks, long Bytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
+        private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
             long bytes = 0L;
             long chunks = 0L;

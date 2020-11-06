@@ -96,6 +96,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             return new ErrorResult(result).AsResult<TResult>();
         }
 
+        /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
+        public static TResult Then<T, TResult>(this Result<T> result, Func<T, TimeSpan, TResult> selector)
+            where TResult : ResultBase
+        {
+            if (result.Succeeded)
+            {
+                return selector(result.Value!, result.Duration);
+            }
+
+            return new ErrorResult(result).AsResult<TResult>();
+        }
+
         /// <nodoc />
         public static void Match<T>(this Result<T> result, Action<T> successAction, Action<Result<T>> failureAction)
         {

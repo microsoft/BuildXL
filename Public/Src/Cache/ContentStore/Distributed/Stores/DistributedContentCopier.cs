@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -18,7 +17,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -28,6 +26,8 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Stores.DistributedContentStoreSettings;
+using static BuildXL.Utilities.ConfigurationHelper;
+
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -96,7 +96,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             try
             {
-
                 PutResult? putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
@@ -432,10 +431,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             caller: "RemoteCopyFile",
                             counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]);
 
-                        if (copyFileResult.TimeSpentHashing.HasValue)
-                        {
-                            Tracer.TrackMetric(context, "CopyHashingTimeMs", (long)copyFileResult.TimeSpentHashing.Value.TotalMilliseconds);
-                        }
+                        TrackCopyFileResultMetrics(context, copyFileResult, ioGateWait, attemptCount);
                     }
                     catch (Exception e) when (e is OperationCanceledException)
                     {
@@ -572,6 +568,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             return (new PutResult(hashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), retry: true);
+        }
+
+        private void TrackCopyFileResultMetrics(Context context, CopyFileResult result, double ioGateWait, int attemptCount)
+        {
+            Tracer.TrackMetric(context, "CopyFile_Duration", result.DurationMs);
+            Tracer.TrackMetric(context, "CopyFile_AttemptCount", attemptCount);
+            Tracer.TrackMetric(context, "CopyFile_IOGateWaitTimeMs", (long)ioGateWait);
+            
+            ApplyIfNotNull(result.Size, v => Tracer.TrackMetric(context, "CopyFile_Size", v));
+            ApplyIfNotNull(result.TimeSpentHashing, v => Tracer.TrackMetric(context, "CopyFile_HashingTimeMs", (long)v.TotalMilliseconds));
+            ApplyIfNotNull(result.TimeSpentWritingToDisk, v => Tracer.TrackMetric(context, "CopyFile_WriteToDiskTimeMs", (long)v.TotalMilliseconds));
+            ApplyIfNotNull(result.HeaderResponseTime, v => Tracer.TrackMetric(context, "CopyFile_HeaderResponseTimeMs", (long)v.TotalMilliseconds));
         }
 
         private async Task<CopyFileResult> CopyFileAsync(

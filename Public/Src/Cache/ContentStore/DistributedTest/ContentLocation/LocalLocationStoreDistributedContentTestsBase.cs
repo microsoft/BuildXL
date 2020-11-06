@@ -61,7 +61,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected AbsolutePath _redirectedTargetPath = new AbsolutePath(@"X:\cache");
 
         protected bool EnableProactiveCopy { get; set; } = false;
-        protected bool ProactiveCopyInsideRing { get; set; } = false;
+
+        protected ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.OutsideRing;
         protected int? ProactiveCopyLocationThreshold { get; set; } = null;
         protected int? ProactivePushCountLimit { get; set; }
         protected bool EnableProactiveReplication { get; set; } = false;
@@ -180,7 +181,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                MachineRisk = 0.0000001,
 
                                TraceProactiveCopy = true,
-                               ProactiveCopyMode = EnableProactiveCopy ? (ProactiveCopyInsideRing ? nameof(ProactiveCopyMode.InsideRing) : nameof(ProactiveCopyMode.OutsideRing)) : nameof(ProactiveCopyMode.Disabled),
+                               ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.ToString() : nameof(ProactiveCopyMode.Disabled),
                                PushProactiveCopies = true,
                                EnableProactiveReplication = EnableProactiveReplication,
                                ProactiveCopyRejectOldContent = true,

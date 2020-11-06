@@ -12,7 +12,6 @@ using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-
     /// <summary>
     /// State of all known machines in the stamp
     /// </summary>
@@ -116,9 +115,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public IReadOnlyList<MachineMapping> LocalMachineMappings => Read(c => c.LocalMachineMappings);
 
         /// <nodoc />
-        public BinManager? BinManager { get => Read(c => c.BinManager); set => Mutate(c => c.With(binManager: value)).ThrowIfFailure(); }
-
-        /// <nodoc />
         public bool EnableBinManagerUpdates { get => Read(c => c.EnableBinManagerUpdates); set => Mutate(c => c.With(enableBinManagerUpdates: value)).ThrowIfFailure(); }
 
         /// <nodoc />
@@ -206,8 +202,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired) => Read((clusterState) => clusterState.IsDesignatedLocation(machineId, hash, includeExpired));
 
         /// <summary>
+        /// Getting or setting an instance of <see cref="BinManager"/>.
+        /// </summary>
+        /// <remarks>
+        /// The setter is called by the worker machines.
+        /// </remarks>
+        public BinManager? BinManager { get => Read(c => c.BinManager); set => Mutate(c => c.With(binManager: value)).ThrowIfFailure(); }
+
+        /// <summary>
         /// Initializes the BinManager if it is required.
         /// </summary>
+        /// <remarks>This operation is used only by the master. The worker still may set BinManager via <see cref="BinManager"/> property.</remarks>
         internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime) => Mutate((clusterState) => clusterState.InitializeBinManagerIfNeeded(locationsPerBin, clock, expiryTime)).ThrowIfFailure();
 
         /// <nodoc />

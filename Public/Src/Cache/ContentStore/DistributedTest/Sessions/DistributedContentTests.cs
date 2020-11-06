@@ -230,6 +230,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetTypedSession<DistributedContentSession>(idx, primary);
             }
 
+            public DistributedContentSession[] GetDistributedSessions()
+            {
+                return EnumerateWorkersIndices().Select(i => GetDistributedSession(i)).ToArray();
+            }
+
             internal FileSystemContentSession GetFileSystemSession(int idx, bool primary = true)
             {
                 return GetTypedSession<FileSystemContentSession>(idx, primary);

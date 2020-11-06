@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -198,7 +199,7 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task ProactiveCopyInsideRingTest()
         {
             EnableProactiveCopy = true;
-            ProactiveCopyInsideRing = true;
+            ProactiveCopyMode = ProactiveCopyMode.InsideRing;
             ProactiveCopyOnPuts = true;
             ProactiveCopyOnPins = true;
             ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
@@ -221,7 +222,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterStore = context.GetMaster();
                     var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
 
-                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+                    var sessions = context.GetDistributedSessions();
 
                     // Insert random file #1 into worker #1
                     var putResult = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
@@ -245,6 +246,64 @@ namespace ContentStoreTest.Distributed.Sessions
                     counters = sessions[0].GetCounters().ToDictionaryIntegral();
                     counters["ProactiveCopy_InsideRingCopies.Count"].Should().Be(2);
                     counters["ProactiveCopy_InsideRingFullyReplicated.Count"].Should().Be(1);
+                },
+                implicitPin: ImplicitPin.None,
+                buildId: buildId);
+        }
+
+        [Fact]
+        public async Task ProactiveCopyOutsideRingDoesNotPickTheSameLocation()
+        {
+            // This test checks that if inside ring copy picked machine A, then
+            // outside ring copy should not pick it again.
+            EnableProactiveCopy = true;
+            ProactiveCopyUsePreferredLocations = true;
+
+            ProactiveCopyMode = ProactiveCopyMode.Both;
+            ProactiveCopyOnPuts = true;
+            ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.RestoreCheckpointAgeThresholdMinutes = 0;
+            });
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            int machineCount = 3;
+
+            var buildId = Guid.NewGuid().ToString();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var master = context.GetMasterIndex();
+                    var workerIndex = context.GetFirstWorkerIndex();
+
+                    var ls = Enumerable.Range(0, machineCount).Select(n => context.GetLocationStore(n)).ToArray();
+
+                    // Adding random content just to generate events for the master, because otherwise checkpoint can't be created.
+                    await context.GetDistributedSession(master).PutRandomAsync(context, HashType.Vso0, false, ContentByteCount, Token).ShouldBeSuccess();
+                    await ls[master].LocalLocationStore.CreateCheckpointAsync(context).ShouldBeSuccess();
+
+                    // Restoring the checkpoint because the bin manager is stored in the checkpoint instance.
+                    TestClock.UtcNow += TimeSpan.FromMinutes(5);
+                    await ls[workerIndex].LocalLocationStore.HeartbeatAsync(context, inline: true, forceRestore: true).ShouldBeSuccess();
+
+                    // We have 3 stores, meaning that we should be able to replicate the content on two other machines if we never pick
+                    // the same machine more than once.
+                    // We used to have an issue when a designated machine was inside the ring and we tried pushing to the same machine twice.
+                    var workerSession = context.GetDistributedSession(workerIndex);
+                    int contentCount = 10;
+                    for (int i = 0; i < contentCount; i++)
+                    {
+                        var putResult = await workerSession.PutRandomAsync(context, HashType.Vso0, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                        var masterResult = await ls[workerIndex].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
+                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(3);
+                    }
                 },
                 implicitPin: ImplicitPin.None,
                 buildId: buildId);

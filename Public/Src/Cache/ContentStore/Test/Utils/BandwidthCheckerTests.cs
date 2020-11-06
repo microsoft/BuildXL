@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
@@ -134,7 +135,7 @@ namespace ContentStoreTest.Utils
             var checkInterval = TimeSpan.FromSeconds(1);
             var actualBandwidthBytesPerSec = 1024;
             var actualBandwidth = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec);
-            var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec / 2); // Lower limit is half actual bandwidth
+            var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec / 10); // Lower limit significantly to actual bandwidth
             var totalBytes = actualBandwidthBytesPerSec * 2;
             var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
             var checker = new BandwidthChecker(checkerConfig);
@@ -147,10 +148,10 @@ namespace ContentStoreTest.Utils
                     token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth, options),
                     options,
                     getErrorResult: diagnostics => new CopyFileResult(CopyResultCode.CopyBandwidthTimeoutError, diagnostics));
-                Assert.True(result.Succeeded);
+                result.ShouldBeSuccess();
             }
         }
-
+        
         [Fact]
         public async Task BandwidthCheckTimesOutOnSlowCopy()
         {

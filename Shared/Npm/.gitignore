@@ -2,3 +2,4 @@ node_modules
 downloaded
 lib
 dist
+!bin

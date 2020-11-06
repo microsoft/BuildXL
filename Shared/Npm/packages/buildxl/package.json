@@ -1,6 +1,6 @@
 {
     "name": "@microsoft/buildxl",
-    "version": "0.1.0-20201030.5",
+    "version": "0.1.0-yyyymmdd.seq.patch",
     "description": "Wrapper for BuildXL build engine.",
     "repository": {
         "type": "git",

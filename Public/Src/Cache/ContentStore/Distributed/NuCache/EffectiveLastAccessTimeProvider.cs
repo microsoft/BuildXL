@@ -76,7 +76,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             foreach (var contentHash in contentHashes)
             {
                 DateTime lastAccessTime = contentHash.LastAccessTime;
-                int replicaCount = 1;
+
+                // Don't treat current machine as replica in consumer only case
+                int replicaCount = _configuration.DistributedContentConsumerOnly ? 0 : 1;
                 ReplicaRank rank = ReplicaRank.None;
 
                 var (localInfo, distributedEntry, isDesignatedLocation) = _contentResolver.GetContentInfo(context, contentHash.Hash);

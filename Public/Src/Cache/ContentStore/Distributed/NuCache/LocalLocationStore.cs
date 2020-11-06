@@ -701,6 +701,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private bool ShouldSchedule(TimeSpan interval, DateTime lastTime, DateTime? now = null)
         {
+            if (interval == Timeout.InfiniteTimeSpan)
+            {
+                return false;
+            }
+
             now ??= _clock.UtcNow;
             return (now - lastTime) >= interval;
         }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -432,6 +433,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (distributedSettings.EnableProactiveReplication && redisContentLocationStoreConfiguration.Checkpoint != null)
             {
                 distributedContentStoreSettings.ProactiveReplicationInterval = redisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval;
+
+                ApplyIfNotNull(
+                    distributedSettings.ProactiveReplicationIntervalMinutes,
+                    value => distributedContentStoreSettings.ProactiveReplicationInterval = TimeSpan.FromMinutes(value));
             }
 
             ApplyIfNotNull(distributedSettings.MaximumConcurrentPutAndPlaceFileOperations, v => distributedContentStoreSettings.MaximumConcurrentPutAndPlaceFileOperations = v);
@@ -611,7 +616,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             configuration.ReconciliationMaxRemoveHashesCycleSize = _distributedSettings.ReconciliationMaxRemoveHashesCycleSize;
             configuration.ReconciliationMaxRemoveHashesAddPercentage = _distributedSettings.ReconciliationMaxRemoveHashesAddPercentage;
 
-            ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value => configuration.DistributedContentConsumerOnly = value);
+            ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value =>
+            {
+                configuration.DistributedContentConsumerOnly = value;
+                if (value)
+                {
+                    // If consumer only, override default to disable updating cluster state
+                    checkpointConfiguration.UpdateClusterStateInterval ??= Timeout.InfiniteTimeSpan;
+                }
+            });
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
@@ -668,7 +681,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds, v => distributedCentralStoreConfiguration.PeerToPeerCopyTimeout = TimeSpan.FromSeconds(v));
 
                 ApplyIfNotNull(_distributedSettings.DistributedCentralStorageImmutabilityOptimizations, v => distributedCentralStoreConfiguration.ImmutabilityOptimizations = v);
-
 
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }

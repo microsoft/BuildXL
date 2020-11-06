@@ -1782,6 +1782,17 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.DistributedContentConsumerOnly = dcs.TestMachineIndex == consumerIndex;
+            },
+            rcs =>
+            {
+                if (rcs.DistributedContentConsumerOnly)
+                {
+                    // Update cluster state should be disabled by default for consumer only nodes
+                    rcs.Checkpoint.UpdateClusterStateInterval.Should().Be(Timeout.InfiniteTimeSpan);
+
+                    // Override to re-enable so test updates cluster state during heartbeat
+                    rcs.Checkpoint.UpdateClusterStateInterval = null;
+                }
             });
 
             await RunTestAsync(

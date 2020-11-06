@@ -105,7 +105,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 _clock.Increment();
                 await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
                 _clock.Increment();
-                
+
                 List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(2, getSelectorResults.Count);
 
@@ -132,7 +132,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
 
             return RunTestAsync(context,
-                funcAsync: async (store, session) => {
+                funcAsync: async (store, session) =>
+                {
                     await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
                     _clock.Increment();
 
@@ -143,7 +144,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);
-                    database.GarbageCollect(ctx);
+                    await database.GarbageCollectAsync(ctx).ShouldBeSuccess();
 
                     var r1 = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r1.ContentHashList.Should().BeNull();
@@ -185,7 +186,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
 
             return RunTestAsync(context,
-                funcAsync: async (store, session) => {
+                funcAsync: async (store, session) =>
+                {
                     await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
                     _clock.Increment();
 
@@ -200,7 +202,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);
-                    database.GarbageCollect(ctx);
+                    await database.GarbageCollectAsync(ctx).ShouldBeSuccess();
 
                     var r1 = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r1.Should().BeEquivalentTo(contentHashListWithDeterminism1);
@@ -224,6 +226,80 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
                 });
+            }
+        }
+
+        [Fact]
+        public Task SizeBasedGarbageCollectionIsApproximatelyCorrect()
+        {
+            var N = 200;
+
+            // This number depends on N, so there's nothing we can do here
+            int expectedRemoves = 90;
+
+            var context = new Context(Logger);
+
+            var weakFingerprint = Fingerprint.Random();
+
+            var selectors = new Selector[N];
+            var strongFingerprints = new StrongFingerprint[N];
+            var contentHashLists = new ContentHashListWithDeterminism[N];
+            for (var i = 0; i < N; i++)
+            {
+                selectors[i] = Selector.Random(outputLengthBytes: 1000);
+                strongFingerprints[i] = new StrongFingerprint(weakFingerprint, selectors[i]);
+                contentHashLists[i] = new ContentHashListWithDeterminism(ContentHashList.Random(contentHashCount: 100), CacheDeterminism.None);
+            }
+
+            return RunTestAsync(context,
+                funcAsync: async (store, session) =>
+                {
+                    _clock.Increment();
+
+                    for (var i = 0; i < N; i++)
+                    {
+                        await session.AddOrGetContentHashListAsync(context, strongFingerprints[i], contentHashLists[i], Token).ShouldBeSuccess();
+                        _clock.Increment();
+                    }
+
+                    var database = (store as RocksDbMemoizationStore)?.RocksDbDatabase;
+                    Contract.Assert(database != null);
+
+                    var ctx = new OperationContext(context);
+                    await database.GarbageCollectAsync(ctx).ShouldBeSuccess();
+
+                    // We should have removed the oldest `expectedRemoves` entries
+                    for (var i = 0; i < expectedRemoves; i++)
+                    {
+                        var chl = database.GetContentHashList(ctx, strongFingerprints[i]).ShouldBeSuccess().ContentHashListWithDeterminism;
+                        chl.ContentHashList.Should().BeNull();
+                        chl.Determinism.Should().Be(CacheDeterminism.None);
+                    }
+
+                    // All the others should be there
+                    for (var i = expectedRemoves; i < N; i++)
+                    {
+                        var chl = database.GetContentHashList(ctx, strongFingerprints[i]).ShouldBeSuccess().ContentHashListWithDeterminism;
+                        chl.Should().BeEquivalentTo(contentHashLists[i]);
+                    }
+
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Value.Should().Be(expectedRemoves);
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Value.Should().Be(N);
+                },
+                createStoreFunc: createStoreInternal);
+
+            // This is needed because type errors arise if you inline
+            IMemoizationStore createStoreInternal(DisposableDirectory disposableDirectory)
+            {
+                return CreateStore(testDirectory: disposableDirectory, configMutator: (Action<RocksDbContentLocationDatabaseConfiguration>)((configuration) =>
+                {
+                    configuration.MetadataGarbageCollectionEnabled = true;
+                    configuration.MetadataGarbageCollectionStrategy = MetadataGarbageCollectionStrategy.DiskSizeBound;
+                    configuration.MetadataGarbageCollectionMaximumSizeMb = 0.5;
+
+                    // Disables automatic GC
+                    configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
+                }));
             }
         }
     }

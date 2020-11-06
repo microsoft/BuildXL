@@ -17,6 +17,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
     public static class TaskExtensions
     {
         /// <summary>
+        /// Conditionally inlines a function call
+        /// </summary>
+        public static Task<T> Run<T>(Func<T> action, bool inline)
+        {
+            if (!inline)
+            {
+                return Task.Run(action);
+            }
+
+            return Task.FromResult(action());
+        }
+
+        /// <summary>
         /// When you want to call an <c>async</c> method but don't want to <c>await</c> it.
         /// </summary>
         /// <remarks>

@@ -220,68 +220,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)
             {
-                var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "LocationDb")
-                {
-                    LogsKeepLongTerm = true,
-                    UseContextualEntryOperationLogging = _distributedSettings.UseContextualEntryDatabaseOperationLogging,
-                    TraceTouches = _distributedSettings.TraceTouches,
-                };
-
-                if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)
-                {
-                    dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
-                }
-
-                if (_distributedSettings.EnableDistributedCache)
-                {
-                    dbConfig.MetadataGarbageCollectionEnabled = true;
-                    dbConfig.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = _distributedSettings.MaximumNumberOfMetadataEntriesToStore;
-                }
-
-                ApplyIfNotNull(
-                    _distributedSettings.ContentLocationDatabaseOpenReadOnly,
-                    v => dbConfig.OpenReadOnly = v && !_distributedSettings.IsMasterEligible);
-
-                ApplyIfNotNull(
-                    _distributedSettings.FullRangeCompactionIntervalMinutes,
-                    v =>
-                    {
-                        if (v < 0)
-                        {
-                            throw new ArgumentException($"`{nameof(_distributedSettings.FullRangeCompactionIntervalMinutes)}` must be greater than or equal to 0");
-                        }
-
-                        if (v > 0)
-                        {
-                            dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v);
-                        }
-                    });
-                ApplyIfNotNull(
-                    _distributedSettings.FullRangeCompactionVariant,
-                    v =>
-                    {
-                        if (!Enum.TryParse<FullRangeCompactionVariant>(v, out var variant))
-                        {
-                            throw new ArgumentException($"Failed to parse `{nameof(_distributedSettings.FullRangeCompactionVariant)}` setting with value `{_distributedSettings.FullRangeCompactionVariant}` into type `{nameof(FullRangeCompactionVariant)}`");
-                        }
-
-                        dbConfig.FullRangeCompactionVariant = variant;
-                    });
-                ApplyIfNotNull(
-                    _distributedSettings.FullRangeCompactionByteIncrementStep,
-                    v => dbConfig.FullRangeCompactionByteIncrementStep = v);
-
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnableDynamicLevelTargetSizes, v => dbConfig.EnableDynamicLevelTargetSizes = v);
-
-                if (_distributedSettings.ContentLocationDatabaseLogsBackupEnabled)
-                {
-                    dbConfig.LogsBackupPath = primaryCacheRoot / "LocationDbLogs";
-                }
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => dbConfig.LogsRetention = TimeSpan.FromMinutes(v));
-
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => dbConfig.EnumerateSortedKeysFromStorageBufferSize = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => dbConfig.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
-
+                var dbConfig = RocksDbContentLocationDatabaseConfiguration.FromDistributedContentSettings(
+                    _distributedSettings,
+                    primaryCacheRoot / "LocationDb",
+                    primaryCacheRoot / "LocationDbLogs",
+                    logsKeepLongTerm: true
+                    );
                 redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, primaryCacheRoot, dbConfig).GetAwaiter().GetResult();
             }

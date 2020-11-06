@@ -155,11 +155,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 
             return ContentLocationEntry.Missing;
         }
-
-        /// <inheritdoc />
-        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

@@ -683,6 +683,8 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 
+        #region Content Location Database
+
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
@@ -721,6 +723,22 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; }
+
+        [DataMember]
+        public bool? ContentLocationDatabaseGarbageCollectionConcurrent { get; set; }
+
+        [DataMember]
+        public string ContentLocationDatabaseMetadataGarbageCollectionStrategy { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, double.MaxValue)]
+        public double? ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? MaximumNumberOfMetadataEntriesToStore { get; set; }
+
+        #endregion
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
@@ -889,15 +907,13 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? MaximumConcurrentPutAndPlaceFileOperations { get; set; }
 
+        #region Metadata Storage
+
         [DataMember]
         public bool EnableMetadataStore { get; set; } = false;
 
         [DataMember]
         public bool EnableDistributedCache { get; set; } = false;
-
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         [DataMember]
         public bool UseRedisMetadataStore { get; set; } = false;
@@ -910,6 +926,8 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? RoxisMetadataStorePort { get; set; } = null;
+
+        #endregion
 
         /// <summary>
         /// Gets or sets the time period between logging incremental stats

@@ -99,9 +99,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Create a random value.
         /// </summary>
-        public static Selector Random(HashType hashType = HashType.Vso0, int outputLength = 2)
+        public static Selector Random(HashType hashType = HashType.Vso0, int outputLengthBytes = 2)
         {
-            byte[] output = outputLength == 0 ? null : ThreadSafeRandom.GetBytes(outputLength);
+            byte[] output = outputLengthBytes == 0 ? null : ThreadSafeRandom.GetBytes(outputLengthBytes);
             return new Selector(ContentHash.Random(hashType), output);
         }
     }

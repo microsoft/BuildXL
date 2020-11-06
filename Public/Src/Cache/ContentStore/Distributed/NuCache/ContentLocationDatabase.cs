@@ -19,11 +19,11 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using TaskExtensions = BuildXL.Cache.ContentStore.Interfaces.Extensions.TaskExtensions;
 
 #nullable enable
 
@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly object[] _locks = Enumerable.Range(0, ushort.MaxValue + 1).Select(s => new object()).ToArray();
 
         /// <nodoc />
-        protected readonly object TimerChangeLock = new object();
+        protected readonly object ModeChangeLock = new object();
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -101,8 +101,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Clock = clock;
             _configuration = configuration;
             _getInactiveMachines = getInactiveMachines;
-
-            _isMetadataGarbageCollectionEnabled = configuration.MetadataGarbageCollectionEnabled;
         }
 
         /// <summary>
@@ -138,13 +136,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public virtual void SetDatabaseMode(bool isDatabaseWriteable)
+        public void SetDatabaseMode(bool isDatabaseWriteable)
         {
-            // The parameter indicates whether we will be in writeable state or not after this function runs. The
-            // following calls can see if we transition from read/only to read/write by looking at the internal value
-            ConfigureGarbageCollection(isDatabaseWriteable);
-
-            IsDatabaseWriteable = isDatabaseWriteable;
+            lock (ModeChangeLock)
+            {
+                ConfigureGarbageCollection(isDatabaseWriteable);
+                ConfigureDatabase(isDatabaseWriteable);
+                IsDatabaseWriteable = isDatabaseWriteable;
+            }
         }
 
         /// <summary>	
@@ -152,28 +151,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>	
         private void ConfigureGarbageCollection(bool isDatabaseWriteable)
         {
-            if (IsDatabaseWriteable != isDatabaseWriteable)
-            {
-                _isContentGarbageCollectionEnabled = isDatabaseWriteable;
-                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
+            _isContentGarbageCollectionEnabled = isDatabaseWriteable;
+            _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
 
-                var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
-                lock (TimerChangeLock)
-                {
-                    _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
-                }
-            }
+            var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
+            _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
+        }
+
+        /// <nodoc />
+        protected virtual void ConfigureDatabase(bool isDatabaseWriteable)
+        {
+
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            // We only create the timers within the Startup method. It is expected that users will call SetDatabaseMode
+            // before proceeding to use the database, as that method will actually start the timers.
             if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
-                    _ => GarbageCollect(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(GarbageCollect))),
+                    _ => GarbageCollectAsync(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(GarbageCollectAsync))).Wait(),
                     null,
-                    IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
             }
 
@@ -185,16 +186,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         foreach (var group in ops.GroupBy(t => t.context, t => (t.hash, t.op, t.reason)))
                         {
                             LogContentLocationOperations(
-                                group.Key, 
-                                Tracer.Name, 
+                                group.Key,
+                                Tracer.Name,
                                 group);
                         }
-                    } 
+                    }
                     else
                     {
                         LogContentLocationOperations(
-                            context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: "LogContentLocationOperations"), 
-                            Tracer.Name, 
+                            context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: "LogContentLocationOperations"),
+                            Tracer.Name,
                             ops.Select(t => (t.hash, t.op, t.reason)));
                     }
 
@@ -212,12 +213,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _nagleOperationTracer?.Dispose();
 
-            lock (TimerChangeLock)
+            lock (ModeChangeLock)
             {
-#pragma warning disable AsyncFixer02
                 _gcTimer?.Dispose();
-#pragma warning restore AsyncFixer02
-
                 _gcTimer = null;
             }
 
@@ -279,48 +277,69 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Collects entries with last access time longer then time to live.
         /// </summary>
-        public void GarbageCollect(OperationContext context)
+        public async Task<BoolResult> GarbageCollectAsync(OperationContext context)
         {
             if (ShutdownStarted)
             {
-                return;
+                return BoolResult.Success;
             }
 
-            context.PerformOperation(Tracer,
-                () =>
+            var result = await context.PerformOperationAsync(Tracer,
+                async () =>
                 {
                     using (var cancellableContext = TrackShutdown(context.CreateNested(nameof(ContentLocationDatabase))))
                     {
-                        if (_isMetadataGarbageCollectionEnabled)
+                        // GC may take minutes, so we snapshot the values at the beginning and run afterwards. There
+                        // is some amount of weirdness around what happens with master demotion here.
+                        bool gcMetadata;
+                        bool gcContent;
+                        lock (ModeChangeLock)
                         {
-                            // Metadata GC could remove content, and hence runs first in order to avoid extra work later on
-                            var metadataGcResult = GarbageCollectMetadata(cancellableContext);
-                            if (!metadataGcResult.Succeeded)
-                            {
-                                return metadataGcResult;
-                            }
+                            // We lock here in order to read both atomically
+                            gcMetadata = _isMetadataGarbageCollectionEnabled;
+                            gcContent = _isContentGarbageCollectionEnabled;
+                        }
+                        if (!gcMetadata && !gcContent)
+                        {
+                            return new BoolResult(errorMessage: "No garbage collection round run");
                         }
 
-                        if (_isContentGarbageCollectionEnabled)
+                        var metadataGcResult = BoolResult.SuccessTask;
+                        if (gcMetadata)
                         {
-                            var contentGcResult = GarbageCollectContent(cancellableContext);
-                            if (!contentGcResult.Succeeded)
-                            {
-                                return contentGcResult;
-                            }
+                            metadataGcResult = TaskExtensions.Run(
+                                () => GarbageCollectMetadata(cancellableContext),
+                                inline: !_configuration.GarbageCollectionConcurrent);
                         }
+
+                        var contentGcResult = BoolResult.SuccessTask;
+                        if (gcContent)
+                        {
+                            contentGcResult = TaskExtensions.Run(
+                                () => GarbageCollectContent(cancellableContext),
+                                inline: !_configuration.GarbageCollectionConcurrent);
+                        }
+
+                        await Task.WhenAll(metadataGcResult, contentGcResult);
+
+                        return await metadataGcResult & await contentGcResult;
                     }
-
-                    return BoolResult.Success;
-                }, counter: Counters[ContentLocationDatabaseCounters.GarbageCollect]).IgnoreFailure();
+                },
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollect],
+                isCritical: true);
 
             if (!ShutdownStarted)
             {
-                lock (TimerChangeLock)
+                lock (ModeChangeLock)
                 {
-                    _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
+                    if (IsGarbageCollectionEnabled)
+                    {
+                        _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
+                    }
                 }
             }
+
+            return result;
         }
 
         /// <summary>
@@ -330,7 +349,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperation(Tracer,
                 () => GarbageCollectContentCore(context),
-                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent]);
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent],
+                isCritical: true);
         }
 
         // Iterate over all content in DB, for each hash removing locations known to
@@ -464,6 +484,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
+        /// <nodoc />
+        protected struct MetadataGarbageCollectionOutput
+        {
+            /// <nodoc />
+            public long Scanned;
+
+            /// <nodoc />
+            public long Removed;
+
+            /// <summary>
+            /// NOTE: This estimate, and the one below, are just estimates. They can be (and often are) arbitrarily
+            /// wrong. They are here just for tracing and as one more data point when things go wrong in production.
+            /// </summary>
+            public long MetadataCFSizeBeforeGcBytes;
+
+            /// <summary>
+            /// NOTE: Metadata CF size may potentially increase after GC. This is because GC adds tombstones, in
+            /// amounts that may be significant.
+            /// </summary>
+            public long MetadataCFSizeAfterGcBytes;
+
+            /// <nodoc />
+            public bool KillSwitch;
+
+            /// <nodoc />
+            public override string ToString()
+            {
+                return $"Scanned=[{Scanned}] Removed=[{Removed}] MetadataCFSizeBeforeGcBytes=[{MetadataCFSizeBeforeGcBytes}] MetadataCFSizeAfterGcBytes=[{MetadataCFSizeAfterGcBytes}] KillSwitch=[{KillSwitch}]";
+            }
+        }
+
         /// <summary>
         /// Perform garbage collection of metadata entries.
         /// </summary>
@@ -471,11 +522,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperation(Tracer,
                 () => GarbageCollectMetadataCore(context),
-                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectMetadata]);
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectMetadata],
+                messageFactory: r => r.Select(r => r.ToString()).GetValueOrDefault(string.Empty)!,
+                isCritical: true);
         }
 
         /// <nodoc />
-        protected abstract BoolResult GarbageCollectMetadataCore(OperationContext context);
+        protected virtual Result<MetadataGarbageCollectionOutput> GarbageCollectMetadataCore(OperationContext context)
+        {
+            return Result.FromErrorMessage<MetadataGarbageCollectionOutput>(message: "Metadata GC is not implemented");
+        }
 
         private int GetFirstByteDifference(in ShortHash hash1, in ShortHash hash2)
         {
@@ -699,7 +755,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
             var result = GetMetadataEntry(context, strongFingerprint, touch: true);
-            return result.Succeeded 
+            return result.Succeeded
                 ? new GetContentHashListResult(result.Value?.ContentHashListWithDeterminism ?? new ContentHashListWithDeterminism(null, CacheDeterminism.None))
                 : new GetContentHashListResult(result);
         }

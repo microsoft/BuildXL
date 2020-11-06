@@ -959,7 +959,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         await worker.LocalLocationStore.HeartbeatAsync(context, inline: true).ShouldBeSuccess();
                         await master.LocalLocationStore.HeartbeatAsync(context, inline: true).ShouldBeSuccess();
 
-                        master.LocalLocationStore.Database.GarbageCollect(context);
+                        await master.LocalLocationStore.Database.GarbageCollectAsync(context).ShouldBeSuccess();
 
                         getBulkResult = await master.GetBulkAsync(context, putResults[0].ContentHash, GetBulkOrigin.Local);
                         getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "After garbage collection location should be only registered with primary (unified) store");
@@ -2676,7 +2676,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
-                    master.LocalLocationStore.Database.GarbageCollect(context);
+                    await master.LocalLocationStore.Database.GarbageCollectAsync(context).ShouldBeSuccess();
 
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
                 });
@@ -2734,7 +2734,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
-                    master.LocalLocationStore.Database.GarbageCollect(context);
+                    await master.LocalLocationStore.Database.GarbageCollectAsync(context).ShouldBeSuccess();
 
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
 

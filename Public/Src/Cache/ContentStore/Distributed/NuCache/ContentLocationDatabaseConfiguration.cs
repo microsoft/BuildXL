@@ -2,12 +2,33 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.Host.Configuration;
+using static BuildXL.Utilities.ConfigurationHelper;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    /// <nodoc />
+    public enum MetadataGarbageCollectionStrategy
+    {
+        /// <summary>
+        /// Always keep at most <see cref="ContentLocationDatabaseConfiguration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep"/> entries, using
+        /// LRU policy.
+        /// </summary>
+        CapacityBound,
+
+        /// <summary>
+        /// Attempt to keep as many entries possible, as long as they take no more than
+        /// <see cref="ContentLocationDatabaseConfiguration.MetadataGarbageCollectionMaximumSizeMb"/>.
+        /// </summary>
+        DiskSizeBound,
+    }
+
     /// <summary>
     /// Configuration type for <see cref="ContentLocationDatabase"/> family of types.
     /// </summary>
@@ -18,6 +39,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// NOTE: This is set internally to the same value as <see cref="LocalLocationStoreConfiguration.TouchFrequency"/>
         /// </summary>
         internal TimeSpan TouchFrequency { get; set; }
+
+        /// <summary>
+        /// Whether to run garbage collection content and metadata GC concurrently
+        /// </summary>
+        public bool GarbageCollectionConcurrent { get; set; } = false;
 
         /// <summary>
         /// Interval between garbage collecting unreferenced content location entries and metadata in a local database.
@@ -32,12 +58,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Maximum number of metadata entries to keep after garbage collection.
         ///
-        /// Only useful when <see cref="MetadataGarbageCollectionEnabled"/> is true.
+        /// Only useful when:
+        /// - <see cref="MetadataGarbageCollectionEnabled"/> is true
+        /// - <see cref="MetadataGarbageCollectionStrategy"/> is MaximumEntries
         /// </summary>
-        /// <remarks>
-        /// Default is the same as in the SQLiteMemoizationStore
-        /// </remarks>
         public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
+
+        /// <summary>
+        /// Maximum allowed size of the Metadata column family.
+        ///
+        /// Only useful when:
+        /// - <see cref="MetadataGarbageCollectionEnabled"/> is true
+        /// - <see cref="MetadataGarbageCollectionStrategy"/> is MaximumSize
+        /// </summary>
+        public double MetadataGarbageCollectionMaximumSizeMb { get; set; } = 20_000;
+
+        /// <summary>
+        /// Metadata garbage collection strategy to use.
+        /// </summary>
+        public MetadataGarbageCollectionStrategy MetadataGarbageCollectionStrategy { get; set; } = MetadataGarbageCollectionStrategy.CapacityBound;
 
         /// <summary>
         /// Whether to clean the DB when it is corrupted.
@@ -70,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Supported heuristics for full range compaction
     /// </summary>
-    public enum FullRangeCompactionVariant
+    public enum FullRangeCompactionStrategy
     {
         /// <summary>
         /// Compacts the entire key range at once
@@ -111,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Testing purposes only. Used to set location to load initial database data from.
         /// NOTE: This disables <see cref="CleanOnInitialize"/>
         /// </summary>
-        public AbsolutePath TestInitialCheckpointPath { get; set; }
+        public AbsolutePath? TestInitialCheckpointPath { get; set; }
 
         /// <summary>
         /// Gets whether the database is cleared on initialization. (Defaults to true because the standard use case involves restoring from checkpoint after initialization)
@@ -127,7 +166,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Specifies a opaque value which can be used to determine if database can be reused when <see cref="CleanOnInitialize"/> is false.
         /// </summary>
-        public string Epoch { get; set; }
+        /// <remarks>
+        /// Do NOT change the default from null. The epoch is not stored by default, so the value is read as null. If
+        /// you change this, open -> close -> open will always fail due to non-matching epoch values.
+        /// </remarks>
+        public string? Epoch { get; set; } = null;
 
         /// <summary>
         /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
@@ -144,17 +187,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// This makes compactions change small subsets of SST files instead of all at once. By doing this, we help
         /// the incremental checkpointing system by not forcing it to transfer a lot of data at once.
         /// </summary>
-        public FullRangeCompactionVariant FullRangeCompactionVariant { get; set; } = FullRangeCompactionVariant.EntireRange;
+        public FullRangeCompactionStrategy FullRangeCompactionVariant { get; set; }
 
         /// <summary>
-        /// When doing <see cref="FullRangeCompactionVariant.ByteIncrements"/>, how much to increment per compaction.
+        /// When doing <see cref="FullRangeCompactionStrategy.ByteIncrements"/>, how much to increment per compaction.
         /// </summary>
         public byte FullRangeCompactionByteIncrementStep { get; set; } = 1;
 
         /// <summary>
         /// Whether to enable long-term log keeping. Should only be true for servers, where we can keep a lot of logs.
         /// </summary>
-        public bool LogsKeepLongTerm { get; set; } = false;
+        public bool LogsKeepLongTerm { get; set; }
 
         /// <summary>
         /// Log retention path for the ContentLocationDatabase. When the database is loaded, logs from the old
@@ -162,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ///
         /// If null, then the back up is not performed.
         /// </summary>
-        public AbsolutePath LogsBackupPath { get; set; } = null;
+        public AbsolutePath? LogsBackupPath { get; set; }
 
         /// <summary>
         /// When logs backup is enabled, the maximum time logs are kept since their creation date.
@@ -189,5 +232,66 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
         /// </summary>
         public bool EnableDynamicLevelTargetSizes { get; set; }
+
+        /// <nodoc />
+        public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
+            DistributedContentSettings settings,
+            AbsolutePath databasePath,
+            AbsolutePath? logsBackupPath,
+            bool logsKeepLongTerm)
+        {
+            var configuration = new RocksDbContentLocationDatabaseConfiguration(databasePath)
+            {
+                LogsKeepLongTerm = logsKeepLongTerm,
+                UseContextualEntryOperationLogging = settings.UseContextualEntryDatabaseOperationLogging,
+                TraceTouches = settings.TraceTouches,
+                MetadataGarbageCollectionEnabled = settings.EnableDistributedCache,
+                LogsBackupPath = logsBackupPath,
+            };
+
+            ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(settings.ContentLocationDatabaseGarbageCollectionConcurrent, v => configuration.GarbageCollectionConcurrent = v);
+            ApplyEnumIfNotNull<MetadataGarbageCollectionStrategy>(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy, nameof(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy), v => configuration.MetadataGarbageCollectionStrategy = v);
+            ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
+            ApplyIfNotNull(settings.MaximumNumberOfMetadataEntriesToStore, v => configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = v);
+
+            ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
+
+            ApplyIfNotNull(
+                settings.FullRangeCompactionIntervalMinutes,
+                v =>
+                {
+                    if (v < 0)
+                    {
+                        throw new ArgumentException($"`{nameof(settings.FullRangeCompactionIntervalMinutes)}` must be greater than or equal to 0");
+                    }
+
+                    if (v > 0)
+                    {
+                        configuration.FullRangeCompactionInterval = TimeSpan.FromMinutes(v);
+                    }
+                });
+
+            ApplyEnumIfNotNull<FullRangeCompactionStrategy>(
+                settings.FullRangeCompactionVariant,
+                nameof(settings.FullRangeCompactionVariant),
+                v => configuration.FullRangeCompactionVariant = v);
+            ApplyIfNotNull(
+                settings.FullRangeCompactionByteIncrementStep,
+                v => configuration.FullRangeCompactionByteIncrementStep = v);
+
+            ApplyIfNotNull(settings.ContentLocationDatabaseEnableDynamicLevelTargetSizes, v => configuration.EnableDynamicLevelTargetSizes = v);
+
+            if (settings.ContentLocationDatabaseLogsBackupEnabled)
+            {
+                configuration.LogsBackupPath = logsBackupPath;
+            }
+            ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));
+
+            ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);
+            ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
+
+            return configuration;
+        }
     }
 }

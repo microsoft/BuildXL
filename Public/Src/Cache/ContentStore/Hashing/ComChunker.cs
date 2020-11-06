@@ -72,9 +72,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ComChunkerNonDeterministic(ChunkerConfiguration config)
         {
-            Contract.Assert(
-                Thread.CurrentThread.GetApartmentState() == ApartmentState.MTA,
-                "Thread must be in MTA ApartmentState");
+            if (Thread.CurrentThread.GetApartmentState() != ApartmentState.MTA)
+            {
+                throw new System.Threading.ThreadStateException("Thread must be in MTA ApartmentState");
+            }
 
             Contract.Assert(
                 config.AvgChunkSize == ComChunker.SupportedAvgChunkSize,

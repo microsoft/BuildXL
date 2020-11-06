@@ -27,7 +27,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public CountingStream(Stream stream)
         {
-            Contract.Requires(stream.CanWrite, "It is impossible to count written bytes on a non-writeable stream");
+            if (!stream.CanWrite)
+            {
+                throw new System.InvalidOperationException("It is impossible to count written bytes on a non-writeable stream");
+            }
+
             Stream = stream;
         }
 

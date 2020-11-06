@@ -45,6 +45,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {
                     // Some older versions of windows. Fall back to managed chunker.
                 }
+                catch (System.Threading.ThreadStateException)
+                {
+                    // May happen in tests, when the thread apartment is not configured correctly. Fall back to managed chunker in this case as well.
+                }
             }
 
             return new ManagedChunker(configuration);

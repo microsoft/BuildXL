@@ -59,7 +59,6 @@ namespace ContentStoreTest.Test
             _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem, Guid.NewGuid().ToString("N").Substring(0, 12)));
 
             TaskScheduler.UnobservedTaskException += OnTaskSchedulerOnUnobservedTaskException;
-            FailFastContractChecker.RegisterForFailFastContractViolations();
         }
 
         private void OnTaskSchedulerOnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
@@ -80,8 +79,6 @@ namespace ContentStoreTest.Test
             }
 
             TaskScheduler.UnobservedTaskException -= OnTaskSchedulerOnUnobservedTaskException;
-
-            FailFastContractChecker.UnregisterForFailFastContractViolations();
 
             base.Dispose();
 

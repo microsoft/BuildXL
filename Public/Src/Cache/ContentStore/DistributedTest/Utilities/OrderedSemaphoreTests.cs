@@ -20,6 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Utilities
     public class OrderedSemaphoreTests
     {
         private static Context Context => new Context(TestGlobal.Logger);
+
         [Theory]
         [InlineData(SemaphoreOrder.FIFO)]
         [InlineData(SemaphoreOrder.LIFO)]
@@ -179,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Utilities
             (await Task.WhenAll(tasks)).Should().AllBeEquivalentTo(true);
 
             // Queue tasks which should be blocked by other running tasks
-            var cts = new CancellationTokenSource(delay: TimeSpan.FromMilliseconds(50));
+            var cts = new CancellationTokenSource(delay: TimeSpan.FromMilliseconds(100));
             var blockedTasks = Enumerable.Range(0, concurrencyLimit).Select(async num => await semaphore.WaitAsync(Timeout.InfiniteTimeSpan, cts.Token));
 
             await Task.Delay(TimeSpan.FromMilliseconds(1));

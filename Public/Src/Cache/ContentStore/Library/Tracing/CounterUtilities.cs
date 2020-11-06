@@ -22,8 +22,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
                 if (counter.IsStopwatch)
                 {
-                    counterSet.Add($"{counterName}.AverageMs", counter.Value != 0 ? (long)counter.Duration.TotalMilliseconds / counter.Value : 0);
-                    counterSet.Add($"{counterName}.DurationMs", (long)counter.Duration.TotalMilliseconds);
+                    counterSet.Add($"{counterName}.AverageMs", counter.Value != 0 ? counter.TotalMilliseconds / counter.Value : 0);
+                    counterSet.Add($"{counterName}.DurationMs", counter.TotalMilliseconds);
                 }
             }
 

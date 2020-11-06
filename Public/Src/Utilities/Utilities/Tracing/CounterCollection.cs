@@ -335,6 +335,11 @@ namespace BuildXL.Utilities.Tracing
         /// Returns a current duration for a current counter.
         /// </summary>
         public TimeSpan Duration => CounterCollection.StopwatchTicksToTimeSpan(m_collection.GetStopwatchValueInternal(m_id));
+
+        /// <summary>
+        /// Returns a current duration for a current counter in milliseconds.
+        /// </summary>
+        public long TotalMilliseconds => (long)Duration.TotalMilliseconds;
         
         /// <summary>
         /// Returns the name for a counter.

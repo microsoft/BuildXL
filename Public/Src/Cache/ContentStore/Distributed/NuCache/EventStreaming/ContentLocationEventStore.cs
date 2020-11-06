@@ -284,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             if (result)
             {
                 // Trace successful case separately.
-                context.LogSendEventsOverview(counters, (int)counters[SendEvents].Duration.TotalMilliseconds);
+                context.LogSendEventsOverview(counters, (int)counters[SendEvents].TotalMilliseconds);
             }
 
             static void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)

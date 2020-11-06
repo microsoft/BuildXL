@@ -114,8 +114,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return
                     $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)} " +
-                    $"RingMachineResult=[{ringCopyResult.GetStatusOrErrorMessage()}] " +
-                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetStatusOrErrorMessage()}] ";
+                    $"Ring=[{ringCopyResult.GetStatusOrErrorMessage()}], " +
+                    $"OutsideRing=[{outsideRingCopyResult.GetStatusOrErrorMessage()}] ";
             }
 
             return null;
@@ -126,8 +126,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (!ringCopyResult.Status.IsSuccess() || !outsideRingCopyResult.Status.IsSuccess())
             {
                 return
-                    $"RingMachineResult=[{ringCopyResult.GetStatusOrDiagnostics()}] " +
-                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetStatusOrDiagnostics()}] ";
+                    $"Ring=[{ringCopyResult.GetStatusOrDiagnostics()}], " +
+                    $"OutsideRing=[{outsideRingCopyResult.GetStatusOrDiagnostics()}] ";
             }
 
             return null;
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Contract.AssertNotNull(OutsideRingCopyResult);
 
             // This must be the case when ring copy and outside ring copy succeeded or were gracefully rejected.
-            return $"[Ring={RingCopyResult.Status}, OutsideRing={OutsideRingCopyResult.Status}]";
+            return GetResultsString();
         }
 
         /// <inheritdoc />
@@ -156,10 +156,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return base.GetErrorString();
             }
 
+            return GetResultsString();
+        }
+
+        private string GetResultsString()
+        {
             Contract.AssertNotNull(RingCopyResult);
             Contract.AssertNotNull(OutsideRingCopyResult);
 
-            return $"[{RingCopyResult.Status}, {OutsideRingCopyResult.Status}]";
+            return $"[Ring=[{RingCopyResult.Status}], OutsideRing=[{OutsideRingCopyResult.Status}]]";
         }
 
         /// <inheritdoc />

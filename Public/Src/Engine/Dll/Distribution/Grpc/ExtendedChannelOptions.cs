@@ -31,13 +31,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// This channel argument if set to 1 (0 : false; 1 : true), allows
         /// keepalive pings to be sent even if there are no calls in flight.
         /// </summary>
+        /// <remarks>
+        /// Is it permissible to send keepalive pings without any outstanding streams.
+        /// </remarks>
         public const string KeepAlivePermitWithoutCalls = "grpc.keepalive_permit_without_calls";
-
-        /// <summary>
-        /// This channel argument if set to 1 (0 : false; 1 : true), allows
-        /// keepalive pings to be sent even if there are no calls in flight.
-        /// </summary>
-        public const string MinTimeBetweenPingsMs = "grpc.http2.min_time_between_pings_ms";
 
         /// <summary>
         /// This channel argument controls the maximum number of pings that can be 
@@ -52,7 +49,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// channel argument controls the minimum time (in milliseconds) gRPC Core 
         /// will wait between successive pings.
         /// </summary>
-        public const string MinSentPingIntervalWithoutDataMs = "grpc.http2.min_sent_ping_interval_without_data_ms";
+        /// <remarks>
+        /// Minimum time between sending successive ping frames without receiving any data/header frame, Int valued, milliseconds.
+        /// </remarks>
+        public const string MinSentPingIntervalWithoutDataMs = "grpc.http2.min_time_between_pings_ms";
 
         /// <summary>
         /// If there are no data/header frames being sent on the transport, this channel
@@ -62,7 +62,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// a bad ping from the peer. Such a ping counts as a ‘ping strike’. On the client 
         /// side, this does not have any effect.
         /// </summary>
-        public const string MinRecvPingIntervalWithoutDataMs = "grpc.http2.min_recv_ping_interval_without_data_ms";
+        /// <remarks>
+        /// Minimum allowed time between a server receiving successive ping frames without sending any data/header frame.
+        /// </remarks>
+        public const string MinRecvPingIntervalWithoutDataMs = "grpc.http2.min_ping_interval_without_data_ms";
 
 
     }

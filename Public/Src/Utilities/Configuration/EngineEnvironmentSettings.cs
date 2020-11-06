@@ -187,12 +187,12 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
         /// <summary>
-        /// Whether HandlerInlining is enabled for grpc.
+        /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.
         /// </summary>
         /// <remarks>
-        /// Default disabled
+        /// Default enabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
+        public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
 
         /// <summary>
         /// The amount of concurrency to allow for input/output materialization

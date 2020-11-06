@@ -53,14 +53,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         public void ThrowsGivenNullPath()
         {
             Action a = () => Assert.Null(new AbsolutePath(null));
-            Assert.Throws<ArgumentNullException>(a);
+            Assert.ThrowsAny<ArgumentNullException>(a);
         }
 
         [Fact]
         public void ThrowsGivenEmptyPath()
         {
             Action a = () => Assert.Null(new AbsolutePath(string.Empty));
-            Assert.Throws<ArgumentException>(a);
+            Assert.ThrowsAny<ArgumentException>(a);
         }
 
         [Fact]
@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         public void ThrowsIfUncPathMissingTopLevelDirectory()
         {
             Action a = () => Assert.Null(new AbsolutePath(@"\\host"));
-            ArgumentException e = Assert.Throws<ArgumentException>(a);
+            ArgumentException e = Assert.ThrowsAny<ArgumentException>(a);
             Assert.Contains("UNC path is missing directory", e.Message, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         public void ThrowsIfNotAnAbsolutePath()
         {
             Action a = () => Assert.Null(new AbsolutePath(@"somerelpath"));
-            ArgumentException e = Assert.Throws<ArgumentException>(a);
+            ArgumentException e = Assert.ThrowsAny<ArgumentException>(a);
             Assert.Contains("is neither an absolute local or UNC path", e.Message, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         public void ThrowsIfInvalidDotDotSegment()
         {
             Action a = () => Assert.Null(new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath("C", "..", "file.txt")));
-            ArgumentException e = Assert.Throws<ArgumentException>(a);
+            ArgumentException e = Assert.ThrowsAny<ArgumentException>(a);
             Assert.Contains("invalid format", e.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             if (!LongPathsSupported)
             {
                 Func<AbsolutePath> a = () => new AbsolutePath(Constants.ValidAbsoluteLocalLongPath).Parent;
-                Assert.Throws<PathTooLongException>(a);
+                Assert.ThrowsAny<PathTooLongException>(a);
             }
         }
     }
@@ -240,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             {
                 string path = Constants.ValidAbsoluteLocalPath + new string('a', 300);
 
-                var e = Assert.Throws<PathTooLongException>(() => new AbsolutePath(path).Parent);
+                var e = Assert.ThrowsAny<PathTooLongException>(() => new AbsolutePath(path).Parent);
                 Assert.Contains("path", e.Message, StringComparison.OrdinalIgnoreCase);
             }
         }
@@ -510,7 +510,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage()
         {
-            var exception = Assert.Throws<ArgumentException>(
+            var exception = Assert.ThrowsAny<ArgumentException>(
                 () => new AbsolutePath(Constants.ValidAbsoluteLocalPath) / IllegalPathFragment);
             Assert.Contains(IllegalPathFragment, exception.Message);
         }
@@ -520,7 +520,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage_ConstructedFromRelativePath()
         {
-            var exception = Assert.Throws<ArgumentException>(
+            var exception = Assert.ThrowsAny<ArgumentException>(
                 () => new AbsolutePath(Constants.ValidAbsoluteLocalPath) / new RelativePath(IllegalPathFragment));
             Assert.Contains(IllegalPathFragment, exception.Message);
         }
@@ -530,7 +530,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage_ParentProperty()
         {
-            var exception = Assert.Throws<ArgumentException>(
+            var exception = Assert.ThrowsAny<ArgumentException>(
                 () => new AbsolutePath(Constants.ValidAbsoluteLocalPath + IllegalPathFragment).Parent);
             Assert.Contains(IllegalPathFragment, exception.Message);
         }

@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
             if (path.Length < MinimumPathLength)
             {
-                throw new ArgumentException("does not meet minimum length", nameof(path));
+                throw new InvalidPathException($"A given path '{path}' does not meet minimum length", nameof(path));
             }
 
             (Path, IsLocal, IsRoot, IsVirtual) = Initialize(path);
@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                     return GetPathWithoutLongPathPrefix()[0];
                 }
 
-                throw new InvalidOperationException("Cannot get a drive letter because the path is not a local path.");
+                throw new InvalidOperationException($"Cannot get a drive letter because the path {ToString()} is not a local path.");
             }
         }
 

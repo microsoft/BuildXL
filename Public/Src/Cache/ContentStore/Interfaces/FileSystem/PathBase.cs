@@ -10,6 +10,24 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>
+    /// The exception that is thrown when a path instance can't be constructed from a string.
+    /// </summary>
+    public class InvalidPathException : ArgumentException
+    {
+        /// <nodoc />
+        public InvalidPathException(string message, string paramName)
+            : base(message, paramName)
+        {
+        }
+
+        /// <nodoc />
+        public InvalidPathException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
+    /// <summary>
     ///     Encapsulation of FileSystem paths.
     /// </summary>
     public abstract class PathBase : IEquatable<PathBase>
@@ -97,36 +115,49 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         protected static IReadOnlyList<string> ParseSegments(string path, bool relative)
         {
-            Contract.RequiresNotNull(path);
+            Contract.Requires(path != null);
 
-            var segmentsRaw = path.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
-            var segments = new List<string>(segmentsRaw.Length);
-
-            foreach (var segment in segmentsRaw)
+            try
             {
-                if (segment == ".")
-                {
-                    continue;
-                }
+                return parseSegmentsCore();
+            }
+            catch (Exception e)
+            {
+                throw new InvalidPathException($"A given path '{path}' has an invalid format", e);
+            }
+            
 
-                if (segment == "..")
-                {
-                    if (segments.Count == 0 && !relative)
-                    {
-                        throw new ArgumentException("invalid format", nameof(path));
-                    }
+            IReadOnlyList<string> parseSegmentsCore()
+            {
+                var segmentsRaw = path.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
+                var segments = new List<string>(segmentsRaw.Length);
 
-                    if (segments.Count > 0)
+                foreach (var segment in segmentsRaw)
+                {
+                    if (segment == ".")
                     {
-                        segments.RemoveAt(segments.Count - 1);
                         continue;
                     }
+
+                    if (segment == "..")
+                    {
+                        if (segments.Count == 0 && !relative)
+                        {
+                            throw new ArgumentException("invalid format", nameof(path));
+                        }
+
+                        if (segments.Count > 0)
+                        {
+                            segments.RemoveAt(segments.Count - 1);
+                            continue;
+                        }
+                    }
+
+                    segments.Add(segment);
                 }
 
-                segments.Add(segment);
+                return segments;
             }
-
-            return segments;
         }
 
         /// <inheritdoc />

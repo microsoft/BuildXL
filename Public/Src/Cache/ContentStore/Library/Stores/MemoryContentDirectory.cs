@@ -146,7 +146,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             _initializeContentDirectory.ContinueWith(
                 t =>
                 {
-                    Tracer.Info(context, $"{Name} started with {ContentDirectory.Count} entries.");
+                    // Touching ContentDirectory only if the initialization was successful.
+                    if (t.IsCompleted)
+                    {
+                        Tracer.Info(context, $"{Name} started with {ContentDirectory.Count} entries.");
+                    }
+                    else if (t.IsFaulted)
+                    {
+                        Tracer.Warning(context, $"{Name} failed to start successfully: {t!.Exception!.InnerException}");
+                    }
                 }).FireAndForget(context);
 
             return BoolResult.Success;

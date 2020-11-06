@@ -63,7 +63,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
       let project = {
         name: task.id,
         projectFolder: projectFolder,
-        dependencies: task.dependencies,
+        dependencies: task === undefined ? [] : task.dependencies,
         availableScriptCommands: commands,
         tempFolder: repoFolder,
         outputDirectories: bxlConfig.outputDirectories,
@@ -82,12 +82,8 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 try {
     const script  = `${npmLocation} run lage --silent -- info ${targets} --reporter json`;
     console.log(`Starting lage export: ${script}`);
-    const lageOutput = execSync(script).toString();
-  
-    //Temp workaround since the install-run.js script  in the config prints more stuff than just json
-    const lageLines = lageOutput.split(/\r?\n/);
-    const lageJson = lageLines[4];
-  
+    const lageJson = execSync(script).toString();
+ 
     const lageReport = JSON.parse(lageJson) as Report;
     console.log('Finished lage export');
 

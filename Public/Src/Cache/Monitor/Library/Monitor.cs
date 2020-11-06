@@ -436,6 +436,17 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
+            OncePerEnvironment(arguments =>
+            {
+                var configuration = new MachineReimagesRule.Configuration(arguments.BaseConfiguration);
+
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new MachineReimagesRule(configuration),
+                    PollingPeriod = TimeSpan.FromMinutes(30),
+                });
+            }, watchlist);
+
             OncePerStamp(GenerateRedisAutoscalingRules, watchlist);
         }
 

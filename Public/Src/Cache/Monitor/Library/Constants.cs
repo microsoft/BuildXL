@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App
 
         public static string MasterServiceName { get; } = "ContentAddressableStoreMasterService";
 
-        public static TimeSpan KustoIngestionDelay { get; } = TimeSpan.FromMinutes(20);
+        public static TimeSpan KustoIngestionDelay { get; } = TimeSpan.FromMinutes(5);
 
         public static string OldTableName { get; } = "CloudBuildLogEvent";
 

@@ -263,6 +263,32 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             _notifier.Results[0].Severity.Should().Be(Severity.Warning);
         }
 
+        [Fact]
+        public async Task MachineReimagesRuleTestAsync()
+        {
+            (var mockKusto, var baseConfiguration) = await CreateClientAndConfigAsync();
+            var configuration = new MachineReimagesRule.Configuration(baseConfiguration);
+            var rule = new MachineReimagesRule(configuration);
+            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
+
+            var results = new object[] {
+                new MachineReimagesRule.Result() { Stamp = "S1", Total = 1000, Reimaged = 2 },
+                new MachineReimagesRule.Result() { Stamp = "S2", Total = 1000, Reimaged = 50 },
+                new MachineReimagesRule.Result() { Stamp = "S3", Total = 1000, Reimaged = 200 },
+                new MachineReimagesRule.Result() { Stamp = "S4", Total = 1000, Reimaged = 569 },
+            };
+
+            mockKusto.Add(results);
+
+            await rule.Run(ruleContext);
+
+            _notifier.Results.Count.Should().Be(4);
+            _notifier.Results[0].Severity.Should().Be(Severity.Info);
+            _notifier.Results[1].Severity.Should().Be(Severity.Warning);
+            _notifier.Results[2].Severity.Should().Be(Severity.Fatal);
+            _notifier.Results[3].Severity.Should().Be(Severity.Fatal);
+        }
+
         private async Task<(MockKustoClient, MultiStampRuleConfiguration)> CreateClientAndConfigAsync(int numStamps = 2)
         {
             var ring = "TEST_RING";

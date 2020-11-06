@@ -11,6 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tracing;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
@@ -69,6 +70,8 @@ namespace Tool.SymbolDaemon
             }
         }
 
+        private readonly CounterCollection<SymbolClientCounter> m_counters;
+
         /// <nodoc />
         public VsoSymbolClient(IIpcLogger logger, SymbolConfig config, Client apiClient)
         {
@@ -77,6 +80,8 @@ namespace Tool.SymbolDaemon
             m_config = config;
             m_debugEntryCreateBehavior = config.DebugEntryCreateBehavior;
             m_cancellationSource = new CancellationTokenSource();
+
+            m_counters = new CounterCollection<SymbolClientCounter>();
 
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
 
@@ -87,13 +92,16 @@ namespace Tool.SymbolDaemon
 
         private ISymbolServiceClient CreateSymbolServiceClient()
         {
-            var client = new SymbolServiceClient(
-                ServiceEndpoint,
-                GetFactory(),
-                Tracer,
-                new SymbolServiceClientTelemetry(Tracer, ServiceEndpoint, enable: m_config.EnableTelemetry));
+            using (m_counters.StartStopwatch(SymbolClientCounter.AuthDuration))
+            {
+                var client = new SymbolServiceClient(
+                    ServiceEndpoint,
+                    GetFactory(),
+                    Tracer,
+                    new SymbolServiceClientTelemetry(Tracer, ServiceEndpoint, enable: m_config.EnableTelemetry));
 
-            return client;
+                return client;
+            }
         }
 
         /// <summary>
@@ -107,8 +115,11 @@ namespace Tool.SymbolDaemon
         {
             if (string.IsNullOrEmpty(m_requestId))
             {
-                var result = await m_symbolClient.GetRequestByNameAsync(RequestName, CancellationToken);
-                m_requestId = result.Id;
+                using (m_counters.StartStopwatch(SymbolClientCounter.GetRequestIdDuration))
+                {
+                    var result = await m_symbolClient.GetRequestByNameAsync(RequestName, CancellationToken);
+                    m_requestId = result.Id;
+                }
             }
         }
 
@@ -117,7 +128,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public async Task<Request> CreateAsync(CancellationToken token)
         {
-            var result = await m_symbolClient.CreateRequestAsync(RequestName, token);
+            Request result;
+            using (m_counters.StartStopwatch(SymbolClientCounter.CreateDuration))
+            {
+                result = await m_symbolClient.CreateRequestAsync(RequestName, token);
+            }
 
             m_requestId = result.Id;
 
@@ -143,48 +158,54 @@ namespace Tool.SymbolDaemon
         {
             Contract.Requires(symbolFile.IsIndexed, "File has not been indexed.");
 
+            m_counters.IncrementCounter(SymbolClientCounter.NumAddFileRequests);
+
             if (symbolFile.DebugEntries.Count == 0)
             {
                 // If there are no debug entries, ask bxl to log a message and return early.
                 Analysis.IgnoreResult(await m_apiClient.LogMessage(I($"File '{symbolFile.FullFilePath}' does not contain symbols and will not be added to '{RequestName}'."), isWarning: false));
+                m_counters.IncrementCounter(SymbolClientCounter.NumFilesWithoutDebugEntries);
+
                 return AddDebugEntryResult.NoSymbolData;
             }
 
             await EnsureRequestIdInitalizedAsync();
 
             List<DebugEntry> result;
-
-            try
+            using (m_counters.StartStopwatch(SymbolClientCounter.TotalAssociateTime))
             {
-                result = await m_symbolClient.CreateRequestDebugEntriesAsync(
-                    RequestId,
-                    symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
-                    // First, we create debug entries with ThrowIfExists behavior not to silence the collision errors.
-                    DebugEntryCreateBehavior.ThrowIfExists,
-                    CancellationToken);
-            }
-            catch (DebugEntryExistsException)
-            {
-                string message = $"[SymbolDaemon] File: '{symbolFile.FullFilePath}' caused collision. " +
-                    (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists
-                        ? string.Empty
-                        : $"SymbolDaemon will retry creating debug entry with {m_debugEntryCreateBehavior} behavior");
-
-                if (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists)
+                try
                 {
-                    // Log an error message in SymbolDaemon log file
-                    m_logger.Error(message);
-                    throw new DebugEntryExistsException(message);
+                    result = await m_symbolClient.CreateRequestDebugEntriesAsync(
+                        RequestId,
+                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                        // First, we create debug entries with ThrowIfExists behavior not to silence the collision errors.
+                        DebugEntryCreateBehavior.ThrowIfExists,
+                        CancellationToken);
                 }
+                catch (DebugEntryExistsException)
+                {
+                    string message = $"[SymbolDaemon] File: '{symbolFile.FullFilePath}' caused collision. " +
+                        (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists
+                            ? string.Empty
+                            : $"SymbolDaemon will retry creating debug entry with {m_debugEntryCreateBehavior} behavior");
 
-                // Log a message in SymbolDaemon log file
-                m_logger.Verbose(message);
+                    if (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists)
+                    {
+                        // Log an error message in SymbolDaemon log file
+                        m_logger.Error(message);
+                        throw new DebugEntryExistsException(message);
+                    }
 
-                result = await m_symbolClient.CreateRequestDebugEntriesAsync(
-                    RequestId,
-                    symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
-                    m_debugEntryCreateBehavior,
-                    CancellationToken);
+                    // Log a message in SymbolDaemon log file
+                    m_logger.Verbose(message);
+
+                    result = await m_symbolClient.CreateRequestDebugEntriesAsync(
+                        RequestId,
+                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                        m_debugEntryCreateBehavior,
+                        CancellationToken);
+                }
             }
 
             var entriesWithMissingBlobs = result.Where(e => e.Status == DebugEntryStatus.BlobMissing).ToList();
@@ -196,29 +217,40 @@ namespace Tool.SymbolDaemon
                 // make sure that the file is on disk (it might not be on disk if we got DebugEntries from cache/metadata file)
                 var file = await symbolFile.EnsureMaterializedAsync();
 
-                var uploadResult = await m_symbolClient.UploadFileAsync(
-                    // uploading to the location set by the symbol service
-                    entriesWithMissingBlobs[0].BlobUri,
-                    RequestId,
-                    symbolFile.FullFilePath,
-                    entriesWithMissingBlobs[0].BlobIdentifier,
-                    CancellationToken);
+                Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifierWithBlocks uploadResult;
+                using (m_counters.StartStopwatch(SymbolClientCounter.TotalUploadTime))
+                {
+                    uploadResult = await m_symbolClient.UploadFileAsync(
+                        // uploading to the location set by the symbol service
+                        entriesWithMissingBlobs[0].BlobUri,
+                        RequestId,
+                        symbolFile.FullFilePath,
+                        entriesWithMissingBlobs[0].BlobIdentifier,
+                        CancellationToken);
+                }
 
-                m_logger.Info($"File: '{symbolFile.FullFilePath}' -- upload result: {uploadResult.ToString()}");
+                m_counters.IncrementCounter(SymbolClientCounter.NumFilesUploaded);
+                m_counters.AddToCounter(SymbolClientCounter.TotalUploadSize, file.Length);
+
+                m_logger.Info($"File: '{symbolFile.FullFilePath}' -- upload result: {uploadResult}");
 
                 entriesWithMissingBlobs.ForEach(entry => entry.BlobDetails = uploadResult);
 
-                entriesWithMissingBlobs = await m_symbolClient.CreateRequestDebugEntriesAsync(
-                    RequestId,
-                    entriesWithMissingBlobs,
-                    m_debugEntryCreateBehavior,
-                    CancellationToken);
+                using (m_counters.StartStopwatch(SymbolClientCounter.TotalAssociateAfterUploadTime))
+                {
+                    entriesWithMissingBlobs = await m_symbolClient.CreateRequestDebugEntriesAsync(
+                        RequestId,
+                        entriesWithMissingBlobs,
+                        m_debugEntryCreateBehavior,
+                        CancellationToken);
+                }
 
                 Contract.Assert(entriesWithMissingBlobs.All(e => e.Status != DebugEntryStatus.BlobMissing), "Entries with non-success code are present.");
 
                 return AddDebugEntryResult.UploadedAndAssociated;
             }
 
+            m_counters.IncrementCounter(SymbolClientCounter.NumFilesAssociated);
             return AddDebugEntryResult.Associated;
         }
 
@@ -227,15 +259,18 @@ namespace Tool.SymbolDaemon
         /// </summary>        
         public async Task<Request> FinalizeAsync(CancellationToken token)
         {
-            var result = await m_symbolClient.FinalizeRequestAsync(
-                RequestId,
-                ComputeExpirationDate(m_config.Retention),
-                // isUpdateOperation == true => request will be marked as 'Sealed', 
-                // i.e., no more DebugEntries could be added to it 
-                isUpdateOperation: false,
-                token);
+            using (m_counters.StartStopwatch(SymbolClientCounter.FinalizeDuration))
+            {
+                var result = await m_symbolClient.FinalizeRequestAsync(
+                    RequestId,
+                    ComputeExpirationDate(m_config.Retention),
+                    // isUpdateOperation == true => request will be marked as 'Sealed', 
+                    // i.e., no more DebugEntries could be added to it 
+                    isUpdateOperation: false,
+                    token);
 
-            return result;
+                return result;
+            }
         }
 
         /// <inheritdoc />
@@ -260,6 +295,46 @@ namespace Tool.SymbolDaemon
                 ClientKey = data.ClientKey,
                 InformationLevel = data.InformationLevel
             };
+        }
+
+        /// <inheritdoc />
+        public IDictionary<string, long> GetStats()
+        {
+            return m_counters.AsStatistics("SymbolDaemon");
+        }
+
+        private enum SymbolClientCounter
+        {
+            [CounterType(CounterType.Stopwatch)]
+            AuthDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            GetRequestIdDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            CreateDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            FinalizeDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            TotalAssociateTime,
+
+            [CounterType(CounterType.Stopwatch)]
+            TotalAssociateAfterUploadTime,
+
+            [CounterType(CounterType.Stopwatch)]
+            TotalUploadTime,
+
+            NumAddFileRequests,
+
+            NumFilesWithoutDebugEntries,
+
+            NumFilesAssociated,
+
+            NumFilesUploaded,
+
+            TotalUploadSize,
         }
     }
 }

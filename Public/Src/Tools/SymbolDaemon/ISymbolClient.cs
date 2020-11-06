@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 
 namespace Tool.SymbolDaemon
@@ -27,5 +29,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         /// <param name="symbolFile">A file that contains symbol data. The file must have been indexed prior calling this method.</param>        
         Task<AddDebugEntryResult> AddFileAsync(SymbolFile symbolFile);
+
+        /// <summary>
+        /// A variety of statistics.
+        /// </summary>
+        [NotNull]
+        IDictionary<string, long> GetStats();
     }
 }

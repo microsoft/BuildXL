@@ -18,6 +18,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tasks;
+using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Symbol.Common;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
@@ -749,6 +750,8 @@ namespace Tool.SymbolDaemon
         {
             if (m_symbolServiceClientTask.IsCompleted && !m_symbolServiceClientTask.IsFaulted)
             {
+                ReportStatisticsAsync().GetAwaiter().GetResult();
+
                 m_symbolServiceClientTask.Result.Dispose();
             }
 
@@ -774,6 +777,37 @@ namespace Tool.SymbolDaemon
             Contract.Assert(result.ExpirationDate.HasValue);
 
             return result;
+        }
+
+        private async Task ReportStatisticsAsync()
+        {
+            var symbolClient = await m_symbolServiceClientTask;
+            var stats = symbolClient.GetStats();
+            if (stats != null && stats.Any())
+            {
+                // log stats
+                stats.AddRange(m_counters.AsStatistics("SymbolDaemon"));
+                m_logger.Info($"Statistics:{string.Join(string.Empty, stats.Select(s => $"{Environment.NewLine}{s.Key}={s.Value}"))}");
+
+                // report stats to BuildXL
+                if (ApiClient != null)
+                {
+                    var possiblyReported = await ApiClient.ReportStatistics(stats);
+                    if (possiblyReported.Succeeded && possiblyReported.Result)
+                    {
+                        m_logger.Info("Statistics successfully reported to BuildXL.");
+                    }
+                    else
+                    {
+                        var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                        m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
+                    }
+                }
+            }
+            else
+            {
+                m_logger.Warning("No stats recorded by symbol client of type " + symbolClient.GetType().Name);
+            }
         }
     }
 }

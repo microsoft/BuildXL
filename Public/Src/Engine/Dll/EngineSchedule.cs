@@ -788,9 +788,18 @@ namespace BuildXL.Engine
                 // If that directory is deleted, then incremental scheduling will mark those pips dirty, although it is not
                 // the user who deleted the directory.
                 //
+                // Similar situation happens with temporary directories. Pip specifies Out\D1\D2 as a temp directory. 
+                // Pip probes Out\D1 during execution. After execution, our temp cleaner deletes Out\D1\D2, but (of course) not Out\D1. 
+                // In the next build, the scrubber deletes Out\D1 because it is not in the graph, and is not an output directory. 
+                // Unfortunately, the probe of Out\D1 is recorded in incremental scheduling state, and thus the deletion makes the pip dirty.
+                // Some customers' no-op (dev) builds can go from 1s to 5-6s because of this invalidation.
+                //
                 // Another alternative is to make incremental scheduling use FileSystemView for existence checking
                 // during journal scanning. This alternative requires more plumbing; see Task 1241786.
-                outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
+                outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs()
+                    .Concat(scheduler.PipGraph.AllParentsOfTemporaryPaths())
+                    .Select(d => d.ToString(scheduler.Context.PathTable))
+                    .ToList();
             }
 
             var scrubber = new DirectoryScrubber(

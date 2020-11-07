@@ -10,11 +10,8 @@ using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
@@ -24,7 +21,6 @@ using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
 using BuildXL.Processes;
 using BuildXL.Utilities.Collections;
-using BuildXL.Engine.Tracing;
 
 namespace Test.BuildXL.Engine
 {
@@ -222,6 +218,16 @@ namespace Test.BuildXL.Engine
                 string junkFileInJunkDirectoryPath = Path.Combine(junkDirectoryPath, "junkInJunkDir.txt");
                 WriteFile(junkFileInJunkDirectoryPath);
 
+                // Create pip's temporary directory.
+                string pipTempDir1 = Path.Combine(outputRoot, "PipTemp1");
+                Directory.CreateDirectory(pipTempDir1);
+                string fileInPipTempDir1 = Path.Combine(pipTempDir1, "fileInPipTemp1.txt");
+                WriteFile(fileInPipTempDir1);
+                string pipTempDir2 = Path.Combine(outputRoot, "PipTemp2", "Nested");
+                Directory.CreateDirectory(pipTempDir2);
+                string fileInPipTempDir2 = Path.Combine(pipTempDir1, "fileInPipTemp2Nested.txt");
+                WriteFile(fileInPipTempDir2);
+
                 var pipBuilder = CreatePipBuilderWithTag(env, nameof(ScrubFileDirectoriesWithPipGraph));
                 FileArtifact input = env.Paths.CreateSourceFile(env.Paths.CreateAbsolutePath(inputFilePath));
                 pipBuilder.AddInputFile(input);
@@ -243,6 +249,9 @@ namespace Test.BuildXL.Engine
 
                 AbsolutePath sharedOutputDirectory = env.Paths.CreateAbsolutePath(sharedOutputDirectoryPath);
                 pipBuilder.AddOutputDirectory(sharedOutputDirectory, SealDirectoryKind.SharedOpaque);
+
+                pipBuilder.TempDirectory = env.Paths.CreateAbsolutePath(pipTempDir1);
+                pipBuilder.AdditionalTempDirectories = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(env.Paths.CreateAbsolutePath(pipTempDir2));
 
                 env.PipConstructionHelper.AddProcess(pipBuilder);
                 PipGraph pipGraph = AssertSuccessGraphBuilding(env);
@@ -268,6 +277,10 @@ namespace Test.BuildXL.Engine
                 // Junk output in an output directory is not removed because
                 // when we run again the pip (can be from cache), the whole output directory will be removed.
                 XAssert.IsTrue(File.Exists(junkOutputInOutputDirectoryPath));
+
+                XAssert.IsFalse(Directory.Exists(pipTempDir1));
+                XAssert.IsFalse(Directory.Exists(pipTempDir2));
+                XAssert.IsTrue(Directory.Exists(Path.GetDirectoryName(pipTempDir2)));
             }
         }
 
@@ -594,7 +607,9 @@ namespace Test.BuildXL.Engine
                 isPathInBuild: p => pipGraph.IsPathInBuild(env.Paths.CreateAbsolutePath(p)),
                 pathsToScrub: pathsToScrub,
                 blockedPaths: new string[0],
-                nonDeletableRootDirectories: pipGraph.AllDirectoriesContainingOutputs().Select(p => env.Paths.Expand(p)),
+                nonDeletableRootDirectories: pipGraph.AllDirectoriesContainingOutputs()
+                    .Concat(pipGraph.AllParentsOfTemporaryPaths())
+                    .Select(p => env.Paths.Expand(p)),
                 mountPathExpander: mountPathExpander);
             XAssert.IsTrue(removed);
         }

@@ -726,14 +726,15 @@ namespace BuildXL.Pips.Graph
         /// Gets all directories containing outputs.
         /// </summary>
         /// <returns>Set of all directories that contain outputs.</returns>
-        public HashSet<AbsolutePath> AllDirectoriesContainingOutputs()
-        {
-            var outputFileDirectories = PipProducers.Keys.Select(f => f.Path.GetParent(Context.PathTable)).ToReadOnlySet();
-            var outputDirectories = new HashSet<AbsolutePath>(OutputDirectoryProducers.Keys.Select(d => d.Path));
-            outputDirectories.UnionWith(outputFileDirectories);
+        public HashSet<AbsolutePath> AllDirectoriesContainingOutputs() =>
+            PipProducers.Keys.Select(f => f.Path.GetParent(Context.PathTable))
+            .Concat(OutputDirectoryProducers.Keys.Select(d => d.Path))
+            .ToHashSet();
 
-            return outputDirectories;
-        }
+        /// <summary>
+        /// Gets all parents containing temporary paths.
+        /// </summary>
+        public HashSet<AbsolutePath> AllParentsOfTemporaryPaths() => TemporaryPaths.Select(kvp => kvp.Key.GetParent(Context.PathTable)).ToHashSet();
 
         /// <summary>
         /// Attempts to find the highest-versioned file artifact for a path that precedes the specified pip in graph order.

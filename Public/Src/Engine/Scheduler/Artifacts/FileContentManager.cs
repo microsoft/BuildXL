@@ -2287,7 +2287,7 @@ namespace BuildXL.Scheduler.Artifacts
                 return false;
             }
             
-            if (m_host.TryGetCopySourceFile(materializationFile.Artifact, out var copySource))
+            if (m_host.TryGetCopySourceFile(materializationFile.Artifact, out var copySource) && copySource.IsSourceFile)
             {
                 // Copies lazily store into cache from the source file, so we can't virtualize since we don't get a callback
                 // to store into the cache if the file is not already present.

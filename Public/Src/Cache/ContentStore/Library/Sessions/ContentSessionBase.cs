@@ -96,7 +96,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     traceOperationStarted: TraceOperationStarted,
                     traceOperationFinished: TracePinFinished,
                     traceErrorsOnly: TraceErrorsOnly,
-                    extraEndMessage: _ => $"input=[{contentHash.ToShortString()}]",
+                    extraEndMessage: r => $"input=[{contentHash.ToShortString()}] size=[{r.ContentSize}]",
                     counter: BaseCounters[ContentSessionBaseCounters.Pin]));
         }
 

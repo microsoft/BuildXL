@@ -52,12 +52,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 new OptionHandler(new[] { "root" }, opt => config.CasConfiguration.RootPath = new AbsolutePath(ParsePathOption(opt))),
                 new OptionHandler(new[] { "cacheName" }, opt => config.CacheName = ParseStringOption(opt)),
                 new OptionHandler(new[] { "scenario" }, opt => config.Scenario = ParseStringOption(opt), required: false),
-                new OptionHandler(new[] { "virtualizationMount", "vm" }, opt =>
-                {
-                    var kvp = ParseKeyValuePair(opt);
-                    config.CasConfiguration.VirtualizationMounts[kvp.Key] = new AbsolutePath(GetFullPath(kvp.Value, opt));
-                },
-                required: false),
             }
             .SelectMany(handler => handler.Names.Select(name => (name, handler)))
             .ToDictionary(t => t.name, t => t.handler, StringComparer.OrdinalIgnoreCase);

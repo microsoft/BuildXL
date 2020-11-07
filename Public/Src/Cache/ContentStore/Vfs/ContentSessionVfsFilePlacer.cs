@@ -10,23 +10,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
-    /// <summary>
-    /// Implementation of <see cref="IVfsFilePlacer"/> backed by <see cref="IReadOnlyContentSession"/>
-    /// </summary>
-    public class ContentSessionVfsFilePlacer : IVfsFilePlacer
+    public static class ContentSessionVfsFilePlacer
     {
-        private readonly IReadOnlyContentSession _contentSession;
-
-        /// <nodoc />
-        public ContentSessionVfsFilePlacer(IReadOnlyContentSession contentSession)
-        {
-            _contentSession = contentSession;
-        }
-
         /// <inheritdoc />
-        public Task<PlaceFileResult> PlaceFileAsync(Context context, AbsolutePath path, VfsFilePlacementData placementData, CancellationToken token)
+        public static Task<PlaceFileResult> PlaceFileAsync(this IReadOnlyContentSession session, Context context, AbsolutePath path, VfsFilePlacementData placementData, CancellationToken token)
         {
-            return _contentSession.PlaceFileAsync(
+            return session.PlaceFileAsync(
                 context,
                 placementData.Hash,
                 path,

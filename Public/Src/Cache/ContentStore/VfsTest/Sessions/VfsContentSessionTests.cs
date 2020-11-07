@@ -47,7 +47,6 @@ namespace ContentStoreTest.Vfs.Sessions
             _vfsStore = new VirtualizedContentStore(fsStore, Logger, new VfsCasConfiguration.Builder()
             {
                 RootPath = rootPath / "vfs",
-                UseSymlinks = true
             }.Build());
 
             return _vfsStore;
@@ -74,9 +73,6 @@ namespace ContentStoreTest.Vfs.Sessions
                         FileRealizationMode.Any,
                         Token).ShouldBeSuccess();
                     Assert.True(result.IsPlaced());
-
-                    var beforeAttributes = FileUtilities.GetFileAttributes(path.Path);
-                    beforeAttributes.HasFlag(FileAttributes.Offline).Should().BeTrue();
 
                     AllowCallbacks(() =>
                     {

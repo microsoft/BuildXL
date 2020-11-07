@@ -6,12 +6,14 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -38,23 +40,22 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <summary>
         /// Unique integral id for files under vfs cas root
         /// </summary>
-        private int _nextVfsCasTargetFileUniqueId;
+        private int _nextVfsCasTargetFileUniqueId = 0;
 
         internal VfsTree Tree { get; }
 
         internal VfsProvider Provider { get; }
-
         protected override Tracer Tracer { get; } = new Tracer(nameof(VfsContentManager));
 
         private readonly VfsCasConfiguration _configuration;
         private readonly ILogger _logger;
 
-        private readonly IVfsFilePlacer _placer;
+        private readonly IReadOnlyContentSession _placer;
         private readonly DisposableDirectory _tempDirectory;
         private readonly PassThroughFileSystem _fileSystem;
 
         /// <nodoc />
-        public VfsContentManager(ILogger logger, VfsCasConfiguration configuration, IVfsFilePlacer placer)
+        public VfsContentManager(ILogger logger, VfsCasConfiguration configuration, IReadOnlyContentSession placer)
         {
             Tree = new VfsTree(configuration);
 
@@ -96,128 +97,51 @@ namespace BuildXL.Cache.ContentStore.Vfs
         }
 
         /// <summary>
-        /// Places a hydrated file at the given VFS root relative path
-        /// </summary>
-        /// <param name="relativePath">the vfs root relative path</param>
-        /// <param name="data">the content and placement data for the file</param>
-        /// <param name="token">the cancellation token</param>
-        /// <returns>a task which completes when the operation is complete or throws an exception if error is encountered during operation</returns>
-        internal Task PlaceHydratedFileAsync(VirtualPath relativePath, VfsFileNode node, CancellationToken token)
-        {
-            var fullPath = ToFullPath(relativePath);
-
-            return PlaceHydratedFileAsync(fullPath, node, token);
-        }
-
-        /// <summary>
-        /// See <see cref="PlaceHydratedFileAsync(VirtualPath, VfsFilePlacementData, CancellationToken)"/>
-        /// </summary>
-        public Task<BoolResult> PlaceHydratedFileAsync(FullPath fullPath, VfsFileNode node, CancellationToken token)
-        {
-            var data = node.Data;
-            var realPath = node.RealPath.ToString(Tree.PathTable);
-
-            return WithOperationContext(new Context(_logger), token, context => 
-                context.PerformOperationAsync(
-                    Tracer,
-                    async () =>
-                    {
-                        // Replace the file at the real path
-                        var result = await _placer.PlaceFileAsync(
-                            context,
-                            new FullPath(realPath),
-                            data,
-                            token).ThrowIfFailure();
-
-                        // Place the file in the VFS path as well
-                        await _placer.PlaceFileAsync(
-                            context,
-                            fullPath,
-                            data,
-                            token).ThrowIfFailure();
-
-                        if (result.FileSize >= 0)
-                        {
-                            Counters[VfsCounters.PlaceHydratedFileBytes].Add(result.FileSize);
-                        }
-                        else
-                        {
-                            Counters[VfsCounters.PlaceHydratedFileUnknownSizeCount].Increment();
-                        }
-
-                        return BoolResult.Success;
-                    },
-                    extraStartMessage: $"VfsPath={fullPath}, RealPath={realPath}, Hash={data.Hash}",
-                    counter: Counters[VfsCounters.PlaceHydratedFile]));
-        }
-
-        /// <summary>
         /// Converts the full path to a VFS root relative path
         /// </summary>
-        internal VirtualPath ToVirtualPath(FullPath path)
+        internal VirtualPath ToVirtualPath(VfsFilePlacementData data, FullPath path)
         {
-            foreach (var mount in _configuration.VirtualizationMounts)
-            {
-                if (path.Path.TryGetRelativePath(mount.Value.Path, out var mountRelativePath))
-                {
-                    RelativePath relativePath = _configuration.VfsMountRelativeRoot / mount.Key / mountRelativePath;
-                    return relativePath.Path;
-                }
-            }
+            // Use the same index (0) for ReadOnly/Hardlink files
+            var shouldHardlink = FileSystemContentStoreInternal.ShouldAttemptHardLink(path, data.AccessMode, data.RealizationMode);
 
-            if (path.Path.TryGetRelativePath(_configuration.VfsRootPath.Path, out var rootRelativePath))
-            {
-                return rootRelativePath;
-            }
+            // All hardlinks of a hash share the same file under the vfs root so just
+            // use index 0 to represent that file. Otherwise, create a unique index so
+            // that copies get unique files
+            var index = shouldHardlink
+                ? 0
+                : Interlocked.Increment(ref _nextVfsCasTargetFileUniqueId);
 
-            return null;
+            VirtualPath casRelativePath = VfsUtilities.CreateCasRelativePath(data, index);
+
+            var virtualPath = _configuration.VfsCasRelativeRoot / casRelativePath;
+            return virtualPath.Path;
         }
 
-        /// <summary>
-        /// Attempts to create a symlink which points to a virtualized file materialized with the given data
-        /// </summary>
-        public Result<VirtualPath> TryCreateSymlink(OperationContext context, AbsolutePath sourcePath, VfsFilePlacementData data, bool replaceExisting)
+        public Task<StreamWithLength> OpenStreamAsync(ContentHash hash, uint bufferSize, CancellationToken token)
         {
-            return context.PerformOperation(
-                Tracer,
-                () =>
+            return WithOperationContext(new Context(_logger), token,
+                context =>
                 {
-                    _fileSystem.CreateDirectory(sourcePath.Parent);
+                    return context.PerformOperationAsync(
+                        Tracer,
+                        async () =>
+                        {
 
-                    if (replaceExisting)
-                    {
-                        FileUtilities.DeleteFile(sourcePath.Path);
-                    }
+                            var openStreamResult = await _placer.OpenStreamAsync(
+                                context,
+                                hash,
+                                context.Token).ThrowIfFailure();
 
-                    var index = Interlocked.Increment(ref _nextVfsCasTargetFileUniqueId);
-                    VirtualPath casRelativePath = VfsUtilities.CreateCasRelativePath(data, index);
+                            var streamWithLength = openStreamResult.StreamWithLength.Value;
+                            if (streamWithLength.Length >= 0)
+                            {
+                                Counters[VfsCounters.PlaceHydratedFileBytes].Add(streamWithLength.Length);
+                            }
 
-                    var virtualPath = _configuration.VfsCasRelativeRoot / casRelativePath;
-
-                    var fullTargetPath = _configuration.VfsCasRootPath / casRelativePath;
-
-                    var now = DateTime.UtcNow;
-
-                    var tempFilePath = _tempDirectory.CreateRandomFileName();
-
-                    var result = FileUtilities.TryCreateSymbolicLink(symLinkFileName: tempFilePath.Path, targetFileName: fullTargetPath.Path, isTargetFile: true);
-                    if (result.Succeeded)
-                    {
-                        var attributes = FileUtilities.GetFileAttributes(tempFilePath.Path);
-                        attributes |= FileAttributes.Offline;
-                        FileUtilities.SetFileAttributes(tempFilePath.Path, attributes);
-
-                        _fileSystem.MoveFile(tempFilePath, sourcePath, replaceExisting: replaceExisting);
-                        return Result.Success(virtualPath.Path);
-                    }
-                    else
-                    {
-                        return Result.FromErrorMessage<VirtualPath>(result.Failure.DescribeIncludingInnerFailures());
-                    }
-                },
-                extraStartMessage: $"SourcePath={sourcePath}, Hash={data.Hash}",
-                messageFactory: r => $"SourcePath={sourcePath}, Hash={data.Hash}, TargetPath={r.GetValueOrDefault()}",
-                counter: Counters[VfsCounters.TryCreateSymlink]);
+                            return Result.Success(streamWithLength);
+                        },
+                        extraEndMessage: r => $"Hash={hash}").ThrowIfFailureAsync();
+                });
         }
 
         /// <inheritdoc />
@@ -225,17 +149,60 @@ namespace BuildXL.Cache.ContentStore.Vfs
         {
             return WithOperationContext(context, token, async operationContext =>
             {
-                var virtualPath = _configuration.UseSymlinks
-                    ? TryCreateSymlink(operationContext, path, placementData, replaceExisting: true).ThrowIfFailure()
-                    : ToVirtualPath(path);
+                var result = await operationContext.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        var virtualPath = ToVirtualPath(placementData, path);
 
-                if (virtualPath == null)
+                        var node = Tree.AddFileNode(virtualPath, placementData, path.Path);
+
+                        var vfsPath = _configuration.VfsRootPath / virtualPath;
+
+                        // TODO: Faster path for getting size of file. Also would be good to batch somehow.
+                        // Maybe have FileContentManager batch pin files
+                        var pinResult = await _placer.PinAsync(context, node.Hash, operationContext.Token);
+                        if (pinResult.ContentSize > 0)
+                        {
+                            node.Size = pinResult.ContentSize;
+                        }
+                        else
+                        {
+                            return new PlaceFileResult($"Pin file size = {pinResult.ContentSize}");
+                        }
+
+                        if (placementData.AccessMode == FileAccessMode.ReadOnly)
+                        {
+                            // NOTE: This should cause the placeholder to get created under vfs root
+                            _fileSystem.DenyFileWrites(vfsPath);
+                        }
+
+                        var result = _fileSystem.CreateHardLink(vfsPath, path, replaceExisting: true);
+                        if (result != CreateHardLinkResult.Success)
+                        {
+                            if (result == CreateHardLinkResult.FailedDestinationDirectoryDoesNotExist)
+                            {
+                                _fileSystem.CreateDirectory(path.Parent);
+                                result = _fileSystem.CreateHardLink(vfsPath, path, replaceExisting: true);
+                            }
+
+                            if (result != CreateHardLinkResult.Success)
+                            {
+                                return new PlaceFileResult($"Failed to create hardlink: {result}");
+                            }
+                        }
+
+                        return new PlaceFileResult(GetPlaceResultCode(placementData.RealizationMode, placementData.AccessMode), fileSize: pinResult.ContentSize /* Unknown */);
+                    },
+                    caller: "PlaceVirtualFile",
+                    extraEndMessage: r => $"Hash={placementData.Hash}");
+
+                if (!result.Succeeded)
                 {
                     return await _placer.PlaceFileAsync(context, path, placementData, token);
                 }
 
-                Tree.AddFileNode(virtualPath, placementData, path.Path);
-                return new PlaceFileResult(GetPlaceResultCode(placementData.RealizationMode, placementData.AccessMode), fileSize: -1 /* Unknown */);
+                return result;
             });
         }
 

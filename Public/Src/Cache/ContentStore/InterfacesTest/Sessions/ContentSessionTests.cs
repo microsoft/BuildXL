@@ -98,6 +98,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                 {
                     var pinResult = await result;
                     pinResult.Item.ShouldBeSuccess();
+                    Assert.Equal(ContentByteCount, pinResult.Item.ContentSize);
                 }
             });
         }

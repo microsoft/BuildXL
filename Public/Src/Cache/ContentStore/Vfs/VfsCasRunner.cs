@@ -36,12 +36,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 var fileSystem = new PassThroughFileSystem(logger);
                 var context = new OperationContext(new Context(logger));
 
-                // Map junctions into VFS root
-                foreach (var mount in configuration.CasConfiguration.VirtualizationMounts)
-                {
-                    CreateJunction(context, source: mount.Value, target: configuration.CasConfiguration.VfsMountRootPath / mount.Key);
-                }
-
                 var clientContentStore = new ServiceClientContentStore(
                     logger,
                     fileSystem,

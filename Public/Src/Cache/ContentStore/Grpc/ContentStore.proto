@@ -108,6 +108,11 @@ message PinRequest {
 
 message PinResponse {
      ResponseHeader Header = 1;
+     PinResponseInfo Info = 2;
+}
+
+message PinResponseInfo {
+    int64 ContentSize = 1;
 }
 
 // PinBulk
@@ -118,6 +123,7 @@ message PinBulkRequest {
 
 message PinBulkResponse {
     map<int32, ResponseHeader> Header = 1;
+    repeated PinResponseInfo Info = 2;
 }
 
 // PlaceFile

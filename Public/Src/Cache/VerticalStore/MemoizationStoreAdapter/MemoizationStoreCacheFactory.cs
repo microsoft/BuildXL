@@ -290,7 +290,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
                             {
                                 RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
-                                UseSymlinks = cacheConfig.UseVfsSymlinks
                             }.Build());
                 }
 

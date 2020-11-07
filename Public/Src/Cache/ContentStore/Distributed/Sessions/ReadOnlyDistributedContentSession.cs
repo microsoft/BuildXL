@@ -1007,7 +1007,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             public ContentHashWithSizeAndLocations Record { get; }
 
-            public PinResult? Result { get; set; }
+            private PinResult? _result;
+            public PinResult? Result
+            {
+                get => _result;
+                set
+                {
+                    value!.ContentSize = Record.Size;
+                    _result = value;
+                }
+            }
 
             public RemotePinning(ContentHashWithSizeAndLocations record)
                 => Record = record;

@@ -12,7 +12,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Collections;
 using Microsoft.Windows.ProjFS;
 
@@ -24,6 +27,8 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
     /// </summary>
     internal class VfsProvider
     {
+        protected Tracer Tracer { get; } = new Tracer(nameof(VfsContentManager));
+
         private readonly ILogger Log;
         private readonly VfsCasConfiguration Configuration;
         private readonly VfsContentManager ContentManager;
@@ -81,26 +86,8 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
                 HResult hr = virtualizationInstance.StartVirtualizing(requiredCallbacks);
                 if (hr != HResult.Ok)
                 {
-                    Log.Error("Failed to start virtualization instance: {Result}", hr);
+                    Log.Error("Failed to start virtualization instance: {0}", hr);
                     return false;
-                }
-
-                foreach (var mount in Configuration.VirtualizationMounts)
-                {
-                    hr = Log.PerformOperation(mount.Key, () =>
-                    {
-                        return virtualizationInstance.MarkDirectoryAsPlaceholder(
-                            targetDirectoryPath: (Configuration.VfsMountRootPath / mount.Key).Path,
-                            contentId: s_contentId,
-                            providerId: s_providerId);
-                    },
-                    caller: "MarkMountDirectoryAsPlaceholder");
-
-                    if (hr != HResult.Ok)
-                    {
-                        Log.Error("Failed to start virtualization instance: {Result}", hr);
-                        return false;
-                    }
                 }
 
                 return true;
@@ -316,21 +303,8 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             uint triggeringProcessId,
             string triggeringProcessImageFileName)
         {
-            bool isCurrentProcess = triggeringProcessId == currentProcessId;
-
             bool allowCallback()
             {
-                if (isCurrentProcess)
-                {
-                    if (!VfsUtilities.AllowCurrentProcessCallbacks || _outstandingCurrentProcessHydrations.ContainsKey(relativePath))
-                    {
-                        // Current process cannot execute callback or there is already a pending hydration from the current process
-                        return false;
-                    }
-
-                    return true;
-                }
-
                 if (triggeringProcessImageFileName.EndsWith("mssense.exe", StringComparison.OrdinalIgnoreCase))
                 {
                     // Don't allow virus scan to materialize files
@@ -360,46 +334,17 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             else
             {
                 relativePath = relativePath.EndsWith(node.Name) ? relativePath : Path.Combine(Path.GetDirectoryName(relativePath), node.Name);
-                if (node.IsDirectory)
-                {
-                    return virtualizationInstance.WritePlaceholderInfo(
-                        relativePath: relativePath,
-                        creationTime: node.Timestamp,
-                        lastAccessTime: node.Timestamp,
-                        lastWriteTime: node.Timestamp,
-                        changeTime: node.Timestamp,
-                        fileAttributes: node.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal,
-                        endOfFile: node.Size,
-                        isDirectory: node.IsDirectory,
-                        contentId: s_contentId,
-                        providerId: s_providerId);
-                }
-                else
-                {
-                    return HandleCommandAsynchronously(commandId, async token =>
-                    {
-                        try
-                        {
-                            if (isCurrentProcess)
-                            {
-                                _outstandingCurrentProcessHydrations[relativePath] = true;
-                            }
-
-                            var fileNode = (VfsFileNode)node;
-                            await ContentManager.PlaceHydratedFileAsync(relativePath, fileNode, token);
-                        }
-                        finally
-                        {
-                            if (isCurrentProcess)
-                            {
-                                _outstandingCurrentProcessHydrations.TryRemove(relativePath, out _);
-                            }
-                        }
-
-                        // TODO: Create hardlink / move to original location to replace symlink?
-                        return HResult.Ok;
-                    });
-                }
+                return virtualizationInstance.WritePlaceholderInfo(
+                    relativePath: relativePath,
+                    creationTime: node.Timestamp,
+                    lastAccessTime: node.Timestamp,
+                    lastWriteTime: node.Timestamp,
+                    changeTime: node.Timestamp,
+                    fileAttributes: node.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal,
+                    endOfFile: node.Size,
+                    isDirectory: node.IsDirectory,
+                    contentId: s_contentId,
+                    providerId: s_providerId);
             }
         }
 
@@ -414,8 +359,69 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             uint triggeringProcessId,
             string triggeringProcessImageFileName)
         {
-            // We should never create file placeholders so this should not be necessary
-            return HResult.FileNotFound;
+            if (!Tree.TryGetNode(relativePath, out var node) || !(node is VfsFileNode fileNode))
+            {
+                return HResult.FileNotFound;
+            }
+
+            var bufferSize = Math.Min(Configuration.BufferSize, length);
+
+            return HandleCommandAsynchronously(commandId, token =>
+            {
+                return ContentManager.WithOperationContext(new Context(Log), token,
+                    context =>
+                    {
+                        ulong writeDataOffset = 0;
+                        long remaining = length;
+
+                        return context.PerformOperationAsync(
+                            Tracer,
+                            async () =>
+                            {
+                                using (var streamWithLength = await ContentManager.OpenStreamAsync(fileNode.Hash, bufferSize, token))
+                                using (var writeBuffer = virtualizationInstance.CreateWriteBuffer(bufferSize))
+                                {
+                                    byte[] buffer = new byte[bufferSize];
+                                    var stream = streamWithLength.Stream;
+                                    while (remaining > 0)
+                                    {
+                                        writeBuffer.Stream.Seek(0, SeekOrigin.Begin);
+
+                                        token.ThrowIfCancellationRequested();
+
+                                        // TODO: Consider reading/writing in parallel
+                                        int read = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                                        await writeBuffer.Stream.WriteAsync(buffer, 0, read, token);
+
+                                        var bytesToCopy = Math.Min(buffer.Length, remaining);
+
+                                        if (bytesToCopy != read)
+                                        {
+                                            Log.Log(Severity.Warning, $"Mismatch in bytesToCopy and read bytes: {bytesToCopy} != {read}. Length={length}, StreamLength={streamWithLength.Length}, Remaining={remaining}");
+                                        }
+
+                                        var result = virtualizationInstance.WriteFileData(dataStreamId, writeBuffer, writeDataOffset, (uint)bytesToCopy);
+                                        if (result != HResult.Ok)
+                                        {
+                                            return Result.Success(result);
+                                        }
+
+                                        writeDataOffset += (uint)read;
+                                        remaining -= read;
+
+                                        if (read < buffer.Length)
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    return Result.Success(HResult.Ok);
+                                }
+                            },
+                            extraStartMessage: $"Hash={fileNode.Hash}, ByteOffset={byteOffset}, Length={length}",
+                            extraEndMessage: r => $"Hash={fileNode.Hash}, ByteOffset={byteOffset}, Length={length}, Remaining={remaining}, WDO={writeDataOffset}");
+                    }).ThrowIfFailureAsync();
+            });
         }
 
         private HResult QueryFileNameCallback(string relativePath)

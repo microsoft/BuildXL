@@ -466,7 +466,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private static bool ShouldAttemptHardLink(AbsolutePath contentPath, FileAccessMode accessMode, FileRealizationMode realizationMode)
+        /// <nodoc />
+        public static bool ShouldAttemptHardLink(AbsolutePath contentPath, FileAccessMode accessMode, FileRealizationMode realizationMode)
         {
             return contentPath.IsLocal && accessMode == FileAccessMode.ReadOnly &&
                    (realizationMode == FileRealizationMode.Any ||

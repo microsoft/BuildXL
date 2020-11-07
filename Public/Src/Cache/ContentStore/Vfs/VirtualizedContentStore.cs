@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
             _backingContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
             await _backingContentSession.StartupAsync(context).ThrowIfFailure();
 
-            _contentManager = new VfsContentManager(_logger, Configuration, new ContentSessionVfsFilePlacer(_backingContentSession));
+            _contentManager = new VfsContentManager(_logger, Configuration, _backingContentSession);
 
             return await _contentManager.StartupAsync(context);
         }

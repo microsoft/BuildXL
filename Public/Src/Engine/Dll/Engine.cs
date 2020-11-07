@@ -1204,6 +1204,16 @@ namespace BuildXL.Engine
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? true;
             }
 
+            // Since VFS lives inside BXL process currently. Disallow on office enlist and meta build because
+            // they materialize files which would be needed by subsequent invocations and thus requires VFS to
+            // span multiple invocations. Just starting at Product build is sufficient.
+            if (mutableConfig.InCloudBuild() &&
+                (mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab 
+                || mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeEnlistmentBuildLab))
+            {
+                mutableConfig.Cache.VfsCasRoot = AbsolutePath.Invalid;
+            }
+
             // Unless otherwise specified, distributed metabuilds in CloudBuild should replicate outputs to all machines
             // TODO: Remove this once reduced metabuild materialization is fully tested
             if (mutableConfig.InCloudBuild() &&

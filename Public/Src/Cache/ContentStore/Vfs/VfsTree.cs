@@ -99,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public VfsNode PreviousSibling;
         public readonly VfsDirectoryNode Parent;
 
-        public virtual long Size => -1;
+        public virtual long Size { get; set; } = -1;
         public abstract bool IsDirectory { get; }
 
         public FileAttributes Attributes => IsDirectory ? FileAttributes.Directory : FileAttributes.Normal | FileAttributes.ReparsePoint;
@@ -184,9 +184,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public ContentHash Hash => Data.Hash;
         public FileRealizationMode RealizationMode => Data.RealizationMode;
         public FileAccessMode AccessMode => Data.AccessMode;
-        public override long Size => 0;
+        public override long Size { get; set; }
         public override bool IsDirectory => false;
-
 
         public VfsFileNode(string name, DateTime timestamp, VfsDirectoryNode parent, VfsFilePlacementData data, RealPath realPath)
             : base(name, timestamp, parent)

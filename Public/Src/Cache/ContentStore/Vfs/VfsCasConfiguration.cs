@@ -10,10 +10,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
 {
     public class VfsCasConfiguration
     {
-        /// <summary>
-        /// Indicates whether symlinks to virtual paths should be used.
-        /// </summary>
-        public bool UseSymlinks { get; }
+        public uint BufferSize { get; } = 64 << 10;
 
         /// <summary>
         /// The root used by the VFS for materializing files
@@ -41,16 +38,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public RelativePath VfsCasRelativeRoot { get; }
 
         /// <summary>
-        /// The root of mounted virtualized directories (i.e. {VfsRootPath}\mounts)
-        /// </summary>
-        public AbsolutePath VfsMountRootPath { get; }
-
-        /// <summary>
-        /// The root of mounted virtualized directories (relative to vfs root)
-        /// </summary>
-        public RelativePath VfsMountRelativeRoot { get; }
-
-        /// <summary>
         /// The root of temp virtualized files (i.e. {VfsRootPath}\temp)
         /// </summary>
         public AbsolutePath VfsTempRootPath { get; }
@@ -60,45 +47,24 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// </summary>
         public RelativePath VfsTempRelativeRoot { get; }
 
-        /// <summary>
-        /// Specifies folder names under the VFS which will be junctioned to given destination paths
-        /// Maybe just names (i.e. no sub paths)
-        /// </summary>
-        public IReadOnlyDictionary<string, AbsolutePath> VirtualizationMounts { get; }
-
         private VfsCasConfiguration(Builder builder)
         {
             RootPath = builder.RootPath;
-            UseSymlinks = builder.UseSymlinks;
-            VirtualizationMounts = builder.VirtualizationMounts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
             DataRootPath = RootPath / "data";
             VfsRootPath = RootPath / "vfs";
-            VfsMountRelativeRoot = new RelativePath("mounts");
             VfsCasRelativeRoot = new RelativePath("cas");
             VfsTempRelativeRoot = new RelativePath("temp");
             VfsTempRootPath = VfsRootPath / VfsTempRelativeRoot;
-            VfsMountRootPath = VfsRootPath / VfsMountRelativeRoot;
             VfsCasRootPath = VfsRootPath / VfsCasRelativeRoot;
         }
 
         public class Builder
         {
             /// <summary>
-            /// Indicates whether symlinks to virtual paths should be used.
-            /// </summary>
-            public bool UseSymlinks { get; set; }
-
-            /// <summary>
             /// The root used by the VFS for materializing files
             /// </summary>
             public AbsolutePath RootPath { get; set; }
-
-            /// <summary>
-            /// Specifies folder names under the VFS which will be junctioned to given destination paths
-            /// Maybe just names (i.e. no sub paths)
-            /// </summary>
-            public Dictionary<string, AbsolutePath> VirtualizationMounts { get; } = new Dictionary<string, AbsolutePath>(StringComparer.OrdinalIgnoreCase);
 
             /// <summary>
             /// Creates a VfsCasConfiguration

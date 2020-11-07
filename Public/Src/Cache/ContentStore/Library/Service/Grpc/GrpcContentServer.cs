@@ -662,12 +662,26 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new PinResponse
                     {
                         Header = new ResponseHeader(
-                                   context.StartTime, pinResult.Succeeded, (int)pinResult.Code, pinResult.ErrorMessage, pinResult.Diagnostics)
+                                   context.StartTime, pinResult.Succeeded, (int)pinResult.Code, pinResult.ErrorMessage, pinResult.Diagnostics),
+                        Info = GetResponseInfo(pinResult)
                     };
                 },
                 (context, errorMessage) =>
                     new PinResponse { Header = ResponseHeader.Failure(context.StartTime, (int)PinResult.ResultCode.Error, errorMessage) },
                 token);
+        }
+
+        private PinResponseInfo GetResponseInfo(PinResult result)
+        {
+            if (!result.Succeeded)
+            {
+                return new PinResponseInfo();
+            }
+
+            return new PinResponseInfo()
+            {
+                ContentSize = result.ContentSize
+            };
         }
 
         /// <summary>
@@ -692,6 +706,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     var response = new PinBulkResponse();
                     try
                     {
+                        PinResponseInfo?[] info = new PinResponseInfo[pinList.Count];
+
                         foreach (var pinResult in pinResults)
                         {
                             var result = await pinResult;
@@ -701,8 +717,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                 (int)result.Item.Code,
                                 result.Item.ErrorMessage,
                                 result.Item.Diagnostics);
+
                             response.Header.Add(result.Index, responseHeader);
+                            info[result.Index] = GetResponseInfo(result.Item);
                         }
+
+                        response.Info.AddRange(info);
                     }
                     catch (Exception)
                     {

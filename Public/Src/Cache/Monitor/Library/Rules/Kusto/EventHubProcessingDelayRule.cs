@@ -50,11 +50,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             public string Machine = string.Empty;
             public DateTime PreciseTimeStamp;
             public TimeSpan MaxDelay;
-            public TimeSpan AvgProcessingDuration;
-            public TimeSpan MaxProcessingDuration;
-            public long MessageCount;
-            public long SumMessageCount;
-            public long SumMessageSizeMb;
             public string Stamp = string.Empty;
         }
 
@@ -73,6 +68,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                let binWidth = {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)};
                 let MasterEvents = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
@@ -81,20 +77,15 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | where Message has 'ReceivedEvent'
                 | parse Message with * 'ProcessingDelay=' Lag:timespan ',' *
                 | project PreciseTimeStamp, Stamp, Machine, ServiceVersion, Message, Duration=Lag
-                | summarize MaxDelay=max(Duration) by Stamp, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
-                let MaximumDelayFromEH = MasterEvents
-                | where Message has 'processed' 
-                | parse Message with * 'processed ' MessageCount:long 'message(s) by ' Duration:long 'ms' * 'TotalMessagesSize=' TotalSize:long *
-                | project PreciseTimeStamp, Stamp, MessageCount, Duration, TotalSize, Message, Machine
-                | summarize MessageCount=count(), ProcessingDurationMs=percentile(Duration, 50), MaxProcessingDurationMs=max(Duration), SumMessageCount=sum(MessageCount), SumMessageSize=sum(TotalSize) by Stamp, Machine, PreciseTimeStamp=bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinWidth)});
+                | summarize MaxDelay=arg_max(Duration, Machine) by Stamp, PreciseTimeStamp=bin(PreciseTimeStamp, binWidth);
                 MaximumDelayFromReceivedEvents
-                | join MaximumDelayFromEH on Stamp, PreciseTimeStamp
-                | project Stamp, Machine, PreciseTimeStamp, MaxDelay, AvgProcessingDuration=totimespan(ProcessingDurationMs*10000), MaxProcessingDuration=totimespan(MaxProcessingDurationMs*10000), MessageCount, SumMessageCount, SumMessageSizeMb=SumMessageSize / (1024*1024)
+                | project Stamp, Machine, PreciseTimeStamp, MaxDelay
                 | order by PreciseTimeStamp desc";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             GroupByStampAndCallHelper<Result>(results, result => result.Stamp, eventHubProcessingDelayHelper);
 
+            // TODO (minlam): replace async void with returning a Task
             async void eventHubProcessingDelayHelper(string stamp, List<Result> results)
             {
                 if (results.Count == 0)

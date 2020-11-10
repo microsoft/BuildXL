@@ -944,10 +944,16 @@ namespace BuildXL.Native.IO
             return s_fileSystem.MaxDirectoryPathLength();
         }
 
-        /// <see cref="IFileSystem.TryProbePathExistence(string, bool)"/>
+        /// <see cref="IFileSystem.TryProbePathExistence(string, bool, out bool)"/>
         public static Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)
         {
-            return s_fileSystem.TryProbePathExistence(path, followSymlink);
+            return s_fileSystem.TryProbePathExistence(path, followSymlink, out _);
+        }
+
+        /// <see cref="IFileSystem.TryProbePathExistence(string, bool, out bool)"/>
+        public static Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink, out bool isReparsePoint)
+        {
+            return s_fileSystem.TryProbePathExistence(path, followSymlink, out isReparsePoint);
         }
 
         /// <see cref="IFileSystem.PathMatchPattern"/>

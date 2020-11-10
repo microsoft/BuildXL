@@ -1334,10 +1334,7 @@ namespace BuildXL.Scheduler
             VmInitializer = vmInitializer;
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
-            // Only initialize the symlink resolver if the corresponding flag is on.
-            SymlinkedAccessResolver = m_configuration.Sandbox.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses() ?
-                new SymlinkedAccessResolver(context, directoryTranslator) :
-                null;
+            ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
         }
 
         private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
@@ -7304,7 +7301,7 @@ namespace BuildXL.Scheduler
         public VmInitializer VmInitializer { get; }
 
         /// <inheritdoc/>
-        public SymlinkedAccessResolver SymlinkedAccessResolver { get; }
+        public ReparsePointResolver ReparsePointAccessResolver { get; }
 
         private long m_maxExternalProcessesRan;
 

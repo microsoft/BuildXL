@@ -2200,7 +2200,7 @@ namespace Test.BuildXL.Processes.Detours
                     new TestDirectoryArtifactContext(
                             SealDirectoryKind.SharedOpaque,
                             new FileArtifact[] { FileArtifact.CreateOutputFile(inputUnderSharedOpaqueAbsolutePath) }),
-                    symlinkedAccessResolver: new SymlinkedAccessResolver(context, translator));
+                    reparsePointResolver: new ReparsePointResolver(context, translator));
 
                 var allReportedFileAccesses = result.ObservedFileAccesses.SelectMany(fa => fa.Accesses).ToList();
                 if (!managedReparsePointProcessing)
@@ -2335,7 +2335,7 @@ namespace Test.BuildXL.Processes.Detours
             SemanticPathExpander expander,
             IDirectoryArtifactContext directoryArtifactContext = null,
             Action<int> processIdListener = null,
-            SymlinkedAccessResolver symlinkedAccessResolver = null)
+            ReparsePointResolver reparsePointResolver = null)
         {
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
@@ -2370,7 +2370,7 @@ namespace Test.BuildXL.Processes.Detours
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 processIdListener: processIdListener,
                 directoryTranslator: directoryTranslator,
-                symlinkedAccessResolver: symlinkedAccessResolver).RunAsync(sandboxConnection: GetSandboxConnection());
+                reparsePointResolver: reparsePointResolver).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

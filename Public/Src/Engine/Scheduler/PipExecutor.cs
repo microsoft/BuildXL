@@ -1739,10 +1739,9 @@ namespace BuildXL.Scheduler
                         incrementalTools: configuration.IncrementalTools,
                         changeAffectedInputs: changeAffectedInputs,
                         detoursListener: detoursEventListener,
-                        symlinkedAccessResolver: environment.SymlinkedAccessResolver,
+                        reparsePointResolver: environment.ReparsePointAccessResolver,
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
-                        pluginManager: environment.PluginManager,
-                        sandboxFileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
+                        pluginManager: environment.PluginManager);
                     
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
@@ -3411,8 +3410,7 @@ namespace BuildXL.Scheduler
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
                 incrementalTools: configuration.IncrementalTools,
-                symlinkedAccessResolver: environment.SymlinkedAccessResolver,
-                sandboxFileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
+                reparsePointResolver: environment.ReparsePointAccessResolver);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {
@@ -3885,7 +3883,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
             Contract.Requires(pathSet.Paths.IsValid);
-
+            
             using (operationContext.StartOperation(PipExecutorCounter.PriorPathSetEvaluationToProduceStrongFingerprintDuration))
             {
                 ObservedInputProcessingResult validationResult =

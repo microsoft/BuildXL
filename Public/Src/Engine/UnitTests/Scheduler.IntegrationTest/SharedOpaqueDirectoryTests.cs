@@ -2361,6 +2361,84 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(Exists(fileOutsideSod));
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void UnresolvedAbsentProbesContainingReparsePointsAreProperlyHandled()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            AbsolutePath symlinkTarget = sharedOpaqueDirPath.Combine(Context.PathTable, "target");
+            AbsolutePath symlink = sharedOpaqueDirPath.Combine(Context.PathTable, "symlink");
+            AbsolutePath fileViaSymlink = symlink.Combine(Context.PathTable, "file");
+            AbsolutePath fileViaTarget = symlinkTarget.Combine(Context.PathTable, "file");
+
+            // Create sod/target/file
+            Directory.CreateDirectory(symlinkTarget.ToString(Context.PathTable));
+            File.WriteAllText(fileViaTarget.ToString(Context.PathTable), "content");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // Probe the file via the symlink. This is an absent probe, the symlink is not there yet
+                Operation.Probe(FileArtifact.CreateSourceFile(fileViaSymlink), doNotInfer: true),
+                // Create the dir symlink. That makes the path that was probed above become a present one.
+                Operation.CreateSymlink(DirectoryArtifact.CreateWithZeroPartialSealId(symlink), DirectoryArtifact.CreateWithZeroPartialSealId(symlinkTarget), Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer: true),
+            });
+
+            builder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var pip = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+
+            // Delete the created symlink to simulate a fresh build
+            Directory.Delete(symlink.ToString(Context.PathTable));
+            
+            // We should get a cache hit.
+            RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void UnresolvedAbsentProbesContainingReparsePointsIsNotReportedIfIsAlsoOutput()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            AbsolutePath symlinkTarget = sharedOpaqueDirPath.Combine(Context.PathTable, "target");
+            AbsolutePath symlink = sharedOpaqueDirPath.Combine(Context.PathTable, "symlink");
+            AbsolutePath fileViaSymlink = symlink.Combine(Context.PathTable, "file");
+            AbsolutePath fileViaTarget = symlinkTarget.Combine(Context.PathTable, "file");
+
+            // Create sod/target/file
+            Directory.CreateDirectory(symlinkTarget.ToString(Context.PathTable));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // Probe the file via the symlink. This is an absent probe, the symlink is not there yet
+                Operation.Probe(FileArtifact.CreateSourceFile(fileViaSymlink), doNotInfer: true),
+                // Create the dir symlink. 
+                Operation.CreateSymlink(DirectoryArtifact.CreateWithZeroPartialSealId(symlink), DirectoryArtifact.CreateWithZeroPartialSealId(symlinkTarget), Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer: true),
+                // Create the file via the real path. That makes the path that was probed above become a present one.
+                Operation.WriteFile(FileArtifact.CreateSourceFile(fileViaTarget), doNotInfer: true)
+            });
+
+            builder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var pip = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+
+            // Delete the created symlink and file to simulate a fresh build
+            File.Delete(fileViaTarget.ToString(Context.PathTable));
+            Directory.Delete(symlink.ToString(Context.PathTable));
+
+            // We should get a cache hit. Without compensating for the absent probe this would be a miss.
+            RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

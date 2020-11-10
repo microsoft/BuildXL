@@ -27,10 +27,10 @@ namespace BuildXL.Processes
             s => s.Clear());
 
         /// <summary>
-        /// Global pool of lists for collecting unsorted observed accesses
+        /// Global pool of dictionaries for collecting unsorted observed accesses
         /// </summary>
-        public static ObjectPool<List<ObservedFileAccess>> AccessUnsorted { get; } = new ObjectPool<List<ObservedFileAccess>>(
-            () => new List<ObservedFileAccess>(),
+        public static ObjectPool<Dictionary<AbsolutePath, ObservedFileAccess>> AccessUnsorted { get; } = new ObjectPool<Dictionary<AbsolutePath, ObservedFileAccess>>(
+            () => new Dictionary<AbsolutePath, ObservedFileAccess>(),
             s => s.Clear());
 
         /// <summary>

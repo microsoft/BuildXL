@@ -629,7 +629,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
 
-        public SymlinkedAccessResolver SymlinkedAccessResolver => null;
+        public ReparsePointResolver ReparsePointAccessResolver => null;
 
         public PluginManager PluginManager { get; }
 

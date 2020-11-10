@@ -2987,6 +2987,12 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)
         {
+            return TryProbePathExistence(path, followSymlink, out _);
+        }
+
+        /// <inheritdoc />
+        public Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink, out bool isReparsePoint)
+        {
             if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
                 if (hr == NativeIOConstants.ErrorInvalidParameter)
@@ -3000,6 +3006,7 @@ namespace BuildXL.Native.IO.Windows
 
                 if (IsHresultNonexistent(hr))
                 {
+                    isReparsePoint = false;
                     return PathExistence.Nonexistent;
                 }
                 else
@@ -3011,6 +3018,7 @@ namespace BuildXL.Native.IO.Windows
                     // Thus, cache refuses to materialize the file
                     if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
                     {
+                        isReparsePoint = false;
                         if (IsHresultNonexistent(hr))
                         {
                             return PathExistence.Nonexistent;
@@ -3025,6 +3033,7 @@ namespace BuildXL.Native.IO.Windows
 
             var attrs = checked((FileAttributes)fileAttributes);
             bool hasDirectoryFlag = ((attrs & FileAttributes.Directory) != 0);
+            isReparsePoint = (attrs & FileAttributes.ReparsePoint) != 0;
 
             if (followSymlink)
             {

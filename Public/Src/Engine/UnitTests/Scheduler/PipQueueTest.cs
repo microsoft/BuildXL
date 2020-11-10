@@ -652,7 +652,7 @@ namespace Test.BuildXL.Scheduler
 
             public ITempCleaner TempCleaner { get; }
 
-            public SymlinkedAccessResolver SymlinkedAccessResolver => null;
+            public ReparsePointResolver ReparsePointAccessResolver => null;
 
             public PluginManager PluginManager { get; }
         }

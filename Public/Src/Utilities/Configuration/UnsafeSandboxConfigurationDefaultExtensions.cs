@@ -44,8 +44,11 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS
         /// </summary>
+        /// <remarks>
+        /// This option is always enabled by default in Unix-like OSs.
+        /// </remarks>
         public static bool EnableFullReparsePointResolving(this IUnsafeSandboxConfiguration configuration) =>
-            ((configuration.EnableFullReparsePointResolving ?? DefaultEnableFullReparsePointResolving) || !configuration.IgnoreFullReparsePointResolving) && !OperatingSystemHelper.IsUnixOS;
+            ((configuration.EnableFullReparsePointResolving ?? DefaultEnableFullReparsePointResolving) || !configuration.IgnoreFullReparsePointResolving || OperatingSystemHelper.IsUnixOS);
 
         /// <nodoc/>
         public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfiguration configuration) =>

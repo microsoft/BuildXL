@@ -194,7 +194,7 @@ namespace BuildXL.Processes
         private readonly IReadOnlyList<AbsolutePath> m_changeAffectedInputs;
 
         private readonly IDetoursEventListener m_detoursListener;
-        private readonly SymlinkedAccessResolver m_symlinkedAccessResolver;
+        private readonly ReparsePointResolver m_reparsePointResolver;
 
         /// <summary>
         /// Whether the process invokes an incremental tool with preserveOutputs mode.
@@ -256,7 +256,7 @@ namespace BuildXL.Processes
             IReadOnlyList<RelativePath> incrementalTools = null,
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
-            SymlinkedAccessResolver symlinkedAccessResolver = null,
+            ReparsePointResolver reparsePointResolver = null,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
             PluginManager pluginManager = null,
             ISandboxFileSystemView sandboxFileSystemView = null)
@@ -398,7 +398,7 @@ namespace BuildXL.Processes
 
             m_changeAffectedInputs = changeAffectedInputs;
             m_detoursListener = detoursListener;
-            m_symlinkedAccessResolver = symlinkedAccessResolver;
+            m_reparsePointResolver = reparsePointResolver;
             m_staleOutputsUnderSharedOpaqueDirectories = staleOutputsUnderSharedOpaqueDirectories;
             m_fileSystemView = sandboxFileSystemView; 
         }
@@ -3656,8 +3656,8 @@ namespace BuildXL.Processes
 
                     if (m_sandboxConfig.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses())
                     {
-                        Contract.Assume(m_symlinkedAccessResolver != null);
-                        if (m_symlinkedAccessResolver.ResolveDirectorySymlinks(m_fileAccessManifest, reported, parsedPath, out finalReported, out var finalPath))
+                        Contract.Assume(m_reparsePointResolver != null);
+                        if (m_reparsePointResolver.ResolveDirectoryReparsePoints(m_fileAccessManifest, reported, parsedPath, out finalReported, out var finalPath))
                         {
                             // If the final path falls under a configured policy that ignores accesses, then we also ignore it
                             var success = m_fileAccessManifest.TryFindManifestPathFor(finalPath, out _, out var nodePolicy);
@@ -3668,7 +3668,7 @@ namespace BuildXL.Processes
 
                             // Let's generate read accesses for the intermediate dir symlinks on the original path, so we avoid
                             // underbuilds if those change
-                            m_symlinkedAccessResolver.AddAccessesForIntermediateSymlinks(m_fileAccessManifest, reported, parsedPath, accessesByPath);
+                            m_reparsePointResolver.AddAccessesForIntermediateReparsePoints(m_fileAccessManifest, reported, parsedPath, accessesByPath);
 
                             parsedPath = finalPath;
                         }
@@ -3716,13 +3716,15 @@ namespace BuildXL.Processes
                 }
 
                 using (PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> dynamicWriteAccessWrapper = ProcessPools.DynamicWriteAccesses.GetInstance())
-                using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper = ProcessPools.AccessUnsorted.GetInstance())
+                using (PooledObjectWrapper<Dictionary<AbsolutePath, ObservedFileAccess>> accessesUnsortedWrapper = ProcessPools.AccessUnsorted.GetInstance())
                 using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
+                using (var maybeUnresolvedAbsentProbesWrapper = Pools.GetAbsolutePathSet())
                 using (var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet())
                 using (var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet())
                 {
                     var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
                     var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
+                    var maybeUnresolvedAbsentProbes = maybeUnresolvedAbsentProbesWrapper.Instance;
 
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
@@ -3847,6 +3849,11 @@ namespace BuildXL.Processes
                         if (isProbe)
                         {
                             observationFlags |= ObservationFlags.FileProbe;
+                            // Absent probes may still contain reparse points. If we are fully resolving them, keep track of them for further processing
+                            if (m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
+                            {
+                                maybeUnresolvedAbsentProbes.Add(entry.Key);
+                            }
                         }
 
                         if (isDirectoryLocation != null && isDirectoryLocation.Value)
@@ -3859,7 +3866,7 @@ namespace BuildXL.Processes
                             observationFlags |= ObservationFlags.Enumeration;
                         }
 
-                        accessesUnsorted.Add(new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
+                        accessesUnsorted.Add(entry.Key, new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
                     }
 
                     // AccessesUnsorted might include various accesses to directories leading to the files inside of shared opaques,
@@ -3881,12 +3888,6 @@ namespace BuildXL.Processes
                         }
                     }
 
-                    var filteredAccessesUnsorted = accessesUnsorted.Where(shouldIncludeAccess).ToList();
-
-                    observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
-                        filteredAccessesUnsorted,
-                        new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
-
                     createdDirectories = createdDirectoriesMutable.ToReadOnlySet();
 
                     var mutableWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(dynamicWriteAccesses.Count);
@@ -3896,6 +3897,7 @@ namespace BuildXL.Processes
                     // * the tool could have created a file but removed it right after
                     // * the tool could have created a file but then removed it and created a directory
                     // We only care about the access if its final shape is not a directory
+                    bool reparsePointProduced = false;
                     foreach (var kvp in dynamicWriteAccesses)
                     {
                         var fileWrites = new List<FileArtifactWithAttributes>(kvp.Value.Count);
@@ -3912,7 +3914,9 @@ namespace BuildXL.Processes
                                 outputPath = writeAccess.ToString(m_pathTable);
                             }
 
-                            var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false);
+                            var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false, out var isReparsePoint);
+                            reparsePointProduced |= isReparsePoint;
+
                             if (!maybeResult.Succeeded)
                             {
                                 Tracing.Logger.Log.CannotProbeOutputUnderSharedOpaque(
@@ -3922,6 +3926,7 @@ namespace BuildXL.Processes
                                     maybeResult.Failure.DescribeIncludingInnerFailures());
 
                                 sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
+                                observedAccesses = CollectionUtilities.EmptySortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>(new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
 
                                 return false;
                             }
@@ -3951,6 +3956,64 @@ namespace BuildXL.Processes
                     }
 
                     sharedDynamicDirectoryWriteAccesses = mutableWriteAccesses;
+
+                    // Consider the scenario where path/dir/file gets probed but at probing time the path is absent. Afterwards, a dir junction path/dir gets created, pointing
+                    // to path/target, and then path/target/file is created. Since path/dir/file was absent at probing time, detours doesn't resolve it because there is nothing
+                    // to resolve. However, the creation of the dir junction and file makes path/dir/file existing but unresolved. However, path/dir/file won't be there on cache lookup, the probe will
+                    // come back as absent and therefore we get a consistent cache miss.
+                    // Let's try to make sure then that unresolved absent probes don't end up in the observed path set. Here we address the case when reparse point are produced by the same pip. Cross-pip
+                    // scenarios are not addressed here.
+
+                    if (m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && reparsePointProduced)
+                    {
+                        foreach(AbsolutePath absentProbe in maybeUnresolvedAbsentProbes)
+                        {
+                            // If the probe is still absent, there is nothing to resolve
+                            if (FileUtilities.TryProbePathExistence(absentProbe.ToString(m_pathTable), followSymlink: false) is var existence &&
+                                (!existence.Succeeded || existence.Result == PathExistence.Nonexistent))
+                            {
+                                continue;
+                            }
+
+                            // If the resolved path is the same as the original one, the probe didn't contain reparse points
+                            var resolvedPath = m_reparsePointResolver.ResolveIntermediateDirectoryReparsePoints(absentProbe);
+                            if (resolvedPath == absentProbe)
+                            {
+                                continue;
+                            }
+
+                            // We have a probe that was originally absent, now it is present, and contains unresolved reparse points. Let exclude it from the
+                            // acceses.
+                            excludedPaths.Add(absentProbe);
+
+                            // We only include a synthetic resolved one if the path is not an output of the pip (we never report probes on outputs)
+                            // It is not expected that a pip contains too many output directories, so going through each of them should be fine.
+                            if (dynamicWriteAccesses.All(kvp => !kvp.Value.Contains(resolvedPath)))
+                            {
+                                // The first reported access for the probe is good enough
+                                ReportedFileAccess originalProbe = accessesByPath[absentProbe].First();
+
+                                m_fileAccessManifest.TryFindManifestPathFor(resolvedPath, out AbsolutePath manifestPath, out _);
+                                ReportedFileAccess syntheticProbe = originalProbe.CreateWithPathAndAttributes(resolvedPath == manifestPath ? null : resolvedPath.ToString(m_pathTable), manifestPath, originalProbe.FlagsAndAttributes);
+
+                                // Check if there is already an access with that path, and add to it in that case
+                                if (accessesUnsorted.TryGetValue(resolvedPath, out var observedFileAccess))
+                                {
+                                    accessesUnsorted[resolvedPath] = new ObservedFileAccess(resolvedPath, observedFileAccess.ObservationFlags, observedFileAccess.Accesses.Add(syntheticProbe));
+                                }
+                                else
+                                {
+                                    accessesUnsorted.Add(resolvedPath, new ObservedFileAccess(resolvedPath, ObservationFlags.FileProbe, new CompactSet<ReportedFileAccess>().Add(syntheticProbe)));
+                                }
+                            }
+                        }
+                    }
+
+                    var filteredAccessesUnsorted = accessesUnsorted.Values.Where(shouldIncludeAccess);
+
+                    observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
+                        filteredAccessesUnsorted,
+                        new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
 
                     return true;
 

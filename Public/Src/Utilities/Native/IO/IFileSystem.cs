@@ -589,8 +589,9 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <remarks>
         /// Supports paths greater than MAX_PATH.
+        /// On existence, indicates whether the path is a reparse point
         /// </remarks>
-        Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink);
+        Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink, out bool isReparsePoint);
 
         /// <summary>
         /// Whether the provided path matches the pattern (e.g. "*.cs")

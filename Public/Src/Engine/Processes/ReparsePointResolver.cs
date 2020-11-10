@@ -12,29 +12,29 @@ using JetBrains.Annotations;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Resolves file accesses containing symlinked paths by normalizing them into corresponding real (non-symlinked) ones
+    /// Resolves file accesses containing reparse points by normalizing them into corresponding reparse point free ones
     /// </summary>
-    public sealed class SymlinkedAccessResolver
+    public sealed class ReparsePointResolver
     {
         private readonly PipExecutionContext m_context;
         private readonly DirectoryTranslator m_directoryTranslator;
 
         /// <summary>
-        /// Paths (containing symlinks or not) to resolved (non-symlinked) paths
+        /// Paths (potentially containing reparse points) to resolved paths
         /// </summary>
         private readonly ConcurrentBigMap<AbsolutePath, AbsolutePath> m_resolvedPathCache = new ConcurrentBigMap<AbsolutePath, AbsolutePath>();
         
         /// <summary>
-        /// Paths to whether their last fragment is a symlink
+        /// Paths to whether their last fragment is a reparse point
         /// </summary>
         /// <remarks>
         /// Observe there is a symklink cache already in the sandbox process pip executor, but that one is only used
         /// for the mac case (whereas this class is only used for Windows), and it is local to the current pip.
         /// </remarks>
-        private readonly ConcurrentBigMap<AbsolutePath, bool> m_symlinkCache = new ConcurrentBigMap<AbsolutePath, bool>();
+        private readonly ConcurrentBigMap<AbsolutePath, bool> m_reparsePointCache = new ConcurrentBigMap<AbsolutePath, bool>();
 
         /// <nodoc/>
-        public SymlinkedAccessResolver(PipExecutionContext context, [CanBeNull] DirectoryTranslator directoryTranslator)
+        public ReparsePointResolver(PipExecutionContext context, [CanBeNull] DirectoryTranslator directoryTranslator)
         {
             Contract.RequiresNotNull(context);
             m_context = context;
@@ -42,16 +42,16 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Given an access whose path may contain intermediate symlinks, returns an equivalent resolved access where all the symlinks
+        /// Given an access whose path may contain intermediate reparse points, returns an equivalent resolved access where all the reparse points
         /// are resolved.
         /// </summary>
         /// <remarks>
-        /// If the symlink is the final fragment of the path, this function does not consider it to need resolution.
+        /// If the reparse point is the final fragment of the path, this function does not consider it to need resolution.
         /// <paramref name="accessPath"/> should correspond to the path of <paramref name="access"/>. It is passed explicitly to avoid
         /// unnecesary conversions between strings and absolute paths.
         /// </remarks>
         /// <returns>Whether the given access needed resolution</returns>
-        public bool ResolveDirectorySymlinks(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, out ReportedFileAccess resolvedAccess, out AbsolutePath resolvedPath)
+        public bool ResolveDirectoryReparsePoints(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, out ReportedFileAccess resolvedAccess, out AbsolutePath resolvedPath)
         {
             Contract.Requires(accessPath.IsValid);
 
@@ -67,29 +67,73 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Adds synthetic accesses for all intermediate directory symlinks for the given access path
+        /// Return a path where all intermediate reparse point directories are resolved to their final destinations.
         /// </summary>
         /// <remarks>
-        /// TODO: This function is only adding accesses for symlinks in the given path, so if those suymlinks point to other symlinks,
+        /// The final segment of the path is never resolved
+        /// </remarks>
+        public AbsolutePath ResolveIntermediateDirectoryReparsePoints(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+
+            // This function only takes care of intermediate directories, so let's fully resolve the parent path
+            var parentPath = path.GetParent(m_context.PathTable);
+            
+            // If no parent, there is nothing to resolve
+            if (!parentPath.IsValid)
+            {
+                return path;
+            }
+
+            PathAtom filename = path.GetName(m_context.PathTable);
+
+            // Check the cache
+            var cachedResult = m_resolvedPathCache.TryGet(parentPath);
+            if (cachedResult.IsFound)
+            {
+                return cachedResult.Item.Value.Combine(m_context.PathTable, filename);
+            }
+
+            // The cache didn't have it, so let's resolve it
+            if (!TryResolvePath(parentPath.ToString(m_context.PathTable), out ExpandedAbsolutePath resolvedExpandedPath))
+            {
+                // If we cannot get the final path (e.g. file not found causes this), then we assume the path
+                // is already canonicalized
+
+                // Observe we cannot update the cache since the path was not resolved.
+                return path;
+            }
+
+            // Update the cache
+            m_resolvedPathCache.TryAdd(parentPath, resolvedExpandedPath.Path);
+
+            return resolvedExpandedPath.Path.Combine(m_context.PathTable, filename);
+        }
+
+        /// <summary>
+        /// Adds synthetic accesses for all intermediate directory reparse points for the given access path
+        /// </summary>
+        /// <remarks>
+        /// TODO: This function is only adding accesses for reparse points in the given path, so if those reparse points point to others,
         /// those are not added. So the result is not completely sound, consider doing multi-hop resolution.
         /// </remarks>
-        public void AddAccessesForIntermediateSymlinks(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
+        public void AddAccessesForIntermediateReparsePoints(FileAccessManifest manifest, ReportedFileAccess access, AbsolutePath accessPath, Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
         {
             Contract.Requires(accessPath.IsValid);
             AbsolutePath currentPath = accessPath.GetParent(m_context.PathTable);
 
             while (currentPath.IsValid)
             {
-                // If we the current path is resolved and its resolved path is the same, then we know there are no more symlinks
+                // If we the current path is resolved and its resolved path is the same, then we know there are no more reparse points
                 // in the path. Shorcut the search.
                 if (m_resolvedPathCache.TryGetValue(currentPath, out var resolvedPath) && currentPath == resolvedPath)
                 {
                     return;
                 }
 
-                bool isDirSymlink = IsDirectorySymlinkOrJunctionWithCache(ExpandedAbsolutePath.CreateUnsafe(currentPath, currentPath.ToString(m_context.PathTable)));
+                bool isDirReparsePoint = IsDirectorySymlinkOrJunctionWithCache(ExpandedAbsolutePath.CreateUnsafe(currentPath, currentPath.ToString(m_context.PathTable)));
 
-                if (isDirSymlink)
+                if (isDirReparsePoint)
                 {
                     accessesByPath.TryGetValue(currentPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
                     var generatedProbe = GenerateProbeForPath(manifest, currentPath, access);
@@ -167,7 +211,7 @@ namespace BuildXL.Processes
             }
 
             // The cache didn't have it, so let's resolve it
-            if (!TryResolveSymlinkedPath(accessPathAsString, out ExpandedAbsolutePath resolvedExpandedPath))
+            if (!TryResolvePath(accessPathAsString, out ExpandedAbsolutePath resolvedExpandedPath))
             {
                 // If we cannot get the final path (e.g. file not found causes this), then we assume the path
                 // is already canonicalized
@@ -191,11 +235,11 @@ namespace BuildXL.Processes
             }
 
             // If the resolved path is the same as the access path, then we know its last fragment is not a reparse point.
-            // So we might just update the symlink cache as well and hopefully speed up subsequent requests to generate read accesses
-            // for intermediate symlink dirs
+            // So we might just update the reparse point cache as well and hopefully speed up subsequent requests to generate read accesses
+            // for intermediate reparse point dirs
             if (accessPath == resolvedExpandedPath.Path)
             {
-                while (parentPath.IsValid && m_symlinkCache.TryAdd(parentPath, false))
+                while (parentPath.IsValid && m_reparsePointCache.TryAdd(parentPath, false))
                 {
                     parentPath = parentPath.GetParent(m_context.PathTable);
                 }
@@ -227,13 +271,13 @@ namespace BuildXL.Processes
 
         private bool IsDirectorySymlinkOrJunctionWithCache(ExpandedAbsolutePath path)
         {
-            if (m_symlinkCache.TryGet(path.Path) is var cachedResult && cachedResult.IsFound)
+            if (m_reparsePointCache.TryGet(path.Path) is var cachedResult && cachedResult.IsFound)
             {
                 return cachedResult.Item.Value;
             }
 
             var result = FileUtilities.IsDirectorySymlinkOrJunction(path.ExpandedPath);
-            m_symlinkCache.TryAdd(path.Path, result);
+            m_reparsePointCache.TryAdd(path.Path, result);
 
             return result;
         }
@@ -251,7 +295,7 @@ namespace BuildXL.Processes
                 access.FlagsAndAttributes | FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY :
                 access.FlagsAndAttributes;
 
-            // If they are different, this means the original path contains symlinks we need to resolve
+            // If they are different, this means the original path contains reparse points we need to resolve
             if (resolvedPath != accessPath)
             {
                 if (access.ManifestPath == resolvedPath)
@@ -285,7 +329,7 @@ namespace BuildXL.Processes
             return false;
         }
 
-        private bool TryResolveSymlinkedPath(string path, out ExpandedAbsolutePath expandedFinalPath)
+        private bool TryResolvePath(string path, out ExpandedAbsolutePath expandedFinalPath)
         {
             if (!FileUtilities.TryGetFinalPathNameByPath(path, out string finalPathAsString, out _, volumeGuidPath: false))
             {

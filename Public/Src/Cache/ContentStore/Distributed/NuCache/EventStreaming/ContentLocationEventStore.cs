@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             _workingDirectory = workingDirectory;
             EventHandler = eventHandler;
             Clock = clock;
-            var tracer = new Tracer(nameof(ContentLocationEventStore)) { LogOperationStarted = false };
+            var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
             ValidationMode validationMode = configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off;

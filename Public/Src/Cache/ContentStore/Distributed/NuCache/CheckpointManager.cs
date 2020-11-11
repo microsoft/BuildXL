@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Helper class responsible for creating and restoring checkpoints of a local database.
     /// </summary>
-    internal sealed class CheckpointManager
+    public sealed class CheckpointManager
     {
         private readonly Tracer _tracer = new Tracer(nameof(CheckpointManager));
 
@@ -257,7 +257,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             File.WriteAllText(path.Path, string.Join(IncrementalCheckpointInfoEntrySeparator, newCheckpointInfo.Select(s => $"{s.Key}={s.Value}")));
         }
 
-        private static Dictionary<string, string> ParseCheckpointInfo(AbsolutePath checkpointFile)
+        /// <nodoc />
+        public static Dictionary<string, string> ParseCheckpointInfo(AbsolutePath checkpointFile)
         {
             // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
             return File.ReadAllText(checkpointFile.Path).Split(new[] { IncrementalCheckpointInfoEntrySeparator }, StringSplitOptions.RemoveEmptyEntries)
@@ -425,7 +426,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        public (string checkpointId, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
+        internal (string checkpointId, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
         {
             try
             {

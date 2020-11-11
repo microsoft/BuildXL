@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -316,6 +318,71 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _containersCreated[shardId] = true;
                     }
                 }
+            }
+        }
+
+        /// <nodoc />
+        public struct DerivedCheckpointInformation
+        {
+            /// <nodoc />
+            public string StorageId { get; }
+
+            /// <nodoc />
+            public DateTime? CreationTime { get; }
+
+            /// <nodoc />
+            public DateTime? LastAccessTime { get; }
+
+            /// <nodoc />
+            public DerivedCheckpointInformation(CloudBlockBlob blob)
+            {
+                StorageId = blob.Name;
+                CreationTime = blob.Properties.Created?.DateTime;
+                LastAccessTime = GetLastAccessedTime(blob);
+            }
+        }
+
+        /// <nodoc />
+        public async IAsyncEnumerable<DerivedCheckpointInformation> ListBlobsWithNameMatchingAsync(OperationContext context, Regex regex)
+        {
+            foreach (var (container, shardId) in _containers)
+            {
+                await foreach (var entry in listForContainer(container, shardId))
+                {
+                    yield return entry;
+                }
+            }
+
+            async IAsyncEnumerable<DerivedCheckpointInformation> listForContainer(CloudBlobContainer container, int shardId)
+            {
+                BlobContinuationToken? continuation = null;
+                while (!context.Token.IsCancellationRequested)
+                {
+                    var blobs = await container.ListBlobsSegmentedAsync(
+                        prefix: null,
+                        useFlatBlobListing: true,
+                        blobListingDetails: BlobListingDetails.Metadata,
+                        maxResults: null,
+                        currentToken: continuation,
+                        options: null,
+                        operationContext: null);
+                    continuation = blobs.ContinuationToken;
+
+                    foreach (CloudBlockBlob blob in blobs.Results.OfType<CloudBlockBlob>())
+                    {
+                        if (regex.IsMatch(blob.Name))
+                        {
+                            yield return new DerivedCheckpointInformation(blob);
+                        }
+                    }
+
+                    if (continuation == null)
+                    {
+                        break;
+                    }
+                }
+
+                yield break;
             }
         }
 

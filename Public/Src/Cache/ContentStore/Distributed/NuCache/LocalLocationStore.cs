@@ -1820,41 +1820,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             /// <inheritdoc />
-            public void ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
+            public long ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
             {
                 _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
 
+                long changes = 0;
                 foreach (var hash in hashes.AsStructEnumerable())
                 {
-                    _database.ContentTouched(context, hash, accessTime);
+                    changes += _database.ContentTouched(context, hash, accessTime).ToLong();
                 }
+
+                return changes;
             }
 
             /// <inheritdoc />
-            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
+            public long LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
                 _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
 
+                long changes = 0;
                 foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
-                    _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling, updateLastAccessTime);
+                    changes += _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling, updateLastAccessTime).ToLong();
                 }
+
+                return changes;
             }
 
             /// <inheritdoc />
-            public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
+            public long LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
+
+                long changes = 0;
                 foreach (var hash in hashes.AsStructEnumerable())
                 {
-                    _database.LocationRemoved(context, hash, sender, reconciling);
+                    changes += _database.LocationRemoved(context, hash, sender, reconciling).ToLong();
                 }
+
+                return changes;
             }
 
             /// <inheritdoc />
-            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            public long MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
             {
-                Analysis.IgnoreResult(_database.TryUpsert(
+                return _database.TryUpsert(
                     context,
                     strongFingerprint,
                     entry.ContentHashListWithDeterminism,
@@ -1865,7 +1875,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     shouldReplace: oldEntry => 
                         entry.ContentHashListWithDeterminism.ContentHashList != null 
                         && oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc,
-                    lastAccessTimeUtc: entry.LastAccessTimeUtc));
+                    lastAccessTimeUtc: entry.LastAccessTimeUtc).ToLong();
             }
         }
 
@@ -1906,4 +1916,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
     }
+
+    internal static class BooleanExtensions
+    {
+        /// <nodoc />
+        public static long ToLong(this bool boolValue) => boolValue ? 1 : 0;
+
+        /// <nodoc />
+        public static long ToLong(this Possible<bool> possibleBoolValue) => possibleBoolValue.Succeeded && possibleBoolValue.Result? 1 : 0;
+    }
+
 }

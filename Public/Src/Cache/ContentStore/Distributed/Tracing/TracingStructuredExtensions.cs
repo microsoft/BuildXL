@@ -113,7 +113,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         }
 
         /// <nodoc />
-        public static void LogProcessEventsOverview(this OperationContext context, CounterCollection<ContentLocationEventStoreCounters> counters, int duration)
+        public static void LogProcessEventsOverview(
+            this OperationContext context,
+            CounterCollection<ContentLocationEventStoreCounters> counters,
+            int durationMs,
+            UpdatedHashesVisitor updatedHashesVisitor)
         {
             using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
             var sb = stringBuilderPoolInstance.Instance;
@@ -126,19 +130,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"#Events={counters[DispatchEvents].Value}, ")
                 .Append($"DispatchDuration={counters[DispatchEvents].TotalMilliseconds}ms, ")
                 .Append($"FilteredEvents={counters[FilteredEvents].Value}, ")
-                .Append("[Operation, #Events, #Hashes, DispatchDuration(ms)] => ")
-                .Append($"[Add, #{counters[DispatchAddLocations].Value}, #{hashesAdded}, {counters[DispatchAddLocations].TotalMilliseconds}ms], ")
-                .Append($"[Remove, #{counters[DispatchRemoveLocations].Value}, #{hashesRemoved}, {counters[DispatchRemoveLocations].TotalMilliseconds}ms], ")
-                .Append($"[Touch, #{counters[DispatchTouch].Value}, #{hashesTouched}, {counters[DispatchTouch].TotalMilliseconds}ms], ")
-                .Append($"[UpdateMetadata, #{counters[DispatchUpdateMetadata].Value}, N/A, {counters[DispatchUpdateMetadata].TotalMilliseconds}ms], ")
-                .Append($"[Stored, #{counters[DispatchBlob].Value}, N/A, {counters[DispatchBlob].TotalMilliseconds}ms].");
+                .Append("[Operation, #Events, #Hashes, #DbChanges, DispatchDuration(ms)] => ")
+                .Append($"[Add, #{counters[DispatchAddLocations].Value}, #{hashesAdded}, {counters[DatabaseAddedLocations].Value}, {counters[DispatchAddLocations].TotalMilliseconds}ms], ")
+                .Append($"[Remove, #{counters[DispatchRemoveLocations].Value}, #{hashesRemoved}, {counters[DatabaseRemovedLocations].Value}, {counters[DispatchRemoveLocations].TotalMilliseconds}ms], ")
+                .Append($"[Touch, #{counters[DispatchTouch].Value}, #{hashesTouched}, {counters[DatabaseTouchedLocations].Value}, {counters[DispatchTouch].TotalMilliseconds}ms], ")
+                .Append($"[UpdateMetadata, #{counters[DispatchUpdateMetadata].Value}, N/A, {counters[DatabaseUpdatedMetadata].Value}, {counters[DispatchUpdateMetadata].TotalMilliseconds}ms], ")
+                .Append($"[Stored, #{counters[DispatchBlob].Value}, N/A, {counters[DispatchBlob].TotalMilliseconds}ms].")
+                .Append($" AddLocationsMinHash={updatedHashesVisitor.AddLocationsMinHash}, AddLocationsMaxHash={updatedHashesVisitor.AddLocationsMaxHash},")
+                .Append($" RemoveLocationsMinHash={updatedHashesVisitor.RemoveLocationsMinHash?.ToString() ?? "None"}, RemoveLocationsMaxHash={updatedHashesVisitor.RemoveLocationsMaxHash?.ToString() ?? "None"}");
+
             context.TraceInfo(
-                $"Processed {counters[ReceivedEventBatchCount].Value} message(s) by {duration}ms. {sb}",
+                $"Processed {counters[ReceivedEventBatchCount].Value} message(s) by {durationMs}ms. {sb}",
                 component: nameof(EventHubContentLocationEventStore));
 
             trackMetric(name: "Master_HashesAdded", hashesAdded);
+            trackMetric(name: "Master_DatabaseAdded", counters[DatabaseAddedLocations].Value);
+
             trackMetric(name: "Master_HashesRemoved", hashesRemoved);
+            trackMetric(name: "Master_DatabaseRemoved", counters[DatabaseRemovedLocations].Value);
+
             trackMetric(name: "Master_HashesTouched", hashesTouched);
+            trackMetric(name: "Master_DatabaseTouched", counters[DatabaseTouchedLocations].Value);
+
             trackMetric(name: "Master_HashesProcessed", hashesAdded + hashesRemoved + hashesTouched);
 
             var totalEvents = counters[DispatchAddLocations].Value + counters[DispatchRemoveLocations].Value + counters[DispatchTouch].Value + counters[DispatchUpdateMetadata].Value;

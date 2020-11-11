@@ -328,24 +328,28 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 State = new InnerState();
             }
 
-            public void ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
+            public long ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
             {
                 Events.Add(new TouchContentLocationEventData(sender, hashes, accessTime.ToDateTime()));
+                return hashes.Count;
             }
 
-            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
+            public long LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
                 Events.Add(new AddContentLocationEventData(sender, hashes, touch: updateLastAccessTime) { Reconciling = reconciling });
+                return hashes.Count;
             }
 
-            public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
+            public long LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 Events.Add(new RemoveContentLocationEventData(sender, hashes) { Reconciling = reconciling });
+                return hashes.Count;
             }
 
-            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            public long MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
             {
                 Events.Add(new UpdateMetadataEntryEventData(Sender, strongFingerprint, entry));
+                return 1;
             }
 
             protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable)

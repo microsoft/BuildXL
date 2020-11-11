@@ -78,24 +78,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             private long _eventsHandled;
             public long EventsHandled => _eventsHandled;
 
-            public void ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
+            public long ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
             {
                 Interlocked.Increment(ref _eventsHandled);
+                return hashes.Count;
             }
 
-            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
+            public long LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
                 Interlocked.Increment(ref _eventsHandled);
+                return hashes.Count;
             }
 
-            public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
+            public long LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 Interlocked.Increment(ref _eventsHandled);
+                return hashes.Count;
             }
 
-            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            public long MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
             {
                 Interlocked.Increment(ref _eventsHandled);
+                return 1;
             }
         }
 

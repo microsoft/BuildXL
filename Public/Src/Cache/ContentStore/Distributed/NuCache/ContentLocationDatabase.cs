@@ -624,7 +624,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
-        private ContentLocationEntry SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
+        private (ContentLocationEntry entry, bool entryHasChanged) SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
         {
             var created = false;
             var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
@@ -650,7 +650,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (entry == initialEntry)
                     {
                         // The entry is unchanged.
-                        return initialEntry;
+                        return (initialEntry, entryHasChanged: false);
                     }
 
                     EntryOperation entryOperation;
@@ -675,7 +675,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (!existsOnMachine || machine == null)
                     {
                         // Attempting to remove a machine from or touch a missing entry should result in no changes
-                        return ContentLocationEntry.Missing;
+                        return (ContentLocationEntry.Missing, entryHasChanged: false);
                     }
 
                     lastAccessTime ??= Clock.UtcNow;
@@ -717,7 +717,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                return entry;
+                return (entry, entryHasChanged: true);
             }
         }
 
@@ -782,29 +782,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void LocationAdded(OperationContext context, ShortHash hash, MachineId machine, long size, bool reconciling = false, bool updateLastAccessTime = true)
+        public bool LocationAdded(OperationContext context, ShortHash hash, MachineId machine, long size, bool reconciling = false, bool updateLastAccessTime = true)
         {
             using (Counters[ContentLocationDatabaseCounters.LocationAdded].Start())
             {
-                SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: updateLastAccessTime ? Clock.UtcNow : (DateTime?)null, reconciling: reconciling);
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: updateLastAccessTime ? Clock.UtcNow : (DateTime?)null, reconciling: reconciling).entryHasChanged;
             }
         }
 
         /// <nodoc />
-        public void LocationRemoved(OperationContext context, ShortHash hash, MachineId machine, bool reconciling = false)
+        public bool LocationRemoved(OperationContext context, ShortHash hash, MachineId machine, bool reconciling = false)
         {
             using (Counters[ContentLocationDatabaseCounters.LocationRemoved].Start())
             {
-                SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: -1, lastAccessTime: null, reconciling: reconciling);
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: false, size: -1, lastAccessTime: null, reconciling: reconciling).entryHasChanged;
             }
         }
 
         /// <nodoc />
-        public void ContentTouched(OperationContext context, ShortHash hash, UnixTime accessTime)
+        public bool ContentTouched(OperationContext context, ShortHash hash, UnixTime accessTime)
         {
             using (Counters[ContentLocationDatabaseCounters.ContentTouched].Start())
             {
-                SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false);
+                return SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false).entryHasChanged;
             }
         }
 

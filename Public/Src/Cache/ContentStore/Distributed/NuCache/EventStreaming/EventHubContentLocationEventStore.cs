@@ -319,6 +319,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             var context = input.State.Context;
             var counters = input.State.EventStoreCounters;
+            var updatedHashesVisitor = input.State.UpdatedHashesVisitor;
 
             try
             {
@@ -365,14 +366,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
 
                             counters[ReceivedEventsCount].Add(eventDatas.Count);
-
+                            
                             // Dispatching deserialized events data
                             using (counters[DispatchEvents].Start())
                             {
                                 foreach (var eventData in eventDatas)
                                 {
                                     // An event processor may fail to process the event, but we will save the sequence point anyway.
-                                    await DispatchAsync(context, eventData, counters);
+                                    await DispatchAsync(context, eventData, counters, updatedHashesVisitor);
                                 }
                             }
                         }
@@ -519,6 +520,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters => _counters.Value;
 
             /// <nodoc />
+            public UpdatedHashesVisitor UpdatedHashesVisitor { get; } = new UpdatedHashesVisitor();
+
+            /// <nodoc />
             public bool IsComplete => _remainingMessageCount == 0;
 
             /// <nodoc />
@@ -541,7 +545,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 {
                     int duration = (int)_stopwatch.Elapsed.TotalMilliseconds;
                     Store.UpdatingPendingEventProcessingStates();
-                    Context.LogProcessEventsOverview(EventStoreCounters, duration);
+                    Context.LogProcessEventsOverview(EventStoreCounters, duration, UpdatedHashesVisitor);
 
                     Store.Counters.Append(EventStoreCounters);
                 }

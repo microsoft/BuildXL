@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly ContentLocationEventStoreConfiguration _configuration;
 
         /// <summary>
-        /// Indicates the maximum amount of content which will be sent via events vs storage for reconcilation.
+        /// Indicates the maximum amount of content which will be sent via events vs storage for reconciliation.
         /// If under threshold, the events are sent via standard event streaming pipeline
         /// If over threshold, the events are serialized to storage instead and a single event is sent with storage id.
         /// </summary>
@@ -124,13 +124,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Dispatch the <paramref name="eventData"/> to an event handler specified during instance construction.
         /// </summary>
-        public Task DispatchAsync(OperationContext context, ContentLocationEventData eventData)
+        /// <remarks>
+        /// The method used only by tests.
+        /// </remarks>
+        internal Task DispatchAsync(OperationContext context, ContentLocationEventData eventData)
         {
-            return DispatchAsync(context, eventData, Counters);
+            return DispatchAsync(context, eventData, Counters, visitor: new UpdatedHashesVisitor());
         }
 
         /// <nodoc />
-        protected async Task DispatchAsync(OperationContext context, ContentLocationEventData eventData, CounterCollection<ContentLocationEventStoreCounters> counters)
+        protected async Task DispatchAsync(OperationContext context, ContentLocationEventData eventData, CounterCollection<ContentLocationEventStoreCounters> counters, UpdatedHashesVisitor visitor)
         {
             switch (eventData)
             {
@@ -138,12 +141,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     using (counters[DispatchAddLocations].Start())
                     {
                         counters[DispatchAddLocationsHashes].Add(eventData.ContentHashes.Count);
-                        EventHandler.LocationAdded(
+                        visitor?.AddLocationsHashProcessed(addContent.ContentHashes);
+
+                        var stateChanges = EventHandler.LocationAdded(
                             context,
                             addContent.Sender,
                             addContent.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])),
                             eventData.Reconciling,
                             updateLastAccessTime: addContent.Touch);
+                        counters[DatabaseAddedLocations].Add(stateChanges);
                     }
 
                     break;
@@ -151,27 +157,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     using (counters[DispatchRemoveLocations].Start())
                     {
                         counters[DispatchRemoveLocationsHashes].Add(eventData.ContentHashes.Count);
-                        EventHandler.LocationRemoved(context, removeContent.Sender, removeContent.ContentHashes, eventData.Reconciling);
-                    }
+                        visitor?.RemoveLocationsHashProcessed(eventData.ContentHashes);
 
+                        var stateChanges = EventHandler.LocationRemoved(context, removeContent.Sender, removeContent.ContentHashes, eventData.Reconciling);
+                        counters[DatabaseRemovedLocations].Add(stateChanges);
+                    }
                     break;
                 case TouchContentLocationEventData touchContent:
                     using (counters[DispatchTouch].Start())
                     {
                         counters[DispatchTouchHashes].Add(eventData.ContentHashes.Count);
-                        EventHandler.ContentTouched(context, touchContent.Sender, touchContent.ContentHashes, touchContent.AccessTime);
+                        var stateChanges = EventHandler.ContentTouched(context, touchContent.Sender, touchContent.ContentHashes, touchContent.AccessTime);
+                        counters[DatabaseTouchedLocations].Add(stateChanges);
                     }
                     break;
                 case BlobContentLocationEventData blobEvent:
                     using (counters[DispatchBlob].Start())
                     {
-                        await GetDeserializeAndDispatchBlobEventAsync(context, blobEvent, counters);
+                        await GetDeserializeAndDispatchBlobEventAsync(context, blobEvent, counters, visitor);
                     }
                     break;
                 case UpdateMetadataEntryEventData updateMetadata:
                     using (counters[DispatchUpdateMetadata].Start())
                     {
-                        EventHandler.MetadataUpdated(context, updateMetadata.StrongFingerprint, updateMetadata.Entry);
+                        var stateChanges = EventHandler.MetadataUpdated(context, updateMetadata.StrongFingerprint, updateMetadata.Entry);
+                        counters[DatabaseUpdatedMetadata].Add(stateChanges);
                     }
                     break;
                 default:
@@ -179,7 +189,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private Task GetDeserializeAndDispatchBlobEventAsync(OperationContext context, BlobContentLocationEventData blobEvent, CounterCollection<ContentLocationEventStoreCounters> counters)
+        private Task GetDeserializeAndDispatchBlobEventAsync(
+            OperationContext context,
+            BlobContentLocationEventData blobEvent,
+            CounterCollection<ContentLocationEventStoreCounters> counters,
+            UpdatedHashesVisitor visitor)
         {
             int batchSize = -1;
             TimeSpan? getAndDeserializedDuration = null;
@@ -211,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                                 eventData.Reconciling = true;
                             }
 
-                            await DispatchAsync(context, eventData, counters);
+                            await DispatchAsync(context, eventData, counters, visitor);
                         }
 
                         dispatchBlobEventDataDuration = timer.Elapsed;

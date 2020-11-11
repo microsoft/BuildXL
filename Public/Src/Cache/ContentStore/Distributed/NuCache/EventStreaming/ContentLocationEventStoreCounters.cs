@@ -47,6 +47,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         [CounterType(CounterType.Stopwatch)]
         ProcessEvents,
 
+        /// <summary>
+        /// The number database mutations while processing 'AddLocation' event.
+        /// </summary>
+        DatabaseAddedLocations,
+
+        /// <summary>
+        /// The number database mutations while processing 'RemoveLocation' event.
+        /// </summary>
+        DatabaseRemovedLocations,
+
+        /// <summary>
+        /// The number database mutations while processing 'TouchContent' event.
+        /// </summary>
+        DatabaseTouchedLocations,
+
+        /// <summary>
+        /// The number database mutations while processing 'UpdateMetadata' event.
+        /// </summary>
+        DatabaseUpdatedMetadata,
+
         /// <nodoc />
         ReceivedEventHubEventsCount,
 

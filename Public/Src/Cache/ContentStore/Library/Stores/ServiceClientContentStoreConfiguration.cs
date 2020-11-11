@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Utils;
 using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -15,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </summary>
     public sealed class ServiceClientContentStoreConfiguration
     {
-        private readonly Lazy<RetryPolicy> _retryPolicy;
+        private readonly Lazy<IRetryPolicy> _retryPolicy;
 
         /// <summary>
         ///     Default interval, in seconds, between client retries.
@@ -43,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public string? Scenario { get; }
 
         /// <nodoc />
-        public RetryPolicy RetryPolicy => _retryPolicy.Value;
+        public IRetryPolicy RetryPolicy => _retryPolicy.Value;
 
         /// <nodoc />
         public bool TraceOperationStarted { get; set; }
@@ -62,10 +63,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             RpcConfiguration = rpcConfiguration;
             Scenario = scenario;
 
-            _retryPolicy = new Lazy<RetryPolicy>(
-                () => new RetryPolicy(
-                    new TransientErrorDetectionStrategy(),
-                    new FixedInterval("RetryInterval", (int)RetryCount, TimeSpan.FromSeconds(RetryIntervalSeconds), false)));
+            _retryPolicy = new Lazy<IRetryPolicy>(
+                () =>
+                {
+                    var strategy = new TransientErrorDetectionStrategy();
+                    return RetryPolicyFactory.GetLinearPolicy(
+                        shouldRetry: e => strategy.IsTransient(e),
+                        (int)RetryCount,
+                        TimeSpan.FromSeconds(RetryIntervalSeconds));
+                });
         }
 
         /// <nodoc />
@@ -73,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             string cacheName,
             ServiceClientRpcConfiguration rpcConfiguration,
             string scenario,
-            RetryPolicy retryPolicy)
+            IRetryPolicy retryPolicy)
         {
             Contract.Requires(cacheName != null);
 
@@ -81,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             RpcConfiguration = rpcConfiguration;
             Scenario = scenario;
 
-            _retryPolicy = new Lazy<RetryPolicy>(() => retryPolicy);
+            _retryPolicy = new Lazy<IRetryPolicy>(() => retryPolicy);
         }
     }
 }

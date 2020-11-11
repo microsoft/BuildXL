@@ -8,13 +8,12 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
-using Microsoft.Practices.TransientFaultHandling;
+using Context = BuildXL.Cache.ContentStore.Interfaces.Tracing.Context;
 
 namespace BuildXL.Cache.ContentStore.App
 {
@@ -34,9 +33,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var context = new Context(_logger);
             var operationContext = new OperationContext(context, CancellationToken.None);
-            var retryPolicy = new RetryPolicy(
-                new TransientErrorDetectionStrategy(),
-                new FixedInterval("RetryInterval", (int)_retryCount, TimeSpan.FromSeconds(_retryIntervalSeconds), false));
+            var retryPolicy = RetryPolicyFactory.GetLinearPolicy(ex => ex is ClientCanRetryException, (int)_retryCount, TimeSpan.FromSeconds(_retryIntervalSeconds));
 
             if (grpcPort == 0)
             {
@@ -61,7 +58,9 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var copyFileResult = clientCache.UseAsync(operationContext, host, grpcPort, (nestedContext, rpcClient) =>
                 {
-                    return retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(nestedContext, hash, stream, new CopyOptions(bandwidthConfiguration: null)));
+                    return retryPolicy.ExecuteAsync(
+                        () => rpcClient.PushFileAsync(nestedContext, hash, stream, new CopyOptions(bandwidthConfiguration: null)),
+                        _cancellationToken);
                 }).GetAwaiter().GetResult();
 
                 if (!copyFileResult.Succeeded)

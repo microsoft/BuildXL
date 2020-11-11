@@ -11,8 +11,8 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -142,17 +142,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static RetryPolicy CreateSecretsRetrievalRetryPolicy(DistributedContentSettings settings)
+        private static IRetryPolicy CreateSecretsRetrievalRetryPolicy(DistributedContentSettings settings)
         {
-            return new RetryPolicy(
-                new KeyVaultRetryPolicy(),
-                new ExponentialBackoff(
-                    name: "SecretsRetrievalBackoff",
-                    retryCount: settings.SecretsRetrievalRetryCount,
-                    minBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMinBackoffSeconds),
-                    maxBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMaxBackoffSeconds),
-                    deltaBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalDeltaBackoffSeconds),
-                    firstFastRetry: false)); // All retries are subjects to the policy, even the first one
+            return RetryPolicyFactory.GetExponentialPolicy(
+                IsTransient,
+                retryCount: settings.SecretsRetrievalRetryCount,
+                minBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMinBackoffSeconds),
+                maxBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMaxBackoffSeconds),
+                deltaBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalDeltaBackoffSeconds));
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
@@ -178,29 +175,25 @@ namespace BuildXL.Cache.Host.Service.Internal
             return null;
         }
 
-        private sealed class KeyVaultRetryPolicy : ITransientErrorDetectionStrategy
+        private static bool IsTransient(Exception ex)
         {
-            /// <inheritdoc />
-            public bool IsTransient(Exception ex)
+            var message = ex.Message;
+
+            if (message.Contains("The remote name could not be resolved"))
             {
-                var message = ex.Message;
-
-                if (message.Contains("The remote name could not be resolved"))
-                {
-                    // In some cases, KeyVault provider may fail with HttpRequestException with an inner exception like 'The remote name could not be resolved: 'login.windows.net'.
-                    // Theoretically, this should be handled by the host, but to make error handling simple and consistent (this method throws one exception type) the handling is happening here.
-                    // This is a recoverable error.
-                    return true;
-                }
-
-                if (message.Contains("429"))
-                {
-                    // This is a throttling response which is recoverable as well.
-                    return true;
-                }
-
-                return false;
+                // In some cases, KeyVault provider may fail with HttpRequestException with an inner exception like 'The remote name could not be resolved: 'login.windows.net'.
+                // Theoretically, this should be handled by the host, but to make error handling simple and consistent (this method throws one exception type) the handling is happening here.
+                // This is a recoverable error.
+                return true;
             }
+
+            if (message.Contains("429"))
+            {
+                // This is a throttling response which is recoverable as well.
+                return true;
+            }
+
+            return false;
         }
     }
 }

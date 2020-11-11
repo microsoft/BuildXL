@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Vsts
 {
@@ -21,9 +21,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// Newer versions of Artifact packages have this retry automatically, but the packages deployed with the M119.0 release do not.
     /// Once the next release is completed, these retries can be removed.
     /// </remarks>
-    public class ArtifactHttpClientErrorDetectionStrategy : ITransientErrorDetectionStrategy
+    public class ArtifactHttpClientErrorDetectionStrategy
     {
-        private static readonly Lazy<RetryPolicy> LazyRetryPolicyInstance = new Lazy<RetryPolicy>(() => new RetryPolicy<ArtifactHttpClientErrorDetectionStrategy>(RetryStrategy.DefaultExponential));
+        private static readonly Lazy<IRetryPolicy> LazyRetryPolicyInstance = new Lazy<IRetryPolicy>(() => RetryPolicyFactory.GetExponentialPolicy(shouldRetry: IsTransient));
 
         // The HTTP request time out is 5-minute
         private static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(6);
@@ -131,8 +131,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 timeout);
         }
 
-        /// <inheritdoc />
-        public bool IsTransient(Exception ex)
+        private static bool IsTransient(Exception ex)
         {
             if (ex is TimeoutException)
             {

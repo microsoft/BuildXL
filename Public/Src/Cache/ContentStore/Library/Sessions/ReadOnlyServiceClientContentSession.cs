@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -21,8 +22,8 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
@@ -47,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <summary>
         ///     Request to server retry policy.
         /// </summary>
-        protected readonly RetryPolicy RetryPolicy;
+        protected readonly IRetryPolicy RetryPolicy;
 
         /// <summary>
         ///     The client backing the session.
@@ -111,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             try
             {
-                result = await RetryPolicy.ExecuteAsync(() => RpcClient.CreateSessionAsync(operationContext, Name, Configuration.CacheName, _implicitPin));
+                result = await RetryPolicy.ExecuteAsync(() => RpcClient.CreateSessionAsync(operationContext, Name, Configuration.CacheName, _implicitPin), CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -120,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             if (!result)
             {
-                await RetryPolicy.ExecuteAsync(() => RpcClient.ShutdownAsync(operationContext)).ThrowIfFailure();
+                await RetryPolicy.ExecuteAsync(() => RpcClient.ShutdownAsync(operationContext), CancellationToken.None).ThrowIfFailure();
             }
 
             return result;
@@ -129,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext operationContext)
         {
-            var result = await RetryPolicy.ExecuteAsync(() => RpcClient.ShutdownAsync(operationContext));
+            var result = await RetryPolicy.ExecuteAsync(() => RpcClient.ShutdownAsync(operationContext), CancellationToken.None);
 
             var counterSet = new CounterSet();
             counterSet.Merge(GetCounters(), $"{Tracer.Name}.");

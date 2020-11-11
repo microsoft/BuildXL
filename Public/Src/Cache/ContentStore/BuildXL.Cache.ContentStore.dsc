@@ -209,7 +209,5 @@ export const deploymentForBuildXL: Deployment.Definition = {
         ...addIf(qualifier.targetRuntime === "osx-x64",
             importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx/native/libgrpc_csharp_ext.x64.dylib"),
             importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx/native/libgrpc_csharp_ext.x86.dylib")),
-
-        importFrom("TransientFaultHandling.Core").Contents.all.getFile("lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll"),
     ]
 };

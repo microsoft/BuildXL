@@ -16,13 +16,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
-using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
-using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 #nullable enable
 
@@ -43,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private const string OperationIdEventKey = "OperationId";
 
         private readonly IEventHubClient _eventHubClient;
-        private readonly RetryPolicy _extraEventHubClientRetryPolicy;
+        private readonly IRetryPolicy _extraEventHubClientRetryPolicy;
 
         private Processor? _currentEventProcessor;
         private readonly ActionBlock<ProcessEventsInput>[]? _eventProcessingBlocks;
@@ -212,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                         throw;
                     }
-                });
+                }, CancellationToken.None);
             }
 
             return BoolResult.Success;
@@ -465,12 +464,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return BoolResult.Success;
         }
 
-        private RetryPolicy CreateEventHubClientRetryPolicy()
-        {
-            return new RetryPolicy(
-                new TransientEventHubErrorDetectionStrategy(),
-                RetryStrategy.DefaultExponential);
-        }
+        private IRetryPolicy CreateEventHubClientRetryPolicy() => RetryPolicyFactory.GetExponentialPolicy(TransientEventHubErrorDetectionStrategy.IsRetryable);
 
         private class Processor : IPartitionReceiveHandler
         {
@@ -597,14 +591,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private class TransientEventHubErrorDetectionStrategy : ITransientErrorDetectionStrategy
+        private static class TransientEventHubErrorDetectionStrategy
         {
-            /// <inheritdoc />
-            public bool IsTransient(Exception ex)
-            {
-                return IsRetryable(ex);
-            }
-
             public static bool IsRetryable(Exception exception)
             {
                 if (exception is AggregateException ae)

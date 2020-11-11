@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
+using BuildXL.Cache.ContentStore.Utils;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
@@ -53,11 +53,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public async Task<BoolResult> StartupAsync(Context context)
         {
             StartupStarted = true;
-            RetryPolicy retryPolicy = new RetryPolicy<AuthorizationErrorDetectionStrategy>(RetryStrategy.DefaultExponential);
+            IRetryPolicy retryPolicy = RetryPolicyFactory.GetExponentialPolicy(AuthorizationErrorDetectionStrategy.IsTransient);
 
             try
             {
-                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.CreateVssCredentialsAsync(_backingStoreBaseUri, _useAad)).ConfigureAwait(false);
+                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.CreateVssCredentialsAsync(_backingStoreBaseUri, _useAad), CancellationToken.None).ConfigureAwait(false);
                 _httpClientFactory = new ArtifactHttpClientFactory(
                     creds,
                     _httpSendTimeout,

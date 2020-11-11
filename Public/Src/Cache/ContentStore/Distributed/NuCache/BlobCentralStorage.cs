@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -19,7 +20,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
-using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using ExponentialRetry = Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry;
@@ -32,14 +32,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// An <see cref="CentralStorage"/> backed by Azure blob storage.
     /// </summary>
-    public class BlobCentralStorage : CentralStorage, ITransientErrorDetectionStrategy
+    public class BlobCentralStorage : CentralStorage
     {
         private readonly (CloudBlobContainer container, int shardId)[] _containers;
         private readonly bool[] _containersCreated;
 
         private readonly BlobCentralStoreConfiguration _configuration;
         private readonly PassThroughFileSystem _fileSystem = new PassThroughFileSystem();
-        private readonly RetryPolicy _blobStorageRetryStrategy;
+        private readonly IRetryPolicy _blobStorageRetryStrategy;
 
         private DateTime _gcLastRunTime = DateTime.MinValue;
         private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
@@ -74,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _containers.Shuffle();
 
             _containersCreated = new bool[_configuration.Credentials.Count];
-            _blobStorageRetryStrategy = new RetryPolicy(this, RetryStrategy.DefaultExponential);
+            _blobStorageRetryStrategy = RetryPolicyFactory.GetExponentialPolicy(IsTransient);
         }
 
         /// <inheritdoc />

@@ -16,7 +16,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
 using StackExchange.Redis;
 
 #nullable enable
@@ -155,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public string KeySpace => _configuration.KeySpace;
 
         private readonly RedisDatabaseFactory _databaseFactory;
-        private readonly RetryPolicy _redisRetryStrategy;
+        private readonly IRetryPolicy _redisRetryStrategy;
 
         // In some cases, Redis.StackExchange library may fail to reset the connection to Azure Redis Cache.
         // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
@@ -608,7 +607,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return _databaseFactory.GetDatabaseWithKeyPrefix(context, KeySpace);
         }
 
-        internal class RedisRetryPolicy : ITransientErrorDetectionStrategy
+        internal class RedisRetryPolicy
         {
             private readonly Action<Exception>? _exceptionObserver;
             private readonly bool _treatObjectDisposedExceptionAsTransient;

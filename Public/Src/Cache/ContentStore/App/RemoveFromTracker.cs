@@ -4,11 +4,11 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
-using Microsoft.Practices.TransientFaultHandling;
+using Context = BuildXL.Cache.ContentStore.Interfaces.Tracing.Context;
 
 namespace BuildXL.Cache.ContentStore.App
 {
@@ -28,16 +28,14 @@ namespace BuildXL.Cache.ContentStore.App
             GrpcEnvironment.Initialize();
 
             var context = new Context(_logger);
-            var retryPolicy = new RetryPolicy(
-                new TransientErrorDetectionStrategy(),
-                new FixedInterval("RetryInterval", (int)_retryCount, TimeSpan.FromSeconds(_retryIntervalSeconds), false));
+            var retryPolicy = RetryPolicyFactory.GetLinearPolicy(ex => ex is ClientCanRetryException, (int)_retryCount, TimeSpan.FromSeconds(_retryIntervalSeconds));
 
             _logger.Debug("Begin repair handling...");
 
             // This action is synchronous to make sure the calling application doesn't exit before the method returns.
             using (var rpcClient = new GrpcRepairClient(grpcPort))
             {
-                var removeFromTrackerResult = retryPolicy.ExecuteAsync(() => rpcClient.RemoveFromTrackerAsync(context)).Result;
+                var removeFromTrackerResult = retryPolicy.ExecuteAsync(() => rpcClient.RemoveFromTrackerAsync(context), _cancellationToken).Result;
                 if (!removeFromTrackerResult.Succeeded)
                 {
                     throw new CacheException(removeFromTrackerResult.ErrorMessage);

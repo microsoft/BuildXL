@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using Microsoft.Practices.TransientFaultHandling;
+using BuildXL.Cache.ContentStore.Utils;
 
 #nullable enable
 
@@ -11,21 +11,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <nodoc />
     public class ExponentialBackoffConfiguration
     {
-        /// <summary>
-        /// The value is: <code>TimeSpan.FromSeconds(1.0)</code>
-        /// </summary>
-        public static TimeSpan DefaultMinBackoff { get; } = RetryStrategy.DefaultMinBackoff;
-
-        /// <summary>
-        /// The value is: <code>TimeSpan.FromSeconds(30.0)</code>
-        /// </summary>
-        public static TimeSpan DefaultMaxBackoff { get; } = RetryStrategy.DefaultMaxBackoff;
-
-        /// <summary>
-        /// The value is: <code>TimeSpan.FromSeconds(10.0)</code>
-        /// </summary>
-        public static TimeSpan DefaultDeltaBackoff { get; } = RetryStrategy.DefaultClientBackoff;
-
         /// <nodoc />
         public int RetryCount { get; }
 
@@ -42,13 +27,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ExponentialBackoffConfiguration(int retryCount, TimeSpan? minBackoff = null, TimeSpan? maxBackoff = null, TimeSpan? deltaBackoff = null)
         {
             RetryCount = retryCount;
-            MinBackoff = minBackoff ?? DefaultMinBackoff;
-            MaxBackoff = maxBackoff ?? DefaultMaxBackoff;
-            DeltaBackoff = deltaBackoff ?? DefaultDeltaBackoff;
+            MinBackoff = minBackoff ?? RetryPolicyFactory.DefaultMinBackoff;
+            MaxBackoff = maxBackoff ?? RetryPolicyFactory.DefaultMaxBackoff;
+            DeltaBackoff = deltaBackoff ?? RetryPolicyFactory.DefaultDeltaBackoff;
         }
-
-        /// <nodoc />
-        public ExponentialBackoff CreateRetryStrategy() => new ExponentialBackoff(RetryCount, MinBackoff, MaxBackoff, DeltaBackoff);
     }
 
     /// <summary>
@@ -84,19 +66,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc cref="RedisContentLocationStoreConfiguration.ExponentialBackoffConfiguration"/>
         public ExponentialBackoffConfiguration? ExponentialBackoffConfiguration { get; }
 
-        public RetryPolicy CreateRetryPolicy(Action<Exception> onRedidException)
+        public IRetryPolicy CreateRetryPolicy(Action<Exception> onRedisException)
         {
+            var policy = new RedisDatabaseAdapter.RedisRetryPolicy(onRedisException, TreatObjectDisposedExceptionAsTransient);
             if (_retryCount != null)
             {
-                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException, TreatObjectDisposedExceptionAsTransient), _retryCount.Value);
+                return RetryPolicyFactory.GetLinearPolicy(policy.IsTransient, _retryCount.Value);
             }
             else if (ExponentialBackoffConfiguration != null)
             {
-                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException, TreatObjectDisposedExceptionAsTransient), ExponentialBackoffConfiguration.CreateRetryStrategy());
+                var config = ExponentialBackoffConfiguration;
+                return RetryPolicyFactory.GetExponentialPolicy(policy.IsTransient, config.RetryCount, config.MinBackoff, config.MaxBackoff, config.DeltaBackoff);
             }
             else
             {
-                return new RetryPolicy(new RedisDatabaseAdapter.RedisRetryPolicy(onRedidException, TreatObjectDisposedExceptionAsTransient), RetryStrategy.DefaultExponential);
+                return RetryPolicyFactory.GetExponentialPolicy(policy.IsTransient);
             }
         }
 

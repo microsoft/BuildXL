@@ -7,14 +7,14 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
+using BuildXL.Cache.ContentStore.Utils;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
     /// <summary>
-    /// Set of extension methods for <see cref="RetryPolicy"/>.
+    /// Set of extension methods for <see cref="IRetryPolicy"/>.
     /// </summary>
     public static class RetryPolicyExtensions
     {
@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Execute a given <paramref name="func"/> func and trace transient failures.
         /// </summary>
         public static async Task ExecuteAsync(
-            this RetryPolicy policy,
+            this IRetryPolicy policy,
             Context context,
             Func<Task> func,
             CancellationToken token,
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Execute a given <paramref name="func"/> func and trace transient failures.
         /// </summary>
         public static async Task<T> ExecuteAsync<T>(
-            this RetryPolicy policy,
+            this IRetryPolicy policy,
             Context context,
             Func<Task<T>> func,
             CancellationToken token,

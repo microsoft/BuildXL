@@ -2120,6 +2120,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Polly",
+          "Version": "7.2.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Polly.Contrib.WaitAndRetry",
+          "Version": "1.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "PowerShell.Core",
           "Version": "6.1.0"
         }

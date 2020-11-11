@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.VstsInterfaces
 {
@@ -45,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.VstsInterfaces
         /// <summary>
         /// Gets the error detection strategy for communicating with Azure blob and VSTS blob.
         /// </summary>
-        ITransientErrorDetectionStrategy GetTransientErrorDetectionStrategy();
+        Func<Exception, bool> GetTransientErrorDetectionStrategy();
 
         /// <summary>
         /// Downloads an azure based Http stream to a destination path in a parallel multi-block manner.

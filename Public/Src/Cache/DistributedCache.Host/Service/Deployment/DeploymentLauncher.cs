@@ -33,7 +33,6 @@ using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
-using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
@@ -78,7 +77,7 @@ namespace BuildXL.Cache.Host.Service
 
         public IDeployedTool CurrentRun => _currentRun;
 
-        private RetryPolicy RetryPolicy { get; }
+        private IRetryPolicy RetryPolicy { get; }
 
         /// <summary>
         /// Lifetime manager used to signal shutdown of launched services

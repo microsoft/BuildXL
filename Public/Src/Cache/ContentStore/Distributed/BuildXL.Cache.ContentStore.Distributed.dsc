@@ -35,7 +35,6 @@ namespace Distributed {
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...redisPackages,
 
-            ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             UtilitiesCore.dll,
             Hashing.dll,
             Interfaces.dll,

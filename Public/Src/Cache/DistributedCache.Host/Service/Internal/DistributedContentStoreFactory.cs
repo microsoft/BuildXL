@@ -28,10 +28,10 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
-using Microsoft.Practices.TransientFaultHandling;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -89,6 +89,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             _redisMemoizationStoreFactory = new Lazy<RedisMemoizationStoreFactory>(() => CreateRedisCacheFactory());
+
+            if (_arguments.Configuration.DistributedContentSettings.UsePolly == true)
+            {
+                RetryPolicyFactory.UsePolly = true;
+            }
         }
 
         internal static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
@@ -714,31 +719,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             return value;
-        }
-
-        private sealed class KeyVaultRetryPolicy : ITransientErrorDetectionStrategy
-        {
-            /// <inheritdoc />
-            public bool IsTransient(Exception ex)
-            {
-                var message = ex.Message;
-
-                if (message.Contains("The remote name could not be resolved"))
-                {
-                    // In some cases, KeyVault provider may fail with HttpRequestException with an inner exception like 'The remote name could not be resolved: 'login.windows.net'.
-                    // Theoretically, this should be handled by the host, but to make error handling simple and consistent (this method throws one exception type) the handling is happening here.
-                    // This is a recoverable error.
-                    return true;
-                }
-
-                if (message.Contains("429"))
-                {
-                    // This is a throttling response which is recoverable as well.
-                    return true;
-                }
-
-                return false;
-            }
         }
     }
 }

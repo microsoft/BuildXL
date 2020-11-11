@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -146,11 +147,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (result.Succeeded)
             {
                 _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
-                result = await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.StartupAsync(context, waitMs: 0));
+                result = await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.StartupAsync(context, waitMs: 0), CancellationToken.None);
 
                 if (!result)
                 {
-                    await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.ShutdownAsync(context)).ThrowIfFailure();
+                    await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.ShutdownAsync(context), CancellationToken.None).ThrowIfFailure();
                 }
             }
 

@@ -6,9 +6,7 @@ namespace VstsInterfaces {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore.VstsInterfaces",
         sources: globR(d`.`, "*.cs"),
-        references: [
-            BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
-            
+        references: [            
             Interfaces.dll,
             Hashing.dll,
             UtilitiesCore.dll,

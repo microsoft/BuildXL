@@ -25,8 +25,6 @@ namespace VfsLibrary {
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
             ...getGrpcPackages(true),
-
-            ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Vfs.Test",

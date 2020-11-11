@@ -18,7 +18,6 @@ namespace DistributedTest {
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
-            ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,

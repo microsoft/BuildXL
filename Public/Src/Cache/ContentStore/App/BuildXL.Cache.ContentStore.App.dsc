@@ -40,8 +40,6 @@ namespace App {
 
             importFrom("BuildXL.Utilities").dll,
 
-            ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
-
             importFrom("WindowsAzure.Storage").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],

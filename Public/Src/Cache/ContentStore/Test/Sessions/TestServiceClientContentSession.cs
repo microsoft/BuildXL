@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Stores;
 using ContentStoreTest.Stores;
 using FluentAssertions;
-using Microsoft.Practices.TransientFaultHandling;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace ContentStoreTest.Sessions
 {
@@ -26,7 +26,7 @@ namespace ContentStoreTest.Sessions
         public TestServiceClientContentSession(
             string name,
             ImplicitPin implicitPin,
-            RetryPolicy retryPolicy,
+            IRetryPolicy retryPolicy,
             AbsolutePath rootPath,
             string cacheName,
             ILogger logger,

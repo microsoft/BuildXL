@@ -4,7 +4,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.VisualStudio.Services.Common;
 
 namespace BuildXL.Cache.ContentStore.Vsts
@@ -12,10 +11,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <summary>
     /// Retry strategy for getting VSS credentials.
     /// </summary>
-    public class AuthorizationErrorDetectionStrategy : ITransientErrorDetectionStrategy
+    public static class AuthorizationErrorDetectionStrategy
     {
         /// <inheritdoc />
-        public bool IsTransient(Exception ex)
+        public static bool IsTransient(Exception ex)
         {
             bool isTransient = VssNetworkHelper.IsTransientNetworkException(ex, new VssHttpRetryOptions());
 

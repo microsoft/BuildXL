@@ -22,7 +22,6 @@ namespace Vsts {
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [

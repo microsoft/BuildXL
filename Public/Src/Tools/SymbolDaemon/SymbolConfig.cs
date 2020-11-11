@@ -47,6 +47,19 @@ namespace Tool.SymbolDaemon
         public bool Verbose { get; }
 
         /// <summary>
+        /// Optional domain id. Null represents a default value.
+        /// </summary>
+        public byte? DomainId { get; }
+
+        /// <summary>
+        /// Enable chunk dedup.
+        /// </summary>
+        /// <remarks>
+        /// ChunkDedup is currently not supported, but the API already requires it.
+        /// </remarks>
+        public bool EnableChunkDedup => false;
+
+        /// <summary>
         /// The expected behavior when a debug entry to add already exists.
         /// </summary>
         public DebugEntryCreateBehavior DebugEntryCreateBehavior { get; }
@@ -72,7 +85,8 @@ namespace Tool.SymbolDaemon
             TimeSpan? httpSendTimeout = null,
             bool? verbose = null,
             bool? enableTelemetry = null,
-            string logDir = null)
+            string logDir = null,
+            byte? domainId = null)
         {
             Name = requestName;
             Service = serviceEndpoint;
@@ -81,6 +95,7 @@ namespace Tool.SymbolDaemon
             Verbose = verbose ?? DefaultVerbose;
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             LogDir = logDir;
+            DomainId = domainId;
 
             if (debugEntryCreateBehaviorStr == null)
             {

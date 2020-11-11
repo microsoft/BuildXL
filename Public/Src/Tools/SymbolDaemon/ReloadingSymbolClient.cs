@@ -20,18 +20,18 @@ namespace Tool.ServicePipDaemon
     {
         /// <nodoc/>
         public ReloadingSymbolClient(IIpcLogger logger, Func<ISymbolServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
-            : base(logger, clientConstructor, retryIntervals, new [] { typeof(DebugEntryExistsException) })
+            : base(logger, clientConstructor, retryIntervals, new[] { typeof(DebugEntryExistsException) })
         {
         }
 
         #region ISymbolServiceClient Interface Methods
 
         /// <inheritdoc />
-        public Task<Request> CreateRequestAsync(string requestName, CancellationToken cancellationToken)
+        public Task<Request> CreateRequestAsync(IDomainId domainId, string requestName, bool isChunked, CancellationToken cancellationToken)
         {
             return RetryAsync(
                 nameof(ISymbolServiceClient.CreateRequestAsync),
-                (client, ct) => client.CreateRequestAsync(requestName, ct),
+                (client, ct) => client.CreateRequestAsync(domainId, requestName, isChunked, ct),
                 cancellationToken);
         }
 
@@ -85,11 +85,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken, SizeOptions sizeOptions = null, ExpirationDateOptions expirationDateOptions = null, IDomainId domainIdOption = null)
         {
             return RetryAsync(
                 nameof(ISymbolServiceClient.GetAllRequestsAsync),
-                (client, ct) => client.GetAllRequestsAsync(ct, sizeOptions, expirationDateOptions),
+                (client, ct) => client.GetAllRequestsAsync(ct, sizeOptions, expirationDateOptions, domainIdOption),
                 cancellationToken);
         }
 
@@ -113,6 +113,15 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                nameof(ISymbolServiceClient.GetDebugEntriesAsync),
                (client, ct) => client.GetDebugEntriesAsync(debugEntryClientKey, startEntry, maxEntries, sortOrder, ct),
+               cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<IEnumerable<MultiDomainInfo>> GetDomainsAsync(CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+               nameof(ISymbolServiceClient.GetDomainsAsync),
+               (client, ct) => client.GetDomainsAsync(ct),
                cancellationToken);
         }
 
@@ -144,11 +153,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(string continueFromRequestId, int pageSize, CancellationToken cancellationToken, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(string continueFromRequestId, int pageSize, CancellationToken cancellationToken, SizeOptions sizeOptions = null, ExpirationDateOptions expirationDateOptions = null, IDomainId domainIdOption = null)
         {
             return RetryAsync(
                  nameof(ISymbolServiceClient.GetRequestPaginatedAsync),
-                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct, sizeOptions, expirationDateOptions),
+                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct, sizeOptions, expirationDateOptions, domainIdOption),
                  cancellationToken);
         }
 
@@ -171,11 +180,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<BlobIdentifierWithBlocks> UploadFileAsync(Uri blobStoreUri, string requestId, string filename, BlobIdentifier blobIdentifier, CancellationToken cancellationToken)
+        public Task<BlobIdentifierWithBlocks> UploadFileAsync(IDomainId domainId, Uri blobStoreUri, string requestId, string filename, BlobIdentifier blobIdentifier, CancellationToken cancellationToken)
         {
             return RetryAsync(
                nameof(ISymbolServiceClient.UploadFileAsync),
-               (client, ct) => client.UploadFileAsync(blobStoreUri, requestId, filename, blobIdentifier, ct),
+               (client, ct) => client.UploadFileAsync(domainId, blobStoreUri, requestId, filename, blobIdentifier, ct),
                cancellationToken);
         }
 

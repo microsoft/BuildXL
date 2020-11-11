@@ -13,6 +13,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
@@ -45,6 +46,7 @@ namespace Tool.SymbolDaemon
 
         private CancellationToken CancellationToken => m_cancellationSource.Token;
         private string m_requestId;
+        private IDomainId m_domainId;
 
         private VssCredentials GetCredentials() =>
             new VsoCredentialHelper(m => m_logger.Verbose(m))
@@ -67,6 +69,15 @@ namespace Tool.SymbolDaemon
             {
                 Contract.Requires(!string.IsNullOrEmpty(m_requestId));
                 return m_requestId;
+            }
+        }
+
+        private IDomainId DomainId
+        {
+            get
+            {
+                Contract.Requires(m_domainId != null);
+                return m_domainId;
             }
         }
 
@@ -109,16 +120,17 @@ namespace Tool.SymbolDaemon
         /// This method should be called only after the request has been created, otherwise, it will throw an exception.
         /// </summary>
         /// <remarks>
-        /// On workers, m_requestId won't be initialized, so we need to query the server for the right value.
+        /// On workers, m_requestId / m_domainId won't be initialized, so we need to query the server for the right values.
         /// </remarks>
-        private async Task EnsureRequestIdInitalizedAsync()
+        private async Task EnsureRequestIdAndDomainIdAreInitalizedAsync()
         {
-            if (string.IsNullOrEmpty(m_requestId))
+            if (string.IsNullOrEmpty(m_requestId) || m_domainId == null)
             {
                 using (m_counters.StartStopwatch(SymbolClientCounter.GetRequestIdDuration))
                 {
                     var result = await m_symbolClient.GetRequestByNameAsync(RequestName, CancellationToken);
                     m_requestId = result.Id;
+                    m_domainId = result.DomainId;
                 }
             }
         }
@@ -128,13 +140,23 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public async Task<Request> CreateAsync(CancellationToken token)
         {
+            if (!m_config.DomainId.HasValue)
+            {
+                m_logger.Verbose("DomainId is not specified. Creating symbol publishing request using DefaultDomainId.");
+            }
+
+            IDomainId domainId = m_config.DomainId.HasValue
+                ? new ByteDomainId(m_config.DomainId.Value)
+                : WellKnownDomainIds.DefaultDomainId;
+
             Request result;
             using (m_counters.StartStopwatch(SymbolClientCounter.CreateDuration))
             {
-                result = await m_symbolClient.CreateRequestAsync(RequestName, token);
+                result = await m_symbolClient.CreateRequestAsync(domainId, RequestName, m_config.EnableChunkDedup, token);
             }
 
             m_requestId = result.Id;
+            m_domainId = result.DomainId;
 
             // info about a request in a human-readable form
             var requestDetails = $"Symbol request has been created:{Environment.NewLine}"
@@ -169,7 +191,7 @@ namespace Tool.SymbolDaemon
                 return AddDebugEntryResult.NoSymbolData;
             }
 
-            await EnsureRequestIdInitalizedAsync();
+            await EnsureRequestIdAndDomainIdAreInitalizedAsync();
 
             List<DebugEntry> result;
             using (m_counters.StartStopwatch(SymbolClientCounter.TotalAssociateTime))
@@ -178,7 +200,7 @@ namespace Tool.SymbolDaemon
                 {
                     result = await m_symbolClient.CreateRequestDebugEntriesAsync(
                         RequestId,
-                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e, m_domainId)),
                         // First, we create debug entries with ThrowIfExists behavior not to silence the collision errors.
                         DebugEntryCreateBehavior.ThrowIfExists,
                         CancellationToken);
@@ -202,7 +224,7 @@ namespace Tool.SymbolDaemon
 
                     result = await m_symbolClient.CreateRequestDebugEntriesAsync(
                         RequestId,
-                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                        symbolFile.DebugEntries.Select(e => CreateDebugEntry(e, m_domainId)),
                         m_debugEntryCreateBehavior,
                         CancellationToken);
                 }
@@ -217,10 +239,11 @@ namespace Tool.SymbolDaemon
                 // make sure that the file is on disk (it might not be on disk if we got DebugEntries from cache/metadata file)
                 var file = await symbolFile.EnsureMaterializedAsync();
 
-                Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifierWithBlocks uploadResult;
+                BlobIdentifierWithBlocks uploadResult;
                 using (m_counters.StartStopwatch(SymbolClientCounter.TotalUploadTime))
                 {
                     uploadResult = await m_symbolClient.UploadFileAsync(
+                        m_domainId,
                         // uploading to the location set by the symbol service
                         entriesWithMissingBlobs[0].BlobUri,
                         RequestId,
@@ -287,13 +310,14 @@ namespace Tool.SymbolDaemon
             m_symbolClient.Dispose();
         }
 
-        private static DebugEntry CreateDebugEntry(IDebugEntryData data)
+        private static DebugEntry CreateDebugEntry(IDebugEntryData data, IDomainId domainId)
         {
             return new DebugEntry()
             {
                 BlobIdentifier = data.BlobIdentifier,
                 ClientKey = data.ClientKey,
-                InformationLevel = data.InformationLevel
+                InformationLevel = data.InformationLevel,
+                DomainId = domainId,
             };
         }
 

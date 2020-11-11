@@ -121,8 +121,22 @@ namespace Tool.SymbolDaemon
             IsMultiValue = false,
         };
 
+        internal static readonly NullableIntOption OptionalDomainId = RegisterSymbolConfigOption(new NullableIntOption("domainId")
+        {
+            ShortName = "ddid",
+            HelpText = "Optional domain id setting.",
+            IsRequired = false,
+            DefaultValue = null,
+        });
+
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
+            byte? domainId;
+            checked
+            {
+                domainId = (byte?)conf.Get(OptionalDomainId);
+            }
+
             return new SymbolConfig(
                 requestName: conf.Get(SymbolRequestNameOption),
                 serviceEndpoint: conf.Get(ServiceEndpoint),
@@ -131,7 +145,8 @@ namespace Tool.SymbolDaemon
                 httpSendTimeout: TimeSpan.FromMilliseconds(conf.Get(HttpSendTimeoutMillis)),
                 verbose: conf.Get(Verbose),
                 enableTelemetry: conf.Get(EnableTelemetry),
-                logDir: conf.Get(LogDir));
+                logDir: conf.Get(LogDir),
+                domainId: domainId);
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)

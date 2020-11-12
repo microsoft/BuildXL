@@ -14,7 +14,7 @@ namespace BuildXL.Cache.InMemory
     /// <summary>
     /// A generic hash
     /// </summary>
-    internal sealed class MemCache : ICache
+    public sealed class MemCache : ICache
     {
         private readonly CacheId m_cacheId;
 
@@ -43,7 +43,8 @@ namespace BuildXL.Cache.InMemory
             }
         }
 
-        internal MemCache(CacheId cacheId, bool strictMetadataCasCoupling, bool isauthoritative)
+        /// <nodoc />
+        public MemCache(CacheId cacheId, bool strictMetadataCasCoupling, bool isauthoritative)
         {
             m_cacheGuid = CacheDeterminism.NewCacheGuid();
             m_cacheId = cacheId;
@@ -80,21 +81,29 @@ namespace BuildXL.Cache.InMemory
 
         #region ICache interface methods
 
+        /// <inheritdoc />
         public CacheId CacheId => m_cacheId;
 
+        /// <inheritdoc />
         public Guid CacheGuid => m_cacheGuid;
-
+        
+        /// <inheritdoc />
         public bool StrictMetadataCasCoupling => m_strictMetadataCasCoupling;
-
+        
+        /// <inheritdoc />
         public bool IsShutdown => m_shutdown;
 
+        /// <inheritdoc />
         public bool IsReadOnly => false;
 
+        /// <inheritdoc />
         public bool IsAuthoritative { get; }
 
         // A cache on its own is connected to its own storage
+        /// <inheritdoc />
         public bool IsDisconnected => false;
 
+        /// <inheritdoc />
         public Task<Possible<ICacheReadOnlySession, Failure>> CreateReadOnlySessionAsync()
         {
             Contract.Requires(!IsShutdown);
@@ -102,6 +111,7 @@ namespace BuildXL.Cache.InMemory
             return Task.FromResult<Possible<ICacheReadOnlySession, Failure>>(new MemCacheSession(this, true));
         }
 
+        /// <inheritdoc />
         public Task<Possible<ICacheSession, Failure>> CreateSessionAsync()
         {
             Contract.Requires(!IsShutdown);
@@ -110,6 +120,7 @@ namespace BuildXL.Cache.InMemory
             return Task.FromResult<Possible<ICacheSession, Failure>>(new MemCacheSession(this, false));
         }
 
+        /// <inheritdoc />
         public Task<Possible<ICacheSession, Failure>> CreateSessionAsync(string sessionId)
         {
             Contract.Requires(!IsShutdown);
@@ -130,6 +141,7 @@ namespace BuildXL.Cache.InMemory
             return Task.FromResult<Possible<ICacheSession, Failure>>(new MemCacheSession(this, sessionId));
         }
 
+        /// <inheritdoc />
         public IEnumerable<Task<string>> EnumerateCompletedSessions()
         {
             Contract.Requires(!IsShutdown);
@@ -137,6 +149,7 @@ namespace BuildXL.Cache.InMemory
             return EnumerateIntoTasks(m_sessionRecords.Keys);
         }
 
+        /// <inheritdoc />
         public Possible<IEnumerable<Task<StrongFingerprint>>, Failure> EnumerateSessionStrongFingerprints(string sessionId)
         {
             Contract.Requires(!IsShutdown);
@@ -157,6 +170,7 @@ namespace BuildXL.Cache.InMemory
             return new UnknownSessionFailure(CacheId, sessionId);
         }
 
+        /// <inheritdoc />
         public Task<Possible<string, Failure>> ShutdownAsync()
         {
             Contract.Requires(!IsShutdown);

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
+using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
@@ -96,6 +97,12 @@ namespace BuildXL.Cache.VerticalAggregator
             /// </summary>
             [DefaultValue(Timeout.Infinite)]
             public int RemoteConstructionTimeoutMilliseconds { get; set; }
+
+            /// <summary>
+            /// Whether to prohibit read operations on the remote cache.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool RemoteIsWriteOnly { get; set; }
         }
 
         /// <inheritdoc />
@@ -170,12 +177,17 @@ namespace BuildXL.Cache.VerticalAggregator
 
                 bool readOnlyRemote = remote.IsReadOnly || cacheAggregatorConfig.RemoteIsReadOnly;
 
+                var remoteReadCache = cacheAggregatorConfig.RemoteIsWriteOnly
+                    ? new MemCache(new CacheId("ReadOnlyEmptyRemote"), strictMetadataCasCoupling: true, isauthoritative: false)
+                    : null;
+
                 try
                 {
                     // instantiate new VerticalCacheAggregator
                     return eventing.Returns(new VerticalCacheAggregator(
                         local,
                         remote,
+                        remoteReadCache,
                         readOnlyRemote,
                         cacheAggregatorConfig.WriteThroughCasData,
                         cacheAggregatorConfig.RemoteContentIsReadOnly));

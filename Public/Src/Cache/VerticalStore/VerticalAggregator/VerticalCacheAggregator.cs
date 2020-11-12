@@ -29,6 +29,11 @@ namespace BuildXL.Cache.VerticalAggregator
         private readonly bool m_remoteIsReadOnly;
 
         /// <summary>
+        /// If specified, the remote readonly session should be fcreated crom this cache insteaad of the regular remote cache.
+        /// </summary>
+        private readonly ICache m_remoteReadCache;
+
+        /// <summary>
         /// Determines if the remote content store is readonly.
         /// This is different than m_remoteIsReadOnly, as this applies to only the content part of cache, and not all of it.
         /// This is also different than WriteThroughCasData, as this also applies to the calls to the remote triggered by metadata, and not just direct external content calls.
@@ -50,13 +55,15 @@ namespace BuildXL.Cache.VerticalAggregator
             new EventSource("VerticalCacheAggregatorEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
 #endif
 
-        internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, bool remoteIsReadOnly, bool writeThroughCasData, bool remoteContentIsReadOnly)
+        internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, ICache remoteReadCache, bool remoteIsReadOnly, bool writeThroughCasData, bool remoteContentIsReadOnly)
         {
             m_localCache = localCache;
             m_remoteCache = remoteCache;
+            m_remoteReadCache = remoteReadCache;
             m_cacheId = new CacheId(localCache.CacheId, remoteCache.CacheId);
             m_remoteIsReadOnly = remoteIsReadOnly || remoteCache.IsReadOnly;
             m_remoteContentIsReadOnly = remoteContentIsReadOnly;
+
             WriteThroughCasData = writeThroughCasData && !remoteContentIsReadOnly;
         }
 
@@ -164,7 +171,12 @@ namespace BuildXL.Cache.VerticalAggregator
             if (m_remoteIsReadOnly)
             {
                 remoteSessionTask = Task.FromResult(new Possible<ICacheSession, Failure>((ICacheSession)null));
-                remoteROSessionTask = m_remoteCache.CreateReadOnlySessionAsync();
+                remoteROSessionTask = CreateRemoteReadOnlySessionAsync();
+            }
+            else if (m_remoteReadCache != null)
+            {
+                remoteSessionTask = m_remoteCache.CreateSessionAsync();
+                remoteROSessionTask = CreateRemoteReadOnlySessionAsync();
             }
             else
             {
@@ -351,6 +363,13 @@ namespace BuildXL.Cache.VerticalAggregator
         {
             m_localCache.SuscribeForCacheStateDegredationFailures(notificationCallback);
             m_remoteCache.SuscribeForCacheStateDegredationFailures(notificationCallback);
+        }
+
+        private Task<Possible<ICacheReadOnlySession, Failure>> CreateRemoteReadOnlySessionAsync()
+        {
+            return m_remoteReadCache != null
+                ? m_remoteReadCache.CreateReadOnlySessionAsync()
+                : m_remoteCache.CreateReadOnlySessionAsync();
         }
     }
 }

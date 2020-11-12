@@ -313,7 +313,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),
         Cmd.option("--qTestExcludeCcTargetsFile ", Artifact.input(args.qTestExcludeCcTargetsFile)),
         Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.none(flakyFile)),
-        Cmd.flag("--doNotFailForZeroTestCases", args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotFailForZeroTestCases)
+        Cmd.flag("--doNotFailForZeroTestCases", args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotFailForZeroTestCases),
+        Cmd.flag("--qTestHonorTrxResultSummary", args.qTestHonorTrxResultSummary)
     ];
 
     let unsafeOptions = {
@@ -539,6 +540,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestUntrackedPaths?: (File | Directory)[];
     /** Directories and their recursive content that are out of scope of the build or test project where unsafe file access needs to be permitted */
     qTestUntrackedScopes?: Directory[];
+    /** Specifies whether to fail if vstest platform reports a failure in the trx in the absence of failed test cases. */
+    qTestHonorTrxResultSummary?: boolean;
 
     /** Nested tool options */
     tools?: {

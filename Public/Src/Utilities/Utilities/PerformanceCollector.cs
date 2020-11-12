@@ -502,6 +502,7 @@ namespace BuildXL.Utilities
                                 diskPerformance: perf);
                         }
                     }
+                    catch (IOException) { }
                     catch (ObjectDisposedException)
                     {
                         // Occasionally the handle is disposed even though it's checked against being closed and valid

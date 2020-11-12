@@ -102,6 +102,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         AbsolutePath TimeoutDumpDirectory { get; }
 
+        /// <summary>
+        /// Root directory where surviving child process dumps should be saved
+        /// </summary>
+        AbsolutePath SurvivingPipProcessChildrenDumpDirectory { get; }
+
         #endregion
 
         #region Logging options for the Sandbox

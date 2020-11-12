@@ -848,6 +848,7 @@ namespace BuildXL.Processes
                         PipSemiStableHash = m_pip.SemiStableHash,
                         PipDescription = m_pipDescription,
                         TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
+                        SurvivingPipProcessChildrenDumpDirectory = m_sandboxConfig.SurvivingPipProcessChildrenDumpDirectory.ToString(m_pathTable),
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,

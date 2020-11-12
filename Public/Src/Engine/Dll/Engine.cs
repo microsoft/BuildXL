@@ -718,6 +718,7 @@ namespace BuildXL.Engine
             logging.RedirectedLogsDirectory = layout.OutputDirectory.Combine(pathTable, Strings.Layout_DefaultJunctionNameTotLogFolder);
 
             mutableConfig.Sandbox.TimeoutDumpDirectory = logging.LogsDirectory.Combine(pathTable, "TimeoutDumps");
+            mutableConfig.Sandbox.SurvivingPipProcessChildrenDumpDirectory = logging.LogsDirectory.Combine(pathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory);
 
             logging.Log = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Log);
             logging.ErrorLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Errors);

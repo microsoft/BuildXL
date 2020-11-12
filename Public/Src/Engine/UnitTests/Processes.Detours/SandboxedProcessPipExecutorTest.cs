@@ -1708,9 +1708,12 @@ namespace Test.BuildXL.Processes.Detours
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                     nestedProcessTerminationTimeout: TimeSpan.Zero);
 
+                AbsolutePath.TryCreate(context.PathTable, TemporaryDirectory, out AbsolutePath dumpDir);
+
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, 
+                        SurvivingPipProcessChildrenDumpDirectory = dumpDir.Combine(context.PathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory)},
                     pip,
                     null,
                     new Dictionary<string, string>(),
@@ -1723,9 +1726,10 @@ namespace Test.BuildXL.Processes.Detours
             // the current machine state. And each cmd might have its own conhost.
             int numChildrenSurvivedErrors = EventListener.GetEventCount((int)ProcessesLogEventId.PipProcessChildrenSurvivedError);
             SetExpectedFailures(1 + numChildrenSurvivedErrors, 0,
-                "DX0041",  // ProcessesLogEventId.PipProcessChildrenSurvivedError
+                "DX0041",   // ProcessesLogEventId.PipProcessChildrenSurvivedError
                 "DX0064");  // ProcessesLogEventId.PipProcessChildrenSurvivedKilled
             XAssert.IsTrue(numChildrenSurvivedErrors >= 1 && numChildrenSurvivedErrors <= 3, $"Child processes: {numChildrenSurvivedErrors}");
+            AssertVerboseEventLogged(ProcessesLogEventId.DumpSurvivingPipProcessChildrenStatus, count: numChildrenSurvivedErrors, allowMore: true);
         }
 
         [Fact]

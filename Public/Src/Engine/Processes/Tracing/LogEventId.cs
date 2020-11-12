@@ -147,6 +147,8 @@ namespace BuildXL.Processes.Tracing
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
 
+        DumpSurvivingPipProcessChildrenStatus = 12213,
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

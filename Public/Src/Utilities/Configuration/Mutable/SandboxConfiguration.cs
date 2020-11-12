@@ -69,6 +69,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TimeoutMultiplier = template.TimeoutMultiplier;
             WarningTimeoutMultiplier = template.WarningTimeoutMultiplier;
             TimeoutDumpDirectory = pathRemapper.Remap(template.TimeoutDumpDirectory);
+            SurvivingPipProcessChildrenDumpDirectory = pathRemapper.Remap(template.SurvivingPipProcessChildrenDumpDirectory);
             LogObservedFileAccesses = template.LogObservedFileAccesses;
             LogProcesses = template.LogProcesses;
             LogProcessData = template.LogProcessData;
@@ -163,6 +164,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath TimeoutDumpDirectory { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath SurvivingPipProcessChildrenDumpDirectory { get; set; }
 
         /// <inheritdoc />
         public bool LogObservedFileAccesses { get; set; }

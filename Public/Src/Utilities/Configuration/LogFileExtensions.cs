@@ -64,6 +64,11 @@ namespace BuildXL.Utilities.Configuration
         public const string CacheMissLog = ".CacheMiss.log";
 
         /// <summary>
+        /// A file contains cache miss logs
+        /// </summary>
+        public const string SurvivingPipProcessChildrenDumpDirectory = "SurvivingPipProcessChildrenDumps";
+
+        /// <summary>
         /// A file with the Pip outputs logged
         /// </summary>
         public const string PipOutputLog = ".PipOutput.log";

@@ -74,6 +74,7 @@ namespace BuildXL.Processes
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
+        private readonly string m_survivingPipProcessChildrenDumpDirectory;
 
         private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
         private readonly PerformanceCollector.Aggregation m_workingSet = new PerformanceCollector.Aggregation();
@@ -106,6 +107,7 @@ namespace BuildXL.Processes
             m_allowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
             m_loggingContext = info.LoggingContext;
+            m_survivingPipProcessChildrenDumpDirectory = info.SurvivingPipProcessChildrenDumpDirectory;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;
@@ -826,12 +828,53 @@ namespace BuildXL.Processes
 
                         string path = sb.ToString();
                         survivingChildProcesses.Add(processId, new ReportedProcess(processId, path, processArgs));
+                        DumpSurvivingPipProcessChildren((int)processId);
                     }
                 }
             }
 
-
             return survivingChildProcesses;
+        }
+
+        private void DumpSurvivingPipProcessChildren(int processId)
+        {
+            if (m_survivingPipProcessChildrenDumpDirectory == null)
+            {
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, processId.ToString(), $"Failed due to missing SurvivingPipProcessChildrenDumpDirectory.");
+                return;
+            }
+
+            if (TryGetProcessById(processId, out var childProcess))
+            {
+                string dumpPath = Path.Combine(m_survivingPipProcessChildrenDumpDirectory, $"SurvivingChildProcess_{processId}.zip");
+                if (!ProcessDumper.TryDumpProcess(childProcess, dumpPath, out Exception dumpException, compress: true))
+                {
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess.ProcessName, $"Failed with Exception: {dumpException?.Message}");
+                }
+                else
+                {
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess.ProcessName, $"Succeeded at path: {dumpPath}");
+                }
+            }
+        }
+
+        private bool TryGetProcessById(int pid, out System.Diagnostics.Process process)
+        {
+            process = null;
+            try
+            {
+                process = System.Diagnostics.Process.GetProcessById(pid);
+                return true;
+            }
+            catch (ArgumentException aEx)
+            {
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, pid.ToString(), $"Failed with Exception: {aEx.Message}");
+            }
+            catch (InvalidOperationException ioEx)
+            {
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
+            }
+            return false;
         }
 
         private bool ShouldWaitForSurvivingChildProcesses(JobObject jobObject)

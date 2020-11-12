@@ -412,6 +412,11 @@ namespace BuildXL.Processes
         public string TimeoutDumpDirectory { get; set; }
 
         /// <summary>
+        /// Root directory where surviving child process dumps should be saved
+        /// </summary>
+        public string SurvivingPipProcessChildrenDumpDirectory { get; set; }
+
+        /// <summary>
         /// The kind of sandboxing to use.
         /// </summary>
         public SandboxKind SandboxKind { get; set; }
@@ -488,6 +493,7 @@ namespace BuildXL.Processes
                 writer.Write(NestedProcessTerminationTimeout);
                 writer.Write(PipSemiStableHash);
                 writer.WriteNullableString(TimeoutDumpDirectory);
+                writer.WriteNullableString(SurvivingPipProcessChildrenDumpDirectory);
                 writer.Write((byte)SandboxKind);
                 writer.WriteNullableString(PipDescription);
 
@@ -549,6 +555,7 @@ namespace BuildXL.Processes
                 TimeSpan nestedProcessTerminationTimeout = reader.ReadTimeSpan();
                 long pipSemiStableHash = reader.ReadInt64();
                 string timeoutDumpDirectory = reader.ReadNullableString();
+                string survivingPipProcessChildrenDumpDirectory = reader.ReadNullableString();
                 SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
                 string pipDescription = reader.ReadNullableString();
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
@@ -588,6 +595,7 @@ namespace BuildXL.Processes
                     NestedProcessTerminationTimeout = nestedProcessTerminationTimeout,
                     PipSemiStableHash = pipSemiStableHash,
                     TimeoutDumpDirectory = timeoutDumpDirectory,
+                    SurvivingPipProcessChildrenDumpDirectory = survivingPipProcessChildrenDumpDirectory,
                     SandboxKind = sandboxKind,
                     PipDescription = pipDescription,
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,

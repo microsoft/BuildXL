@@ -1057,5 +1057,14 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "[{pipDescription}] Failed to probe '{path}' under a shared opaque directory : {details}")]
         public abstract void CannotProbeOutputUnderSharedOpaque(LoggingContext context, string pipDescription, string path, string details);
+
+        [GeneratedEvent(
+            (int)LogEventId.DumpSurvivingPipProcessChildrenStatus,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failure during dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}")]
+        public abstract void DumpSurvivingPipProcessChildrenStatus(LoggingContext context, string processName, string status);
     }
 }

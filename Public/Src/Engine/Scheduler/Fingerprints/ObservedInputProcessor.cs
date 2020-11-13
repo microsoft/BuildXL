@@ -1942,7 +1942,7 @@ namespace BuildXL.Scheduler.Fingerprints
             try
             {
                 m_directoryMembershipFilter = filter;
-
+                
                 DirectoryMembershipFingerprinterRule rule = null;
                 bool allowsUndeclaredSourceReads = process.UnderlyingPip.ProcessAllowsUndeclaredSourceReads;
                 enumerationMode = DetermineEnumerationModeAndRule(directoryPath, isReadOnlyDirectory, allowsUndeclaredSourceReads, out rule);
@@ -2116,6 +2116,14 @@ namespace BuildXL.Scheduler.Fingerprints
                     var path = request.DirectoryPath;
                     Action<AbsolutePath, string> addPipFileSystemEntry = new Action<AbsolutePath, string>((absolutePath, pathAsString) => pipFileEnumResult.Add((absolutePath, pathAsString)));
                     var pipEnumeration = PipFileSystem.EnumerateDirectory(PathTable, path, addPipFileSystemEntry);
+
+                    // If we are trying to enumerate a directory that we know is created by the build, we don't need to enumerate the real file system for that. This is because
+                    // the real file system enumeration is what may bring in alien files, but that's never the case for in-build created directories
+                    // So this case matches the regular minimal graph enumeration mode
+                    if (createdDirectories.Contains(path))
+                    {
+                        return pipEnumeration;
+                    }
 
                     // 2) Query the real file system since we want inputs (including undeclared sources) to be part of the fingerprint
                     // and add the result to the final enumeration

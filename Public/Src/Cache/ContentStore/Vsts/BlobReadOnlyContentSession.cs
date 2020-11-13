@@ -417,7 +417,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                             var success = DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var preauthUri);
                             uri = success ? preauthUri.NotNullUri : new Uri("http://empty.com");
 
-                            Directory.CreateDirectory(Directory.GetParent(path).FullName);
+                            Directory.CreateDirectory(Directory.GetParent(path)!.FullName);
 
                             // TODO: Investigate using ManagedParallelBlobDownloader instead (bug 1365340)
                             await ParallelHttpDownload.Download(
@@ -463,7 +463,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     }
                     catch (StorageException storageEx) when (storageEx.InnerException is WebException webEx)
                     {
-                        if (((HttpWebResponse)webEx.Response).StatusCode == HttpStatusCode.NotFound)
+                        if (((HttpWebResponse?)webEx.Response)?.StatusCode == HttpStatusCode.NotFound)
                         {
                             return null;
                         }

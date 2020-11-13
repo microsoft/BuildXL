@@ -10,8 +10,6 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-#pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
-
 namespace BuildXL.Pips.Filter
 {
     /// <summary>
@@ -436,6 +434,7 @@ namespace BuildXL.Pips.Filter
             return GetDerivedSpecificHashCode();
         }
 
+        /// <nodoc />
         protected static ReadOnlyHashSet<T> ParallelProcessAllOutputs<T>(
             IPipFilterContext context,
             Action<PipId, HashSet<T>> action,

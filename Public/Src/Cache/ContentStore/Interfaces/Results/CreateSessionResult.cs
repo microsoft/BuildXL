@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly T Session;
 
         /// <inheritdoc />
-        public bool Equals(CreateSessionResult<T> other)
+        public bool Equals([AllowNull]CreateSessionResult<T> other)
         {
             if (other is null || !base.Equals(other))
             {

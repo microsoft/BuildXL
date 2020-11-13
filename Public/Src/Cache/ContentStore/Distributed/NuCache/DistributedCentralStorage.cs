@@ -321,8 +321,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var result = await _locationStore.GetBulkAsync(context, new[] { hash, startedCopyHash }).ThrowIfFailure();
             var info = result.ContentHashesInfo[0];
 
-            var startedCopyLocations = result.ContentHashesInfo[1].Locations;
-            var finishedCopyLocations = info.Locations;
+            var startedCopyLocations = result.ContentHashesInfo[1].Locations!;
+            var finishedCopyLocations = info.Locations!;
             var pendingCopies = startedCopyLocations.Except(finishedCopyLocations).Count();
 
             return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, TranslateLocations(info.Locations!)), pendingCopies);

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -33,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public bool Equals(ContentHashWithPath other)
+        public bool Equals([AllowNull]ContentHashWithPath other)
         {
             return Hash.Equals(other.Hash) && Path.Equals(other.Path);
         }

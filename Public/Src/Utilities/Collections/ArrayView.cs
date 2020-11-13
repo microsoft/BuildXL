@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -104,7 +105,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool Equals(ArrayView<T> other)
+        public bool Equals([AllowNull]ArrayView<T> other)
         {
             return m_array == other.m_array &&
                 m_start == other.m_start &&

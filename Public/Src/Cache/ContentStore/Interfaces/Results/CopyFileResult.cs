@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -111,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static implicit operator bool(CopyFileResult result) => result.Succeeded;
 
         /// <inheritdoc />
-        public bool Equals(CopyFileResult other)
+        public bool Equals([AllowNull]CopyFileResult other)
         {
             return EqualsBase(other) && other != null && Code == other.Code;
         }

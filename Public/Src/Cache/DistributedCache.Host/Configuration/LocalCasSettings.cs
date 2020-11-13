@@ -9,6 +9,8 @@ using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
+#nullable disable
+
 namespace BuildXL.Cache.Host.Configuration
 {
     [DataContract]

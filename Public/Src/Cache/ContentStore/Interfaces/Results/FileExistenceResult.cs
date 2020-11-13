@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -97,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public bool Exists => Code == ResultCode.FileExists;
 
         /// <inheritdoc />
-        public bool Equals(FileExistenceResult other)
+        public bool Equals([AllowNull]FileExistenceResult? other)
         {
             return EqualsBase(other) && other != null && Code == other.Code;
         }

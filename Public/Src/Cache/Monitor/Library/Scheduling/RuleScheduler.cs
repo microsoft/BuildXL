@@ -129,14 +129,14 @@ namespace BuildXL.Cache.Monitor.App.Scheduling
             _logger = logger;
             _clock = clock;
 
-            _concurrencyBuckets = configuration.MaximumConcurrency.ToDictionary(kvp => kvp.Key, kvp => {
+            _concurrencyBuckets = configuration.MaximumConcurrency?.ToDictionary(kvp => kvp.Key, kvp => {
                 if (kvp.Value <= 0)
                 {
                     return null;
                 }
 
                 return new SemaphoreSlim(kvp.Value);
-            });
+            }) ?? new Dictionary<string, SemaphoreSlim?>();
 
             _notifier = notifier;
         }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -168,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public bool Equals(MurmurHash3_32 other)
+        public bool Equals([AllowNull]MurmurHash3_32 other)
         {
             return other.Hash == Hash;
         }

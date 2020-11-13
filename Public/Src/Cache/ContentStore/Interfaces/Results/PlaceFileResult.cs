@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -139,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public bool Equals(PlaceFileResult other)
+        public bool Equals([AllowNull]PlaceFileResult other)
         {
             return EqualsBase(other) && other != null && Code == other.Code;
         }

@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace BuildXL.Utilities.Collections
@@ -220,7 +221,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool Equals(SortedReadOnlyArray<TValue, TComparer> other)
+        public bool Equals([AllowNull]SortedReadOnlyArray<TValue, TComparer> other)
         {
             return m_array == other.m_array;
         }

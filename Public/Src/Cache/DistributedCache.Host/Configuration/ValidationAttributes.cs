@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 
@@ -21,11 +22,11 @@ namespace BuildXL.Cache.Host.Configuration
                 typeof(uint), typeof(float)
             };
 
-            protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+            protected override ValidationResult IsValid([AllowNull]object value, ValidationContext validationContext)
             {
                 if (value == null)
                 {
-                    return ValidationResult.Success;
+                    return Success;
                 }
 
                 // Make sure that we can handle nullable numerical types
@@ -60,7 +61,7 @@ namespace BuildXL.Cache.Host.Configuration
             {
                 return (value > _min || (_minInclusive && value == _min)) &&
                        (value < _max || (_maxInclusive && value == _max))
-                    ? ValidationResult.Success
+                    ? Success
                     : new ValidationResult($"{validationContext.DisplayName} should be in range {(_minInclusive ? "[" : "(")}{_min},{_max}{(_maxInclusive ? "]" : ")")} but its value is {value}");
             }
         }
@@ -76,23 +77,25 @@ namespace BuildXL.Cache.Host.Configuration
                 _allowNull = allowNull;
             }
 
-            protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+            protected override ValidationResult IsValid([AllowNull]object value, ValidationContext validationContext)
             {
                 if (_allowNull && value is null)
                 {
-                    return ValidationResult.Success;
+                    return Success;
                 }
 
                 if (value is string s)
                 {
                     if (Enum.IsDefined(_enumType, s))
                     {
-                        return ValidationResult.Success;
+                        return Success;
                     }
                 }
 
                 return new ValidationResult($"{validationContext.DisplayName} has value '{value}', which is not a valid value for enum {_enumType.FullName}");
             }
         }
+
+        private static ValidationResult Success => ValidationResult.Success!;
     }
 }

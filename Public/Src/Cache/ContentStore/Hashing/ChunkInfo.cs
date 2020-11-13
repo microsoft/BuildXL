@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable CS3001 // CLS
 #pragma warning disable CS3003
@@ -46,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc/>
-        public bool Equals(ChunkInfo other)
+        public bool Equals([AllowNull]ChunkInfo other)
         {
             return Offset == other.Offset && Size == other.Size && ByteArrayComparer.ArraysEqual(Hash, other.Hash);
         }

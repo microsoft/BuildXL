@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -93,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly bool ContentAlreadyExistsInCache;
 
         /// <inheritdoc />
-        public bool Equals(PutResult other)
+        public bool Equals([AllowNull]PutResult other)
         {
             return
                 base.Equals(other)

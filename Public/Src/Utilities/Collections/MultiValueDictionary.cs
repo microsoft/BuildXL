@@ -126,7 +126,8 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool TryGetValue(TKey key, [NotNullWhen(true)][MaybeNull]out IReadOnlyList<TValue> multiValues)
+#pragma warning disable CS8767 // Nullability fof reference types in type of parameter 'multiValues' doesn't match implicitly implemented member
+        public bool TryGetValue([NotNull]TKey key, [MaybeNullWhen(false)]out IReadOnlyList<TValue> multiValues)
         {
             if (m_backingDictionary.TryGetValue(key, out List<TValue>? mutableMultiValues))
             {

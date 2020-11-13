@@ -132,7 +132,9 @@ namespace BuildXL.Cache.ContentStore.App.Test
                 if (!serviceProcess.HasExited)
                 {
                     serviceProcess.Kill();
+#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
                     serviceProcess.WaitForExit();
+#pragma warning restore AsyncFixer02
                 }
             }
         }
@@ -165,7 +167,9 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
             var result = await Task.Run(() =>
             {
+#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
                 process.WaitForExit();
+#pragma warning restore AsyncFixer02
                 return process.ExitCode;
             });
 

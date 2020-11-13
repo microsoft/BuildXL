@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -72,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <inheritdoc />
-        public bool Equals(ContentHashWithSizeAndLocations other)
+        public bool Equals([AllowNull]ContentHashWithSizeAndLocations other)
         {
             if (other is null)
             {
@@ -84,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return true;
             }
 
-            return Locations.SequenceEqual(other.Locations) && ContentHash.Equals(other.ContentHash) && Size == other.Size;
+            return Locations!.SequenceEqual(other.Locations!) && ContentHash.Equals(other.ContentHash) && Size == other.Size;
         }
 
         /// <inheritdoc />

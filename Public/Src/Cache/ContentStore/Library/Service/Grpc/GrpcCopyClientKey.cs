@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        public bool Equals(GrpcCopyClientKey other)
+        public bool Equals([AllowNull]GrpcCopyClientKey other)
         {
             return string.Equals(Host, other.Host, StringComparison.InvariantCultureIgnoreCase)
                 && GrpcPort == other.GrpcPort;

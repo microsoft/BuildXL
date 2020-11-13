@@ -89,7 +89,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                         var examples = string.Empty;
                         if (!string.IsNullOrEmpty(result.Machines))
                         {
-                            var machines = JsonSerializer.Deserialize<List<string>>(result.Machines);
+                            var machines = JsonSerializer.Deserialize<List<string>>(result.Machines)!;
                             examples = ". Examples: " + string.Join(", ", machines.Take(_configuration.MaximumExamplesOnAlert).Select(m => $"`{m}`"));
                         }
 

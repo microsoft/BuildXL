@@ -498,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             /// <inheritdoc />
-            public bool Equals(SelfCheckState other) => string.Equals(Epoch, other.Epoch) && LastReconcileTime == other.LastReconcileTime && LastPosition.Equals(other.LastPosition);
+            public bool Equals([AllowNull]SelfCheckState other) => string.Equals(Epoch, other.Epoch) && LastReconcileTime == other.LastReconcileTime && LastPosition.Equals(other.LastPosition);
 
             /// <inheritdoc />
             public override bool Equals(object? obj)

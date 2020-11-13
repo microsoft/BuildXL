@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -120,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     } while (bytesJustRead > 0);
 
                     hasher.TransformFinalBlock(buffer, 0, 0);
-                    var hashBytes = hasher.Hash;
+                    var hashBytes = hasher.Hash!;
 
                     // Retrieve the DedupNode before losing the hasher token.
                     switch (Info.HashType)
@@ -420,7 +421,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, [AllowNull]AsyncCallback callback, object? state)
             {
                 throw new NotImplementedException();
             }
@@ -446,7 +447,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     var handle = Buffer.GetBuffer();
                     handle.Value.CopyFrom(buffer, offset, count);
 
-                    return _hashingBufferBlock.SendAsync(handle);
+                    return _hashingBufferBlock!.SendAsync(handle);
                 }
                 else
                 {
@@ -488,7 +489,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, [AllowNull]AsyncCallback callback, object? state)
             {
                 throw new NotImplementedException();
             }
@@ -571,7 +572,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         {
                             _ownerStream.ThrowIfDisposed();
                             Contract.Assert(Finalized);
-                            return _hasherToken.Hasher.Hash;
+                            return _hasherToken.Hasher.Hash!;
                         }
                     }
                 }

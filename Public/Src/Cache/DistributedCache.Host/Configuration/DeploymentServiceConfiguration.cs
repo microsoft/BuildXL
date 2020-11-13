@@ -15,6 +15,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Configure the logging behavior for the service
         /// </summary>
-        public LoggingSettings LoggingSettings { get; set; } = null;
+        public LoggingSettings? LoggingSettings { get; set; } = null;
     }
 }

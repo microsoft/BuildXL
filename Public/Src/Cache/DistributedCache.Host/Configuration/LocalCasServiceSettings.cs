@@ -3,6 +3,7 @@
 
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Grpc;
+#nullable disable
 
 namespace BuildXL.Cache.Host.Configuration
 {

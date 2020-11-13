@@ -126,7 +126,7 @@ namespace BuildXL.Utilities
         public T Value => m_value;
 
         /// <inheritdoc />
-        public bool Equals(EquatableClass<T> other)
+        public bool Equals([AllowNull]EquatableClass<T> other)
         {
             return EqualityComparer<T>.Default.Equals(m_value, other.m_value);
         }
@@ -219,7 +219,7 @@ namespace BuildXL.Utilities
         public T Value => m_value;
 
         /// <inheritdoc />
-        public bool Equals(EquatableEnum<T> other)
+        public bool Equals([AllowNull]EquatableEnum<T> other)
         {
             // Though enums aren't IEquatable for some reason, there's a nonboxing specialization provided by EqualityComparer.Default
             return EqualityComparer<T>.Default.Equals(m_value, other.m_value);
@@ -302,7 +302,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public bool Equals(StructTuple<TItem1, TItem2> other)
+        public bool Equals([AllowNull]StructTuple<TItem1, TItem2> other)
         {
             return EqualityComparer<TItem1>.Default.Equals(Item1, other.Item1) &&
                    EqualityComparer<TItem2>.Default.Equals(Item2, other.Item2);

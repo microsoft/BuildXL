@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -37,6 +38,6 @@ namespace BuildXL.Cache.ContentStore.Stores
     public class ByHashPayloadFromDiskComparer<T> : IComparer<PayloadFromDisk<T>>
     {
         /// <inheritdoc />
-        public int Compare(PayloadFromDisk<T> left, PayloadFromDisk<T> right) => left.Hash.CompareTo(right.Hash);
+        public int Compare([AllowNull]PayloadFromDisk<T> left, [AllowNull]PayloadFromDisk<T> right) => left!.Hash.CompareTo(right!.Hash);
     }
 }

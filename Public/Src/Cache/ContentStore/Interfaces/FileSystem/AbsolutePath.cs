@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -302,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public string GetPathWithoutLongPathPrefix() => RemoveLongPathPrefixIfNeeded(Path);
 
         /// <inheritdoc />
-        public bool Equals(AbsolutePath other)
+        public bool Equals([AllowNull]AbsolutePath other)
         {
             return base.Equals(other);
         }

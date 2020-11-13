@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -121,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public override bool Succeeded => Code == ResultCode.Success;
 
         /// <inheritdoc />
-        public bool Equals(PinResult other)
+        public bool Equals([AllowNull]PinResult other)
         {
             return EqualsBase(other) && other != null && Code == other.Code;
         }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -212,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public bool Equals(ContentHash other)
+        public bool Equals([AllowNull]ContentHash other)
         {
             return _bytes.Equals(other._bytes) && ((int)_hashType).Equals((int)other._hashType);
         }
@@ -231,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public int CompareTo(ContentHash other)
+        public int CompareTo([MaybeNull]ContentHash other)
         {
             var compare = _bytes.CompareTo(other._bytes);
             return compare != 0 ? compare : ((int)_hashType).CompareTo((int)other._hashType);

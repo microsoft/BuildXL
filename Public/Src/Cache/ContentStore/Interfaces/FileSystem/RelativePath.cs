@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 
@@ -71,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <inheritdoc />
-        public bool Equals(RelativePath other)
+        public bool Equals([AllowNull]RelativePath other)
         {
             return base.Equals(other);
         }

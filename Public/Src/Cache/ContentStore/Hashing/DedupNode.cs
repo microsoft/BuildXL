@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -394,7 +395,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 foreach (DedupNode node in EnumerateInnerNodesDepthFirst())
                 {
-                    foreach (DedupNode chunk in node.ChildNodes.Where(n => n.Type == NodeType.ChunkLeaf))
+                    foreach (DedupNode chunk in node.ChildNodes!.Where(n => n.Type == NodeType.ChunkLeaf))
                     {
                         yield return chunk;
                     }
@@ -427,7 +428,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc/>
-        public bool Equals(DedupNode other)
+        public bool Equals([AllowNull]DedupNode other)
         {
             return ByteArrayComparer.ArraysEqual(Hash, other.Hash);
         }

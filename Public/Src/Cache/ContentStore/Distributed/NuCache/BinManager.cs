@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -617,8 +618,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private class Comparer : IComparer<MachineWithBinAssignments>
         {
-            public int Compare(MachineWithBinAssignments x, MachineWithBinAssignments y)
+            public int Compare([AllowNull]MachineWithBinAssignments x, [AllowNull]MachineWithBinAssignments y)
             {
+                Contract.Requires(x != null);
+                Contract.Requires(y != null);
                 return x.BinsAssignedTo.Count != y.BinsAssignedTo.Count
                     ? x.BinsAssignedTo.Count.CompareTo(y.BinsAssignedTo.Count)
                     : x.MachineId.Index.CompareTo(y.MachineId.Index);

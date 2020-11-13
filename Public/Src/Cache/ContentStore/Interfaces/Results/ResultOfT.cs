@@ -78,6 +78,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             _result = default;
         }
 
+        /// <inheritdoc />
+        // The following attribute allows the compiler to understand that if Succeeded is true, then Value is not null.
+        // This is not technically correct, because the caller can specify 'isNullAllowed: true' in the constructor,
+        // but this is a good enough behavior for us, because in vast majority of cases, isNullAllowed is false.
+        // [MemberNotNullWhen(true, nameof(Value))]
+        // WIP ST: this is not working with the 3.7 compiler!!
+        public override bool Succeeded => base.Succeeded;
+
         /// <summary>
         /// Gets the resulting value.
         /// </summary>
@@ -105,9 +113,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public bool Equals(Result<T> other)
+        public bool Equals([AllowNull]Result<T> other)
         {
-            return Succeeded && other.Succeeded ? Value!.Equals(other.Value) : ErrorEquals(other);
+            return Succeeded && other?.Succeeded == true ? Value!.Equals(other.Value) : ErrorEquals(other);
         }
 
         /// <inheritdoc />

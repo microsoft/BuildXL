@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Serialization;
 
+#nullable disable
+
 namespace BuildXL.Cache.Host.Configuration
 {
     /// <summary>

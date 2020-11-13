@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -75,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public T? Data { get; }
 
         /// <inheritdoc />
-        public bool Equals(ObjectResult<T> other)
+        public bool Equals([AllowNull]ObjectResult<T> other)
         {
             if (other is null || !base.Equals(other))
             {

@@ -62,7 +62,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         }
 
         /// <inheritdoc />
-        public bool Equals(Diagnostic other)
+        public bool Equals([AllowNull]Diagnostic other)
         {
             return ErrorCode == other.ErrorCode && Level == other.Level && string.Equals(Message, other.Message);
         }

@@ -177,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if 'this' and 'other' are not succeeded and both have the same error text.
         /// </summary>
-        protected bool ErrorEquals(ResultBase other)
+        protected bool ErrorEquals(ResultBase? other)
         {
             if (other is null)
             {

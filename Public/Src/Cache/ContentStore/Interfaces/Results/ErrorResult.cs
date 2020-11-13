@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public override bool Succeeded => false;
 
         /// <inheritdoc />
-        public bool Equals(ErrorResult other)
+        public bool Equals([AllowNull]ErrorResult other)
         {
             return EqualsBase(other) && other != null;
         }

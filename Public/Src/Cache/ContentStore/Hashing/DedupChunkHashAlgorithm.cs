@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private readonly SHA512 _hasher = new SHA512CryptoServiceProvider();
 
         /// <inheritdoc />
-        public override byte[] Hash => TruncateTo256Bits(base.Hash);
+        public override byte[] Hash => TruncateTo256Bits(base.Hash!);
 
         /// <inheritdoc />
         public override int HashSize => 8 * DedupSingleChunkHashInfo.Length;
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         protected override byte[] HashFinal()
         {
             _hasher.TransformFinalBlock(EmptyArray, 0, 0);
-            return TruncateTo256Bits(_hasher.Hash);
+            return TruncateTo256Bits(_hasher.Hash!);
         }
 
         internal byte[] HashFinalInternal()

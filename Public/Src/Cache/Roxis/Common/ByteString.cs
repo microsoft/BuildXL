@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.Roxis.Common
             return obj is ByteString byteString && Equals(byteString);
         }
 
-        public bool Equals(ByteString other)
+        public bool Equals([AllowNull]ByteString other)
         {
             return Value.SequenceEqual(other.Value);
         }

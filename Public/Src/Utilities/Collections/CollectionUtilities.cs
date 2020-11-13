@@ -457,6 +457,7 @@ namespace BuildXL.Utilities.Collections
 
             bool result = dictionary.TryGetValue(key, out resultingValue);
             Contract.Assert(result);
+            Contract.Assert(resultingValue != null); // Not needed for .net5, but required for .netcore3.1
 
             return resultingValue;
         }

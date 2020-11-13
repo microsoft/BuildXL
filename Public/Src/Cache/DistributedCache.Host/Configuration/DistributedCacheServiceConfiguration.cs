@@ -3,7 +3,7 @@
 
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-
+#nullable disable
 namespace BuildXL.Cache.Host.Configuration
 {
     [DataContract]

@@ -29,7 +29,7 @@ namespace BuildXL.Cache.Host.Configuration
                 {
                     if (result != ValidationResult.Success)
                     {
-                        errorList.Add(result.ErrorMessage);
+                        errorList.Add(result.ErrorMessage!);
                     }
                 }
             }

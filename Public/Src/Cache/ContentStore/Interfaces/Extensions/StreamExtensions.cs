@@ -36,7 +36,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             var settings = new DataContractJsonSerializerSettings {UseSimpleDictionaryFormat = true};
             var serializer = new DataContractJsonSerializer(typeof(T), settings);
             stream.Position = 0;
-            return (T)serializer.ReadObject(stream);
+            // TODO: suppressing this for now, but the clients need to respect that the result of this method may be null.
+            return (T)serializer.ReadObject(stream)!;
         }
 
         /// <summary>

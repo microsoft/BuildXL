@@ -3,6 +3,8 @@
 
 using System.Collections.Generic;
 
+#nullable disable
+
 namespace BuildXL.Cache.Host.Configuration
 {
     public class DeploymentManifest

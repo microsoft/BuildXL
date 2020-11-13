@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<MachineLocation[]>(locationsResult);
             }
 
-            return locationsResult.Value
+            return locationsResult.Value!
                 .Where(machineId => !_inactiveMachinesSet[machineId] && !_closedMachinesSet[machineId])
                 .Select(id => _locationByIdMap[id.Index])
                 .ToArray();

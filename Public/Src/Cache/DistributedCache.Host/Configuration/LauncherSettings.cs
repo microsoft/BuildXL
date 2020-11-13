@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
+#nullable disable
+
 namespace BuildXL.Cache.Host.Configuration
 {
     /// <summary>

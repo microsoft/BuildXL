@@ -594,6 +594,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             return Unit.Void;
                         }
 
+                        Contract.Assert(store != null);
                         result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);
                     }
 
@@ -1044,7 +1045,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 _contentHash = contentHash;
             }
 
-            public static PushCopyLimiter Create(Context context, ConcurrencyLimiter<ContentHash> limiter, ContentHash hash, IPushFileHandler store)
+            public static PushCopyLimiter Create(Context context, ConcurrencyLimiter<ContentHash> limiter, ContentHash hash, IPushFileHandler? store)
             {
                 var (added, overTheLimit) = limiter.TryAdd(hash, respectTheLimit: true);
 

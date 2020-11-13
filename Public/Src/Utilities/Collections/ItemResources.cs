@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -63,7 +64,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool Equals(ItemResources other)
+        public bool Equals([AllowNull]ItemResources other)
         {
             return SemaphoreIncrements == other.SemaphoreIncrements;
         }

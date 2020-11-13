@@ -72,7 +72,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 let MasterEvents = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
-                | where Component has 'EventHubContentLocationEventStore';
+                | where Component has 'EventHubContentLocationEventStore' or Component has 'ContentLocationEventStore';
                 let MaximumDelayFromReceivedEvents = MasterEvents
                 | where Message has 'ReceivedEvent'
                 | parse Message with * 'ProcessingDelay=' Lag:timespan ',' *
@@ -98,23 +98,22 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     let Events = table('{_configuration.CacheTableName}')
                     | where PreciseTimeStamp between (start .. end)
                     | where Stamp == '{stamp}'
-                    | where Component has 'EventHubContentLocationEventStore'
-                    | project PreciseTimeStamp, Role, Machine, Stamp, Message;
+                    | where Component has 'EventHubContentLocationEventStore' or Component has 'ContentLocationEventStore'
+                    | project PreciseTimeStamp, CorrelationId, Role, Machine, Stamp, Message;
                     let Enqueued = Events
                     | where Role == 'Worker'
                     | where Message has 'sending' and Message has 'OpId'
-                    | parse Message with * '/' NumEvents:long 'event.' * 'OpId=' OperationId ',' *
+                    | parse Message with * '/' NumEvents:long 'event.' *
                     | project-away Message;
                     let Processed = Events
                     | where Role == 'Master'
                     | where Message has 'OpId'
-                    | parse Message with * 'OpId=' OperationId ',' *
                     | project-away Message;
                     let Outstanding = Enqueued
-                    | join kind=leftanti Processed on OperationId
-                    | summarize OutstandingBatches=dcount(OperationId), OutstandingEvents=sum(NumEvents);
+                    | join kind=leftanti Processed on CorrelationId
+                    | summarize OutstandingBatches=dcount(CorrelationId), OutstandingEvents=sum(NumEvents);
                     let Done = Processed
-                    | summarize ProcessedBatches=dcount(OperationId);
+                    | summarize ProcessedBatches=dcount(CorrelationId);             
                     Outstanding | extend dummy=1 | join kind=inner (Done | extend dummy=1) on dummy | project-away dummy, dummy1";
 
                     var outstandingResults = (await QueryKustoAsync<Result2>(context, outstandingQuery)).ToList();

@@ -121,18 +121,16 @@ namespace Test.BuildXL.Storage
 
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 1);
+            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 2);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
 
             FileContentTable loadedTable = null;
             for (int i = 0; i < TimeToLive; i++)
             {
-                loadedTable = await SaveAndReloadTable(originalTable);
+                loadedTable = await SaveAndReloadTable(loadedTable ?? originalTable);
                 ExpectHashKnown(loadedTable, m_testFileB, s_hashB);
             }
-
-            loadedTable = await SaveAndReloadTable(loadedTable);
 
             ExpectHashKnown(loadedTable, m_testFileB, s_hashB);
             ExpectHashUnknown(loadedTable, m_testFileA);
@@ -472,6 +470,70 @@ namespace Test.BuildXL.Storage
 
                 ExpectHashKnown(table, GetFullPath(m_pathTable, OriginalFile), s_hashA);
             }
+        }
+
+        [Fact]
+        public void RecycledFileContentTableKeepsInformation()
+        {
+            WriteTestFiles();
+
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            RecordContentHash(originalTable, m_testFileB, s_hashB);
+
+            var newTable = FileContentTable.CreateFromTable(originalTable, LoggingContext);
+            ExpectHashKnown(newTable, m_testFileA, s_hashA);
+            ExpectHashKnown(newTable, m_testFileB, s_hashB);
+
+            VerifyTable(newTable);
+        }
+
+
+        [Fact]
+        public async Task RecycledFileContentTableHonorsNewConfiguration()
+        {
+
+            WriteTestFiles();
+
+            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 20);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+
+            var newTable = FileContentTable.CreateFromTable(originalTable, LoggingContext, newEntryTimeToLive: 2);
+            RecordContentHash(newTable, m_testFileB, s_hashB);
+
+            FileContentTable loadedTable = null;
+            for (int i = 0; i < 3; i++)
+            {
+                // Consume the TTLs
+                // On the first reload the TTL for fileA will change so it will also be consumed
+                loadedTable = await SaveAndReloadTable(loadedTable ?? newTable);
+            }
+
+            ExpectHashUnknown(loadedTable, m_testFileA);
+            ExpectHashUnknown(loadedTable, m_testFileB);
+
+            VerifyTable(loadedTable);
+        }
+
+        [Fact]
+        public void RecyclingFileContentTableIsTheSameAsSavingAndLoadingFromFile()
+        {
+
+            WriteTestFiles();
+
+            var table = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 2);
+            RecordContentHash(table, m_testFileA, s_hashA);                    // TTL(A) = 2
+
+            table = FileContentTable.CreateFromTable(table, LoggingContext);   // TTL(A) = 1     
+            table = FileContentTable.CreateFromTable(table, LoggingContext);   // TTL(A) = 0
+
+            RecordContentHash(table, m_testFileB, s_hashB);                    // TTL(B) = 2
+
+            table = FileContentTable.CreateFromTable(table, LoggingContext);
+            ExpectHashUnknown(table, m_testFileA);                             // A Evicted 
+            ExpectHashKnown(table, m_testFileB, s_hashB);                      // TTL(B) = 1
+
+            VerifyTable(table);
         }
 
         private void ExpectHashKnown(FileContentTable table, AbsolutePath path, ContentHash hash)

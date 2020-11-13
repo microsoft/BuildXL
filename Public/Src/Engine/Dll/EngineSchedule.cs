@@ -104,7 +104,10 @@ namespace BuildXL.Engine
 
         private readonly ConfigFileState m_configFileState;
 
-        private readonly FileContentTable m_fileContentTable;
+        /// <summary>
+        /// File content table
+        /// </summary>
+        public readonly FileContentTable FileContentTable;
 
         /// <summary>
         /// Even on a 24 core machine, it seems that 1 thread is sufficient to keep up with the serialization tasks.
@@ -148,7 +151,7 @@ namespace BuildXL.Engine
             PipTable = pipTable;
             SchedulingQueue = schedulingQueue;
             Context = context;
-            m_fileContentTable = fileContentTable;
+            FileContentTable = fileContentTable;
             MountPathExpander = mountPathExpander;
             m_tempCleaner = tempCleaner;
             m_configFileState = configFileState;
@@ -2016,7 +2019,7 @@ namespace BuildXL.Engine
                 descriptorOut.Value = descriptor;
             }
 
-            var cachedGraphProvider = new CachedGraphProvider(loggingContext, Context, m_cache, m_fileContentTable, m_maxDegreeOfParallelism);
+            var cachedGraphProvider = new CachedGraphProvider(loggingContext, Context, m_cache, FileContentTable, m_maxDegreeOfParallelism);
 
             var storedDescriptor = await cachedGraphProvider.TryStorePipGraphCacheDescriptorAsync(
                 tracker,

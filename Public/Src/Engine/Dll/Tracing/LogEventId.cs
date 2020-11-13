@@ -394,6 +394,8 @@ namespace BuildXL.Engine.Tracing
 
         ChosenABTesting = 7126,
 
+        EngineLoadedFileContentTable = 7150,
+
         LogAndRemoveEngineStateOnBuildFailure = 10011,
         CacheIsStillBeingInitialized = 13200,
 

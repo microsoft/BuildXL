@@ -1309,6 +1309,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EngineCachePrefersLoadingInMemoryForSeekPenalty(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.EngineLoadedFileContentTable,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Load file content table. Source: '{source}'. Loading time: {loadingTime}ms")]
+        public abstract void EngineLoadedFileContentTable(LoggingContext context, string source, long loadingTime);
+
+        [GeneratedEvent(
             (ushort)LogEventId.EngineErrorSavingFileContentTable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

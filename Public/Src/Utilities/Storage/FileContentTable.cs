@@ -67,8 +67,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
         /// </summary>
-        private readonly ConcurrentDictionary<FileIdAndVolumeId, Entry> m_entries =
-            new ConcurrentDictionary<FileIdAndVolumeId, Entry>();
+        private readonly ConcurrentDictionary<FileIdAndVolumeId, Entry> m_entries = new ConcurrentDictionary<FileIdAndVolumeId, Entry>();
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -96,7 +95,6 @@ namespace BuildXL.Storage
         private FileContentTable(LoggingContext loggingContext, bool isStub = false, ushort entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(entryTimeToLive > 0);
-            
             m_loggingContext = loggingContext;
             IsStub = isStub;
             EntryTimeToLive = entryTimeToLive;
@@ -119,6 +117,47 @@ namespace BuildXL.Storage
         public static FileContentTable CreateNew(LoggingContext loggingContext, ushort entryTimeToLive = DefaultTimeToLive)
         {
             return new FileContentTable(loggingContext, isStub: false, entryTimeToLive: entryTimeToLive);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="FileContentTable"/> from another instance, with the new configuration.
+        /// This essentially mimics saving the FileContentTable and creating a new one from that file,
+        /// in the sense that TTLs and evictions are affected as if that were the case.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        public static FileContentTable CreateFromTable(FileContentTable other, LoggingContext loggingContext, ushort? newEntryTimeToLive = null)
+        {
+            Contract.Requires(other != null);
+
+            var sw = Stopwatch.StartNew();
+            var fct = new FileContentTable(other, loggingContext, newEntryTimeToLive ?? other.EntryTimeToLive);
+
+            fct.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);
+            fct.Counters.AddToCounter(FileContentTableCounters.NumEntries, fct.Count);
+
+            return fct;
+        }
+
+        private FileContentTable(FileContentTable other, LoggingContext loggingContext, ushort entryTimeToLive = DefaultTimeToLive)
+        {
+            Contract.Requires(other != null);
+            Contract.Requires(entryTimeToLive > 0);
+
+            m_loggingContext = loggingContext;
+            IsStub = other.IsStub;
+            EntryTimeToLive = entryTimeToLive;
+
+            // Copy entries, discarding the stale ones and decrementing TTLs
+            foreach (KeyValuePair<FileIdAndVolumeId, Entry> kvp in other.m_entries)
+            {
+                var entry = kvp.Value;
+                if (entry.TimeToLive > 0)
+                {
+                    ushort newTimeToLive = (ushort)(Math.Min(entryTimeToLive, entry.TimeToLive - 1));
+                    m_entries[kvp.Key] = entry.WithTimeToLive(newTimeToLive);
+                }
+            }
         }
 
         /// <summary>
@@ -685,6 +724,7 @@ namespace BuildXL.Storage
                         }
 
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.NumEntries, loadedTable.Count);
+                        loadedTable.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);
 
                         return LoadResult.Success(fileContentTablePath, loadedTable, sw.ElapsedMilliseconds);
                     }
@@ -766,8 +806,6 @@ namespace BuildXL.Storage
                     m_reason ?? string.Empty, 
                     m_loadedDurationMs, 
                     m_stackTrace == null ? string.Empty : Environment.NewLine + m_stackTrace);
-
-                Logger.Log.Statistic(loggingContext, new Statistic { Name = "FileContentTable.LoadDurationMs", Value = m_loadedDurationMs });
             }
         }
 

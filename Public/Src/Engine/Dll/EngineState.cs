@@ -9,7 +9,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -151,6 +151,20 @@ namespace BuildXL.Engine
         private SchedulerState m_schedulerState;
 
         /// <summary>
+        /// File content table
+        /// </summary>
+        public FileContentTable FileContentTable
+        {
+            get
+            {
+                Contract.Requires(!IsDisposed);
+                return m_fileContentTable;
+            }
+        }
+
+        private readonly FileContentTable m_fileContentTable;
+
+        /// <summary>
         /// Whether this instance got disposed.
         /// </summary>
         [Pure]
@@ -166,13 +180,14 @@ namespace BuildXL.Engine
             PipGraph pipGraph,
             MountPathExpander mountPathExpander,
             SchedulerState schedulerState,
-            HistoricTableSizes historicTableSizes)
+            HistoricTableSizes historicTableSizes,
+            FileContentTable fileContentTable)
         {
             Contract.Requires(graphId != default(Guid), "GraphId is not unique enough to be represented in EngineState");
-            Contract.Requires(stringTable != null, "StringTable cannot be null");
-            Contract.Requires(pathTable != null, "PathTable cannot be null");
-            Contract.Requires(symbolTable != null, "SymbolTable cannot be null");
-            Contract.Requires(qualifierTable != null, "QualifierTable cannot be null");
+            Contract.Requires(stringTable != null);
+            Contract.Requires(pathTable != null);
+            Contract.Requires(symbolTable != null);
+            Contract.Requires(qualifierTable != null);
             Contract.Requires(stringTable == pathTable.StringTable);
             Contract.Requires(pathTable.StringTable == symbolTable.StringTable);
             Contract.Requires(pathTable.StringTable == qualifierTable.StringTable);
@@ -182,6 +197,7 @@ namespace BuildXL.Engine
             Contract.Requires(mountPathExpander != null);
             Contract.Requires(schedulerState != null);
             Contract.Requires(historicTableSizes != null);
+            Contract.Requires(fileContentTable != null);
 
             m_stringTable = stringTable;
             m_pathTable = pathTable;
@@ -193,6 +209,7 @@ namespace BuildXL.Engine
             m_schedulerState = schedulerState;
             m_graphId = graphId;
             m_historicTableSizes = historicTableSizes;
+            m_fileContentTable = fileContentTable;
         }
 
         private EngineState(bool disposed)
@@ -220,7 +237,8 @@ namespace BuildXL.Engine
                 engineSchedule.Scheduler.PipGraph,
                 engineSchedule.MountPathExpander,
                 schedulerState,
-                engineSchedule.Context.HistoricTableSizes);
+                engineSchedule.Context.HistoricTableSizes,
+                engineSchedule.FileContentTable);
         }
 
         /// <summary>

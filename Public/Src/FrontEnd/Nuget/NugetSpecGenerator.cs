@@ -32,7 +32,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PathAtom m_pdbExtension;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 8;
+        public const int SpecGenerationFormatVersion = 9;
 
         /// <nodoc />
         public NugetSpecGenerator(PathTable pathTable, NugetAnalyzedPackage analyzedPackage)

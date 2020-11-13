@@ -2076,10 +2076,8 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task DirSymlinksAreProperlyResolvedAsync(bool managedReparsePointProcessing)
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        public async Task DirSymlinksAreProperlyResolvedAsync()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var symbolTable = context.SymbolTable;
@@ -2193,8 +2191,7 @@ namespace Test.BuildXL.Processes.Detours
                         LogObservedFileAccesses = true,
                         UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration
                         {
-                            ProcessSymlinkedAccesses = managedReparsePointProcessing,
-                            IgnoreFullReparsePointResolving = managedReparsePointProcessing
+                            IgnoreFullReparsePointResolving = false
                         }
                     },
                     pip,
@@ -2207,10 +2204,7 @@ namespace Test.BuildXL.Processes.Detours
                     reparsePointResolver: new ReparsePointResolver(context, translator));
 
                 var allReportedFileAccesses = result.ObservedFileAccesses.SelectMany(fa => fa.Accesses).ToList();
-                if (!managedReparsePointProcessing)
-                {
-                    allReportedFileAccesses.AddRange(result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
-                }
+                allReportedFileAccesses.AddRange(result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 

@@ -3650,31 +3650,6 @@ namespace BuildXL.Processes
                         continue;
                     }
 
-                    // Let's resolve all intermediate symlink dirs if configured.
-                    // TODO: this logic will be eventually replaced by doing the right thing on detours side.
-                    // This option is Windows-specific
-                    ReportedFileAccess finalReported = reported;
-
-                    if (m_sandboxConfig.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses())
-                    {
-                        Contract.Assume(m_reparsePointResolver != null);
-                        if (m_reparsePointResolver.ResolveDirectoryReparsePoints(m_fileAccessManifest, reported, parsedPath, out finalReported, out var finalPath))
-                        {
-                            // If the final path falls under a configured policy that ignores accesses, then we also ignore it
-                            var success = m_fileAccessManifest.TryFindManifestPathFor(finalPath, out _, out var nodePolicy);
-                            if (success & (nodePolicy & FileAccessPolicy.ReportAccess) == 0)
-                            {
-                                continue;
-                            }
-
-                            // Let's generate read accesses for the intermediate dir symlinks on the original path, so we avoid
-                            // underbuilds if those change
-                            m_reparsePointResolver.AddAccessesForIntermediateReparsePoints(m_fileAccessManifest, reported, parsedPath, accessesByPath);
-
-                            parsedPath = finalPath;
-                        }
-                    }
-                    
                     bool shouldExclude = false;
 
                     // Remove special accesses see Bug: #121875.
@@ -3687,7 +3662,7 @@ namespace BuildXL.Processes
                     }
                     else
                     {
-                        if (AbsolutePath.TryCreate(m_context.PathTable, finalReported.Process.Path, out AbsolutePath processPath)
+                        if (AbsolutePath.TryCreate(m_context.PathTable, reported.Process.Path, out AbsolutePath processPath)
                             && (excludedToolsAndPaths.Contains((processPath, parsedPath))
                                 || GetSpecialCaseRulesForSpecialTools(processPath, parsedPath)))
                         {
@@ -3697,7 +3672,7 @@ namespace BuildXL.Processes
                     }
 
                     accessesByPath.TryGetValue(parsedPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
-                    accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(finalReported) : existingAccessesToPath;
+                    accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(reported) : existingAccessesToPath;
                 }
 
                 foreach (var output in m_pip.FileOutputs)

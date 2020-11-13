@@ -160,17 +160,6 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool ProbeDirectorySymlinkAsDirectory { get; }
 
-
-        /// <summary>
-        /// Makes sure any access that contains a directory symlink gets properly processed
-        /// </summary>
-        /// <remarks>
-        /// This is an experimental flag, and hopefully will eventually become the norm.
-        /// This option is not actually unsafe, it is here to stress its experimental nature.
-        /// Only has an effect on Windows-based OS. Mac sandbox already process symlinks correctly.
-        /// </remarks>
-        bool? ProcessSymlinkedAccesses { get; }
-
         /// <summary>
         /// Indicates if full reparse point resolving should be enabled in the process sandbox.
         /// </summary>
@@ -234,11 +223,6 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
             writer.Write(@this.IgnoreCreateProcessReport);
             writer.Write(@this.ProbeDirectorySymlinkAsDirectory);
-            writer.Write(@this.ProcessSymlinkedAccesses.HasValue);
-            if (@this.ProcessSymlinkedAccesses.HasValue)
-            {
-                writer.Write(@this.ProcessSymlinkedAccesses.Value);
-            }
             writer.Write(@this.IgnoreFullReparsePointResolving);
             writer.Write(@this.SkipFlaggingSharedOpaqueOutputs.HasValue);
             if (@this.SkipFlaggingSharedOpaqueOutputs.HasValue)
@@ -277,7 +261,6 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
-                ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
@@ -311,8 +294,7 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
-                && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses()
-                && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs()))
+                && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
                 && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving());
         }
 

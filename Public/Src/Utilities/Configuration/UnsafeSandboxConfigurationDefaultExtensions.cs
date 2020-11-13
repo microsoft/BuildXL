@@ -17,9 +17,6 @@ namespace BuildXL.Utilities.Configuration
         public const RewritePolicy DefaultSourceRewritePolicy = Configuration.RewritePolicy.SourceRewritesAreErrors;
 
         /// <nodoc/>
-        public const bool DefaultProcessSymlinkedAccesses = false;
-
-        /// <nodoc/>
         public const bool DefaultEnableFullReparsePointResolving = false;
 
         /// <nodoc/>
@@ -34,12 +31,6 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public static RewritePolicy SourceWritePolicy(this IUnsafeSandboxConfiguration configuration) =>
             configuration.DoubleWritePolicy ?? DefaultSourceRewritePolicy;
-
-        /// <summary>
-        /// Whether <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is enabled and we are in a Windows-based OS
-        /// </summary>
-        public static bool ProcessSymlinkedAccesses(this IUnsafeSandboxConfiguration configuration) =>
-            (configuration.ProcessSymlinkedAccesses ?? DefaultProcessSymlinkedAccesses) && !OperatingSystemHelper.IsUnixOS;
 
         /// <summary>
         /// Whether <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS

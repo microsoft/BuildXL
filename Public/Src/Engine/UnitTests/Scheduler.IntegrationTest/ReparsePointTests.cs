@@ -1273,13 +1273,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void ResolvedSymlinkCachingBehavior(bool managedReparsePointProcessing)
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        public void ResolvedSymlinkCachingBehavior()
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
             string symlinkDir = Path.Combine(SourceRoot, "symlinkDir");
             FileArtifact symlinkDirArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, symlinkDir));
@@ -1318,13 +1315,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
         }
 
-        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void ManifestOfResolvedAccessIsProperlyComputed(bool managedReparsePointProcessing)
+        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        public void ManifestOfResolvedAccessIsProperlyComputed()
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
             // Create the following layout
             // sodA

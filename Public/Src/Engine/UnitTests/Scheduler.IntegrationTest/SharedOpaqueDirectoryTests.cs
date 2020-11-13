@@ -2237,13 +2237,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
         }
 
-        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void DirectoryJunctionIsInterpretedAsIsWhenResolutionIsOn(bool managedReparsePointProcessing)
+        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        public void DirectoryJunctionIsInterpretedAsIsWhenResolutionIsOn()
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = managedReparsePointProcessing;
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = managedReparsePointProcessing;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
             string targetDirString = Path.Combine(ObjectRoot, "target");

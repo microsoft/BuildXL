@@ -587,7 +587,7 @@ namespace Tool.DropDaemon
             var outputsAsJson = data.Outputs.Select(output => {
                 return new
                 {
-                    Source = output.RelativePath.Replace('\\', '/'),
+                    Source = "/" + output.RelativePath.Replace('\\', '/'),
                     AzureArtifactsHash = output.AzureArtifactsHash,
                     Sha256Hash = output.BuildManifestHash
                 };

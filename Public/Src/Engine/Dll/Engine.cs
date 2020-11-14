@@ -1095,6 +1095,14 @@ namespace BuildXL.Engine
                 }
             }
 
+            if (mutableConfig.Sandbox.UnsafeSandboxConfiguration.IgnorePreserveOutputsPrivatization
+                && mutableConfig.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
+                && mutableConfig.Schedule.StoreOutputsToCache)
+            {
+                Logger.Log.ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization(loggingContext);
+                success = false;
+            }
+
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {
@@ -1199,30 +1207,32 @@ namespace BuildXL.Engine
                     // If ManageMemoryMode is unset for CB builds, we use EmptyWorkingSet option due to the large page file size in CB machines.
                     mutableConfig.Schedule.ManageMemoryMode = ManageMemoryMode.EmptyWorkingSet;
                 }
+
+                // Since VFS lives inside BXL process currently. Disallow on office enlist and meta build because
+                // they materialize files which would be needed by subsequent invocations and thus requires VFS to
+                // span multiple invocations. Just starting at Product build is sufficient.
+                if (mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
+                    || mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeEnlistmentBuildLab)
+                {
+                    mutableConfig.Cache.VfsCasRoot = AbsolutePath.Invalid;
+                }
+
+                // Unless otherwise specified, distributed metabuilds in CloudBuild should replicate outputs to all machines
+                // TODO: Remove this once reduced metabuild materialization is fully tested
+                if (mutableConfig.Distribution.ReplicateOutputsToWorkers == null
+                    && mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
+                    && mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Master)
+                {
+                    mutableConfig.Distribution.ReplicateOutputsToWorkers = true;
+                }
+
+                // When running in cloudbuild we want to ignore the user setting the interactive flag
+                // and force it to be false since we never want to pop up UI there.
+                mutableConfig.Interactive = false;
             }
             else
             {
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? true;
-            }
-
-            // Since VFS lives inside BXL process currently. Disallow on office enlist and meta build because
-            // they materialize files which would be needed by subsequent invocations and thus requires VFS to
-            // span multiple invocations. Just starting at Product build is sufficient.
-            if (mutableConfig.InCloudBuild() &&
-                (mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab 
-                || mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeEnlistmentBuildLab))
-            {
-                mutableConfig.Cache.VfsCasRoot = AbsolutePath.Invalid;
-            }
-
-            // Unless otherwise specified, distributed metabuilds in CloudBuild should replicate outputs to all machines
-            // TODO: Remove this once reduced metabuild materialization is fully tested
-            if (mutableConfig.InCloudBuild() &&
-                mutableConfig.Distribution.ReplicateOutputsToWorkers == null &&
-                mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab &&
-                mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Master)
-            {
-                mutableConfig.Distribution.ReplicateOutputsToWorkers = true;
             }
 
             // If graph patching is requested, we need to reload the engine state when possible
@@ -1247,13 +1257,6 @@ namespace BuildXL.Engine
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
             {
                 mutableConfig.Distribution.EarlyWorkerRelease = false;
-            }
-
-            // When running in cloudbuild we want to ignore the user setting the interactive flag
-            // and force it to be false since we never want to pop up UI there.
-            if (mutableConfig.InCloudBuild())
-            {
-                mutableConfig.Interactive = false;
             }
 
             if (mutableConfig.Cache.VfsCasRoot.IsValid)
@@ -2432,6 +2435,7 @@ namespace BuildXL.Engine
                 { "unsafe_OptimizedAstConversion", Logger.Log.ConfigUnsafeOptimizedAstConversion },
                 { "unsafe_AllowDuplicateTemporaryDirectory", Logger.Log.ConfigUnsafeAllowDuplicateTemporaryDirectory },
                 { "unsafe_SkipFlaggingSharedOpaqueOutputs", Logger.Log.ConfigUnsafeSkipFlaggingSharedOpaqueOutputs },
+                { "unsafe_IgnorePreserveOutputsPrivatization", Logger.Log.ConfigUnsafeIgnorePreserveOutputsPrivatization },
             };
         }
 

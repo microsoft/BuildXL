@@ -46,9 +46,37 @@ namespace BuildXL.Utilities.Configuration
         PreserveOutputsMode PreserveOutputs { get; }
 
         /// <summary>
-        /// Trust levle of how much we trust the preserveoutputs per pip.
+        /// Trust level of how much we trust the preserveoutputs per pip.
         /// </summary>
         int PreserveOutputsTrustLevel { get; }
+
+        /// <summary>
+        /// Whether or not to make preserved outputs private during sandbox preparation.
+        /// </summary>
+        /// <remarks>
+        /// When dealing with preserve outputs, the sandboxed process pip executor must ensure that the outputs are private, i.e., writable,
+        /// no hardlink (i.e., no association with cache) before the pip is executed. Making outputs private can be very expensive. For example,
+        /// in a customer case, an output directory can consist of ~40,000 files, and making all of them private can take ~13 minutes.
+        /// When the user opt to not storing outputs to cache (/storeOutputsToCache-), in principle there is no need to make the outputs private.
+        /// However, the user can later decide to store outputs to cache later, and thus some outputs will have association with the cache. Then,
+        /// when preserve output mode is applied to those outputs, they need to be made private.
+        /// 
+        /// Suppose that our build has 2 pips, pip A and pip B. Consider the following sequence of build sesssions:
+        /// - 1st build (/storeOutputsToCache+, preserve output mode is disabled):
+        ///   - A's and B's outputs are linked to the cache.
+        /// - 2nd build (/storeOutputsToCache-, filter in only pip A, preserve output is applicable to A's outputs):
+        ///   - pip A's outputs are now private after 2nd build.
+        /// - 3rd build (/storeOutputsToCache-, no filter, preserve output is applicable to A's and B's outputs):
+        ///   - Although this build does not intend to store the outputs to the cache, if privatization of B's output is not performed 
+        ///     before B executes, then B's execution may fail or potentially modifies the cache.
+        ///     
+        /// Ideally, in the 3rd build above one needs to know if pip's outputs are already private or not. But this requires per-pip tracking.
+        /// 
+        /// Instead of per-pip tracking, we use this unsafe configuration to allow the user to gain performance with the risk of build failure
+        /// when flip-floping /storeOutputsToCache option. In short, this unsafe configuration should only be used if the user decides to always not
+        /// store outputs to cache.
+        /// </remarks>
+        bool IgnorePreserveOutputsPrivatization { get; }
 
         /// <summary>
         /// Whether BuildXL is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on.
@@ -212,6 +240,7 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.MonitorZwCreateOpenQueryFile);
             writer.Write((byte)@this.PreserveOutputs);
             writer.Write(@this.PreserveOutputsTrustLevel);
+            writer.Write(@this.IgnorePreserveOutputsPrivatization);
             writer.Write(@this.UnexpectedFileAccessesAreErrors);
             writer.Write(@this.IgnorePreloadedDlls);
             writer.WriteCompact((int)@this.IgnoreDynamicWritesOnAbsentProbes);
@@ -254,6 +283,7 @@ namespace BuildXL.Utilities.Configuration
                 MonitorZwCreateOpenQueryFile = reader.ReadBoolean(),
                 PreserveOutputs = (PreserveOutputsMode)reader.ReadByte(),
                 PreserveOutputsTrustLevel = reader.ReadInt32(),
+                IgnorePreserveOutputsPrivatization = reader.ReadBoolean(),
                 UnexpectedFileAccessesAreErrors = reader.ReadBoolean(),
                 IgnorePreloadedDlls = reader.ReadBoolean(),
                 IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)reader.ReadInt32Compact(),
@@ -288,6 +318,7 @@ namespace BuildXL.Utilities.Configuration
                 // Where's PreserveOutputs? The sandbox configuration setting globally decides whether preserve outputs.
                 // Whether the current run is as safe or safer also depends on whether preserve outputs is allowed for
                 // the pip in question. Because that requires pip specific details, that is determined in UnsafeOptions
+                && IsAsSafeOrSafer(lhs.IgnorePreserveOutputsPrivatization, rhs.IgnorePreserveOutputsPrivatization, SafeDefaults.IgnorePreserveOutputsPrivatization)
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())

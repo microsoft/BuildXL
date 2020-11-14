@@ -115,6 +115,8 @@ namespace BuildXL.Engine.Tracing
         ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
         ConfigIgnoreFullReparsePointResolving = 942,
         ConfigUnsafeSkipFlaggingSharedOpaqueOutputs = 943,
+        ConfigUnsafeIgnorePreserveOutputsPrivatization = 944,
+        ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization = 945,
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,

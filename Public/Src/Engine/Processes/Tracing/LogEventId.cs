@@ -43,7 +43,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessWroteToStandardErrorOnCleanExit = 45,
         PipProcessOutputPreparationFailed = 46,
         PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
-
+        PipProcessPreserveOutputDirectorySkipMakeFilesPrivate = 54,
 
 #pragma warning disable 618
         PipProcessError = SharedLogEventId.PipProcessError,

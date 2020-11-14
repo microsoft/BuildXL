@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -11,6 +12,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -455,10 +457,23 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// Testing preserve outputs in an opaque dir
         /// </summary>
-        [Fact]
-        public void PreserveOutputsOpaqueTest()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void PreserveOutputsOpaqueTest(bool storeOutputsToCache, bool ignorePrivatization)
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Schedule.StoreOutputsToCache = storeOutputsToCache;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreserveOutputsPrivatization = ignorePrivatization;
+
+            if (storeOutputsToCache && ignorePrivatization)
+            {
+                // Invalid configuration.
+                var config = new CommandLineConfiguration(Configuration);
+                BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
+                XAssert.IsFalse(BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext));
+                AssertErrorEventLogged(global::BuildXL.Engine.Tracing.LogEventId.ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization);
+                return;
+            }
 
             // Output is in opaque dir and Unsafe.AllowPreservedOutputs = true
             var pipA = ScheduleAndGetPip(out var input, out var output, opaque: true, pipPreserveOutputsFlag: true);
@@ -475,6 +490,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             // As the opaque output is preserved, the pip appended the existing file.
             XAssert.AreEqual(CONTENT_TWICE, outputContents);
+
+            if (ignorePrivatization)
+            {
+                AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessPreserveOutputDirectorySkipMakeFilesPrivate);
+            }
 
             outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: true, id: pipA.Process.PipId);
 

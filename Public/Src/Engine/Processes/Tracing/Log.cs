@@ -847,7 +847,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + "Failed to preserve output directory '{directory}' because '{file}' cannot be made private, contents of the directory will be deleted")]
+            Message = EventConstants.PipPrefix + "Failed to preserve output directory '{directory}' because '{file}' cannot be made private, contents of the directory will be deleted")]
         public abstract void PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
             LoggingContext context,
             long pipSemiStableHash,
@@ -856,12 +856,25 @@ namespace BuildXL.Processes.Tracing
             string file);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessPreserveOutputDirectorySkipMakeFilesPrivate,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Output directory '{directory}' is not preserved because /unsafe_IgnorePreserveOutputsPrivatization. This can cause failure in pip execution.")]
+        public abstract void PipProcessPreserveOutputDirectorySkipMakeFilesPrivate(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string directory);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + "File containing change affected inputs could not be prepared, path '{2}', error code {3:X8}: {4}")]
+            Message = EventConstants.PipPrefix + "File containing change affected inputs could not be prepared, path '{path}', error code {errorCode:X8}: {message}")]
         public abstract void PipProcessChangeAffectedInputsWrittenFileCreationFailed(
             LoggingContext context,
             long pipSemiStableHash,

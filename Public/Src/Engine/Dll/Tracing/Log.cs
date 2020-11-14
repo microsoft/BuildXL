@@ -2818,6 +2818,24 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_SkipFlaggingSharedOpaqueOutputs enabled: Shared opaque outputs won't be flagged. Subsequent builds will fail at identifying them as outputs and they won't be deleted before pips run.")]
         public abstract void ConfigUnsafeSkipFlaggingSharedOpaqueOutputs(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeIgnorePreserveOutputsPrivatization,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnorePreserveOutputsPrivatization enabled: {ShortProductName} is configured not to make preserved outputs private. This might unexpectedly modify cache content and might fail the build because pips need the outputs to be writable.")]
+        public abstract void ConfigUnsafeIgnorePreserveOutputsPrivatization(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Preserve output mode is enabled with /unsafe_IgnorePreserveOutputsPrivatization and /storeOutputsToCache: Build can fail because pips are not able to make their existing outputs private before execution.")]
+        public abstract void ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization(LoggingContext context);
     }
 
     /// <summary>

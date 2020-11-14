@@ -1100,6 +1100,10 @@ namespace BuildXL
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorNtCreateFile = !sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnorePreserveOutputsPrivatization",
+                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnorePreserveOutputsPrivatization = !sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreProducingSymlinks",
                             sign => { /* DO NOTHING - Flag deprecated  */},
                             isUnsafe: false,

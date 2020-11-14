@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -3003,6 +3004,11 @@ namespace BuildXL.Processes
                                 // A process may be configured to allow its prior outputs to be seen by future
                                 // invocations. In this case we must make sure the outputs are no longer hardlinked to
                                 // the cache to allow them to be writeable.
+                                //
+                                // We cannot use m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreserveOutputsPrivatization to skip
+                                // privatization of output file because the output file itself can be rewritten by downstream pips.
+                                // In such a case, BuildXL itself forces the output to be stored to the cache although the user may
+                                // opt to not store outputs to the cache.
                                 if (!await m_makeOutputPrivate(output.Path.ToString(m_pathTable)))
                                 {
                                     // Delete the file if it exists.
@@ -3158,9 +3164,30 @@ namespace BuildXL.Processes
                     {
                         if (dirExist && ShouldPreserveDeclaredOutput(directoryOutput.Path, preserveOutputAllowlist))
                         {
-                            using (var wrapper = Pools.GetStringList())
+                            Contract.Assert(m_makeOutputPrivate != null);
+
+                            if (!m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreserveOutputsPrivatization)
                             {
-                                var filePaths = wrapper.Instance;
+                                int failureCount = 0;
+                                var makeOutputPrivateWorker = new ActionBlock<string>(
+                                    async path =>
+                                    {
+                                        if (failureCount == 0 && !await m_makeOutputPrivate(path))
+                                        {
+                                            Interlocked.Increment(ref failureCount);
+                                            Tracing.Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+                                                m_loggingContext,
+                                                m_pip.SemiStableHash,
+                                                m_pipDescription,
+                                                directoryOutput.Path.ToString(m_pathTable),
+                                                path);
+                                        }
+                                    },
+                                    new ExecutionDataflowBlockOptions
+                                    {
+                                        MaxDegreeOfParallelism = Environment.ProcessorCount
+                                    });
+
                                 FileUtilities.EnumerateDirectoryEntries(
                                     directoryPathStr,
                                     recursive: true,
@@ -3168,32 +3195,27 @@ namespace BuildXL.Processes
                                     {
                                         if ((attributes & FileAttributes.Directory) == 0)
                                         {
-                                            var path = Path.Combine(currentDir, name);
-                                            filePaths.Add(path);
+                                            makeOutputPrivateWorker.Post(Path.Combine(currentDir, name));
                                         }
                                     });
+                                makeOutputPrivateWorker.Complete();
+                                await makeOutputPrivateWorker.Completion;
 
-                                string filePathNotPrivate = null;
-
-                                foreach (var path in filePaths)
+                                if (failureCount > 0)
                                 {
-                                    if (!await m_makeOutputPrivate(path))
-                                    {
-                                        filePathNotPrivate = path;
-                                        break;
-                                    }
-                                }
-
-                                if (filePathNotPrivate != null)
-                                {
-                                    Tracing.Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
-                                        m_loggingContext,
-                                        m_pip.SemiStableHash,
-                                        m_pipDescription,
-                                        directoryOutput.Path.ToString(m_pathTable), filePathNotPrivate);
-
                                     PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                                 }
+                            }
+                            else
+                            {
+                                // Note that output directories cannot be rewritten. If there's a member of the output directory
+                                // that gets rewritten, then it must be specified as output file, and that file is made private
+                                // by the preparation of output file.
+                                Tracing.Logger.Log.PipProcessPreserveOutputDirectorySkipMakeFilesPrivate(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    directoryOutput.Path.ToString(m_pathTable));
                             }
                         }
                         else

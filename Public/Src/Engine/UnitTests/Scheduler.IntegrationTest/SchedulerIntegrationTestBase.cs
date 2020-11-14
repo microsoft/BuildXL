@@ -435,12 +435,15 @@ namespace Test.BuildXL.Scheduler
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
             // be validated against the LoggingContext to make sure the scheduler's return result and error logging
             // are in agreement.
-            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+            var localLoggingContext = CreateLoggingContextForTest();
             var config = new CommandLineConfiguration(Configuration);
 
             // Populating the configuration may modify the configuration, so it should occur first.
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
-            BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext);
+            if (!BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext))
+            {
+                return null;
+            }
 
             FileAccessAllowlist allowlist = new FileAccessAllowlist(Context);
             allowlist.Initialize(config);

@@ -157,18 +157,25 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.MonitorNtCreateFile), getBoolString(UnsafeConfiguration.MonitorNtCreateFile));
             fingerprinter.Add(nameof(UnsafeConfiguration.MonitorZwCreateOpenQueryFile), getBoolString(UnsafeConfiguration.MonitorZwCreateOpenQueryFile));
             fingerprinter.Add(nameof(UnsafeConfiguration.PreserveOutputs), UnsafeConfiguration.PreserveOutputs.ToString());
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnorePreserveOutputsPrivatization), getBoolString(UnsafeConfiguration.IgnorePreserveOutputsPrivatization));
             fingerprinter.Add(nameof(UnsafeConfiguration.UnexpectedFileAccessesAreErrors), getBoolString(UnsafeConfiguration.UnexpectedFileAccessesAreErrors));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnorePreloadedDlls), getBoolString(UnsafeConfiguration.IgnorePreloadedDlls));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes), UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes.ToString());
             fingerprinter.Add(nameof(UnsafeConfiguration.DoubleWritePolicy), UnsafeConfiguration.DoubleWritePolicy.HasValue ? UnsafeConfiguration.DoubleWritePolicy.Value.ToString() : string.Empty);
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques), getBoolString(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreCreateProcessReport), getBoolString(UnsafeConfiguration.IgnoreCreateProcessReport));
+            fingerprinter.Add(nameof(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory), getBoolString(UnsafeConfiguration.ProbeDirectorySymlinkAsDirectory));
+            fingerprinter.Add(nameof(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs), getBoolString(UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs));
+            fingerprinter.Add(nameof(UnsafeConfiguration.EnableFullReparsePointResolving), getBoolString(UnsafeConfiguration.EnableFullReparsePointResolving));
 
             if (m_preservedOutputInfo.HasValue)
             {
                 fingerprinter.AddNested(nameof(PreserveOutputsInfo), fp => m_preservedOutputInfo.Value.ComputeFingerprint(fp));
             }
 
-            static string getBoolString(bool value) => value ? "1" : "0";
+            static string getBoolString(bool? value) => value.HasValue 
+                ? (value.Value ? "1" : "0")
+                : string.Empty;
         }
     }
 }

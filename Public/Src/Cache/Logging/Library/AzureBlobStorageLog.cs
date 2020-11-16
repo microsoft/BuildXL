@@ -234,18 +234,19 @@ namespace BuildXL.Cache.Logging
 
                     return BoolResult.Success;
                 },
-                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls]);
+                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
+                traceErrorsOnly: true,
+                extraEndMessage: _ => $"NumLines=[{logEventInfos.Length}]");
         }
 
         private Task UploadBatchAsync(LogFile[] logFilePaths)
         {
             Contract.Requires(logFilePaths.Length == 1);
 
-            return _context.PerformOperationAsync(Tracer, () =>
-                {
-                    return UploadToBlobStorageAsync(_context, logFilePaths[0]);
-                },
-                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls]);
+            return _context.PerformOperationAsync(Tracer, () => UploadToBlobStorageAsync(_context, logFilePaths[0]),
+                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
+                traceErrorsOnly: true,
+                extraEndMessage: _ => $"LogFile=[{logFilePaths[0].Path}]");
         }
 
         private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, string[] logs)
@@ -304,6 +305,7 @@ namespace BuildXL.Cache.Logging
                         CompressedSizeBytes = compressedSizeBytes,
                     });
                 },
+                traceErrorsOnly: true,
                 extraEndMessage: result =>
                 {
                     if (result.Succeeded)
@@ -385,6 +387,7 @@ namespace BuildXL.Cache.Logging
 
                     return BoolResult.Success;
                 },
+                traceErrorsOnly: true,
                 extraEndMessage: _ => $"LogFilePath=[{logFilePath}] UploadSizeBytes=[{uploadTask.CompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}]",
                 counter: Counters[AzureBlobStorageLogCounters.UploadToBlobStorageCalls]);
         }

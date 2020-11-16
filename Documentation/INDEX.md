@@ -35,7 +35,6 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 ## Build Execution
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md)
 * [Graph Reuse](Wiki/Advanced-Features/Graph-Reuse.md)
-* [User Profile Redirection](Wiki/Advanced-Features/User-Profile-Redirection.md)
 * [Content and Metadata Cache](../Public/Src/Cache/README.md)
 * [Paged Hashes](Specs/PagedHash.md)
 * [Filesystem modes and enumerations](Wiki/Advanced-Features/Filesystem-modes-and-Enumerations.md)

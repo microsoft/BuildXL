@@ -18,7 +18,7 @@ Suppose that we have the following pip dependency graph:
                                                      
 ```
 Assume that our cache is empty at the beginning. The first build of the above graph, which is a clean build, performs steps 1, 3, 4 for every process pip in the graph.
-Now, before we do the next build, we modify `fileD`. Without incremental scheduling, in the next build, BuildXL performs steps 1, 3, 4 for `Process3` and `Process4` (assuming `fileE` changes after `Process4` execution), and performs step 1 and 2 for `Process1` and `Process2`. That is, without incremental scheduling, BuildXL computes pip fingerprints and performs cache look-up's, even though the outputs of `Process1` and `Process2` exist and do not change from the previous build.
+Now, before we do the next build, we modify `fileD`. Without incremental scheduling, in the next build, BuildXL performs steps 1, 3, 4 for `Process3` and `Process4` (assuming `fileE` changes after `Process3` execution), and performs step 1 and 2 for `Process1` and `Process2`. That is, without incremental scheduling, BuildXL computes pip fingerprints and performs cache look-up's, even though the outputs of `Process1` and `Process2` exist and do not change from the previous build.
 
 ## Incremental scheduling
 With incremental scheduling, during the build, BuildXL tracks the filesystem journal USN records of input and output files. When a file is modified, BuildXL is able to compare the recorded USN with the current one, and if the USNs are different, then BuildXL marks the consuming/producing pips dirty, i.e., the pips need to be processed. (Invariant: If a pip is marked dirty, all its transitive dependents are marked dirty.)
@@ -55,7 +55,7 @@ BuildXL disables incremental scheduling completely when distributed build is req
 
 ## Uncachable allowlist
 BuildXL allows users to specify files in the configuration file that are allowlisted on checking access violation. Some pips may produce or consume files in that allowlist. If those files are in so-called uncacheable allowlist, then those pips will not be cached, and so they are expected to be executed in every build. For example, suppose that `fileX` below is in the uncacheable
-allowlist, e.g., `fileX` may contain date/time when `Process42` is executed: 
+allowlist, (e.g. `Process42` outputs its date/time of execution to `fileX`): 
 ```
     Process42 <-- fileX <-- Process43
         ^                       |

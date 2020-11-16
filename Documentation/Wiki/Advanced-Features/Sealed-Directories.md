@@ -19,7 +19,7 @@ There are four types of Sealed directories:
 
 ## Creation
 
-The [Sdk.Transformers](/BuildXL/Reference-Guide/Sdk-Documentation/Sdk.Transformers) module provides the necessary API.  For example:
+The [Sdk.Transformers](https://github.com/microsoft/BuildXL/blob/master/Public/Sdk/Public/Transformers/Transformer.SealedDirectories.dsc) module provides the necessary API.  For example:
 
 ```ts
 import {Transformer} from "Sdk.Transformers";

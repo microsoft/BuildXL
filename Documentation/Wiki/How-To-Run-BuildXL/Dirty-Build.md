@@ -2,7 +2,7 @@
 
 BuildXL aims to create correct, deterministic builds. This behavior however can come at a tradeoff for speed. Sometimes it's helpful to explicitly perform an incorrect build, if the correctness doesn't matter.
 
-BuildXL supports two options to tune the "dirtiness" of the build.  Both are disabled by default and should be used with extreme care, as implied by the *unsafe* prefix to the controlling arguments.
+BuildXL supports options to tune the "dirtiness" of the build.  They are disabled by default and should be used with extreme care, as implied by the *unsafe* prefix to the controlling arguments.
 
 ## Force Skipping Dependencies
 

@@ -15,6 +15,7 @@ Pip graph weak fingerprint consists of
 - subst target,
 - build engine hash or commit id, and
 - host OS, CPU architecture, and elevation level.
+
 These elements can affect the pip graph being constructed. For example, if the layout of source or object directories change, then the paths occurring the graph
 can change. Similarly for subst target. For example, if the subst target changes from `B:` to `A:`, then all paths in the graph produced during evaluation will
 start with `A:` instead of `B:`.
@@ -26,14 +27,14 @@ When BuildXL evaluates the specs to construct a pip graph, it keeps track of ele
 - the enumerated directories and the hashes of their memberships,
 - the queried environment variables and their values, and
 - the used mounts and their paths.
+
 These elements constitute *pip graph inputs*.
 
 During evaluation, the spec can glob a directory, and the resulting file list is passed as dependencies for a pip. Thus, if the membership of the globbed directory
 changes (due to file addition/removal), then the pip specification itself will change, and the pip graph cannot be reused.
 Also, during evaluation, the spec can call `Environment.getStringValue(...)` or `Environment.hasVariable(...)` that can determine the shape of the pip graph. For example,
 if `Enviroment.hasVariable("DROP_ENABLED")` returns true, then the pip graph will have extra drop pips. The result of `Environment.getStringValue("CXX_FLAGS")` can
-be embedded in the arguments of some pips, and thus changing the value of `%CXX_FLAGS%` affect the constructed pips. Similarly for mounts. The spec can call
-use `Context.getMount(...)` whose result is used in some pip specification.
+be embedded in the arguments of some pips, and thus changing the value of `%CXX_FLAGS%` affect the constructed pips. Similarly for mounts: the spec can call `Context.getMount(...)` whose result may be used in some pip specification.
 
 # Engine cache vs. real cache
 
@@ -46,7 +47,7 @@ the file is read, and if the new weak fingerprint is different from the persiste
 cannot be reused; otherwise, the pip graph can be reused and BuildXL does not bother checking the real cache. BuildXL leverages USN change journal to avoid hashing the spec files 
 for checking the pip graph inputs, i.e., besides tracking the content hashes of the evaluated spec files, BuildXL also keeps track of the USNs of those files.
 
-If the pip graph in the engine cache cannot be reused, then BuildXL will consult to the real cache. The pip graph weak fingerprint and the hash of the pip graph inputs
+If the pip graph in the engine cache cannot be reused, then BuildXL will consult the real cache. The pip graph weak fingerprint and the hash of the pip graph inputs
 become the key of the cache look up.
 
 # Evaluation filter
@@ -115,5 +116,4 @@ Transformer.execute({
 The value of `Environment.getPathValue("USERPROFILE")` will be different from one user to another.
 
 BuildXL provides a so-called user-profile redirection that will redirect the values of `%USERPROFILE%` and related environment variables
-to stable values. To this end, BuildXL creates a junction from a stable path to the real user profile path. To enable user-profile
-redirection, see [user profile redirection](./User-Profile-Redirection.md)
+to stable values. To this end, BuildXL creates a junction from a stable path to the real user profile path.

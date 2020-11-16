@@ -5,7 +5,7 @@ The source change impact propagates down the graph.
 
 Suppose that we have the following pip dependency graph:
 ```
-infileA -> (processA) -> outfileA -> (copyfile pip) -> outfileA-copy -> (processB) -> outfileB -> (processC) -> outfileC                                                  
+infileA <- (processA) <- outfileA <- (copyfile pip) <- outfileA-copy <- (processB) <- outfileB <- (processC) <- outfileC                                                  
 ```
 When infileA was changed, the change affected input for processC is outfileB.
 
@@ -49,9 +49,9 @@ When a process requires to know its source affected change inputs, BuildXL assum
 ## Example
 Suppose that we have the following pip dependency graph
 ```
-infileA --> (processA) --> outfileA --> (processC) --> outfileC   
-                                     /
-infileB --> (processB) --> outfileB -                           
+infileA <-- (processA) <-- outfileA <--- (processC) <-- outfileC   
+                                       /
+infileB <-- (processB) <-- outfileB <-´                           
 ```
 
 When processC disables the feature, only `outfileA` and `outfileB` are taken into account for processC's fingerprinting. But when processC enables the feature, its `affected inputs` is also taken into account for fingerprinting. The below table illustrates the fingerprint represents of processC in a sequence of builds. Build0 is a base build. Both infileA and infileB has no change in Build0. In Build3, infileB reverts the change in Build2 and back to version in Build1. When the feature is disabled, processC's fingerprint in Build3 is identical to the one in Build1. So processC gets a cache hit. However, when the feature is enabled, its fingerprint in Build3 can't find any match in the previous builds. So it gets a cache miss.

@@ -194,12 +194,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
                         () =>
                         {
                             _fileSystem.WriteAllText(_currentLogFilePath, timeStampUtc);
-
-                            ChangeTimer();
                             return BoolResult.Success;
                         },
                         funcIsRunningResultProvider: () => BoolResult.Success);
                 }).IgnoreFailure();
+
+            // Changing the timer regardless if write to the file succeed or failed.    
+            ChangeTimer();
         }
 
         private void ChangeTimer()

@@ -1086,10 +1086,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Tracer.Info(context, $"Second pass complete. ScannedEntries=[{secondPassScannedEntries}] RemovedEntries=[{secondPassRemovedEntries}] SumKeySize=[{secondPassSumKeySize}] SumValueSize=[{secondPassSumValueSize}] RemovedKeySize=[{secondPassRemovedValueSize}] RemovedValueSize=[{secondPassRemovedValueSize}] ");
 
-            ulong removedSizeBytes = secondPassRemovedKeySize + secondPassRemovedValueSize;
-            ulong preGcSizeBytes = secondPassSumKeySize + secondPassSumValueSize;
-            ulong postGcSizeBytes = preGcSizeBytes - removedSizeBytes;
-            ulong sizeTargetDelta = sizeTargetBytes - postGcSizeBytes;
+            
+            var removedSizeBytes = secondPassRemovedKeySize + secondPassRemovedValueSize;
+            var preGcSizeBytes = secondPassSumKeySize + secondPassSumValueSize;
+            // NOTE: This math below can overflow.
+            var postGcSizeBytes = (long)preGcSizeBytes - (long)removedSizeBytes;
+            var sizeTargetDelta = (long)sizeTargetBytes - (long)postGcSizeBytes;
             Tracer.Info(context, $"Final results. PreGcSizeBytes=[{preGcSizeBytes}] PostGcSizeBytes=[{postGcSizeBytes}] RemovedSizeBytes=[{removedSizeBytes}] SizeTargetDelta=[{sizeTargetDelta}]");
 
             context.Token.ThrowIfCancellationRequested();

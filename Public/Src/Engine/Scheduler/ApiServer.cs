@@ -445,7 +445,7 @@ namespace BuildXL.Scheduler
             Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable), files.Length);
 
             var inputContentsTasks = files
-                .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), false))
+                .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), allowUndeclaredSourceReads: true))
                 .ToArray();
 
             var inputContents = await TaskUtilities.SafeWhenAll(inputContentsTasks);

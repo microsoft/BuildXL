@@ -71,7 +71,7 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
 })
 
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
-    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);    
+    bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);
     return bxl->fwd_fexecve(fd, argv, bxl->ensureEnvs(envp)).restore();
 })
 
@@ -588,9 +588,14 @@ static void report_exit(int exitCode, void *args)
     BxlObserver::GetInstance()->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
 }
 
+// invoked by the loader when our shared library is dynamically loaded into a new host process
 void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 {
-   on_exit(report_exit, NULL);
+    // set up an on-exit handler
+    on_exit(report_exit, NULL);
+
+    // report that a new process has been created 
+    BxlObserver::GetInstance()->report_access("__init__", ES_EVENT_TYPE_NOTIFY_EXEC, __progname);
 }
 
 // ==========================

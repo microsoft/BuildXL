@@ -2166,7 +2166,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbNative",
-          "Version": "6.10.2-b20200625.3"
+          "Version": "6.10.2-b20201103.3"
         }
       }
     },
@@ -2175,7 +2175,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbSharp",
-          "Version": "6.10.2-b20200625.3"
+          "Version": "6.10.2-b20201103.3"
         }
       }
     },

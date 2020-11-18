@@ -135,6 +135,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
             /// </summary>
             public bool LeveledCompactionDynamicLevelTargetSizes { get; set; }
+
+            /// <summary>
+            /// Enable RocksDb compression.
+            ///
+            /// The same compression algorithm is applied to all column families, across all levels.
+            /// </summary>
+            public Compression? Compression { get; set; }
         }
 
         /// <summary>
@@ -336,6 +343,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp())
                     .SetLevelCompactionDynamicLevelBytes(arguments.LeveledCompactionDynamicLevelTargetSizes);
+
+                if (arguments.Compression != null)
+                {
+                    m_defaults.ColumnFamilyOptions.SetCompression(arguments.Compression.Value);
+                }
 
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
 

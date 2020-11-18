@@ -7,6 +7,7 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.Host.Configuration;
+using RocksDbSharp;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 #nullable enable
@@ -234,6 +235,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool EnableDynamicLevelTargetSizes { get; set; }
 
         /// <nodoc />
+        public Compression? Compression { get; internal set; }
+
+        /// <nodoc />
         public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
             DistributedContentSettings settings,
             AbsolutePath databasePath,
@@ -281,6 +285,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 v => configuration.FullRangeCompactionByteIncrementStep = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseEnableDynamicLevelTargetSizes, v => configuration.EnableDynamicLevelTargetSizes = v);
+
+            ApplyEnumIfNotNull<Compression>(settings.ContentLocationDatabaseCompression, v => configuration.Compression = v);
 
             if (settings.ContentLocationDatabaseLogsBackupEnabled)
             {

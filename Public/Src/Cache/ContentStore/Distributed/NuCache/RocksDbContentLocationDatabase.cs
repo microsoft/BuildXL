@@ -246,6 +246,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // compaction here and pretending like we are using a read-only database.
                         DisableAutomaticCompactions = !IsDatabaseWriteable,
                         LeveledCompactionDynamicLevelTargetSizes = _configuration.EnableDynamicLevelTargetSizes,
+                        Compression = _configuration.Compression,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our

@@ -699,6 +699,9 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? ContentLocationDatabaseLogsBackupRetentionMinutes { get; set; }
 
+        [DataMember]
+        public string ContentLocationDatabaseCompression { get; set; }
+
         /// <remarks>
         /// 0 means infinite here (i.e. there won't be any compactions)
         /// </remarks>

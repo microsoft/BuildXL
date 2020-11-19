@@ -59,8 +59,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             // Try to create a new hash algorithm to use
             SafeCapiHashHandle? newHashAlgorithm = null;
-
+#if !NET_COREAPP_50
             RuntimeHelpers.PrepareConstrainedRegions();
+#endif
             try
             {
                 if (!CapiNative.UnsafeNativeMethods.CryptCreateHash(m_cspHandle,

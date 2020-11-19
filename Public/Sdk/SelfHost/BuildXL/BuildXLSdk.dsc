@@ -95,10 +95,10 @@ export interface TestResult extends Managed.TestResult {
  * Returns if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0";
+export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net5.0";
 
 @@public
-export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1";
+export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472" || qualifier.targetFramework === "net462";
@@ -128,8 +128,8 @@ export const targetFrameworkMatchesCurrentHost =
 @@public
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
-    // Running tests for .NET Core App 3.0 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net472") ||
+    // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
+    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
@@ -259,14 +259,14 @@ export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
         importFrom("System.Threading.Tasks.Extensions").pkg,
         importFrom("System.Linq.Async").pkg,
         // .NET Core version is tricky, because there are some crucial differences between .netcoreapp and netstandard
-        (qualifier.targetFramework === "netcoreapp3.1" 
+        (isDotNetCoreApp 
           ? importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg
           : importFrom("Microsoft.Bcl.AsyncInterfaces").pkg)
     ];
 
 @@public
 export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNugetPackage[] = 
-    qualifier.targetFramework === "netcoreapp3.1" ? [] : [
+    isDotNetCoreApp ? [] : [
             importFrom("System.Threading.Tasks.Dataflow").pkg,
         ];
 
@@ -411,6 +411,8 @@ export function test(args: TestArguments) : TestResult {
 
 @@public
 export const notNullAttributesFile = f`NotNullAttributes.cs`;
+
+ const isExternalInit = f`IsExternalInit.cs`;
 
 /**
  * Builds and runs an xunit test
@@ -653,12 +655,15 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Add the file with non-nullable attributes for non-dotnet core projects
     // if nullable flag is set, but a special flag is false.
-    if (args.nullable && qualifier.targetFramework !== "netcoreapp3.1" && args.addNotNullAttributeFile !== false) {
-        
+    if (args.nullable && !isDotNetCoreApp && args.addNotNullAttributeFile !== false) {
         args = args.merge({
             sources: [notNullAttributesFile],
         });
     }
+
+    args = args.merge({
+        sources: [isExternalInit],
+    });
     
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
@@ -693,6 +698,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
+        && !(qualifier.targetFramework === "net5.0")          // Disable QTest for .net 5 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

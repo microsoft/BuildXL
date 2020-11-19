@@ -103,6 +103,7 @@ function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
             return Qtest.QTestDotNetFramework.framework46;
         case "netstandard2.0":
         case "netcoreapp3.1":
+        case "net5.0":
             return Qtest.QTestDotNetFramework.frameworkCore30;
         default:
             Contract.fail("QTest does not support " + qualifier.targetFramework);
@@ -165,9 +166,8 @@ function runTest(args : TestRunArguments) : File[] {
     
     let qTestRuntimeDependencies = undefined;
     let qTestEnvironmentVariables = undefined;
-    if (isDotNetCore)
-    {
-        const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate();
+    if (isDotNetCore) {
+        const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate(/*isDotNet5*/qualifier.targetFramework === "net5.0");
         qTestRuntimeDependencies = [
             ...dotNetTool.dependencies
         ];

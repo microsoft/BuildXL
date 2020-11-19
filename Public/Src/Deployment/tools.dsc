@@ -10,6 +10,19 @@ namespace Tools {
 
     export declare const qualifier : { configuration: "debug" | "release"};
 
+    namespace Helpers {
+        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+        
+        export function getTargetLocation(toolName: string) {
+            if (qualifier.targetFramework === "netcoreapp3.1") {
+                // Keeping the old behavior for backward compatibility of existing scripts relying on the layout.
+                return r`${qualifier.configuration}/tools/${toolName}/${qualifier.targetRuntime}`;
+            }
+
+            return r`${qualifier.targetFramework}/${qualifier.configuration}/tools/${toolName}/${qualifier.targetRuntime}`;
+        }
+    }
+
     namespace XldbAnalyzer {
 
         export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
@@ -22,7 +35,7 @@ namespace Tools {
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools/XldbAnalyzer/${qualifier.targetRuntime}`,
+            targetLocation: Helpers.getTargetLocation("XldbAnalyzer"),
         });
     }
 
@@ -38,7 +51,7 @@ namespace Tools {
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools/SandboxExec/${qualifier.targetRuntime}`,
+            targetLocation: Helpers.getTargetLocation("SandboxExec"),
         });
     }
 
@@ -49,14 +62,14 @@ namespace Tools {
         export const deployment : Deployment.Definition = {
             contents: [
                 importFrom("BuildXL.Tools").withQualifier({
-                    targetFramework: "netcoreapp3.1",
+                    targetFramework: qualifier.targetFramework,
                 }).Orchestrator.exe
             ],
         };
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools/Orchestrator/${qualifier.targetRuntime}`
+            targetLocation: Helpers.getTargetLocation("Orchestrator"),
         });
     }
 
@@ -74,7 +87,7 @@ namespace Tools {
         // Only used for internal macOS runtime publishing
         const deployed = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools/CoreDumpTester/${qualifier.targetRuntime}`
+            targetLocation: Helpers.getTargetLocation("CoreDumpTester"),
         });
     }
 
@@ -115,7 +128,9 @@ namespace Tools {
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}`
+            targetLocation: qualifier.targetFramework === "net5.0"
+            ? r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`
+            : r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}`
         });
     }
 }

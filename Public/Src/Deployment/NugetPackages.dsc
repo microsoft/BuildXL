@@ -25,6 +25,11 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
+    const net5PackageQualifer = {
+        targetFramework: "net5.0",
+        targetRuntime: "win-x64"
+    };
+
     const netstandard20PackageQualifer = {
         targetFramework: "netstandard2.0",
         targetRuntime: "win-x64"
@@ -93,54 +98,63 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Utilities.Branding
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Branding.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Branding.dll,
 
             // BuildXL.Collections
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Collections.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Collections.dll,
 
             // BuildXL.Interop
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Interop.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Interop.dll,
 
             // BuildXL.KeyValueStore
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).KeyValueStore.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).KeyValueStore.dll,
 
             // BuildXL.Native
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.dll,
 
             // BuildXL.Configuration
             importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Configuration.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Configuration.dll,
 
             // BuildXL.Instrumentation.Common
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net5PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Instrumentation.Tracing
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net5PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netstandard20PackageQualifer).dll,
         ],
         dependencies: [
@@ -177,14 +191,17 @@ namespace NugetPackages {
             // BuildXL.Utilities
             importFrom("BuildXL.Pips").withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Pips").withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Pips").withQualifier(net5PackageQualifer).dll,
 
             // BuildXL.Ipc
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Ipc.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Ipc.dll,
 
             // BuildXL.Storage
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Storage.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Storage.dll,
         ],
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
@@ -202,6 +219,7 @@ namespace NugetPackages {
             // BuildXL.Processes
             importFrom("BuildXL.Engine").withQualifier(net472PackageQualifer).Processes.dll,
             importFrom("BuildXL.Engine").withQualifier(netcoreApp31PackageQualifer).Processes.dll,
+            importFrom("BuildXL.Engine").withQualifier(net5PackageQualifer).Processes.dll,
         ],
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
@@ -232,6 +250,15 @@ namespace NugetPackages {
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(netcoreApp31PackageQualifer).VerticalAggregator.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(netcoreApp31PackageQualifer).ImplementationSupport.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Storage.dll,
+
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).InMemory.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).Interfaces.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).BasicFilesystem.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).BuildCacheAdapter.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).MemoizationStoreAdapter.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).VerticalAggregator.dll,
+            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net5PackageQualifer).ImplementationSupport.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Storage.dll,
         ],
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet

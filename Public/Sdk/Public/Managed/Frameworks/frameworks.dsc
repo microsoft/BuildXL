@@ -7,8 +7,7 @@ export declare const qualifier : Shared.TargetFrameworks.All;
 
 @@public
 export const framework : Shared.Framework = (() => {
-    switch (qualifier.targetFramework)
-    {
+    switch (qualifier.targetFramework) {
         case "net451":
             return importFrom("Sdk.Managed.Frameworks.Net451").framework;
         case "net461":
@@ -19,6 +18,8 @@ export const framework : Shared.Framework = (() => {
             return importFrom("Sdk.Managed.Frameworks.Net472").framework;
         case "netcoreapp3.1":
             return importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").framework;
+        case "net5.0":
+            return importFrom("Sdk.Managed.Frameworks.Net5.0").framework;
         case "netstandard2.0":
             return importFrom("Sdk.Managed.Frameworks.NetStandard2.0").framework;
         default:

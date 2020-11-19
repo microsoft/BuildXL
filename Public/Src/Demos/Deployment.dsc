@@ -15,7 +15,7 @@ namespace Deployment {
     };
 
     const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
-        ? qualifier.targetRuntime
+        ? qualifier.targetFramework + qualifier.targetRuntime
         : qualifier.targetFramework;
 
     @@public

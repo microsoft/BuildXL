@@ -28,8 +28,7 @@ namespace Test {
             // Used by Launcher integration test
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Cache.ContentStore").App.exe,
-            ...addIf(!BuildXLSdk.isFullFramework,
-                LauncherServer.withQualifier({targetFramework: "netcoreapp3.1"}).exe
+            ...addIfLazy(!BuildXLSdk.isFullFramework, () => [LauncherServer.exe]
             )
         ],
         tools: {

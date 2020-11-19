@@ -54,7 +54,7 @@ const isCurrentHostOsWindows = Context.getCurrentHost().os === "win";
 @@public
 export function compile(inputArgs: Arguments) : Result {
     let args = defaultArgs.merge<Arguments>(inputArgs);
-
+    
     const outputDirectory = Context.getNewOutputDirectory(args.out + "-csc");
     const outputBinPath = outputDirectory.combine(args.out);
     // If debugType is "embedded" then the pdb data is embedded into the dll and there is no separate .pdb file
@@ -176,7 +176,7 @@ export function compile(inputArgs: Arguments) : Result {
     };
 
     if (!isCurrentHostOsWindows) {
-        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(cscExecuteArgs);
+        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(isDotNet5(cscExecuteArgs), cscExecuteArgs);
         cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
             tool: { 
                 // Conceptually, we want to set 'dependsOnCurrentHostOSDirectories' to true and not specify 'untrackedDirectoryScopes' here;
@@ -217,6 +217,15 @@ export function compile(inputArgs: Arguments) : Result {
         binary: binary,
         reference: referenceBinary,
     };
+}
+
+/**
+ * The function returns true if the target framework is .NET 5
+ * 
+ * The function looks into the defined constants because this module is qualifier agnostic.
+ */
+export function isDotNet5(cscArguments: Arguments): boolean {
+    return cscArguments.defines && cscArguments.defines.some(e => e === "NET_COREAPP_50");
 }
 
 /**

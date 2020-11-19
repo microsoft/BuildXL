@@ -49,7 +49,7 @@ namespace Test.MsBuild {
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "netcoreapp3.1"}).deployment,
             {
                 subfolder: "dotnet",
-                contents: Frameworks.Helpers.getDotNetToolTemplate().dependencies
+                contents: Frameworks.Helpers.getDotNetToolTemplate(qualifier.targetFramework === "net5.0").dependencies
             },
             {
                 subfolder: a`tools`,

@@ -72,7 +72,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         public CacheErrorReasonCode ReasonCode { get; }
 
         /// <inheritdoc />
+#if !NET_COREAPP_50
         [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
+#endif
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)

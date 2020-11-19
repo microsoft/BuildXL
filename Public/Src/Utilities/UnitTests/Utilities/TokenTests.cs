@@ -21,6 +21,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(path, newToken.Path);
             XAssert.AreEqual(0, newToken.Line);
             XAssert.AreEqual(0, newToken.Position);
+            
             XAssert.AreEqual(string.Empty, token.Text.ToString(tokenTextTable));
         }
 

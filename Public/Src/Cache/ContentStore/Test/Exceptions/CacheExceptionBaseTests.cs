@@ -70,6 +70,7 @@ namespace ContentStoreTest.Exceptions
 
             using (var stream = new MemoryStream())
             {
+#pragma warning disable SYSLIB0011 // IFormatter.Serialize is obsolete              
                 IFormatter formatter = new BinaryFormatter();
                 formatter.Serialize(stream, ex);
                 stream.Length.Should().BeGreaterThan(0);
@@ -79,6 +80,7 @@ namespace ContentStoreTest.Exceptions
                     var dex = (CacheException)formatter.Deserialize(stream2);
                     dex.Should().NotBeNull();
                 }
+#pragma warning restore SYSLIB0011
             }
         }
     }

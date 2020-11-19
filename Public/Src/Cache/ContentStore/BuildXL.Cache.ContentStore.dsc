@@ -25,7 +25,8 @@ export const redisPackages = [
         : [
             importFrom("System.IO.Pipelines").pkg,
             importFrom("System.Threading.Channels").pkg,
-            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            // Don't need to add Unsafe for net5.0
+            ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Runtime.CompilerServices.Unsafe").pkg]),
             importFrom("Pipelines.Sockets.Unofficial").pkg,
           ]),
     ...BuildXLSdk.bclAsyncPackages,
@@ -58,7 +59,9 @@ export function getSerializationPackages(includeNetStandard: boolean) {
             BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
         ] : [
         ]),
-        importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        
+        ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg]),
+
         importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,

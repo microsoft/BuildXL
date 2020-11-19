@@ -8,7 +8,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Cryptography;
-
+#pragma warning disable SYSLIB0004 // CER are obsolete
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
@@ -289,3 +289,5 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
     }
 }
+
+#pragma warning restore SYSLIB0004

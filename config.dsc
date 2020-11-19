@@ -85,8 +85,8 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.7.0" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
-                { id: "Microsoft.NETCore.Compilers", version: "3.7.0" },
+                { id: "Microsoft.Net.Compilers", version: "3.8.0" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
+                { id: "Microsoft.NETCore.Compilers", version: "3.8.0" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.5.0" },
@@ -286,6 +286,7 @@ config({
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.IO.Pipelines", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"], alias: "System.IO.Pipelines.v5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
@@ -394,6 +395,10 @@ config({
             modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`],
         },
         {
+            kind: "SourceResolver",
+            modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-5-External\module.config.dsc`],
+        },
+        {
             kind: "Download",
             downloads: [
                 // PowerShell.Core
@@ -424,7 +429,27 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime
+                // DotNet Core Runtime 5.0
+                {
+                    moduleName: "DotNet-Runtime.win-x64.5.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/4c86f8a0-8f0b-454f-9419-081c2f21b348/52a1d3c12effa2bc1b552a4fd9f53d20/dotnet-runtime-5.0.0-win-x64.zip",
+                    hash: "VSO0:401A023634910E6B80414B4D541BB7D11C710D8D24C0C8B0712EFA80C1D33B1A00",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.5.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/112291a5-e3e0-4741-9c66-c9cea6231f3f/3ebd75dfda0492fcbf50c6f939762c46/dotnet-runtime-5.0.0-osx-x64.tar.gz",
+                    hash: "VSO0:FA5B6AD52AB940BD56BFAE1A1D841885071EE82A356C8D7EA82FCCAE562920FB00",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.5.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/c84d49aa-200c-4400-a517-87cce5b7516d/94c89b00380eb212e19538b05f8cb968/dotnet-runtime-5.0.0-linux-x64.tar.gz",
+                    hash: "VSO0:92E66F1C7562AFBEBBFD93CC98EB54279A65A81F2013492BC64177BB116E3A6000",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 3.1
                 {
                     moduleName: "DotNet-Runtime.win-x64.3.1.6",
                     url: "https://download.visualstudio.microsoft.com/download/pr/f01755a3-b9cf-4d63-acdd-e331337548d6/ab5385bc8a555e741bc093b3459015b7/dotnet-runtime-3.1.6-win-x64.zip",
@@ -443,6 +468,7 @@ config({
                     hash: "VSO0:713CA0FE106D1EEE837E4595312F4771CDD429147DA2E1CB66F85E2603DD9BA900",
                     archiveType: "tgz",
                 },
+                
                 // The following are needed for dotnet core MSBuild test deployments
                 {
                     moduleName: "DotNet-Runtime.win-x64.2.2.2",
@@ -489,6 +515,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
+            // Ones the migration to net5 is done the next line needs to be changed to net5.0
             targetFramework: "netcoreapp3.1",
             targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
@@ -508,6 +535,11 @@ config({
             DebugDotNetCore: {
                 configuration: "debug",
                 targetFramework: "netcoreapp3.1",
+                targetRuntime: "win-x64",
+            },
+            DebugDotNet5: {
+                configuration: "debug",
+                targetFramework: "net5.0",
                 targetRuntime: "win-x64",
             },
             DebugDotNetCoreMac: {
@@ -537,6 +569,11 @@ config({
                 targetFramework: "netcoreapp3.1",
                 targetRuntime: "win-x64",
             },
+            ReleaseDotNet5: {
+                configuration: "release",
+                targetFramework: "net5.0",
+                targetRuntime: "win-x64",
+            },            
             ReleaseDotNetCoreMac: {
                 configuration: "release",
                 targetFramework: "netcoreapp3.1",

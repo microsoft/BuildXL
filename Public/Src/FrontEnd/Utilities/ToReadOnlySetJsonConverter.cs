@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 

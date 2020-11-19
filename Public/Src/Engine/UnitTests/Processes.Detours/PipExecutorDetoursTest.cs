@@ -4868,7 +4868,7 @@ namespace Test.BuildXL.Processes.Detours
                 string localExePath = string.Empty;
                 try
                 {
-                    localExePath = new Uri((Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly()).CodeBase).LocalPath;
+                    localExePath = new Uri((Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly()).Location).LocalPath;
                 }
 #pragma warning disable ERP022 // TODO: This should really handle specific errors
                 catch

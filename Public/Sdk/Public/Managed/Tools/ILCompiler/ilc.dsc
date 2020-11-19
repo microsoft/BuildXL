@@ -14,10 +14,19 @@ const pkgContents: StaticDirectory =
     isWinOS ? importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all :
     emptyStaticDir;
 
-const netcoreAppPkgContents: StaticDirectory =
+const netCoreApp31PkgContents: StaticDirectory =
     isMacOS ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all :
     isWinOS ? importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all :
     emptyStaticDir;
+
+const net5PkgContents: StaticDirectory =
+    isMacOS ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64.5.0").Contents.all :
+    isWinOS ? importFrom("Microsoft.NETCore.App.Runtime.win-x64.5.0").Contents.all :
+    emptyStaticDir;
+
+ function getNetCoreAppPkgContents(targetFramework: string) {
+     return targetFramework === "net5.0" ? net5PkgContents : netCoreApp31PkgContents;
+ }
 
 const ilcToolPackagePath = isWinOS ? r`tools/ilc.exe` : r`tools/ilc`;
 const ilcToolExeFile = (isMacOS || isWinOS) ? pkgContents.getFile(ilcToolPackagePath) : undefined;
@@ -45,38 +54,40 @@ export const linkTimeLibraries: File[] =
         // TODO: libraries for Windows
     ]);
 
-@@public
-export const compileTimeReferences: File[] = [
-    ...pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`),
-    ...(isMacOS ? netcoreAppPkgContents.getFiles([
-        r`runtimes/osx-x64/lib/netcoreapp3.1/System.Runtime.InteropServices.WindowsRuntime.dll`
-    ]) : [
-        // TODO: references for Windows
-    ])
-];
+export function getCompileTimeReferences(targetFramework: string): File[] {
+    return [
+        ...pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`),
+        ...(isMacOS ? getNetCoreAppPkgContents(targetFramework).getFiles([
+            r`runtimes/osx-x64/lib/${targetFramework}/System.Runtime.InteropServices.WindowsRuntime.dll`
+        ]) : [
+            // TODO: references for Windows
+        ])
+    ];
+} 
 
-@@public
-export const defaultArgs = <Arguments>{
-    out: undefined,
-    inputs: undefined,
-    initAssemblies: [
-        "System.Private.CoreLib",
-        "System.Private.DeveloperExperience.Console",
-        "System.Private.StackTraceMetadata",
-        "System.Private.TypeLoader",
-        "System.Private.Reflection.Execution",
-        "System.Private.Interop"
-    ],
-    references: compileTimeReferences,
-    stackTraceData: true,
-    scanReflection: true,
-    emitDebugInformation: true,
-    completeTypeMetadata: true,
-    rootAllApplicationAssemblies: true,
-    dependencies: [
-        pkgContents
-    ]
-};
+function getDefaultArgs(targetFramework: string): Arguments {
+    return {
+        out: undefined,
+        inputs: undefined,
+        initAssemblies: [
+            "System.Private.CoreLib",
+            "System.Private.DeveloperExperience.Console",
+            "System.Private.StackTraceMetadata",
+            "System.Private.TypeLoader",
+            "System.Private.Reflection.Execution",
+            "System.Private.Interop"
+        ],
+        references: getCompileTimeReferences(targetFramework),
+        stackTraceData: true,
+        scanReflection: true,
+        emitDebugInformation: true,
+        completeTypeMetadata: true,
+        rootAllApplicationAssemblies: true,
+        dependencies: [
+            pkgContents
+        ]
+    };
+}
 
 @@public
 export interface Arguments extends Transformer.RunnerArguments {
@@ -130,8 +141,8 @@ export interface Result {
 }
 
 @@public
-export function compile(args: Arguments): Result {
-    args = Object.merge(defaultArgs, args);
+export function compile(targetFramework: string, args: Arguments): Result {
+    args = Object.merge(getDefaultArgs(targetFramework), args);
 
     const outDir = Context.getNewOutputDirectory(args.out + "-ilc");
     const outObjPath = outDir.combine(args.out);

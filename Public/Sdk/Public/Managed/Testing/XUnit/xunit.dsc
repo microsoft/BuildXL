@@ -28,7 +28,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     let testDeployment = args.testDeployment;
 
     const tool : Transformer.ToolDefinition = Managed.Factory.createTool({
-        exe: qualifier.targetFramework === "netcoreapp3.1"
+        exe: qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0"
             ? testDeployment.contents.getFile(r`xunit.console.dll`)
             // Using xunit executable from different folders depending on the target framework.
             // This allow us to actually to run tests targeting different frameworks.
@@ -53,6 +53,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
             ].unique().map(categoryToTrait)
         });
     }
+
 
     let arguments : Argument[] = CreateCommandLineArgument(testDeployment.primaryFile, args, testClass, testMethod);
 
@@ -98,8 +99,8 @@ export function runConsoleTest(args: TestRunArguments): Result {
         });
     }
 
-    if (qualifier.targetFramework === "netcoreapp3.1") {
-        execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(execArguments);
+    if (qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0") {
+        execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(/*isDotNet5*/qualifier.targetFramework === "net5.0", execArguments);
     }
 
     execArguments = Managed.TestHelpers.applyTestRunExecutionArgs(execArguments, args);
@@ -143,8 +144,7 @@ function renameOutputFile(name: string, file: Path) : Path {
     return file && file.changeExtension(a`.${name}${file.extension}`);
 }
 
-function runMultipleConsoleTests(args: TestRunArguments) : Result
-{
+function runMultipleConsoleTests(args: TestRunArguments) : Result {
     // Run all tests with the selected traits
     for (let testGroup of args.parallelGroups)
     {

@@ -17,6 +17,7 @@ namespace Ide {
                 targetFileName: a`BuildXL.vs.vsix`,
             },
             {
+                // Ones the migration to net5 is done the next line needs to be changed to net5.0
                 file: importFrom("BuildXL.Ide").withQualifier({
                     targetFramework:"netcoreapp3.1",
                     targetRuntime: "win-x64"}

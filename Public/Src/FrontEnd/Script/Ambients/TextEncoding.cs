@@ -56,7 +56,9 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 case TextEncoding.Utf32:
                     return Encoding.UTF32;
                 case TextEncoding.Utf7:
+#pragma warning disable SYSLIB0001 // 'Encoding.UTF7' is obsolete
                     return Encoding.UTF7;
+#pragma warning restore SYSLIB0001
                 case TextEncoding.Utf8:
                     return Encoding.UTF8;
             }

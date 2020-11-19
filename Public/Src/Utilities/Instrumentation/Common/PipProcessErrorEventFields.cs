@@ -4,6 +4,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
+#nullable disable
+
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>
@@ -69,7 +71,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Construct PipProcessErrorEventFields from eventPayload
         /// </summary>
-        public PipProcessErrorEventFields(ReadOnlyCollection<object?> eventPayload, bool forwardedPayload)
+        public PipProcessErrorEventFields(ReadOnlyCollection<object> eventPayload, bool forwardedPayload)
         {
             // When the PipProcessErrorEvent is forwarded from worker it is ecapsulated in a WorkerForwardedEvent, which has 4 other fields in front of the real pipProcessEvent.
             // So the actual event starts at index 4.

@@ -80,9 +80,11 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netstandard2.0" && qualifier.configuration === "debug", "CompileNetStandard20", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileDebugNetCoreWin", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net5.0" && qualifier.configuration === "debug", "CompileDebugNet5Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net5.0" && qualifier.configuration === "debug", "CompileNet5Osx"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileLinux"),
-        ];
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net5.0" && qualifier.configuration === "debug", "CompileNet5Linux")];
 
     // csc
     let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);

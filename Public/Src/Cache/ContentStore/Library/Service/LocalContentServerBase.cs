@@ -808,7 +808,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     }
 
                     return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
-                        (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
+                        (sessionResult.Value!, sessionId, tempDirectoryCreationResult.Value!));
                 },
                 extraStartMessage: $"SessionId=[{sessionId}]",
                 extraEndMessage: r => $"SessionId=[{sessionId}]");

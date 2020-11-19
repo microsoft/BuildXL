@@ -8,7 +8,7 @@ import * as Deployment   from "Sdk.Deployment";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 
-const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp");
+const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp") || qualifier.targetFramework === "net5.0";
 
 @@public
 export const framework : Managed.TestFramework = {
@@ -44,22 +44,26 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-const xunitConsoleRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
-    importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework,
-    "frameworkDependent",
-    "xunit.console",
-    "xunit.console.dll",
-    xunitReferences,
-    undefined, // runtimeContentToSkip
-    undefined  // nopappConfig
-);
+function getXunitConsoleRuntimeConfigNetCoreApp31Files(): File[] {
+    return Managed.RuntimeConfigFiles.createFiles(
+        qualifier.targetFramework === "netcoreapp3.1" 
+            ? importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework 
+            : importFrom("Sdk.Managed.Frameworks.Net5.0").withQualifier({targetFramework: "net5.0"}).framework,
+        "frameworkDependent",
+        "xunit.console",
+        "xunit.console.dll",
+        xunitReferences,
+        undefined, // runtimeContentToSkip
+        undefined  // nopappConfig
+    );
+}
 
 @@public
 export const additionalNetCoreRuntimeContent = 
     [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
-        ...xunitConsoleRuntimeConfigFiles,
+        ...(getXunitConsoleRuntimeConfigNetCoreApp31Files()),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
         xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
     ];

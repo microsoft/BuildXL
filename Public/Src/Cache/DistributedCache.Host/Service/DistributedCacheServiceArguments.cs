@@ -52,7 +52,7 @@ namespace BuildXL.Cache.Host.Service
         public HostInfo HostInfo { get; }
 
         /// <nodoc />
-        public CancellationToken Cancellation { get; }
+        public CancellationToken Cancellation { get; internal set; }
 
         /// <nodoc />
         public string DataRootPath { get; }

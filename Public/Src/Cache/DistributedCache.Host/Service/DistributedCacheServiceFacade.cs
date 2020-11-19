@@ -91,6 +91,17 @@ namespace BuildXL.Cache.Host.Service
 
             InitializeLifetimeTracker(host);
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(arguments.Cancellation);
+            arguments.Cancellation = cts.Token;
+
+            if (arguments.Configuration.RespectRequestTeardown)
+            {
+                LifetimeManager.OnTeardownRequested += _ =>
+                {
+                    cts.Cancel();
+                };
+            }
+
             // NOTE(jubayard): this is the entry point for running CASaaS. At this point, the Logger inside the
             // arguments holds the client's implementation of our logging interface ILogger. Here, we may override the
             // client's decision with our own.

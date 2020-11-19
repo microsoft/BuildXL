@@ -27,6 +27,13 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public string DataRootPath { get; set; }
 
+        /// <summary>
+        /// Indicates that when components call LifetimeManager.RequestTeardown that the service should
+        /// shutdown independent of whether host responds and triggers cancellation.
+        /// </summary>
+        [DataMember]
+        public bool RespectRequestTeardown { get; set; }
+
         [DataMember]
         public DistributedContentSettings DistributedContentSettings { get; set; }
 

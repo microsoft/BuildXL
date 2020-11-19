@@ -130,11 +130,14 @@ namespace BuildXL.Launcher.Server
                     new Tracer(nameof(DeploymentProxyStartup)),
                     () =>
                     {
-                        var deploymentConfiguration = CacheServiceRunner.LoadPreprocessedConfig<DeploymentConfiguration>(configurationPath,
+                        var proxyConfiguration = CacheServiceRunner.LoadAndWatchPreprocessedConfig<DeploymentConfiguration, ProxyServiceConfiguration>(
+                            context,
+                            configurationPath,
                             configHash: out _,
-                            hostParameters: hostParameters);
+                            hostParameters: hostParameters,
+                            extractConfig: c => c.Proxy.ServiceConfiguration);
 
-                        return Result.Success(deploymentConfiguration.Proxy.ServiceConfiguration);
+                        return Result.Success(proxyConfiguration);
                     },
                     messageFactory: r => $"ConfigurationPath=[{configurationPath}], Port={r.GetValueOrDefault()?.Port}",
                     caller: "LoadConfiguration").ThrowIfFailure();

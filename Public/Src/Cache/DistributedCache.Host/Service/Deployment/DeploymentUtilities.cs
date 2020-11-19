@@ -210,6 +210,50 @@ namespace BuildXL.Cache.Host.Service
             return start == value.Length;
         }
 
+#pragma warning disable AsyncFixer03 // Fire & forget async void methods
+        public static async void WatchFileAsync(string path, CancellationToken token, TimeSpan pollingInterval, Action onChanged, Action<Exception> onError)
+#pragma warning restore AsyncFixer03 // Fire & forget async void methods
+        {
+            int retries;
+            var info = getChangeInfo(path);
+            while (true)
+            {
+                try
+                {
+                    await Task.Delay(pollingInterval, token);
+
+                    var newInfo = getChangeInfo(path);
+                    if (newInfo != info)
+                    {
+                        info = newInfo;
+                        onChanged();
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    retries--;
+                    if (retries == 0)
+                    {
+                        onError(ex);
+                    }
+                }
+            }
+
+            (long Length, DateTime LastWriteTimeUtc, DateTime CreationTimeUtc) getChangeInfo(string path)
+            {
+                var fileInfo = new System.IO.FileInfo(path);
+                var result = (fileInfo.Length, fileInfo.LastWriteTimeUtc, fileInfo.CreationTimeUtc);
+
+                // On success, reset number of retries
+                retries = 5;
+                return result;
+            }
+        }
+
         /// <summary>
         /// Computes an hexidecimal content id for the given string
         /// </summary>

@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Text.Json;
+using BuildXL.Cache.Host.Service;
 using Xunit;
 
 namespace BuildXL.Cache.Host.Configuration.Test
@@ -33,8 +35,29 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var dcs = DistributedContentSettings.CreateDisabled();
             dcs.RetryIntervalForCopiesMs = null;
             var newDcs = TestSerializationRoundTrip(dcs);
-            Assert.NotNull(newDcs.RetryIntervalForCopiesMs);
-            Assert.Equal(DistributedContentSettings.DefaultRetryIntervalForCopiesMs.Length, newDcs.RetryIntervalForCopiesMs.Length);
+            Assert.NotNull(newDcs.RetryIntervalForCopies);
+            Assert.Equal(DistributedContentSettings.DefaultRetryIntervalForCopiesMs.Length, newDcs.RetryIntervalForCopies.Count);
+        }
+
+        [Fact]
+        public void RetryIntervalForCopiesNullJson()
+        {
+            var dcs = DistributedContentSettings.CreateDisabled();
+            dcs.RetryIntervalForCopiesMs = null;
+            var newDcs = TestJsonSerializationRoundTrip(dcs);
+            Assert.NotNull(newDcs.RetryIntervalForCopies);
+            Assert.Equal(DistributedContentSettings.DefaultRetryIntervalForCopiesMs.Length, newDcs.RetryIntervalForCopies.Count);
+        }
+
+        [Fact]
+        public void RetryIntervalForCopiesCustomJson()
+        {
+            int count = 100;
+            var dcs = DistributedContentSettings.CreateDisabled();
+            dcs.RetryIntervalForCopiesMs = Enumerable.Range(0, count).ToArray();
+            var newDcs = TestJsonSerializationRoundTrip(dcs);
+            Assert.NotNull(newDcs.RetryIntervalForCopies);
+            Assert.Equal(count, newDcs.RetryIntervalForCopies.Count);
         }
 
         [Fact]
@@ -70,6 +93,12 @@ namespace BuildXL.Cache.Host.Configuration.Test
                     }
                 }
             }
+        }
+
+        private DistributedContentSettings TestJsonSerializationRoundTrip(DistributedContentSettings dcs)
+        {
+            var serialized = JsonSerializer.Serialize(dcs, DeploymentUtilities.ConfigurationSerializationOptions);
+            return JsonSerializer.Deserialize<DistributedContentSettings>(serialized, DeploymentUtilities.ConfigurationSerializationOptions);
         }
 
         private DistributedContentSettings TestSerializationRoundTrip(DistributedContentSettings dcs)

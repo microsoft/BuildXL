@@ -220,6 +220,15 @@ namespace BuildXL.Cache.Host.Service
                         return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
                     }
 
+                    if (_currentRun != null && _currentRun.HasOnlyWatchedFileUpdates(manifest))
+                    {
+                        var deployResult = await DownloadAndDeployAsync(context, client, _currentRun, watchedFilesOnly: true);
+                        if (deployResult.Succeeded)
+                        {
+                            return BoolResult.WithSuccessMessage($"Manifest only has watched file changes versus active run. Id={manifest.ContentId}");
+                        }
+                    }
+
                     var hashes = manifest.Deployment.Select(f => new ContentHash(f.Value.Hash)).Distinct().ToList();
 
                     var deploymentTargetDirectoryPath =
@@ -238,7 +247,7 @@ namespace BuildXL.Cache.Host.Service
 
                     var pinResults = await Store.PinAsync(context, hashes, pinContext: deployedTool.PinRequest.PinContext, options: null);
 
-                    var result = await DownloadAndDeployAsync(context, client, deployedTool);
+                    var result = await DownloadAndDeployAsync(context, client, deployedTool, watchedFilesOnly: false);
                     if (!result)
                     {
                         directory.Dispose();
@@ -286,51 +295,58 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Download and store a single drop to CAS
         /// </summary>
-        private Task<BoolResult> DownloadAndDeployAsync(OperationContext context, IDeploymentServiceClient client, DeployedTool deploymentInfo)
+        private Task<BoolResult> DownloadAndDeployAsync(
+            OperationContext context,
+            IDeploymentServiceClient client,
+            DeployedTool deploymentInfo,
+            bool watchedFilesOnly)
         {
             var manifest = deploymentInfo.Manifest;
 
             return context.PerformOperationWithTimeoutAsync<BoolResult>(Tracer, async context =>
             {
                 // Stores files into CAS and populate file specs with hash and size info
-                var results = await DownloadQueue.SelectAsync(manifest.Deployment.GroupBy(kvp => kvp.Value.Hash), (filesByHash, index) =>
-                {
-                    var fileInfo = filesByHash.First().Value;
-                    var file = filesByHash.First().Key;
-                    var count = filesByHash.Count();
+                var results = await DownloadQueue.SelectAsync(
+                    deploymentInfo.GetFilesToDeploy(watchedFilesOnly).GroupBy(kvp => kvp.Value.Hash),
+                    (filesByHash, index) =>
+                    {
+                        var fileInfo = filesByHash.First().Value;
+                        var file = filesByHash.First().Key;
+                        var count = filesByHash.Count();
 
-                    context.Token.ThrowIfCancellationRequested();
+                        context.Token.ThrowIfCancellationRequested();
 
-                    return context.PerformOperationAsync(
-                        Tracer,
-                        async () =>
-                        {
-                            var hash = new ContentHash(filesByHash.Key);
-
-                            // Hash is not pinned. Need to download into cache
-                            if (!deploymentInfo.PinRequest.PinContext.Contains(hash))
+                        return context.PerformOperationAsync(
+                            Tracer,
+                            async () =>
                             {
-                                // Download the file matching the hash
-                                await DownloadFileAsync(context, client, fileInfo, deploymentInfo, file);
-                            }
+                                var hash = new ContentHash(filesByHash.Key);
 
-                            // Copy the file to additional deployment locations
-                            foreach (var additionalFile in filesByHash.Select(kvp => deploymentInfo.Directory.Path / kvp.Key))
-                            {
-                                await Store.PlaceFileAsync(
-                                    context,
-                                    hash,
-                                    additionalFile,
-                                    FileAccessMode.ReadOnly,
-                                    FileReplacementMode.ReplaceExisting,
-                                    FileRealizationMode.Any,
-                                    deploymentInfo.PinRequest).ThrowIfFailureAsync();
-                            }
+                                // Hash is not pinned. Need to download into cache
+                                if (!deploymentInfo.PinRequest.PinContext.Contains(hash))
+                                {
+                                    // Download the file matching the hash
+                                    await DownloadFileAsync(context, client, fileInfo, deploymentInfo, file);
+                                }
 
-                            return BoolResult.Success;
-                        },
-                        extraEndMessage: r => $"Hash={filesByHash.Key}, FirstFile={file}");
-                });
+                                // Copy the file to additional deployment locations
+                                foreach (var additionalFile in filesByHash.Select(kvp => kvp.Key))
+                                {
+                                    await Store.PlaceFileAsync(
+                                        context,
+                                        hash,
+                                        deploymentInfo.Directory.Path / additionalFile,
+                                        deploymentInfo.IsWatchedFile(additionalFile) ? FileAccessMode.Write : FileAccessMode.ReadOnly,
+                                        FileReplacementMode.ReplaceExisting,
+                                        FileRealizationMode.Any,
+                                        deploymentInfo.PinRequest).ThrowIfFailureAsync();
+                                }
+
+                                return BoolResult.Success;
+                            },
+                            caller: "DownloadAndPlaceFileAsync",
+                            extraEndMessage: r => $"Hash={filesByHash.Key}, FirstFile={file}");
+                    });
 
                 return results.FirstOrDefault(r => !r.Succeeded) ?? BoolResult.Success;
             },
@@ -406,7 +422,7 @@ namespace BuildXL.Cache.Host.Service
             /// <summary>
             /// The launcher manifest used to create tool deployment
             /// </summary>
-            public LauncherManifest Manifest { get; }
+            public LauncherManifest Manifest { get; set; }
 
             /// <summary>
             /// The directory containing the tool deployment
@@ -420,12 +436,73 @@ namespace BuildXL.Cache.Host.Service
 
             protected override Tracer Tracer { get; } = new Tracer(nameof(DeployedTool));
 
+            private HashSet<string> WatchedFiles { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             public DeployedTool(DeploymentLauncher launcher, LauncherManifest manifest, DisposableDirectory directory, PinContext pinContext)
             {
                 Launcher = launcher;
                 Manifest = manifest;
                 Directory = directory;
                 PinRequest = new PinRequest(pinContext);
+
+                foreach (var watchedFile in manifest.Tool.WatchedFiles)
+                {
+                    WatchedFiles.Add(NormalizeFilePath(watchedFile));
+                }
+            }
+
+            public IEnumerable<KeyValuePair<string, FileSpec>> GetFilesToDeploy(bool watchedFilesOnly)
+            {
+                if (!watchedFilesOnly)
+                {
+                    return Manifest.Deployment;
+                }
+                else
+                {
+                    return Manifest.Deployment.Where(kvp => IsWatchedFile(kvp.Key));
+                }
+            }
+
+            public bool IsWatchedFile(string path)
+            {
+                return WatchedFiles.Contains(NormalizeFilePath(path));
+            }
+
+            private string NormalizeFilePath(string path)
+            {
+                return path.Replace("\\", "/").Trim().TrimStart('/');
+            }
+
+            private string Normalize(LauncherManifest manifest)
+            {
+                var normalizedManifest = new LauncherManifest();
+
+                normalizedManifest.Tool = manifest.Tool;
+
+                foreach (var entry in manifest.Deployment)
+                {
+                    normalizedManifest.Deployment[NormalizeFilePath(entry.Key)] = new FileSpec()
+                    {
+                        Hash = entry.Value.Hash
+                    };
+                }
+
+                foreach (var watchedFile in manifest.Tool.WatchedFiles)
+                {
+                    normalizedManifest.Deployment.Remove(NormalizeFilePath(watchedFile));
+                }
+
+                return JsonSerializer.Serialize(normalizedManifest);
+            }
+
+            /// <summary>
+            /// Checks whether the only changes to manifest file are changes to watched files
+            /// </summary>
+            public bool HasOnlyWatchedFileUpdates(LauncherManifest newManifest)
+            {
+                var normalizedToolManifest = Normalize(Manifest);
+                var normalizedNewManifest = Normalize(newManifest);
+                return normalizedNewManifest == normalizedToolManifest;
             }
 
             /// <summary>

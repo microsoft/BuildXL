@@ -36,7 +36,7 @@ namespace BuildXL.Launcher.Server.Controllers
 
         [HttpPost]
         [Route("deployment")]
-        public async Task<ActionResult> GetAsync(DeploymentParameters parameters)
+        public async Task<ActionResult> GetLaunchManifestAsync(DeploymentParameters parameters)
         {
             OperationContext context = new OperationContext(new Context(parameters.ContextId, _logger));
 

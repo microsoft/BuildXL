@@ -79,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         }
 
         /// <nodoc />
-        private CloudStorageAccount CreateCloudStorageAccount()
+        public CloudStorageAccount CreateCloudStorageAccount()
         {
             if (!string.IsNullOrEmpty(ConnectionString))
             {

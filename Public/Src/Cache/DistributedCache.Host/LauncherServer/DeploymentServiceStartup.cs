@@ -37,10 +37,7 @@ namespace BuildXL.Launcher.Server
         {
             base.ConfigureServices(services);
 
-            var configurationFile = Configuration["ConfigurationPath"];
-            var configJson = File.ReadAllText(configurationFile);
-
-            var configuration = JsonSerializer.Deserialize<DeploymentServiceConfiguration>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);
+            var configuration = GetConfiguration();
 
             var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
             var arguments = new LoggerFactoryArguments(new Logger(consoleLog), new EnvironmentVariableHost(), configuration.LoggingSettings)
@@ -66,6 +63,20 @@ namespace BuildXL.Launcher.Server
                 });
                 return replacementLogger.Logger;
             });
+        }
+
+        private DeploymentServiceConfiguration GetConfiguration()
+        {
+            var configurationFile = Configuration["ConfigurationPath"];
+            if (configurationFile == null)
+            {
+                return new DeploymentServiceConfiguration();
+            }
+
+            var configJson = File.ReadAllText(configurationFile);
+
+            var configuration = JsonSerializer.Deserialize<DeploymentServiceConfiguration>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);
+            return configuration;
         }
     }
 }

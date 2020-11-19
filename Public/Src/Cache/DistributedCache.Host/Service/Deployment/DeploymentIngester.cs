@@ -118,6 +118,7 @@ namespace BuildXL.Cache.Host.Service
                 settings: new ContentStoreSettings()
                 {
                     TraceFileSystemContentStoreDiagnosticMessages = true,
+                    CheckFiles = false,
 
                     // Disable empty file shortcuts to ensure all content is always placed on disk
                     UseEmptyContentShortcut = false

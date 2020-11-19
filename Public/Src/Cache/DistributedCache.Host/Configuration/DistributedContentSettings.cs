@@ -417,35 +417,17 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? ServiceRunningLogInSeconds { get; set; }
 
-        private int[] _retryIntervalForCopiesMs =
-            new int[]
-            {
-                // retry the first 2 times quickly.
-                20,
-                200,
-
-                // then back-off exponentially.
-                1000,
-                5000,
-                10000,
-                30000,
-
-                // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
-                60000,
-                120000,
-            };
-
         /// <summary>
         /// Delays for retries for file copies
         /// </summary>
+        // NOTE: This must be null so that System.Text.Json serialization does not try to add to the
+        // collection which will fail because its an array and add is not supported. This may be fixed in
+        // newer versions of System.Text.Json. Also, changing to IReadOnlyList<int> fails DataContractSerialization
+        // which is needed by QuickBuild.
         [DataMember]
-        public int[] RetryIntervalForCopiesMs
-        {
-            get => _retryIntervalForCopiesMs ?? DefaultRetryIntervalForCopiesMs;
-            set => _retryIntervalForCopiesMs = value;
-        }
+        public int[] RetryIntervalForCopiesMs { get; set; }
 
-        public IReadOnlyList<TimeSpan> RetryIntervalForCopies => RetryIntervalForCopiesMs.Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
+        public IReadOnlyList<TimeSpan> RetryIntervalForCopies => (RetryIntervalForCopiesMs ?? DefaultRetryIntervalForCopiesMs).Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
 
         /// <summary>
         /// Controls the maximum total number of copy retry attempts

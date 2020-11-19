@@ -41,6 +41,13 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan SasUrlTimeToLive { get; set; } = TimeSpan.FromMinutes(10);
 
         /// <summary>
+        /// Indicates the Azure file share which should be used for generating SAS urls. If null,
+        /// blob storage is used.
+        /// NOTE: Content is assumed to already be present in file share
+        /// </summary>
+        public string AzureFileShareName { get; set; }
+
+        /// <summary>
         /// The name of the secret used to communicate to storage account
         /// </summary>
         public SecretConfiguration AzureStorageSecretInfo { get; set; }
@@ -84,6 +91,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// The identifier used to identify the service for service lifetime management and interruption
         /// </summary>
         public string ServiceId { get; set; }
+
+        /// <summary>
+        /// Files watched by the service which are updated in place by the launcher
+        /// </summary>
+        public IReadOnlyList<string> WatchedFiles { get; set; } = new string[0];
 
         /// <summary>
         /// The time to wait for service to shutdown before terminating the process
@@ -130,6 +142,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// The amount of time the secret can be cached before needing to be requeried
         /// </summary>
         public TimeSpan TimeToLive { get; set; }
+
+        /// <summary>
+        /// Overrides the key vault uri used to retrieve this secret
+        /// </summary>
+        public string OverrideKeyVaultUri { get; set; }
     }
 
     /// <summary>

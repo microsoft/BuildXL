@@ -29,6 +29,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 {
     public class DeploymentLauncherTests : TestBase
     {
+        public const string ConfigurationPathEnvironmentVariableName = "ConfigurationPath";
+
+        private static readonly string ConfigString = @"
+{
+    'Drops': [
+        {
+            'Url [Ring:Ring_0]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop1?root=release/win-x64',
+            'Url [Ring:Ring_1]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop2?root=debug',
+            'Url [Ring:Ring_2]': 'https://dev.azure.com/buildxlcachetest/drop/drops/dev/testdrop1?root=release/win-x64',
+            'TargetRelativePath': 'bin'
+        },
+        {
+            'Url': 'file://Env',
+        },
+        {
+            'TargetRelativePath': 'info',
+            'Url [Stamp:ST_S1]': 'file://Files/Foo.txt',
+            'Url [Stamp:ST_S2]': 'file://Env/Foo.txt',
+            'Url [Stamp:ST_S3]': 'file://Stamp3',
+        }
+    ],
+    'Proxy': {
+        'Seeds': 3,
+        'ServiceConfiguration': {
+            // NOTE: This should match the port used for grpc as asp.net server routes requests to grpc
+            'Port': 8105,
+            'RootPath': 'D:/cachedir/proxy',
+            'ProxyAddressTimeToLive': '5m',
+            'RetentionSizeGb': 5,
+            'DeploymentServiceUrl': 'https://buildxlcachetestdep.azurewebsites.net'
+        },
+        'TargetRelativePath': 'config/ProxyConfiguration.json'
+    },
+    'AzureStorageSecretInfo': { 'Name': 'myregionalStorage{Region:LA}', 'TimeToLive':'60m' },
+    'SasUrlTimeToLive': '3m',
+    'Tool [Environment:MyEnvRunningOnWindows]': {
+        'Executable': 'bin/service.exe',
+        'Arguments': 'myargs',
+        'EnvironmentVariables': {
+            'ConfigPath': '../Foo.txt'
+        }
+    }
+}
+".Replace("'", "\"");
+
         public DeploymentLauncherTests(ITestOutputHelper output = null)
             : base(TestGlobal.Logger, output)
         {
@@ -58,6 +103,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             var executableRelativePath = @"bin\casaas.exe";
             var serviceId = "testcasaas";
             var firstRunExecutableContent = "This is the content of casaas.exe for run 1";
+
+            var watchedConfigPath = "config/toolconfig.json";
+
+            var toolConfiguraiton = new ServiceLaunchConfiguration()
+            {
+                ServiceId = serviceId,
+                WatchedFiles = new[]
+                    {
+                        // Changing path case and separator to verify path is normalized
+                        // for categorizing watched files
+                        watchedConfigPath.Replace('/', '\\').ToUpper()
+                    },
+                Arguments = new[]
+                    {
+                        "arg1",
+                        "arg2",
+                        "arg3 with spaces"
+                    },
+                EnvironmentVariables =
+                    {
+                        { "hello", "world" },
+                        { "foo", "bar" },
+                        { ConfigurationPathEnvironmentVariableName, $"%ServiceDir%/{watchedConfigPath}" }
+                    },
+                Executable = @"bin\casaas.exe",
+                ShutdownTimeoutSeconds = 60,
+            };
+
+            var configContent1 = "Config content 1";
             var manifest = new LauncherManifestWithExtraMembers()
             {
                 IsComplete = true,
@@ -65,11 +139,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 Deployment = new DeploymentManifest.LayoutSpec()
                 {
                     { executableRelativePath, host.TestClient.AddContent(firstRunExecutableContent) },
-                    { @"bin\lib.dll", host.TestClient.AddContent("This is the content of lib.dll") }
+                    { @"bin\lib.dll", host.TestClient.AddContent("This is the content of lib.dll") },
+                    { watchedConfigPath, host.TestClient.AddContent(configContent1) },
                 },
                 Tool = new ServiceLaunchConfiguration()
                 {
                     ServiceId = serviceId,
+                    WatchedFiles = new[]
+                    {
+                        // Changing path case and separator to verify path is normalized
+                        // for categorizing watched files
+                        watchedConfigPath.Replace('/', '\\').ToUpper()
+                    },
                     Arguments = new[]
                     {
                         "arg1",
@@ -79,7 +160,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                     EnvironmentVariables =
                     {
                         { "hello", "world" },
-                        { "foo", "bar" }
+                        { "foo", "bar" },
+                        { ConfigurationPathEnvironmentVariableName, $"%ServiceDir%/{watchedConfigPath}" }
                     },
                     Executable = @"bin\casaas.exe",
                     ShutdownTimeoutSeconds = 60,

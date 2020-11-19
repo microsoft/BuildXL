@@ -2247,6 +2247,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <returns>Whether a bad entry was removed.</returns>
         private async Task<bool> RemoveEntryIfNotOnDiskAsync(Context context, ContentHash contentHash)
         {
+            // Don't need to do this check if check files is disabled
+            if (!_settings.CheckFiles)
+            {
+                return false;
+            }
+
             var primaryPath = GetPrimaryPathFor(contentHash);
             if (!FileSystem.FileExists(primaryPath) && (await ContentDirectory.RemoveAsync(contentHash) != null))
             {

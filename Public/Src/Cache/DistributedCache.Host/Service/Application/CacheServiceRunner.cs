@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -28,6 +29,50 @@ namespace BuildXL.Cache.Host.Service
 {
     public static class CacheServiceRunner
     {
+        /// <summary>
+        /// Loads a configuration object from preprocessed json and watches files for changes.
+        /// When result config value changes, teardown will be requested.
+        /// </summary>
+        public static TResultConfig LoadAndWatchPreprocessedConfig<TConfig, TResultConfig>(
+            OperationContext context,
+            string configurationPath,
+            HostParameters hostParameters,
+            out string configHash,
+            Func<TConfig, TResultConfig> extractConfig,
+            Action<Context, string> requestTeardown = null,
+            TimeSpan? pollingInterval = null)
+        {
+            requestTeardown ??= (context, reason) => LifetimeManager.RequestTeardown(context, reason);
+            pollingInterval ??= TimeSpan.FromSeconds(5);
+
+               var config = LoadPreprocessedConfig<TConfig>(configurationPath, out configHash, hostParameters);
+            var resultConfig = extractConfig(config);
+
+            var resultConfigString = JsonSerializer.Serialize(resultConfig);
+
+            DeploymentUtilities.WatchFileAsync(
+                configurationPath,
+                context.Token,
+                pollingInterval.Value,
+                onChanged: () =>
+                {
+                    var newConfig = LoadPreprocessedConfig<TConfig>(configurationPath, out _, hostParameters);
+                    var newResultConfig = extractConfig(newConfig);
+                    var newResultConfigString = JsonSerializer.Serialize(resultConfig);
+                    if (newResultConfigString != resultConfigString)
+                    {
+                        resultConfigString = newResultConfigString;
+                        requestTeardown(context, "Configuration changed: " + configurationPath);
+                    }
+                },
+                onError: ex =>
+                {
+                    requestTeardown(context, "Error: " + ex.ToString());
+                });
+
+            return resultConfig;
+        }
+
         /// <summary>
         /// Loads a configuration object from preprocessed json
         /// </summary>
@@ -62,7 +107,16 @@ namespace BuildXL.Cache.Host.Service
             try
             {
                 hostParameters ??= HostParameters.FromEnvironment();
-                var config = LoadPreprocessedConfig<DistributedCacheServiceConfiguration>(configurationPath, out var configHash, hostParameters);
+
+                using var cancellableContext = new CancellableOperationContext(context, default(CancellationToken));
+                context = cancellableContext;
+
+                var config = LoadAndWatchPreprocessedConfig<DistributedCacheServiceConfiguration, DistributedCacheServiceConfiguration>(
+                    context,
+                    configurationPath,
+                    hostParameters,
+                    out var configHash,
+                    c => c);
 
                 await ServiceLifetimeManager.RunDeployedInterruptableServiceAsync(context, async token =>
                 {

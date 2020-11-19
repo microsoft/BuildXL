@@ -65,7 +65,7 @@ namespace BuildXL.Launcher.Server
         /// <summary>
         /// Map for getting expirable secrets by name, kind, and time to live
         /// </summary>
-        private VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>> CachedSecrets { get; }
+        private VolatileMap<(ISecretsProvider secretsProvider, string secretName, SecretKind kind), AsyncLazy<string>> CachedSecrets { get; }
 
         /// <summary>
         /// Map from storage account secret name to target storage account
@@ -102,7 +102,7 @@ namespace BuildXL.Launcher.Server
             SasUrls = new VolatileMap<(string storageName, string hash), AsyncLazy<DownloadInfo>>(clock);
             SasUrlsByToken = new VolatileMap<string, string>(clock);
             CachedDeploymentInfo = new VolatileMap<string, Lazy<object>>(clock);
-            CachedSecrets = new VolatileMap<(string secretName, SecretKind kind), AsyncLazy<string>>(clock);
+            CachedSecrets = new VolatileMap<(ISecretsProvider, string, SecretKind), AsyncLazy<string>>(clock);
             ProxyManagers = new VolatileMap<string, Lazy<ProxyManager>>(clock);
 
             UploadQueue = new ActionQueue(uploadConcurrency);
@@ -216,7 +216,7 @@ namespace BuildXL.Launcher.Server
                         resultManifest.ContentId += $"_{secretsContentId}";
                     }
 
-                    var storage = await LoadStorageAsync(context, secretsProvider, deployConfig.AzureStorageSecretInfo);
+                    var storage = await LoadStorageAsync(context, secretsProvider, deployConfig.AzureStorageSecretInfo, deployConfig.AzureFileShareName);
 
                     var proxyBaseAddress = GetProxyBaseAddress(context, () => (deployConfig, deploymentManifest), parameters);
 
@@ -339,7 +339,7 @@ namespace BuildXL.Launcher.Server
         {
             return GetOrAddExpirableAsync(
                 CachedSecrets,
-                (secretInfo.Name, secretInfo.Kind),
+                (secretsProvider, secretInfo.Name, secretInfo.Kind),
                 secretInfo.TimeToLive,
                 () =>
                 {
@@ -369,22 +369,41 @@ namespace BuildXL.Launcher.Server
                 });
         }
 
-        private Task<CentralStorage> LoadStorageAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration storageSecretInfo)
+        private async Task<CentralStorage> LoadStorageAsync(OperationContext context, ISecretsProvider secretsProvider, SecretConfiguration storageSecretInfo, string fileShare)
         {
-            return GetOrAddExpirableAsync<string, CentralStorage>(
+            if (storageSecretInfo.OverrideKeyVaultUri != null)
+            {
+                secretsProvider = await GetSecretsProviderAsync(context, storageSecretInfo.OverrideKeyVaultUri);
+            }
+
+            return await GetOrAddExpirableAsync<string, CentralStorage>(
                 StorageAccountsBySecretName,
                 storageSecretInfo.Name,
                 storageSecretInfo.TimeToLive,
                 async () =>
                 {
-                    var secretValue = await GetSecretAsync(context, secretsProvider, storageSecretInfo);
+                var secretValue = await GetSecretAsync(context, secretsProvider, storageSecretInfo);
 
-                    var credentials = new AzureBlobStorageCredentials(new PlainTextSecret(secretValue));
+                var credentials = new AzureBlobStorageCredentials(new PlainTextSecret(secretValue));
 
-                    CentralStorage centralStorage = OverrideCreateCentralStorage?.Invoke((storageSecretInfo.Name, credentials))
-                        ?? new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
-                            containerName: "deploymentfiles",
-                            checkpointsKey: "N/A"));
+                CentralStorage centralStorage;
+
+                    if (OverrideCreateCentralStorage != null)
+                    {
+                        centralStorage = OverrideCreateCentralStorage.Invoke((storageSecretInfo.Name, credentials));
+                    }
+                    else if (!string.IsNullOrEmpty(fileShare))
+                    {
+                        centralStorage = new AzureFilesCentralStorage(new BlobCentralStoreConfiguration(credentials,
+                                containerName: fileShare,
+                                checkpointsKey: "N/A"));
+                    }
+                    else
+                    {
+                        centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
+                                 containerName: "deploymentfiles",
+                                 checkpointsKey: "N/A"));
+                    }
 
                     await centralStorage.StartupAsync(context).ThrowIfFailure();
 

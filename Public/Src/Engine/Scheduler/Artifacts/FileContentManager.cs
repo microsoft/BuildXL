@@ -3595,8 +3595,6 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void LogStats(LoggingContext loggingContext)
         {
-            CheckPathsWithNoFileArtifacts(loggingContext);
-
             Logger.Log.StorageCacheContentHitSources(loggingContext, m_cacheContentSource);
 
             Dictionary<string, long> statistics = new Dictionary<string, long> { { Statistics.TotalCacheSizeNeeded, m_stats.TotalCacheSizeNeeded } };
@@ -3664,10 +3662,15 @@ namespace BuildXL.Scheduler.Artifacts
             return m_originTasks[(int)origin];
         }
 
-        private void CheckPathsWithNoFileArtifacts(LoggingContext loggingContext)
+        /// <summary>
+        /// Returns paths that
+        /// 1) FileContentManager was asked to materialize,
+        /// 2) were not known at the time at the time of a materialization request, and
+        /// 3) are currently known.
+        /// </summary>
+        internal List<AbsolutePath> GetPathsRegisteredAfterMaterializationCall()
         {
-            using var pooledList = Pools.GetAbsolutePathList();
-            var pathsWithAvailableArtifacts = pooledList.Instance;
+            var pathsWithAvailableArtifacts = new List<AbsolutePath>();
 
             foreach (var path in m_pathsWithoutFileArtifact.UnsafeGetList())
             {
@@ -3679,13 +3682,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            if (pathsWithAvailableArtifacts.Count > 0)
-            {
-                Logger.Log.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(
-                    loggingContext,
-                    pathsWithAvailableArtifacts.Count,
-                    $"{Environment.NewLine}{string.Join(Environment.NewLine, pathsWithAvailableArtifacts.Select(p => p.ToString(Context.PathTable)))}");
-            }
+            return pathsWithAvailableArtifacts;
         }
 
         /// <summary>

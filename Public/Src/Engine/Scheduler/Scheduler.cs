@@ -1583,8 +1583,16 @@ namespace BuildXL.Scheduler
                     Logger.Log.ModuleWorkerMapping(m_loggingContext, strBuilder.ToString());
                 }
 
+                var failedPaths = m_fileContentManager.GetPathsRegisteredAfterMaterializationCall();
+                if (failedPaths.Count > 0)
+                {
+                    Logger.Log.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(
+                        m_loggingContext,
+                        failedPaths.Count,
+                        $"{Environment.NewLine}{string.Join(Environment.NewLine, failedPaths.Select(p => p.ToString(Context.PathTable)))}");
+                }
 
-                return !HasFailed && shutdownServicesSucceeded;
+                return !HasFailed && shutdownServicesSucceeded && failedPaths.Count == 0;
             }
         }
 

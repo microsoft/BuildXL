@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _distributedStore = distributedStore;
 
-            _tracer = new ContentStoreInternalTracer(settings);
+            _tracer = new ContentStoreInternalTracer(settings, rootPath);
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
 
             RootPath = rootPath;

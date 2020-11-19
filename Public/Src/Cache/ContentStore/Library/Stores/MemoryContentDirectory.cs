@@ -70,8 +70,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly AbsolutePath _backupFilePath;
         private readonly IContentDirectoryHost? _host;
 
+        private readonly Tracer _tracer;
+
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(MemoryContentDirectory));
+        protected override Tracer Tracer => _tracer;
+
         private string Name => Tracer.Name;
 
         private bool ContentDirectoryInitialized => _initializeContentDirectory?.IsCompleted == true;
@@ -103,6 +106,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);
 
+            _tracer = new Tracer($"{nameof(MemoryContentDirectory)}({directoryPath})");
+
             _fileSystem = fileSystem;
             _filePath = directoryPath / BinaryFileName;
             _backupFilePath = directoryPath / BinaryBackupFileName;
@@ -125,21 +130,21 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 _header = await DeserializeHeaderAsync(context, _filePath);
                 _initializeContentDirectory = InitializeContentDirectoryAsync(context, _header, _filePath, isLoadingBackup: false);
-                Tracer.Info(context, $"{Name} starting with {_header.EntryCount} entries.");
+                Tracer.Info(context, $"{Name} starting with {_header.EntryCount} entries");
             }
             else if (_fileSystem.FileExists(_backupFilePath))
             {
                 var backupHeader = await DeserializeHeaderAsync(context, _backupFilePath);
                 _header = new MemoryContentDirectoryHeader();
                 _initializeContentDirectory = InitializeContentDirectoryAsync(context, backupHeader, _backupFilePath, isLoadingBackup: true);
-                Tracer.Info(context, $"{Name} starting with {backupHeader.EntryCount} entries from backup file.");
+                Tracer.Info(context, $"{Name} starting with {backupHeader.EntryCount} entries from backup file");
             }
             else
             {
                 _header = new MemoryContentDirectoryHeader();
                 _initializeContentDirectory = InitializeContentDirectoryAsync(context, _header, path: null, isLoadingBackup: false);
 
-                Tracer.Info(context, $"{Name} starting with {ContentDirectory.Count} entries from no file.");
+                Tracer.Info(context, $"{Name} starting with {ContentDirectory.Count} entries from no file");
             }
 
             // Tracing initialization asynchronously.
@@ -149,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // Touching ContentDirectory only if the initialization was successful.
                     if (t.IsCompleted)
                     {
-                        Tracer.Info(context, $"{Name} started with {ContentDirectory.Count} entries.");
+                        Tracer.Info(context, $"{Name} started with {ContentDirectory.Count} entries");
                     }
                     else if (t.IsFaulted)
                     {
@@ -298,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     directoryHeader.MagicFlag = headerContext.DeserializeByte();
                     if (directoryHeader.MagicFlag != BinaryFormatMagicFlag)
                     {
-                        throw new CacheException("{0} binary format missing magic flag", Name);
+                        throw new CacheException("{0}({1}) binary format missing magic flag", Name, path);
                     }
 
                     directoryHeader.Version = headerContext.DeserializeByte();
@@ -314,7 +319,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                     else
                     {
-                        throw new CacheException("{0} expected {1} but read binary format version {2}", Name, BinaryFormatVersion, directoryHeader.Version);
+                        throw new CacheException("{0}({3}) expected {1} but read binary format version {2}", Name, BinaryFormatVersion, directoryHeader.Version, path);
                     }
 
                     return directoryHeader;
@@ -368,7 +373,9 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     return contentDirectory;
                 },
-                _counters[MemoryContentDirectoryCounters.InitializeContentDirectory]).ThrowIfFailure();
+                extraStartMessage: $"Path=[{path}]",
+                extraEndMessage: _ => $"Path=[{path}]",
+                counter: _counters[MemoryContentDirectoryCounters.InitializeContentDirectory]).ThrowIfFailure();
 
             return result.Value!;
         }
@@ -469,7 +476,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     await TaskSafetyHelpers.WhenAll(tasks);
 
-                    Tracer.Debug(context, $"{Name}: Loaded content directory with {entries.Count} entries by {sw.ElapsedMilliseconds}ms: TotalContentSize={totalSize}, TotalUniqueSize={totalUniqueSize}, TotalReplicaCount={totalReplicaCount}, OldestContentTime={DateTime.FromFileTimeUtc(oldestContentAccessTimeUtc)}.");
+                    Tracer.Debug(context, $"{Name}({path}): Loaded content directory with {entries.Count} entries by {sw.ElapsedMilliseconds}ms: TotalContentSize={totalSize}, TotalUniqueSize={totalUniqueSize}, TotalReplicaCount={totalReplicaCount}, OldestContentTime={DateTime.FromFileTimeUtc(oldestContentAccessTimeUtc)}.");
 
                     if (entries.Count == header.EntryCount)
                     {
@@ -491,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (Exception exception)
             {
-                Tracer.Warning(context, $"{Name} failed to deserialize {FilePath} - starting with empty directory: {exception}");
+                Tracer.Warning(context, $"{Name}({path}) failed to deserialize {FilePath} - starting with empty directory: {exception}");
                 contentDirectory.Clear();
             }
 
@@ -654,7 +661,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var r = await contentDirectory.StartupAsync(context);
                     if (!r)
                     {
-                        throw new CacheException($"Failed to startup {nameof(MemoryContentDirectory)} for transformation. {r}.");
+                        throw new CacheException($"Failed to startup {nameof(MemoryContentDirectory)}({directoryPath}) for transformation. {r}.");
                     }
 
                     foreach (var entry in contentDirectory.ContentDirectory)

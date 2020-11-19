@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             IDistributedLocationStore? distributedStore)
         {
             _contentStoreTracer = tracer;
-            Tracer = new Tracer(name: Component);
+            Tracer = new Tracer(name: $"{Component}({store.RootPath})");
             _allContentSize = configuration.ContentDirectorySize;
             _token = token;
             _store = store;

@@ -75,12 +75,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly bool _traceDiagnosticEvents;
         private readonly TimeSpan _longOperationDurationThreshold;
 
-        public ContentStoreInternalTracer(ContentStoreSettings? settings)
-            : this(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? true, settings.GetLongOperationDurationThreshold())
-        { }
-
-        public ContentStoreInternalTracer(bool traceDiagnosticEvents, TimeSpan longOperationDurationThreshold)
-            : base(FileSystemContentStoreInternal.Component)
+        public ContentStoreInternalTracer(ContentStoreSettings? settings, AbsolutePath rootPath)
+            : base($"{FileSystemContentStoreInternal.Component}({rootPath})")
         {
             CallCounters.Add(_createHardLinkCallCounter = new CallCounter(CreateHardLinkCallName));
             CallCounters.Add(_placeFileCopyCallCounter = new CallCounter(PlaceFileCopyCallName));
@@ -103,8 +99,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _counters.Add(_evictFilesCount = new Counter(EvictFilesCountName));
             _counters.Add(_reconstructCallExceptionCounter = new Counter(ReconstructCallExceptionName));
 
-            _traceDiagnosticEvents = traceDiagnosticEvents;
-            _longOperationDurationThreshold = longOperationDurationThreshold;
+            _traceDiagnosticEvents = settings?.TraceFileSystemContentStoreDiagnosticMessages ?? true;
+            _longOperationDurationThreshold = settings.GetLongOperationDurationThreshold();
         }
 
         public override CounterSet GetCounters()

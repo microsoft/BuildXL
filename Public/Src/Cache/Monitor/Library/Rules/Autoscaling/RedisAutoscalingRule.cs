@@ -52,13 +52,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
             if (!_primaryRedisInstance.IsReadyToScale)
             {
-                Emit(context, "Autoscale", Severity.Info, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation");
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_primaryRedisInstance.State}]");
                 return;
             }
 
             if (!_secondaryRedisInstance.IsReadyToScale)
             {
-                Emit(context, "Autoscale", Severity.Info, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation");
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_secondaryRedisInstance.State}]");
                 return;
             }
 
@@ -70,13 +70,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
             if (!_primaryRedisInstance.IsReadyToScale)
             {
-                Emit(context, "Autoscale", Severity.Info, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation");
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_primaryRedisInstance.State}]");
                 return;
             }
 
             if (!_secondaryRedisInstance.IsReadyToScale)
             {
-                Emit(context, "Autoscale", Severity.Info, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation");
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_secondaryRedisInstance.State}]");
                 return;
             }
 

@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Monitor.App.Rules;
@@ -11,6 +10,7 @@ using BuildXL.Cache.Monitor.App.Scheduling;
 using Kusto.Data.Common;
 using System.Text.Json;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
+using BuildXL.Cache.Monitor.App;
 
 namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 {
@@ -29,10 +29,10 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 
             public Thresholds<double> ReimageRateThresholds = new Thresholds<double>()
             {
-                Info = 0,
-                Warning = 0.01,
-                Error = 0.1,
-                Fatal = 0.2,
+                Info = 0.01,
+                Warning = 0.1,
+                Error = 0.2,
+                Fatal = 0.3,
             };
         }
 
@@ -51,6 +51,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
         internal class Result
         {
             public string Stamp = string.Empty;
+            public string Service = string.Empty;
             public ulong Total;
             public ulong Reimaged;
             public string Machines = string.Empty;
@@ -59,13 +60,16 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 
         public override async Task Run(RuleContext context)
         {
+            // There is a lot of drama here around whether the Launcher is running or not. This is because the launcher
+            // launcher creates its own MemoryContentDirectory, so the only message that we can use to do this is used
+            // for two different reasons.
             var query =
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between (start .. end)
-                | summarize Total=dcount(Machine), Reimaged=dcountif(Machine, Message has 'MemoryContentDirectory starting with 0 entries from no file'), Machines=make_set_if(Machine, Message has 'MemoryContentDirectory starting with 0 entries from no file') by Stamp
+                | summarize Total=dcount(Machine), Reimaged=dcountif(Machine, Message has 'MemoryContentDirectory starting with 0 entries from no file'), Machines=make_set_if(Machine, Message has 'MemoryContentDirectory starting with 0 entries from no file') by Stamp, Service
                 | extend Machines=tostring(Machines)
                 | where not(isnull(Total))";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
@@ -79,7 +83,18 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                     return;
                 }
 
-                var result = results.First();
+                // We skip stamps with the Launcher because things get really weird. This should be removed in the near future.
+                var isLauncherRunning = results.Any(r => r.Service.Equals(Constants.CacheService, StringComparison.InvariantCultureIgnoreCase));
+                if (isLauncherRunning)
+                {
+                    return;
+                }
+                
+                var result = results.Where(r => r.Service.Equals(Constants.ContentAddressableStoreService, StringComparison.InvariantCultureIgnoreCase)).First();
+                if (result.Reimaged == 0)
+                {
+                    return;
+                }
 
                 var reimageRate = result.Reimaged / (double)result.Total;
                 _configuration.ReimageRateThresholds.Check(

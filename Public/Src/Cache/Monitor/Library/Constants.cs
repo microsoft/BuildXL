@@ -14,20 +14,22 @@ namespace BuildXL.Cache.Monitor.App
 
             Cancelled,
 
-            Faiilure,
+            Failure,
 
             CriticalFailure
         }
 
-        public static string ServiceName { get; } = "ContentAddressableStoreService";
+        public static string CacheService { get; } = "CacheService";
 
-        public static string MasterServiceName { get; } = "ContentAddressableStoreMasterService";
+        public static string ContentAddressableStoreService { get; } = "ContentAddressableStoreService";
 
-        public static TimeSpan KustoIngestionDelay { get; } = TimeSpan.FromMinutes(5);
+        public static string ContentAddressableStoreMasterService { get; } = "ContentAddressableStoreMasterService";
 
-        public static string OldTableName { get; } = "CloudBuildLogEvent";
+        public static TimeSpan KustoIngestionDelay { get; } = TimeSpan.FromMinutes(10);
 
-        public static string NewTableName { get; } = "CloudCacheLogEvent";
+        public static string CloudBuildLogEvent { get; } = "CloudBuildLogEvent";
+
+        public static string CloudCacheLogEvent { get; } = "CloudCacheLogEvent";
 
         public static string DefaultKustoClusterUrl { get; } = "https://cbuild.kusto.windows.net";
 

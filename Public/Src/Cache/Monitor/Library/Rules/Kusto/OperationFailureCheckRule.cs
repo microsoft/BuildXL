@@ -95,7 +95,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     table('{_configuration.CacheTableName}')
                     | where PreciseTimeStamp between (start .. end)
                     | where Operation == '{_configuration.Check.Match}' and isnotempty(Duration)
-                    | where Result == '{Constants.ResultCode.Faiilure}' // Looking only at failures
+                    | where Result == '{Constants.ResultCode.Failure}' // Looking only at failures
                     | where {_configuration.Check.Constraint}
                     | project PreciseTimeStamp, Machine, Message, CorrelationId, Stamp, Operation, Component
                     | parse Message with * 'result=[' Result:string '].' *

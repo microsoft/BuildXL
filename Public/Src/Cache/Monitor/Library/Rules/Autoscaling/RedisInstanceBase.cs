@@ -23,6 +23,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
         public string Name => RedisCache.Name;
 
+        public string State => RedisCache.ProvisioningState;
+
         public bool IsReadyToScale => RedisCache.ProvisioningState == "Succeeded";
 
         public RedisClusterSize ClusterSize { get; private set; }

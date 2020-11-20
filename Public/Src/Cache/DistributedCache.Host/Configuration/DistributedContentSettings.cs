@@ -630,13 +630,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsMasterEligible { get; set; } = false;
 
-        /// <summary>
-        /// Disabling reconciliation is an unsafe option that can cause builds to fail because the machine's state can be off compared to the LLS's state.
-        /// Please do not set this property for long period of time. 
-        /// </summary>
-        [DataMember]
-        public bool Unsafe_DisableReconciliation { get; set; } = false;
-
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int ReconciliationCycleFrequencyMinutes { get; set; } = 30;
@@ -651,6 +644,18 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(0, 1)]
         public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
+
+        [DataMember]
+        [Validation.Enum(typeof(ReconciliationMode))]
+        public string ReconcileMode { get; set; } = ReconciliationMode.Once.ToString();
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int ReconciliationAddLimit { get; set; } = 100_000;
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int ReconciliationRemoveLimit { get; set; } = 1_000_000;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;

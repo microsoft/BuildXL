@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -87,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (LocalLocationStore.ClusterState.TryResolveMachineId(LocalMachineLocation, out var localMachineId))
                 {
                     LocalMachineId = localMachineId;
-                    if (_configuration.EnableReconciliation)
+                    if (_configuration.ReconcileMode == ReconciliationMode.Once)
                     {
                         await ReconcileAfterInitializationAsync(context)
                             .FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization)
@@ -102,6 +103,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return new BoolResult($"Unable to resolve machine id for location {LocalMachineLocation} in cluster state.");
                 }
+
+                LocalLocationStore.PostInitialization(LocalMachineId, LocalContentStore);
             }
 
             return success;

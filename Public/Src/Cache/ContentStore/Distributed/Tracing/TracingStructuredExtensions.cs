@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -213,7 +214,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
             var message = $"{tracer.Name}: Starting content location store. "
                           + "Features: "
-                          + $"ReconciliationEnabled={configuration.EnableReconciliation}, "
+                          + $"ReconciliationEnabled={configuration.ReconcileMode > ReconciliationMode.None}, "
                           + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "
                           + $"IncrementalCheckpointing={configuration.Checkpoint?.UseIncrementalCheckpointing == true}, "

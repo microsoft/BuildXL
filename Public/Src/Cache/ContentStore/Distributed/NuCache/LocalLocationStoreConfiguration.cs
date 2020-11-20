@@ -8,6 +8,7 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -191,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <remarks>
         /// Reconciliation is a very critical feature and disabling it can cause build failures because machine's state can be out of sync with LLS's data.
         /// </remarks>
-        public bool EnableReconciliation { get; set; } = true;
+        public ReconciliationMode ReconcileMode { get; set; } = ReconciliationMode.Once;
 
         /// <summary>
         /// Indicates whether post-initialization steps (like reconciliation or processing state from the central store) are inlined during initialization. If false, operation is executed asynchronously and not awaited.
@@ -234,6 +235,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Defaults to 0 if <see cref="ReconciliationMaxRemoveHashesCycleSize"/> is enabled but this isn't
         /// </summary>
         public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
+
+        /// <summary>
+        /// Maximum adds for local content without a record in a reconciliaton cycle when <see cref="ReconcileMode"/> is checkpoint mode
+        /// </summary>
+        public int? ReconciliationAddLimit { get; set; } = null;
+
+        /// <summary>
+        /// Maximum removes for records without local content in a reconciliaton cycle when <see cref="ReconcileMode"/> is checkpoint mode
+        /// </summary>
+        public int? ReconciliationRemoveLimit { get; set; } = null;
 
         /// <summary>
         /// Threshold under which proactive replication will be activated.

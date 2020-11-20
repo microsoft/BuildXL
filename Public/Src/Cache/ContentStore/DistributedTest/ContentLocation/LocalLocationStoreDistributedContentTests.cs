@@ -44,6 +44,7 @@ using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -852,7 +853,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task TestEvictionBelowMinimumAge()
         {
-            ConfigureWithOneMaster(s => s.Unsafe_DisableReconciliation = false);
+            ConfigureWithOneMaster(s => s.ReconcileMode = ReconciliationMode.Once.ToString());
 
             await RunTestAsync(
                 new Context(Logger),
@@ -882,7 +883,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             ConfigureWithOneMaster(s =>
             {
-                s.Unsafe_DisableReconciliation = false;
+                s.ReconcileMode = ReconciliationMode.Once.ToString();
 
                 // Walk through the various modes (one per iteration)
                 // to test behavior of transitioning between modes. Namely,
@@ -1180,7 +1181,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(false)]
         public async Task TestGetHashesInEvictionOrder(bool reverse)
         {
-            _overrideDistributed = s => s.Unsafe_DisableReconciliation = false;
+            _overrideDistributed = s => s.ReconcileMode = ReconciliationMode.Once.ToString();
             ConfigureWithOneMaster();
 
             await RunTestAsync(
@@ -1330,6 +1331,53 @@ namespace ContentStoreTest.Distributed.Sessions
             cycles.Should().Be(1);
         }
 
+        [Fact]
+        public async Task TestReconciliationCheckpoint()
+        {
+            ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
+
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 100, reconcilePerCheckpoint: true);
+            cycles.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task TestReconciliationCheckpointMultipleCycles()
+        {
+            ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
+
+            // add/remove counts must be greater than the limits to trigger multiple cycles
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 200, reconcilePerCheckpoint: true);
+
+            // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
+            // We finish the adds in the first 2 cycles.
+            cycles.Should().Be(3); 
+        }
+
+        [Fact]
+        public async Task TestReconciliationCheckpointOnlyRemovals()
+        {
+            ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
+
+            // add/remove counts must be greater than the limits to trigger multiple cycles
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 300, addCount: 0, reconcilePerCheckpoint: true);
+
+            // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
+            cycles.Should().Be(3);
+        }
+
+        [Fact]
+        public async Task TestReconciliationCheckpointNoUpdates()
+        {
+            ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
+
+            // add/remove counts must be greater than the limits to trigger multiple cycles
+            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 0, addCount: 0, reconcilePerCheckpoint: true);
+
+            // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
+            // We finish the adds in the first 2 cycles.
+            cycles.Should().Be(1);
+        }
+
         private void ConfigureReconciliation(
             int reconciliationMaxCycleSize,
             int? reconciliationMaxRemoveHashesCycleSize,
@@ -1340,7 +1388,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                    {
                                        s.LogReconciliationHashes = true;
                                        s.UseContextualEntryDatabaseOperationLogging = true;
-                                       s.Unsafe_DisableReconciliation = false;
+                                       s.ReconcileMode = ReconciliationMode.Once.ToString();
                                        s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
                                        s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
                                        s.ReconciliationMaxRemoveHashesAddPercentage = reconciliationMaxRemoveHashesAddPercentage;
@@ -1360,7 +1408,23 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        private async Task<long> ReconcileAndGetNumberOfReconciliationCycles(int removeCount, int addCount)
+        private void ConfigureReconciliationPerCheckpoint(int addLimit, int removeLimit)
+        {
+            ConfigureWithOneMaster(s =>
+            {
+                s.LogReconciliationHashes = true;
+                s.UseContextualEntryDatabaseOperationLogging = true;
+                s.ReconcileMode = ReconciliationMode.Checkpoint.ToString();
+                s.ReconciliationAddLimit = addLimit;
+                s.ReconciliationRemoveLimit = removeLimit;
+            },
+                r =>
+                {
+                    r.AllowSkipReconciliation = false;
+                });
+        }
+
+        private async Task<long> ReconcileAndGetNumberOfReconciliationCycles(int removeCount, int addCount, bool reconcilePerCheckpoint = false)
         {
             ThreadSafeRandom.SetSeed(1);
 
@@ -1381,7 +1445,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // We will always have exactly one reconciliation call as we start up. Since we don't have any
                     // content, it should do a single cycle.
-                    var initialReconciliationCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
+                    var initialReconciliationCycles = reconcilePerCheckpoint ? worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value : worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
 
                     var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
 
@@ -1413,7 +1477,21 @@ namespace ContentStoreTest.Distributed.Sessions
                             .BeFalse();
                     }
 
-                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: true);
+                    if (reconcilePerCheckpoint)
+                    {
+                        if (removeCount == 0 && addCount == 0)
+                        {
+                            await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
+                        }
+                        while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value != addCount || worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value != removeCount)
+                        {
+                            await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
+                        }
+                    }
+                    else
+                    {
+                        await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: true);
+                    }
 
                     int removedIndex = 0;
                     foreach (var removedHash in removedHashes)
@@ -1429,7 +1507,8 @@ namespace ContentStoreTest.Distributed.Sessions
                             .BeTrue(addedHash.ToString());
                     }
 
-                    numberOfCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value - initialReconciliationCycles;
+                    var finalCycles = reconcilePerCheckpoint ? worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value : worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
+                    numberOfCycles = finalCycles - initialReconciliationCycles;
                 });
 
             return numberOfCycles;

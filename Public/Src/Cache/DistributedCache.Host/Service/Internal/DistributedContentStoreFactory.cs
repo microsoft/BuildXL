@@ -558,12 +558,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.SafeToLazilyUpdateMachineCountThreshold,
                 value => configuration.SafeToLazilyUpdateMachineCountThreshold = value);
 
-            configuration.EnableReconciliation = !_distributedSettings.Unsafe_DisableReconciliation;
+            ApplyEnumIfNotNull<ReconciliationMode>(_distributedSettings.ReconcileMode, v => configuration.ReconcileMode = v);
 
             configuration.ReconciliationCycleFrequency = TimeSpan.FromMinutes(_distributedSettings.ReconciliationCycleFrequencyMinutes);
             configuration.ReconciliationMaxCycleSize = _distributedSettings.ReconciliationMaxCycleSize;
             configuration.ReconciliationMaxRemoveHashesCycleSize = _distributedSettings.ReconciliationMaxRemoveHashesCycleSize;
             configuration.ReconciliationMaxRemoveHashesAddPercentage = _distributedSettings.ReconciliationMaxRemoveHashesAddPercentage;
+
+            configuration.ReconciliationAddLimit = _distributedSettings.ReconciliationAddLimit;
+            configuration.ReconciliationRemoveLimit = _distributedSettings.ReconciliationRemoveLimit;
 
             ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value =>
             {

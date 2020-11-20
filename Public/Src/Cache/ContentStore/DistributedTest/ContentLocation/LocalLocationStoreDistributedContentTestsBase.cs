@@ -173,7 +173,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                CheckLocalFiles = true,
 
                                // Tests disable reconciliation by default
-                               Unsafe_DisableReconciliation = true,
+                               ReconcileMode = ReconciliationMode.None.ToString(),
 
                                IsPinBetterEnabled = false,
                                PinMinUnverifiedCount = 1,

@@ -162,7 +162,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private readonly FileContentTable m_fileContentTable;
+        private FileContentTable m_fileContentTable;
 
         /// <summary>
         /// Whether this instance got disposed.
@@ -256,6 +256,19 @@ namespace BuildXL.Engine
         {
             m_schedulerState?.Dispose();
             m_schedulerState = new SchedulerState(scheduler);
+        }
+
+        /// <summary>
+        /// Updates file content table if they are not reference equal.
+        /// </summary>
+        public void UpdateFileContentTable(FileContentTable fileContentTable)
+        {
+            Contract.Requires(!IsDisposed);
+
+            if (!ReferenceEquals(m_fileContentTable, fileContentTable))
+            {
+                m_fileContentTable = fileContentTable;
+            }
         }
 
         /// <summary>

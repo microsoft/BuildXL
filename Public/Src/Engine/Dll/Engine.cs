@@ -2114,6 +2114,12 @@ namespace BuildXL.Engine
                                         newEngineState = engineState != null && engineState.IsDisposed ? null : engineState;
                                     }
 
+                                    if (EngineState.IsUsable(newEngineState))
+                                    {
+                                        // Force update new engine state with the current file content table.
+                                        newEngineState.UpdateFileContentTable(FileContentTable);
+                                    }
+
                                     Contract.Assume(EngineState.CorrectEngineStateTransition(engineState, newEngineState, out var incorrectMessage), incorrectMessage);
                                 }
 

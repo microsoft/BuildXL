@@ -4,6 +4,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -12,6 +14,11 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {
+    /// <remarks>
+    /// Note: the tests modify the behavior of the TempCleaner by setting the 'bestEffort' policy to false
+    /// This just means that the deletions are retried a few times, so the result is the same
+    /// in the 'success / fail every time' scenario, which makes sense for testing
+    /// </remarks>
     public class TempCleanerTests : TemporaryStorageTestBase
     {
         public TempCleanerTests(ITestOutputHelper output)
@@ -28,7 +35,7 @@ namespace Test.BuildXL.Scheduler
             string baseDir = TemporaryDirectory;
             string dir = Path.Combine(baseDir, "DirDoesntExist");
             string file = Path.Combine(baseDir, "FileDoesntExist.txt");
-            using (TempCleaner cleaner = new TempCleaner(LoggingContext))
+            using (TempCleaner cleaner = TempCleaner.CreateForTesting(LoggingContext, bestEffort: false))
             {
                 cleaner.RegisterDirectoryToDelete(dir, deleteRootDirectory: false);
                 cleaner.RegisterFileToDelete(file);
@@ -49,7 +56,7 @@ namespace Test.BuildXL.Scheduler
             PrepareFileWithConent(tempFile, "sampleContent");
 
             // Act
-            using (TempCleaner cleaner = new TempCleaner(LoggingContext))
+            using (TempCleaner cleaner = TempCleaner.CreateForTesting(LoggingContext, bestEffort: false))
             {
                 cleaner.RegisterDirectoryToDelete(dirs.Item1, deleteRootDirectory: false);
                 cleaner.RegisterDirectoryToDelete(dirs.Item2, deleteRootDirectory: false);
@@ -96,7 +103,7 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(File.Exists(file));
 
                 // Act
-                using (TempCleaner cleaner = new TempCleaner(LoggingContext))
+                using (TempCleaner cleaner = TempCleaner.CreateForTesting(LoggingContext, bestEffort: false))
                 {
                     // This should fail
                     cleaner.RegisterDirectoryToDelete(dirs.Item1, deleteRootDirectory: false);
@@ -140,7 +147,7 @@ namespace Test.BuildXL.Scheduler
             File.WriteAllText(deletedFile, "asdf");
 
             // Create a temp cleaner with a temp directory
-            using (TempCleaner cleaner = new TempCleaner(LoggingContext, deletionTemp))
+            using (TempCleaner cleaner = TempCleaner.CreateForTesting(LoggingContext, deletionTemp, bestEffort: false))
             {
                 // Move-delete a file into the TempCleaner temp directory
                 FileUtilities.TryMoveDelete(deletedFile, cleaner.TempDirectory);
@@ -170,7 +177,7 @@ namespace Test.BuildXL.Scheduler
             File.WriteAllText(movedFile, "asdf");
 
             // Create a temp cleaner with a temp directory
-            using (TempCleaner cleaner = new TempCleaner(LoggingContext, moveDeletionTemp))
+            using (TempCleaner cleaner = TempCleaner.CreateForTesting(LoggingContext, moveDeletionTemp, bestEffort: false))
             {
                 // Move-delete a file into the TempCleaner temp directory
                 FileUtilities.TryMoveDelete(movedFile, cleaner.TempDirectory);

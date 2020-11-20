@@ -50,9 +50,10 @@ namespace BuildXL.Native.IO.Unix
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
+            bool bestEffort = false,
             CancellationToken? cancellationToken = default)
         {
-            DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
+            DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, bestEffort, cancellationToken);
         }
 
         private int DeleteDirectoryContentsInternal(
@@ -60,6 +61,7 @@ namespace BuildXL.Native.IO.Unix
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete,
             ITempCleaner tempDirectoryCleaner,
+            bool bestEffort,
             CancellationToken? cancellationToken)
         {
             int remainingChildCount = 0;
@@ -87,6 +89,7 @@ namespace BuildXL.Native.IO.Unix
                             deleteRootDirectory: true,
                             shouldDelete: shouldDelete,
                             tempDirectoryCleaner: tempDirectoryCleaner,
+                            bestEffort: bestEffort,
                             cancellationToken: cancellationToken);
 
                         if (subDirectoryCount > 0)
@@ -99,7 +102,7 @@ namespace BuildXL.Native.IO.Unix
                         if (shouldDelete(childPath))
                         {
                             // This method already has retry logic, so no need to do retry in DeleteFile
-                            DeleteFile(childPath, waitUntilDeletionFinished: true, tempDirectoryCleaner: tempDirectoryCleaner);
+                            DeleteFile(childPath, waitUntilDeletionFinished: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
                         }
                         else
                         {
@@ -119,7 +122,8 @@ namespace BuildXL.Native.IO.Unix
 
                         // Only reached if there are no exceptions
                         return true;
-                    });
+                    },
+                    numberOfAttempts: bestEffort ? 1 : Helpers.DefaultNumberOfAttempts);
 
                 if (!success && Directory.Exists(path))
                 {

@@ -15,6 +15,7 @@ namespace BuildXL.Scheduler
     /// <summary>
     /// Cleans temp directories in the background. Only deletes the contents of directories and, optionally, the directory itself.
     /// Leaving the directory itself not deleted may save work in the subsequent build.
+    /// Deletions are carried out with a best-effort policy, without retrying on failure
     /// This is used for cleaning <see cref="BuildXL.Pips.Operations.Process.TempDirectory"/>,
     /// <see cref="BuildXL.Pips.Operations.Process.AdditionalTempDirectories"/>.
     /// It is also used as a <see cref="ITempCleaner"/> implementation and cleans <see cref="TempCleaner.TempDirectory"/>.
@@ -48,6 +49,8 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private readonly bool m_bestEffort = true;
+
         private long m_directoriesFailedToClean;
         private long m_directoriesCleaned;
         private long m_directoriesPending;
@@ -74,7 +77,15 @@ namespace BuildXL.Scheduler
         /// Creates a <see cref="TempCleaner"/> instance.
         /// </summary>
         public TempCleaner(LoggingContext loggingContext, string tempDirectory = null)
+            : this(loggingContext, tempDirectory, bestEffort: true) 
+        { 
+        }
+
+
+        /// <nodoc />
+        private TempCleaner(LoggingContext loggingContext, string tempDirectory = null, bool bestEffort = true)
         {
+            m_bestEffort = bestEffort;
             m_loggingContext = loggingContext;
             TempDirectory = tempDirectory;
             if (TempDirectory != null)
@@ -95,6 +106,11 @@ namespace BuildXL.Scheduler
             m_cleanerThread.Start();
         }
 
+        internal static TempCleaner CreateForTesting(LoggingContext loggingContext, string tempDirectory = null, bool bestEffort = true)
+        {
+            return new TempCleaner(loggingContext, tempDirectory, bestEffort);
+        }
+        
         /// <summary>
         /// Registers a directory to delete.
         /// </summary>
@@ -210,7 +226,7 @@ namespace BuildXL.Scheduler
             {
                 if (FileUtilities.DirectoryExistsNoFollow(path))
                 {
-                    FileUtilities.DeleteDirectoryContents(path, deleteRootDirectory: deleteRootDirectory, tempDirectoryCleaner: this, cancellationToken: cancellationToken);
+                    FileUtilities.DeleteDirectoryContents(path, deleteRootDirectory: deleteRootDirectory, tempDirectoryCleaner: this, bestEffort: m_bestEffort, cancellationToken: cancellationToken);
                     Interlocked.Increment(ref m_directoriesCleaned);
                 }
             }
@@ -228,7 +244,7 @@ namespace BuildXL.Scheduler
 
             try
             {
-                FileUtilities.DeleteFile(path, tempDirectoryCleaner: this);
+                FileUtilities.DeleteFile(path, !m_bestEffort, tempDirectoryCleaner: this);
                 Interlocked.Increment(ref m_filesCleaned);
             }
             catch (BuildXLException ex)

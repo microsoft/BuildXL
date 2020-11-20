@@ -9,7 +9,7 @@ namespace Test.BuildXL.TestUtilities
 {
     /// <summary>
     /// This is minimal implementation of <see cref="ITempCleaner"/> for unit tests or test bases
-    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempCleaner, CancellationToken?)"/>
+    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempCleaner, bool, CancellationToken?)"/>
     /// and <see cref="FileUtilities.DeleteFile(string, bool, ITempCleaner)"/> to enable move-deletes,
     /// which are more reliable and less prone to unexected exceptions than Windows delete.
     /// </summary>

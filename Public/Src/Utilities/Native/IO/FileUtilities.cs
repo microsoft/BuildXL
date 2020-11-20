@@ -144,14 +144,15 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, CancellationToken?)"/>
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, bool, CancellationToken?)"/>
         public static void DeleteDirectoryContents(
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
+            bool bestEffort = false,
             CancellationToken? cancellationToken = default) =>
-            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
+            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, bestEffort, cancellationToken);
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, Action{string, string, FileAttributes}, bool)"/>
         public static EnumerateDirectoryResult EnumerateDirectoryEntries(

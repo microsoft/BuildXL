@@ -68,12 +68,14 @@ namespace BuildXL.Native.IO
         /// <param name="deleteRootDirectory">whether to also delete the root directory</param>
         /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deleting files</param>
+        /// <param name="bestEffort">if true, avoid retry logic while deleting</param>
         /// <param name="cancellationToken">provides cancelation capability.</param>
         void DeleteDirectoryContents(
             string path, 
             bool deleteRootDirectory, 
             Func<string, bool> shouldDelete, 
-            ITempCleaner tempDirectoryCleaner = null, 
+            ITempCleaner tempDirectoryCleaner = null,
+            bool bestEffort = false,
             CancellationToken? cancellationToken = default);
 
         /// <summary>

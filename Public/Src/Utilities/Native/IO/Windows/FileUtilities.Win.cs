@@ -123,6 +123,7 @@ namespace BuildXL.Native.IO.Windows
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
+            bool bestEffort = false,
             CancellationToken? cancellationToken = default)
         {
             var maybeExistence = m_fileSystem.TryProbePathExistence(path, followSymlink: true);
@@ -137,6 +138,7 @@ namespace BuildXL.Native.IO.Windows
                 deleteRootDirectory: deleteRootDirectory,
                 shouldDelete: shouldDelete,
                 tempDirectoryCleaner: tempDirectoryCleaner,
+                bestEffort: bestEffort,
                 cancellationToken: cancellationToken);
         }
 
@@ -154,6 +156,7 @@ namespace BuildXL.Native.IO.Windows
         /// <param name="deleteRootDirectory">If false, only the contents of the root directory will be deleted</param>
         /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deletes</param>
+        /// <param name="bestEffort">If true, avoid retrying logic while deleting</param>
         /// <param name="cancellationToken">provides cancellation capability</param>
         /// <returns>
         /// How many entries remain in the directory, the count is not recursive. This function could be successful with a count greater than one because of <paramref name="shouldDelete"/>
@@ -164,11 +167,13 @@ namespace BuildXL.Native.IO.Windows
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
+            bool bestEffort = false,
             CancellationToken? cancellationToken = default)
         {
             var defaultDeleteCheck = new Func<string, bool>(p => true);
             shouldDelete = shouldDelete ?? defaultDeleteCheck;
             int remainingChildCount = 0;
+            int numberOfAttempts = bestEffort ? 1 : Helpers.DefaultNumberOfAttempts; // Don't retry if bestEffort
             using (var stringSetPool = Pools.GetStringSet())
             {
                 // Maintain a list of files that that were enumerated for deletion
@@ -192,6 +197,7 @@ namespace BuildXL.Native.IO.Windows
                                 deleteRootDirectory: true,
                                 shouldDelete: shouldDelete,
                                 tempDirectoryCleaner: tempDirectoryCleaner,
+                                bestEffort: bestEffort,
                                 cancellationToken: cancellationToken);
                             if (subDirectoryEntryCount > 0)
                             {
@@ -203,7 +209,7 @@ namespace BuildXL.Native.IO.Windows
                             if (shouldDelete(childPath))
                             {
                                 // This method already has retry logic, so no need to do retry in DeleteFile
-                                DeleteFile(childPath, waitUntilDeletionFinished: true, tempDirectoryCleaner: tempDirectoryCleaner);
+                                DeleteFile(childPath, waitUntilDeletionFinished: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
                             }
                             else
                             {
@@ -246,7 +252,8 @@ namespace BuildXL.Native.IO.Windows
                             DeleteEmptyDirectory(directoryPath, tempDirectoryCleaner: tempDirectoryCleaner, logFailures: finalRound);
                             // Only reached if there are no exceptions
                             return true;
-                        });
+                        },
+                        numberOfAttempts: numberOfAttempts);
                 }
                 else
                 {
@@ -288,7 +295,8 @@ namespace BuildXL.Native.IO.Windows
                             // Deletion is successful when the child directories/files count matches the expected count
                             return actualRemainingChildCount == remainingChildCount;
                         },
-                        rethrowException: true /* exceptions thrown in work() will occur again on retry, so just rethrow them */);
+                        rethrowException: true /* exceptions thrown in work() will occur again on retry, so just rethrow them */,
+                        numberOfAttempts: numberOfAttempts);
                 }
 
                 if (!success)

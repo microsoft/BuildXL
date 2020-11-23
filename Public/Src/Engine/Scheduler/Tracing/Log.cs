@@ -3723,8 +3723,8 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
            (ushort)LogEventId.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater,
            EventGenerators = EventGenerators.LocalOnly,
-           EventLevel = Level.Error,
-           Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+           EventLevel = Level.Warning,
+           Keywords = (int)Keywords.UserMessage,
            EventTask = (ushort)Tasks.Scheduler,
            Message = "FileArtifacts for the following path(s) (count={count}) were not available at the time of file materialization request was received but they were available at the end of a build:{paths}")]
         internal abstract void FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(LoggingContext loggingContext, int count, string paths);

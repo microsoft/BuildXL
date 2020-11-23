@@ -1592,7 +1592,7 @@ namespace BuildXL.Scheduler
                         $"{Environment.NewLine}{string.Join(Environment.NewLine, failedPaths.Select(p => p.ToString(Context.PathTable)))}");
                 }
 
-                return !HasFailed && shutdownServicesSucceeded && failedPaths.Count == 0;
+                return !HasFailed && shutdownServicesSucceeded;
             }
         }
 

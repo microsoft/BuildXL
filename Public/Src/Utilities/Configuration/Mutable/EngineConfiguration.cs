@@ -57,6 +57,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Phase = template.Phase;
             CleanOnly = template.CleanOnly;
             Scrub = template.Scrub;
+            ExitOnNewGraph = template.ExitOnNewGraph;
             MaxRelativeOutputDirectoryLength = template.MaxRelativeOutputDirectoryLength;
             CleanTempDirectories = template.CleanTempDirectories;
             ReuseEngineState = template.ReuseEngineState;
@@ -106,6 +107,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool Scrub { get; set; }
+
+        /// <inheritdoc />
+        public bool ExitOnNewGraph { get; set; }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

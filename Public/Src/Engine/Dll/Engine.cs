@@ -1911,6 +1911,12 @@ namespace BuildXL.Engine
                                     out engineSchedule,
                                     out rootFilter);
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
+                                bool exitOnNewGraph = constructScheduleResult == ConstructScheduleResult.ExitOnNewGraph;
+                                if (exitOnNewGraph)
+                                {
+                                    Context.EngineCounters.AddToCounter(EngineCounter.ExitOnNewGraph, 1);
+                                }
+
                                 ValidateSuccessMatches(success, engineLoggingContext);
 
                                 var phase = Configuration.Engine.Phase;
@@ -1974,7 +1980,7 @@ namespace BuildXL.Engine
                                 }
 
                                 // Keep this as close to the Execute phase as possible
-                                if (phase.HasFlag(EnginePhases.Schedule) && Configuration.Engine.LogStatistics)
+                                if (phase.HasFlag(EnginePhases.Schedule) && !exitOnNewGraph && Configuration.Engine.LogStatistics)
                                 {
                                     BuildXL.Tracing.Logger.Log.Statistic(
                                         engineLoggingContext,
@@ -1987,7 +1993,7 @@ namespace BuildXL.Engine
 
                                 ThreadPoolHelper.ConfigureWorkerThreadPools(Configuration.Schedule.MaxProcesses);
 
-                                if (success && phase.HasFlag(EnginePhases.Execute))
+                                if (success && !exitOnNewGraph && phase.HasFlag(EnginePhases.Execute))
                                 {
                                     Contract.Assert(
                                         phase.HasFlag(EnginePhases.Schedule),
@@ -2718,6 +2724,7 @@ namespace BuildXL.Engine
             Failure,
             ConstructedNewGraph,
             ReusedExistingGraph,
+						ExitOnNewGraph
         }
 
         /// <summary>
@@ -2800,8 +2807,8 @@ namespace BuildXL.Engine
             }
 
             GraphReuseResult reuseResult = null;
-
-            if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule)
+            var phase = Configuration.Engine.Phase;
+            if (phase.HasFlag(EnginePhases.Schedule)
                 &&
                 ((IsGraphCacheConsumptionAllowed() && graphFingerprint != null) ||
                  Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker))
@@ -2856,9 +2863,14 @@ namespace BuildXL.Engine
                 m_enginePerformanceInfo.CacheInitializationDurationMs = (long)cacheInitializationTask.InitializationTime.TotalMilliseconds;
             }
 
+            if (Configuration.Engine.ExitOnNewGraph && !reusedGraph)
+            {
+                Logger.Log.ExitOnNewGraph(loggingContext);
+                return ConstructScheduleResult.ExitOnNewGraph;
+            }
+
             m_buildViewModel.SetContext(Context);
 
-            var phase = Configuration.Engine.Phase;
             try
             {
                 if (engineSchedule == null)

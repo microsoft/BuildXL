@@ -81,6 +81,14 @@ namespace BuildXL.Utilities.Configuration
         bool CleanOnly { get; }
 
         /// <summary>
+        /// If true, exit if a new graph should be created, instead of actually creating it.
+        /// This is used to to create a graph where the specs of the graph are the outputs of the graph.
+        /// This works by first building a graph filtered to the spec creation pips, then including the created specs in the new graph.
+        /// If a new graph would be created, we have no idea if the specs are up to date, so the build needs to fall back to being filtered to the spec creation pips.
+        /// </summary>
+        bool ExitOnNewGraph { get; }
+
+        /// <summary>
         /// Before executing, scrubs (deletes) files and directories not marked as inputs or outputs of the current build. Only applies to mounts marked as Scrubbable. This includes the object directory but none others by default.
         /// </summary>
         bool Scrub { get; }

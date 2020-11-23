@@ -396,6 +396,8 @@ namespace BuildXL.Engine.Tracing
 
         ChosenABTesting = 7126,
 
+        ExitOnNewGraph = 7128,
+
         EngineLoadedFileContentTable = 7150,
 
         LogAndRemoveEngineStateOnBuildFailure = 10011,

@@ -102,7 +102,12 @@ namespace BuildXL.Engine
         /// <summary>
         /// The number of bytes that are stored in cache for fingerprint store
         /// </summary>
-        FingerprintStoreSavedSizeBytes
+        FingerprintStoreSavedSizeBytes,
+
+        /// <summary>
+        /// 1 if /exitonnewgraph flag was specified and a pip graph was scheduled to be created, 0 otherwise.
+        /// </summary>
+        ExitOnNewGraph
     }
 
     internal static class EngineCounters

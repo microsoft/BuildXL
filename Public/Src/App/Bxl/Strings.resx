@@ -1069,4 +1069,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_UpdateFileContentTableByScanningChangeJournal" xml:space="preserve">
     <value>When enabled, file content table is updated during the scanning of change journal. Defaults to on.</value>
   </data>
+  <data name="HelpText_DisplayHelp_ExitOnNewGraph" xml:space="preserve">
+    <value>When enabled, exit early if a new graph needs to be created.  This differs from phase:schedule because it doesn't actually create the graph.</value>
+  </data>
 </root>

@@ -18,6 +18,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
 using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
+using System.Diagnostics;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -50,6 +51,46 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsTrue(File.Exists(outPath));
             string s = File.ReadAllText(outPath);
             XAssert.IsTrue(s.Equals("Hello World, BuildXL!", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void MiniBuildExitEarlyOnNewGraph()
+        {
+            // Ignore DX222 for csc.exe being outside of src directory
+            IgnoreWarnings();
+
+            SetupHelloWorld();
+            Configuration.Engine.ExitOnNewGraph = true;
+            RunEngine("First build");
+
+            AssertInformationalEventLogged(LogEventId.ExitOnNewGraph);
+
+            var objectDirectoryPath = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+
+            XAssert.IsFalse(File.Exists(Path.Combine(objectDirectoryPath, "HelloWorld.cs")));
+            XAssert.IsFalse(File.Exists(Path.Combine(objectDirectoryPath, "src", "HelloWorld.cs")));
+            XAssert.IsFalse(File.Exists(Path.Combine(objectDirectoryPath, "bin", "HelloWorld.exe")));
+
+            string outPath = Path.Combine(objectDirectoryPath, "HelloWorld.out");
+            XAssert.IsFalse(File.Exists(outPath));
+
+            Configuration.Engine.ExitOnNewGraph = false;
+            RunEngine("Second build");
+            AssertInformationalEventLogged(LogEventId.ExitOnNewGraph, 0);
+
+            XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, "HelloWorld.cs")));
+            XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, "src", "HelloWorld.cs")));
+            XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, "bin", "HelloWorld.exe")));
+            XAssert.IsTrue(File.Exists(outPath));
+
+            Configuration.Engine.ExitOnNewGraph = true;
+            RunEngine("Second build");
+            AssertInformationalEventLogged(LogEventId.ExitOnNewGraph, 0);
+
+            AppendNewLine(Configuration.Startup.ConfigFile);
+            RunEngine("Final build");
+
+            AssertInformationalEventLogged(LogEventId.ExitOnNewGraph);
         }
 
         /// <summary>

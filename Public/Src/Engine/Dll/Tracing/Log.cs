@@ -331,6 +331,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void EngineContextHeuristicOutcomeSkip(LoggingContext context, int generation, string reason);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ExitOnNewGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "New graph was created, graceful exit requested.",
+            EventLevel = Level.Informational,
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ExitOnNewGraph(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StartSerializingPipGraph,
             EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Serializing pip graph for future reuse",

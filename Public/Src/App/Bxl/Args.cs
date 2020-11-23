@@ -436,6 +436,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "environment",
                             opt => loggingConfiguration.Environment = CommandLineUtilities.ParseEnumOption<ExecutionEnvironment>(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "exitOnNewGraph",
+                            sign => engineConfiguration.ExitOnNewGraph = sign),
                         OptionHandlerFactory.CreateOption2(
                             "experiment",
                             "exp",

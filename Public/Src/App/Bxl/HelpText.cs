@@ -1217,6 +1217,10 @@ namespace BuildXL
                Strings.HelpText_DisplayHelp_PluginPaths,
                HelpLevel.Verbose);
 
+            hw.WriteOption("/exitOnNewGraph",
+                Strings.HelpText_DisplayHelp_ExitOnNewGraph,
+                HelpLevel.Verbose);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

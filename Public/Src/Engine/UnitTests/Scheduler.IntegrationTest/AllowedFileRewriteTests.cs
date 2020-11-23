@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Builders;
@@ -124,10 +125,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             var writer = SchedulePipBuilder(writerBuilder);
 
             // An unordered reader
-            SchedulePipBuilder(CreateReader(source));
+            var reader = SchedulePipBuilder(CreateReader(source));
 
             // Run should fail because read content is not guaranteed to be consistent
-            RunScheduler().AssertFailure();
+            // We pin the order at execution time since otherwise the read may fail if the writer is locking the file
+            RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)> { (reader.Process, writer.Process) }).AssertFailure();
             AssertVerboseEventLogged(LogEventId.DisallowedRewriteOnUndeclaredFile);
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
         }

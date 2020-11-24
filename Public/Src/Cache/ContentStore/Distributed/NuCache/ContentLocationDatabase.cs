@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -37,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to locate an entry for a given hash.
         /// </summary>
-        bool TryGetEntry(OperationContext context, ShortHash hash, out ContentLocationEntry entry);
+        bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry);
     }
 
     /// <summary>
@@ -106,12 +107,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Sets a key to a given value in the global info map
         /// </summary>
-        public abstract void SetGlobalEntry(string key, string value);
+        public abstract void SetGlobalEntry(string key, string? value);
 
         /// <summary>
         /// Attempts to get a value from the global info map
         /// </summary>
-        public abstract bool TryGetGlobalEntry(string key, out string value);
+        public abstract bool TryGetGlobalEntry(string key, [NotNullWhen(true)]out string? value);
 
         /// <summary>
         /// Factory method that creates an instance of a <see cref="ContentLocationDatabase"/> based on an optional <paramref name="configuration"/> instance.
@@ -228,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to locate an entry for a given hash.
         /// </summary>
-        public bool TryGetEntry(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        public bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
         {
             if (TryGetEntryCore(context, hash, out entry))
             {
@@ -259,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
+        protected abstract IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(
             OperationContext context,
             EnumerationFilter? filter = null,
             bool returnKeysOnly = false);
@@ -267,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a sequence of keys and values sorted by keys.
         /// </summary>
-        public IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+        public IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeys(
             OperationContext context,
             EnumerationFilter? filter = null)
         {
@@ -588,10 +589,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected abstract BoolResult RestoreCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory);
 
         /// <nodoc />
-        protected abstract bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, out ContentLocationEntry entry);
+        protected abstract bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry);
 
         /// <nodoc />
-        protected bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        protected bool TryGetEntryCore(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfGetOperations].Increment();
 

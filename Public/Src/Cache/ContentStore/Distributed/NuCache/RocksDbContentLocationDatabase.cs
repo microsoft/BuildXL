@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -30,7 +31,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
-#nullable enable annotations
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -44,11 +45,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
-        private string _storeLocation;
+        private string? _storeLocation;
         private readonly string _activeSlotFilePath;
-        private Timer _compactionTimer;
+        private Timer? _compactionTimer;
 
-        private readonly RocksDbLogsManager _logManager;
+        private readonly RocksDbLogsManager? _logManager;
 
         private enum StoreSlot
         {
@@ -100,6 +101,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _logManager = new RocksDbLogsManager(clock, new PassThroughFileSystem(), _configuration.LogsBackupPath, _configuration.LogsRetention);
             }
+
+            // this is a hacky way to convince the compiler that the field is initialized.
+            // Technically, the field is nullable, but keeping it as nullable causes more issues than giving us benefits.
+            _keyValueStore = null!;
         }
 
         /// <inheritdoc />
@@ -194,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        private bool IsStoredEpochInvalid(out string epoch)
+        private bool IsStoredEpochInvalid([NotNullWhen(true)]out string? epoch)
         {
             TryGetGlobalEntry(nameof(ClusterStateKeys.StoredEpoch), out epoch);
             return _configuration.Epoch != epoch;
@@ -473,35 +478,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override void SetGlobalEntry(string key, string value)
+        public override void SetGlobalEntry(string key, string? value)
         {
-            _keyValueStore.Use(store =>
-            {
-                if (value == null)
+            _keyValueStore.Use(
+                static (store, state) =>
                 {
-                    store.Remove(key, nameof(Columns.ClusterState));
-                }
-                else
-                {
-                    store.Put(key, value, nameof(Columns.ClusterState));
-                }
-            }).ThrowOnError();
+                    if (state.value == null)
+                    {
+                        store.Remove(state.key, nameof(Columns.ClusterState));
+                    }
+                    else
+                    {
+                        store.Put(state.key, state.value, nameof(Columns.ClusterState));
+                    }
+                    return Unit.Void;
+                },
+                (key, value)).ThrowOnError();
         }
 
         /// <inheritdoc />
-        public override bool TryGetGlobalEntry(string key, out string value)
+        public override bool TryGetGlobalEntry(string key, [NotNullWhen(true)]out string? value)
         {
-            value = _keyValueStore.Use(store =>
-            {
-                if (store.TryGetValue(key, out var value, nameof(Columns.ClusterState)))
+            value = _keyValueStore.Use(
+                static (store, state) =>
                 {
-                    return value;
-                }
-                else
-                {
-                    return null;
-                }
-            }).ThrowOnError();
+                    if (store.TryGetValue(state, out var result, nameof(Columns.ClusterState)))
+                    {
+                        return result;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                },
+                key).ThrowOnError();
+
             return value != null;
         }
 
@@ -509,17 +520,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
         {
             return EnumerateEntriesWithSortedKeysFromStorage(context, valueFilter: null, returnKeysOnly: true)
-                .Select(pair => pair.key);
+                .Select(static pair => pair.key);
         }
 
         /// <inheritdoc />
-        protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
+        protected override IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(
             OperationContext context,
             EnumerationFilter? valueFilter,
             bool returnKeysOnly)
         {
             var token = context.Token;
-            var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
+            var keyBuffer = new List<(ShortHash key, ContentLocationEntry? entry)>();
             // Last successfully processed entry, or before-the-start pointer
             var startValue = valueFilter?.StartingPoint?.ToByteArray();
 
@@ -558,10 +569,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         }
                                         else
                                         {
-                                            byte[] value = null;
+                                            byte[]? value = null;
                                             if (valueFilter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
                                             {
-                                                keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value)));
+                                                keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value!)));
                                             }
                                         }
 
@@ -596,19 +607,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
         {
             entry = _keyValueStore.Use(
-                    (store, state) => TryGetEntryCoreHelper(state.hash, store, state.db),
+                    static (store, state) => TryGetEntryCoreHelper(state.hash, store, state.db),
                     (hash, db: this)
                 ).ThrowOnError();
             return entry != null;
         }
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
-        private static ContentLocationEntry TryGetEntryCoreHelper(ShortHash hash, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
+        private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
         {
-            ContentLocationEntry result = null;
+            ContentLocationEntry? result = null;
             if (store.TryGetValue(db.GetKey(hash), out var data))
             {
                 result = db.DeserializeContentLocationEntry(data);
@@ -622,31 +633,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (entry == null)
             {
-                DeleteFromDb(context, hash);
+                DeleteFromDb(hash);
             }
             else
             {
-                SaveToDb(context, hash, entry);
+                SaveToDb(hash, entry);
             }
         }
 
         /// <inheritdoc />
         internal override void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
         {
-            _keyValueStore.Use((store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
+            _keyValueStore.Use(static (store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
         }
 
         private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
-            store.ApplyBatch(pairs.Select(
-                kvp => new KeyValuePair<byte[], byte[]>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null)));
+            store.ApplyBatch(
+                pairs.SelectWithState(
+                    static (kvp, db) => new KeyValuePair<byte[], byte[]?>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null),
+                    state: db));
             return Unit.Void;
         }
 
-        private void SaveToDb(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        private void SaveToDb(ShortHash hash, ContentLocationEntry entry)
         {
             _keyValueStore.Use(
-                (store, state) => SaveToDbHelper(state.hash, state.entry, store, state.db), (hash, entry, db: this)).ThrowOnError();
+                static (store, state) => SaveToDbHelper(state.hash, state.entry, store, state.db), (hash, entry, db: this)).ThrowOnError();
         }
 
         // NOTE: This should remain static to avoid allocations in Store
@@ -658,10 +671,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return Unit.Void;
         }
 
-        private void DeleteFromDb(OperationContext context, ShortHash hash)
+        private void DeleteFromDb(ShortHash hash)
         {
             _keyValueStore.Use(
-                (store, state) => DeleteFromDbHelper(state.hash, store, state.db), (hash, db: this)).ThrowOnError();
+                static (store, state) => DeleteFromDbHelper(state.hash, store, state.db), (hash, db: this)).ThrowOnError();
         }
 
         // NOTE: This should remain static to avoid allocations in Delete
@@ -684,6 +697,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override Result<MetadataEntry?> GetMetadataEntry(OperationContext context, StrongFingerprint strongFingerprint, bool touch)
         {
+            // This method calls _keyValueStore.Use with non-static lambda, because this code is complicated
+            // and not as perf critical as other places.
             var key = GetMetadataKey(strongFingerprint);
             MetadataEntry? result = null;
             var status = _keyValueStore.Use(
@@ -776,18 +791,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var result = new List<StructResult<StrongFingerprint>>();
             var status = _keyValueStore.Use(
-                store =>
+                static (store, state) =>
                 {
-                    foreach (var kvp in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+                    foreach (var kvp in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
                     {
                         // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
                         // to make an alternative prefix search that doesn't even read the values from RocksDB.
-                        var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
-                        result.Add(StructResult.Create(strongFingerprint));
+                        var strongFingerprint = state.@this.DeserializeStrongFingerprint(kvp.Key);
+                        state.result.Add(StructResult.Create(strongFingerprint));
                     }
 
-                    return result;
-                });
+                    return state.result;
+                }, (result: result, @this: this));
 
             if (!status.Succeeded)
             {
@@ -802,19 +817,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var selectors = new List<(long TimeUtc, Selector Selector)>();
             var status = _keyValueStore.Use(
-                store =>
+                static (store, state) =>
                 {
-                    var key = SerializeWeakFingerprint(weakFingerprint);
+                    var @this = state.@this;
+                    var key = @this.SerializeWeakFingerprint(state.weakFingerprint);
 
                     // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
                     // we know that all keys here are strong fingerprints that match the weak fingerprint.
                     foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.Metadata)))
                     {
-                        var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
-                        var timeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
-                        selectors.Add((timeUtc, strongFingerprint.Selector));
+                        var strongFingerprint = @this.DeserializeStrongFingerprint(kvp.Key);
+                        var timeUtc = @this.DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                        state.selectors.Add((timeUtc, strongFingerprint.Selector));
                     }
-                });
+
+                    return Unit.Void;
+                }, (selectors: selectors, @this: this, weakFingerprint: weakFingerprint));
 
             if (!status.Succeeded)
             {
@@ -828,17 +846,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
         {
-            return SerializationPool.Serialize(weakFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
         }
 
         private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
         {
-            return SerializationPool.Serialize(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
         }
 
         private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
         {
-            return SerializationPool.Deserialize(bytes, reader => StrongFingerprint.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
         }
 
         private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
@@ -848,21 +866,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeMetadataEntry(MetadataEntry value)
         {
-            return SerializationPool.Serialize(value, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(value, static (instance, writer) => instance.Serialize(writer));
         }
 
         private MetadataEntry DeserializeMetadataEntry(byte[] data)
         {
-            return SerializationPool.Deserialize(data, reader => MetadataEntry.Deserialize(reader));
+            return SerializationPool.Deserialize(data, static reader => MetadataEntry.Deserialize(reader));
         }
 
         private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
         {
-            return SerializationPool.Deserialize(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+            return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
 
-        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string columnFamilyName = null)
+        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string? columnFamilyName = null)
         {
             try
             {
@@ -926,7 +944,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
                 capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
                 comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
-            foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
             {
                 // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
                 // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
@@ -940,7 +958,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
                     strongFingerprint: keyValuePair.Key);
 
-                byte[] strongFingerprintToRemove = null;
+                byte[]? strongFingerprintToRemove = null;
 
                 if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
                 {
@@ -1000,7 +1018,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ulong firstPassSumValueSize = 0;
             ulong firstPassScannedEntries = 0;
             var latSketch = new DDSketch();
-            foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
             {
                 context.Token.ThrowIfCancellationRequested();
 
@@ -1060,7 +1078,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ulong secondPassRemovedKeySize = 0;
             ulong secondPassRemovedValueSize = 0;
 
-            foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+            foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
             {
                 if (context.Token.IsCancellationRequested)
                 {
@@ -1210,7 +1228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     case FullRangeCompactionStrategy.EntireRange:
                     {
-                        store.CompactRange((byte[])null, null, columnFamilyName);
+                        store.CompactRange((byte[]?)null, null, columnFamilyName);
                         break;
                     }
                     case FullRangeCompactionStrategy.ByteIncrements:
@@ -1307,12 +1325,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeCompactionInfo(CompactionInfo strongFingerprint)
         {
-            return SerializationPool.Serialize(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
         }
 
         private CompactionInfo DeserializeCompactionInfo(byte[] bytes)
         {
-            return SerializationPool.Deserialize(bytes, reader => CompactionInfo.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, static reader => CompactionInfo.Deserialize(reader));
         }
 
         private struct CompactionInfo
@@ -1408,23 +1426,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, CancellationToken, TResult> action, TState state)
             {
                 using var token = _accessorLock.AcquireReadLock();
-                return _accessor.Use((store, innerState) => action(store, innerState.state, innerState.token), (state, token: _killSwitch.Token));
+                return _accessor.Use(
+                    static (store, innerState) => innerState.action(store, innerState.state, innerState.token),
+                    (state, token: _killSwitch.Token, action));
             }
 
             public Possible<Unit> Use(Action<IBuildXLKeyValueStore, CancellationToken> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
-                return _accessor.Use((store, killSwitch) =>
-                {
-                    action(store, killSwitch);
-                    return Unit.Void;
-                }, _killSwitch.Token);
+                return _accessor.Use(
+                    static (store, state) => { state.action(store, state.killSwitch); return Unit.Void; },
+                    (killSwitch: _killSwitch.Token, action));
             }
 
             public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, CancellationToken, TResult> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
-                return _accessor.Use((store, killSwitch) => action(store, killSwitch), _killSwitch.Token);
+                return _accessor.Use(
+                    static (store, state) => state.action(store, state.killSwitch),
+                    (killSwitch: _killSwitch.Token, action));
             }
         }
     }

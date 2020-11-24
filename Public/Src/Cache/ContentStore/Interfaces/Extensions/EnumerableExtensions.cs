@@ -3,11 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
-#nullable disable
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
 {
@@ -17,9 +18,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
     public static class EnumerableExtensions
     {
         /// <summary>
+        /// A version of <see cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/> that takes a state to avoid closure allocations.
+        /// </summary>
+        /// <remarks>
+        /// This version will allocate enumerator as a normal Select version will, but it helps avoiding a closure allocation for the selector.
+        /// </remarks>
+        public static IEnumerable<TResult> SelectWithState<TInput, TState, TResult>(this IEnumerable<TInput> sequence, Func<TInput, TState, TResult> selector, TState state)
+        {
+            foreach (var e in sequence)
+            {
+                yield return selector(e, state);
+            }
+        }
+
+        /// <summary>
         ///     Write all elements to a HashSet.
         /// </summary>
-        public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items, IEqualityComparer<T> comparer = null)
+        public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items, IEqualityComparer<T>? comparer = null)
         {
             comparer ??= EqualityComparer<T>.Default;
             return new HashSet<T>(items, comparer);
@@ -28,7 +43,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <summary>
         /// Gets the item with the max key given the optional key comparer.
         /// </summary>
-        public static T MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey> keyComparer = null)
+        [return: MaybeNull]
+        public static T MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey>? keyComparer = null)
         {
             keyComparer ??= Comparer<TKey>.Default;
             T maxItem = default;
@@ -38,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             foreach (var item in items)
             {
                 var currentKey = keySelector(item);
-                if (isFirst || keyComparer.Compare(currentKey, maxKey) > 0)
+                if (isFirst || keyComparer.Compare(currentKey, maxKey!) > 0)
                 {
                     isFirst = false;
                     maxItem = item;
